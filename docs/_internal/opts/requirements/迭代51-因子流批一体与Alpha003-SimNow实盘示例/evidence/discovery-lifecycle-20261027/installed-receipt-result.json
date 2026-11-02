@@ -1,0 +1,19 @@
+{
+  "status": "PASS_INSTALLED_RECEIPT_COMPATIBILITY_ONLY",
+  "schema": 1,
+  "helper_sha256": "9cf046246e803eec81002b8152307ac78825cbef351facb26e2c4739e0e4607f",
+  "receipt_cases": 4,
+  "completion_flags": [
+    true,
+    true,
+    true,
+    false
+  ],
+  "same_named_impostor_rejected": true,
+  "real_unstarted_store_health_valid": true,
+  "installed_origins_verified": true,
+  "client_created": false,
+  "provider_invoked": false,
+  "private_input_read": false,
+  "actual_native_close_proven": false
+}

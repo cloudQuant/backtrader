@@ -1,0 +1,30 @@
+{
+  "status": "PASS_INSTALLED_WRAPPER_AND_PUBLIC_ARTIFACT_GATE_ONLY",
+  "wheel": {
+    "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+    "bytes": 2442133,
+    "sha256": "dab4e74c4df206bae12649f45e0356e6df28be3f314d58a694444fb0e30b99cb"
+  },
+  "record": {
+    "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD",
+    "bytes": 112519,
+    "sha256": "43c59fbcab35f4c5c19ed14be1078018c463e6126724c9d4c70fa7928bb2ac34"
+  },
+  "record_hashed_entries_verified": 676,
+  "payload_files_verified": 667,
+  "store_source": {
+    "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\stores\\btapistore.py",
+    "bytes": 862375,
+    "sha256": "7e0d35fbf4f24d11b739a7a61cab2c2a30810bcac0f0a8f421f2e0dab9cc8491"
+  },
+  "protected_helper": {
+    "path": "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\protected_simnow.py",
+    "bytes": 8556,
+    "sha256": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982"
+  },
+  "explicit_nojoin_wrapper_created": true,
+  "sdk_clients_created": false,
+  "private_configuration_read": false,
+  "native_api_created": false,
+  "provider_called": false
+}

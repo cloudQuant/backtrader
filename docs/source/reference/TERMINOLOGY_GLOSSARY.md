@@ -160,15 +160,29 @@
 
 | Candle | 蜡烛图 | K 线图 |
 
-## 实盘交易 Live Trading
+## 交易运行模式 Trading Modes
 
 | English | 中文 | 说明 |
 
 |---------|------|------|
 
-| Live Trading | 实盘交易 | 真实交易 |
+| Replay | 历史回放（Replay） | 按历史时钟重放已记录的市场事件；成交由本地模拟器处理，不调用外部交易接口。 |
 
-| Paper Trading | 模拟交易 | 虚拟交易 |
+| Shadow | 影子模式（Shadow） | 读取实时输入并只观察策略意图；不提交、撤销或修改外部订单。 |
+
+| Paper / Paper Trading | 外部模拟账户（Paper） | 连接经纪商或交易所提供的外部模拟账户/测试网；本地 `BackBroker` 撮合不属于 paper。 |
+
+| Live / Live Trading | 生产账户（Live） | 连接生产账户；生产写操作仍需明确授权。 |
+
+| Local Simulation / Backtesting | 本地模拟/回测 | 使用 `BackBroker` 或本地撮合器验证逻辑；不是外部模拟账户模式 paper。 |
+
+四种目标模式的边界见[交易运行模式标准](../advanced/architecture/trading-modes_zh.md)。
+
+## 交易接口术语 Trading Interfaces
+
+| English | 中文 | 说明 |
+
+|---------|------|------|
 
 | Exchange | 交易所 | 市场 |
 

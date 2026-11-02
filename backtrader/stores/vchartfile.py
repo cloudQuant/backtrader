@@ -40,6 +40,7 @@ class VChartFile(Store):
 
         Determines the VisualChart data directory path.
         """
+        super().__init__()
         self._path = self.p.path
         if self._path is None:
             self._path = self._find_vchart()

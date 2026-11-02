@@ -1,0 +1,77 @@
+{
+  "round": "i51-calendar-refresh-20261027-r1",
+  "candidate_revision": "r2-after-runner-history-hash-diagnosis",
+  "base_head": "8a65f3d8b7f06768542cb9435ecb4f97043da744",
+  "branch": "dev",
+  "frozen_at_utc": "2026-10-26T16:13:35Z",
+  "source_review_retrieved_at_utc": "2026-10-26T15:23:19Z",
+  "target_status": [
+    " M backtrader/feeds/futures_expected_calendar.py",
+    " M examples/unified/028_alpha003_simnow_minute/run.py",
+    " M tests/unit/feeds/test_futures_expected_calendar.py",
+    " M tests/unit/test_alpha003_simnow_runner.py"
+  ],
+  "inputs": [
+    {
+      "path": "backtrader/feeds/futures_expected_calendar.py",
+      "sha256": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+      "length": 27709
+    },
+    {
+      "path": "tests/unit/feeds/test_futures_expected_calendar.py",
+      "sha256": "23e849cb19a8db82843d32191999c3b03671db4d361531747a5ba57828159ff7",
+      "length": 22526
+    },
+    {
+      "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+      "sha256": "f5d14bff2a19e425b32d60c6192f4089cb5f4cb9ac92ae24d34114e98d275dbc",
+      "length": 250322
+    },
+    {
+      "path": "tests/unit/test_alpha003_simnow_runner.py",
+      "sha256": "d4c52caebcf1503261270f66227a82d5b9d4b37aea3599d5f6c694ea732fdedb",
+      "length": 207184
+    },
+    {
+      "path": "backtrader/feeds/futures_sessions.py",
+      "sha256": "b43de31182bc1347a404cc764e6f107dbf79ecd4f8b2b78dde0607ff84aac0b1",
+      "length": 52346
+    },
+    {
+      "path": "backtrader/feeds/futures_main_contract.py",
+      "sha256": "70b83d738ec9f66cd349b525416ed6168eed70c3e7e642d6fa93421b86c5dfa6",
+      "length": 112667
+    },
+    {
+      "path": "conftest.py",
+      "sha256": "27ceed0c4b0af7d818bab2e8bed89acbf2e30a51010e8773e6f50bbde9797f20",
+      "length": 10393
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "0778183eb5cf00f9396e40bef08eb0b5c6cd46d317031d70dc67e2b0df82ecde",
+      "length": 9062
+    },
+    {
+      "path": "tests/unit/stores/test_factor_execution_facts.py",
+      "sha256": "6e63db2d040ca592157032dd2f01bce6b93d6cb6290b82af3e1515b4353e16e0",
+      "length": 152605
+    },
+    {
+      "path": "tests/test_utils/optional_sdk.py",
+      "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1",
+      "length": 827
+    },
+    {
+      "path": ".codex-tmp/i51_calendar_public_source_refresh_20261026.json",
+      "sha256": "95cda209fd98d014e7823f75bdf2ccbf7cf5fb218339e48c1567e757cc22c0c3",
+      "length": 15175
+    },
+    {
+      "path": ".codex-tmp/i51_calendar_source_refresh_note_20261026.md",
+      "sha256": "86309cba8584a9a85c81650c1b4bc83640bdf19925e492723a82750ac7b45018",
+      "length": 6282
+    }
+  ],
+  "command": "python -m pytest -q -p no:asyncio tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live] tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart] --junitxml=D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-ctp-query-r2.junit.xml --basetemp=D:\\temp\\i51-calendar-refresh-20261027-r1\\runner-basetemp-r2 -o cache_dir=D:\\temp\\i51-calendar-refresh-20261027-r1\\pytest-cache"
+}

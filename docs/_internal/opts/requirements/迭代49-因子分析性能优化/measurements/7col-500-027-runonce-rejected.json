@@ -1,0 +1,32 @@
+{
+  "status": "REJECTED_SLOWER_COMPLETE_FLOW",
+  "metrics": {
+    "example_main_wall_ns": {
+      "a": 27659004800,
+      "b": 31695827200,
+      "change_percent": 14.594966193432967
+    },
+    "example_main_process_cpu_ns": {
+      "a": 26859375000,
+      "b": 30703125000,
+      "change_percent": 14.310645724258286
+    },
+    "a_peak_bytes": 308756480,
+    "b_peak_bytes": 304242688
+  },
+  "counts": {
+    "actual_027_runs": 2,
+    "unique_comparisons": 1,
+    "full_verifiers": 1,
+    "reused_025_026_controls": 2
+  },
+  "qa": "22 tests passed before a new fixture row-count assertion failed; corrected fixture then four remaining tests passed. 26 unique passes, known config warning in both runs.",
+  "output": "Complete verifier PASS; only explicit 027 engine difference allowed. Reused 025/026 controls are not new runs.",
+  "decision": "Remove this unaccepted experiment from live source; retain runnext for final500/full. One pair rejects the candidate; it does not establish stable slowdown.",
+  "source_validation_scope": "Verifier checks output/engine receipt consistency. Exact source maps/origins are separately checked by the benchmark and final paired launcher; no standalone source-attestation claim.",
+  "archive": {
+    "path": "7col-500-027-runonce-rejected.zip",
+    "sha256": "0077b742b53fa91cfe0e61a0e91822cbf41c063f09b4f8de6f8f3b697bfb8585",
+    "members": 19
+  }
+}

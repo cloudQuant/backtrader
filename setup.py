@@ -16,6 +16,8 @@ setup(
     version=ABOUT["__version__"],  # Version number
     packages=find_packages(
         exclude=[
+            "archive",
+            "archive.*",
             "strategies",
             "studies",
             "studies.*",
@@ -35,17 +37,6 @@ setup(
     package_data={
         "backtrader": [
             "configs/account_config_example.yaml",
-        ],
-        # Immutable, credential-free data belongs only to the packaged
-        # Iteration 41 acceptance fixtures: two fake-provider L2 configs plus
-        # one local-backtest config and its tiny historical CSV.  They are not
-        # operator config and do not relax the ignored config.yaml rule for
-        # examples or live runtimes.
-        "backtrader_runtime": [
-            "_iteration41_l2_fixture/runtimes/managed_013_3/config.yaml",
-            "_iteration41_l2_fixture/runtimes/mechanical_p1b/config.yaml",
-            "_iteration41_backtest_fixture/data/bars.csv",
-            "_iteration41_backtest_fixture/runtimes/local_backtest/config.yaml",
         ],
     },
     author="cloudQuant",  # Author name (retained from master)
@@ -108,14 +99,15 @@ setup(
             "pyecharts",
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
-        "live": ["cryptography>=3.4"],
+        # BtApiStore/Feed/Broker use the unified SDK facade. Its current
+        # minimum interpreter is Python 3.11; core Backtrader remains usable
+        # without this optional extra on the other supported interpreters.
+        "live": ["cryptography>=3.4", "bt-api-py>=0.15.5"],
+        # Optional durable execution primitives used by the strategy-aware
+        # journal.  Direct CTP does not need this extra.
+        "execution": ["bt-api-py>=0.15.5", "bt-api-execution>=0.2.0"],
     },  # List of project dependencies
     python_requires=">=3.8",
-    entry_points={
-        "console_scripts": [
-            "bt-runtime=backtrader_runtime.cli:main",
-        ],
-    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",

@@ -1,0 +1,78 @@
+{
+  "schema": "iteration51.md_readonly_write_gate.v1",
+  "date": "2026-10-27",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "d3ef650f3434ff40b0a6d0b06c21c24f622785c5",
+  "scope": "028 rejects read-only MD login compatibility in write-enabled runs before profile validation, Store/client construction, journal or tape creation",
+  "evidence_level": "SOURCE_SYNTHETIC_ENTRY_GUARD_ONLY",
+  "source_checkout_sha256": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": "3513942b9d47d97f0ea720e1bab69a0734084e8a5b2538b0be3f17eb3225ad92",
+    "tests/integration/test_alpha003_md_readonly_write_gate.py": "f2c0f7b72b61d65406d4dc21616cd7858f5f0bff0412e02a0d6c1fc0150ea8d9"
+  },
+  "behavior": {
+    "effective_option": "api_kwargs overrides config, then bool coercion exactly as the CTP wrapper",
+    "error_code": "LIVE_ZERO_LOGIN_RESPONSE_READ_ONLY",
+    "readonly_compatibility": "Continues to the existing profile validation path",
+    "strict_false_override": "Continues to the existing profile validation path; does not prove authenticated MD identity or actual write qualification",
+    "boundary": "Runs after env/override normalization. It does not claim to precede an external Root-owned protected config read."
+  },
+  "qa": {
+    "passed": 7,
+    "failed": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "warning_count": 1,
+    "warning": "Existing unknown asyncio_default_fixture_loop_scope pytest configuration option",
+    "source_pins_unchanged": true,
+    "runtime_seconds": 2.719,
+    "cases": [
+      "test_write_enabled_rejects_effective_zero_login_before_store_or_profile[environment-api-true]",
+      "test_write_enabled_rejects_effective_zero_login_before_store_or_profile[environment-config-true]",
+      "test_write_enabled_rejects_effective_zero_login_before_store_or_profile[protected-override-api-true]",
+      "test_write_enabled_rejects_effective_zero_login_before_store_or_profile[protected-override-config-true]",
+      "test_write_enabled_rejects_effective_zero_login_before_store_or_profile[truthy-malformed-value]",
+      "test_read_only_zero_login_option_reaches_normal_profile_validation",
+      "test_api_kwargs_false_overrides_config_true_for_write_enabled_run"
+    ],
+    "archive": "public-qa.zip",
+    "archive_sha256": "37d11befac455774a88450fa05ec763abad2aef405780ac52d7a46a116fe1c6d",
+    "members": {
+      "command.json": {
+        "bytes": 700,
+        "sha256": "39c48223eef6804465f83c3ece5e1f58a87a7a29f7feb25e8fef7fcbda9128c2"
+      },
+      "result.json": {
+        "bytes": 425,
+        "sha256": "f98157a77b18ca28e431a5006c43126b8726cf14f50106ba0bee63bc30514f73"
+      },
+      "junit.xml": {
+        "bytes": 1531,
+        "sha256": "d758d5d9cc717009f52b84b9bb5f99e528ec0733e163a53038360a696bb58745"
+      },
+      "stdout.txt": {
+        "bytes": 632,
+        "sha256": "d6d74812ce6e885fe945f519731457d779bc903689a648fb0c3e036dd80bba86"
+      },
+      "stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "independent_review": {
+    "reviewer": "/root/capacity_review",
+    "status": "GO_SOURCE_TEST_ONLY",
+    "pins_match": true,
+    "tests_or_imports_run_by_reviewer": false,
+    "findings": "Correct option precedence/coercion, faithful plan=None CTP query entry, rejection before Store/profile/journal/tape. Positive paths stop at a controlled profile sentinel."
+  },
+  "actual_provider_calls_this_round": 0,
+  "private_inputs_read_this_round": false,
+  "actual_account_acceptance_added": false,
+  "sdk_or_wheel_changes": false,
+  "accepted_suites_repeated": false,
+  "pushed": false,
+  "remaining": "Current observed MD mode is read_only_accepted without authenticated identity; real write acceptance remains unproven and requires separate explicit budget/authorization and qualified actual login. Full readonly and capacity runs remain separate.",
+  "postcommit_receipt": ".codex-tmp/i51_md_readonly_write_gate_postcommit_20261027.json"
+}

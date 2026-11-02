@@ -1,0 +1,17 @@
+{
+  "backtrader_origin": "D:\\temp\\i5051c-20261025-r2\\venv\\Lib\\site-packages\\backtrader\\__init__.py",
+  "backtrader_runtime_origin": "D:\\temp\\i5051c-20261025-r2\\venv\\Lib\\site-packages\\backtrader_runtime\\__init__.py",
+  "distribution": "back-trader-python",
+  "distribution_version": "1.4.0",
+  "installed_record_path_count": 1339,
+  "installed_record_valid": true,
+  "isolated_mode": true,
+  "python_executable": "D:\\temp\\i5051c-20261025-r2\\venv\\Scripts\\python.exe",
+  "python_payload_match": true,
+  "python_version": "3.11.5",
+  "schema": 1,
+  "stage": "ISOLATED_CONSUMER_ORIGIN_RECORD_PAYLOAD_VERIFIED",
+  "virtual_environment": "D:\\temp\\i5051c-20261025-r2\\venv",
+  "wheel_files_preserved": true,
+  "wheel_record_path_count": 673
+}

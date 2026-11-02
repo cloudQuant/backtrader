@@ -1,0 +1,83 @@
+{
+  "parent": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+  "level": "SOURCE_SYNTHETIC_QUERY_PRICE_FIXTURE_ONLY",
+  "qa_directory": "D:\\temp\\i51-r6-trade-price-fixture-focus-20261025-r2",
+  "tests_passed": 26,
+  "exit_code": 0,
+  "command": "set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1&&set PYTHONUTF8=1&&python -m pytest -p no:asyncio tests/unit/scripts/test_iteration51_installed_fixture.py --junitxml=D:\\temp\\i51-r6-trade-price-fixture-focus-20261025-r2\\junit.xml -q 1>D:\\temp\\i51-r6-trade-price-fixture-focus-20261025-r2\\stdout.bin 2>D:\\temp\\i51-r6-trade-price-fixture-focus-20261025-r2\\stderr.bin\n",
+  "source_before": {
+    "head": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+    "source": [
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "bytes": 134949,
+        "sha256": "DB5F3507E3FC06DF0C38080BF35469FB43207FAB1924894BFBF8A5C1CB406D3B"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "bytes": 68616,
+        "sha256": "A454D9A89BBDFFCF3205B4D20675F685C93131E90F6DFC752DC3F5E9BD01E814"
+      }
+    ],
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONUTF8=1 python -m pytest -p no:asyncio tests/unit/scripts/test_iteration51_installed_fixture.py --junitxml=<qaRoot>/junit.xml -q"
+  },
+  "source_after": {
+    "head": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+    "source": [
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "bytes": 134949,
+        "sha256": "DB5F3507E3FC06DF0C38080BF35469FB43207FAB1924894BFBF8A5C1CB406D3B"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "bytes": 68616,
+        "sha256": "A454D9A89BBDFFCF3205B4D20675F685C93131E90F6DFC752DC3F5E9BD01E814"
+      }
+    ],
+    "unchanged_i50_helper_sha256": "4F9CD4610A21F6EB5CED5DD824F89501A056F114E0B39DEABE94C6DA1E33285A"
+  },
+  "artifacts": {
+    "command.txt": {
+      "bytes": 354,
+      "sha256": "1e1f25c2cf2631e4e4d6a52cdf1805d4d4dbb6ebbc0be0c34e2d6f3c98bcb0a9"
+    },
+    "exit.txt": {
+      "bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "junit.xml": {
+      "bytes": 4992,
+      "sha256": "43d523d7cf9a2614fbaa06252bcdef292dccf93d8b6e920755f341b7443b7953"
+    },
+    "result-summary.json": {
+      "bytes": 1002,
+      "sha256": "783efd5fb0d04053665d54e1e866f49ef959c63fb562bbaa577cb06dfef39dd5"
+    },
+    "source-post.json": {
+      "bytes": 561,
+      "sha256": "851d7a41fd778b68b4a52f5600f3bf0305b1475fbff60065225a03a77e1d7be0"
+    },
+    "source-pre.json": {
+      "bytes": 643,
+      "sha256": "f0b56a4544f1f5c18e0b184cada6697b7fe05b623a8766380ac659335559c089"
+    },
+    "stderr.bin": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stdout.bin": {
+      "bytes": 639,
+      "sha256": "f4c06218711ac031c1897f6814d1d9388edb4bb672b39dd0773a55ec78d15ded"
+    }
+  },
+  "review": "Independent static GO on both final pins; reviewer ran no QA.",
+  "warning": "One existing unknown asyncio_default_fixture_loop_scope warning with plugin autoload disabled; separately captured stderr empty.",
+  "change": "I51 query order/trade rows receive actual OrderSysID and submitted LimitPrice before publication. Callback/query prices must be finite positive numerically equal Decimals. I50 helper and production reconciliation unchanged.",
+  "regression": "Real Store/Broker/Coordinator accept matching native callback/query then reject a query-only price mutation as NATIVE_TRADE_CALLBACK_QUERY_CONFLICT without disposition; equivalent decimal formatting remains valid.",
+  "limits": [
+    "R6 readonly passed and write completed 64 rows/two synthetic fills but winddown failed on callback/query conflict.",
+    "Actual callbacks show 214/207; the old query Price=100 is established from fixture source, not a recovered full query capture.",
+    "No installed R7 or account acceptance; prior failed R6 preserved."
+  ]
+}

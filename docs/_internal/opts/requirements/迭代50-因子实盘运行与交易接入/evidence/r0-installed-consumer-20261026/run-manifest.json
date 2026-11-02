@@ -1,0 +1,112 @@
+﻿{
+    "schema_version":  2,
+    "status":  "PASS",
+    "phase":  "complete",
+    "evidence_level":  "LOCAL_INSTALLED_WHEEL_CONSUMER_ONLY",
+    "formal_account_acceptance_claimed":  false,
+    "bt_api_base_commit":  "fb47f3dd733613494aa1d86cfd94b2d6fe70314d",
+    "bt_api_ctp_commit":  "48b476ea90665791c7d2f86935720ce238931520",
+    "backtrader_source_revision":  "3eacbd197ed4812c2e0627d2f994065934d6f978",
+    "backtrader_wheel":  {
+                             "path":  "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+                             "size_bytes":  2440898,
+                             "sha256":  "d342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc"
+                         },
+    "archives":  [
+                     {
+                         "path":  "D:\\temp\\ac51-r0-sdk-20261025-r1\\bt_api_base.zip",
+                         "size_bytes":  290288,
+                         "sha256":  "59efc739d67c17721dd4a413445a65aaa57a6ddef8309f256cb3fe89697223fb"
+                     },
+                     {
+                         "path":  "D:\\temp\\ac51-r0-sdk-20261025-r1\\bt_api_ctp.zip",
+                         "size_bytes":  40487532,
+                         "sha256":  "d05e71528ae326e5e2cb1f237f7a897feef45d943ba5f5cdff24c8f602a07188"
+                     }
+                 ],
+    "base_wheel":  {
+                       "path":  "D:\\temp\\ac51-r0-sdk-20261025-r1\\wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+                       "size_bytes":  153051,
+                       "sha256":  "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+                   },
+    "dependency_wheel_count":  51,
+    "available_memory_bytes_at_preflight":  10291625984,
+    "historical_a69_wheel_excluded":  "back_trader_python-1.4.0-py3-none-any.whl",
+    "duplicate_base_wheel_excluded":  "bt_api_base-0.15.8-py3-none-any.whl",
+    "dependency_inventory_stderr_characters":  130,
+    "consumer_root":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\consumer",
+    "compiler":  "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.42.34433\\bin\\Hostx64\\x64\\cl.exe",
+    "phases":  {
+                   "build":  {
+                                 "status":  "PASS",
+                                 "stdout":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\build.stdout.log",
+                                 "stderr":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\build.stderr.log",
+                                 "vcvars":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\vcvars.log",
+                                 "compiler":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\compiler.log",
+                                 "environment":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\compiler-environment.log",
+                                 "ctp_wheel":  {
+                                                   "path":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\ctp-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+                                                   "size_bytes":  5481703,
+                                                   "sha256":  "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+                                               }
+                             },
+                   "install":  {
+                                   "status":  "PASS",
+                                   "index":  "disabled",
+                                   "wheelhouse":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse",
+                                   "selected_wheels":  [
+                                                           {
+                                                               "path":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+                                                               "size_bytes":  2440898,
+                                                               "sha256":  "d342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc"
+                                                           },
+                                                           {
+                                                               "path":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+                                                               "size_bytes":  153051,
+                                                               "sha256":  "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+                                                           },
+                                                           {
+                                                               "path":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+                                                               "size_bytes":  5481703,
+                                                               "sha256":  "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+                                                           }
+                                                       ],
+                                   "stdout":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\install.stdout.log",
+                                   "stderr":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\install.stderr.log"
+                               },
+                   "pip_check":  {
+                                     "status":  "PASS",
+                                     "stdout":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\pip-check.stdout.log",
+                                     "stderr":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\pip-check.stderr.log"
+                                 },
+                   "verification":  {
+                                        "status":  "PASS",
+                                        "result":  {
+                                                       "ctp_native_loaded":  true,
+                                                       "origins":  {
+                                                                       "backtrader":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\consumer\\Lib\\site-packages\\backtrader\\__init__.py",
+                                                                       "bt_api_base":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\consumer\\Lib\\site-packages\\bt_api_base\\__init__.py",
+                                                                       "bt_api_ctp":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\consumer\\Lib\\site-packages\\bt_api_ctp\\__init__.py",
+                                                                       "bt_api_ctp.ctp._ctp":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\_ctp.cp311-win_amd64.pyd"
+                                                                   },
+                                                       "records":  {
+                                                                       "back-trader-python":  {
+                                                                                                  "hashed_entries_verified":  676,
+                                                                                                  "version":  "1.4.0"
+                                                                                              },
+                                                                       "bt-api-base":  {
+                                                                                           "hashed_entries_verified":  103,
+                                                                                           "version":  "0.15.8"
+                                                                                       },
+                                                                       "bt-api-ctp":  {
+                                                                                          "hashed_entries_verified":  96,
+                                                                                          "version":  "2.0.4+iteration41.i9"
+                                                                                      }
+                                                                   },
+                                                       "status":  "PASS"
+                                                   },
+                                        "stdout":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\verify.stdout.log",
+                                        "stderr":  "D:\\temp\\ac51-r0-sdk-20261026-r2\\verify.stderr.log"
+                                    }
+               }
+}

@@ -1,0 +1,63 @@
+{
+  "schema": "iteration51.accepted-source-round.v1",
+  "round": "golden-subset-20261027",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "acceptance_parent": "4170ecd2f4fb686b85ade4482985127bf4ba6784",
+  "source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9",
+    "examples/unified/028_alpha003_simnow_minute/config.yaml": "6768ec38c180293c9f3656cc083803e5fc59de100eda0e68d8649c026c9ffd77",
+    "tests/unit/test_alpha003_simnow_shadow_subset.py": "c2f64cef72db6d2e9fd43965137319d71fe7286bc8f9b48cafcde6397a961421"
+  },
+  "qa_result": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "--tb=short",
+      "--junitxml=D:\\temp\\i51-golden-subset-root-qa-20261027-r1\\junit.xml",
+      "tests/unit/test_alpha003_simnow_shadow_subset.py",
+      "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]",
+      "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-query-history-three-epoch-restart]",
+      "tests/unit/test_alpha003_simnow_runner.py::test_public_config_defaults_to_dry_and_cli_cannot_escalate"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 11.25,
+    "counts": {
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "pins_before": {
+      "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9",
+      "examples/unified/028_alpha003_simnow_minute/config.yaml": "6768ec38c180293c9f3656cc083803e5fc59de100eda0e68d8649c026c9ffd77",
+      "tests/unit/test_alpha003_simnow_shadow_subset.py": "c2f64cef72db6d2e9fd43965137319d71fe7286bc8f9b48cafcde6397a961421",
+      "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+      "backtrader/feeds/btapifeed.py": "0fe904b1b2cbc257b0781e9914ad811a31c418a12eeac2331328b2a54aded4b9"
+    },
+    "pins_after": {
+      "examples/unified/028_alpha003_simnow_minute/run.py": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9",
+      "examples/unified/028_alpha003_simnow_minute/config.yaml": "6768ec38c180293c9f3656cc083803e5fc59de100eda0e68d8649c026c9ffd77",
+      "tests/unit/test_alpha003_simnow_shadow_subset.py": "c2f64cef72db6d2e9fd43965137319d71fe7286bc8f9b48cafcde6397a961421",
+      "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+      "backtrader/feeds/btapifeed.py": "0fe904b1b2cbc257b0781e9914ad811a31c418a12eeac2331328b2a54aded4b9"
+    },
+    "source_pins_unchanged": true,
+    "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+  },
+  "evidence_level": "SOURCE_AND_PUBLIC_SYNTHETIC_COMPOSITION_ONLY",
+  "scope": "Optional read-only 3-5 active feeds after complete CTP selection; full selection and active set bound in tape/history; default complete-pool path preserved.",
+  "qa_summary": "7 passed: four new helper contracts, existing default same-Store CTP-query live and query-history restart composition, default dry CLI. One pre-existing pytest config warning.",
+  "limits": [
+    "Synthetic provider leaves; no actual quote, factor session, account or native cleanup acceptance.",
+    "QA also read preopen candidate 0fe904b1; it was not accepted by this golden round and its exact QA pin is preserved."
+  ],
+  "archive": {
+    "sha256": "4ae81f5d4c8bf12c993b570a433794b7792294befc0be2e71f8396c344a38c03",
+    "size_bytes": 5478
+  }
+}

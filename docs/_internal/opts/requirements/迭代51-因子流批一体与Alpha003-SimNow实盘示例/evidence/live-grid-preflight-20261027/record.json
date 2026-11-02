@@ -1,0 +1,59 @@
+{
+  "parent": "4d61b05902e2bd1f89756b77cda355319ade6589",
+  "qa_parent": "e29aff79ad0a5f74a641eb7f9e4c116f9c1e69e1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "scope": "SOURCE_FAKE_LIVE_GRID_PREFLIGHT_ONLY",
+  "sources": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": "b08a2245071df823c2be0c875d590432e0841c07a1829cc6982933122412fee5",
+    "tests/unit/test_alpha003_simnow_runner.py": "27a771ae2b383aa5ec2164b10c8feece0ab52c3b04e26328813ba65e48ac5679"
+  },
+  "originals": {
+    "console.txt": {
+      "path": "D:\\temp\\i51-live-grid-preflight-20261027-r3\\console.txt",
+      "bytes": 643,
+      "sha256": "d02aaa8dfabd78296aa764a0e2e6fcd0893e51a27aa6c00032607ba8c3a73f24"
+    },
+    "live-grid-preflight.xml": {
+      "path": "D:\\temp\\i51-live-grid-preflight-20261027-r3\\live-grid-preflight.xml",
+      "bytes": 1720,
+      "sha256": "731f3c03350b24b59f690e54d32a3617449f2e48b676c680647f0786494a124c"
+    },
+    "command.txt": {
+      "path": "D:\\temp\\i51-live-grid-preflight-20261027-r3\\command.txt",
+      "bytes": 239,
+      "sha256": "93a686da34d375c1ec9e3f3bd5cd0228b5f23a22d0daabdd12e75fc2063340c8"
+    },
+    "exit.txt": {
+      "path": "D:\\temp\\i51-live-grid-preflight-20261027-r3\\exit.txt",
+      "bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    "source-pins.json": {
+      "path": "D:\\temp\\i51-live-grid-preflight-20261027-r3\\source-pins.json",
+      "bytes": 370,
+      "sha256": "5212454f23877ec7c973ec1328f9f4375209fe25ac52deb6a547a3efd3836cb9"
+    },
+    "static-review.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_live_grid_preflight_review_20261027.md",
+      "bytes": 3931,
+      "sha256": "6ce9b3485414599d98733e748c6d3322c64f484173a21e35bcab61de8e0956ff"
+    }
+  },
+  "passed": 8,
+  "pytest_exit": 0,
+  "warnings": "One existing unknown asyncio_default_fixture_loop_scope configuration warning.",
+  "change": "Share the inclusive bucket-start filter between an early live-only preflight and later cohort construction. An expired grid is refused before journal/tape/Broker creation. Later history/cohort clock reads remain fresh; saved-history first bucket behavior remains unchanged.",
+  "coverage": [
+    "Expired grid creates no durable resources and closes Store.",
+    "Exact boundary and one-minute remainder pass preflight then stop at fake Store readiness.",
+    "Clock crossing after setup is rejected by real cohort construction and all created resources close.",
+    "Existing readiness, Store-stop failure, refresh and arm failure cleanup branches."
+  ],
+  "limitations": [
+    "Local fake-leaf setup/cleanup evidence only; no successful live session, provider/account or full formal-case acceptance.",
+    "No repeated accepted matrix; no independent before/after source receipt is claimed beyond the recorded final source pins and Root current-byte checks.",
+    "R1 CLI invocation failure and R2 assertion failure remain in their original public output directories; they are not rewritten or accepted."
+  ],
+  "performance_gate_deferred": true
+}

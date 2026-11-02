@@ -6,7 +6,7 @@ import math
 import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 from .. import Strategy
 from ..utils import num2date
@@ -52,6 +52,19 @@ class _FactorGroupInstances:
             "grid_count": max((item["grid_count"] for item in by_group.values()), default=0),
             "grid_matches": bool(by_group)
             and all(item["grid_matches"] for item in by_group.values()),
+            "next_count": sum(item["next_count"] for item in by_group.values()),
+            "next_times": tuple((group, item["next_times"]) for group, item in by_group.items()),
+            "once_ranges": tuple(
+                (group, item["once_ranges"]) for group, item in by_group.items()
+            ),
+            "once_count": sum(item["once_count"] for item in by_group.values()),
+            "once_times": tuple((group, item["once_times"]) for group, item in by_group.items()),
+            "coverage_count": sum(item["coverage_count"] for item in by_group.values()),
+            "coverage_times": tuple(
+                (group, item["coverage_times"]) for group, item in by_group.items()
+            ),
+            "coverage_matches": bool(by_group)
+            and all(item["coverage_matches"] for item in by_group.values()),
             "group_diagnostics": by_group,
         }
 
@@ -74,6 +87,7 @@ class FactorStrategy(Strategy):
             raise ResearchConfigError("FactorStrategy requires named target data feeds")
         if self._research.start > self._research.end:
             raise ResearchConfigError("research start must not follow end")
+        owns_sink = self.p.sink is None
         self._sink = self.p.sink
         if self._sink is None:
             from .sink import MemorySink
@@ -152,14 +166,58 @@ class FactorStrategy(Strategy):
 
         self._grid = self._calculation_times()
         self._grid_cursor = 0
+        if (
+            owns_sink
+            and type(self) is FactorStrategy
+            and self._has_complete_price_alignment()
+        ):
+            from .sink import MemorySink
+
+            if type(self._sink) is MemorySink:
+                start = self._research.start.to_pydatetime()
+                end = self._research.end.to_pydatetime()
+                study_steps = sum(start <= value <= end for value in self._grid)
+                self._sink._enable_dense_product_index(study_steps * len(self._target_datas))
+        self._input_aliases_by_spec = {
+            id(spec): _input_aliases(spec) for spec in self._factor_specs_by_name.values()
+        }
+        self._required_input_aliases = frozenset(
+            alias for aliases in self._input_aliases_by_spec.values() for alias in aliases
+        )
         self._field_counts = self._build_field_counts()
 
     def _calculation_times(self) -> Tuple[datetime, ...]:
         return tuple(value.to_pydatetime() for value in self._research.calculation_grid.index)
 
+    def _has_complete_price_alignment(self) -> bool:
+        """Check alignment shape without retaining or copying mutable price arrays."""
+        grid = self._research.grid
+        grid_size = len(grid.index)
+        grid_sha256 = self._research.grid_sha256
+        for data in self._target_datas:
+            metadata = _alignment_metadata(data)
+            if (
+                not isinstance(metadata, Mapping)
+                or metadata.get("version") != 2
+                or metadata.get("grid_sha256") != grid_sha256
+            ):
+                return False
+            for name in ("prices_open", "prices_close"):
+                values = metadata.get(name)
+                try:
+                    if values is None or len(values) != grid_size:
+                        return False
+                except TypeError:
+                    return False
+        return True
+
     def _validate_clocks(self) -> None:
         cerebro = getattr(self, "env", None)
-        if bool(getattr(cerebro, "_doreplay", False)) or bool(getattr(cerebro, "_dolive", False)):
+        if (
+            bool(getattr(cerebro, "_doreplay", False))
+            or bool(getattr(cerebro, "_dolive", False))
+            or bool(getattr(getattr(cerebro, "p", None), "live", False))
+        ):
             raise ResearchConfigError(
                 "FactorStrategy does not support live or replay Cerebro clocks",
                 code="UNSUPPORTED_CLOCK",
@@ -229,14 +287,20 @@ class FactorStrategy(Strategy):
             if current > self._grid[-1]:
                 return
             raise RuntimeError("FactorStrategy received more callbacks than the declared grid")
-        current = num2date(float(self.datetime[0]), tz=timezone.utc, naive=False)
+        current_num = float(self.datetime[0])
+        current = num2date(current_num, tz=timezone.utc, naive=False)
         if current != self._grid[self._grid_cursor]:
             raise RuntimeError("FactorStrategy callback time does not match the ResearchSpec grid")
         research = self._research
         in_research = research.start.to_pydatetime() <= current <= research.end.to_pydatetime()
+        use_numeric_date_hint = type(self) is FactorStrategy
         for asset, data in zip(research.targets, self._target_datas):
             present = self._feed_present(data, self._grid_cursor)
-            current_bar = self._current_feed_time(data) == current and present
+            if use_numeric_date_hint:
+                feed_time = self._current_feed_time(data, current_num, current)
+            else:
+                feed_time = self._current_feed_time(data)
+            current_bar = feed_time == current and present
             if in_research:
                 self._sink.on_point(
                     current,
@@ -275,7 +339,10 @@ class FactorStrategy(Strategy):
         lookback = spec.lookback_h
         start = max(0, cursor - lookback)
         expected = cursor - start + 1
-        for alias in _input_aliases(spec):
+        aliases = self._input_aliases_by_spec.get(id(spec))
+        if aliases is None:
+            aliases = _input_aliases(spec)
+        for alias in aliases:
             counts = self._field_counts.get((id(data), alias))
             if counts is None:
                 continue
@@ -293,13 +360,22 @@ class FactorStrategy(Strategy):
                 continue
             fields = metadata.get("field_present") or {}
             for name, values in fields.items():
-                counts[(id(data), str(name))] = _cumulative(values, np)
+                alias = str(name)
+                if alias in self._required_input_aliases:
+                    counts[(id(data), alias)] = _cumulative(values, np)
         return counts
 
     @staticmethod
-    def _current_feed_time(data: Any) -> Optional[datetime]:
+    def _current_feed_time(
+        data: Any,
+        current_num: Optional[float] = None,
+        current: Optional[datetime] = None,
+    ) -> Optional[datetime]:
         try:
-            return cast(datetime, num2date(float(data.datetime[0]), tz=timezone.utc, naive=False))
+            feed_num = float(data.datetime[0])
+            if current is not None and current_num is not None and feed_num == current_num:
+                return current
+            return cast(datetime, num2date(feed_num, tz=timezone.utc, naive=False))
         except (IndexError, TypeError, ValueError, OverflowError):
             return None
 
@@ -380,9 +456,9 @@ class FactorStrategy(Strategy):
         for name, instances in self._factor_instances_by_name.items():
             for factor in instances:
                 for nested in self._factor_tree(factor):
-                    if not nested.lifecycle_diagnostics["grid_matches"]:
+                    if not nested.lifecycle_diagnostics["coverage_matches"]:
                         raise RuntimeError(
-                            "factor %s did not run once per calculation-grid point" % name
+                            "factor %s did not cover every calculation-grid point" % name
                         )
         self._panel = self._sink.finalize(self._panel_context())
         self._sink.close()

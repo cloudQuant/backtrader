@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="4288.222" timestamp="2026-10-24T22:15:02.148297" hostname="yun"><testcase classname="tests.unit.test_factor_operator_logical_buffers" name="test_alpha101_full_and_qbuffer_native_build_values_and_reasons_match" time="4284.999" /></testsuite></testsuites>

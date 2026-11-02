@@ -24,8 +24,6 @@ from types import MappingProxyType
 from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple
 
 from ..utils.log_message import get_logger
-from .ctpcohort import CtpQuoteEvidence
-
 logger = get_logger(__name__)
 
 UTC = timezone.utc
@@ -143,7 +141,7 @@ def _mono(value: Any, field: str) -> float:
 
     ``seal_received_mono`` is intentionally in seconds because the public
     barrier deadlines are seconds.  A nanosecond alias is accepted and
-    converted exactly once for integration with CTP event metadata.
+    converted exactly once for integration with provider event metadata.
     """
 
     return _number(value, field, nonnegative=True)
@@ -579,9 +577,7 @@ class BarEvidence:
             raise ValueError("quote_events must be a tuple or list")
         frozen_quotes = []
         for event in raw_quotes:
-            if isinstance(event, CtpQuoteEvidence):
-                frozen_quotes.append(event)
-            elif isinstance(event, Mapping):
+            if isinstance(event, Mapping):
                 frozen_quotes.append(_freeze(dict(event)))
             elif hasattr(event, "__dict__"):
                 frozen_quotes.append(_freeze(vars(event)))
@@ -759,41 +755,8 @@ class QuoteCutoffResult:
 
 
 def _quote_mapping(event: Any, *, bar: BarEvidence) -> Optional[Dict[str, Any]]:
-    """Detach a raw quote or adapt an already validated CTP quote evidence."""
+    """Detach a neutral quote snapshot without provider-specific adaptation."""
 
-    if isinstance(event, CtpQuoteEvidence):
-        return {
-            "symbol": event.symbol,
-            "exchange": event.exchange,
-            "event_time": event.source_epoch,
-            "received_at": event.receive_epoch,
-            "received_monotonic_ns": event.receive_monotonic_ns,
-            "ingest_seq": event.ingest_seq,
-            "generation": event.connection_generation,
-            "asset_type": event.asset_type,
-            "bid": event.bid,
-            "ask": event.ask,
-            "bid_size": event.bid_size,
-            "ask_size": event.ask_size,
-            "last": event.last,
-            "lower_limit": event.lower_limit,
-            "upper_limit": event.upper_limit,
-            "subscription_epoch": event.subscription_epoch,
-            "trading_day": event.trading_day,
-            "action_day": event.action_day,
-            "rules_hash": event.rules_hash,
-            "clock_domain": event.clock_domain_id,
-            "clock_mode": bar.clock_mode,
-            "session_segment": bar.session_segment,
-            "candidate_id": bar.candidate_id,
-            "quality": "GOOD",
-            "volume_complete": True,
-            "source": event.source,
-            "event_time_source": event.event_time_source,
-            "source_clock_error_ms": event.source_clock_error_ms,
-            "receive_clock_error_ms": event.receive_clock_error_ms,
-            "validated_quote_type": "CtpQuoteEvidence",
-        }
     if isinstance(event, Mapping):
         return dict(event)
     if hasattr(event, "__dict__"):
@@ -847,11 +810,11 @@ def _quote_filter(
     if data is None:
         return QuoteCutoffResult(False, BarBarrierReason.BLOCKED_QUOTE_CUTOFF)
     try:
-        symbol = _alias(data, "symbol", "instrument_id", "InstrumentID", default=_MISSING)
-        exchange = _alias(data, "exchange", "exchange_id", "ExchangeID", default=_MISSING)
+        symbol = _alias(data, "symbol", "instrument_id", default=_MISSING)
+        exchange = _alias(data, "exchange", "exchange_id", default=_MISSING)
         sequence = _alias(data, "ingest_seq", "sequence", default=_MISSING)
         generation = _alias(data, "generation", "connection_generation", default=_MISSING)
-        trading_day = _alias(data, "trading_day", "TradingDay", default=_MISSING)
+        trading_day = _alias(data, "trading_day", "trading_date", default=_MISSING)
         rules_hash = _alias(data, "rules_hash", default=_MISSING)
         domain = _alias(data, "clock_domain", "clock_domain_id", default=_MISSING)
         mode = _alias(data, "clock_mode", default=_MISSING)
@@ -925,7 +888,7 @@ def _quote_filter(
             return QuoteCutoffResult(False, BarBarrierReason.BLOCKED_QUOTE_CUTOFF, symbol=symbol)
         received_mono = _quote_monotonic_seconds(data)
     except (TypeError, ValueError) as error:
-        symbol = _value(data, "symbol", "instrument_id", "InstrumentID")
+        symbol = _value(data, "symbol", "instrument_id")
         reason = (
             BarBarrierReason.QUOTE_IDENTITY_CONFLICT
             if str(error).startswith("conflicting aliases")
@@ -953,10 +916,9 @@ def _quote_filter(
         bar.clock_mapping.validate_pair(receive_time, received_mono)
     except ValueError:
         return QuoteCutoffResult(False, BarBarrierReason.CLOCK_MAPPING_MISMATCH, symbol=symbol)
-    # This function is a frozen-bar cutoff check.  Full native CTP quote-v2
-    # quality/schema validation remains the public CtpQuoteCohortValidator;
-    # this boundary still requires enough explicit scope to prevent a raw,
-    # under-specified quote from entering a minute decision.
+    # This function is a frozen-bar cutoff check. Provider mapping and clock
+    # qualification belong to the SDK tick boundary; this layer only accepts
+    # an already normalized neutral snapshot with explicit frozen scope.
     del max_skew_ms
     data.update(
         {
@@ -1649,13 +1611,13 @@ class MultiLegBarBarrier:
         if not isinstance(bar, BarEvidence):
             try:
                 bar = BarEvidence(
-                    symbol=_alias(bar, "symbol", "instrument_id", "InstrumentID"),
-                    exchange=_alias(bar, "exchange", "exchange_id", "ExchangeID"),
+                    symbol=_alias(bar, "symbol", "instrument_id"),
+                    exchange=_alias(bar, "exchange", "exchange_id"),
                     bucket_start=_alias(bar, "bucket_start", "start"),
                     bucket_end=_alias(bar, "bucket_end", "end"),
                     available_at=_alias(bar, "available_at", "bar_available_at"),
                     seal_received_mono=_bar_seal_monotonic(bar),
-                    trading_day=_alias(bar, "trading_day", "TradingDay", default=_MISSING),
+                    trading_day=_alias(bar, "trading_day", "trading_date", default=_MISSING),
                     generation=_alias(bar, "generation", "connection_generation", default=_MISSING),
                     session_segment=_alias(bar, "session_segment", "session", default=_MISSING),
                     rules_hash=_alias(bar, "rules_hash", default=_MISSING),
@@ -2004,7 +1966,7 @@ class MultiLegBarBarrier:
             return QuoteCutoffResult(
                 False,
                 self._clock_fault,
-                symbol=_value(event, "symbol", "instrument_id", "InstrumentID"),
+                symbol=_value(event, "symbol", "instrument_id"),
             )
         if decision_input is not None:
             decision_scope = self._scope_from_values(
@@ -2021,7 +1983,7 @@ class MultiLegBarBarrier:
                 return QuoteCutoffResult(
                     False,
                     BarBarrierReason.SCOPE_RESET_REQUIRED,
-                    symbol=_value(event, "symbol", "instrument_id", "InstrumentID"),
+                    symbol=_value(event, "symbol", "instrument_id"),
                 )
             # A matching scope is necessary but not sufficient.  The object
             # must still be one of this barrier's bounded finalized records;
@@ -2031,12 +1993,12 @@ class MultiLegBarBarrier:
                 return QuoteCutoffResult(
                     False,
                     BarBarrierReason.SCOPE_RESET_REQUIRED,
-                    symbol=_value(event, "symbol", "instrument_id", "InstrumentID"),
+                    symbol=_value(event, "symbol", "instrument_id"),
                 )
         target = decision_input or self._last_input
         if target is None:
             return QuoteCutoffResult(False, BarBarrierReason.NO_FROZEN_INPUT)
-        symbol = _value(event, "symbol", "instrument_id", "InstrumentID")
+        symbol = _value(event, "symbol", "instrument_id")
         bar = target.bars.get(symbol)
         if bar is None:
             return QuoteCutoffResult(False, BarBarrierReason.QUOTE_SCOPE_MISMATCH, symbol=symbol)

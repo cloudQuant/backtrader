@@ -1,0 +1,108 @@
+{
+  "parent": "31dc70ae280d32f07f3d454c4a023974416910f7",
+  "evidence_level": "SOURCE_CHECKER_REPAIR_AND_SAVED_INSTALLED_OUTPUT_VALIDATION",
+  "source_pins_before": {
+    "head": "31dc70ae280d32f07f3d454c4a023974416910f7",
+    "source_pins": [
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "bytes": 131524,
+        "sha256": "7770EE3057E86B4C838CC508875593012536D9F11F728194EE3F9C5459F1DD35"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "bytes": 54001,
+        "sha256": "F09A8A5ECC57CA2105CFF9F30C8537C9A72874D96DBD80150CC13066FF5A0385"
+      }
+    ]
+  },
+  "source_pins_after": {
+    "head": "31dc70ae280d32f07f3d454c4a023974416910f7",
+    "source_pins": [
+      {
+        "path": "scripts/iteration51_installed_fixture.py",
+        "bytes": 131524,
+        "sha256": "7770EE3057E86B4C838CC508875593012536D9F11F728194EE3F9C5459F1DD35"
+      },
+      {
+        "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+        "bytes": 54001,
+        "sha256": "F09A8A5ECC57CA2105CFF9F30C8537C9A72874D96DBD80150CC13066FF5A0385"
+      }
+    ],
+    "exit_code": 0
+  },
+  "qa": {
+    "tests": 24,
+    "exit_code": 0,
+    "suite_seconds": 0.769,
+    "command": [
+      "C:/anaconda3/python.exe",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:asyncio",
+      "--junitxml=D:\\temp\\i51-installed-validator-r4-20261025\\pytest.junit.xml",
+      "tests/unit/scripts/test_iteration51_installed_fixture.py"
+    ],
+    "environment": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "PYTHONUTF8": "1"
+    },
+    "warnings": [
+      "existing unknown asyncio_default_fixture_loop_scope"
+    ],
+    "artifacts": {
+      "exit.txt": {
+        "bytes": 1,
+        "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+      },
+      "pytest.junit.xml": {
+        "bytes": 4655,
+        "sha256": "b94ceddc8ec21f6fcaf114c75a2a750b2eb71a5f62878976e85e6e6d3d5d4d1e"
+      },
+      "saved-r2-summary-validation.json": {
+        "bytes": 517,
+        "sha256": "cd8daeabaa497b9556f84f94d65afa4523146a6f54073b1ed63176ee171c66b6"
+      },
+      "source-after.json": {
+        "bytes": 481,
+        "sha256": "c66892a26d830af9b95b10883f8214579bd935471cdecf53326bec01c49ee935"
+      },
+      "source-before.json": {
+        "bytes": 462,
+        "sha256": "63fa0f626bf8625bbb213f0f62e3e221383a745a1da7c71ef0694335b2857399"
+      },
+      "stderr.bin": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stdout.bin": {
+        "bytes": 637,
+        "sha256": "c609cec26bdc7e6f6228b9f67e9d8b331d9d3c27835f8f28f6dd782eacfc0dd0"
+      }
+    }
+  },
+  "static_review": "Independent GO after Root mode-dependent shutdown and finite-diagnostic corrections",
+  "saved_output_validation": {
+    "failed_checks": [],
+    "passed": true,
+    "planned_slot_count": 64,
+    "saved_stdout_bytes": 15389,
+    "saved_stdout_path": "D:\\temp\\i51-installed-final-20261025-r2\\native\\case\\iteration51-synthetic-live-child-native-read-only.stdout.bin",
+    "saved_stdout_sha256": "5aaa43413a78f3d231e50aad3af75439965e0ee13d7745e637c9c6ad4bf59ebe",
+    "status": "LIVE_RUN_COMPLETE",
+    "validator_source_bytes": 131524,
+    "validator_source_sha256": "7770ee3057e86b4c838cc508875593012536d9f11f728194ee3f9c5459f1dd35"
+  },
+  "limitations": [
+    "No new installed child run in this source round",
+    "R2 parent failed; read-only child completion does not accept the four-case matrix",
+    "No provider or account acceptance"
+  ],
+  "package_reuse": {
+    "commit": "31dc70ae280d32f07f3d454c4a023974416910f7",
+    "wheel_sha256": "7c9fe1873462a1a4a9ac75e6f6d02b495fe95cbd1c6b22ae1984cbb1db5e4695"
+  }
+}

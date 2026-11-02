@@ -1,4 +1,4 @@
-# 014_1 — CTP 期权期货低频 C/P/F 套利（迭代42 标准四件套）
+﻿# 014_1 — CTP 期权期货低频 C/P/F 套利（迭代42 标准四件套）
 
 本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_lowfreq_strategy.py
 + run.py**（唯一运行入口），另含运行必需的内部模块（下表）。策略信号基于
@@ -10,7 +10,7 @@ call/put/future 转换-反转平价的结构化残差 z-score；研究状态不�
 ```text
 python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
 python run.py --replay [--scenario S]  # 离线冻结 fixture 回放（零网络零写入）
-python run.py --live --allow-write     # 严格 live 写层（需 Python 3.11；见下）
+python run.py --live --allow-write     # blocked: 需要显式 SDK 宿主注入与完整交易合同
 ```
 
 - 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN。
@@ -18,15 +18,15 @@ python run.py --live --allow-write     # 严格 live 写层（需 Python 3.11；
 - 迭代41 登记回放路由（`runtime/`、`run_runtime.py`）已于 2026-10-11 精简轮退役；
   `run.py` 是唯一入口。
 
-## live 层（严格三腿写 drill）
+## live 层（当前状态）
 
-R6（`8c067982b`）已实现全严格 live 层：运行域非合成 `ClockMapping`、feed 密封
-`BarEvidence`、`simnow_direct` registered-sim 直连、三腿逐腿 arm 切换（写入间
-disarm→arm）、一次性 drill 触发与逐腿成交核算。`--live` 必须显式 `--allow-write`；
-要求 Python 3.11（`C:/anaconda3/python.exe`）与 dev SDK 预载，其他解释器
-fail-closed。写 drill 必须在交易时段内的标准前置运行（7x24 前置无涨跌停价数据，
-首次彩排在 `exchange_limits_unavailable` 闸门干净拒绝、零写）；首次真实成交往返
-待时段内验收。
+`run.py --live` 只接受宿主显式注入的 SDK-owned provider configuration 和 `ManagedRuntimeBinding`，并交给 `bt_api_py.managed_runtime_composition`。命令行没有受信宿主注入来源，因此返回 `BLOCKED / managed_runtime_host_injection_required`，不创建本地 CTP client，也不启动 Backtrader 策略。即使外部宿主完成 SDK composition，当前仍缺多腿 Store/Broker adapter、SDK 签发的期权规则与费用/保证金、合格行情时钟，策略执行仍不可用。
+
+写层通过 `--allow-write` 选择 `managed_execution`，但同样需要宿主注入，且不会绕过缺失的交易合同。无写观察调用使用只读组合入口。
+
+## 历史直连 live 记录（已退役）
+
+旧 R6 三腿写 drill 与 `simnow_direct` registered-sim 说明是历史记录，不代表当前入口或可用能力。`simnow_direct.py` 已从本例移除；离线回放与策略研究逻辑独立保留。
 
 ## 内部模块（运行必需，非第二入口）
 
@@ -73,10 +73,7 @@ SDK 的多合约授权、期权规格/成本和真实会话预检均有独立验
 
 ## 历史 SimNow engineering_smoke（已于 2026-10-11 退役）
 
-Iter23 的注入式 fail-closed `simnow engineering_smoke` 链（`simnow_adapter.py`）只被
-回归测试引用、无运行入口，已随 2026-10-11 精简轮退役。当前受审核的 live 路径是上面的
-严格直连层；`python run.py`（dry/replay/live）是唯一入口。
-
+Iter23 的注入式 fail-closed `simnow engineering_smoke` 链（`simnow_adapter.py`）只被回归测试引用、无运行入口，已随 2026-10-11 精简轮退役。当前 `run.py --live` 仅接受显式 SDK 托管组合注入；CLI 无此注入来源，明确返回 `BLOCKED`。
 ## 策略逻辑与参数
 
 策略只使用三腿（Put、Future、Call）同步闭合的 15 分钟 OHLCV。先用**当前 bar 之前**的
@@ -99,10 +96,7 @@ Iter23 的注入式 fail-closed `simnow engineering_smoke` 链（`simnow_adapter
 `run.py` 的 dry/replay/live 标准模式是唯一入口。
 
 `eligible`、`no_edge`、`budget_reject` 与 `misaligned` 是离线验证场景；它们均不会联网或写单。
-报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只能说明
-回放分支和本地顺序逻辑。`shadow`/`production` 会在建客户端前拒绝；真实写入只在
-`--live --allow-write` 的严格直连层进行。
-
+报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只说明离线回放与本地顺序逻辑。当前 `--live --allow-write` 进入 SDK `managed_execution` 组合边界，但命令行无宿主注入且完整交易合同缺失，因此 `BLOCKED`；不会建立本地 CTP 连接。
 
 ## 运行层选择（迭代 43）
 
@@ -135,5 +129,5 @@ entry:
   tier: replay   # dry | replay | live（backtest 为 replay 别名）
 ```
 
-本目录的 live 通道分两条：带 `--allow-write` 进入原三腿写 drill（`--drill` 等授权条件一字未改）；**不带写授权时进入 `run_live_observe()` 零写观察会话**（`channel: observe`）——解释器/dev-SDK/配置与三腿解析前置 → 完整 MD/TD 对新鲜选择 → 原生登录 → 账户/持仓/委托/成交只读查询 → 正常关闭，终报 `LIVE_OBSERVE_PASS` 并附 `write_health`。该路径从不构造 Broker/Cerebro、从不调用 `registered_sim_arm`；已有持仓或挂单只如实上报（`open_position_rows`/`active_order_rows`），清洁账户门属写 drill 前提，不属观察。
+当前 live 通道统一进入显式 SDK 托管组合边界：不带写标志走只读组合，带 `--allow-write` 请求 `managed_execution`；两者在命令行均因没有宿主注入而 `BLOCKED`。多腿交易合同、费用/保证金、合格行情时钟及 Backtrader adapter 尚未提供，不启动本地 CTP 会话。
 严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。

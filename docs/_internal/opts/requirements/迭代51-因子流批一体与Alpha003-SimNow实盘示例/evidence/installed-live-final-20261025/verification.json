@@ -1,0 +1,431 @@
+{
+  "schema": "backtrader.iteration51.installed_final_acceptance.v1",
+  "branch": "dev",
+  "parent_commit": "a22f38601793df082086b06687f9abaf21d8554a",
+  "source_pins": {
+    "scripts/iteration51_installed_fixture.py": {
+      "size_bytes": 203651,
+      "sha256": "6b7ecf3f19ec7617c56cc13849ec4dfe0973b244c5e5594233bebc9aa42cf5ae"
+    },
+    "tests/unit/scripts/test_iteration51_installed_fixture.py": {
+      "size_bytes": 116030,
+      "sha256": "fcf3c0d2260e7698efb0a9292a2b4aab2091d94cb57ec43850796fb7a3da5adf"
+    }
+  },
+  "evidence_level": "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE",
+  "package_commit": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+  "wheel_sha256": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+  "qa": {
+    "r7": {
+      "passed": 26,
+      "failed": 6,
+      "exit": 1,
+      "pins_unchanged": true
+    },
+    "r8": {
+      "passed": 6,
+      "failed": 0,
+      "exit": 0,
+      "pins_unchanged": true
+    },
+    "reuse": "R8 changes only test mocks and expected exception text; helper unchanged. The other 26 R7 passes are reused. No claim of one 32-pass invocation.",
+    "warnings": "one pre-existing unknown asyncio_default_fixture_loop_scope warning per invocation"
+  },
+  "installed_live": {
+    "native": "PASS four cases",
+    "build": "PASS four cases",
+    "successful_case_slots": 64,
+    "write_fill_count_each_mode": 4,
+    "write_refresh_barrier_count_each_mode": 5,
+    "provider": "synthetic leaves; real installed framework and copied public CLI",
+    "account_acceptance": false
+  },
+  "offline": {
+    "current_wheel": "dry/build",
+    "reused_old_wheel": [
+      "dry/native",
+      "research/native",
+      "research/build",
+      "replay/native",
+      "replay/build"
+    ],
+    "reuse_basis": "offline-source-impact.json; behavioral evidence, not current-wheel execution"
+  },
+  "preserved_failure_notes": {
+    "r11": "preclose UTC-offset fixture mismatch, original failed result preserved",
+    "r12": "child completed; parent explicit arm/disarm-count equality did not model SDK automatic stop revocation, original failure preserved",
+    "r7_source": "six failures retained; test expectation/mock fields repaired",
+    "r8_launcher": "py -3.11 exit103 before tests; final six tests use C:/anaconda3/python.exe"
+  },
+  "payloads": {
+    "native-receipt.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 68373,
+      "sha256": "d942326e8834ccb82d1acf196610c25c6f7bda7dedf8b5b14f8353d3171204ef"
+    },
+    "native-launch.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\native\\launch.json",
+      "size_bytes": 2488,
+      "sha256": "df7db252d98900e361f0c758cba5faf46a38aaa74ea85b95990907c1be5ccccb"
+    },
+    "native-completion.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\native\\completion.json",
+      "size_bytes": 157,
+      "sha256": "db034219da92a743f8387e6221288f54570d834fceda404f600a949b96d01c96"
+    },
+    "build-receipt.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 68296,
+      "sha256": "e7b15291c10a54391575cf9d457efd90cfa078f8bd8167a339dfa1638fee28fd"
+    },
+    "build-launch.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\build\\launch.json",
+      "size_bytes": 2486,
+      "sha256": "933368758ae71d9803e4b111057605b8019ebc9b36900431cb8eaa51ff11f5b3"
+    },
+    "build-completion.json": {
+      "source": "D:\\temp\\i51-installed-final-20261025-r13\\build\\completion.json",
+      "size_bytes": 158,
+      "sha256": "9f5fe93364a5343b4a4ae491c50d336836d252ceffc14e5767d3e9fb40566b9c"
+    },
+    "reused-dry-native-receipt.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\dry-native\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 2398,
+      "sha256": "ab3078a66b773f4c8b21549a99f782e70e02470bcf51b0f0a6428e51380413fe"
+    },
+    "reused-research-native-receipt.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\research-native\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 3369,
+      "sha256": "ec36785573d5d5ef3075ca5486f4816fe9f219afb7c5fe61ded2783a8f41e0f6"
+    },
+    "reused-research-build-receipt.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\research-build\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 3358,
+      "sha256": "ca69cfd5d87116bd4d6f5e762c94a232850b7988d2d24afae61c29d6a10e6435"
+    },
+    "reused-replay-native-receipt.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 5633,
+      "sha256": "20ce35734539618779feeb8c8edb94a4151a1147e1537e3dc7169eaf8c3ed744"
+    },
+    "reused-replay-build-receipt.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-build\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 5620,
+      "sha256": "2bf33727c7f2350fa0fd9ad29d7b77fb1e3dcd32461a76ff89034207279f851b"
+    },
+    "dry-build-receipt.json": {
+      "source": "D:\\temp\\i51-offline-a69\\dry-build\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 2135,
+      "sha256": "a43c96b9ec9c816324ae943980c1b5a8c796387f16758af6dd44db888faac9cd"
+    },
+    "dry-build-launch.json": {
+      "source": "D:\\temp\\i51-offline-a69\\dry-build-launch.json",
+      "size_bytes": 731,
+      "sha256": "3c2a9dec7ae2930a1ca5e33b4ba5c06fb1bf94ce557e8d27aef0aa97d3779391"
+    },
+    "dry-build-completion.json": {
+      "source": "D:\\temp\\i51-offline-a69\\dry-build-completion.json",
+      "size_bytes": 92,
+      "sha256": "2a6103478bf134223c5694b3bd639fee3fc49c46324c3f58f6ede389ee9246ed"
+    },
+    "offline-source-impact.json": {
+      "source": "D:\\source_code\\backtrader\\.codex-tmp\\i5051_offline_a69_impact_r1_20261025.json",
+      "size_bytes": 14522,
+      "sha256": "0b593711f84255d91f3adde7278a17b4f10a1da7ffbf6ef96686e3def94d5f76"
+    },
+    "qa-r7-junit.xml": {
+      "source": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\junit.xml",
+      "size_bytes": 182765,
+      "sha256": "4709a3dc360af12e0fea2f81f0688a95ec1b95de668a5be3656477a2eb84a7b2"
+    },
+    "qa-r7-completion.json": {
+      "source": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\completion.json",
+      "size_bytes": 90,
+      "sha256": "6da9daaa040028d18aac08391af701b5f9dc7e61c8714a1ec6c2d74d6ff14597"
+    },
+    "qa-r8-junit.xml": {
+      "source": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\junit.xml",
+      "size_bytes": 1709,
+      "sha256": "a58e01434d77f2501260a605960d3b9a04df548eb1ae2550888f89b06412b2f3"
+    },
+    "qa-r8-completion.json": {
+      "source": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\completion.json",
+      "size_bytes": 1717,
+      "sha256": "3ae46bc83354ce6644e7fdb75078bfe4ad48a9a9014722398eaa24e06f32cf0a"
+    },
+    "downgrade-replay-receipt.json": {
+      "source": "D:\\temp\\i51-offline-a69\\replay-downgrade\\iteration51-installed-cli-fixture.json",
+      "size_bytes": 5149,
+      "sha256": "e53d6521340f2cad9e3366c4762bef1c009d6b574d942a37a28ff03803442685"
+    },
+    "downgrade-replay-launch.json": {
+      "source": "D:\\temp\\i51-offline-a69\\replay-downgrade\\launch.json",
+      "size_bytes": 2037,
+      "sha256": "24d0c6972d827a2bfb1d715278ecfad71a6bc5b49b512763b5ef8a1cf0bc290b"
+    },
+    "downgrade-replay-completion.json": {
+      "source": "D:\\temp\\i51-offline-a69\\replay-downgrade\\completion.json",
+      "size_bytes": 318,
+      "sha256": "e4a4a468135dcd51bd42f8ea01a90d39e92ae4d469a58c26a47e8d9c38f1e200"
+    }
+  },
+  "external_raw_artifacts": [
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-read-only.stdout.bin",
+      "size_bytes": 16280,
+      "sha256": "ef88ac893f87fede55cd86b06cf956e6446d8a71d7ac1ae4f25cdc080c1a632f"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-read-only.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-read-only.exit.txt",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-read-only.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write.stdout.bin",
+      "size_bytes": 32023,
+      "sha256": "4eb3536950ac708bd11f6df4bc7d07730874f77296ff2f4de0acf8986886fbaf"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write.exit.txt",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write-denied.stdout.bin",
+      "size_bytes": 5984,
+      "sha256": "68e20ffb8ac68fff8d2876e9f21e9561f3a8e7e5b3da37d83c447e3013f6f593"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write-denied.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write-denied.exit.txt",
+      "size_bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-write-denied.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-tier-escalation.stdout.bin",
+      "size_bytes": 5965,
+      "sha256": "bbf80310570c3a373f006fa91a4b33513e4fa62232f4d474322fd91e21319223"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-tier-escalation.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-tier-escalation.exit.txt",
+      "size_bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\native\\case\\iteration51-synthetic-live-child-native-tier-escalation.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-read-only.stdout.bin",
+      "size_bytes": 16270,
+      "sha256": "4d08c402ff593423cbd930cc366603b603b0003aef1a4b7041a6ca994129348a"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-read-only.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-read-only.exit.txt",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-read-only.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write.stdout.bin",
+      "size_bytes": 32010,
+      "sha256": "2dfa38a8ce67c92725fba93401ca4a6fb2903fbf90901ca566536bfb943379b5"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write.exit.txt",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write-denied.stdout.bin",
+      "size_bytes": 5978,
+      "sha256": "572eaae9e8dbd09764c42b06ab96751e75539e13314609853438dc577dc1c9d3"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write-denied.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write-denied.exit.txt",
+      "size_bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-write-denied.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-tier-escalation.stdout.bin",
+      "size_bytes": 5959,
+      "sha256": "d12fb73700747530d23d1b972a832b61a33026e50776e2ca1185b50d14f491b6"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-tier-escalation.stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-tier-escalation.exit.txt",
+      "size_bytes": 2,
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r13\\build\\case\\iteration51-synthetic-live-child-build-tier-escalation.py",
+      "size_bytes": 114314,
+      "sha256": "64642dca2f1c2392a9e13ac9345a793655b8735891f1b8d0a1b15c7f44b3de4c"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\completion.json",
+      "size_bytes": 90,
+      "sha256": "6da9daaa040028d18aac08391af701b5f9dc7e61c8714a1ec6c2d74d6ff14597"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\junit.xml",
+      "size_bytes": 182765,
+      "sha256": "4709a3dc360af12e0fea2f81f0688a95ec1b95de668a5be3656477a2eb84a7b2"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\launch.json",
+      "size_bytes": 588,
+      "sha256": "52f025d48068f87ab5d7f7280c8e706bde684075375a2497d3cc474a4ffdfb8f"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\stderr.bin",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r7\\stdout.bin",
+      "size_bytes": 178189,
+      "sha256": "0ffd83b09cff7de3b618f1af5a884a1834b26536f99b129c942e1d4d65bdf774"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\completion.json",
+      "size_bytes": 1717,
+      "sha256": "3ae46bc83354ce6644e7fdb75078bfe4ad48a9a9014722398eaa24e06f32cf0a"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\junit.xml",
+      "size_bytes": 1709,
+      "sha256": "a58e01434d77f2501260a605960d3b9a04df548eb1ae2550888f89b06412b2f3"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\source-pins-post.json",
+      "size_bytes": 365,
+      "sha256": "ed3b074249e9c16ce7db67e18dd80dd02d7e990efcb2892a24dfba5c8f6da1fc"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\source-pins-pre.json",
+      "size_bytes": 365,
+      "sha256": "ed3b074249e9c16ce7db67e18dd80dd02d7e990efcb2892a24dfba5c8f6da1fc"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51-causal-refresh-focus-20261025-r8\\focused\\stdout.txt",
+      "size_bytes": 638,
+      "sha256": "66970df561650e5d70b290bc51f65ab32a857f4101e39d33b540172cbf02b49f"
+    },
+    {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\run_i51_installed_final_20261025_r5.py",
+      "size_bytes": 4499,
+      "sha256": "af68e5d4919ef6adf4a2794af9a0218445bcd6d854ed458b2500f5697ba9938f"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r11\\native\\launch.json",
+      "size_bytes": 2488,
+      "sha256": "7ac3133ee08a456aadf1e27dd3a158f7df0294fc70142cc01287c29e3e0b79fb"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r11\\native\\completion.json",
+      "size_bytes": 158,
+      "sha256": "28a1ec4ee2d4e4c50eb00b1acf4b8d057277ef5685c51da02568cc9c1fd2cc48"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r11\\native\\case\\iteration51-synthetic-live-child-native-write.stdout.bin",
+      "size_bytes": 18269,
+      "sha256": "0e53f0e0e8c3471f73a65e168f5c58ff053abb159a7c03854e05280c1267524f"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r12\\native\\launch.json",
+      "size_bytes": 2488,
+      "sha256": "01e9a20ff70f2946d01e4a43451e1dc4acc57811464837e3e546787888c03622"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r12\\native\\completion.json",
+      "size_bytes": 159,
+      "sha256": "93a17ab7e7c43bd16029dc44bf862fd1089928381c1eda19724c4dbc0aca89b8"
+    },
+    {
+      "path": "D:\\temp\\i51-installed-final-20261025-r12\\native\\case\\iteration51-synthetic-live-child-native-write.stdout.bin",
+      "size_bytes": 54420,
+      "sha256": "5506be7207c5d0c240d6fca5701ab6ba285c7b189934f6b672ff6a7cc8fcc34f"
+    }
+  ],
+  "acceptance": {
+    "AC51-22": "PASS",
+    "level": "INSTALLED",
+    "provider_account_acceptance": false,
+    "remaining_parent_iteration": "IN_PROGRESS",
+    "tier_downgrade": "current-wheel replay/native, configured live -> effective replay, cli_override"
+  }
+}

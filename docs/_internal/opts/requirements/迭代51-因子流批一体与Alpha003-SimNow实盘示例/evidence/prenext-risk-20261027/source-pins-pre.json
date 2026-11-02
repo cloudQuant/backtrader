@@ -1,0 +1,9 @@
+{
+  "head": "8a65f3d8b7f06768542cb9435ecb4f97043da744",
+  "test_sha256": "6F25638C7D4B6CF6F133DD97A7C5A6B8E3FDCB2E4DBC3DD871A8B9CF64523881",
+  "strategy_sha256": "220330A52A0ACC65427F5C68448E82B80F4EF9FDDDC8C7A75ECEB0BEA4EE3521",
+  "python": "C:\\anaconda3\\python.exe",
+  "pytest_disable_plugin_autoload": "1",
+  "pythonutf8": "1",
+  "pythonpath": "unset"
+}

@@ -1,0 +1,65 @@
+{
+  "parent": "628c45ac5ffc78360aa6b0e5bbac4c9c5f4ba7ee",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "accepted_scope": "ROOT_CONNECTED_CLIENT_NORMAL_CLOSE_ONLY",
+  "original_discovery_status": "BLOCKED_ROOT_READONLY_MARKET_DISCOVERY",
+  "formal_discovery_or_account_pass": false,
+  "configured_index": 3,
+  "originals": {
+    "root-caller.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_readonly_discovery_r2_20261027.py",
+      "bytes": 13126,
+      "sha256": "24e642a15d42f2b4480976ce16090cce7e2ed4799b919e0255f93d189066e4e6"
+    },
+    "static-review.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_readonly_discovery_r2_review_20261027.md",
+      "bytes": 1579,
+      "sha256": "fa0c34102f4486640e6ba65966d67387d3ce625594d7fb1b67da128d798c88f4"
+    },
+    "observation.json": {
+      "path": "D:\\temp\\i51-root-discovery-20261027-r2.json",
+      "bytes": 2244,
+      "sha256": "2e1a24299ae25c5b57103c13a8dfed51cca73b183d1d8f59ed050d9c66b650b0"
+    },
+    "finite-diagnostic.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_discovery_diagnostic_r2_20261027.py",
+      "bytes": 2420,
+      "sha256": "dc25bc4852a206ec5355dc60bbd89f60bd8a6282b1de5c8838f8a1cae2efaf56"
+    },
+    "finite-diagnostic.json": {
+      "path": "D:\\temp\\i51-root-discovery-diagnostic-20261027-r2.json",
+      "bytes": 612,
+      "sha256": "6413caa50b3a2b7376caa37c3046318140d403e36632c778225d22cd528ec53d"
+    },
+    "preexit.json": {
+      "path": "D:\\temp\\i51-root-discovery-preexit-20261027-r2.json",
+      "bytes": 309,
+      "sha256": "1dbcdcd589a7ad3faf0e657375cc27300d69752e57eb739feec76f39dff51bb4"
+    },
+    "private-temp-acl-observation.json": {
+      "path": "D:\\temp\\i51-root-discovery-20261027-r2-acl.json",
+      "bytes": 203,
+      "sha256": "5c54d5a7461fb32d55230aaa7d3baf2135c2a9ce2cd67fcc0fa8c017ffef9bf7"
+    }
+  },
+  "root_tools": {
+    "acl": "0c1508",
+    "preflight": "e2c493",
+    "invocation": "446699",
+    "completion": "5ea7ce",
+    "readback": "f07125",
+    "finite_same_host_diagnostic": "23002e",
+    "preexit": "28c3b1",
+    "normal_exit": "7e648d"
+  },
+  "host": 48651,
+  "normal_exit_code": 0,
+  "read_only": true,
+  "private_values_exported": false,
+  "full_market_query_entered": false,
+  "finite_cause": "MD_LOGIN_NOT_READY_20S; one callback with request_id zero, error status zero, empty broker/user shape, valid TradingDay shape. Strict identity correlation rejects it. This is not proof of successful login.",
+  "native_close": "Both exact generation-one SDK receipts complete, native released, no Join required, no worker alive/timeout. Same-host postcheck confirmed API release markers, empty context exit callbacks and zero Python-managed workers.",
+  "preserved": "Original result remains blocked; host 86857 and prior evidence were untouched.",
+  "next": "Review existing explicit read-only zero-response compatibility without creating an authenticated MD identity or authorizing writes."
+}

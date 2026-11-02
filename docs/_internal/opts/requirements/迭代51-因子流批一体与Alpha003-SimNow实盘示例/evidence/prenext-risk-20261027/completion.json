@@ -1,0 +1,15 @@
+{
+  "python_exit_code": 0,
+  "started_at": "2026-10-26T16:15:02.0376068Z",
+  "completed_at": "2026-10-26T16:15:06.8632346Z",
+  "duration_seconds": 4.826,
+  "head_unchanged": true,
+  "test_pin_unchanged": true,
+  "strategy_pin_unchanged": true,
+  "stdout_bytes": 631,
+  "stdout_sha256": "704E2A1CDFF6F8983E90861CB2B9AA1EB0AA4C481928FCA0EBD1A790F2922E46",
+  "stderr_bytes": 0,
+  "stderr_sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+  "junit_bytes": 592,
+  "junit_sha256": "8275745D0898B72FCF15146651BDFA3C033BF31AAA5FDE1DC148C6B5574F9B72"
+}

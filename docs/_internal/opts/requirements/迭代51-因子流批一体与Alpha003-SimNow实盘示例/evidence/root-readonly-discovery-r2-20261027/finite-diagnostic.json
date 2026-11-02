@@ -1,0 +1,19 @@
+{
+  "status": "ROOT_VALUE_FREE_POSTCLOSE_OBSERVATION",
+  "reason": "MD_LOGIN_NOT_READY_20S",
+  "md_login_callback": {
+    "callback_count": 1,
+    "disposition": "request_id_mismatch",
+    "request_id_relation": "zero",
+    "response_error_status": "zero",
+    "broker_id_shape": "empty",
+    "user_id_shape": "empty",
+    "trading_day_shape": "valid",
+    "native_broker_id_shape": "not_observed",
+    "native_user_id_shape": "not_observed"
+  },
+  "original_result_unchanged": true,
+  "native_close_confirmed": true,
+  "private_context_closed": true,
+  "provider_or_cleanup_invoked": false
+}

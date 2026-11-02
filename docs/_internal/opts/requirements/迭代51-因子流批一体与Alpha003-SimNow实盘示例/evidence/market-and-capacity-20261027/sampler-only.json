@@ -1,0 +1,17 @@
+{
+  "evidence_level": "SYNTHETIC_SAMPLER_ONLY_BEFORE_FIX",
+  "pointer_type_cache_entries_added": 1000,
+  "pointer_type_cache_entries_after_repeated_samples": 1021,
+  "pointer_type_cache_entries_before_repeated_samples": 21,
+  "repeated_samples_after_warmup": 1000,
+  "rss_working_set_bytes_after_repeated_samples": 33640448,
+  "rss_working_set_bytes_before_repeated_samples": 26161152,
+  "rss_working_set_growth_bytes": 7479296,
+  "sample_calls_total": 1001,
+  "sampler_counter_pointer_keys_added": 1000,
+  "sampler_counter_pointer_keys_after_repeated_samples": 1001,
+  "sampler_counter_pointer_keys_before_repeated_samples": 1,
+  "scope": "Imported the pinned public module without invoking main; sampled current process only; no benchmark, database, provider, account, or native SDK call.",
+  "source_path": "scripts/run_iteration50_live_factor_benchmark.py",
+  "source_sha256": "386e1aeed36bcebe636c622ce52f9409917e5143f119abbeb9c5ab875d52592c"
+}

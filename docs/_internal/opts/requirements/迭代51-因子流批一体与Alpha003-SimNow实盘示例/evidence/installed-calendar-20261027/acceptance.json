@@ -1,0 +1,149 @@
+{
+  "status": "PASS_LOCAL_INSTALLED_CALENDAR_CONSUMER_ONLY",
+  "source_commit": "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+  "new_backtrader_wheel": {
+    "path": "D:\\temp\\i51cal-consumer-20261027-r1\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+    "size_bytes": 2441813,
+    "sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16"
+  },
+  "source_archive": {
+    "path": "D:\\temp\\i51cal-consumer-20261027-r1\\source.zip",
+    "size_bytes": 2432660,
+    "sha256": "146845c640fe904aae80c3a552de25f82c6b21c4f4aff4a5927dd8d6153f8ba3"
+  },
+  "reused_sdk_wheels": {
+    "bt_api_base": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+      "size_bytes": 153051,
+      "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+    },
+    "bt_api_ctp": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+      "size_bytes": 5481703,
+      "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+    }
+  },
+  "source_python_files": 662,
+  "installed_record_hashed_entries": [
+    676,
+    103,
+    96
+  ],
+  "installed_package_payload_files": [
+    667,
+    96,
+    89
+  ],
+  "positive_calendar_products": [
+    "CFFEX.IF",
+    "CZCE.SR",
+    "DCE.M",
+    "GFEX.LC",
+    "INE.SC",
+    "SHFE.CU"
+  ],
+  "pip_check": "PASS",
+  "native_ctp_loaded": true,
+  "command_count": 9,
+  "all_command_exit_codes_zero": true,
+  "all_stderr_empty": true,
+  "raw_command_logs_retained_at_original_paths": [
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\git-archive.stdout.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\git-archive.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\backtrader-wheel-build.stdout.log",
+      "size_bytes": 943,
+      "sha256": "45c690175aac03d4d8e75ad650d585cfd93e4c59f231da610ba9538422564d86"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\backtrader-wheel-build.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\source-to-wheel-python-payload.stdout.log",
+      "size_bytes": 505,
+      "sha256": "2e6be2d40481856500bae35740f82026db664efeaf3a7319aa87a337d8f5b14a"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\source-to-wheel-python-payload.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-venv-create.stdout.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-venv-create.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-python-version.stdout.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-python-version.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-install.stdout.log",
+      "size_bytes": 9136,
+      "sha256": "870912bc7ce8dcbd7708175ba73036e31dc83c55dc10ad98ce75a5f04a453a41"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-install.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-pip-check.stdout.log",
+      "size_bytes": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-pip-check.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-record-origin-native.stdout.log",
+      "size_bytes": 770,
+      "sha256": "168113c2c0a11617946a812e359ebff1330608a947b01e177755b47b5a1d468f"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-record-origin-native.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\installed-payload-calendar.stdout.log",
+      "size_bytes": 1243,
+      "sha256": "8ee3babbf357749bf4b9510c3680788dffde9ba5e859dacbd6200ad1e1ea5d54"
+    },
+    {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\installed-payload-calendar.stderr.log",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limitations": [
+    "The copied 028 example caller was not executed by this installed calendar check.",
+    "Prior accepted source caller tests and full installed matrix were not repeated.",
+    "This is not an observed exchange calendar, account acceptance, deployment or SDK release.",
+    "SDK RECORD pins bind this specific fresh consumer and its wheel source paths.",
+    "No private config or credentials were accessed; no provider calls occurred."
+  ]
+}

@@ -1,0 +1,3239 @@
+{
+  "classification": "CONTROL_DIAGNOSTIC",
+  "control_diagnostic": {
+    "base_replay_status": "DIAGNOSTIC_COMPLETE_NOT_FORMAL_ACCEPTANCE",
+    "base_script": {
+      "expected_sha256": "779ff53a1e6d6680ca4b790d67dffc4e94dd8e0f620107feef9bc8a82c8756df",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i50_journal_payload_replay_20261025.py",
+      "sha256": "779ff53a1e6d6680ca4b790d67dffc4e94dd8e0f620107feef9bc8a82c8756df"
+    },
+    "bounded_wal_observation": {
+      "base_max_sampled_wal_bytes": 16393512,
+      "base_size_sample_count": 392,
+      "base_size_samples_preserved": true,
+      "checkpoint_cadence": "one PASSIVE checkpoint per 256 successful grid records"
+    },
+    "checkpoint_aggregate": {
+      "busy_nonzero_count": 0,
+      "busy_sum": 0,
+      "checkpointed_frames_sum": 1523195,
+      "count": 390,
+      "incomplete_count": 0,
+      "log_frames_sum": 1523195,
+      "max_checkpointed_frames": 3979,
+      "max_log_frames": 3979
+    },
+    "checkpoint_sql_phase": {
+      "count": 390,
+      "max_wall_ns": 80146200,
+      "thread_cpu_ns": 3078125000,
+      "wall_ns": 6594963500
+    },
+    "checkpoint_top16_by_wall": [
+      {
+        "busy": 0,
+        "checkpointed_frames": 3914,
+        "log_frames": 3914,
+        "ordinal": 58112,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 80.175
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3888,
+        "log_frames": 3888,
+        "ordinal": 14592,
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 35.218
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3950,
+        "log_frames": 3950,
+        "ordinal": 65536,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 34.845
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3915,
+        "log_frames": 3915,
+        "ordinal": 61952,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 34.584
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3950,
+        "log_frames": 3950,
+        "ordinal": 93440,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 33.242
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3894,
+        "log_frames": 3894,
+        "ordinal": 43776,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 32.699
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3896,
+        "log_frames": 3896,
+        "ordinal": 53760,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 31.151
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3897,
+        "log_frames": 3897,
+        "ordinal": 53504,
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 29.583
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3943,
+        "log_frames": 3943,
+        "ordinal": 46336,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 28.36
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3907,
+        "log_frames": 3907,
+        "ordinal": 66048,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 27.057
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3906,
+        "log_frames": 3906,
+        "ordinal": 87296,
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 26.739
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3929,
+        "log_frames": 3929,
+        "ordinal": 93184,
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 26.037
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3919,
+        "log_frames": 3919,
+        "ordinal": 70400,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 25.223
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3939,
+        "log_frames": 3939,
+        "ordinal": 66560,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 25.083
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3897,
+        "log_frames": 3897,
+        "ordinal": 66304,
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 24.825
+      },
+      {
+        "busy": 0,
+        "checkpointed_frames": 3883,
+        "log_frames": 3883,
+        "ordinal": 62720,
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 24.203
+      }
+    ],
+    "checks": {
+      "all_passive_checkpoints_complete": true,
+      "autocheckpoint_disabled_each_connection": true,
+      "base_replay_complete": true,
+      "checkpoint_sql_phase_count": true,
+      "commit_sql_phase_count": true,
+      "exact_reopened_payload_rows": true,
+      "exactly_two_control_connections": true,
+      "expected_checkpoint_count": true,
+      "expected_successful_records": true,
+      "wal_full_preserved_each_observation": true
+    },
+    "classification": "CONTROL_DIAGNOSTIC",
+    "commit_sql_phase": {
+      "count": 100000,
+      "max_wall_ns": 1279039600,
+      "thread_cpu_ns": 98609375000,
+      "wall_ns": 132543467500
+    },
+    "control_status": "CONTROL_DIAGNOSTIC_COMPLETE",
+    "evidence_level": "CONTROL_DIAGNOSTIC_NOT_FORMAL_ACCEPTANCE",
+    "journal_open_count": 2,
+    "outer_record_timing_note": "The wrapper performs each checkpoint before record_grid_decision returns; the frozen base outer wall/thread-CPU sample and histogram therefore include checkpoint time, while CHECKPOINT is also counted as its own SQL phase.",
+    "records_observed": 100000,
+    "settings": {
+      "base_self_check_compatibility": "The base checks WAL/FULL and equality of pragma snapshots, but does not require the default autocheckpoint value; replay and reopen both observe zero, so the existing equality check remains intact.",
+      "changed_pragma_only": "PRAGMA wal_autocheckpoint=0 on each new output journal connection",
+      "checkpoint_count_expected": 390,
+      "checkpoint_inside_outer_record_timing": true,
+      "checkpoint_interval_successful_records": 256,
+      "checkpoint_sql": "PRAGMA wal_checkpoint(PASSIVE)",
+      "connection_values": [
+        {
+          "wal_autocheckpoint_after": 0,
+          "wal_autocheckpoint_before": 1000
+        },
+        {
+          "wal_autocheckpoint_after": 0,
+          "wal_autocheckpoint_before": 1000
+        }
+      ],
+      "payload_source_and_validation": "frozen base replay unchanged; all reopened payload rows must match",
+      "synchronous_mode": "FULL (SQLite value 2)",
+      "wal_mode": "WAL"
+    },
+    "wrapper": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i50_journal_payload_checkpoint_control_20261025.py",
+      "sha256": "9d5b6fd6f93235d4a5645e33cd81a31a93828db89b7d54648ae747194ebddc79",
+      "size_bytes": 11857
+    }
+  },
+  "evidence_level": "CONTROL_DIAGNOSTIC_NOT_FORMAL_ACCEPTANCE",
+  "persistence": {
+    "first_close_returned": true,
+    "pragma_after_reopen": {
+      "foreign_keys": 1,
+      "journal_mode": "wal",
+      "synchronous": 2,
+      "wal_autocheckpoint": 0
+    },
+    "pragma_before_close": {
+      "foreign_keys": 1,
+      "journal_mode": "wal",
+      "synchronous": 2,
+      "wal_autocheckpoint": 0
+    },
+    "pragma_before_replay": {
+      "foreign_keys": 1,
+      "journal_mode": "wal",
+      "synchronous": 2,
+      "wal_autocheckpoint": 0
+    },
+    "reopen_close_returned": true,
+    "reopened": {
+      "base_record_count": 100000,
+      "cursor_ordinal": 100000,
+      "database_bytes": 175697920,
+      "run_order_intent_count": 0,
+      "wal_bytes": 4152
+    },
+    "size_after_first_close": {
+      "database_bytes": 175697920,
+      "wal_bytes": 0
+    },
+    "size_after_reopen_close": {
+      "database_bytes": 175697920,
+      "wal_bytes": 0
+    },
+    "size_samples": [
+      {
+        "database_bytes": 4096,
+        "ordinal": 0,
+        "wal_bytes": 675712
+      },
+      {
+        "database_bytes": 827392,
+        "ordinal": 256,
+        "wal_bytes": 15796112
+      },
+      {
+        "database_bytes": 1265664,
+        "ordinal": 512,
+        "wal_bytes": 15824952
+      },
+      {
+        "database_bytes": 1712128,
+        "ordinal": 768,
+        "wal_bytes": 15985632
+      },
+      {
+        "database_bytes": 2154496,
+        "ordinal": 1024,
+        "wal_bytes": 15985632
+      },
+      {
+        "database_bytes": 2605056,
+        "ordinal": 1280,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 3051520,
+        "ordinal": 1536,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 3510272,
+        "ordinal": 1792,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 3948544,
+        "ordinal": 2048,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 4407296,
+        "ordinal": 2304,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 4837376,
+        "ordinal": 2560,
+        "wal_bytes": 16162792
+      },
+      {
+        "database_bytes": 5308416,
+        "ordinal": 2816,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 5746688,
+        "ordinal": 3072,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 6189056,
+        "ordinal": 3328,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 6627328,
+        "ordinal": 3584,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 7081984,
+        "ordinal": 3840,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 7536640,
+        "ordinal": 4096,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 7979008,
+        "ordinal": 4352,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 8429568,
+        "ordinal": 4608,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 8880128,
+        "ordinal": 4864,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 9318400,
+        "ordinal": 5120,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 9760768,
+        "ordinal": 5376,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 10211328,
+        "ordinal": 5632,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 10657792,
+        "ordinal": 5888,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 11112448,
+        "ordinal": 6144,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 11550720,
+        "ordinal": 6400,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 12001280,
+        "ordinal": 6656,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 12447744,
+        "ordinal": 6912,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 12894208,
+        "ordinal": 7168,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 13328384,
+        "ordinal": 7424,
+        "wal_bytes": 16199872
+      },
+      {
+        "database_bytes": 13783040,
+        "ordinal": 7680,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 14249984,
+        "ordinal": 7936,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 14688256,
+        "ordinal": 8192,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 15122432,
+        "ordinal": 8448,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 15572992,
+        "ordinal": 8704,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 16011264,
+        "ordinal": 8960,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 16474112,
+        "ordinal": 9216,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 16916480,
+        "ordinal": 9472,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 17367040,
+        "ordinal": 9728,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 17805312,
+        "ordinal": 9984,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 18264064,
+        "ordinal": 10240,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 18698240,
+        "ordinal": 10496,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 19161088,
+        "ordinal": 10752,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 19619840,
+        "ordinal": 11008,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 20054016,
+        "ordinal": 11264,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 20480000,
+        "ordinal": 11520,
+        "wal_bytes": 16241072
+      },
+      {
+        "database_bytes": 20951040,
+        "ordinal": 11776,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 21389312,
+        "ordinal": 12032,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 21831680,
+        "ordinal": 12288,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 22274048,
+        "ordinal": 12544,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 22720512,
+        "ordinal": 12800,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 23166976,
+        "ordinal": 13056,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 23617536,
+        "ordinal": 13312,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 24080384,
+        "ordinal": 13568,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 24522752,
+        "ordinal": 13824,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 24965120,
+        "ordinal": 14080,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 25415680,
+        "ordinal": 14336,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 25853952,
+        "ordinal": 14592,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 26308608,
+        "ordinal": 14848,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 26759168,
+        "ordinal": 15104,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 27205632,
+        "ordinal": 15360,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 27643904,
+        "ordinal": 15616,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 28102656,
+        "ordinal": 15872,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 28540928,
+        "ordinal": 16128,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 28975104,
+        "ordinal": 16384,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 29429760,
+        "ordinal": 16640,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 29876224,
+        "ordinal": 16896,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 30339072,
+        "ordinal": 17152,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 30785536,
+        "ordinal": 17408,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 31223808,
+        "ordinal": 17664,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 31657984,
+        "ordinal": 17920,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 32100352,
+        "ordinal": 18176,
+        "wal_bytes": 16269912
+      },
+      {
+        "database_bytes": 32555008,
+        "ordinal": 18432,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 33001472,
+        "ordinal": 18688,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 33464320,
+        "ordinal": 18944,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 33910784,
+        "ordinal": 19200,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 34349056,
+        "ordinal": 19456,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 34820096,
+        "ordinal": 19712,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 35262464,
+        "ordinal": 19968,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 35717120,
+        "ordinal": 20224,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 36151296,
+        "ordinal": 20480,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 36601856,
+        "ordinal": 20736,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 37052416,
+        "ordinal": 20992,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 37478400,
+        "ordinal": 21248,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 37933056,
+        "ordinal": 21504,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 38375424,
+        "ordinal": 21760,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 38830080,
+        "ordinal": 22016,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 39268352,
+        "ordinal": 22272,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 39718912,
+        "ordinal": 22528,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 40161280,
+        "ordinal": 22784,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 40611840,
+        "ordinal": 23040,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 41054208,
+        "ordinal": 23296,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 41508864,
+        "ordinal": 23552,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 41934848,
+        "ordinal": 23808,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 42393600,
+        "ordinal": 24064,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 42848256,
+        "ordinal": 24320,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 43298816,
+        "ordinal": 24576,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 43745280,
+        "ordinal": 24832,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 44179456,
+        "ordinal": 25088,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 44605440,
+        "ordinal": 25344,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 45064192,
+        "ordinal": 25600,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 45531136,
+        "ordinal": 25856,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 45989888,
+        "ordinal": 26112,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 46432256,
+        "ordinal": 26368,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 46899200,
+        "ordinal": 26624,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 47321088,
+        "ordinal": 26880,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 47759360,
+        "ordinal": 27136,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 48193536,
+        "ordinal": 27392,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 48648192,
+        "ordinal": 27648,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 49115136,
+        "ordinal": 27904,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 49577984,
+        "ordinal": 28160,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 50032640,
+        "ordinal": 28416,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 50479104,
+        "ordinal": 28672,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 50921472,
+        "ordinal": 28928,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 51359744,
+        "ordinal": 29184,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 51798016,
+        "ordinal": 29440,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 52260864,
+        "ordinal": 29696,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 52686848,
+        "ordinal": 29952,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 53121024,
+        "ordinal": 30208,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 53559296,
+        "ordinal": 30464,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 54013952,
+        "ordinal": 30720,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 54468608,
+        "ordinal": 30976,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 54927360,
+        "ordinal": 31232,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 55377920,
+        "ordinal": 31488,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 55820288,
+        "ordinal": 31744,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 56274944,
+        "ordinal": 32000,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 56721408,
+        "ordinal": 32256,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 57159680,
+        "ordinal": 32512,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 57618432,
+        "ordinal": 32768,
+        "wal_bytes": 16298752
+      },
+      {
+        "database_bytes": 58085376,
+        "ordinal": 33024,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 58544128,
+        "ordinal": 33280,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 58998784,
+        "ordinal": 33536,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 59461632,
+        "ordinal": 33792,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 59920384,
+        "ordinal": 34048,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 60366848,
+        "ordinal": 34304,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 60809216,
+        "ordinal": 34560,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 61263872,
+        "ordinal": 34816,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 61702144,
+        "ordinal": 35072,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 62136320,
+        "ordinal": 35328,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 62595072,
+        "ordinal": 35584,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 63029248,
+        "ordinal": 35840,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 63471616,
+        "ordinal": 36096,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 63938560,
+        "ordinal": 36352,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 64372736,
+        "ordinal": 36608,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 64843776,
+        "ordinal": 36864,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 65294336,
+        "ordinal": 37120,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 65740800,
+        "ordinal": 37376,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 66195456,
+        "ordinal": 37632,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 66650112,
+        "ordinal": 37888,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 67121152,
+        "ordinal": 38144,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 67551232,
+        "ordinal": 38400,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 68001792,
+        "ordinal": 38656,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 68444160,
+        "ordinal": 38912,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 68886528,
+        "ordinal": 39168,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 69337088,
+        "ordinal": 39424,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 69779456,
+        "ordinal": 39680,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 70246400,
+        "ordinal": 39936,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 70688768,
+        "ordinal": 40192,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 71139328,
+        "ordinal": 40448,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 71589888,
+        "ordinal": 40704,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 72028160,
+        "ordinal": 40960,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 72470528,
+        "ordinal": 41216,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 72949760,
+        "ordinal": 41472,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 73396224,
+        "ordinal": 41728,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 73842688,
+        "ordinal": 41984,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 74280960,
+        "ordinal": 42240,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 74735616,
+        "ordinal": 42496,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 75194368,
+        "ordinal": 42752,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 75653120,
+        "ordinal": 43008,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 76107776,
+        "ordinal": 43264,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 76550144,
+        "ordinal": 43520,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 76992512,
+        "ordinal": 43776,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 77443072,
+        "ordinal": 44032,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 77877248,
+        "ordinal": 44288,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 78344192,
+        "ordinal": 44544,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 78782464,
+        "ordinal": 44800,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 79237120,
+        "ordinal": 45056,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 79671296,
+        "ordinal": 45312,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 80113664,
+        "ordinal": 45568,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 80572416,
+        "ordinal": 45824,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 81010688,
+        "ordinal": 46080,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 81469440,
+        "ordinal": 46336,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 81924096,
+        "ordinal": 46592,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 82378752,
+        "ordinal": 46848,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 82825216,
+        "ordinal": 47104,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 83279872,
+        "ordinal": 47360,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 83730432,
+        "ordinal": 47616,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 84172800,
+        "ordinal": 47872,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 84619264,
+        "ordinal": 48128,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 85053440,
+        "ordinal": 48384,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 85504000,
+        "ordinal": 48640,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 85950464,
+        "ordinal": 48896,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 86384640,
+        "ordinal": 49152,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 86839296,
+        "ordinal": 49408,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 87293952,
+        "ordinal": 49664,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 87769088,
+        "ordinal": 49920,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 88223744,
+        "ordinal": 50176,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 88666112,
+        "ordinal": 50432,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 89120768,
+        "ordinal": 50688,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 89571328,
+        "ordinal": 50944,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 90021888,
+        "ordinal": 51200,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 90472448,
+        "ordinal": 51456,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 90935296,
+        "ordinal": 51712,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 91369472,
+        "ordinal": 51968,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 91815936,
+        "ordinal": 52224,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 92299264,
+        "ordinal": 52480,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 92725248,
+        "ordinal": 52736,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 93175808,
+        "ordinal": 52992,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 93622272,
+        "ordinal": 53248,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 94060544,
+        "ordinal": 53504,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 94502912,
+        "ordinal": 53760,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 94953472,
+        "ordinal": 54016,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 95408128,
+        "ordinal": 54272,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 95854592,
+        "ordinal": 54528,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 96313344,
+        "ordinal": 54784,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 96751616,
+        "ordinal": 55040,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 97218560,
+        "ordinal": 55296,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 97652736,
+        "ordinal": 55552,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 98123776,
+        "ordinal": 55808,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 98562048,
+        "ordinal": 56064,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 99016704,
+        "ordinal": 56320,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 99475456,
+        "ordinal": 56576,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 99905536,
+        "ordinal": 56832,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 100339712,
+        "ordinal": 57088,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 100773888,
+        "ordinal": 57344,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 101220352,
+        "ordinal": 57600,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 101666816,
+        "ordinal": 57856,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 102113280,
+        "ordinal": 58112,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 102567936,
+        "ordinal": 58368,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 103010304,
+        "ordinal": 58624,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 103469056,
+        "ordinal": 58880,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 103927808,
+        "ordinal": 59136,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 104386560,
+        "ordinal": 59392,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 104824832,
+        "ordinal": 59648,
+        "wal_bytes": 16339952
+      },
+      {
+        "database_bytes": 105304064,
+        "ordinal": 59904,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 105750528,
+        "ordinal": 60160,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 106217472,
+        "ordinal": 60416,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 106676224,
+        "ordinal": 60672,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 107110400,
+        "ordinal": 60928,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 107560960,
+        "ordinal": 61184,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 108019712,
+        "ordinal": 61440,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 108470272,
+        "ordinal": 61696,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 108916736,
+        "ordinal": 61952,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 109379584,
+        "ordinal": 62208,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 109834240,
+        "ordinal": 62464,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 110284800,
+        "ordinal": 62720,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 110735360,
+        "ordinal": 62976,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 111181824,
+        "ordinal": 63232,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 111603712,
+        "ordinal": 63488,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 112066560,
+        "ordinal": 63744,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 112504832,
+        "ordinal": 64000,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 112951296,
+        "ordinal": 64256,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 113393664,
+        "ordinal": 64512,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 113856512,
+        "ordinal": 64768,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 114323456,
+        "ordinal": 65024,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 114761728,
+        "ordinal": 65280,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 115224576,
+        "ordinal": 65536,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 115679232,
+        "ordinal": 65792,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 116129792,
+        "ordinal": 66048,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 116563968,
+        "ordinal": 66304,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 117018624,
+        "ordinal": 66560,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 117473280,
+        "ordinal": 66816,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 117919744,
+        "ordinal": 67072,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 118386688,
+        "ordinal": 67328,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 118829056,
+        "ordinal": 67584,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 119283712,
+        "ordinal": 67840,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 119738368,
+        "ordinal": 68096,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 120184832,
+        "ordinal": 68352,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 120631296,
+        "ordinal": 68608,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 121061376,
+        "ordinal": 68864,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 121495552,
+        "ordinal": 69120,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 121942016,
+        "ordinal": 69376,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 122388480,
+        "ordinal": 69632,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 122839040,
+        "ordinal": 69888,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 123285504,
+        "ordinal": 70144,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 123723776,
+        "ordinal": 70400,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 124178432,
+        "ordinal": 70656,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 124620800,
+        "ordinal": 70912,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 125067264,
+        "ordinal": 71168,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 125501440,
+        "ordinal": 71424,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 125947904,
+        "ordinal": 71680,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 126398464,
+        "ordinal": 71936,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 126844928,
+        "ordinal": 72192,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 127287296,
+        "ordinal": 72448,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 127750144,
+        "ordinal": 72704,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 128196608,
+        "ordinal": 72960,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 128643072,
+        "ordinal": 73216,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 129073152,
+        "ordinal": 73472,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 129540096,
+        "ordinal": 73728,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 129990656,
+        "ordinal": 73984,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 130465792,
+        "ordinal": 74240,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 130924544,
+        "ordinal": 74496,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 131358720,
+        "ordinal": 74752,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 131809280,
+        "ordinal": 75008,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 132247552,
+        "ordinal": 75264,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 132714496,
+        "ordinal": 75520,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 133160960,
+        "ordinal": 75776,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 133611520,
+        "ordinal": 76032,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 134053888,
+        "ordinal": 76288,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 134496256,
+        "ordinal": 76544,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 134950912,
+        "ordinal": 76800,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 135376896,
+        "ordinal": 77056,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 135827456,
+        "ordinal": 77312,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 136310784,
+        "ordinal": 77568,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 136773632,
+        "ordinal": 77824,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 137228288,
+        "ordinal": 78080,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 137687040,
+        "ordinal": 78336,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 138158080,
+        "ordinal": 78592,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 138600448,
+        "ordinal": 78848,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 139042816,
+        "ordinal": 79104,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 139476992,
+        "ordinal": 79360,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 139935744,
+        "ordinal": 79616,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 140390400,
+        "ordinal": 79872,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 140840960,
+        "ordinal": 80128,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 141295616,
+        "ordinal": 80384,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 141742080,
+        "ordinal": 80640,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 142188544,
+        "ordinal": 80896,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 142618624,
+        "ordinal": 81152,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 143073280,
+        "ordinal": 81408,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 143532032,
+        "ordinal": 81664,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 143978496,
+        "ordinal": 81920,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 144420864,
+        "ordinal": 82176,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 144871424,
+        "ordinal": 82432,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 145317888,
+        "ordinal": 82688,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 145764352,
+        "ordinal": 82944,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 146194432,
+        "ordinal": 83200,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 146649088,
+        "ordinal": 83456,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 147079168,
+        "ordinal": 83712,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 147517440,
+        "ordinal": 83968,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 147968000,
+        "ordinal": 84224,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 148410368,
+        "ordinal": 84480,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 148852736,
+        "ordinal": 84736,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 149327872,
+        "ordinal": 84992,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 149774336,
+        "ordinal": 85248,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 150212608,
+        "ordinal": 85504,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 150650880,
+        "ordinal": 85760,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 151101440,
+        "ordinal": 86016,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 151568384,
+        "ordinal": 86272,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 151998464,
+        "ordinal": 86528,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 152469504,
+        "ordinal": 86784,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 152915968,
+        "ordinal": 87040,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 153358336,
+        "ordinal": 87296,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 153821184,
+        "ordinal": 87552,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 154263552,
+        "ordinal": 87808,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 154718208,
+        "ordinal": 88064,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 155160576,
+        "ordinal": 88320,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 155615232,
+        "ordinal": 88576,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 156065792,
+        "ordinal": 88832,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 156512256,
+        "ordinal": 89088,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 156946432,
+        "ordinal": 89344,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 157388800,
+        "ordinal": 89600,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 157859840,
+        "ordinal": 89856,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 158310400,
+        "ordinal": 90112,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 158748672,
+        "ordinal": 90368,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 159191040,
+        "ordinal": 90624,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 159637504,
+        "ordinal": 90880,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 160100352,
+        "ordinal": 91136,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 160559104,
+        "ordinal": 91392,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 160997376,
+        "ordinal": 91648,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 161447936,
+        "ordinal": 91904,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 161886208,
+        "ordinal": 92160,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 162353152,
+        "ordinal": 92416,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 162795520,
+        "ordinal": 92672,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 163254272,
+        "ordinal": 92928,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 163700736,
+        "ordinal": 93184,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 164163584,
+        "ordinal": 93440,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 164614144,
+        "ordinal": 93696,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 165056512,
+        "ordinal": 93952,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 165507072,
+        "ordinal": 94208,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 165941248,
+        "ordinal": 94464,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 166391808,
+        "ordinal": 94720,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 166850560,
+        "ordinal": 94976,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 167313408,
+        "ordinal": 95232,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 167759872,
+        "ordinal": 95488,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 168210432,
+        "ordinal": 95744,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 168656896,
+        "ordinal": 96000,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 169136128,
+        "ordinal": 96256,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 169594880,
+        "ordinal": 96512,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 170041344,
+        "ordinal": 96768,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 170496000,
+        "ordinal": 97024,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 170938368,
+        "ordinal": 97280,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 171397120,
+        "ordinal": 97536,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 171843584,
+        "ordinal": 97792,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 172285952,
+        "ordinal": 98048,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 172761088,
+        "ordinal": 98304,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 173182976,
+        "ordinal": 98560,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 173641728,
+        "ordinal": 98816,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 174092288,
+        "ordinal": 99072,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 174542848,
+        "ordinal": 99328,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 174985216,
+        "ordinal": 99584,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 175419392,
+        "ordinal": 99840,
+        "wal_bytes": 16393512
+      },
+      {
+        "database_bytes": 175419392,
+        "ordinal": 100000,
+        "wal_bytes": 16393512
+      }
+    ],
+    "source_payload_exact_rows": 100000
+  },
+  "schema": "i50-journal-payload-replay-diagnostic-v1",
+  "source": {
+    "cursor_ordinal": 100000,
+    "expected_pins": {
+      "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3": "e12fd983c51d1f87cca00e3ec43ccf25f9c345eca932dcd2f1c6172e91e60485",
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.json": "ef915ad4c77c4c39d5fffb105006b956a9637718b2ef87f4ee59ddf79fd23c5e",
+      "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+      "D:\\temp\\i5051c-20261025-r6\\venv\\Lib\\site-packages\\backtrader\\stores\\execution_decision_journal.py": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+    },
+    "files_after": {
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3": {
+        "sha256": "e12fd983c51d1f87cca00e3ec43ccf25f9c345eca932dcd2f1c6172e91e60485",
+        "size_bytes": 175697920
+      },
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3-shm": {
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+        "size_bytes": 32768
+      },
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3-wal": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    "files_before": {
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3": {
+        "sha256": "e12fd983c51d1f87cca00e3ec43ccf25f9c345eca932dcd2f1c6172e91e60485",
+        "size_bytes": 175697920
+      },
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3-shm": {
+        "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+        "size_bytes": 32768
+      },
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.decisions.sqlite3-wal": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 0
+      }
+    },
+    "pins_after": {
+      "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+      "D:\\temp\\i50-formal-20261025-r6\\27a-build\\result.json": "ef915ad4c77c4c39d5fffb105006b956a9637718b2ef87f4ee59ddf79fd23c5e",
+      "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+      "D:\\temp\\i5051c-20261025-r6\\venv\\Lib\\site-packages\\backtrader\\stores\\execution_decision_journal.py": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+    },
+    "r6_report_pin": "ef915ad4c77c4c39d5fffb105006b956a9637718b2ef87f4ee59ddf79fd23c5e",
+    "row_counts": {
+      "decision_rows": 100000,
+      "history_rows": 100000
+    },
+    "unchanged": true
+  },
+  "status": "DIAGNOSTIC_COMPLETE_NOT_FORMAL_ACCEPTANCE",
+  "timing": {
+    "api_returned_calls": 100000,
+    "calls": 100000,
+    "max_outer_wall_ms": 1280.017,
+    "outer_thread_cpu_ms_sum": 140796.875,
+    "outer_wall_ms_sum": 236987.738,
+    "outside_observed_sql_thread_cpu_ms_sum": 27765.625,
+    "outside_observed_sql_wall_ms_sum": 70916.636,
+    "sample_scope": "new 100k replay; ordinals are not attributed to the earlier formal max call",
+    "sql_phase_totals": {
+      "BEGIN": {
+        "count": 100000,
+        "max_wall_ns": 2079100,
+        "thread_cpu_ns": 484375000,
+        "wall_ns": 1746341600
+      },
+      "CHECKPOINT": {
+        "count": 390,
+        "max_wall_ns": 80146200,
+        "thread_cpu_ns": 3078125000,
+        "wall_ns": 6594963500
+      },
+      "COMMIT": {
+        "count": 100000,
+        "max_wall_ns": 1279039600,
+        "thread_cpu_ns": 98609375000,
+        "wall_ns": 132543467500
+      },
+      "DECISIONS": {
+        "count": 500000,
+        "max_wall_ns": 3303700,
+        "thread_cpu_ns": 2234375000,
+        "wall_ns": 6946841300
+      },
+      "DECISION_CAPACITY": {
+        "count": 200000,
+        "max_wall_ns": 7276700,
+        "thread_cpu_ns": 437500000,
+        "wall_ns": 1290645800
+      },
+      "DURABLE_CAPACITY": {
+        "count": 200000,
+        "max_wall_ns": 2388800,
+        "thread_cpu_ns": 500000000,
+        "wall_ns": 1077549800
+      },
+      "GRID_CURSOR_HIGHWATER": {
+        "count": 900000,
+        "max_wall_ns": 2604600,
+        "thread_cpu_ns": 3421875000,
+        "wall_ns": 7364716000
+      },
+      "GRID_HISTORY": {
+        "count": 600000,
+        "max_wall_ns": 2614500,
+        "thread_cpu_ns": 3171875000,
+        "wall_ns": 5779068000
+      },
+      "OTHER": {
+        "count": 200000,
+        "max_wall_ns": 810600,
+        "thread_cpu_ns": 250000000,
+        "wall_ns": 605583300
+      },
+      "RUN_ORDER_BUDGET": {
+        "count": 400003,
+        "max_wall_ns": 3497000,
+        "thread_cpu_ns": 843750000,
+        "wall_ns": 2121925200
+      }
+    },
+    "sql_statement_count": 3200393,
+    "thread_cpu_histogram": {
+      "0-1_ms": 91011,
+      "1-2_ms": 0,
+      "10-25_ms": 8967,
+      "100-250_ms": 0,
+      "1000-2000_ms": 0,
+      "2-5_ms": 0,
+      "25-50_ms": 22,
+      "250-500_ms": 0,
+      "5-10_ms": 0,
+      "50-100_ms": 0,
+      "500-1000_ms": 0,
+      ">2000_ms": 0
+    },
+    "top16_calls": [
+      {
+        "ordinal": 14626,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.722,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.016
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 1279.04
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.067
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.07
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.053
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.021
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 1280.017
+      },
+      {
+        "ordinal": 87449,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.956,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.016
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 389.161
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.066
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.07
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.062
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 390.38
+      },
+      {
+        "ordinal": 53776,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 1.453,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.097
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 87.174
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.127
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.024
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.036
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.19
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 1.685
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 15.625,
+            "wall_ms": 0.017
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.036
+          }
+        },
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 90.837
+      },
+      {
+        "ordinal": 64558,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.723,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.018
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 85.84
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.074
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.073
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 15.625,
+            "wall_ms": 0.086
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.021
+          }
+        },
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 86.863
+      },
+      {
+        "ordinal": 10104,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.568,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.013
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 85.821
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.038
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.011
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.008
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.055
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.038
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.005
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.016
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 86.573
+      },
+      {
+        "ordinal": 58112,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.808,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.017
+          },
+          "CHECKPOINT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 80.146
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 15.625,
+            "wall_ms": 1.058
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.082
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.011
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.072
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.056
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.007
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.022
+          }
+        },
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 82.29
+      },
+      {
+        "ordinal": 70244,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 3.08,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.022
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 70.563
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.096
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.014
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.013
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.185
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.08
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.008
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.049
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 74.111
+      },
+      {
+        "ordinal": 68117,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.722,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 72.105
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.083
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.074
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.059
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.007
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.021
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 73.115
+      },
+      {
+        "ordinal": 95971,
+        "outside_observed_sql_thread_cpu_ms": 15.625,
+        "outside_observed_sql_wall_ms": 0.681,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.016
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 65.857
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.093
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.068
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.069
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.005
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 15.625,
+        "wall_ms": 66.83
+      },
+      {
+        "ordinal": 40897,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.705,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.017
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 65.04
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.07
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.011
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.071
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.06
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 66.013
+      },
+      {
+        "ordinal": 47152,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.709,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.016
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 63.902
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.07
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.072
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.052
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.021
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 64.871
+      },
+      {
+        "ordinal": 34055,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.719,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.018
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 59.516
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.082
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.011
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.069
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.051
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.022
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 60.505
+      },
+      {
+        "ordinal": 44927,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.692,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.015
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 54.099
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.059
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.009
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.067
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.048
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.007
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 55.027
+      },
+      {
+        "ordinal": 91448,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.697,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.014
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 52.138
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.062
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.011
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.009
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.066
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.06
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.005
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.019
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 53.081
+      },
+      {
+        "ordinal": 38673,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.729,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.023
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 50.233
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.077
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.01
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.073
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.053
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.006
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 51.236
+      },
+      {
+        "ordinal": 79030,
+        "outside_observed_sql_thread_cpu_ms": 0.0,
+        "outside_observed_sql_wall_ms": 0.792,
+        "sql_by_phase": {
+          "BEGIN": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.015
+          },
+          "COMMIT": {
+            "count": 1,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 48.779
+          },
+          "DECISIONS": {
+            "count": 5,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.086
+          },
+          "DECISION_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.012
+          },
+          "DURABLE_CAPACITY": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.009
+          },
+          "GRID_CURSOR_HIGHWATER": {
+            "count": 9,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.072
+          },
+          "GRID_HISTORY": {
+            "count": 6,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.05
+          },
+          "OTHER": {
+            "count": 2,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.025
+          },
+          "RUN_ORDER_BUDGET": {
+            "count": 4,
+            "thread_cpu_ms": 0.0,
+            "wall_ms": 0.02
+          }
+        },
+        "thread_cpu_ms": 0.0,
+        "wall_ms": 49.862
+      }
+    ],
+    "wall_histogram": {
+      "0-1_ms": 0,
+      "1-2_ms": 29040,
+      "10-25_ms": 408,
+      "100-250_ms": 0,
+      "1000-2000_ms": 1,
+      "2-5_ms": 69667,
+      "25-50_ms": 49,
+      "250-500_ms": 1,
+      "5-10_ms": 821,
+      "50-100_ms": 13,
+      "500-1000_ms": 0,
+      ">2000_ms": 0
+    },
+    "wrapper_note": "Connection/Cursor execute wrappers add diagnostic overhead; not formal performance evidence."
+  }
+}

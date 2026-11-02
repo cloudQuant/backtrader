@@ -1,0 +1,98 @@
+{
+  "status": "INSTALLED_PENDING_RUNTIME_CHECK",
+  "source_commit": "9ecece9d9e80176de8cb9942ca187eb333a18137",
+  "commands": [
+    {
+      "phase": "archive",
+      "command": [
+        "git",
+        "archive",
+        "--format=zip",
+        "--output=D:\\temp\\i51-nojoin-backtrader-20261027-r1\\source.zip",
+        "9ecece9d9e80176de8cb9942ca187eb333a18137",
+        "setup.py",
+        "pyproject.toml",
+        "README.md",
+        "LICENSE",
+        "backtrader",
+        "backtrader_runtime"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\archive.txt",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "phase": "build",
+      "command": [
+        "C:/anaconda3/python.exe",
+        "-I",
+        "-m",
+        "pip",
+        "wheel",
+        "--disable-pip-version-check",
+        "--no-deps",
+        "--no-build-isolation",
+        "--wheel-dir",
+        "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\wheelhouse",
+        "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\source"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\build.txt",
+        "bytes": 723,
+        "sha256": "29a07642fb6ff4ff23765f34301bb4734050d8107357563b8b1ae3332629ad25"
+      }
+    },
+    {
+      "phase": "install",
+      "command": [
+        "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+        "-I",
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-index",
+        "--find-links",
+        "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse",
+        "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\install.txt",
+        "bytes": 4392,
+        "sha256": "ddb271d9dc8340965d3477be21c1deb19a5413bc5b3cb9cd9bb6423db1e73116"
+      }
+    },
+    {
+      "phase": "pip-check",
+      "command": [
+        "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+        "-I",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\pip-check.txt",
+        "bytes": 31,
+        "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+      }
+    }
+  ],
+  "archive": {
+    "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\source.zip",
+    "bytes": 2433033,
+    "sha256": "a26273e129e59830581f8152c1352279bbf6f81110179679fe7137244e939161"
+  },
+  "wheel": {
+    "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+    "bytes": 2442133,
+    "sha256": "dab4e74c4df206bae12649f45e0356e6df28be3f314d58a694444fb0e30b99cb"
+  },
+  "python_payload_files_verified": 662
+}

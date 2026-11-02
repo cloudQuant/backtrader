@@ -323,8 +323,8 @@ def run_live_service(args: Any, raw_config: Mapping[str, Any], decision: Any, ru
             raise ValueError("service_run_window_invalid")
         run_seconds = min(run_seconds, 7200.0)
 
-        from backtrader_runtime.service_observation import open_service_read_session
-        from backtrader_runtime.service_observation import ServiceObservationInstrument
+        from backtrader.service.service_observation import open_service_read_session
+        from bt_api_py.service_observation_assembly import ServiceObservationInstrument
         import backtrader as bt
 
         instruments = _service_instruments(service, contracts, ServiceObservationInstrument)
@@ -341,6 +341,7 @@ def run_live_service(args: Any, raw_config: Mapping[str, Any], decision: Any, ru
         with open_service_read_session(
             service,
             instruments=instruments,
+            provider_route="CTP___FUTURE",
             allow_write=False,
             timeout_seconds=float(timeout_config.get("stop_seconds") or 10.0),
         ) as session:

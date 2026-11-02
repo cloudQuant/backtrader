@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "scope": "028 private trusted in-process live Store config handoff",
+  "evidence_level": "SOURCE_FAKE_CONFIG_HANDOFF_ONLY",
+  "scoped_result": {
+    "status": "PASS",
+    "passed_nodes": 11,
+    "tests": [
+      "tests.unit.test_alpha003_simnow_store_config_override::test_live_store_config_uses_in_memory_override_without_environment",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_live_store_config_keeps_legacy_environment_fallback",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_rejects_invalid_override_before_epoch_or_store_path[override0-LIVE_STORE_CONFIG_INJECTION_DENIED]",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_rejects_invalid_override_before_epoch_or_store_path[override1-LIVE_STORE_CONFIG_INJECTION_DENIED]",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_rejects_invalid_override_before_epoch_or_store_path[override2-LIVE_STORE_CONFIG_FIELDS_INVALID]",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_rejects_override_outside_live_mode",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_forwards_override_to_query_and_bundle_epoch_entry[ctp_query]",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_run_forwards_override_to_query_and_bundle_epoch_entry[bundle]",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_query_epoch_sequence_forwards_same_override_to_each_live_run",
+      "tests.unit.test_alpha003_simnow_store_config_override::test_bundle_epoch_sequence_forwards_same_override_to_each_live_run",
+      "tests.unit.test_alpha003_simnow_runner::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]"
+    ],
+    "summary": "10 config-override unit nodes plus the existing same-Store three-route query-live composition node."
+  },
+  "invocation": {
+    "dev_head": "4f5732c7a17ed3c7d9d3e165d37679d3b5e432a3",
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "--tb=short",
+      "-o",
+      "faulthandler_timeout=45",
+      "--junitxml=D:\\temp\\i51-functional-focus-20261026-r2\\junit.xml",
+      "tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel",
+      "tests/unit/test_alpha003_simnow_store_config_override.py",
+      "tests/unit/test_alpha003_simnow_runner.py::test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[same-store-query-live]",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_shared_snapshot_projection_preserves_epoch_availability_and_quality",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_durably_records_each_complete_warmup_grid_once",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_ready_grid_for_target_decision_path",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_prenext_leaves_replay_ready_history_grid_for_target_decision_path",
+      "tests/unit/test_alpha003_simnow_strategy.py::test_live_shadow_does_not_submit_risk_reduction_preview"
+    ],
+    "exit_code": 1,
+    "timed_out": false,
+    "elapsed_seconds": 11.186999999976251,
+    "total_tests": 18,
+    "passed": 15,
+    "failed": 3,
+    "errors": 0,
+    "skipped": 0,
+    "pytest_warning": "One existing PytestConfigWarning: unknown config option asyncio_default_fixture_loop_scope.",
+    "performance_gates": "not evaluated; concurrent longstream is permitted"
+  },
+  "full_run_failures": {
+    "count": 3,
+    "cases": [
+      {
+        "test_id": "tests.integration.test_live_alpha003_history_catchup_execution::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed]",
+        "kind": "failure",
+        "message": "IndexError: array index out of range"
+      },
+      {
+        "test_id": "tests.integration.test_live_alpha003_history_catchup_execution::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape]",
+        "kind": "failure",
+        "message": "IndexError: array index out of range"
+      },
+      {
+        "test_id": "tests.unit.test_alpha003_simnow_strategy::test_prenext_durably_records_each_complete_warmup_grid_once",
+        "kind": "failure",
+        "message": "AttributeError: 'types.SimpleNamespace' object has no attribute '_run_live_prenext_risk'"
+      }
+    ],
+    "boundary": "These failures are outside the scoped config-handoff pass: two parametrizations of an unaccepted prenext history integration case and one legacy unit stub. The complete R2 invocation is not a full pass."
+  },
+  "source_pins": {
+    "run_py": {
+      "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+      "bytes": 250230,
+      "sha256": "1a6f4eac07ffd75da3f7906a214e346d646d7a278e0bffe464e7df3ad7e3dff7"
+    },
+    "new_test": {
+      "path": "tests/unit/test_alpha003_simnow_store_config_override.py",
+      "bytes": 9327,
+      "sha256": "faba8c33e287a0f8c90bd2b153bae8bfdca28a2066e3d3707f8fa84ef90401cb"
+    },
+    "all_invocation_inputs": [
+      {
+        "path": "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+        "bytes": 200202,
+        "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+      },
+      {
+        "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+        "bytes": 250230,
+        "sha256": "1a6f4eac07ffd75da3f7906a214e346d646d7a278e0bffe464e7df3ad7e3dff7"
+      },
+      {
+        "path": "tests/integration/test_live_alpha003_history_catchup_execution.py",
+        "bytes": 36681,
+        "sha256": "b82b4fa599404e4d8e3a80bfb898a9f9cfc292a156b454eda92c57056b32e7c6"
+      },
+      {
+        "path": "tests/unit/test_alpha003_simnow_store_config_override.py",
+        "bytes": 9327,
+        "sha256": "faba8c33e287a0f8c90bd2b153bae8bfdca28a2066e3d3707f8fa84ef90401cb"
+      },
+      {
+        "path": "tests/unit/test_alpha003_simnow_strategy.py",
+        "bytes": 124654,
+        "sha256": "f729291367efe709b825f6f0dad527ffd13f806c3ad1affb30bd491fafc8088b"
+      },
+      {
+        "path": "tests/unit/test_alpha003_simnow_runner.py",
+        "bytes": 206243,
+        "sha256": "e1b3907d0d0b6985e4de4e4e7eb7d98c44bec51e60e24699fff710426afb12a7"
+      },
+      {
+        "path": "tests/unit/stores/test_factor_execution.py",
+        "bytes": 69614,
+        "sha256": "ee3aa511fb3cc161e57d6f5d074e7fe4fc90c38f4885f1604a6bfe734a1ce4dc"
+      },
+      {
+        "path": "tests/unit/stores/test_factor_execution_facts.py",
+        "bytes": 152605,
+        "sha256": "6e63db2d040ca592157032dd2f01bce6b93d6cb6290b82af3e1515b4353e16e0"
+      },
+      {
+        "path": "backtrader/stores/factor_execution.py",
+        "bytes": 280234,
+        "sha256": "a37eb1ac11ef58523897b2bdc3eba6195c0057ac9a9028e555f06b64da2b1dc6"
+      },
+      {
+        "path": "backtrader/stores/factor_execution_facts.py",
+        "bytes": 211980,
+        "sha256": "98feaa3db0fd8ded871ba23a2341008c892dfa27d133b44c29a3c514e1d34763"
+      },
+      {
+        "path": "backtrader/stores/execution_decision_journal.py",
+        "bytes": 298039,
+        "sha256": "e60e9c1e353ce9dea39c3f6461ce1f9aadbb48308ff45c72c19796cf10dadadf"
+      },
+      {
+        "path": "backtrader/stores/registered_sim.py",
+        "bytes": 136711,
+        "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+      },
+      {
+        "path": "backtrader/stores/btapistore.py",
+        "bytes": 860515,
+        "sha256": "737213fcabbc8ab62acc9322cd18c29808c83f2b10e9df37bb735f58fa2eb290"
+      },
+      {
+        "path": "backtrader/brokers/btapibroker.py",
+        "bytes": 525567,
+        "sha256": "ba741412429f2679dbf3d2205c454315b7fd190f7b6677358609a2b3a12ce945"
+      },
+      {
+        "path": "backtrader/research/live_cohort.py",
+        "bytes": 116603,
+        "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+      }
+    ],
+    "pre_post_pins_unchanged": true
+  },
+  "raw_artifacts": [
+    {
+      "archive_path": "launch.json",
+      "source_path": "D:\\temp\\i51-functional-focus-20261026-r2\\launch.json",
+      "bytes": 4114,
+      "sha256": "d0bf6cff63ac4a3a5aa820cfed7a2eaf3ea1229d918c53d2f6eb5cd6636c2054",
+      "matches_source": true
+    },
+    {
+      "archive_path": "completion.json",
+      "source_path": "D:\\temp\\i51-functional-focus-20261026-r2\\completion.json",
+      "bytes": 2953,
+      "sha256": "78cb8f86c752fb51a75f51f14e18ccbd5eabf1258935694354c4aa31b9e6eba0",
+      "matches_source": true
+    },
+    {
+      "archive_path": "junit.xml",
+      "source_path": "D:\\temp\\i51-functional-focus-20261026-r2\\junit.xml",
+      "bytes": 6053,
+      "sha256": "8e41bd91ec38297b71032f7bbc2770b44210d6b52bdc8c03d36a9a1e5d05d603",
+      "matches_source": true
+    },
+    {
+      "archive_path": "stdout.bin",
+      "source_path": "D:\\temp\\i51-functional-focus-20261026-r2\\stdout.bin",
+      "bytes": 4013,
+      "sha256": "05fd143ba801ee285d9699c79bea54f06343c488dfff5b7539cec13669836aa9",
+      "matches_source": true
+    },
+    {
+      "archive_path": "stderr.bin",
+      "source_path": "D:\\temp\\i51-functional-focus-20261026-r2\\stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    }
+  ],
+  "limits": [
+    "No credentials, private configuration, provider session, or account was used.",
+    "This is source/fake handoff evidence only; it is not account acceptance or AC51-01 completion.",
+    "The private hook is live-only and uses the existing schema/injection/profile validation; environment fallback is retained and process environment is not mutated.",
+    "No QA was rerun for this archive; raw R2 outputs are copied byte-for-byte."
+  ]
+}

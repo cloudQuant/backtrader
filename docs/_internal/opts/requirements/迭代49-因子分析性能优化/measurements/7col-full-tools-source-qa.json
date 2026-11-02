@@ -1,0 +1,52 @@
+{
+  "status": "PASS_SOURCE_AND_EXISTING_FIXED500_OUTPUT_COMPATIBILITY_ONLY",
+  "source_tests": {
+    "passed": 5,
+    "warnings": 1,
+    "seconds": 2.35,
+    "exit_code": 0,
+    "tool": "dabf96"
+  },
+  "initial_collection_failure": {
+    "tool": "2d1012",
+    "reason": "unrelated old test_factor_benchmark imports another Linux-only script resource module on Windows",
+    "tests_executed": 0
+  },
+  "compatibility": {
+    "tool": [
+      "563760",
+      "6c1f0c"
+    ],
+    "status": "PASS",
+    "scope_complete": true,
+    "benchmark_rerun": false,
+    "verifier": {
+      "size_bytes": 43404,
+      "sha256": "3cb7d4f80efc76a42740f6eed8f0e4e7d1b86ac8b68af49d779c8f947b75209e"
+    }
+  },
+  "static_review": "g0_fincore: no core blocker; PNG inventory/CRC/decompression/dimensions checked, not pixel equality",
+  "sources": {
+    "scripts/benchmark_factor_examples.py": {
+      "size_bytes": 39888,
+      "sha256": "63233d4cdfae9fc3f79813f88b96840a9019ea6fcb09d0cb80b667e62c1a8dd2"
+    },
+    "scripts/verify_factor_examples_benchmark.py": {
+      "size_bytes": 78101,
+      "sha256": "5818795349d7856a3dcac897ffbd0687a6c60cde7552e8aa67570a534768c921"
+    },
+    "tests/unit/test_factor_examples_benchmark_universe.py": {
+      "size_bytes": 5852,
+      "sha256": "32e1542e305187ac78f4a2f1d5766cd917eeccbe003d350c80e7585dfc552e19"
+    }
+  },
+  "archive": {
+    "size_bytes": 323855,
+    "sha256": "b16d59014b9dcf93c33a9f73803d86233e084af2e4e662a5c39275ec44328c03"
+  },
+  "limitations": [
+    "No actual full5471 invocation yet.",
+    "Correctness PASS does not establish80% or1GB.",
+    "027 profile is instrumented diagnostic only."
+  ]
+}

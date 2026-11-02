@@ -262,3 +262,11 @@ Alpha048 需要 251 格历史跨度以及按子行业去均值。它现在读取
 - [迭代45设计文档](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/设计文档.md)：`alpha101-v1` 历史语义、字段血缘、ADV、美元成交额与 VWAP；PIT 部分仅作历史说明。
 - [迭代45代表公式与验收材料](../../_internal/opts/requirements/迭代45-Indicator因子研究与多因子合成/Alpha101代表验收案例.md)：代表公式及其独立参考背景。
 - [迭代46计划](../../_internal/opts/requirements/迭代46-Alpha101原生因子实现/迭代计划.md)：101式逐批范围、H/PIT/边界验收门槛和当前状态。
+
+## Alpha003 paired panel的生命周期与验收边界
+
+Alpha003的native图使用一个物理rolling-correlation panel和一个物理multiply panel。两个物理节点都是普通Indicator，由Cerebro通过正常的`next`/`once`生命周期调度；每个目标资产对应一个非Indicator逻辑view，它共享物理panel输出line并投影自己的目标槽位，不会被独立调度。截面rank仍由原有panel算子完成，因子的横截面成员和逐目标公式结果保持原口径。
+
+早期物理panel版本的固定500股三对完整输出比较通过，但墙钟和CPU相对离散度分别为9.93%和10.69%，超过5%稳定门槛；其分区矩阵由union覆盖全部公式，各partial仍保留`INCOMPLETE`。这份历史记录不改写为后续源码的验收。
+
+G10为两个paired panel和CrossSectionalRank增加普通`once`数组内核，仅对精确标准feed、native绑定及未替换的line/feed钩子启用；其余图保留原回退路径。成功后在区间末尾同步feed，异常时先同步出错日期再生成严格错误上下文。027 quick CLI默认runonce，`--runnext`保留逐bar路径。最终源码通过96项回归及完整101式T320/T640/T1280的native/build × runnext/runonce矩阵，逐节点值、reason与输出均检查；完整500股三对027输出一致，整例计时离散度仍超过5%，不得据此声称全量稳定倍率或1 GB达标。详见[迭代49性能开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。

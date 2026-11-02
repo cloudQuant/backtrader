@@ -1,0 +1,7 @@
+{"phase": "read_csv_panel", "start_seconds": 0.00366550000035204, "wall_seconds": 20.7706787000061, "rss_bytes": 287928320}
+{"phase": "engine_runnext", "start_seconds": 182.8654389999865, "wall_seconds": 323.42845010000747, "rss_bytes": 1633439744}
+{"phase": "sink_finalize", "start_seconds": 506.45846029999666, "wall_seconds": 2.8389141999941785, "rss_bytes": 1675042816}
+{"phase": "strategy_stop", "start_seconds": 506.2941359000106, "wall_seconds": 3.059132700000191, "rss_bytes": 1611034624}
+{"phase": "cerebro_run", "start_seconds": 50.39563650000491, "wall_seconds": 459.1997478999838, "rss_bytes": 1611051008}
+{"phase": "collection_total", "start_seconds": 20.7745270000014, "wall_seconds": 488.8210584000044, "rss_bytes": 1611051008}
+{"phase": "html_report", "start_seconds": 516.7753682000039, "wall_seconds": 63.04112859998713, "rss_bytes": 1708470272}

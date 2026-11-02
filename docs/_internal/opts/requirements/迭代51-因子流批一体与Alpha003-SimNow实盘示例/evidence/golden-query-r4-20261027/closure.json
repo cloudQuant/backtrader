@@ -1,0 +1,83 @@
+{
+  "schema": "iteration51_golden_query_r4_closure.v1",
+  "date": "2026-10-27",
+  "repository": "D:/source_code/backtrader",
+  "actual_call_checkout_head": "6eb03e885d41e43eb21e73ab44f9ab61575f2dc2",
+  "delivery_parent": "d700b0a63612f579ec4a643e5a10d2045dba1b0c",
+  "evidence_level": "ROOT_ACTUAL_READONLY_GOLDEN_R4_DIAGNOSTIC_ONLY",
+  "launch": {
+    "tool": "82d65e",
+    "session_id": 94983,
+    "pid": 2408,
+    "started_at": "2026-10-27T09:42:59.435363+08:00",
+    "finished_at": "2026-10-27T09:48:07.622800+08:00",
+    "profile": "R2",
+    "profile_path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_golden_minute_profile_r2_20261027.json",
+    "profile_sha256": "d22b7bdba9cc8225b78076455c1cec728c66c0e5972f14f124a65dbee243c6fe",
+    "caller_path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_golden_minute_actual_r4_20261027.py",
+    "caller_size_bytes": 24680,
+    "caller_sha256": "1d6c9a3289b817f879cfad7abec81d603db98f2e09b4525756c35be4341d357f"
+  },
+  "result": {
+    "path": "observation.json",
+    "source_path": "D:\\temp\\i51-root-golden-minute-readonly-20261027-r2.json",
+    "size_bytes": 3669,
+    "sha256": "15e3e59941bc8cf1769ece8cf29daeec2f74d47eadeddade043cad1fefeee31e",
+    "status": "BLOCKED_ROOT_GOLDEN_MINUTE_READONLY",
+    "phase": "complete",
+    "reason": "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED",
+    "snapshot_failure_detail": "QUERY_TIMED_OUT",
+    "expected_targets": 3,
+    "expected_full_selected_targets": 87,
+    "engine_span_reached": false,
+    "capture_count": 0,
+    "timer_started": false,
+    "summary_present": false,
+    "postflight": "NOT_RUN",
+    "store_status": "RETURNED",
+    "store_shutdown_state": "PASS",
+    "native_cleanup_confirmed": true,
+    "timer_joined": true,
+    "private_context_closed": true,
+    "source_pins_unchanged": true,
+    "write_surfaces_observed_zero": false,
+    "write_count_claim": "UNOBSERVED; do not claim zero writes or observed writes.",
+    "late_capture_read": "NONE"
+  },
+  "same_host_closure": {
+    "pre_exit_tool": "ddcddf",
+    "scope_closed": true,
+    "errors_retained": false,
+    "source_pins_checked": true,
+    "normal_exit_tool": "71e51d",
+    "exit_code": 0
+  },
+  "diagnostic_boundary": {
+    "returned_detail_category": "QUERY_TIMED_OUT",
+    "catalog_vs_depth_query": "UNRESOLVED; no per-query evidence distinguishes them.",
+    "prior_R3_cause": "UNKNOWN; R4 does not recover the earlier cause.",
+    "query_defect_fixed": false
+  },
+  "capacity_and_followup": {
+    "old_native_build_raw_capacity_results": "PRESERVED_FAIL; no result rewrite.",
+    "corrected_native_rerun": {
+      "session_id": 45465,
+      "state_at_last_check": "RUNNING_NOT_ACCEPTED"
+    },
+    "corrected_build_rerun": {
+      "session_id": 36985,
+      "state_at_last_check": "RUNNING_NOT_ACCEPTED"
+    },
+    "actual_full_87": "NOT_RUN",
+    "full_run_caller_R4": "NOT_RUN",
+    "application_restart": "NOT_RUN",
+    "prior_callers": "NOT_REUSED; stale pins/windows remain unresolved."
+  },
+  "adjudication": {
+    "actual_call": "BLOCKED_ROOT_GOLDEN_MINUTE_READONLY",
+    "formal_ac_acceptance": false,
+    "account_acceptance": false,
+    "full_live_acceptance": false
+  },
+  "note": "The returned QUERY_TIMED_OUT detail is preserved, but does not identify a catalog or depth subquery cause and does not establish a code defect or its repair."
+}

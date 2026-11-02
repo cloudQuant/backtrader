@@ -1,0 +1,182 @@
+{
+  "schema": "iteration51-ctp-factor-installed-round-v1",
+  "source_commit": "7b3d45ed13ba722755b4f481fde573b7d51bd670",
+  "status": "PASS_TWO_INSTALLED_SYNTHETIC_NODES_ONLY",
+  "wheel": {
+    "path": "D:\\temp\\i51-ctp-factor-installed-20261027-r2\\wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+    "sha256": "57f5fe2e8ec0a3c83cdc500da9a23030908abf2f3d24b552dd92de0b509933bc",
+    "size_bytes": 2432344
+  },
+  "wheel_python_payload_files": 663,
+  "wheel_installed_payload_files": 668,
+  "installed_record": {
+    "entries_checked": 1341,
+    "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD",
+    "sha256": "e3b247a8193dc4cbe7cdfd2827235883f3561ace74747e8dd5a626d7b08f7272",
+    "size_bytes": 112674
+  },
+  "pytest_cases": 2,
+  "pytest_failures": 0,
+  "pytest_skips": 0,
+  "warnings": {
+    "existing_fixture_invalid_escape": 1,
+    "isolated_config_unregistered_integration_marker": 5
+  },
+  "build_install_pip_check_passed_in_r2": true,
+  "r2_wheel_reused_in_r3_r4": true,
+  "sdk_record_pins_unchanged": true,
+  "fixture_source_pins_unchanged": true,
+  "prior_failures_preserved": {
+    "r1": "Git archive autocrlf projection differed from raw commit blobs; no wheel built or installed.",
+    "r2": "Wheel build/install/pip check passed; pre-test RECORD checker incorrectly rejected legitimate bt-runtime.exe console entry point.",
+    "r3": "Console entry-point checker repair had an indentation error before imports/tests."
+  },
+  "r4_repair": "Permit only ../../Scripts/bt-runtime.exe resolved to this consumer, with exact expected entry_points metadata and normal RECORD hash/size checks; parse child before execution.",
+  "origin_checks": "Loaded backtrader/backtrader_runtime modules resolve inside this installed consumer; fixtures resolve inside isolated copied public fixture root; repository source absent from sys.path.",
+  "source_scope": "Synthetic Store/feed aggregation and normal runner over completed fake bars are separate components, not a raw-tick-through-Cerebro.run proof.",
+  "actual_provider_account_or_formal_case_claim": false,
+  "performance_optimization_performed": false,
+  "retained_hosts_touched": false,
+  "archive": {
+    "bytes": 47447,
+    "sha256": "32c2c075406039693c2603fd400d13754806f70608c4f13d6f5dffe15a7db470"
+  },
+  "archive_members": {
+    "r1/run.json": {
+      "bytes": 5627,
+      "sha256": "5ede19f0a4230bc2e2324b13fd8c7d75005e3e32507bf21328198205bec2a247"
+    },
+    "r1/checkout-head.log": {
+      "bytes": 41,
+      "sha256": "28ee171afa13147135ea7af09d782d89ea4a9459c56fbfc7de7cbd19d4707f52"
+    },
+    "r1/pytest-preflight.log": {
+      "bytes": 7,
+      "sha256": "43af15c7d9ed4e7af16a8f160e0c69e1bac7dddeb426196ba85929fbc364fca4"
+    },
+    "r1/archive.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "r2/run.json": {
+      "bytes": 13356,
+      "sha256": "3892915cdf38f16dafa5c0974310fb09b1fcd65c2968097ed36899841a64905f"
+    },
+    "r2/installed_focus.py": {
+      "bytes": 7059,
+      "sha256": "348d69dcf4c74b9c035277fb4919752a1fad3ae0e49b92892e95b7c844787273"
+    },
+    "r2/installed-focus.log": {
+      "bytes": 344,
+      "sha256": "acba34a71353292e46a801a0005f1270233518305a99c5491d7d050e7eadeeb8"
+    },
+    "r2/pytest.ini": {
+      "bytes": 21,
+      "sha256": "bf86cec34582454295d6d58edcaa5238eb52160b89a3032263d679455e826480"
+    },
+    "r2/wheel-build.log": {
+      "bytes": 723,
+      "sha256": "51fb8b404b70ea7b5624d86967160580385325db4d6768f98ba40c637d8c0920"
+    },
+    "r2/backtrader-force-reinstall.log": {
+      "bytes": 414,
+      "sha256": "54fe6df52a76b1b203391ed9f2aa94eea36ad07d9f38d69d12bbd2005ec76667"
+    },
+    "r2/pip-check.log": {
+      "bytes": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+    },
+    "r2/checkout-head.log": {
+      "bytes": 41,
+      "sha256": "28ee171afa13147135ea7af09d782d89ea4a9459c56fbfc7de7cbd19d4707f52"
+    },
+    "r2/pytest-preflight.log": {
+      "bytes": 7,
+      "sha256": "43af15c7d9ed4e7af16a8f160e0c69e1bac7dddeb426196ba85929fbc364fca4"
+    },
+    "r2/archive.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "r3/run.json": {
+      "bytes": 1448,
+      "sha256": "2f2cc74a74549da9d90cbf0d1b14ce6edc6c84ec77400d42f6bb1a14442ed82c"
+    },
+    "r3/installed_focus.py": {
+      "bytes": 7370,
+      "sha256": "18de2bf606be947a7252f3c3137d18342e9a48f973bf1e6c3c3a4e31ef24b9c8"
+    },
+    "r3/stdout.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "r3/stderr.txt": {
+      "bytes": 189,
+      "sha256": "e9d6ce4272ddeb9afaa656c59e59fdf9a9290e631e30abe982a301fc6609fd84"
+    },
+    "r4/run.json": {
+      "bytes": 1448,
+      "sha256": "2d4c2141760900f6d84861047ff10f9bfdf491b4b371376ee399bb6283a4cea0"
+    },
+    "r4/installed_focus.py": {
+      "bytes": 7394,
+      "sha256": "f5995f34f81bd0e05c3ce8f1cba4fd31abf0430e43c01a88fd8a2c973e65a921"
+    },
+    "r4/installed-focus.json": {
+      "bytes": 97481,
+      "sha256": "0244d83857d639f785efea4eee44649aefbf9bef103fa359c29707640b0fe623"
+    },
+    "r4/stdout.txt": {
+      "bytes": 3553,
+      "sha256": "d77544ec931b31ec053f5800bea16df2ca34b2a53edd7cd679c9af2cdb9f31b5"
+    },
+    "r4/stderr.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "r4/junit.xml": {
+      "bytes": 588,
+      "sha256": "16bb692d9d4ad2d492a25847d5a8bcc8e8ae84a00ae1899ccb71c94e40ca1451"
+    },
+    "harness/run_i51_ctp_factor_installed_focus_20261027.py": {
+      "bytes": 20845,
+      "sha256": "42005208f0f648d393e6c234075530c36003cdde532a840def071d8fc326f80e"
+    },
+    "harness/run_i51_ctp_factor_installed_focus_r2_20261027.py": {
+      "bytes": 20874,
+      "sha256": "08a372008327c9d289feaa6239116b82b5292661e15c0d749075c999031832df"
+    },
+    "harness/launch_i51_ctp_factor_installed_20261027.py": {
+      "bytes": 1132,
+      "sha256": "c48c675dc9ac89e2b581c86af33a220ff2a3659721e3d9b71e88b18d25a13270"
+    },
+    "harness/launch_i51_ctp_factor_installed_r2_20261027.py": {
+      "bytes": 1159,
+      "sha256": "44e6a58550d74026d2fea2db55f068fdb9337917e08b54f7a115675e9de66e4c"
+    },
+    "harness/resume_i51_ctp_factor_installed_20261027.py": {
+      "bytes": 3647,
+      "sha256": "0a6121dd4ca736f0fae130101fb874a6f0ae81ff7dad656080bda5be3ab49992"
+    },
+    "harness/resume_i51_ctp_factor_installed_r4_20261027.py": {
+      "bytes": 3707,
+      "sha256": "13574041deb5f17430df86e74b4035c75ab4b265cc0ffe667936e1501416111f"
+    },
+    "harness/i51_ctp_factor_installed_command_20261027.json": {
+      "bytes": 2635,
+      "sha256": "19d3d4cd14c157802cd832793500078576a31cf7c8a1b63fadfc75cf5403bd72"
+    },
+    "harness/i51_ctp_factor_installed_command_r2_20261027.json": {
+      "bytes": 2638,
+      "sha256": "897e3298a808cb437fcd2b949a6b87470baf76c47432dc6978361e0826a6fc24"
+    },
+    "harness/i51_ctp_factor_source_postcommit_20261027.json": {
+      "bytes": 2052,
+      "sha256": "09f09a417c186ead271cc6596d1569e63dea15cd8316f2c067e9168161ffc28a"
+    },
+    "test-dependency-install.json": {
+      "bytes": 1825,
+      "sha256": "425cdfec520048cf4574f16030ffeb4f6dc753147ea96222766f614c9449d1f0"
+    }
+  }
+}

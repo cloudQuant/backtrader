@@ -13,7 +13,7 @@
 - [Part 3: Backtesting Framework](#part-3-backtesting-framework)
 - [Part 4: Parameter Optimization](#part-4-parameter-optimization)
 - [Part 5: Risk Control Implementation](#part-5-risk-control-implementation)
-- [Part 6: Paper Trading](#part-6-paper-trading)
+- [Part 6: Local Simulation](#part-6-local-simulation)
 - [Part 7: Live Deployment](#part-7-live-deployment)
 - [Part 8: Continuous Monitoring & Maintenance](#part-8-continuous-monitoring--maintenance)
 
@@ -30,7 +30,7 @@ Idea Generation
             Backtest Implementation
                 Parameter Optimization
                     Risk Assessment
-                        Paper Trading
+                        Local Simulation
                             Live Deployment
                                 Monitoring & Maintenance
                                     Iterative Improvement
@@ -1257,9 +1257,18 @@ class MultiLevelRiskControl:
 
 - --
 
-## Part 6: Paper Trading
+## Part 6: Local Simulation
 
-### 6.1 Paper Trading Environment
+### 6.1 Local BackBroker Simulation
+
+**Mode note:** The example starts with Cerebro's default `BackBroker`, so its
+orders are matched locally. That is local simulation/backtesting, not `paper`;
+the shared [trading-mode standard](../advanced/architecture/trading-modes_zh.md)
+uses `paper` for an external simulated account and `live` for a production
+account. The later `setup_live_data` method can replace the broker with
+`store.getbroker()`, but this legacy snippet does not select or verify which
+external account environment that broker uses. Its code identifiers are
+preserved and do not define the new modes.
 
 ```python
 class PaperTradingEngine:
@@ -1295,7 +1304,11 @@ class PaperTradingEngine:
 
 ```bash
 
-### 6.2 Paper-to-Live Evaluation
+### 6.2 Limits of the Local-Simulation Check
+
+The following legacy evaluator keeps its original name; results from the local
+broker in this section are not external `paper`-account evidence and do not
+establish production `live` readiness.
 
 ```python
 class PaperToLiveEvaluator:
@@ -1797,7 +1810,8 @@ This tutorial covers the complete workflow from strategy development to live tra
 3. **Backtest Validation**: Use Backtrader for historical backtesting
 4. **Parameter Optimization**: Grid search, genetic algorithms, and more
 5. **Risk Control**: Stop loss/take profit, position sizing, multi-level risk control
-6. **Paper Trading**: Validate in near-live conditions
+6. **Local Simulation**: Validate local order matching; this is not external
+   `paper`-account use
 7. **Live Deployment**: Carefully transition to live trading
 8. **Continuous Monitoring**: Real-time monitoring and iterative improvement
 

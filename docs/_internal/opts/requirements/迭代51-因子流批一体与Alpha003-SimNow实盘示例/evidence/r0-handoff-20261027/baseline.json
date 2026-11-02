@@ -1,0 +1,901 @@
+{
+  "schema": "iteration50_51.fixed_readonly_r0.v1",
+  "date": "2026-10-27",
+  "status": "PASS_SOURCE_BASELINE_AND_50A_HANDOFF",
+  "accepted_ac_ids": [
+    "AC50-01",
+    "AC51-01a",
+    "AC51-01b"
+  ],
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "acceptance_parent": "0c0ef9c80aba44dca1f7fe4c91c51b99b8e0f615",
+  "backtrader_package_source_commit": "bc80fb2a878aa963f39e812433909061dafa35ab",
+  "backtrader_package_unchanged_through_acceptance_parent": true,
+  "final_wheel": {
+    "path": "D:\\temp\\i51-auction-installed-20261027-r2\\wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+    "sha256": "7ff2e82449154457aa4f85570a932bcab4a29534d4a02091c9720ee033de9fd8",
+    "size_bytes": 2437256
+  },
+  "final_record": {
+    "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD",
+    "sha256": "d243f63d1dc8fee67abbab8bcb05ba4e33b23816ee44315c13468f656db5c39a",
+    "size_bytes": 112674
+  },
+  "python_payload_count": 663,
+  "old_installed_eight": {
+    "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\run.json",
+    "sha256": "b1513abb2058ef2d28e4e3c1eda9b40855492235caf6ee490ecfa7ee9a86a5de",
+    "size_bytes": 164336
+  },
+  "new_installed_three": {
+    "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\run.json",
+    "sha256": "f97a0d4aac0b8846f546bbbef59b2e761104f394421944f5f2e2fa88cc515332",
+    "size_bytes": 96988
+  },
+  "incremental_package_delta": [
+    "backtrader/feeds/btapifeed.py",
+    "backtrader/feeds/ctp_factor_source.py"
+  ],
+  "installed_evidence_scope": "c4c eight + bc80 three new auction cases; no claim that eleven cases ran on bc80",
+  "sdk_records": {
+    "bt_api_base-0.15.8.dist-info/RECORD": {
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\bt_api_base-0.15.8.dist-info\\RECORD",
+      "sha256": "6284d7236b283cbcc5599d2ad14e5ab81d83d93ee641392ef612acbe1df54dda",
+      "size_bytes": 15821
+    },
+    "bt_api_ctp-2.0.4+iteration41.i9.dist-info/RECORD": {
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\RECORD",
+      "sha256": "928671c3cb7f211f2157b183e9d033e7afdddfbea153d6f4eba995e87956e8a1",
+      "size_bytes": 14197
+    }
+  },
+  "sdk_wheels": {
+    "base": {
+      "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39",
+      "version": "0.15.8"
+    },
+    "ctp": {
+      "sha256": "32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7",
+      "version": "2.0.4+iteration41.i9"
+    }
+  },
+  "sdk_source_observations": {
+    "parent": "1607bed4a23f6a0b414f59b5f71c8c34b37b1aaf",
+    "base": "fb47f3dd733613494aa1d86cfd94b2d6fe70314d",
+    "ctp": "574cd2dd495a3c675d7cd23fcbf23a797a08c04d",
+    "base_wheel_built_from_observed_head_claimed": false
+  },
+  "hardware": {
+    "os": {
+      "Caption": "Microsoft Windows 11 家庭版 中文版",
+      "Version": "10.0.26300",
+      "BuildNumber": "26300",
+      "OSArchitecture": "64 位",
+      "TotalVisibleMemorySize": 33251192
+    },
+    "processor": {
+      "Name": "13th Gen Intel(R) Core(TM) i9-13900HX",
+      "NumberOfCores": 24,
+      "NumberOfLogicalProcessors": 32
+    },
+    "captured_at": "2026-10-26T22:00:38.7026314Z"
+  },
+  "python": {
+    "version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "machine": "AMD64",
+    "executable": "C:\\anaconda3\\python.exe"
+  },
+  "profile": {
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代51-因子流批一体与Alpha003-SimNow实盘示例\\evidence\\r0-handoff-20261027\\profile.json",
+    "sha256": "6e7d8594783528f6c6fca79a63e53cead0d006a3b0ea8c3258ee96d53b9c54bd",
+    "size_bytes": 2709
+  },
+  "preflight": {
+    "checks": {
+      "golden_default_null": true,
+      "golden_subset_in_full_pool": true,
+      "official_profile": "set1_group1_vpn",
+      "production_environment_rejected": true,
+      "risk_policy_absent": true,
+      "store_construction_attempted": false,
+      "write_escalation_rejected": true,
+      "wrong_profile_rejected": true
+    },
+    "counts": {
+      "calendars": 6,
+      "coverage_rows": 87,
+      "full_targets": 87,
+      "golden_targets": 3,
+      "preheat_bars": 30,
+      "rebalance_every": 5,
+      "routes": 87
+    },
+    "evidence_level": "SOURCE_PROFILE_AND_SANITIZED_QUERY_EVIDENCE_ONLY",
+    "limits": [
+      "No Store/Broker/Cerebro/provider/account operation.",
+      "Accepted composition remains separate; no fresh full-profile composition claimed.",
+      "No live-account acceptance claimed."
+    ],
+    "schema": "i5051_r0_public_profile_check.v1",
+    "source_pins": {
+      "config": "6e7d8594783528f6c6fca79a63e53cead0d006a3b0ea8c3258ee96d53b9c54bd",
+      "installed_backtrader_init": "16166e0dd7ad88e36b81a3f0b02ee29da993bbfa3e7e4224a6e30be398f840ab",
+      "market": "34293bb33b2d88f37b32600889c741885b0b2f3de23e68fc1b55f092b842cf63",
+      "runner": "405c998d2dc2f7a140cd23ed8c8aedbdcc5f09bffd6f284bbc4267bd859f8bc9",
+      "selector": "1d6f94d20f905aa93bc0fb885eddbede1954050d3f37806306e3b60f51838304"
+    },
+    "status": "PASS_PUBLIC_PROFILE_AND_SELECTION_PREFLIGHT"
+  },
+  "route": {
+    "provider": "ctp",
+    "backend": "direct",
+    "registered_route": "simnow-registered-v1",
+    "official_profile": "set1_group1_vpn",
+    "join_observer": false,
+    "allow_zero_login_response_readonly": true,
+    "authenticated_md_identity_claimed": false
+  },
+  "strategy": {
+    "factor": "Alpha003",
+    "fields": [
+      "open",
+      "volume"
+    ],
+    "frequency_seconds": 60,
+    "mode": "native",
+    "comparison_mode": "build offline on saved tape",
+    "group": "one complete selected product group",
+    "operator_profile": "alpha101-v2",
+    "atol": 1e-12,
+    "rtol": 1e-10
+  },
+  "market_baseline": {
+    "status": "READY",
+    "product_count": 87,
+    "selected_count": 87,
+    "catalog_rows": 16324,
+    "quote_rows": 16324,
+    "query_coverage_products": 87,
+    "blocker_count": 0,
+    "routes": [
+      {
+        "exchange": "CFFEX",
+        "product": "IC",
+        "instrument": "IC2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IF",
+        "instrument": "IF2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IH",
+        "instrument": "IH2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "IM",
+        "instrument": "IM2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "T",
+        "instrument": "T2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TF",
+        "instrument": "TF2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TL",
+        "instrument": "TL2612"
+      },
+      {
+        "exchange": "CFFEX",
+        "product": "TS",
+        "instrument": "TS2612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "AP",
+        "instrument": "AP701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CF",
+        "instrument": "CF701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CJ",
+        "instrument": "CJ701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "CY",
+        "instrument": "CY701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "FG",
+        "instrument": "FG701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "JR",
+        "instrument": "JR611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "MA",
+        "instrument": "MA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "OI",
+        "instrument": "OI701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PF",
+        "instrument": "PF612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PK",
+        "instrument": "PK612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PL",
+        "instrument": "PL612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PM",
+        "instrument": "PM611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PR",
+        "instrument": "PR612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "PX",
+        "instrument": "PX612"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RI",
+        "instrument": "RI611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RM",
+        "instrument": "RM701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "RS",
+        "instrument": "RS701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SA",
+        "instrument": "SA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SF",
+        "instrument": "SF701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SH",
+        "instrument": "SH701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SM",
+        "instrument": "SM701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "SR",
+        "instrument": "SR701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "TA",
+        "instrument": "TA701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "UR",
+        "instrument": "UR701"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "WH",
+        "instrument": "WH611"
+      },
+      {
+        "exchange": "CZCE",
+        "product": "ZC",
+        "instrument": "ZC611"
+      },
+      {
+        "exchange": "DCE",
+        "product": "A",
+        "instrument": "a2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "B",
+        "instrument": "b2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "BB",
+        "instrument": "bb2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "BZ",
+        "instrument": "bz2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "C",
+        "instrument": "c2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "CS",
+        "instrument": "cs2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "EB",
+        "instrument": "eb2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "EG",
+        "instrument": "eg2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "FB",
+        "instrument": "fb2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "I",
+        "instrument": "i2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "J",
+        "instrument": "j2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "JD",
+        "instrument": "jd2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "JM",
+        "instrument": "jm2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "L",
+        "instrument": "l2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "LG",
+        "instrument": "lg2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "LH",
+        "instrument": "lh2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "M",
+        "instrument": "m2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "P",
+        "instrument": "p2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "PG",
+        "instrument": "pg2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "PP",
+        "instrument": "pp2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "RR",
+        "instrument": "rr2612"
+      },
+      {
+        "exchange": "DCE",
+        "product": "V",
+        "instrument": "v2701"
+      },
+      {
+        "exchange": "DCE",
+        "product": "Y",
+        "instrument": "y2701"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "LC",
+        "instrument": "lc2701"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PD",
+        "instrument": "pd2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PS",
+        "instrument": "ps2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "PT",
+        "instrument": "pt2612"
+      },
+      {
+        "exchange": "GFEX",
+        "product": "SI",
+        "instrument": "si2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "BC",
+        "instrument": "bc2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "EC",
+        "instrument": "ec2611"
+      },
+      {
+        "exchange": "INE",
+        "product": "LU",
+        "instrument": "lu2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "NR",
+        "instrument": "nr2612"
+      },
+      {
+        "exchange": "INE",
+        "product": "SC",
+        "instrument": "sc2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AD",
+        "instrument": "ad2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AG",
+        "instrument": "ag2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AL",
+        "instrument": "al2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AO",
+        "instrument": "ao2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "AU",
+        "instrument": "au2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "BR",
+        "instrument": "br2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "BU",
+        "instrument": "bu2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "CU",
+        "instrument": "cu2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "FU",
+        "instrument": "fu2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "HC",
+        "instrument": "hc2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "NI",
+        "instrument": "ni2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "OP",
+        "instrument": "op2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "PB",
+        "instrument": "pb2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "RB",
+        "instrument": "rb2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "RU",
+        "instrument": "ru2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SN",
+        "instrument": "sn2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SP",
+        "instrument": "sp2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "SS",
+        "instrument": "ss2612"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "WR",
+        "instrument": "wr2701"
+      },
+      {
+        "exchange": "SHFE",
+        "product": "ZN",
+        "instrument": "zn2612"
+      }
+    ],
+    "decision_at": "2026-10-26T20:20:40.447909+00:00",
+    "grid_status": "READY",
+    "grid_minutes": 195,
+    "first_close": "2026-10-27T01:31:00+00:00",
+    "last_close": "2026-10-27T07:00:00+00:00",
+    "calendar_rules_sha256": "dc53ae4255c7fdf3fc1bde3213c1bd8cf75f564da369efd4c8ef077ac825a06e",
+    "ranking_mode": "ctp_query_snapshot_equal_weight_v1",
+    "minimum_trading_days_to_expiry": 5
+  },
+  "discovery_login": {
+    "trading_day": "20261027",
+    "connection_generation": 1,
+    "read_only_ready": true
+  },
+  "discovery_evidence": {
+    "path": "D:\\temp\\i51-root-current-market-selection-20261027-r1.json",
+    "bytes": 15131359,
+    "sha256": "34293bb33b2d88f37b32600889c741885b0b2f3de23e68fc1b55f092b842cf63"
+  },
+  "fresh_runtime_requirement": "Before each real run, same ready Store must reacquire full query plan, source generation and TradingDay; discovery baseline is not a reusable live session.",
+  "default_store_capacities": {
+    "book_queue_size": 256,
+    "live_bar_queue_size": 256,
+    "broker_update_queue_size": 2048,
+    "command_queue_size": 1024,
+    "basis": "frozen BtApiStore defaults; protected handoff constructs authentication/front/environment fields only"
+  },
+  "authorization": {
+    "private_reader_owner": "Root only",
+    "writes": false,
+    "arm_templates": [],
+    "order_intent_budget": 0
+  },
+  "source_case_receipts": [
+    {
+      "pin": {
+        "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration50_r0_preflight_20261024.xml",
+        "sha256": "279aa16094a6eeede432e50a647759dd1cb3c3641c2fb9d26bd97e268efddcde",
+        "size_bytes": 1669
+      },
+      "cases": 8
+    },
+    {
+      "pin": {
+        "path": "D:\\source_code\\backtrader\\.codex-tmp\\r0_profile_gate_postfix_20261025.xml",
+        "sha256": "170ea17ea6c4fb2dfc01333e2ec96151b9db46b92532d5232eb7dc8f78fe7900",
+        "size_bytes": 1147
+      },
+      "cases": 5
+    },
+    {
+      "pin": {
+        "path": "D:\\temp\\i51-golden-subset-root-qa-20261027-r1\\junit.xml",
+        "sha256": "d9c4931cc8d3d26f01e9e7146cc1edf402d6a27ed86f6077fb70ca93400f6aca",
+        "size_bytes": 1403
+      },
+      "cases": 7
+    },
+    {
+      "pin": {
+        "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\junit.xml",
+        "sha256": "1d43224aa893765f548c01a7afaf5eabd0a31dd00bd8927a2b3d306a35e6d556",
+        "size_bytes": 1666
+      },
+      "cases": 8
+    },
+    {
+      "pin": {
+        "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\junit.xml",
+        "sha256": "7350c4d2d8873b4de02ff79d49011ed94530eeca41879d17e23da4649f693ee9",
+        "size_bytes": 585
+      },
+      "cases": 3
+    }
+  ],
+  "handoff": {
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代51-因子流批一体与Alpha003-SimNow实盘示例\\evidence\\r0-handoff-20261027\\handoff.md",
+    "sha256": "35b8b148b1ff38b7592a8f13ebcb199329ebde03ccbccc4207b02faebfbafc36",
+    "size_bytes": 7281
+  },
+  "archive": {
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代51-因子流批一体与Alpha003-SimNow实盘示例\\evidence\\r0-handoff-20261027\\evidence.zip",
+    "sha256": "5639433c9d5dc1e40daf729b2d2cae2e8bfe0b4ed9cf104b71deae002978c6ab",
+    "size_bytes": 129915
+  },
+  "artifacts": [
+    {
+      "archive_path": "old-installed-eight/run.json",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\run.json",
+      "sha256": "b1513abb2058ef2d28e4e3c1eda9b40855492235caf6ee490ecfa7ee9a86a5de",
+      "size_bytes": 164336
+    },
+    {
+      "archive_path": "old-installed-eight/installed-focus.json",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\installed-focus.json",
+      "sha256": "160b7da80ac18fa9ed56b3f94dac212077bb300b130f0f482a01447df8c3809e",
+      "size_bytes": 108941
+    },
+    {
+      "archive_path": "old-installed-eight/installed_focus.py",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\installed_focus.py",
+      "sha256": "1cd7717acb1c45d13d6486c9d58f084ba434f81b9d064ab7af4f907b8a35ac81",
+      "size_bytes": 7000
+    },
+    {
+      "archive_path": "old-installed-eight/junit.xml",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\junit.xml",
+      "sha256": "1d43224aa893765f548c01a7afaf5eabd0a31dd00bd8927a2b3d306a35e6d556",
+      "size_bytes": 1666
+    },
+    {
+      "archive_path": "old-installed-eight/pytest.ini",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\pytest.ini",
+      "sha256": "fe7fb1972297e6ddcc185c6febd7b192e2681c8309b6920afeb82e6565199680",
+      "size_bytes": 68
+    },
+    {
+      "archive_path": "final-installed-three/run.json",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\run.json",
+      "sha256": "f97a0d4aac0b8846f546bbbef59b2e761104f394421944f5f2e2fa88cc515332",
+      "size_bytes": 96988
+    },
+    {
+      "archive_path": "final-installed-three/installed-focus.json",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\installed-focus.json",
+      "sha256": "dbd3abf2149b274f008e34eb8f8d679e9e4e2c28b2d29bf0ae217d8b6847c83d",
+      "size_bytes": 83804
+    },
+    {
+      "archive_path": "final-installed-three/installed_focus.py",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\installed_focus.py",
+      "sha256": "1cd7717acb1c45d13d6486c9d58f084ba434f81b9d064ab7af4f907b8a35ac81",
+      "size_bytes": 7000
+    },
+    {
+      "archive_path": "final-installed-three/junit.xml",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\junit.xml",
+      "sha256": "7350c4d2d8873b4de02ff79d49011ed94530eeca41879d17e23da4649f693ee9",
+      "size_bytes": 585
+    },
+    {
+      "archive_path": "final-installed-three/pytest.ini",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\pytest.ini",
+      "sha256": "4410c3ebcb9f67d9384a890257a9ee9c0a4fd97a8544fd0308afdfebda8998db",
+      "size_bytes": 93
+    },
+    {
+      "archive_path": "old-installed-eight/installed-focused-nodes.log",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\fixture-closure-focus-resume\\installed-focused-nodes.log",
+      "sha256": "ae48768d7936fdbe23c57ad8bef5122cd065e9d2159619ac0dad8fc5c5b871d8",
+      "size_bytes": 1358
+    },
+    {
+      "archive_path": "final-installed-three/three-auction-nodes.log",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\three-auction-nodes.log",
+      "sha256": "bd0d7fe7afec8c73a6a4b7130a5a9ff0ae5bcfd7b675941555a11e15a809beea",
+      "size_bytes": 942
+    },
+    {
+      "archive_path": "final-installed-three/pip-check.log",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\pip-check.log",
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "size_bytes": 31
+    },
+    {
+      "archive_path": "final-installed-three/backtrader-install-only.log",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\installed-resume\\backtrader-install-only.log",
+      "sha256": "0a2f2574118571fae78595c06a604bb7c94f9661058b288735e5742932cf493d",
+      "size_bytes": 411
+    },
+    {
+      "archive_path": "profile-preflight-r2/stdout.txt",
+      "path": "D:\\temp\\i5051-r0-public-profile-20261027-r2\\stdout.txt",
+      "sha256": "6e0449d6a6c02f30f24fcefbcf6d7b5bda01f39497f77f833adb9ddc2883af30",
+      "size_bytes": 1231
+    },
+    {
+      "archive_path": "profile-preflight-r2/stderr.txt",
+      "path": "D:\\temp\\i5051-r0-public-profile-20261027-r2\\stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "archive_path": "profile-preflight-r2/launch.json",
+      "path": "D:\\temp\\i5051-r0-public-profile-20261027-r2\\launch.json",
+      "sha256": "a03d9da2221d761c64c50245c6918bc911730a9da24c0c95a2587ba94081a7f4",
+      "size_bytes": 1032
+    },
+    {
+      "archive_path": "build/run.json",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\run.json",
+      "sha256": "12cc6db8ac74ffeeb324da43270545328810521218802f12defb2adc9ad4b971",
+      "size_bytes": 22737
+    },
+    {
+      "archive_path": "build/backtrader-wheel-build.log",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r2\\backtrader-wheel-build.log",
+      "sha256": "11d88f0ae416b55110431a3061a9033fcde866ba31e06cba66ee5233d439c3a5",
+      "size_bytes": 723
+    },
+    {
+      "archive_path": "preserved-failures/archive-r1-run.json",
+      "path": "D:\\temp\\i51-auction-installed-20261027-r1\\run.json",
+      "sha256": "3339ae250e536218c752d531006c62af1933e6c6a5b49e405e6151715d562d02",
+      "size_bytes": 14042
+    },
+    {
+      "archive_path": "sources/resume_i51_auction_installed_20261027.py",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\resume_i51_auction_installed_20261027.py",
+      "sha256": "9d34360f45c07415a1670d943366bd4126c56b706500980c306e2886d6622b84",
+      "size_bytes": 6363
+    },
+    {
+      "archive_path": "sources/run_i51_auction_installed_incremental_r2_20261027.py",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\run_i51_auction_installed_incremental_r2_20261027.py",
+      "sha256": "08d5bfbc7be2185cf752675dd64751928f6fe4a913fc1133b044d1846b0da006",
+      "size_bytes": 14438
+    },
+    {
+      "archive_path": "sources/i51_auction_installed_archive_failed_20261027.py",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_auction_installed_archive_failed_20261027.py",
+      "sha256": "b2ab61b0f75c1ccccfff2eceee2aeb4269d75f35374624dec1d42eac03c9bf1d",
+      "size_bytes": 14357
+    },
+    {
+      "archive_path": "sources/i51_auction_installed_preflight_failed_20261027.py",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_auction_installed_preflight_failed_20261027.py",
+      "sha256": "b8f39a3b25bbfc8024d67253135ee2f7efaf2bbee49162a7d055bfe26e409000",
+      "size_bytes": 14259
+    },
+    {
+      "archive_path": "sources/check_i5051_r0_public_profile_20261027.py",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\check_i5051_r0_public_profile_20261027.py",
+      "sha256": "68fd8035682e0edc19ff8c327a09f966b2b97a49a3b043c0aa61bc77af6a4778",
+      "size_bytes": 11613
+    },
+    {
+      "archive_path": "sources/i5051_r0_hardware_20261027.json",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i5051_r0_hardware_20261027.json",
+      "sha256": "b32b7b809d40bac6eea69f143b148e05901a92a17d42a8c88bac578fcce4cc9d",
+      "size_bytes": 405
+    },
+    {
+      "archive_path": "sources/i5051_r0_python_20261027.json",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i5051_r0_python_20261027.json",
+      "sha256": "32ef01569b86c99ca9bf344fa2423a1b37a77235c4bae1fcea2df2866ee81cfb",
+      "size_bytes": 217
+    },
+    {
+      "archive_path": "accepted-source/iteration50_r0_preflight_20261024.xml",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration50_r0_preflight_20261024.xml",
+      "sha256": "279aa16094a6eeede432e50a647759dd1cb3c3641c2fb9d26bd97e268efddcde",
+      "size_bytes": 1669
+    },
+    {
+      "archive_path": "accepted-source/r0_profile_gate_postfix_20261025.xml",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\r0_profile_gate_postfix_20261025.xml",
+      "sha256": "170ea17ea6c4fb2dfc01333e2ec96151b9db46b92532d5232eb7dc8f78fe7900",
+      "size_bytes": 1147
+    },
+    {
+      "archive_path": "accepted-source/junit.xml",
+      "path": "D:\\temp\\i51-golden-subset-root-qa-20261027-r1\\junit.xml",
+      "sha256": "d9c4931cc8d3d26f01e9e7146cc1edf402d6a27ed86f6077fb70ca93400f6aca",
+      "size_bytes": 1403
+    },
+    {
+      "archive_path": "market-discovery/observation.json",
+      "path": "D:\\temp\\i51-root-current-market-query-20261027-r1.json",
+      "sha256": "9eb1837c86898c6b13b0cc24d84f942c6c5b39ac9f1f8c824dc7a87a601dd9b2",
+      "size_bytes": 12510
+    },
+    {
+      "archive_path": "source-review/50a-map-draft.md",
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i5051_r0_50a_handoff_map_20261027.md",
+      "sha256": "c508f9e5e2f195bebf1a0970a2aea93ae129424de9f4e3be2de52e7b2e9512fa",
+      "size_bytes": 13650
+    },
+    {
+      "archive_path": "final-installed-metadata/RECORD",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD",
+      "sha256": "d243f63d1dc8fee67abbab8bcb05ba4e33b23816ee44315c13468f656db5c39a",
+      "size_bytes": 112674
+    },
+    {
+      "archive_path": "final-installed-metadata/entry_points.txt",
+      "path": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\entry_points.txt",
+      "sha256": "6d719988fff57e53415ceda830059cc4e0dba2d37b892ac8079f8ee029a0ded6",
+      "size_bytes": 59
+    }
+  ],
+  "preserved_failures": [
+    "Pre-build AST assertion matched a docstring, then corrected to inspect imports.",
+    "First archive inherited CRLF conversion; corrected with existing core.autocrlf=false procedure before building.",
+    "Built wheel metadata used valid CRLF; original LF-only version assertion failed before install. Resume parses metadata without rebuilding."
+  ],
+  "limits": [
+    "SOURCE/COMPOSITION/INSTALLED baseline only; actual live quotes/bars/factors/session/zero-write and account cases remain outstanding.",
+    "87-asset 100000-grid capacity processes remain running; no capacity result accepted by this baseline.",
+    "No new account/provider operation or private configuration read occurred in this handoff round.",
+    "Latency thresholds are measurements only; correctness, completeness, bounded memory and cleanup remain required."
+  ]
+}

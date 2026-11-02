@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 import time
@@ -114,13 +115,18 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[Any, Any, Any]:
+def _run_factor(
+    config: Mapping[str, Any],
+    panel: Mapping[str, Any],
+    *,
+    consume_source_frames: bool = False,
+    runonce: bool = False,
+) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
     from backtrader.research import (
         FactorSpec,
         FactorStrategy,
-        MemorySink,
         ResearchSpec,
         align_to_grid,
     )
@@ -171,18 +177,23 @@ def _run_factor(config: Mapping[str, Any], panel: Mapping[str, Any]) -> Tuple[An
 
     broker = CountingBroker()
     cerebro.setbroker(broker)
+    source_frames = panel["feeds"]
+    if consume_source_frames and type(source_frames) is not dict:
+        raise TypeError("exclusive source-frame consumption requires a plain feed dictionary")
     for asset in assets:
+        source_frame = source_frames[asset]
         aligned = align_to_grid(
-            panel["feeds"][asset],
+            source_frame,
             research,
             asset,
             data_version=data_config["data_version"],
         )
         cerebro.adddata(aligned.feed, name=asset)
-    cerebro.addstrategy(
-        FactorStrategy, research=research, factors={FACTOR_NAME: factor}, sink=MemorySink()
-    )
-    strategies = cerebro.run(runonce=False, preload=True)
+        if consume_source_frames:
+            del source_frames[asset]
+        del source_frame, aligned
+    cerebro.addstrategy(FactorStrategy, research=research, factors={FACTOR_NAME: factor})
+    strategies = cerebro.run(runonce=runonce, preload=True)
     if len(strategies) != 1:
         raise RuntimeError("the factor run did not return exactly one strategy")
     strategy = strategies[0]
@@ -224,6 +235,9 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="factor implementation; defaults to config.yaml then native",
     )
+    parser.add_argument(
+        "--runnext", action="store_true", help="use Cerebro's per-bar engine instead of runonce"
+    )
     return parser
 
 
@@ -255,11 +269,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         panel = load_daily_panel(config.get("data", {}))
-        strategy, collected, indicator = _run_factor(config, panel)
+        strategy, collected, indicator = _run_factor(
+            config, panel, consume_source_frames=True, runonce=not args.runnext
+        )
         factor_instance = strategy.factor_instances[FACTOR_NAME]
         factor_mode = factor_instance.factor_mode
+        broker_summary = {
+            "submit": strategy.broker.submit_count,
+            "cancel": strategy.broker.cancel_count,
+        }
+        operator_profile = indicator.operator_profile
+        indicator_identity = indicator.__module__ + "." + indicator.__qualname__
+        symbols = len(collected.target_order)
+        dates = len(collected.grid)
+        cells = len(collected.factors)
+        finite = int(collected.factors[FACTOR_NAME].notna().sum())
+        del factor_instance, strategy, panel
+        gc.collect()
+
         factors = collected.factors.reset_index()
         factors.to_csv(output_dir / "factor_values.csv", index=False)
+        del factors
         report = None
         if args.report:
             from backtrader.research import write_factor_report
@@ -280,17 +310,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "factor": FACTOR_NAME,
             "factor_mode": factor_mode,
             "factor_calculation": "RAN",
-            "operator_profile": indicator.operator_profile,
-            "indicator": indicator.__module__ + "." + indicator.__qualname__,
-            "symbols": len(collected.target_order),
-            "dates": len(collected.grid),
-            "cells": len(factors),
-            "finite": int(factors[FACTOR_NAME].notna().sum()),
+            "operator_profile": operator_profile,
+            "indicator": indicator_identity,
+            "symbols": symbols,
+            "dates": dates,
+            "cells": cells,
+            "finite": finite,
             "output": "factor_values.csv",
-            "broker": {
-                "submit": strategy.broker.submit_count,
-                "cancel": strategy.broker.cancel_count,
-            },
+            "broker": broker_summary,
             "report": None if report is None else str(report),
             "elapsed_seconds": round(time.perf_counter() - started, 2),
         }

@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="4.306" timestamp="2026-10-26T00:16:33.599782" hostname="yun"><testcase classname="tests.unit.stores.test_execution_decision_journal" name="test_decision_for_key_reads_after_reopen_without_mutating_journal" time="0.130" /></testsuite></testsuites>

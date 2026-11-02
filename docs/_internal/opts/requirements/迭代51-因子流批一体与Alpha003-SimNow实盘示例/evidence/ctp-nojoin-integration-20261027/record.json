@@ -1,0 +1,167 @@
+{
+  "status": "ACCEPTED_SCOPED_ROUND",
+  "parent": "91a63f25a2f648897029f53eba672c5c6d490444",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "scope": "SOURCE_FAKE_WRAPPER_AND_ROOT_LOCAL_NATIVE_CLIENT_LIFECYCLE_ONLY",
+  "sdk_commit": "574cd2dd495a3c675d7cd23fcbf23a797a08c04d",
+  "sdk_parent_commit": "1607bed4a23f6a0b414f59b5f71c8c34b37b1aaf",
+  "source_pins": {
+    "backtrader/stores/btapistore.py": "7e0d35fbf4f24d11b739a7a61cab2c2a30810bcac0f0a8f421f2e0dab9cc8491",
+    "examples/unified/028_alpha003_simnow_minute/run.py": "3373140b1e68f3f4871ce821220117883edb0af85640bb723de19c75a1012e62",
+    "tests/integration/test_alpha003_main_contract_rollover_execution.py": "89936270e90ca2193926e2ecb3cc5ed482579d574d17641e53c7ced40eecf187",
+    "tests/integration/test_alpha003_refresh_dispatch_recovery.py": "71481247a32eb02367238f96678c39908eb0f22eab0c4e1d9ab800233805e634",
+    "tests/unit/test_ctp_nojoin_wrapper.py": "0a75d2be5edbcc387b3472c5cbc63bf54eeb5cf4e4ad0df759c18b80d50dcfba"
+  },
+  "original_artifacts": {
+    "wrapper-review.md": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_nojoin_wrapper_review_20261027.md",
+      "bytes": 2289,
+      "sha256": "18876eb1a308a91e6a833cd512c6bc3d4f88dc6ff35bc0c6a434778e51167b26"
+    },
+    "fixture-review.md": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_nojoin_wrapper_fixture_review_20261027.md",
+      "bytes": 1854,
+      "sha256": "2adeadbd89195d175bae36a73a32e7970d15fdbb1a26d45faf61fb79adcb8e58"
+    },
+    "native-client-gate.py": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_ctp_nojoin_client_gate_20261027.py",
+      "bytes": 16451,
+      "sha256": "ff765da238142f11c399739a875ba7ead82db3617b67879f2517404a22d1408a"
+    },
+    "native-client-review.md": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\i51_ctp_nojoin_client_gate_review_20261027.md",
+      "bytes": 3393,
+      "sha256": "14442ceeec21c529d1542b9c392bc05f878f9ccb6c029a31915ea26846f56f06"
+    },
+    "native-client-result.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-client-20261027-r1\\result.json",
+      "bytes": 4290,
+      "sha256": "cc8eea90b0fda068d7583f49e24c74ae4144638c2a46a25ac41a33d37bfc3b0e"
+    },
+    "native-client-preexit.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-client-20261027-r1\\preexit.json",
+      "bytes": 291,
+      "sha256": "09fa5ffc94454ebbf93faf9458b6276b2adf6c35ec98a7aecdc6f83565ddc90a"
+    },
+    "consumer-preparation.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\preparation.json",
+      "bytes": 2510,
+      "sha256": "80a508c18f6c7e09ffedba8937c5e66536ed4571871d6a88095ae38fab43f69c"
+    },
+    "consumer-verification.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\verification-r2.json",
+      "bytes": 17031,
+      "sha256": "bde9cf29841b0d878964ca4da3cc8606882ffab734e5ea124c2163694813f982"
+    },
+    "consumer-record-diagnostic.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\record-diagnostic.json",
+      "bytes": 209,
+      "sha256": "302f678c94b41be512ce2f474cc29397163faf360051f037478d8b4e2857881a"
+    },
+    "consumer-bytecode-diagnostic.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\numpy-bytecode-diagnostic.json",
+      "bytes": 236,
+      "sha256": "8448498d959b49ed68e01cf84dae18cfabe8014b4d7a92df34f0e740982beefa"
+    },
+    "prepare-consumer.py": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\prepare_i51_nojoin_consumer_20261027.py",
+      "bytes": 3163,
+      "sha256": "fbdc8e775cd332bf0774b8b5da89c7c37c2f009958ced3b2e339de664b49c1b6"
+    },
+    "verify-consumer-r1.py": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\verify_i51_nojoin_consumer_20261027.py",
+      "bytes": 3148,
+      "sha256": "dfdd9ad3c5a6b28603b728aad1b3496bd02865bd52821a6f04e1d5616ef9f17f"
+    },
+    "verify-consumer-r2.py": {
+      "original": "D:\\source_code\\backtrader\\.codex-tmp\\verify_i51_nojoin_consumer_r2_20261027.py",
+      "bytes": 4113,
+      "sha256": "f92d1d94b95135863a68484a803b0e864d0f80e7816e6d56b4b8f278a8914029"
+    },
+    "wheel-build.cmd": {
+      "original": "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\build.cmd",
+      "bytes": 447,
+      "sha256": "63a36739bdc31cb1a4cce8ccc3ef6b2f1323d4cdf86761d4c1ba68cdd4acde3d"
+    },
+    "wheel-build-completion.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\build-completion.json",
+      "bytes": 78,
+      "sha256": "fa242d2ecdd136fb5249b963b5149d452b79b842555fa00ebdc772cad8b7c02b"
+    },
+    "wheel-source-export.json": {
+      "original": "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\export.json",
+      "bytes": 584,
+      "sha256": "7f354751454e751416bb59e9871b097202b56254d69d2baff779e832f558e01f"
+    },
+    "wrapper-qa-eight.txt": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r3\\pytest.log",
+      "bytes": 550,
+      "sha256": "970e9a037de31ee4651416b631af966101d1e081a0953241b9d7746ebd4c8195"
+    },
+    "wrapper-qa-eight-pre.json": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r3\\pre-pins.json",
+      "bytes": 906,
+      "sha256": "4fe848f4f0f10a91cc438a59faaa4d4642aca02689139101ef1cc9c06d5ae0b6"
+    },
+    "wrapper-qa-eight-post.json": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r3\\post-pins.json",
+      "bytes": 906,
+      "sha256": "4fe848f4f0f10a91cc438a59faaa4d4642aca02689139101ef1cc9c06d5ae0b6"
+    },
+    "env-qa-one.txt": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r5-env-fixture-assertion\\pytest.log",
+      "bytes": 550,
+      "sha256": "9d4aaf846d24f0ce58bd18adf4ca25d66f1d9c987458b28773715762ac49edbd"
+    },
+    "env-qa-one-pre.json": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r5-env-fixture-assertion\\pre-pins.json",
+      "bytes": 906,
+      "sha256": "bc31ba4e3986383670362324d282d2350e1fa12850d9092018b59b26e0ec60ec"
+    },
+    "env-qa-one-post.json": {
+      "original": "D:\\temp\\i51-nojoin-wrapper-20261027\\r5-env-fixture-assertion\\post-pins.json",
+      "bytes": 906,
+      "sha256": "bc31ba4e3986383670362324d282d2350e1fa12850d9092018b59b26e0ec60ec"
+    }
+  },
+  "qa": {
+    "separate_runs": [
+      8,
+      1
+    ],
+    "distinct_passing_cases": 9,
+    "combined_nine_run_claimed": false,
+    "existing_warning_per_run": 1,
+    "initial_failures": "R1 missing fake profile lookup; R2 env fixture ISO day versus compact CTP day. Original logs retained in D:/temp/i51-nojoin-wrapper-20261027; accepted scenarios repaired, not relabeled.",
+    "diagnostic_limit": "First observer used attribute access for a Mapping and recorded nulls; corrected observer identified date-format mismatch. No production clock/session guard changed."
+  },
+  "native": {
+    "root_launch_tool": "c8d7c1",
+    "host": 61352,
+    "readback_tool": "cdde2c",
+    "preexit_tool": "7034fb",
+    "normal_exit_tool": "e5fa0d",
+    "normal_exit_code": 0,
+    "repeat": false,
+    "closed_loopback_only": true,
+    "provider_account_acceptance": false
+  },
+  "installation": {
+    "wheel_sha256": "32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7",
+    "sdk_python_files_exact_export_match": 85,
+    "sdk_base_record_verified": [
+      96,
+      103
+    ],
+    "pip_check_exit": 0,
+    "distribution_count": 39,
+    "numpy_cache_exception": "One installed conv_template.pyc differs from packaged RECORD; exact code equality with compilation of the RECORD-verified source is established. Other hashed entries match. R1 check failed and was preserved; R2 explicitly records exception."
+  },
+  "limitations": [
+    "No actual account login, market query, live bar or order acceptance.",
+    "Default Join behavior remains unchanged; original retained account host 86857 was not touched.",
+    "Native evidence covers unconnected generation-zero clients on a refused loopback front, not all connected callback races.",
+    "SDK wheel built from committed source with local MSVC/build dependencies; not a release/deployment or reproducible binary build claim."
+  ]
+}

@@ -1,11 +1,12 @@
-"""Run the CPython 3.8 Iteration 41 core-runtime compatibility contract.
+"""Run the CPython 3.8 core compatibility and retired-runtime contract.
 
-This harness deliberately covers only the configuration-first operator path:
-schema-v4 ``config.yaml``, sealed registry policy, and ``bt-runtime``
-bootstrap/doctor/run behavior with local in-memory runners.  It does not
-install or import the optional managed-execution SDKs.  Those SDK packages
-declare Python 3.9 or 3.11 minimum versions, so their managed runtime is not a
-supported CPython 3.8 configuration.
+This harness covers selected Backtrader core behavior and the Store base
+export, and checks that the retired runtime package and
+``backtrader.runtime`` facade stay out of the active source tree.  The release
+wheel job separately verifies the built artifact.  This harness does not
+install or import optional managed-execution SDKs or contact a provider or
+account.  The retained Iteration 41 Windows smoke helper is historical and
+is not invoked by the active CI workflow because its target was retired.
 
 The default command refuses every interpreter except CPython 3.8.  A caller
 can use ``--print-command`` on another interpreter to inspect the exact
@@ -24,18 +25,22 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 
-CORE_RUNTIME_TEST_TARGETS = (
-    "tests/unit/runtime/test_runtime_package_import_boundary.py",
-    "tests/unit/runtime/test_runtime_config.py",
-    "tests/unit/runtime/test_runtime_operator_flow.py",
-    "tests/unit/runtime/test_runtime_operator_guidance.py",
-    "tests/unit/runtime/test_runtime_batch_bootstrap.py",
+CORE_COMPATIBILITY_TEST_TARGETS = (
+    "tests/unit/core/test_errors.py",
+    "tests/unit/core/test_store.py",
+    "tests/unit/scripts/test_run_iteration41_cpython38_core_runtime.py",
+)
+
+_RETIRED_RUNTIME_SOURCE_PATHS = (
+    "backtrader_runtime",
+    "backtrader/runtime",
 )
 
 _MANAGED_SDK_EXCLUSIONS = (
     "bt_api_py and bt_api_execution declare Python >=3.11",
     "bt_api_base, bt_api_risk, and bt_api_monitor declare Python >=3.9",
     "no provider, account, gateway, or managed-execution SDK path is covered",
+    "the retired Store-owned CTP managed-order contract is not covered",
 )
 
 
@@ -44,7 +49,7 @@ def _source_root() -> Path:
 
 
 def build_pytest_command(executable: Optional[str] = None) -> List[str]:
-    """Return the exact no-SDK compatibility command for the active interpreter."""
+    """Return the exact no-SDK core compatibility command for this interpreter."""
 
     return [
         executable or sys.executable,
@@ -53,8 +58,25 @@ def build_pytest_command(executable: Optional[str] = None) -> List[str]:
         "-q",
         "-p",
         "no:asyncio",
-        *CORE_RUNTIME_TEST_TARGETS,
+        *CORE_COMPATIBILITY_TEST_TARGETS,
     ]
+
+
+def _retired_runtime_paths_present(root: Optional[Path] = None) -> List[str]:
+    """Find retired runtime package and module paths in a source layout.
+
+    The historical implementation remains under ``archive/iteration53`` for
+    provenance.  Only the active package and facade locations are forbidden.
+    """
+
+    source_root = _source_root() if root is None else root
+    present = []
+    for relative in _RETIRED_RUNTIME_SOURCE_PATHS:
+        for candidate in (relative, relative + ".py"):
+            path = source_root / candidate
+            if path.exists() or path.is_symlink():
+                present.append(candidate)
+    return present
 
 
 def _interpreter_metadata() -> Dict[str, str]:
@@ -81,8 +103,9 @@ def _result_payload(*, status: str, execution_performed: bool) -> Dict[str, Any]
         "execution_performed": execution_performed,
         "required_interpreter": "CPython 3.8",
         "interpreter": _interpreter_metadata(),
-        "scope": "iteration41_core_config_operator_no_sdk",
-        "included_test_targets": list(CORE_RUNTIME_TEST_TARGETS),
+        "scope": "cpython38_backtrader_core_compatibility_runtime_removal_no_sdk",
+        "included_test_targets": list(CORE_COMPATIBILITY_TEST_TARGETS),
+        "retired_runtime_source_paths_present": _retired_runtime_paths_present(),
         "managed_sdk_exclusions": list(_MANAGED_SDK_EXCLUSIONS),
         "pytest_command": build_pytest_command(),
     }
@@ -101,7 +124,7 @@ def _write_payload(payload: Dict[str, Any], output: Optional[Path]) -> None:
 
 def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the CPython 3.8 Iteration 41 core config/operator compatibility contract."
+        description="Run the CPython 3.8 core compatibility and retired-runtime contract."
     )
     parser.add_argument(
         "--output",
@@ -117,7 +140,7 @@ def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    """Run the isolated core contract, refusing a non-CPython-3.8 interpreter."""
+    """Run the current core contract on CPython 3.8, fail-closed."""
 
     args = _parse_args(argv)
     if args.print_command:
@@ -125,6 +148,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         payload["message"] = "No tests were executed; run this command under CPython 3.8."
         _write_payload(payload, args.output)
         return 0
+
+    retired_paths = _retired_runtime_paths_present()
+    if retired_paths:
+        payload = _result_payload(
+            status="FAILED_RETIRED_RUNTIME_SOURCE_PRESENT", execution_performed=False
+        )
+        payload["message"] = "A retired runtime import path exists in the active source tree."
+        payload["retired_runtime_source_paths_present"] = retired_paths
+        _write_payload(payload, args.output)
+        return 1
 
     if not _is_cpython38():
         payload = _result_payload(

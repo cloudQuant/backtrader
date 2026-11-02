@@ -1,0 +1,11 @@
+{
+  "failed_checks": [],
+  "passed": true,
+  "planned_slot_count": 64,
+  "saved_stdout_bytes": 15389,
+  "saved_stdout_path": "D:\\temp\\i51-installed-final-20261025-r2\\native\\case\\iteration51-synthetic-live-child-native-read-only.stdout.bin",
+  "saved_stdout_sha256": "5aaa43413a78f3d231e50aad3af75439965e0ee13d7745e637c9c6ad4bf59ebe",
+  "status": "LIVE_RUN_COMPLETE",
+  "validator_source_bytes": 131524,
+  "validator_source_sha256": "7770ee3057e86b4c838cc508875593012536d9f11f728194ee3f9c5459f1dd35"
+}

@@ -22,14 +22,7 @@ Example:
 """
 
 from ..comminfo import CommInfoBase
-from .ctpoption import (
-    ComminfoCtpOptionPremium,
-    CtpOptionComminfo,
-    CtpOptionPremium,
-    CtpOptionSellerMarginEvidence,
-    OptionAccountingError,
-    validate_seller_margin_evidence,
-)
+from .option_premium import OptionAccountingError, OptionPremiumCommInfo
 
 
 class CommInfo(CommInfoBase):
@@ -97,10 +90,6 @@ __all__ = [
     "CommInfoStocks",
     "CommInfoStocksPerc",
     "CommInfoStocksFixed",
-    "CtpOptionPremium",
-    "ComminfoCtpOptionPremium",
-    "CtpOptionComminfo",
-    "CtpOptionSellerMarginEvidence",
+    "OptionPremiumCommInfo",
     "OptionAccountingError",
-    "validate_seller_margin_evidence",
 ]

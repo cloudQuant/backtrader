@@ -1086,6 +1086,9 @@ def _compare_alpha003_runs(
                 and (reports is None or reports["equal"])
                 and (panels is None or panels["equal"])
             )
+            for connection in connections:
+                connection.close()
+            connections.clear()
             return {
                 "schema_version": PAIR_SEMANTICS_SCHEMA,
                 "baseline_run": str(baseline_dir),
@@ -1350,6 +1353,9 @@ def compare_runs(
                 and (reports is None or reports["equal"])
                 and (panels is None or panels["equal"])
             )
+            for connection in connections:
+                connection.close()
+            connections.clear()
             return {
                 "schema_version": PAIR_SEMANTICS_SCHEMA,
                 "baseline_run": str(baseline_dir),

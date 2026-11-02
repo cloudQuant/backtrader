@@ -1,0 +1,17 @@
+[
+  {
+    "path": "scripts/iteration51_installed_fixture.py",
+    "size_bytes": 122893,
+    "sha256": "46ce633694d197309857af4a1b2b0681ce0fae73716877d046405782416b679a"
+  },
+  {
+    "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+    "size_bytes": 47504,
+    "sha256": "556640e2b895a533fb2a907dad892aeaea64ca8da7689513c38d6ff6ba6db0b6"
+  },
+  {
+    "path": "scripts/iteration50_installed_fixture.py",
+    "size_bytes": 158926,
+    "sha256": "069608a2d44a2fdd2427351c0d8deffd2915e7ed465a273a710fb4bc723ed868"
+  }
+]

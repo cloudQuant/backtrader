@@ -209,6 +209,64 @@ class FakeBtApiClient:
         self.broker_updates.append(deepcopy(update))
 
 
+class ResponseProvider(FakeBtApiClient):
+    """Fake provider that returns exactly one reviewed result per dispatch.
+
+    Shared by the local-process service tests after the retired managed
+    projection test module was archived in Iteration 53.
+    """
+
+    def __init__(self, responses: list) -> None:
+        super().__init__(
+            balance={"cash": 1000.0, "value": 1000.0},
+            history={
+                DEFAULT_SYMBOL: [
+                    make_bar(0, 100.0, 102.0, 99.0, 101.0),
+                    make_bar(1, 101.0, 103.0, 100.0, 102.0),
+                ]
+            },
+        )
+        self._responses = list(responses)
+        self.balance_reads = 0
+
+    def get_balance(self):
+        self.balance_reads += 1
+        return super().get_balance()
+
+    def submit_order(self, payload):
+        self.submitted_orders.append(dict(payload))
+        if not self._responses:
+            raise AssertionError("fake provider received an unexpected second dispatch")
+        return dict(self._responses.pop(0))
+
+
+def make_started_stack(
+    provider,
+    *,
+    managed_execution_adapter,
+    account_cache_ttl: float = 3600.0,
+    account_refresh_interval: float = 3600.0,
+):
+    """Start a FakeBtApi-backed Store/Feed/Broker with an explicit adapter."""
+    store = make_store(
+        api=provider,
+        account_cache_ttl=account_cache_ttl,
+        managed_execution_adapter=managed_execution_adapter,
+    )
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    data._start()
+    assert data.load() is True
+    broker = store.getbroker(
+        validation_enabled=False,
+        cash_check_enabled=False,
+        account_refresh_interval=account_refresh_interval,
+        positions_refresh_interval=3600.0,
+        open_orders_refresh_interval=3600.0,
+    )
+    broker.start()
+    return store, data, broker
+
+
 def make_store(
     api: Optional[FakeBtApiClient] = None,
     provider: str = "okx",

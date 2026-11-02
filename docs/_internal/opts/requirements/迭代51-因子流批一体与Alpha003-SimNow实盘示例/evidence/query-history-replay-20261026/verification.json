@@ -1,0 +1,104 @@
+{
+  "parent_dev": "fab06cdbb4539c8b00e253a01834727004a3f9b6",
+  "accepted_level": "SOURCE_FAKE_COMPOSITION_ONLY",
+  "final_source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/run.py": "dc0319a85e0fe62addbc6b0c0c06a97cc6b33f94a88c50a3764411455872a92c",
+    "tests/unit/test_alpha003_simnow_runner.py": "e1b3907d0d0b6985e4de4e4e7eb7d98c44bec51e60e24699fff710426afb12a7"
+  },
+  "query_qa": "One author execution, tool output summary; raw stdout/JUnit were not saved.",
+  "replay_qa": "Five Root focused tests passed with raw output, JUnit and pre/post source pins.",
+  "query_qa_reused_after_replay_only_delta": true,
+  "prior_same_store_and_bundle_passes": "R2 contains two passes and one query failure; not a whole-suite PASS.",
+  "account_acceptance_claimed": false,
+  "os_process_restart_claimed": false,
+  "installed_new_source_claimed": false,
+  "historical_failures_preserved": [
+    {
+      "directory": "D:\\temp\\i51-query-history-focus-20261026-r1",
+      "exit_code": 1,
+      "timed_out": false,
+      "pins": {
+        "completion.json": {
+          "bytes": 1247,
+          "sha256": "81ec83f89414914290c326874b27b34e9b9e71f372e966e4ee7fb1c578df1f5c"
+        },
+        "stdout.bin": {
+          "bytes": 5608,
+          "sha256": "b1636261103120876e943306146c327e07283e481bcbf0245f5ae126cc9de7f7"
+        },
+        "stderr.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "directory": "D:\\temp\\i51-query-history-focus-20261026-r2",
+      "exit_code": 1,
+      "timed_out": false,
+      "pins": {
+        "completion.json": {
+          "bytes": 1234,
+          "sha256": "5d2d941a78dbd5a731d4998112b839003072a313ea2743a6dd82a597040a19d3"
+        },
+        "stdout.bin": {
+          "bytes": 1273,
+          "sha256": "a6e4995497b6d60bf67e107f444c86b8dbba76f3c4aca2fc31c97622dbf10d39"
+        },
+        "stderr.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    },
+    {
+      "directory": "D:\\temp\\i51-query-history-focus-20261026-r3",
+      "exit_code": 124,
+      "timed_out": true,
+      "pins": {
+        "completion.json": {
+          "bytes": 992,
+          "sha256": "cd2cb5a35c23851cb885c098ce021568745eea607a757270599313192db6485c"
+        },
+        "stdout.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr.bin": {
+          "bytes": 4804,
+          "sha256": "15ac5c1a29875d4601a5399e92244203f3ac4d34068e161f348bc033c2fd30a0"
+        }
+      }
+    }
+  ],
+  "archived_payload_pins": {
+    "query-qa.json": {
+      "bytes": 3965,
+      "sha256": "963a30dd9356a257de80b64e8bffd972ffff6f898bad9446fa7ef26ec9ea0785"
+    },
+    "replay-launch.json": {
+      "bytes": 1986,
+      "sha256": "da104fb34252dd4f6914d47d28fdd727300d13d27cae1cffb1a6f03c948a07d4"
+    },
+    "replay-completion.json": {
+      "bytes": 1245,
+      "sha256": "7db662e2f20f2b6e615c147a97501b8ae2f05a281c54d978fd9c6a2cf76afd13"
+    },
+    "replay-junit.xml": {
+      "bytes": 982,
+      "sha256": "d0730cf8198c8ad39b6bfa49f4c67d15e2429abba0294d72b5ad293aef57255c"
+    },
+    "replay-stdout.bin": {
+      "bytes": 631,
+      "sha256": "1ef54ab8425460b4527dc12c968e98315e1903cb191ec8e2d59aae7dca59eed3"
+    },
+    "replay-stderr.bin": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "replay-qa-runner.py": {
+      "bytes": 4136,
+      "sha256": "66ba7e1878e93eb36414d8eb45035ce79e5e69b5737203c072bda334366e2819"
+    }
+  }
+}

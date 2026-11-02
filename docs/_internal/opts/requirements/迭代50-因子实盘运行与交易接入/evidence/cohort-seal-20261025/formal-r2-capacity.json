@@ -1,0 +1,26 @@
+{
+  "report": "D:\\temp\\i50-formal-20261025-r2\\27a-native\\result.json",
+  "report_sha256": "c0164c409a460b5816e981a935a71b1ee289d8b307443d81847cbcae28dce6f8",
+  "report_status": "FAIL",
+  "database": "D:\\temp\\i50-formal-20261025-r2\\27a-native\\result.decisions.sqlite3",
+  "query_mode": "SQLite URI mode=ro; PRAGMA query_only=ON; SELECT only",
+  "observation": {
+    "durable_base_records": 447,
+    "durable_base_record_limit": 500000,
+    "durable_base_records_remaining": 499553,
+    "durable_base_payload_bytes": 333407,
+    "durable_base_payload_byte_limit": 1073741824,
+    "durable_base_payload_bytes_remaining": 1073408417,
+    "decision_base_records": 222,
+    "decision_base_payload_bytes": 133666,
+    "decision_rows": 222,
+    "grid_history_rows": 222,
+    "grid_cursor_rows": 1,
+    "grid_highwater_rows": 1,
+    "run_order_budget_rows": 1,
+    "intent_slot_rows": 0,
+    "intent_rows": 0,
+    "callback_rows": 0
+  },
+  "expected_100000_grid_counts_match": false
+}

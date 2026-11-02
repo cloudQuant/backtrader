@@ -1,0 +1,126 @@
+{
+  "repository_root": "D:\\source_code\\backtrader",
+  "repository_head": "db28ae4bd2b9a1a0df1e8ccadd5c1063b6fff11b",
+  "fixture_actual_files": [
+    "pytest.ini",
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+    "examples/unified/028_alpha003_simnow_minute/config.yaml",
+    "examples/unified/028_alpha003_simnow_minute/entry_tier.py",
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "tests/__init__.py",
+    "tests/integration/__init__.py",
+    "tests/integration/test_live_alpha003_history_catchup_execution.py",
+    "tests/test_utils/__init__.py",
+    "tests/test_utils/factories.py",
+    "tests/test_utils/optional_sdk.py",
+    "tests/unit/test_alpha003_simnow_runner.py",
+    "tests/unit/stores/test_factor_execution_facts.py",
+    "tests/unit/stores/test_factor_execution.py"
+  ],
+  "files": [
+    {
+      "fixture_sha256": "f5d14bff2a19e425b32d60c6192f4089cb5f4cb9ac92ae24d34114e98d275dbc",
+      "checkout_sha256": "f5d14bff2a19e425b32d60c6192f4089cb5f4cb9ac92ae24d34114e98d275dbc",
+      "head_blob": "68da016ba194bd61507ccdc37ea755c1164acef5",
+      "size": 250322,
+      "matches": true,
+      "path": "examples/unified/028_alpha003_simnow_minute/run.py"
+    },
+    {
+      "fixture_sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+      "checkout_sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+      "head_blob": "8e93f405fcb90853674b72b034f557c344e3e340",
+      "size": 4449,
+      "matches": true,
+      "path": "examples/unified/028_alpha003_simnow_minute/entry_tier.py"
+    },
+    {
+      "fixture_sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521",
+      "checkout_sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521",
+      "head_blob": "f1ac1f0ef12415ecd3b4cbe5d79f02486f4c4390",
+      "size": 200202,
+      "matches": true,
+      "path": "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py"
+    },
+    {
+      "fixture_sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+      "checkout_sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+      "head_blob": "d41705b7d01e9c6a8479eba081e588a1f4209c80",
+      "size": 3674,
+      "matches": true,
+      "path": "examples/unified/028_alpha003_simnow_minute/config.yaml"
+    },
+    {
+      "fixture_sha256": "d4c52caebcf1503261270f66227a82d5b9d4b37aea3599d5f6c694ea732fdedb",
+      "checkout_sha256": "d4c52caebcf1503261270f66227a82d5b9d4b37aea3599d5f6c694ea732fdedb",
+      "head_blob": "ce55a587e26f138a940e03163ab17f2658a04792",
+      "size": 207184,
+      "matches": true,
+      "path": "tests/unit/test_alpha003_simnow_runner.py"
+    },
+    {
+      "fixture_sha256": "6f25638c7d4b6cf6f133dd97a7c5a6b8e3fdcb2e4dbc3dd871a8b9cf64523881",
+      "checkout_sha256": "6f25638c7d4b6cf6f133dd97a7c5a6b8e3fdcb2e4dbc3dd871a8b9cf64523881",
+      "head_blob": "7b22557de262cd9af9dd381ea42ed2f4976c5776",
+      "size": 43861,
+      "matches": true,
+      "path": "tests/integration/test_live_alpha003_history_catchup_execution.py"
+    },
+    {
+      "fixture_sha256": "ee3aa511fb3cc161e57d6f5d074e7fe4fc90c38f4885f1604a6bfe734a1ce4dc",
+      "checkout_sha256": "ee3aa511fb3cc161e57d6f5d074e7fe4fc90c38f4885f1604a6bfe734a1ce4dc",
+      "head_blob": "0fabd6c9f66eac40deb0bd03de88d2263b64c80a",
+      "size": 69614,
+      "matches": true,
+      "path": "tests/unit/stores/test_factor_execution.py"
+    },
+    {
+      "fixture_sha256": "6e63db2d040ca592157032dd2f01bce6b93d6cb6290b82af3e1515b4353e16e0",
+      "checkout_sha256": "6e63db2d040ca592157032dd2f01bce6b93d6cb6290b82af3e1515b4353e16e0",
+      "head_blob": "df16c0a3ac5bd59a10e489237d38178352eae5bc",
+      "size": 152605,
+      "matches": true,
+      "path": "tests/unit/stores/test_factor_execution_facts.py"
+    },
+    {
+      "fixture_sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1",
+      "checkout_sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1",
+      "head_blob": "756f23d4c68ec3e61bb3cb7d69dd47e765f8d0e0",
+      "size": 827,
+      "matches": true,
+      "path": "tests/test_utils/optional_sdk.py"
+    },
+    {
+      "fixture_sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+      "checkout_sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+      "head_blob": "0e5b3a8f0a136be4eccc5fd145d68705cc9f3e07",
+      "size": 30,
+      "matches": true,
+      "path": "tests/__init__.py"
+    },
+    {
+      "fixture_sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47",
+      "checkout_sha256": "98646827c4cb4bfa0f40d3292a3bf7e03f99d8852d4789f46c45fdc296887b47",
+      "head_blob": "06ef78e53f16f9e4e4bd1a63227d60b42e99f15a",
+      "size": 963,
+      "matches": true,
+      "path": "tests/integration/__init__.py"
+    },
+    {
+      "fixture_sha256": "de6055a833a131ad081ca9c9bcb6e916650cce91f4465a3577ab3f7eb86f4ae8",
+      "checkout_sha256": "de6055a833a131ad081ca9c9bcb6e916650cce91f4465a3577ab3f7eb86f4ae8",
+      "head_blob": "1eff36c50ccee923032d709c0be4749c6edc0429",
+      "size": 1959,
+      "matches": true,
+      "path": "tests/test_utils/__init__.py"
+    },
+    {
+      "fixture_sha256": "84e0676a76b9c190b7ac84cd96c0c9e5489642482708ebe6c8f7cfaa7d350575",
+      "checkout_sha256": "84e0676a76b9c190b7ac84cd96c0c9e5489642482708ebe6c8f7cfaa7d350575",
+      "head_blob": "371680b2b3372c2bc4ec0f7867558a49c46bc821",
+      "size": 19024,
+      "matches": true,
+      "path": "tests/test_utils/factories.py"
+    }
+  ]
+}

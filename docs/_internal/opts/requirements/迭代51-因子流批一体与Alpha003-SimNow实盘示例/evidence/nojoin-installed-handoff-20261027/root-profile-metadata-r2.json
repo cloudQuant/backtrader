@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "provider_invoked": false,
+  "native_api_created": false,
+  "credential_exported": false,
+  "helper_sha256": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982",
+  "status": "PASS_ROOT_BOUNDED_PROFILE_METADATA_ONLY",
+  "pair_count": 5,
+  "profiles": [
+    {
+      "configured_index": 0,
+      "category": "set1_group1_vpn",
+      "official_pair_verified": true
+    },
+    {
+      "configured_index": 1,
+      "category": "set1_group2_vpn",
+      "official_pair_verified": true
+    },
+    {
+      "configured_index": 2,
+      "category": "set1_group3_vpn",
+      "official_pair_verified": true
+    },
+    {
+      "configured_index": 3,
+      "category": "set2_7x24_4000x",
+      "official_pair_verified": true
+    },
+    {
+      "configured_index": 4,
+      "category": "set2_7x24",
+      "official_pair_verified": true
+    }
+  ]
+}

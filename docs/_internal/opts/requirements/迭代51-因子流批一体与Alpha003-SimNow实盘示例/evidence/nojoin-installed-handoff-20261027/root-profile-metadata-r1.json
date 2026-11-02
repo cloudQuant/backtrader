@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "provider_invoked": false,
+  "native_api_created": false,
+  "credential_exported": false,
+  "helper_sha256": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982",
+  "status": "BLOCKED_ROOT_BOUNDED_PROFILE_METADATA",
+  "phase": "sealed_pair_categories"
+}

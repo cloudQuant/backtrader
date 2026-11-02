@@ -1,0 +1,138 @@
+{
+  "schema": "iteration51_ctp_query_diagnostics_source_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "d700b0a63612f579ec4a643e5a10d2045dba1b0c",
+  "date": "2026-10-27",
+  "level": "LOCAL_NATIVE_SYNTHETIC_QUERY_COMPOSITION_ONLY",
+  "scope": "Two bounded catalog/depth observations, strict runner projection, and real installed-SDK request/SPI/store/collector/runner regressions; empty query filters, 300-second production budget and completeness checks unchanged.",
+  "independent_review": {
+    "agent": "capacity_review",
+    "result": "GO",
+    "execution": "No reviewer QA/imports"
+  },
+  "root_qa": {
+    "tool": "7fbc71",
+    "readback_tool": "f2cb8c",
+    "counts": {
+      "tests": 64,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "pytest_seconds": 2.94,
+    "process_seconds": 4.187000000034459,
+    "exit_code": 0,
+    "known_configuration_warnings": 1,
+    "warning": "asyncio_default_fixture_loop_scope",
+    "nodes": [
+      "tests/unit/feeds/test_futures_ctp_snapshot.py",
+      "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_projects_only_finite_snapshot_failure_codes",
+      "tests/unit/test_alpha003_simnow_runner.py::test_ctp_query_plan_drops_malformed_snapshot_diagnostics_without_leaking_values",
+      "tests/unit/test_alpha003_simnow_runner.py::test_cli_query_diagnostic_serializer_rejects_forged_payloads",
+      "tests/integration/test_ctp_snapshot_query_diagnostics.py"
+    ],
+    "source_pins_unchanged": true,
+    "artifact_directory": "D:\\temp\\i51-query-diagnostics-qa-20261027-r1",
+    "artifacts": {
+      "result.json": {
+        "size_bytes": 4829,
+        "sha256": "98ca2bd1fd8ce71ad81ea186536f1ef8730cb0e2338d9311d70657266a862789"
+      },
+      "source-pins.json": {
+        "size_bytes": 1848,
+        "sha256": "c2d39cc5bc862a8f43158cf705898be5f06d59a3af9e5aa53f5be1e1c968400e"
+      },
+      "origins.json": {
+        "size_bytes": 361,
+        "sha256": "7d7f1c1e45f4414c151445216a2b566c99191975832238ec51c5251416ad592b"
+      },
+      "stdout.txt": {
+        "size_bytes": 739,
+        "sha256": "469959e0e38d16a45b3692cf1194e7c1ec4f6d37ce9413ddb2a241e378ee3cb4"
+      },
+      "stderr.txt": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "junit.xml": {
+        "size_bytes": 11587,
+        "sha256": "d03ab41e767188f4fbf5f10f6c19eb2b9fcd06850e2db0af3dc68e2d7a0c222b"
+      }
+    }
+  },
+  "qa_helper": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\run_i51_query_diagnostics_qa_20261027.py",
+    "size_bytes": 4128,
+    "sha256": "2862fa89141fda40dbc4962a170a2ea95147aa9a50a15eda7d9d70ac881f2162"
+  },
+  "source_pins": {
+    "backtrader/feeds/futures_ctp_snapshot.py": {
+      "size_bytes": 35971,
+      "sha256": "4003f235a7030f04b18df3956d466da2e99dfbf836a8f0332d560e4598899cc2"
+    },
+    "backtrader/stores/btapistore.py": {
+      "size_bytes": 886474,
+      "sha256": "04dd30950eded43cf3fdfb9596dc5587e87c2fe19b12957608faa7ae7bc327c2"
+    },
+    "backtrader/stores/registered_sim.py": {
+      "size_bytes": 136711,
+      "sha256": "0d1d5ae60139378c0383e6fbba89718914bb5cc46972471d5d2248f48403682b"
+    },
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size_bytes": 288490,
+      "sha256": "9ab0f76dfb27f3fd7af9a3112921d938741ae04e62b7d6f2a88cb6f1b98b06de"
+    },
+    "examples/unified/028_alpha003_simnow_minute/entry_tier.py": {
+      "size_bytes": 4449,
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size_bytes": 200202,
+      "sha256": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521"
+    },
+    "tests/unit/feeds/test_futures_ctp_snapshot.py": {
+      "size_bytes": 33302,
+      "sha256": "94282afda892ca6b90f14b758bc2f9087cbcb87da41d2a14590bd2b9fa429e3e"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size_bytes": 230262,
+      "sha256": "e4bd821b4eb39f73f920f668dcb08488bcfcfcfdf655a5e23902a234a193ee98"
+    },
+    "tests/unit/stores/test_btapistore.py": {
+      "size_bytes": 150046,
+      "sha256": "1060c69cbbdb568c723b8ddad784054b88525fc9a4408551f71f2b7b658797da"
+    },
+    "tests/integration/test_ctp_snapshot_query_diagnostics.py": {
+      "size_bytes": 15311,
+      "sha256": "3452d1f5d3fdf346fd17357a77c949df0d5da3b7e7f4bbadb0adef905f686761"
+    },
+    "tests/test_utils/optional_sdk.py": {
+      "size_bytes": 827,
+      "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+    }
+  },
+  "origins": {
+    "bt_api_ctp.ctp.client": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py",
+    "bt_api_ctp.query": "D:\\temp\\i51-ctp-factor-clean-consumer-20261027-c4c7240a\\consumer\\Lib\\site-packages\\bt_api_ctp\\query.py",
+    "backtrader": "D:\\source_code\\backtrader\\backtrader\\__init__.py"
+  },
+  "sdk_client": {
+    "installed_sha256": "14a8f80d0ee0f14d8e57affefdaf850a255d31ff6fa478962060d7b37e8b3264",
+    "size_bytes": 505552,
+    "matches_pinned_wheel": true,
+    "source_checkout_normalized_equal": true,
+    "verification_tools": [
+      "54eaa5",
+      "959a5f",
+      "db1814"
+    ]
+  },
+  "limitations": [
+    "Native SPI and query-field construction are permitted; API factory/start fail traps and network connection/listener guard prohibit provider activity in this QA.",
+    "Synthetic callbacks do not diagnose the earlier real R4 catalog-versus-depth timeout.",
+    "R4 remains BLOCKED; no formal account/full-live case was added.",
+    "Fresh installed-wheel verification follows this accepted source commit."
+  ],
+  "delivery": "Accepted source scope; this record is created before scoped commit. Postcommit receipt records the actual commit."
+}

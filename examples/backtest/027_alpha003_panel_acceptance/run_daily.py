@@ -34,16 +34,18 @@ SOURCE_TIMEZONE = "Asia/Shanghai"
 OHLC = ("open", "high", "low", "close")
 FACTOR_INPUTS = ("open", "volume")
 DAILY_FIELDS = OHLC + ("volume", "amount")
-CSV_FIELDS = (
-    "trade_date",
+REQUIRED_CSV_FIELDS = (
     "trade_time",
-    "symbol",
     "open",
     "high",
     "low",
     "close",
     "volume",
     "amount",
+)
+LEGACY_CSV_FIELDS = (
+    "trade_date",
+    "symbol",
     "minute_count",
     "first_trade_time",
     "last_trade_time",
@@ -272,7 +274,9 @@ def _load_source_arrays(
         }
     )
     date_lookup = {value: index for index, value in enumerate(dates)}
-    required = set(CSV_FIELDS)
+    required = set(REQUIRED_CSV_FIELDS)
+    legacy_fields = set(LEGACY_CSV_FIELDS)
+    source_schema: Optional[str] = None
     total_rows = 0
     invalid_rows = 0
     for symbol_index, entry in enumerate(entries):
@@ -283,11 +287,23 @@ def _load_source_arrays(
         )
         if not required.issubset(frame.columns):
             raise ValueError("%s is missing daily CSV columns" % path.name)
-        if frame["symbol"].astype(str).ne(symbol).any():
+        optional_fields = legacy_fields.intersection(frame.columns)
+        if optional_fields and optional_fields != legacy_fields:
+            raise ValueError("%s mixes reduced and legacy daily CSV columns" % path.name)
+        file_schema = "legacy" if optional_fields else "reduced"
+        if source_schema is None:
+            source_schema = file_schema
+        elif source_schema != file_schema:
+            raise ValueError("daily CSVs mix reduced and legacy column schemas")
+        if "symbol" in frame.columns and frame["symbol"].astype(str).ne(symbol).any():
             raise ValueError("daily CSV symbol does not match manifest: %s" % symbol)
         if len(frame) != int(entry.get("rows", len(frame))):
             raise ValueError("daily CSV row count does not match manifest: %s" % symbol)
-        date_values = frame["trade_date"].astype(str).to_numpy()
+        trade_times = _parse_local_times(frame["trade_time"], "%s trade_time" % symbol)
+        if "trade_date" in frame.columns:
+            date_values = frame["trade_date"].astype(str).to_numpy()
+        else:
+            date_values = np.asarray(trade_times.strftime("%Y-%m-%d"), dtype=str)
         if len(date_values) and (
             not pd.Index(date_values).is_unique or not pd.Index(date_values).is_monotonic_increasing
         ):
@@ -304,46 +320,56 @@ def _load_source_arrays(
             ) from exc
         if len(date_indices) and (arrays["present"][date_indices, symbol_index]).any():
             raise ValueError("duplicate daily symbol/date row: %s" % symbol)
-        trade_times = _parse_local_times(frame["trade_time"], "%s trade_time" % symbol)
         expected_close = pd.DatetimeIndex(calendar["_close_local"].iloc[date_indices])
         if not trade_times.equals(expected_close):
             raise ValueError(
                 "daily trade_time does not match the common observed close for %s" % symbol
             )
-        first = _parse_local_times(frame["first_trade_time"], "%s first_trade_time" % symbol)
-        last = _parse_local_times(frame["last_trade_time"], "%s last_trade_time" % symbol)
-        if (first > last).any() or (last > trade_times).any():
+        first = None
+        if "first_trade_time" in frame.columns:
+            first = _parse_local_times(frame["first_trade_time"], "%s first_trade_time" % symbol)
+        if "last_trade_time" in frame.columns:
+            last = _parse_local_times(frame["last_trade_time"], "%s last_trade_time" % symbol)
+        else:
+            last = trade_times
+        if (first is not None and (first > last).any()) or (last > trade_times).any():
             raise ValueError("daily source first/last times are inconsistent for %s" % symbol)
-        bad_day = _parse_bool_column(frame["invalid_day"], "%s invalid_day" % symbol)
         numeric: Dict[str, np.ndarray] = {}
         for column in DAILY_FIELDS:
             values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=np.float64)
             if np.isinf(values).any():
                 raise ValueError("daily %s contains infinity for %s" % (column, symbol))
             numeric[column] = values
+        bad_day = np.zeros(len(frame), dtype=bool)
         if len(frame):
-            ohlc_good = np.ones(len(frame), dtype=bool)
-            for column in OHLC:
-                ohlc_good &= np.isfinite(numeric[column])
-            amount_good = np.isfinite(numeric["amount"])
-            volume_good = np.isfinite(numeric["volume"])
-            if ((~bad_day) & (~(ohlc_good & amount_good & volume_good))).any():
-                raise ValueError("invalid daily values must set invalid_day=true for %s" % symbol)
+            complete = np.ones(len(frame), dtype=bool)
+            for column in DAILY_FIELDS:
+                complete &= np.isfinite(numeric[column])
+            if "invalid_day" in frame.columns:
+                bad_day = _parse_bool_column(frame["invalid_day"], "%s invalid_day" % symbol)
+                if ((~bad_day) & (~complete)).any():
+                    raise ValueError(
+                        "invalid daily values must set invalid_day=true for %s" % symbol
+                    )
+            else:
+                bad_day = ~complete
             arrays["present"][date_indices, symbol_index] = True
             arrays["invalid_day"][date_indices, symbol_index] = bad_day
             for column, values in numeric.items():
                 arrays[column][date_indices, symbol_index] = values
-            for name, column in (
-                ("minute_count", "minute_count"),
-                ("missing_or_invalid_count", "missing_or_invalid_count"),
-            ):
-                values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=np.int64)
-                if (values < 0).any():
-                    raise ValueError("%s must be non-negative for %s" % (column, symbol))
-                arrays[name][date_indices, symbol_index] = values
-            arrays["first_trade_time"][date_indices, symbol_index] = first.to_numpy(
-                dtype="datetime64[ms]"
-            )
+            if "minute_count" in frame.columns:
+                for name, column in (
+                    ("minute_count", "minute_count"),
+                    ("missing_or_invalid_count", "missing_or_invalid_count"),
+                ):
+                    values = pd.to_numeric(frame[column], errors="raise").to_numpy(dtype=np.int64)
+                    if (values < 0).any():
+                        raise ValueError("%s must be non-negative for %s" % (column, symbol))
+                    arrays[name][date_indices, symbol_index] = values
+            if first is not None:
+                arrays["first_trade_time"][date_indices, symbol_index] = first.to_numpy(
+                    dtype="datetime64[ms]"
+                )
             arrays["last_trade_time"][date_indices, symbol_index] = last.to_numpy(
                 dtype="datetime64[ms]"
             )
@@ -364,22 +390,27 @@ def _load_source_arrays(
             print("loaded %d/%d symbol CSVs" % (symbol_index + 1, symbol_count), flush=True)
     arrays["total_rows"] = total_rows
     arrays["invalid_rows"] = invalid_rows
-    minute_totals = np.where(arrays["present"], arrays["minute_count"], 0).sum(axis=1)
-    expected_minutes = pd.to_numeric(calendar["minute_count"], errors="raise").to_numpy(
-        dtype=np.int64
-    )
-    if not np.array_equal(minute_totals, expected_minutes):
-        raise ValueError("daily CSV minute counts differ from observed_calendar.csv")
+    arrays["source_schema"] = source_schema
     calendar_first = calendar["_open_local"].to_numpy(dtype="datetime64[ms]")
     calendar_last = calendar["_close_local"].to_numpy(dtype="datetime64[ms]")
+    if source_schema == "legacy":
+        minute_totals = np.where(arrays["present"], arrays["minute_count"], 0).sum(axis=1)
+        expected_minutes = pd.to_numeric(calendar["minute_count"], errors="raise").to_numpy(
+            dtype=np.int64
+        )
+        if not np.array_equal(minute_totals, expected_minutes):
+            raise ValueError("daily CSV minute counts differ from observed_calendar.csv")
     for day_index in range(date_count):
         present = arrays["present"][day_index]
         if not present.any():
             raise ValueError("observed calendar date has no daily symbol rows")
-        first = arrays["first_trade_time"][day_index, present].min()
         last = arrays["last_trade_time"][day_index, present].max()
-        if first != calendar_first[day_index] or last != calendar_last[day_index]:
-            raise ValueError("per-symbol first/last times differ from observed_calendar.csv")
+        if last != calendar_last[day_index]:
+            raise ValueError("per-symbol last times differ from observed_calendar.csv")
+        if source_schema == "legacy":
+            first = arrays["first_trade_time"][day_index, present].min()
+            if first != calendar_first[day_index]:
+                raise ValueError("per-symbol first times differ from observed_calendar.csv")
     return arrays
 
 
@@ -1222,6 +1253,7 @@ def _run_parent(
         "panel_cell_count": expected_cells,
         "source_daily_row_count": int(arrays["total_rows"]),
         "invalid_daily_row_count": int(arrays["invalid_rows"]),
+        "source_csv_schema": arrays["source_schema"],
         "finite_factor_count": finite_total,
         "first_finite_trade_date": first_finite_date,
         "oracle": {

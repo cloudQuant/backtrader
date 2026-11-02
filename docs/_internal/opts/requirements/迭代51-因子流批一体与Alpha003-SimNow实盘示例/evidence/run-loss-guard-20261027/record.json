@@ -1,0 +1,172 @@
+{
+  "schema": "iteration51_run_loss_guard_source_round.v1",
+  "date": "2026-10-27",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "source_parent": "6eb03e885d41e43eb21e73ab44f9ab61575f2dc2",
+  "commit_status": "NOT_COMMITTED; Root will add the commit hash in its additive post-commit receipt.",
+  "evidence_level": "SOURCE_FAKE_RUN_LOSS_GUARD_COMPONENT_ONLY",
+  "scope": {
+    "source_files": [
+      {
+        "path": "backtrader/stores/execution_decision_journal.py",
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      },
+      {
+        "path": "backtrader/stores/execution_durable_capacity.py",
+        "size_bytes": 19796,
+        "sha256": "2fcc031511ddd07d07df243298fc01e5d8599e834812624d59d5da470c04dbf1"
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/unit/stores/test_execution_run_loss_guard.py",
+        "size_bytes": 37585,
+        "sha256": "bf5da99c4ecfd5ad7a8ae5d402c6681b60f96cb263d8106a7b6510336fe8a4e6"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_decision_journal.py",
+        "size_bytes": 101179,
+        "sha256": "ab91dd6aab6513e34633298ca0d674d153696183b04a12ea4c15615c1af524b0"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_journal_archive.py",
+        "size_bytes": 12610,
+        "sha256": "a159b346c8dc6640370e052ed956628d9ebd512d6a3b6c998521a02f351a3a87"
+      }
+    ],
+    "behavior": [
+      "Schema 13 adds an optional net-loss guard with one SETTLEMENT accounting row per run.",
+      "Baseline, threshold, and run context are immutable; fresh totalNetPnL is persisted in an independent transaction and a triggered loss latch remains set.",
+      "After the loss threshold is reached, the guard blocks new OPEN admission and claim; exact readback and CLOSE/CANCEL paths remain available.",
+      "Late enablement uses a bounded scan of at most 100,000 typed rows.",
+      "An explicit loss_guard_context with no configured policy fails closed with RUN_LOSS_GUARD_NOT_CONFIGURED at record, prepare, and claim; legacy calls without context remain unchanged."
+    ]
+  },
+  "prior_attempt": {
+    "status": "PRESERVED_HISTORICAL_DIAGNOSTIC_NOT_FINAL_ACCEPTANCE",
+    "root_report": "R1 retained 100 passed and 3 fixture failures in 19.02s; R2 corrected exact context, the KNOWN close assertion, and the historical v1 compact sort-keys JSON behavior referenced by ffecb357."
+  },
+  "independent_static_review": {
+    "reviewer": "capacity_review",
+    "result": "GO_FINAL_SOURCE"
+  },
+  "adjudication": {
+    "source_component": "PASS_SOURCE_COMPONENT_ONLY_WITH_SPLIT_QA",
+    "formal_ac_acceptance": false,
+    "qualified_provider_pnl": "NOT_ESTABLISHED",
+    "strategy_automatic_exit": "NOT_ESTABLISHED",
+    "actual_simnow_or_account_acceptance": "NOT_RUN",
+    "formal_acceptance_count_increase": false
+  },
+  "limits": [
+    "This round validates durable journal and capacity-guard behavior only.",
+    "The 103-pass R2 run used prior source pins; R3 ran only the three affected checks on final source pins. The 104 distinct checks are not a single final-source test run.",
+    "It does not establish qualified provider PnL, strategy-driven automatic liquidation, or actual SimNow trading acceptance.",
+    "No formal AC pass is claimed."
+  ],
+  "prior_qa_r2": {
+    "runner": "Root final focused QA",
+    "result_root": "D:/temp/i51-run-loss-guard-qa-20261027-r2",
+    "exit_code": 0,
+    "passed": 103,
+    "failed": 0,
+    "duration_seconds": 17.69,
+    "warnings": 1,
+    "warning": "One existing PytestConfigWarning: asyncio_default_fixture_loop_scope is not recognized by this pytest installation.",
+    "source_pins_unchanged": true,
+    "artifacts": [
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r2/result.json",
+        "size_bytes": 121,
+        "sha256": "193618b560ed9a5dfad262bdec8a641c5c243abfd74a53dfb8a3cfedaa3367f9"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r2/stdout.txt",
+        "size_bytes": 715,
+        "sha256": "e201c17d813f32f626292c46d47e966b9b329e5a66d945b5402d4ecb3202d34c"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r2/junit.xml",
+        "size_bytes": 17148,
+        "sha256": "92d6e94a1aa0f5e7efe40bece72087d47b7fac02416bc62325fa47cc49430e35"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r2/source-pins.json",
+        "size_bytes": 627,
+        "sha256": "088f46c79a1324c26a95b9cbe8b22f1e2785652611b916eeecbe22515f113955"
+      }
+    ],
+    "source_pin_set_matched_worktree_at_qa_completion": true,
+    "status": "HISTORICAL_PRIOR_SOURCE_BROAD_RUN_NOT_FINAL_SOURCE_ACCEPTANCE",
+    "source_pins": [
+      {
+        "path": "backtrader/stores/execution_decision_journal.py",
+        "size_bytes": 329816,
+        "sha256": "aa99177887b8f260df982e50e8079cf7b77347c06a77ef18ceaf95bd9b9f4ed6"
+      },
+      {
+        "path": "backtrader/stores/execution_durable_capacity.py",
+        "size_bytes": 19796,
+        "sha256": "2fcc031511ddd07d07df243298fc01e5d8599e834812624d59d5da470c04dbf1"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_run_loss_guard.py",
+        "size_bytes": 35615,
+        "sha256": "6f2bac870f3b8ddef0b5df17781b4468fde4db8c3270b666522d41c5a1c960f7"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_decision_journal.py",
+        "size_bytes": 101179,
+        "sha256": "ab91dd6aab6513e34633298ca0d674d153696183b04a12ea4c15615c1af524b0"
+      },
+      {
+        "path": "tests/unit/stores/test_execution_journal_archive.py",
+        "size_bytes": 12610,
+        "sha256": "a159b346c8dc6640370e052ed956628d9ebd512d6a3b6c998521a02f351a3a87"
+      }
+    ]
+  },
+  "final_affected_qa_r3": {
+    "status": "PASS_FINAL_SOURCE_AFFECTED_FOCUS",
+    "runner": "Root final focused QA",
+    "result_root": "D:/temp/i51-run-loss-guard-qa-20261027-r3",
+    "exit_code": 0,
+    "passed": 3,
+    "failed": 0,
+    "duration_seconds": 1.89,
+    "warnings": 1,
+    "warning": "One existing PytestConfigWarning: asyncio_default_fixture_loop_scope is not recognized by this pytest installation.",
+    "source_pins_unchanged": true,
+    "coverage": "Explicit context with missing policy at record/prepare/claim; no-context legacy behavior; configured guard threshold boundaries and UNKNOWN status.",
+    "artifacts": [
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r3/result.json",
+        "size_bytes": 121,
+        "sha256": "f3e2e02664d434fc0422fe67b9b0d681b18ebaeda7a37efed2681083ea5436fa"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r3/stdout.txt",
+        "size_bytes": 631,
+        "sha256": "d17de4f5631f0214c1346c25e3fdf07ad7a4bb7d834768e92b9babfde22e1ba1"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r3/junit.xml",
+        "size_bytes": 702,
+        "sha256": "faefe651eeab9e712b5b8312d656b76aeed7ca97bcc36c040d5920be635df63e"
+      },
+      {
+        "path": "D:/temp/i51-run-loss-guard-qa-20261027-r3/source-pins.json",
+        "size_bytes": 627,
+        "sha256": "57a0ca8d55d4ab3595b2cf1e635319ee78487c9a8b74bc430a0073d3ab99279e"
+      }
+    ]
+  },
+  "coverage_summary": {
+    "prior_r2_pass_count_on_prior_source_pins": 103,
+    "final_r3_affected_checks_passed_on_final_source_pins": 3,
+    "combined_distinct_checks": 104,
+    "single_final_source_104_pass_run_claimed": false
+  }
+}

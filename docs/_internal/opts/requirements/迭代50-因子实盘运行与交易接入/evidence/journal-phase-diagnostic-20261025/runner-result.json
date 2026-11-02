@@ -1,0 +1,891 @@
+{
+  "account_or_execution_claimed": false,
+  "benchmark": "iteration50-live-factor-longstream",
+  "capacities": {
+    "cohort_pending_slots_at_end": 0,
+    "configured_pending_bars": 20,
+    "configured_pending_slots": 1,
+    "configured_window_bars_per_member": 64,
+    "diagnostics_bounded": true,
+    "factor_diagnostic_node_count": 5,
+    "factor_diagnostic_sample_capacity_max": 64,
+    "factor_diagnostic_samples_retained_max": 64,
+    "line_buffers_full_at_first_sample": true,
+    "line_buffers_full_at_last_sample": true,
+    "line_capacity_first": {
+      "factor_instance_root_count": 1,
+      "line_buffers_full": true,
+      "line_capacity_fillable_count": 554,
+      "line_capacity_filled_count": 554,
+      "line_capacity_sum": 4667,
+      "line_count": 554,
+      "max_line_capacity": 10,
+      "max_line_length": 10,
+      "owner_count": 46,
+      "reason_capacity_sum": 828,
+      "reason_line_count": 86,
+      "retained_line_values": 4667,
+      "retained_reason_line_values": 828,
+      "retained_value_line_values": 868,
+      "value_capacity_sum": 868,
+      "value_line_count": 106
+    },
+    "line_capacity_grew_after_warmup": false,
+    "line_capacity_last": {
+      "factor_instance_root_count": 1,
+      "line_buffers_full": true,
+      "line_capacity_fillable_count": 554,
+      "line_capacity_filled_count": 554,
+      "line_capacity_sum": 4667,
+      "line_count": 554,
+      "max_line_capacity": 10,
+      "max_line_length": 10,
+      "owner_count": 46,
+      "reason_capacity_sum": 828,
+      "reason_line_count": 86,
+      "retained_line_values": 4667,
+      "retained_reason_line_values": 828,
+      "retained_value_line_values": 868,
+      "value_capacity_sum": 868,
+      "value_line_count": 106
+    },
+    "max_pending_source_slots": 1,
+    "receipt_window_full_at_first_sample": true,
+    "receipt_window_full_at_last_sample": true,
+    "retained_receipts_at_end": 1280,
+    "retained_receipts_at_first_sample": 1280,
+    "source_rows_retained_at_end": 0,
+    "source_rows_retained_max": 20
+  },
+  "cleanup": {
+    "journal_finalization": {
+      "database_bytes_after_checkpoint": 3960832,
+      "database_bytes_after_close": 3960832,
+      "failure_codes": [],
+      "journal_close_attempted": true,
+      "journal_close_returned": true,
+      "journal_closed": true,
+      "journal_initialized": true,
+      "journal_mode_after_close": "wal",
+      "passed": true,
+      "passive_checkpoint": {
+        "busy": 0,
+        "checkpointed_frames": 0,
+        "complete": true,
+        "log_frames": 0,
+        "mode": "PASSIVE"
+      },
+      "physical_bytes_after_checkpoint": 3960832,
+      "physical_bytes_after_close": 3960832,
+      "readback": {
+        "capacity": {
+          "base_payload_byte_limit": 536870912,
+          "base_payload_bytes": 1233102,
+          "base_record_count": 2048,
+          "base_record_limit": 2048,
+          "database_bytes": 3960832,
+          "physical_bytes": 3964984,
+          "settlement_payload_byte_limit": 67108864,
+          "settlement_payload_bytes": 0,
+          "settlement_record_count": 0,
+          "settlement_record_limit": 4096,
+          "wal_bytes": 4152
+        },
+        "cursor": {
+          "account_scope": "synthetic-no-account",
+          "batch_id": "cohort-iteration50-native:iteration50-alpha003-native:1:synthetic-v1:2111",
+          "close_time": "2026-10-20T20:12:00Z",
+          "cohort_id": "cohort-iteration50-native",
+          "decision_id": "bee86c486eab359e3dcc877c2e1a999bb3dab9dc24a0652963ad545d05125dfd",
+          "epoch_id": "1",
+          "ordinal": 2048,
+          "strategy_scope": "live-longstream-alpha003-native"
+        },
+        "intent_count": 0,
+        "journal_mode": "wal",
+        "synchronous": 2
+      },
+      "readback_matches_live_close": true,
+      "reopen_attempted": true,
+      "reopen_succeeded": true,
+      "synchronous_after_close": 2,
+      "synchronous_after_close_scope": "checkpoint maintenance connection; live Journal FULL is sampled before close",
+      "wal_bytes_after_checkpoint": 0,
+      "wal_bytes_after_close": 0
+    },
+    "synthetic_store_close_attempted": true,
+    "synthetic_store_close_returned": true
+  },
+  "completed_monotonic_ns": 382567203000000,
+  "decision_database_path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration50_journal_phase_diag_2048_r2.runner.decisions.sqlite3",
+  "diagnostics": {
+    "cohort_frozen": false,
+    "cohort_frozen_reason": null,
+    "cohort_gaps": [],
+    "cohort_next_slot_index": 2112,
+    "cohort_pending_by_slot": {},
+    "feed_last_delivered_slot": {
+      "ASSET00": 2111,
+      "ASSET01": 2111,
+      "ASSET02": 2111,
+      "ASSET03": 2111,
+      "ASSET04": 2111,
+      "ASSET05": 2111,
+      "ASSET06": 2111,
+      "ASSET07": 2111,
+      "ASSET08": 2111,
+      "ASSET09": 2111,
+      "ASSET10": 2111,
+      "ASSET11": 2111,
+      "ASSET12": 2111,
+      "ASSET13": 2111,
+      "ASSET14": 2111,
+      "ASSET15": 2111,
+      "ASSET16": 2111,
+      "ASSET17": 2111,
+      "ASSET18": 2111,
+      "ASSET19": 2111
+    }
+  },
+  "durable_noop_journal": {
+    "capacity_after": {
+      "base_payload_byte_limit": 536870912,
+      "base_payload_bytes": 1233102,
+      "base_record_count": 2048,
+      "base_record_limit": 2048,
+      "database_bytes": 3866624,
+      "physical_bytes": 8060816,
+      "settlement_payload_byte_limit": 67108864,
+      "settlement_payload_bytes": 0,
+      "settlement_record_count": 0,
+      "settlement_record_limit": 4096,
+      "wal_bytes": 4194192
+    },
+    "capacity_before": {
+      "base_payload_byte_limit": 536870912,
+      "base_payload_bytes": 0,
+      "base_record_count": 0,
+      "base_record_limit": 2048,
+      "database_bytes": 4096,
+      "physical_bytes": 679808,
+      "settlement_payload_byte_limit": 67108864,
+      "settlement_payload_bytes": 0,
+      "settlement_record_count": 0,
+      "settlement_record_limit": 4096,
+      "wal_bytes": 675712
+    },
+    "configured_capacity_before_launch": {
+      "base_payload_bytes": 536870912,
+      "base_records": 2048,
+      "estimated_bytes_per_noop_row": 4096,
+      "max_payload_bytes_per_decision": 65536,
+      "physical_capacity_claimed": false,
+      "physical_db_wal_capacity_enforced": false,
+      "physical_db_wal_note": "SQLite and WAL sizes are measured; journal limits enforce canonical decision payload bytes and record counts.",
+      "prelaunch_estimated_base_payload_bytes": 8388608,
+      "settlement_reserve_payload_bytes": 67108864,
+      "settlement_reserve_records": 4096
+    },
+    "cursor_close_time": "2026-10-20T20:12:00Z",
+    "cursor_ordinal": 2048,
+    "database_path": "D:\\source_code\\backtrader\\.codex-tmp\\iteration50_journal_phase_diag_2048_r2.runner.decisions.sqlite3",
+    "durability_configuration": {
+      "full_synchronous_required": true,
+      "journal_mode": "wal",
+      "synchronous": 2,
+      "write_completion_contract": "record_grid_decision returns after transaction commit under SQLite WAL/FULL"
+    },
+    "durable_api": "ExecutionDecisionJournal.record_grid_decision",
+    "external_rpc_or_order_route": false,
+    "intent_count": 0,
+    "logical_run_id": "44ebee2177194120ab5c3602e4e38ab5",
+    "new_grid_rows": 2048,
+    "noop_rows": 2048,
+    "physical_db_wal_observation": {
+      "first_sample": {
+        "database_bytes": 4096,
+        "grid_ordinal": 0,
+        "physical_bytes": 679808,
+        "wal_bytes": 675712
+      },
+      "first_sample_grid_ordinal": 0,
+      "last_sample": {
+        "database_bytes": 3866624,
+        "grid_ordinal": 2048,
+        "physical_bytes": 8060816,
+        "wal_bytes": 4194192
+      },
+      "last_sample_grid_ordinal": 2048,
+      "physical_db_wal_capacity_enforced": false,
+      "sample_count": 9,
+      "sampled_high_water": {
+        "database_bytes": 3866624,
+        "physical_bytes": 8060816,
+        "wal_bytes": 4194192
+      },
+      "sampled_on_grid_ordinals": "0, each interval boundary, and final evaluation grid",
+      "sampling_interval_grids": 256,
+      "scope": "observed main SQLite database plus WAL file sizes; sampled values are not a physical disk quota"
+    },
+    "post_close_readback": {
+      "database_bytes_after_checkpoint": 3960832,
+      "database_bytes_after_close": 3960832,
+      "failure_codes": [],
+      "journal_close_attempted": true,
+      "journal_close_returned": true,
+      "journal_closed": true,
+      "journal_initialized": true,
+      "journal_mode_after_close": "wal",
+      "passed": true,
+      "passive_checkpoint": {
+        "busy": 0,
+        "checkpointed_frames": 0,
+        "complete": true,
+        "log_frames": 0,
+        "mode": "PASSIVE"
+      },
+      "physical_bytes_after_checkpoint": 3960832,
+      "physical_bytes_after_close": 3960832,
+      "readback": {
+        "capacity": {
+          "base_payload_byte_limit": 536870912,
+          "base_payload_bytes": 1233102,
+          "base_record_count": 2048,
+          "base_record_limit": 2048,
+          "database_bytes": 3960832,
+          "physical_bytes": 3964984,
+          "settlement_payload_byte_limit": 67108864,
+          "settlement_payload_bytes": 0,
+          "settlement_record_count": 0,
+          "settlement_record_limit": 4096,
+          "wal_bytes": 4152
+        },
+        "cursor": {
+          "account_scope": "synthetic-no-account",
+          "batch_id": "cohort-iteration50-native:iteration50-alpha003-native:1:synthetic-v1:2111",
+          "close_time": "2026-10-20T20:12:00Z",
+          "cohort_id": "cohort-iteration50-native",
+          "decision_id": "bee86c486eab359e3dcc877c2e1a999bb3dab9dc24a0652963ad545d05125dfd",
+          "epoch_id": "1",
+          "ordinal": 2048,
+          "strategy_scope": "live-longstream-alpha003-native"
+        },
+        "intent_count": 0,
+        "journal_mode": "wal",
+        "synchronous": 2
+      },
+      "readback_matches_live_close": true,
+      "reopen_attempted": true,
+      "reopen_succeeded": true,
+      "synchronous_after_close": 2,
+      "synchronous_after_close_scope": "checkpoint maintenance connection; live Journal FULL is sampled before close",
+      "wal_bytes_after_checkpoint": 0,
+      "wal_bytes_after_close": 0
+    }
+  },
+  "elapsed_seconds": 65.282,
+  "environment": {
+    "backtrader_version": "1.4.0",
+    "logical_cpu_count": 32,
+    "machine": "AMD64",
+    "os_release": "10",
+    "os_system": "Windows",
+    "os_version": "10.0.26300",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "python_executable": "D:\\temp\\i5051c-20261025-r3\\venv\\Scripts\\python.exe",
+    "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "source_revision": "718ca1dc644321b316c761d361a04497fc2719af"
+  },
+  "evidence_level": "COMPOSITION_SYNTHETIC_SOURCE_STREAM_ONLY",
+  "formal_acceptance_claimed": false,
+  "gate_failures": [],
+  "latency": {
+    "clock_domains_are_separate": true,
+    "end": "record_grid_decision return, before any RPC or order route",
+    "max_limit_ms": 500.0,
+    "max_ms": 109.0,
+    "monotonic_phases": {
+      "factor_snapshot_to_journal_return": {
+        "max_ms": 31.0,
+        "p99_upper_bound_ms": 16.1,
+        "sample_count": 2048
+      },
+      "first_member_available_to_last_member_available": {
+        "max_ms": 313.0,
+        "p99_upper_bound_ms": 93.10000000000001,
+        "sample_count": 2048
+      },
+      "last_member_available_to_factor_snapshot": {
+        "max_ms": 109.0,
+        "p99_upper_bound_ms": 94.10000000000001,
+        "sample_count": 2048
+      },
+      "last_member_available_to_strategy_next_entry": {
+        "max_ms": 109.0,
+        "p99_upper_bound_ms": 93.10000000000001,
+        "sample_count": 2048
+      },
+      "record_grid_decision_call": {
+        "max_ms": 31.0,
+        "p99_upper_bound_ms": 16.1,
+        "sample_count": 2048
+      }
+    },
+    "p99_bin_resolution_ms": 0.1,
+    "p99_limit_ms": 100.0,
+    "p99_upper_bound_ms": 94.10000000000001,
+    "rpc": {
+      "called": false,
+      "latency_ms": null,
+      "sample_count": 0
+    },
+    "sample_count": 2048,
+    "source_clock_bar_close_to_available": {
+      "clock_domain_id": "synthetic-source-utc",
+      "max_ms": 0.0,
+      "p99_upper_bound_ms": 0.1,
+      "sample_count": 2048
+    },
+    "start": "max synthetic Store.poll_live monotonic timestamp for the complete member grid"
+  },
+  "memory": {
+    "equal_window_samples": 204,
+    "first_window_median_rss_bytes": 95096832,
+    "first_window_sample_count": 204,
+    "growth_pass": true,
+    "last_window_median_rss_bytes": 99565568,
+    "last_window_sample_count": 204,
+    "process_tree_peak_claimed": false,
+    "rss_growth_bytes": 4468736,
+    "rss_growth_limit_bytes": 33554432,
+    "rss_samples_may_miss_transient_peaks": true,
+    "rss_sampling_cadence": "one current-RSS sample after each evaluated grid's journal and oracle work",
+    "rss_sampling_method": "psutil.Process(os.getpid()).memory_info().rss",
+    "rss_sampling_scope": "benchmark_process"
+  },
+  "oracle": {
+    "algorithm": "bounded scalar streaming references; finite average ranks, centered Pearson, rolling sums/std, and direct scalar Alpha101 formulas",
+    "comparisons": 40960,
+    "correlation_reason_failures": 0,
+    "distinct_finite_factor_values": 2,
+    "factor_max": 0.4199633980629991,
+    "factor_min": -0.4752475892792571,
+    "factor_output_unavailable_grids": 0,
+    "finite_factor_values": 40960,
+    "formulas": {
+      "alpha003": "independent scalar formula oracle"
+    },
+    "open_rank_changed_grids": 2112,
+    "per_factor": {
+      "alpha003": {
+        "comparisons": 40960,
+        "distinct_finite_factor_values": 2,
+        "factor_max": 0.4199633980629991,
+        "factor_min": -0.4752475892792571,
+        "finite_factor_values": 40960,
+        "output_reason_failures": 0,
+        "output_unavailable_grids": 0
+      }
+    },
+    "rank_reason_failures": 0,
+    "tolerance": "abs(actual-reference) <= 1e-12 + 1e-10*abs(reference)",
+    "volume_rank_changed_grids": 2112
+  },
+  "profile": {
+    "calendar_frequency": "1min",
+    "calendar_frequency_seconds": 60,
+    "calendar_slot_count": 2112,
+    "calendar_slot_limit": 200000,
+    "evaluation_grids": 2048,
+    "factor_ids": [
+      3
+    ],
+    "factor_names": [
+      "alpha003"
+    ],
+    "factor_profile": "alpha003",
+    "finite_calendar": true,
+    "kind": "ACCELERATED_LONGSTREAM",
+    "line_window_bars": 64,
+    "minimum_wall_clock_duration_seconds": 0,
+    "mode": "native",
+    "rss_window_sample_definition": "first and last min(1000, max(1, evaluation_grids // 10)) evaluation grids",
+    "scenario": "standard",
+    "soak_fault_idle_order_coverage_complete": false,
+    "source_recovery_mode": "same-generation",
+    "source_schedule": "finite synthetic UTC calendar; optional monotonic wall-clock pacing is a local duration measurement only",
+    "steady_capacity_sample_definition": "first evaluation grid after all warmup slots and last evaluation grid",
+    "target_count": 20,
+    "total_grid_slots": 2112,
+    "warmup_bars": 64
+  },
+  "provenance": {
+    "actual_argv": [
+      "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py",
+      "--mode",
+      "native",
+      "--factors",
+      "alpha003",
+      "--scenario",
+      "standard",
+      "--recovery-mode",
+      "same-generation",
+      "--grids",
+      "2048",
+      "--warmup-bars",
+      "64",
+      "--duration-seconds",
+      "0",
+      "--output",
+      "D:\\source_code\\backtrader\\.codex-tmp\\iteration50_journal_phase_diag_2048_r2.runner.json",
+      "--source-revision",
+      "718ca1dc644321b316c761d361a04497fc2719af",
+      "--package-root",
+      "D:\\temp\\i5051c-20261025-r3\\venv\\Lib\\site-packages"
+    ],
+    "calendar_and_event_fixture": "finite deterministic 20-target local synthetic source",
+    "fault_fixture": "none",
+    "input_generation_hash_kind": "sha256_of_normalized_calendar_row_generator_source_and_profile_input_contract",
+    "input_generation_sha256": "e5825a532fbcc32191b64a6bfd4c68cdbb4fff1cf494a0ff6ecc155770badbd8",
+    "loaded_backtrader_source_pins": {
+      "module_count": 31,
+      "post_run": [
+        {
+          "module": "backtrader._cerebro.channel",
+          "path": "_cerebro/channel.py",
+          "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8"
+        },
+        {
+          "module": "backtrader._cerebro.execution",
+          "path": "_cerebro/execution.py",
+          "sha256": "7ce6073823a373cb73b34577eebb3c541fe56661ebe185e72b078ed5e5fc7b57"
+        },
+        {
+          "module": "backtrader._cerebro.lifecycle",
+          "path": "_cerebro/lifecycle.py",
+          "sha256": "964d65cb7f4a708f621b91b5128c58303ae343517c0262f0a6d4418bb3536828"
+        },
+        {
+          "module": "backtrader._cerebro.notifications",
+          "path": "_cerebro/notifications.py",
+          "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6"
+        },
+        {
+          "module": "backtrader._cerebro.presentation",
+          "path": "_cerebro/presentation.py",
+          "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288"
+        },
+        {
+          "module": "backtrader._cerebro.registry",
+          "path": "_cerebro/registry.py",
+          "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179"
+        },
+        {
+          "module": "backtrader._cerebro.runnext",
+          "path": "_cerebro/runnext.py",
+          "sha256": "d0a12a6558f3418249cc0ff9d9f35336698b5be7330929c05d02c2d1921511b9"
+        },
+        {
+          "module": "backtrader._cerebro.runonce",
+          "path": "_cerebro/runonce.py",
+          "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905"
+        },
+        {
+          "module": "backtrader.broker",
+          "path": "broker.py",
+          "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab"
+        },
+        {
+          "module": "backtrader.brokers.bbroker",
+          "path": "brokers/bbroker.py",
+          "sha256": "6f1bc3e05810325d5e6a65d435f7b62678f82e1ee75b6b63e0d2424a95aaf669"
+        },
+        {
+          "module": "backtrader.cerebro",
+          "path": "cerebro.py",
+          "sha256": "efc293f196ccb2c690c15476f97aa922fc7272440a478a628a9fdaf9c415e076"
+        },
+        {
+          "module": "backtrader.dataseries",
+          "path": "dataseries.py",
+          "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967"
+        },
+        {
+          "module": "backtrader.feed",
+          "path": "feed.py",
+          "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503"
+        },
+        {
+          "module": "backtrader.feeds.btapifeed",
+          "path": "feeds/btapifeed.py",
+          "sha256": "7758f038988e679ed0b8463c5b637ede55d65441ffba3b650800d4b9c844bc47"
+        },
+        {
+          "module": "backtrader.feeds.livefeed",
+          "path": "feeds/livefeed.py",
+          "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725"
+        },
+        {
+          "module": "backtrader.feeds.service_recovery_quotes",
+          "path": "feeds/service_recovery_quotes.py",
+          "sha256": "507bd78dc05dbd2ec1ea6ed5a661cdb1bf1f12c6bd88088901647e27634a85d8"
+        },
+        {
+          "module": "backtrader.indicator",
+          "path": "indicator.py",
+          "sha256": "f89c92fb7150da24bf9de0a2b7d4dd24eb44d1bad5c39be5d4dc3f01c642e364"
+        },
+        {
+          "module": "backtrader.linebuffer",
+          "path": "linebuffer.py",
+          "sha256": "e898cb6b81d580fd03c0a6f9cad5272a3651a6787b32c009da017f5a014f2bc3"
+        },
+        {
+          "module": "backtrader.lineiterator",
+          "path": "lineiterator.py",
+          "sha256": "3ec9c5b0b041000743b152c078c14b4b7c00c45c42a08534b12036fafc55854e"
+        },
+        {
+          "module": "backtrader.lineroot",
+          "path": "lineroot.py",
+          "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64"
+        },
+        {
+          "module": "backtrader.lineseries",
+          "path": "lineseries.py",
+          "sha256": "c5b478c889d2ecacf3e93a9e7cc218c4830b92a213c4eb32391d0634c18140c2"
+        },
+        {
+          "module": "backtrader.metabase",
+          "path": "metabase.py",
+          "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847"
+        },
+        {
+          "module": "backtrader.parameters",
+          "path": "parameters.py",
+          "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618"
+        },
+        {
+          "module": "backtrader.research.alpha101.alpha003",
+          "path": "research/alpha101/alpha003.py",
+          "sha256": "108966393560c22da47eb3fd924c997280d851d47ad24f7cc0e66792bea8cf53"
+        },
+        {
+          "module": "backtrader.research.factor_indicator",
+          "path": "research/factor_indicator.py",
+          "sha256": "2fb3d2f5404691ba876983965adb78ecca7d87bd718819a44710716f13de275e"
+        },
+        {
+          "module": "backtrader.research.live",
+          "path": "research/live.py",
+          "sha256": "778654019646ee87884547202a4177bde5de17f24d6be4e19a18a2133223529a"
+        },
+        {
+          "module": "backtrader.research.live_cohort",
+          "path": "research/live_cohort.py",
+          "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+        },
+        {
+          "module": "backtrader.research.operators",
+          "path": "research/operators.py",
+          "sha256": "fbf6d142f40564ade20a0a4f160fffde6876c343d9943f4e74671dbac70dfb42"
+        },
+        {
+          "module": "backtrader.research.specs",
+          "path": "research/specs.py",
+          "sha256": "0b14ce92d0d747c38951a993d4d9dd526c37cef4476cc78a9279b849402c5208"
+        },
+        {
+          "module": "backtrader.stores.execution_decision_journal",
+          "path": "stores/execution_decision_journal.py",
+          "sha256": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+        },
+        {
+          "module": "backtrader.strategy",
+          "path": "strategy.py",
+          "sha256": "b24dd6f4d401760a0a64d15934a01c36ca6bb3636c205eb42273c87a31e44d76"
+        }
+      ],
+      "pre_post_match": true,
+      "pre_run": [
+        {
+          "module": "backtrader._cerebro.channel",
+          "path": "_cerebro/channel.py",
+          "sha256": "e8f8eb04edc2b836c1ec0591c4972a33953bb785e0705b1e6663536c487057e8"
+        },
+        {
+          "module": "backtrader._cerebro.execution",
+          "path": "_cerebro/execution.py",
+          "sha256": "7ce6073823a373cb73b34577eebb3c541fe56661ebe185e72b078ed5e5fc7b57"
+        },
+        {
+          "module": "backtrader._cerebro.lifecycle",
+          "path": "_cerebro/lifecycle.py",
+          "sha256": "964d65cb7f4a708f621b91b5128c58303ae343517c0262f0a6d4418bb3536828"
+        },
+        {
+          "module": "backtrader._cerebro.notifications",
+          "path": "_cerebro/notifications.py",
+          "sha256": "a4ff91c3ea91da3b47c5a0f0a4cf51b489ca886391dde63ea2a094ecdaf211d6"
+        },
+        {
+          "module": "backtrader._cerebro.presentation",
+          "path": "_cerebro/presentation.py",
+          "sha256": "caf5a53dea7c04b70f91a279bb75fd9076b9ffa95026139df93e3788cb1b8288"
+        },
+        {
+          "module": "backtrader._cerebro.registry",
+          "path": "_cerebro/registry.py",
+          "sha256": "b593418871df47df7696f0b92fdcbcc7f7af6f957965fa81fd9b325e2b363179"
+        },
+        {
+          "module": "backtrader._cerebro.runnext",
+          "path": "_cerebro/runnext.py",
+          "sha256": "d0a12a6558f3418249cc0ff9d9f35336698b5be7330929c05d02c2d1921511b9"
+        },
+        {
+          "module": "backtrader._cerebro.runonce",
+          "path": "_cerebro/runonce.py",
+          "sha256": "b2225ea9d7547741f6aef7898d7659318c10edfeae49fe2d90fe3c89f17ef905"
+        },
+        {
+          "module": "backtrader.broker",
+          "path": "broker.py",
+          "sha256": "ff0c1f3f0aade720cfb578882a2bae75949d7f5c2b8751fe817044fc52b61cab"
+        },
+        {
+          "module": "backtrader.brokers.bbroker",
+          "path": "brokers/bbroker.py",
+          "sha256": "6f1bc3e05810325d5e6a65d435f7b62678f82e1ee75b6b63e0d2424a95aaf669"
+        },
+        {
+          "module": "backtrader.cerebro",
+          "path": "cerebro.py",
+          "sha256": "efc293f196ccb2c690c15476f97aa922fc7272440a478a628a9fdaf9c415e076"
+        },
+        {
+          "module": "backtrader.dataseries",
+          "path": "dataseries.py",
+          "sha256": "34e894eeb286b10182e1600fe6bbd5702f0a23687ecfdc95c97156a6a4a5f967"
+        },
+        {
+          "module": "backtrader.feed",
+          "path": "feed.py",
+          "sha256": "cb43784e877fb73ca7747c415a00a22454a46cf60fb1b6295657d6a8f96f6503"
+        },
+        {
+          "module": "backtrader.feeds.btapifeed",
+          "path": "feeds/btapifeed.py",
+          "sha256": "7758f038988e679ed0b8463c5b637ede55d65441ffba3b650800d4b9c844bc47"
+        },
+        {
+          "module": "backtrader.feeds.livefeed",
+          "path": "feeds/livefeed.py",
+          "sha256": "a41287d909038cdc9f9b17ca4b43d3c02d19e6d32db612cb46806bbfae77a725"
+        },
+        {
+          "module": "backtrader.feeds.service_recovery_quotes",
+          "path": "feeds/service_recovery_quotes.py",
+          "sha256": "507bd78dc05dbd2ec1ea6ed5a661cdb1bf1f12c6bd88088901647e27634a85d8"
+        },
+        {
+          "module": "backtrader.indicator",
+          "path": "indicator.py",
+          "sha256": "f89c92fb7150da24bf9de0a2b7d4dd24eb44d1bad5c39be5d4dc3f01c642e364"
+        },
+        {
+          "module": "backtrader.linebuffer",
+          "path": "linebuffer.py",
+          "sha256": "e898cb6b81d580fd03c0a6f9cad5272a3651a6787b32c009da017f5a014f2bc3"
+        },
+        {
+          "module": "backtrader.lineiterator",
+          "path": "lineiterator.py",
+          "sha256": "3ec9c5b0b041000743b152c078c14b4b7c00c45c42a08534b12036fafc55854e"
+        },
+        {
+          "module": "backtrader.lineroot",
+          "path": "lineroot.py",
+          "sha256": "d5034755681e9a55025bf0072ad1a5662e9395eb5158586d8b05794c26495e64"
+        },
+        {
+          "module": "backtrader.lineseries",
+          "path": "lineseries.py",
+          "sha256": "c5b478c889d2ecacf3e93a9e7cc218c4830b92a213c4eb32391d0634c18140c2"
+        },
+        {
+          "module": "backtrader.metabase",
+          "path": "metabase.py",
+          "sha256": "3b0375333fafe5538f40a6e419d2dcd14c9223ee690c5e9af978f837198a5847"
+        },
+        {
+          "module": "backtrader.parameters",
+          "path": "parameters.py",
+          "sha256": "a6e5af8356b6e042bca0a8700424275f34c4fc09904909e5960fa5664e0b8618"
+        },
+        {
+          "module": "backtrader.research.alpha101.alpha003",
+          "path": "research/alpha101/alpha003.py",
+          "sha256": "108966393560c22da47eb3fd924c997280d851d47ad24f7cc0e66792bea8cf53"
+        },
+        {
+          "module": "backtrader.research.factor_indicator",
+          "path": "research/factor_indicator.py",
+          "sha256": "2fb3d2f5404691ba876983965adb78ecca7d87bd718819a44710716f13de275e"
+        },
+        {
+          "module": "backtrader.research.live",
+          "path": "research/live.py",
+          "sha256": "778654019646ee87884547202a4177bde5de17f24d6be4e19a18a2133223529a"
+        },
+        {
+          "module": "backtrader.research.live_cohort",
+          "path": "research/live_cohort.py",
+          "sha256": "69f31733ad0fedc126837f6595b752cf2e2b180471da2352ab98ccb2e825b0d6"
+        },
+        {
+          "module": "backtrader.research.operators",
+          "path": "research/operators.py",
+          "sha256": "fbf6d142f40564ade20a0a4f160fffde6876c343d9943f4e74671dbac70dfb42"
+        },
+        {
+          "module": "backtrader.research.specs",
+          "path": "research/specs.py",
+          "sha256": "0b14ce92d0d747c38951a993d4d9dd526c37cef4476cc78a9279b849402c5208"
+        },
+        {
+          "module": "backtrader.stores.execution_decision_journal",
+          "path": "stores/execution_decision_journal.py",
+          "sha256": "b5b1ba708a4c18c324315a454ae3d3dbc09d43793743cf327a037d5a69266b79"
+        },
+        {
+          "module": "backtrader.strategy",
+          "path": "strategy.py",
+          "sha256": "b24dd6f4d401760a0a64d15934a01c36ca6bb3636c205eb42273c87a31e44d76"
+        }
+      ],
+      "scope": "Backtrader Python modules reached from the active Cerebro/Strategy/feed/broker/cohort/factor/journal object graph"
+    },
+    "script_path": "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py",
+    "script_sha256": "75ca8866f6adb7fb8fc2dd361107d7749170d2cb453ba4cff4754a334567c2db",
+    "source_revision_binding": "explicit full SHA-1/SHA-256 supplied by caller or BT_BENCHMARK_SOURCE_REVISION"
+  },
+  "runtime": {
+    "broker_cancel_calls": 0,
+    "broker_order_calls": 0,
+    "broker_order_lifecycle": {
+      "broker_class": "backtrader.brokers.bbroker.BackBroker",
+      "cancel_calls": 0,
+      "cancelled_during_idle": false,
+      "executed_size": 0.0,
+      "fill_notifications": 0,
+      "final_status": null,
+      "next_without_bar_capability": false,
+      "notified_statuses": [],
+      "position_size": 0.0,
+      "submit_calls": 0
+    },
+    "cohort_frozen": false,
+    "duration_pacing_kind": "monotonic pacing across finite synthetic source calendar",
+    "duration_requested_seconds": 0,
+    "duration_seconds_met": true,
+    "execution_intents": 0,
+    "ordinary_strategy_class": "Backtrader Strategy subclass",
+    "source_gap_count": 0,
+    "source_recovery": {
+      "disconnect_grid_index": null,
+      "disconnect_observed": false,
+      "disconnect_to_recovery_ms": null,
+      "idle_callback_count": 0,
+      "initial_generation": "synthetic-generation-1",
+      "member_poll_counts_while_disconnected": {},
+      "no_feed_strategy_or_factor_advance": null,
+      "poll_calls_while_disconnected": 0,
+      "poll_rounds_while_disconnected": 0,
+      "recovery_mode": "same-generation",
+      "resume_barrier_observed": true,
+      "resume_barrier_timed_out": false,
+      "resume_generation": null,
+      "resume_grid_index": null,
+      "resume_observed": false,
+      "same_generation": true,
+      "wake_wait_count": 379,
+      "wake_wait_count_interrupted": 0
+    },
+    "source_wait_calls": 379,
+    "source_wait_seconds": 23.961000000000013,
+    "strategy_next_calls": 2112,
+    "warmup_complete_grids": 64
+  },
+  "schema_version": 1,
+  "soak_coverage": {
+    "ac50_09_or_ac50_11_rebuild_claimed": false,
+    "ac50_25_disk_or_persistent_write_failure_exercised": false,
+    "ac50_27b_formal_acceptance_claimed": false,
+    "ac50_27b_ready": false,
+    "backbroker_order_lifecycle_journaled_by_noop_decision": false,
+    "failure_recovery_path_exercised": false,
+    "full_group_rebuild_exercised": false,
+    "idle_order_event_path_exercised": false,
+    "ordinary_broker_lifecycle_exercised": false,
+    "reason": "standard streaming profile does not include the 27b fault/idle/order fixture",
+    "scenario": "standard"
+  },
+  "source": {
+    "account_calls": 0,
+    "actual_external_provider_calls": 0,
+    "all_output_arrays_materialized": false,
+    "ambient_pythonpath_used_for_backtrader": false,
+    "categorical_codes_are_fixture_local": false,
+    "event_generation": "one deterministic member/grid mapping per poll call",
+    "events_returned": 42240,
+    "factor_extra_line_fields": [],
+    "full_event_tape_materialized": false,
+    "line_fields_registered_per_member": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "openinterest"
+    ],
+    "max_current_member_rows": 20,
+    "max_pending_source_slots": 1,
+    "poll_calls": 45710,
+    "provider_leaf": "bounded synthetic Store.poll_live",
+    "raw_numeric_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "openinterest"
+    ],
+    "recovery": {
+      "disconnect_grid_index": null,
+      "disconnect_observed": false,
+      "disconnect_to_recovery_ms": null,
+      "idle_callback_count": 0,
+      "initial_generation": "synthetic-generation-1",
+      "member_poll_counts_while_disconnected": {},
+      "no_feed_strategy_or_factor_advance": null,
+      "poll_calls_while_disconnected": 0,
+      "poll_rounds_while_disconnected": 0,
+      "recovery_mode": "same-generation",
+      "resume_barrier_observed": true,
+      "resume_barrier_timed_out": false,
+      "resume_generation": null,
+      "resume_grid_index": null,
+      "resume_observed": false,
+      "same_generation": true,
+      "wake_wait_count": 379,
+      "wake_wait_count_interrupted": 0
+    },
+    "registered_feed_count": 20,
+    "selected_package_root": "D:\\temp\\i5051c-20261025-r3\\venv\\Lib\\site-packages",
+    "started_feed_count": 20,
+    "subscribed_feed_count": 20
+  },
+  "started_monotonic_ns": 382501921000000,
+  "status": "PASS"
+}

@@ -1,0 +1,17 @@
+{
+  "command": "C:\\anaconda3\\python.exe -m pytest -p no:asyncio --basetemp=D:\\temp\\i51-prenext-risk-20261027-r5\\pytest-tmp tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel -q --tb=short --junitxml=D:\\temp\\i51-prenext-risk-20261027-r5\\junit.xml",
+  "working_directory": "D:\\source_code\\backtrader",
+  "stdout_path": "D:\\temp\\i51-prenext-risk-20261027-r5\\stdout.bin",
+  "stderr_path": "D:\\temp\\i51-prenext-risk-20261027-r5\\stderr.bin",
+  "junit_path": "D:\\temp\\i51-prenext-risk-20261027-r5\\junit.xml",
+  "timeout_seconds": 180,
+  "source_pins_pre": {
+    "head": "8a65f3d8b7f06768542cb9435ecb4f97043da744",
+    "test_sha256": "6F25638C7D4B6CF6F133DD97A7C5A6B8E3FDCB2E4DBC3DD871A8B9CF64523881",
+    "strategy_sha256": "220330A52A0ACC65427F5C68448E82B80F4EF9FDDDC8C7A75ECEB0BEA4EE3521",
+    "python": "C:\\anaconda3\\python.exe",
+    "pytest_disable_plugin_autoload": "1",
+    "pythonutf8": "1",
+    "pythonpath": "unset"
+  }
+}

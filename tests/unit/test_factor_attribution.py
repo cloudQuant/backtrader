@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 import math
-from types import SimpleNamespace
+import sys
+import types
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "scripts/benchmark_factor_research_attribution.py measures peak RSS "
+        "with the Unix-only resource module"
+    ),
+)
+
+if sys.platform == "win32":
+    # The harness imports ``resource`` at module scope. Supply an inert stub so
+    # this module can still be collected and these tests skipped cleanly.
+    sys.modules.setdefault("resource", types.ModuleType("resource"))
 
 from scripts.benchmark_factor_research_attribution import (
     FINCORE_ARCHIVE_PATHS,

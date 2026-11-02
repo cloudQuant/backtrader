@@ -1,0 +1,84 @@
+{
+  "status": "PASS_OPT_IN_SHUTDOWN_SOURCE_COMPOSITION_ONLY",
+  "parent": "0bd011a638b30cda53f5649c6850fd18951e4d79",
+  "sources": {
+    "backtrader/stores/btapistore.py": "04dd30950eded43cf3fdfb9596dc5587e87c2fe19b12957608faa7ae7bc327c2",
+    "examples/unified/028_alpha003_simnow_minute/run.py": "beb6748b135693b5c8f85253bd95e4cda91cfd7b796ca9ce7727658af193dc3b",
+    "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+    "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+    "tests/unit/test_ctp_factor_source_shutdown.py": "a7686dd81ff189049a8a71eebf2178f4adc2c7d861f35042c19e621557ba8797"
+  },
+  "qa": {
+    "distinct_accepted_cases": 16,
+    "new_shutdown_cases": 11,
+    "affected_multi_epoch_cases": 5,
+    "root_r1_shutdown": "14 passed, 2 failed; fixture assertions repaired",
+    "root_r2": "only two failed nodes rerun: 2 passed",
+    "warning": "existing unknown pytest asyncio config option",
+    "final_store_source_tested": "04dd30950eded43cf3fdfb9596dc5587e87c2fe19b12957608faa7ae7bc327c2",
+    "rawtick_cerebro_integration": "EXCLUDED; separate fixture has pending EOF-drain repair. R1 rawtick diagnostic is preserved in archive and is not accepted by this record."
+  },
+  "behavior": [
+    "Only explicit CTP factor-source opt-in requires generation- and object-bound native SDK receipts.",
+    "Each bound client is stopped and observed once; incomplete or mismatched receipts keep Store shutdown incomplete and runner retains resources.",
+    "Opted-in wrapper is terminal after source binding for reconnect; post-shutdown re-enable is rejected.",
+    "Ordinary non-opt-in routes keep legacy behavior."
+  ],
+  "limits": [
+    "SDK/native/provider leaves are fake in these tests; no actual native shutdown or account acceptance.",
+    "No already retained host or protected configuration was touched."
+  ],
+  "archive": {
+    "sha256": "6003c9e3181146213e64697c8b33b99e5f8f1b89d6387bffd2bf7712fd8cdd25",
+    "members": {
+      "review.md": {
+        "size": 4479,
+        "sha256": "a161d9c378873c78d7d76a049dc1bca8cc8a4af9f7f2730ccc680f4745ec65e6"
+      },
+      "root-r1/result.json": {
+        "size": 1679,
+        "sha256": "ec1612dab7a236fa1fea286564d8f967daba6e0d3be54bd32900d98990df3558"
+      },
+      "root-r1/cerebro/junit.xml": {
+        "size": 2903,
+        "sha256": "6d8fdd891db364659d0be4bb9ac1768e2a5ebeb341e1c9016ade6fd4f7af4edd"
+      },
+      "root-r1/cerebro/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-r1/cerebro/stdout.txt": {
+        "size": 2575,
+        "sha256": "6d4d4381520a971a776b24dafadc9d198e9d105ea05400d990adc7f6f9f29349"
+      },
+      "root-r1/shutdown/junit.xml": {
+        "size": 5359,
+        "sha256": "ce04468342dacca5adcec116bf599ef092fd5f50188ffc782e1e54549095ec1d"
+      },
+      "root-r1/shutdown/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-r1/shutdown/stdout.txt": {
+        "size": 2707,
+        "sha256": "f42015a08652b4cfebd8bab936b2e6a34d0b8e808014a860a2067bb83700128c"
+      },
+      "root-r2/junit.xml": {
+        "size": 605,
+        "sha256": "3bab21c6e493216084bfd9f914081b3cc652c5cdc3f9df86b1bacdad3eb45fc1"
+      },
+      "root-r2/result.json": {
+        "size": 1131,
+        "sha256": "fe5bc54b21f050c75594f1b0defd41f1b337f0d3c75219ac9d860f24c85143b6"
+      },
+      "root-r2/stderr.txt": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "root-r2/stdout.txt": {
+        "size": 633,
+        "sha256": "df99c08a334b0d30ea5d3c776ee83ed999647c21836600ac54738515ece0a0a2"
+      }
+    }
+  }
+}

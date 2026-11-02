@@ -2,6 +2,14 @@
 
 Every case directory is self-contained and directly runnable:
 
+**Trading-mode status (legacy command):** The direct-mode commands below use
+Binance demo credentials and the simulated environment. That external
+simulated account is `paper` under the shared [trading-mode standard](../../../../docs/source/advanced/architecture/trading-modes_zh.md);
+`live` means a production account. The existing `--live` flag is an old command
+selector, not the Iteration 52 mode API, and is not automatically mapped to a
+new mode. Iteration 52 covers `paper/live` use and acceptance; `replay/shadow`
+are being inventoried for later ownership decisions.
+
 ```
 cases/<ID>/
   config.yaml        # scenario parameters, policy, credential env NAMES (no secrets)

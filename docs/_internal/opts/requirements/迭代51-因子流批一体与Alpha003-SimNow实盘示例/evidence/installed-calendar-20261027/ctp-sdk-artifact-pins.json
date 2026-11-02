@@ -1,0 +1,18 @@
+{
+  "bt_api_base": {
+    "distribution": "bt_api_base",
+    "module": "bt_api_base",
+    "record_sha256": "6b2aa14316c60497fb4eb7489e798fc26637be13d9a114adefd0703155b62fb3",
+    "version": "0.15.8",
+    "wheel_filename": "bt_api_base-0.15.8-py3-none-any.whl",
+    "wheel_sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+  },
+  "bt_api_ctp": {
+    "distribution": "bt_api_ctp",
+    "module": "bt_api_ctp",
+    "record_sha256": "89f9aeed267c256260969c8f69a2f30c8a68f1fb9845d7a4118f3a0717da278f",
+    "version": "2.0.4+iteration41.i9",
+    "wheel_filename": "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+    "wheel_sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+  }
+}

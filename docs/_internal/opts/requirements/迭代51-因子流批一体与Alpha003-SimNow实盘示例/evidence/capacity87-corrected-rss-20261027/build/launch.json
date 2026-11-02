@@ -1,0 +1,41 @@
+{
+  "argv": [
+    "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+    "-I",
+    "-u",
+    "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py",
+    "--mode",
+    "build",
+    "--assets",
+    "87",
+    "--factors",
+    "alpha003",
+    "--scenario",
+    "standard",
+    "--recovery-mode",
+    "same-generation",
+    "--grids",
+    "100000",
+    "--warmup-bars",
+    "64",
+    "--duration-seconds",
+    "0",
+    "--output",
+    "D:\\temp\\i51-capacity87-corrected-rss-20261027-r1\\build\\result.json",
+    "--source-revision",
+    "7b3d45ed13ba722755b4f481fde573b7d51bd670",
+    "--package-root",
+    "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages"
+  ],
+  "child_pid": 52920,
+  "mode": "build",
+  "started_at_utc": "2026-10-27T01:29:21.273234+00:00",
+  "pins": {
+    "D:\\source_code\\backtrader\\scripts\\run_iteration50_live_factor_benchmark.py": "2c0f680babe7409c09649815f7f092297fbb44fef339658a66cc2945bba6cc85",
+    "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD": "e3b247a8193dc4cbe7cdfd2827235883f3561ace74747e8dd5a626d7b08f7272"
+  },
+  "runner_commit": "2e7a0e1bc0ec9274c4be02f039ebfdda439a4c8f",
+  "scope": "corrected RSS sampler, synthetic 87-target 100000-grid capacity; no provider/account",
+  "concurrent_peer_mode": true,
+  "pure_latency_waived": true
+}

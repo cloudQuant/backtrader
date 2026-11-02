@@ -1,0 +1,27 @@
+[
+  {
+    "path": "backtrader/stores/btapistore.py",
+    "bytes": 862375,
+    "sha256": "7e0d35fbf4f24d11b739a7a61cab2c2a30810bcac0f0a8f421f2e0dab9cc8491"
+  },
+  {
+    "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+    "bytes": 250434,
+    "sha256": "3373140b1e68f3f4871ce821220117883edb0af85640bb723de19c75a1012e62"
+  },
+  {
+    "path": "tests/integration/test_alpha003_main_contract_rollover_execution.py",
+    "bytes": 85040,
+    "sha256": "89936270e90ca2193926e2ecb3cc5ed482579d574d17641e53c7ced40eecf187"
+  },
+  {
+    "path": "tests/integration/test_alpha003_refresh_dispatch_recovery.py",
+    "bytes": 45288,
+    "sha256": "71481247a32eb02367238f96678c39908eb0f22eab0c4e1d9ab800233805e634"
+  },
+  {
+    "path": "tests/unit/test_ctp_nojoin_wrapper.py",
+    "bytes": 7208,
+    "sha256": "0a75d2be5edbcc387b3472c5cbc63bf54eeb5cf4e4ad0df759c18b80d50dcfba"
+  }
+]

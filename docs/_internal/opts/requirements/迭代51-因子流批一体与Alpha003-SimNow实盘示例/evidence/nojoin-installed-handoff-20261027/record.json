@@ -1,0 +1,89 @@
+{
+  "status": "PASS_INSTALLED_WRAPPER_PUBLIC_PROVENANCE_AND_BOUNDED_PROFILE_METADATA_ONLY",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent": "9ecece9d9e80176de8cb9942ca187eb333a18137",
+  "source_pin": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982",
+  "source_change": "Exactly three installed artifact hashes; protected readers and credential handling unchanged.",
+  "originals": {
+    "pin-review.md": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_nojoin_protected_pins_review_20261027.md",
+      "bytes": 1351,
+      "sha256": "95f1f6e699e0f3b73765c9ea4b87793c1dcb0168b91dcaa678d9c01131f9c7e0"
+    },
+    "build-backtrader.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\build_i51_nojoin_backtrader_20261027.py",
+      "bytes": 2998,
+      "sha256": "b01c51e9bcb4cd1f014a198be636719adb535226644309c0d16cf4254101a0ca"
+    },
+    "build-install.json": {
+      "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\build-install.json",
+      "bytes": 3096,
+      "sha256": "bb6b17d3e477dc05d1ea184143eef431ebb8dbd4188970fbd54d83ebc50c8470"
+    },
+    "verify-installed.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\verify_i51_nojoin_backtrader_20261027.py",
+      "bytes": 2995,
+      "sha256": "68c8824cf383cadb5902deece8a957f0d169f22eeca64e391ec0369e681a5048"
+    },
+    "installed-verification.json": {
+      "path": "D:\\temp\\i51-nojoin-backtrader-20261027-r1\\installed-verification.json",
+      "bytes": 1332,
+      "sha256": "c7eb5f8971d4f6a14d698821ea2730bed18935bbf6b165139d7880c1f16ab7a9"
+    },
+    "root-profile-metadata-r1.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_nojoin_profile_metadata_20261027.py",
+      "bytes": 2920,
+      "sha256": "dccd53df8e256e17977fc52886e38ac2e188cd8ba5429db5687616b253241e28"
+    },
+    "root-profile-metadata-r2.py": {
+      "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_nojoin_profile_metadata_r2_20261027.py",
+      "bytes": 2979,
+      "sha256": "9a79d0018e3423773751abbd03c250ca168b53c435200afeab43f522e9c1a988"
+    },
+    "root-profile-metadata-r1.json": {
+      "path": "D:\\temp\\i51-root-nojoin-profile-metadata-20261027-r1.json",
+      "bytes": 296,
+      "sha256": "efa3376b1496aff144b08e2ea58a96a8f4aedbf2f58d6823d9fdc40588740f00"
+    },
+    "root-profile-metadata-r2.json": {
+      "path": "D:\\temp\\i51-root-nojoin-profile-metadata-20261027-r2.json",
+      "bytes": 901,
+      "sha256": "6b5278c91d79b8cb03bda6795d4dc44ad11f9c42adc2afa405706746f9e7fe3d"
+    },
+    "public-profile-probes.json": {
+      "path": "D:\\temp\\i51-root-public-profile-probes-20261027-r1.json",
+      "bytes": 369,
+      "sha256": "8105f4fd061ab70d72d2ed97c28d215ee8673d827e4af725744ccc28d1e9a6e5"
+    }
+  },
+  "installed_source_commit": "9ecece9d9e80176de8cb9942ca187eb333a18137",
+  "backtrader_wheel_sha256": "dab4e74c4df206bae12649f45e0356e6df28be3f314d58a694444fb0e30b99cb",
+  "checks": {
+    "source_python_files": 662,
+    "installed_payload_files": 667,
+    "record_hashed_entries": 676,
+    "pip_check_exit": 0,
+    "actual_sdk_provenance_gate": true,
+    "wrapper_nojoin_ctor_without_sdk_clients": true
+  },
+  "private_access": {
+    "owner": "Root",
+    "existing_bounded_reader": true,
+    "export": "Configured indices and fixed official categories only; no addresses, credentials or credential hashes.",
+    "first_attempt": "Root metadata adapter incorrectly used attribute access on immutable front-pair mappings; finite failure preserved. R2 uses documented mapping keys and succeeds.",
+    "native_or_account_calls": false
+  },
+  "tcp_probe": {
+    "tool": "fcf696",
+    "source": "bt_api_ctp.ctp_env_selector.probe_ctp_environment_pair",
+    "profiles": [
+      "set2_7x24_4000x",
+      "set2_7x24"
+    ],
+    "timeout_seconds": 3,
+    "classification": "TCP availability only; not login or market readiness."
+  },
+  "formal_account_acceptance": false,
+  "retained_host_86857_touched": false
+}

@@ -227,6 +227,7 @@ Backtrader 是 CloudQuant 量化研究生态的一部分：
    advanced/profiling_zh
    advanced/data-acquisition_zh
    advanced/architecture/overview_zh
+   advanced/architecture/trading-modes_zh
    advanced/architecture/line-system_zh
    advanced/architecture/phase-system_zh
    user-guide/data-feeds/live/ctp-live-trading_zh
@@ -274,11 +275,30 @@ Backtrader 是 CloudQuant 量化研究生态的一部分：
    :caption: 开发者指南
 
    developer-guide/index_zh
+   developer-guide/repository-responsibilities_zh
+   developer-guide/文件职责盘点-2026-11-01/index
+   developer-guide/职责边界审查与重构建议-2026-11-01
    developer-guide/setup_zh
    developer-guide/testing_zh
    developer-guide/style_zh
    developer-guide/contributing_zh
    developer-guide/release_zh
+
+.. toctree::
+   :hidden:
+
+   developer-guide/文件职责盘点-2026-11-01/01-核心引擎与基础
+   developer-guide/文件职责盘点-2026-11-01/02-交易接入与服务
+   developer-guide/文件职责盘点-2026-11-01/03-数据与分析组件
+   developer-guide/文件职责盘点-2026-11-01/04-研究与指标
+   developer-guide/文件职责盘点-2026-11-01/05-展示与通用支持
+   developer-guide/文件职责盘点-2026-11-01/06-示例脚本与工具
+   developer-guide/文件职责盘点-2026-11-01/07-产品包路径
+   developer-guide/文件职责盘点-2026-11-01/08-示例路径
+   developer-guide/文件职责盘点-2026-11-01/09-脚本工具路径
+   developer-guide/文件职责盘点-2026-11-01/10-文档路径
+   developer-guide/文件职责盘点-2026-11-01/11-其他路径
+   developer-guide/文件职责盘点-2026-11-01/12-索引覆盖说明
 
 .. toctree::
    :maxdepth: 1

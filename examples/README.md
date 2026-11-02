@@ -8,6 +8,13 @@
 | **live** | 只做实盘穿透认证，没有回测通道 | `live/000_live_certification/<venue>_penetration/cases/<ID>/` | 干跑自检 + `--live` |
 | **unified** | 回测与实盘一体，**由 `config.yaml` 的 `entry.tier` 选层** | `unified/<id>/` | `dry / replay / live` |
 
+**交易模式现状（旧接口）**：本索引中的 `dry / replay / live`、`entry.tier` 和
+`--live` 是各目录沿用的旧选层/命令约定，不是迭代 52 的四模式接口；部分
+`--live` 命令实际连接 SimNow、demo 或 testnet 模拟环境。目标标准定义 `paper`
+为外部模拟账户、`live` 为生产账户；旧参数不能自动映射为新模式。迭代 52 的
+使用/验收范围是 `paper/live`，`replay/shadow` 先盘点拆分、归属待定。见
+[交易运行模式标准](../docs/source/advanced/architecture/trading-modes_zh.md)。
+
 支持目录（不是示例，不得成为示例运行的依赖）：`_support/`（仓库级工具与权威材料、
 `sample` fixture）、`data/`（多例共用只读 CSV）、`output/`、`logs/`、`__pycache__/`、`test_results/`（可重建产物）。
 
@@ -27,6 +34,7 @@
 | `014_2_ctp_options_midfreq` | 同上 | ✅ | ✅ live 层按契约只观察，`--allow-write` 首条语句即拒 | 无（本目录策略无下单路径） | ✅ |
 | `015_ctp_options_highfreq` | 同上 | ✅ | ✅ 同上 | 无（`write_tier_not_implemented_for_decision_only_strategy`） | ✅ |
 | `007_ctp` | 无 `run.py`：CTP 认证套件根 + 注册 runtime | n/a | n/a | 注册表零写 sandbox / 只读 preflight，`preflight` 仍 fail-closed | n/a |
+| `052_provider_demo_roundtrip` | `run.py` / `--config config.okx.yaml` / `--config config.simnow.yaml`（离线 schema 校验） | 未声明（CLI `--live` 选层） | `BLOCKED / write_not_authorized`（不读凭据） | `--live --allow-write` + 有界 `DirectWriteGrant`（Binance USD-M 挂/撤、OKX SWAP IOC 开/平、SimNow registered-sim 1 手开/平，同一策略源码） | ⚠️ crypto 配置可复制；SimNow 需本仓 013_3 helper 与私有 runtime 配置（checkout-bound） |
 
 选层真值表、`backtest` 别名、`entry_tier` 与既有 `tier`（结果层级标签）之别，见各目录 README 的
 「运行层选择（迭代 43）」小节；判定器权威实现是 `examples/_support/entry_tier.py`，

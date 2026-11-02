@@ -25,6 +25,8 @@
 
 研究异常统一定义在 `backtrader.errors`，直接导入使用 `from backtrader.errors import ResearchError, ResearchConfigError`。`ResearchConfigError` 同时保留 `ValueError` 捕获行为；`backtrader.research.ConfigError` 是同一对象别名。
 
+普通 `bt.Strategy` 的 cohort 实时因子用法与研究入口不同，见[实时因子指南](factor-live.md)；实时 API 的安装和真实 SimNow 验收仍在进行。
+
 ## 写一个因子
 
 原生写法保留 `__init__`、`super()`、`self.p`、`self.datas` 和 `next()`。每个资产的输出是独立的 Backtrader 数值线，不能把整个截面的字典写进一条 float line。
@@ -114,6 +116,10 @@ built = FactorSpec("built", alpha, "factor", field_bindings=bindings, mode="buil
 `mode=None`按类能力选择：有原生next就使用native，否则使用build；双实现默认native。显式选择未实现的模式会报错。`get_alpha`仅查找类，不再接受mode；旧调用需要迁移到`FactorSpec`或`bind`。mode是独立配置，不能放入公式params；metadata记录解析后的模式，实例的只读`factor_mode`给出实际选择。build绑定跳过作者的原生初始化及计算回调，native绑定不调用build。同一类可在同一策略中使用不同模式，实例参数和子指标彼此隔离。
 
 无需再用`panel_mode`声明选择实现；旧声明不覆盖调用方的mode。build/native与`runonce=True/False`的引擎选择相互独立。当前验收状态见[单类双模式记录](../../_internal/opts/requirements/迭代49-因子单类双模式重构/实施与验收.md)。
+
+025/026 的原生 CloseMA、ROC、KDJ 和普通 RSV 子指标在标准同步 PandasData、完整数组及原始回调条件下，使用 Cerebro 的 `preonce/oncestart/once` 批量计算。数值仍经过普通 line 读写与严格错误检查；build 模式、自定义回调或不支持的 feed/clock 保留逐点回放。这里没有增加调度器。
+
+`lifecycle_diagnostics` 的 `call_count/call_times`（以及同义的 `next_count/next_times`）只记录实际逐点计算调用。批量计算另记半开区间 `once_ranges` 和对应的 `once_count/once_times`。检查完整网格覆盖应使用 `coverage_count/coverage_times/coverage_matches`；`grid_matches` 继续只比较逐点调用与网格，不能把批量覆盖解释成发生了同样数量的 `next()` 调用。性能优化的实测进度见[开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
 
 ## 装配研究
 
@@ -226,3 +232,5 @@ VWAP 必须是明确来源字段，不能用 OHLC 均价偷偷替代；ADV 的�
 027 的 `run_daily.py` 是独立的全市场分块/续跑入口，`--chunk-days` 控制分块；它不使用quick YAML、500只默认值或 `--report` 参数。daily也支持 `--factor-mode native|build`，默认native。模式进入运行指纹并传至实际worker，同一输出目录不能跨模式续跑；为另一模式选择新目录。47的daily验收使用小型多分段真实子进程，不代表5,471只全年验收完成。
 
 需要专业因子图表时，三个 quick `run.py` 入口都支持 `--report`（`--report-language zh|en` 选择默认语言），生成自包含的 `factor_report_<factor>.html`。报告实现位于 fincore 的 `fincore.report.factor.write_factor_report(factor, prices, path, ...)`；Backtrader 的 `write_factor_report(panel, factor_name, path)` 会应用该因子的显式方向，并按 `label` 传入原始价格。默认 `next_open_to_open` 使用开盘价与 `next_open=True`，`close_to_close` 使用收盘价与 `next_open=False`；标签只由 fincore 计算一次。025/026 的报告采用与研究评价相同的配置标签，027 保持默认 next-open。评价和报告不修改传入面板的帧、索引或属性。
+
+Alpha003 的native实现还将rolling correlation与负号乘法组织为两个paired panel：每个物理panel是普通`FactorIndicator`，由Cerebro的Indicator生命周期调度；`pair_panel`为每个目标资产创建轻量逻辑view，共享该物理panel的输出line并选择对应目标。逻辑view不继承Indicator、不注册调度回调。它减少按目标拆分物理算子节点的调度开销，但每个格点仍须计算各目标的结果；固定500测量不能证明全市场超线性成本。当前完整输出verifier通过，性能三对方向改善但波动超过稳定门槛，详见[迭代49 Alpha003配对记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。

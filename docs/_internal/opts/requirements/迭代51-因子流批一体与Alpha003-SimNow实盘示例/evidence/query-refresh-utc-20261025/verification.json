@@ -1,0 +1,213 @@
+{
+  "parent": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+  "level": "SOURCE_QUERY_REFRESH_UTC_CLOCK_DEPENDENCY",
+  "qa": [
+    {
+      "revision": "r2",
+      "directory": "D:\\temp\\i51-query-set-clock-fix-20261025-r2",
+      "tests": 32,
+      "command": "Working directory: D:\\source_code\\backtrader\n$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'\n$env:PYTHONUTF8 = '1'\npython -m pytest -p no:asyncio -q --junitxml='D:\\temp\\i51-query-set-clock-fix-20261025-r2\\junit.xml' tests\\unit\\scripts\\test_iteration51_installed_fixture.py tests\\unit\\stores\\test_factor_execution_facts.py::test_refresh_utc_envelope_defaults_to_host_and_validates_injected_clock tests\\unit\\stores\\test_factor_execution_facts.py::test_future_query_completion_stays_blocked_against_injected_decision_clock tests\\unit\\stores\\test_factor_execution_facts.py::test_target_capacity_is_finite_and_supports_large_configured_pools tests\\unit\\stores\\test_factor_execution_facts.py::test_decision_clock_does_not_advance_to_a_future_consumed_quote tests\\unit\\stores\\test_factor_execution_facts.py::test_projection_is_no_io_and_incremental_refresh_respects_limits tests\\unit\\stores\\test_factor_execution_facts.py::test_partial_core_refresh_cannot_splice_into_a_previously_complete_query_set tests\\unit\\stores\\test_factor_execution_facts.py::test_cancelled_refresh_stops_before_query_and_leaves_pending_families 1> 'D:\\temp\\i51-query-set-clock-fix-20261025-r2\\stdout.bin' 2> 'D:\\temp\\i51-query-set-clock-fix-20261025-r2\\stderr.bin'\n",
+      "seconds": 4.738,
+      "exit_code": 0,
+      "source_pins_before": {
+        "head": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+        "files": [
+          {
+            "path": "backtrader/stores/factor_execution_facts.py",
+            "size_bytes": 211980,
+            "sha256": "98FEAA3DB0FD8DED871BA23A2341008C892DFA27D133B44C29A3C514E1D34763"
+          },
+          {
+            "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+            "size_bytes": 195092,
+            "sha256": "7703D0B4F21205AAF7B90900BCCEEC2D67461C2E20D70239F2E214540704FC3B"
+          },
+          {
+            "path": "tests/unit/stores/test_factor_execution_facts.py",
+            "size_bytes": 152605,
+            "sha256": "6E63DB2D040CA592157032DD2F01BCE6B93D6CB6290B82AF3E1515B4353E16E0"
+          },
+          {
+            "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+            "size_bytes": 64076,
+            "sha256": "28091C60290F904F7789C6FC09768EC90D8488EB2BC17E65AE9DE72A42D95503"
+          }
+        ]
+      },
+      "source_pins_after": {
+        "head": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+        "files": [
+          {
+            "path": "backtrader/stores/factor_execution_facts.py",
+            "size_bytes": 211980,
+            "sha256": "98FEAA3DB0FD8DED871BA23A2341008C892DFA27D133B44C29A3C514E1D34763"
+          },
+          {
+            "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+            "size_bytes": 195092,
+            "sha256": "7703D0B4F21205AAF7B90900BCCEEC2D67461C2E20D70239F2E214540704FC3B"
+          },
+          {
+            "path": "tests/unit/stores/test_factor_execution_facts.py",
+            "size_bytes": 152605,
+            "sha256": "6E63DB2D040CA592157032DD2F01BCE6B93D6CB6290B82AF3E1515B4353E16E0"
+          },
+          {
+            "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+            "size_bytes": 64076,
+            "sha256": "28091C60290F904F7789C6FC09768EC90D8488EB2BC17E65AE9DE72A42D95503"
+          }
+        ]
+      },
+      "artifacts": {
+        "command.txt": {
+          "size_bytes": 1231,
+          "sha256": "057692267ab1b0b7f3a6063228786b550b18db643583dbd87387e5bc10e93a36"
+        },
+        "exit.txt": {
+          "size_bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "junit.xml": {
+          "size_bytes": 5945,
+          "sha256": "b06606d96c20878a0f7c941d691af02b7a04835ecbfcb577288aac353b273867"
+        },
+        "source-pins-post.json": {
+          "size_bytes": 863,
+          "sha256": "d04beafc32ebdea826be5880ef9c7a3acb8d4e179532a31bab0c6832285ab730"
+        },
+        "source-pins-pre.json": {
+          "size_bytes": 863,
+          "sha256": "d04beafc32ebdea826be5880ef9c7a3acb8d4e179532a31bab0c6832285ab730"
+        },
+        "stderr-capture-note.txt": {
+          "size_bytes": 247,
+          "sha256": "663151bd23983ae709fce74443ff1cbb9234521b7266fd89e08f866d1cdb21db"
+        },
+        "stderr.bin": {
+          "size_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.bin": {
+          "size_bytes": 632,
+          "sha256": "7c5f389670440d5eb97e17b385f7a10f89e937067a2ecb5c5df5cec32ebe3d59"
+        }
+      },
+      "stderr_note": "PowerShell stderr redirection was active for the 32-test run; no stderr payload was emitted and PowerShell did not create the target. A zero-byte placeholder was created after completion. This file is not an independently recovered process stream."
+    },
+    {
+      "revision": "r3",
+      "directory": "D:\\temp\\i51-query-set-clock-fix-20261025-r3",
+      "tests": 3,
+      "command": "Working directory: D:\\source_code\\backtrader\n$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'\n$env:PYTHONUTF8 = '1'\npython -m pytest -p no:asyncio -q --junitxml='D:\\temp\\i51-query-set-clock-fix-20261025-r3\\junit.xml' tests\\unit\\test_alpha003_simnow_runner.py::test_refresh_loop_rotates_margin_queries_only_over_execution_targets tests\\unit\\test_alpha003_simnow_runner.py::test_real_cerebro_live_strategy_winddown_is_ready_or_times_out 1> 'D:\\temp\\i51-query-set-clock-fix-20261025-r3\\stdout.bin' 2> 'D:\\temp\\i51-query-set-clock-fix-20261025-r3\\stderr.bin'\n",
+      "seconds": 3.639,
+      "exit_code": 0,
+      "source_pins_before": {
+        "head": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+        "files": [
+          {
+            "path": "backtrader/stores/factor_execution_facts.py",
+            "size_bytes": 211980,
+            "sha256": "98FEAA3DB0FD8DED871BA23A2341008C892DFA27D133B44C29A3C514E1D34763"
+          },
+          {
+            "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+            "size_bytes": 195092,
+            "sha256": "7703D0B4F21205AAF7B90900BCCEEC2D67461C2E20D70239F2E214540704FC3B"
+          },
+          {
+            "path": "tests/unit/stores/test_factor_execution_facts.py",
+            "size_bytes": 152605,
+            "sha256": "6E63DB2D040CA592157032DD2F01BCE6B93D6CB6290B82AF3E1515B4353E16E0"
+          },
+          {
+            "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+            "size_bytes": 64076,
+            "sha256": "28091C60290F904F7789C6FC09768EC90D8488EB2BC17E65AE9DE72A42D95503"
+          },
+          {
+            "path": "tests/unit/test_alpha003_simnow_runner.py",
+            "size_bytes": 129200,
+            "sha256": "ADD3E72CDA6F929A9B693477505DEE05EFD26BEF4FA04DBA8B358FF008B073B5"
+          }
+        ]
+      },
+      "source_pins_after": {
+        "head": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+        "files": [
+          {
+            "path": "backtrader/stores/factor_execution_facts.py",
+            "size_bytes": 211980,
+            "sha256": "98FEAA3DB0FD8DED871BA23A2341008C892DFA27D133B44C29A3C514E1D34763"
+          },
+          {
+            "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+            "size_bytes": 195092,
+            "sha256": "7703D0B4F21205AAF7B90900BCCEEC2D67461C2E20D70239F2E214540704FC3B"
+          },
+          {
+            "path": "tests/unit/stores/test_factor_execution_facts.py",
+            "size_bytes": 152605,
+            "sha256": "6E63DB2D040CA592157032DD2F01BCE6B93D6CB6290B82AF3E1515B4353E16E0"
+          },
+          {
+            "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+            "size_bytes": 64076,
+            "sha256": "28091C60290F904F7789C6FC09768EC90D8488EB2BC17E65AE9DE72A42D95503"
+          },
+          {
+            "path": "tests/unit/test_alpha003_simnow_runner.py",
+            "size_bytes": 129200,
+            "sha256": "ADD3E72CDA6F929A9B693477505DEE05EFD26BEF4FA04DBA8B358FF008B073B5"
+          }
+        ]
+      },
+      "artifacts": {
+        "command.txt": {
+          "size_bytes": 552,
+          "sha256": "108313b53d50908205e9def44550ae9e99f416937f072061b40579e9420b3ffe"
+        },
+        "exit.txt": {
+          "size_bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "junit.xml": {
+          "size_bytes": 670,
+          "sha256": "14f1a09bd330f80553b89ce9d614c04a50c07d62e699d3eade0d6f2d624da147"
+        },
+        "source-pins-post.json": {
+          "size_bytes": 1051,
+          "sha256": "ab0bacbd2dc4faa88c31be5d76445addba739e5f90fe3fdbc237515bc984349c"
+        },
+        "source-pins-pre.json": {
+          "size_bytes": 1051,
+          "sha256": "ab0bacbd2dc4faa88c31be5d76445addba739e5f90fe3fdbc237515bc984349c"
+        },
+        "stderr.bin": {
+          "size_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.bin": {
+          "size_bytes": 631,
+          "sha256": "8c4ab84fdcb0e73bc58c469077b87655c90e4ab6aa86c2588e7826cc83d6c8ac"
+        }
+      },
+      "stderr_note": "Separate zero-byte stderr file from the recorded run."
+    }
+  ],
+  "independent_review": "STATIC_GO_FIVE_FILES",
+  "environment": {
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "PYTHONUTF8": "1",
+    "python": "3.11.5",
+    "pytest_plugin_option": "-p no:asyncio"
+  },
+  "warning": "One existing unknown asyncio_default_fixture_loop_scope warning per invocation.",
+  "scope": "Optional utc_now timestamps the refresh batch; QueryRefreshLoop passes its existing clock. Host UTC remains default. Monotonic deadlines, source expiry, query-set/future/age validators are unchanged.",
+  "distinguishing_test": "Real Store and QueryRefreshLoop: future provider timestamps fail default host batch sealing, then complete with the shared UTC clock. Host-future queries against an older runner clock remain rejected earlier as LIVE_QUERY_SET_UNAVAILABLE.",
+  "limits": [
+    "Source-loaded synthetic providers only; no new installed matrix or account acceptance.",
+    "R5 did not capture each query timestamp; the inequality is reproduced by source QA, not recovered from R5.",
+    "The 32 passed tests were not repeated for the two old runner mock signatures; their three affected cases ran separately."
+  ]
+}

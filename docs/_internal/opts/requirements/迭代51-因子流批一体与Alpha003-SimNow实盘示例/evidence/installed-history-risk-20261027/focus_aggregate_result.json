@@ -1,0 +1,241 @@
+{
+  "network_attempts": 0,
+  "install_changes": {
+    "record_sha256_before": "909331a5b489ad53165073bbc1dc325859f7adb2ab6a4728f7b4cf5356d70a4c",
+    "backtrader_file_count_after": 1339,
+    "backtrader_file_count_before": 1339,
+    "consumer_package_delta": [
+      {
+        "after": "0.4.6",
+        "name": "colorama",
+        "before": null
+      },
+      {
+        "after": "2.1.0",
+        "name": "iniconfig",
+        "before": null
+      },
+      {
+        "after": "1.6.0",
+        "name": "pluggy",
+        "before": null
+      },
+      {
+        "after": "2.19.2",
+        "name": "pygments",
+        "before": null
+      },
+      {
+        "after": "8.4.2",
+        "name": "pytest",
+        "before": null
+      }
+    ],
+    "distribution_payload_manifest_sha256_before": "fd5e1dd2da11cba36efde1af1ac1cd7d737d464ffcd5cb5e9f59f56df4e8eba2",
+    "distribution_payload_manifest_sha256_after": "fd5e1dd2da11cba36efde1af1ac1cd7d737d464ffcd5cb5e9f59f56df4e8eba2",
+    "record_sha256_after": "909331a5b489ad53165073bbc1dc325859f7adb2ab6a4728f7b4cf5356d70a4c",
+    "payload_and_record_unchanged": true,
+    "after_tests_package_list_matches_after_install": true
+  },
+  "runs": [
+    {
+      "skipped": 0,
+      "failure": "Copied tests/test_utils/__init__.py imports tests.test_utils.factories, omitted from the initial fixture; saved-query test body did not exercise production.",
+      "collected": 3,
+      "passed": 2,
+      "failed": 1,
+      "label": "initial_minimal_focus",
+      "failure_class": "fixture_closure",
+      "junit": "junit.xml"
+    },
+    {
+      "selection": "saved-query three-epoch node only",
+      "collected": 1,
+      "failed": 0,
+      "passed": 1,
+      "label": "repaired_failed_node_only",
+      "junit": "junit_repair1.xml",
+      "skipped": 0
+    }
+  ],
+  "repository": {
+    "target_paths_status": "clean",
+    "selected_sources_unchanged_since_ae218": true,
+    "branch": "dev",
+    "path": "D:\\source_code\\backtrader",
+    "head": "db28ae4bd2b9a1a0df1e8ccadd5c1063b6fff11b"
+  },
+  "initial_three_case_single_run_pass_claim": false,
+  "unique_cases": [
+    {
+      "repeated_initial_pass": false,
+      "name": "saved-query-history-three-epoch-restart",
+      "result": "passed in repaired_failed_node_only"
+    },
+    {
+      "name": "prenext risk cancel [durable-tape]",
+      "repeated": false,
+      "result": "passed in initial_minimal_focus"
+    },
+    {
+      "name": "prenext risk cancel [tape-write-failed]",
+      "repeated": false,
+      "result": "passed in initial_minimal_focus"
+    }
+  ],
+  "artifacts": [
+    {
+      "size": 3388,
+      "name": "focus.stdout.txt",
+      "sha256": "36dabfc27cacded0bd309badfd925f7f40d4aa95a5873ada4afa78c211a628a1"
+    },
+    {
+      "size": 0,
+      "name": "focus.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "size": 1293,
+      "name": "junit.xml",
+      "sha256": "624597137b383c0fdf39b718e3a9e3e56aaf3a53cf9b30d219e5cfb3bcb36693"
+    },
+    {
+      "size": 1412,
+      "name": "focus_summary.json",
+      "sha256": "12055efe6a535757e88639d7ca2b1ee5a8896b203475f84ef7126cd531e94da2"
+    },
+    {
+      "size": 4355,
+      "name": "fixture_pins_before.json",
+      "sha256": "e6111e9d0f3d3e8b1a9e4d75ec20e2133109bb38f25a5edb5a8fac4f4b22440b"
+    },
+    {
+      "size": 6941,
+      "name": "run_focus.py",
+      "sha256": "d74bbb9014c68485cc264002f82886fadda54e9e5bc36a0eb2bc1e89654ad05b"
+    },
+    {
+      "size": 1346,
+      "name": "focus_repair1.stdout.txt",
+      "sha256": "f024b117a90475ca3c2ea367b07d0c3568b376f0a9d10c8bb4f12929bac2892f"
+    },
+    {
+      "size": 0,
+      "name": "focus_repair1.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "size": 443,
+      "name": "junit_repair1.xml",
+      "sha256": "80e02ce714b7ab71aca745229b2923c889f160c7871693672fed81708ab03117"
+    },
+    {
+      "size": 1257,
+      "name": "focus_summary_repair1.json",
+      "sha256": "d64bd4efed613690d474e2ed9f9838400bbb967b7afcb37c1cae2cc3029e07b5"
+    },
+    {
+      "size": 4874,
+      "name": "fixture_pins_repair1.json",
+      "sha256": "ca23ffefa8250f12a693c075b119c1e3bd24f41328a5be7490b43ae1e9422f4e"
+    },
+    {
+      "size": 6784,
+      "name": "run_focus_repair1.py",
+      "sha256": "7c33e0e35bb791c7cef5c5609aca5d7ccd2f3a8d0ba25a2ad4f75804f2d07bcb"
+    },
+    {
+      "size": 5709,
+      "name": "fixture_pins_after_tests.json",
+      "sha256": "e05b66505f9f487a984e1fce959f57bf3320fe25393dcb5956a667ad675e7e44"
+    },
+    {
+      "size": 205005,
+      "name": "backtrader_distribution_before.json",
+      "sha256": "ef1a49c01e8c726e6791434380f7409a962c2cd8b3dd286d74df1883ee93f11d"
+    },
+    {
+      "size": 205005,
+      "name": "backtrader_distribution_after_install.json",
+      "sha256": "ef1a49c01e8c726e6791434380f7409a962c2cd8b3dd286d74df1883ee93f11d"
+    },
+    {
+      "size": 205005,
+      "name": "backtrader_distribution_after_tests.json",
+      "sha256": "ef1a49c01e8c726e6791434380f7409a962c2cd8b3dd286d74df1883ee93f11d"
+    },
+    {
+      "size": 2366,
+      "name": "consumer_packages_before.json",
+      "sha256": "86fb72d893c5e9ae69915c572f9212b602cab217d752557c028b4999e81a5736"
+    },
+    {
+      "size": 2574,
+      "name": "consumer_packages_after_install.json",
+      "sha256": "075cc650b6c45e47ea0102e9a802087e4396faa8fbdadaf3fd2f3afaeda3b760"
+    },
+    {
+      "size": 2574,
+      "name": "consumer_packages_after_tests.json",
+      "sha256": "075cc650b6c45e47ea0102e9a802087e4396faa8fbdadaf3fd2f3afaeda3b760"
+    },
+    {
+      "size": 2250,
+      "name": "pytest_install_attempt2.stdout.txt",
+      "sha256": "33e34f5d617113b2e67dfa11f69408c8fba370e633b158d670cfe35e4c493b73"
+    },
+    {
+      "size": 0,
+      "name": "pytest_install_attempt2.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "fixture": {
+    "config_yaml_git_mode": "100644",
+    "tracked_public_file_count": 13,
+    "config_yaml_git_blob": "d41705b7d01e9c6a8479eba081e588a1f4209c80",
+    "added_closure_sha256": "84e0676a76b9c190b7ac84cd96c0c9e5489642482708ebe6c8f7cfaa7d350575",
+    "fixture_actual_file_count": 14,
+    "added_closure_file": "tests/test_utils/factories.py",
+    "all_source_checkout_and_fixture_pins_match": true,
+    "root": "D:\\temp\\i51-installed-focus-20261027-r1\\fixture-root",
+    "backtrader_shadow_absent": true
+  },
+  "all_backtrader_module_origins_within_consumer": true,
+  "effective_unique_selected_cases_passed": 3,
+  "evidence_level": "INSTALLED_BT_CURRENT_EXAMPLE_FOCUSED_FAKE_ONLY",
+  "status": "PASS_INSTALLED_BT_CURRENT_EXAMPLE_FOCUSED_FAKE_ONLY",
+  "consumer": {
+    "backtrader_origin": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\__init__.py",
+    "python": "3.11.5",
+    "path": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer",
+    "pytest": "8.4.2",
+    "distribution": "back-trader-python",
+    "test_dependencies": [
+      {
+        "version": "2.1.0",
+        "name": "iniconfig"
+      },
+      {
+        "version": "26.3",
+        "name": "packaging",
+        "preexisting": true
+      },
+      {
+        "version": "1.6.0",
+        "name": "pluggy"
+      },
+      {
+        "version": "2.19.2",
+        "name": "Pygments"
+      },
+      {
+        "version": "0.4.6",
+        "name": "colorama"
+      }
+    ],
+    "version": "1.4.0"
+  },
+  "installed_backtrader_module_origin_count": 548,
+  "schema_version": 1
+}

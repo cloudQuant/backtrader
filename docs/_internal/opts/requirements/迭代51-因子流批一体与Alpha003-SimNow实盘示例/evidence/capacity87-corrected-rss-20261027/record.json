@@ -1,0 +1,78 @@
+{
+  "schema": "iteration51_capacity87_corrected_rss.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "b85ce28df3d18e0b81fa1cf0eeba5637f1bd28f4",
+  "accepted_slice": "COMPOSITION_SYNTHETIC_SOURCE_STREAM_CAPACITY_ORACLE_RSS_GROWTH_ONLY",
+  "latency_policy": "User waived performance failures; original FAIL and exit 3 preserved.",
+  "independent_review": "history_accept_review inspected the six completed public receipts; no rerun or DB/tape read.",
+  "modes": {
+    "native": {
+      "elapsed_seconds": 16384.703,
+      "comparisons": 8700000,
+      "first_window_median_rss_bytes": 190865408,
+      "last_window_median_rss_bytes": 191660032,
+      "rss_growth_bytes": 794624,
+      "rss_growth_limit_bytes": 33554432,
+      "journal_rows": 100000,
+      "intents": 0,
+      "cleanup_reopen_readback_passed": true,
+      "original_status": "FAIL",
+      "original_exit_code": 3,
+      "waived_latency_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms"
+      ]
+    },
+    "build": {
+      "elapsed_seconds": 15679.641,
+      "comparisons": 8700000,
+      "first_window_median_rss_bytes": 191213568,
+      "last_window_median_rss_bytes": 193257472,
+      "rss_growth_bytes": 2043904,
+      "rss_growth_limit_bytes": 33554432,
+      "journal_rows": 100000,
+      "intents": 0,
+      "cleanup_reopen_readback_passed": true,
+      "original_status": "FAIL",
+      "original_exit_code": 3,
+      "waived_latency_failures": [
+        "durable_decision_p99_latency_exceeded_100ms",
+        "durable_decision_max_latency_exceeded_500ms"
+      ]
+    }
+  },
+  "formal_full_case_increment": 0,
+  "boundaries": [
+    "Concurrent runs do not establish stable relative performance.",
+    "Benchmark-process current RSS windows are not process-tree peaks.",
+    "Not real-market 87-target two-hour acceptance or fault/idle/order soak.",
+    "No provider/account execution or active database/tape read."
+  ],
+  "source_receipts": {
+    "native/result.json": {
+      "size_bytes": 36452,
+      "sha256": "0a8be7fc44b7eff451029d260fa18c84c410424663e9799258b8083a4eb1d733"
+    },
+    "native/launch.json": {
+      "size_bytes": 1471,
+      "sha256": "1164924adcb61755692dd391a2c5042c9cded7a19bd7e79bad924f3cb7ac971f"
+    },
+    "native/completion.json": {
+      "size_bytes": 164,
+      "sha256": "ecd4b8d14096c07dc91cd939b0b4377bcdbfc433b4d01c0e2b89246f738def30"
+    },
+    "build/result.json": {
+      "size_bytes": 36453,
+      "sha256": "104db67112615fdf239d955472063ecf8929be675e36b750583aa6d5b03d7081"
+    },
+    "build/launch.json": {
+      "size_bytes": 1468,
+      "sha256": "4fb582f18c16c8d3dd9f8ae0d465f21b7c1539250fc04e06525d7f1f58655dbb"
+    },
+    "build/completion.json": {
+      "size_bytes": 165,
+      "sha256": "4882897cc9bab871471b3bee9ca49608889b9a531e2cb82997b65258fd3ee21d"
+    }
+  }
+}

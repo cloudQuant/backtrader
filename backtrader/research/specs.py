@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import math
 import marshal
 import sys
 from collections.abc import Mapping
@@ -117,6 +118,41 @@ def _lookback(indicator: Type[Any], params: Mapping[str, Any]) -> int:
     return value
 
 
+@dataclass(frozen=True)
+class FactorHistoryContract:
+    # Factor-authored statement of how a finite source prefix reconstructs state.
+    # finite_window covers the executed graph; replay_from_source_origin requires
+    # an exact adapter-declared origin and a contiguous validated cohort prefix.
+
+    kind: str
+    span_bars: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if self.kind == "finite_window":
+            if type(self.span_bars) is not int or self.span_bars < 1:
+                raise ResearchConfigError(
+                    "finite_window history contract requires positive span_bars"
+                )
+        elif self.kind == "replay_from_source_origin":
+            if self.span_bars is not None:
+                raise ResearchConfigError("replay_from_source_origin does not accept span_bars")
+        else:
+            raise ResearchConfigError("unknown factor history contract kind")
+
+    @classmethod
+    def finite_window(cls, span_bars: int) -> "FactorHistoryContract":
+        # Declare that factor state depends on at most span_bars rows.
+        return cls("finite_window", span_bars)
+
+    @classmethod
+    def replay_from_source_origin(cls) -> "FactorHistoryContract":
+        # Declare that factor state must replay from an adapter-declared origin.
+        return cls("replay_from_source_origin")
+
+    def to_metadata(self) -> Dict[str, Any]:
+        return {"kind": self.kind, "span_bars": self.span_bars}
+
+
 def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
     _nonempty_string(alias, "field binding alias")
 
@@ -161,6 +197,33 @@ def _validate_feed_binding(alias: Any, binding: Any) -> Tuple[str, Any]:
     raise ResearchConfigError("unknown field binding descriptor")
 
 
+# Only these source-unit pairs have a registered price-times-quantity meaning.
+# Unknown unit algebra remains unqualified rather than being guessed.
+_PIT_PRODUCT_UNITS = {
+    ("USD/share", "share"): "USD",
+    ("CNY/share", "share"): "CNY",
+    ("USD/contract", "contract"): "USD",
+    ("CNY/contract", "contract"): "CNY",
+}
+
+
+@dataclass(frozen=True)
+class FieldPITPolicy:
+    """Factor-authored point-in-time age and unit contract for one input alias."""
+
+    unit: str
+    max_age_seconds: float
+
+    def __post_init__(self) -> None:
+        _nonempty_string(self.unit, "field PIT unit")
+        if type(self.max_age_seconds) not in (int, float):
+            raise ResearchConfigError("field PIT max_age_seconds must be finite numeric")
+        age = float(self.max_age_seconds)
+        if not math.isfinite(age) or age <= 0.0:
+            raise ResearchConfigError("field PIT max_age_seconds must be finite and positive")
+        object.__setattr__(self, "max_age_seconds", age)
+
+
 @dataclass(frozen=True, init=False)
 class FactorSpec:
     """One immutable named native or expression factor declaration.
@@ -175,6 +238,8 @@ class FactorSpec:
     panel_line: str
     params: Mapping[str, Any]
     field_bindings: Mapping[str, Any]
+    field_policies: Mapping[str, FieldPITPolicy]
+    field_policy_sha256: str
     operator_profile: str
     direction: int
     mode: str
@@ -182,6 +247,7 @@ class FactorSpec:
     source_sha256: str
     module_source_sha256: str
     source_hash_kind: str
+    history_contract: Optional[FactorHistoryContract]
 
     def __init__(
         self,
@@ -190,6 +256,7 @@ class FactorSpec:
         panel_line: str,
         params: Optional[Mapping[str, Any]] = None,
         field_bindings: Optional[Mapping[str, Any]] = None,
+        field_policies: Optional[Mapping[str, FieldPITPolicy]] = None,
         operator_profile: str = "alpha101-v2",
         direction: int = 1,
         mode: Optional[str] = None,
@@ -206,6 +273,8 @@ class FactorSpec:
             params = {}
         if field_bindings is None:
             field_bindings = {}
+        if field_policies is None:
+            field_policies = {}
         if not isinstance(params, Mapping):
             raise ResearchConfigError("factor params must be a mapping")
         if "mode" in params:
@@ -214,6 +283,8 @@ class FactorSpec:
             )
         if not isinstance(field_bindings, Mapping):
             raise ResearchConfigError("field_bindings must be a mapping")
+        if not isinstance(field_policies, Mapping):
+            raise ResearchConfigError("field_policies must be a mapping")
 
         from .factor_indicator import FactorIndicator
 
@@ -222,6 +293,11 @@ class FactorSpec:
         if indicator is FactorIndicator or getattr(indicator, "_factor_bound", False):
             raise ResearchConfigError(
                 "FactorSpec requires an unbound concrete FactorIndicator class"
+            )
+        history_contract = indicator.__dict__.get("history_contract")
+        if history_contract is not None and type(history_contract) is not FactorHistoryContract:
+            raise ResearchConfigError(
+                "history_contract must be a class-authored FactorHistoryContract"
             )
         try:
             indicator._validate_factor_declaration()
@@ -256,6 +332,21 @@ class FactorSpec:
                 code="MISSING_INPUT",
                 report={"factor": name, "missing_fields": tuple(sorted(missing))},
             )
+        frozen_policies: Dict[str, FieldPITPolicy] = {}
+        for alias, policy in field_policies.items():
+            _nonempty_string(alias, "field PIT alias")
+            if alias not in frozen_fields:
+                raise ResearchConfigError("field PIT policy alias must have a field binding")
+            if type(policy) is not FieldPITPolicy:
+                raise ResearchConfigError("field PIT policies must be FieldPITPolicy values")
+            frozen_policies[alias] = policy
+        policy_identity = [
+            (alias, policy.unit, policy.max_age_seconds)
+            for alias, policy in sorted(frozen_policies.items())
+        ]
+        field_policy_sha256 = hashlib.sha256(
+            json.dumps(policy_identity, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+        ).hexdigest()
         for alias, binding in frozen_fields.items():
             if isinstance(binding, Mapping) and binding.get("derive") == "adv":
                 source = binding["source"]
@@ -288,6 +379,30 @@ class FactorSpec:
                         "vwap_volume derivation requires vwap/volume bindings"
                     )
 
+        for alias, binding in frozen_fields.items():
+            policy = frozen_policies.get(alias)
+            if policy is None or not isinstance(binding, Mapping):
+                continue
+            derive = binding.get("derive")
+            if derive == "vwap_volume":
+                vwap_policy = frozen_policies.get(binding["vwap"])
+                volume_policy = frozen_policies.get(binding["volume"])
+                if vwap_policy is None or volume_policy is None:
+                    raise ResearchConfigError(
+                        "PIT dollar_volume requires PIT policies for vwap and volume"
+                    )
+                product_unit = _PIT_PRODUCT_UNITS.get((vwap_policy.unit, volume_policy.unit))
+                if product_unit is None or policy.unit != product_unit:
+                    raise ResearchConfigError(
+                        "PIT vwap_volume units must match a supported price-times-quantity pair"
+                    )
+            elif derive == "adv":
+                source_policy = frozen_policies.get(binding["source"])
+                if source_policy is None or policy.unit != source_policy.unit:
+                    raise ResearchConfigError(
+                        "PIT ADV policy requires the source policy's output unit"
+                    )
+
         lookback = _lookback(indicator, resolved_params)
         source_sha256, module_source_sha256, source_hash_kind = _source_fingerprint(indicator)
         object.__setattr__(self, "name", name)
@@ -295,6 +410,8 @@ class FactorSpec:
         object.__setattr__(self, "panel_line", panel_line)
         object.__setattr__(self, "params", frozen_params)
         object.__setattr__(self, "field_bindings", MappingProxyType(frozen_fields))
+        object.__setattr__(self, "field_policies", MappingProxyType(frozen_policies))
+        object.__setattr__(self, "field_policy_sha256", field_policy_sha256)
         object.__setattr__(self, "operator_profile", operator_profile)
         object.__setattr__(self, "direction", direction)
         object.__setattr__(self, "mode", selected_mode)
@@ -302,6 +419,7 @@ class FactorSpec:
         object.__setattr__(self, "source_sha256", source_sha256)
         object.__setattr__(self, "module_source_sha256", module_source_sha256)
         object.__setattr__(self, "source_hash_kind", source_hash_kind)
+        object.__setattr__(self, "history_contract", history_contract)
 
     @classmethod
     def from_mapping(cls, name: str, value: Mapping[str, Any]) -> "FactorSpec":
@@ -314,6 +432,7 @@ class FactorSpec:
             "params",
             "panel_line",
             "field_bindings",
+            "field_policies",
             "operator_profile",
             "direction",
             "mode",
@@ -334,6 +453,7 @@ class FactorSpec:
             panel_line=value["panel_line"],
             params=value.get("params", {}),
             field_bindings=value.get("field_bindings", {}),
+            field_policies=value.get("field_policies", {}),
             operator_profile=value.get("operator_profile", "alpha101-v2"),
             direction=value.get("direction", 1),
             mode=value.get("mode"),
@@ -349,12 +469,20 @@ class FactorSpec:
             "panel_line": self.panel_line,
             "params": thaw(self.params),
             "field_bindings": thaw(self.field_bindings),
+            "field_policies": {
+                alias: {"unit": policy.unit, "max_age_seconds": policy.max_age_seconds}
+                for alias, policy in self.field_policies.items()
+            },
+            "field_policy_sha256": self.field_policy_sha256,
             "operator_profile": self.operator_profile,
             "direction": self.direction,
             "lookback_h": self.lookback_h,
             "source_sha256": self.source_sha256,
             "module_source_sha256": self.module_source_sha256,
             "source_hash_kind": self.source_hash_kind,
+            "history_contract": (
+                None if self.history_contract is None else self.history_contract.to_metadata()
+            ),
         }
 
 
@@ -409,6 +537,16 @@ def _timestamp(value: Any, field_name: str, pd: Any) -> Any:
     return stamp.tz_convert("UTC")
 
 
+def _datetime_index_signature(index: Any) -> Tuple[bytes, str, Optional[str], str]:
+    unit = getattr(index, "unit", None)
+    return (
+        index.asi8.tobytes(),
+        str(index.dtype),
+        None if unit is None else str(unit),
+        str(index.tz),
+    )
+
+
 def _utc_index(index: Any, field_name: str, pd: Any) -> Any:
     if not isinstance(index, pd.DatetimeIndex):
         raise ResearchConfigError("%s must be a DatetimeIndex" % field_name)
@@ -423,6 +561,35 @@ def _utc_index(index: Any, field_name: str, pd: Any) -> Any:
     return converted
 
 
+def _copy_frame_with_owned_index(frame: Any) -> Any:
+    """Copy a DataFrame and detach its immutable-looking index storage too."""
+    copied = frame.copy(deep=True)
+    copied.index = copied.index.copy(deep=True)
+    return copied
+
+
+def _grid_sha256(grid: Any) -> str:
+    """Hash the canonical grid JSON without materializing all rows at once."""
+    digest = hashlib.sha256()
+    digest.update(b"[")
+    first = True
+    for close_time, open_time in zip(grid.index, grid["open_time"]):
+        if not first:
+            digest.update(b",")
+        first = False
+
+        # Timestamp.isoformat() only emits ASCII ISO-8601 characters, so these
+        # quoted strings have the same JSON representation as json.dumps(...)
+        # with ensure_ascii=False and compact separators.
+        digest.update(b'["')
+        digest.update(close_time.isoformat().encode("utf-8"))
+        digest.update(b'","')
+        digest.update(open_time.isoformat().encode("utf-8"))
+        digest.update(b'"]')
+    digest.update(b"]")
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True, init=False)
 class ResearchSpec:
     """Immutable research calendar, target universe and optional group facts.
@@ -433,6 +600,11 @@ class ResearchSpec:
     """
 
     _grid: Any = field(repr=False, compare=False)
+    _grid_sha256: str = field(repr=False, compare=False)
+    _feed_datetime_nums: Tuple[float, ...] = field(repr=False, compare=False)
+    _feed_datetime_index_signature: Tuple[bytes, str, Optional[str], str] = field(
+        repr=False, compare=False
+    )
     start: Any
     end: Any
     targets: Tuple[str, ...]
@@ -477,7 +649,7 @@ class ResearchSpec:
         index = _utc_index(grid_copy.index, "grid index", pd)
         if not index.is_unique or not index.is_monotonic_increasing:
             raise ResearchConfigError("grid close_time must be unique and strictly increasing")
-        grid_copy.index = index
+        grid_copy.index = index.copy(deep=True)
         if "open_time" not in grid_copy.columns:
             raise ResearchConfigError("grid requires an open_time column")
         open_times = pd.DatetimeIndex(pd.to_datetime(grid_copy["open_time"], errors="coerce"))
@@ -540,7 +712,20 @@ class ResearchSpec:
             field_name="universe",
         )
 
+        from ..utils.dateintern import date2num
+
+        calculation_index = grid_copy.index[grid_copy.index <= end_utc]
+        calculation_datetime_nums = tuple(
+            date2num(value.to_pydatetime()) for value in calculation_index
+        )
+        calculation_datetime_index_signature = _datetime_index_signature(calculation_index)
+
         object.__setattr__(self, "_grid", grid_copy)
+        object.__setattr__(self, "_grid_sha256", _grid_sha256(grid_copy))
+        object.__setattr__(self, "_feed_datetime_nums", calculation_datetime_nums)
+        object.__setattr__(
+            self, "_feed_datetime_index_signature", calculation_datetime_index_signature
+        )
         object.__setattr__(self, "start", start_utc)
         object.__setattr__(self, "end", end_utc)
         object.__setattr__(self, "targets", normalized_targets)
@@ -556,7 +741,7 @@ class ResearchSpec:
 
     @property
     def grid(self) -> Any:
-        return self._grid.copy(deep=True)
+        return _copy_frame_with_owned_index(self._grid)
 
     @property
     def groups(self) -> Mapping[str, str]:
@@ -569,16 +754,11 @@ class ResearchSpec:
     @property
     def calculation_grid(self) -> Any:
         """Full warm-up through research-end grid, excluding the label tail."""
-        return self._grid.loc[self._grid.index <= self.end].copy(deep=True)
+        return _copy_frame_with_owned_index(self._grid.loc[self._grid.index <= self.end])
 
     @property
     def grid_sha256(self) -> str:
-        rows = [
-            (close_time.isoformat(), open_time.isoformat())
-            for close_time, open_time in zip(self._grid.index, self._grid["open_time"])
-        ]
-        payload = json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
+        return self._grid_sha256
 
 
 def _normalize_bool_index(
@@ -633,6 +813,8 @@ def _normalize_bool_index(
 
 
 __all__ = (
+    "FieldPITPolicy",
+    "FactorHistoryContract",
     "FactorSpec",
     "ResearchSpec",
     "normalize_factor_specs",

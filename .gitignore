@@ -2,26 +2,15 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.DS_Store
-*/configs/account_config.yaml
-*/account_config.yaml
-account_config.yaml
-CryptoBroker*
-TestStrategy*
-*/logs/*
-logs/
-# C extensions
 *.so
 
 # Distribution / packaging
+# A trailing-slash name with no leading slash already matches at every depth,
+# so the old /build/ + build/ + **/build/ triplets are collapsed to one line.
 .Python
-/build/
 build/
-**/build/
-develop-eggs/
-/dist/
 dist/
-**/dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -32,9 +21,7 @@ sdist/
 var/
 wheels/
 share/python-wheels/
-/backtrader.egg-info/
 *.egg-info/
-**/*.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
@@ -50,7 +37,7 @@ pip-wheel-metadata/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage / type-check caches
 htmlcov/
 .tox/
 .nox/
@@ -64,13 +51,23 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+mypy-report.txt
+.pyre/
+.pytype/
+.ruff_cache/
+.benchmarks/
+
+# Cython debug symbols
+cython_debug/
 
 # Translations
 *.mo
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -91,7 +88,7 @@ docs/.mplconfig/
 target/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+.ipynb_checkpoints/
 
 # IPython
 profile_default/
@@ -119,15 +116,6 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -138,32 +126,88 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-mypy-report.txt
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
-# Pyre type checker
-.pyre/
+# OS junk (Windows redirect slips such as `nul` land in the repo root)
+.DS_Store
+Thumbs.db
+Desktop.ini
+nul
 
-# pytype static type analyzer
-.pytype/
+# ---------------------------------------------------------------------------
+# Local workspace / agent scratch — never commit
+# ---------------------------------------------------------------------------
+# .codex-tmp is the repository QA scratch root (pytest --basetemp trees,
+# JUnit XML, one-shot receipts). It holds hundreds of megabytes of per-run
+# output and must stay out of every commit.
+.codex-tmp/
+.agent/
+.agents/
+.claude/
+.codebuddy/
+.cursor/
+.idea/
+.kiro/skills/
+.opencode/
+.qoder/
+.qwen/
+.vscode/
+_bmad/
+/assets/
+/promotion/
+.readthedocs-zh.yaml
+bandit-report.json
+# Root-level copies only: scripts/optimize_code.sh is tracked source.
+/optimize_code.sh
+/fix_readme.py
 
-# Cython debug symbols
-cython_debug/
-
-
-# others
+# ---------------------------------------------------------------------------
+# Generated outputs from examples, reports and regression tests
+# ---------------------------------------------------------------------------
+# `evidence/` hides scratch evidence at any depth. The pinned acceptance
+# archives under docs/_internal/**/evidence/ are tracked, so they are
+# unaffected; new files added there need `git add -f` by design.
+evidence/
+logs/
+*.log
+/examples/output/
+/examples/**/output/
+examples/backtest/003_hft_notebook_examples/data/
 report.html
 backtrader_remove_metaprogramming_report.html
 backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report_timing.json
 performance_comparison.json
-backtrader-master/*htmlcov/
+tests/functional/datas/
+tests/functional/strategies_regression/
+
+# Auto-generated transient outputs from regression tests
+tests/functional/strategies/**/strategy_backtest_results.csv
+tests/functional/strategies/**/backtest_result.json
+tests/functional/strategy_backtest_results.csv
+tests/functional/**/backtest_result.json
+
+# Local git worktrees for branch comparison (should not be tracked)
+.branch_compare_worktrees/
+.worktrees/
+
+# ---------------------------------------------------------------------------
+# Private account configuration and provider runtime state
+# ---------------------------------------------------------------------------
+# The 007 CTP runtime directories carry their own .gitignore; the 000 suites
+# are listed here because one ignored config.yaml sits at each suite root.
+account_config.yaml
+CryptoBroker*
+TestStrategy*
 docs/_internal/opts/requirements/迭代3-宏源期货完成穿透式认证/
 examples/unified/007_ctp/live_certification/hongyuan_penetration/reports/
-examples/003_hft_notebook_examples/data/
 examples/unified/007_ctp/live_certification/simnow_penetration/reports/
 examples/unified/007_ctp/live_certification/simnow_penetration/config.yaml
 examples/unified/007_ctp/live_certification/simnow_penetration/secrets.yaml
@@ -176,45 +220,3 @@ examples/live/000_live_certification/hongyuan_penetration/reports/
 examples/live/000_live_certification/*_penetration/config.yaml
 examples/live/000_live_certification/*_penetration/secrets.yaml
 examples/live/000_live_certification/*_penetration/reports/
-
-# Generated visualizations and reports from runnable examples
-/examples/output/
-/examples/**/output/
-
-# Generated evidence directories and their repeatable outputs at any depth
-evidence/
-
-# Local workspace / editor artifacts
-.benchmarks/
-.agent/
-.agents/
-.claude/
-.codebuddy/
-.cursor/
-.idea/
-.kiro/skills/
-.opencode/
-.qoder/
-.qwen/
-.ruff_cache/
-.vscode/
-_bmad/
-assets/
-promotion/
-.readthedocs-zh.yaml
-bandit-report.json
-fix_readme.py
-optimize_code.sh
-
-tests/functional/datas/
-tests/functional/strategies_regression/
-
-# Local git worktrees for branch comparison (should not be tracked)
-.branch_compare_worktrees/
-.worktrees/
-
-# Auto-generated transient outputs from regression tests
-tests/functional/strategies/**/strategy_backtest_results.csv
-tests/functional/strategies/**/backtest_result.json
-tests/functional/strategy_backtest_results.csv
-tests/functional/**/backtest_result.json

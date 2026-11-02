@@ -1,0 +1,199 @@
+{
+  "schema": "iteration51_restart_gap_core_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "f8a6050ab3b013441bbb5a782a40f908420dc402",
+  "paths": [
+    "backtrader/research/live_cohort.py",
+    "backtrader/research/live.py",
+    "tests/unit/research/test_live_restart_gap.py",
+    "AGENTS.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/restart-gap-core-20261027/record.json"
+  ],
+  "evidence_level": "SOURCE_SYNTHETIC_RESTART_GAP_CORE_ONLY",
+  "source_pins": {
+    "backtrader/research/live_cohort.py": {
+      "size_bytes": 145308,
+      "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+    },
+    "backtrader/research/live.py": {
+      "size_bytes": 71236,
+      "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+    },
+    "tests/unit/research/test_live_restart_gap.py": {
+      "size_bytes": 17651,
+      "sha256": "f046b9d6fe57752103791c894a54f8fa70e09284b5c2ca235b88bb84ba9dec55"
+    }
+  },
+  "root_qa": [
+    {
+      "path": "D:\\temp\\i51-restart-gap-source-qa-20261027-r1",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_RESTART_GAP_CORE_ONLY",
+        "exit_code": 1,
+        "test_count": 8,
+        "failures": 1,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145309,
+            "sha256": "4700d5c636aa4be5743ce92fe8570584159b4775038c2b563745a2a4ed2cce4a"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\research\\test_live_restart_gap.py": {
+            "size_bytes": 17152,
+            "sha256": "e3d1fc209a22ccfdab671fa5505da52329ec065a128b350fb467fa22ea0e54d5"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145309,
+            "sha256": "4700d5c636aa4be5743ce92fe8570584159b4775038c2b563745a2a4ed2cce4a"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\research\\test_live_restart_gap.py": {
+            "size_bytes": 17152,
+            "sha256": "e3d1fc209a22ccfdab671fa5505da52329ec065a128b350fb467fa22ea0e54d5"
+          }
+        },
+        "boundary": "Actual local Cerebro/cohort/factor lifecycle over synthetic bars. No 028 loader, provider, saved account history or formal restart acceptance."
+      },
+      "result_pin": {
+        "size_bytes": 1591,
+        "sha256": "0564cc962dfc4fea6e28164881b630159877927753b5272742ac4671816bac99"
+      },
+      "cases": [
+        {
+          "name": "test_alpha003_restart_gap_requires_a_full_new_live_window_before_ready[native]",
+          "passed": true
+        },
+        {
+          "name": "test_alpha003_restart_gap_requires_a_full_new_live_window_before_ready[build]",
+          "passed": true
+        },
+        {
+          "name": "test_recursive_factor_history_remains_unqualified_after_restart_gap",
+          "passed": true
+        },
+        {
+          "name": "test_restart_factory_rejects_future_omissions_and_replayed_highwater_tampering",
+          "passed": false
+        },
+        {
+          "name": "test_restart_calendar_rejects_omitted_slots_and_role_order_violations[18-history-explicit planned calendar slot]",
+          "passed": true
+        },
+        {
+          "name": "test_restart_calendar_rejects_omitted_slots_and_role_order_violations[17-live-restart history prefix]",
+          "passed": true
+        },
+        {
+          "name": "test_restart_calendar_rejects_omitted_slots_and_role_order_violations[22-history-restart live tail]",
+          "passed": true
+        },
+        {
+          "name": "test_active_planned_slot_timeout_still_freezes_with_gap_receipt",
+          "passed": true
+        }
+      ],
+      "stdout_pin": {
+        "size_bytes": 1942,
+        "sha256": "7ebe7a4612afc9c6323fdf92ff910688b2b8a7620ab81ac07932b33fcc4d1aed"
+      },
+      "junit_pin": {
+        "size_bytes": 2607,
+        "sha256": "11693de4860533ab6cb3c23304c6ecb601b6defe93e8bd9ab9d6cb0c6d7263c3"
+      },
+      "stderr_empty": true
+    },
+    {
+      "path": "D:\\temp\\i51-restart-gap-source-qa-20261027-r2",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_RESTART_GAP_CORE_ONLY",
+        "exit_code": 0,
+        "test_count": 2,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\research\\test_live_restart_gap.py": {
+            "size_bytes": 17651,
+            "sha256": "f046b9d6fe57752103791c894a54f8fa70e09284b5c2ca235b88bb84ba9dec55"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\research\\test_live_restart_gap.py": {
+            "size_bytes": 17651,
+            "sha256": "f046b9d6fe57752103791c894a54f8fa70e09284b5c2ca235b88bb84ba9dec55"
+          }
+        },
+        "boundary": "Actual local Cerebro/cohort/factor lifecycle over synthetic bars. No 028 loader, provider, saved account history or formal restart acceptance."
+      },
+      "result_pin": {
+        "size_bytes": 1591,
+        "sha256": "6544566c7e3abd799a2997147c11633f3c0ec6f3d0951d5cc2cc290562957b47"
+      },
+      "cases": [
+        {
+          "name": "test_restart_factory_rejects_future_omissions_and_replayed_highwater_tampering",
+          "passed": true
+        },
+        {
+          "name": "test_restart_factory_rejects_bucket_at_exact_start_as_unelapsed",
+          "passed": true
+        }
+      ],
+      "stdout_pin": {
+        "size_bytes": 720,
+        "sha256": "6f8f7192e0d41d0fafdec62ea37eabeeb4cea6f499cee45dc4d088301ecfe761"
+      },
+      "junit_pin": {
+        "size_bytes": 534,
+        "sha256": "ea7f1dd1c4ba12e0ef36407aa9afb70d53e5940f0bc9b9553fefa36fd7a3b9a3"
+      },
+      "stderr_empty": true
+    }
+  ],
+  "distinct_passed_cases": 9,
+  "single_final_nine_case_run_claimed": false,
+  "warnings": "One existing asyncio_default_fixture_loop_scope pytest configuration warning in each run.",
+  "first_failure": "Exact slot start was classified as an in-progress partial slot by <=; strict < repair and one-slot boundary regression passed in R2.",
+  "independent_review": "capacity_review static GO on initial frozen inputs and on exact one-predicate boundary repair; no independent test execution.",
+  "root_tools": {
+    "first_qa": "323001",
+    "failure_readback": "266a5c",
+    "focused_repair_qa": "583f6e"
+  },
+  "boundaries": [
+    "No 028 loader integration or actual saved-account-history acceptance.",
+    "Warmup rows lacking durable source anchors remain unqualified; no retrospective trust or execution-cursor relaxation.",
+    "Installed R6 consumer and canonical 028 sources remain unchanged.",
+    "No provider/account calls, formal AC increment, worktree or push."
+  ]
+}

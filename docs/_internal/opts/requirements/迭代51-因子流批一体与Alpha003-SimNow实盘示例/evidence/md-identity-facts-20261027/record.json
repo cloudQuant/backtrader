@@ -1,0 +1,236 @@
+{
+  "schema": "iteration51_md_identity_source_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "1de6c42da4886abdb228a1d95133fc7401ef2786",
+  "paths": [
+    "backtrader/stores/registered_sim.py",
+    "tests/unit/test_registered_sim_store.py",
+    "AGENTS.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/迭代计划.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/md-identity-facts-20261027/record.json"
+  ],
+  "qa": {
+    "level": "SOURCE_SYNTHETIC_MD_IDENTITY_PROJECTION_ONLY",
+    "exit_code": 0,
+    "test_count": 6,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "elapsed_seconds": 1.875,
+    "source_pins_unchanged": true,
+    "source_pins_before": {
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+        "size_bytes": 83091,
+        "sha256": "eb4208508db47d1741923fa00ab510128c8211cdb3009e809f5b6a2b14ca5909"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+        "size_bytes": 887216,
+        "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+      },
+      "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+        "size_bytes": 827,
+        "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+      },
+      "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+        "size_bytes": 4185,
+        "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+      },
+      "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+        "size_bytes": 509747,
+        "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+      }
+    },
+    "source_pins_after": {
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+        "size_bytes": 83091,
+        "sha256": "eb4208508db47d1741923fa00ab510128c8211cdb3009e809f5b6a2b14ca5909"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+        "size_bytes": 887216,
+        "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+      },
+      "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+        "size_bytes": 827,
+        "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+      },
+      "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+        "size_bytes": 4185,
+        "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+      },
+      "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+        "size_bytes": 509747,
+        "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+      }
+    },
+    "runner": {
+      "size_bytes": 4320,
+      "sha256": "5211ad66b49ef803318a8663fbf43f792511e3180076926d55de17bc66edfa73"
+    },
+    "boundary": "Real SDK MdClient/SPI with synthetic request/response leaves; no provider, actual authenticated identity, or account acceptance."
+  },
+  "qa_file": {
+    "path": "D:\\temp\\i51-md-identity-source-qa-20261027-r4\\result.json",
+    "size_bytes": 3072,
+    "sha256": "ed2fb475f437658d6ecc0a39677723eadcbfeadd0527ff28fcb5f61f51c41ed9"
+  },
+  "historical_failed_qa": [
+    {
+      "path": "D:\\temp\\i51-md-identity-source-qa-20261027-r2\\result.json",
+      "size_bytes": 3071,
+      "sha256": "21a3846811d2b1d806bbe7502db8f640f0845f3732bdb3723a3fe3b0f0ebff2a",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_MD_IDENTITY_PROJECTION_ONLY",
+        "exit_code": 1,
+        "test_count": 6,
+        "failures": 5,
+        "errors": 0,
+        "skips": 0,
+        "elapsed_seconds": 3.75,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144341,
+            "sha256": "d5b2b783b603add5ff1baf1e88f52e76769c11a93380dbfb59a514edacdb08f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+            "size_bytes": 81960,
+            "sha256": "f1bdb231bf64b465d2ad2b3b273b6876c8cbf0ec8a8463b3fff5264b4f355d72"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 887216,
+            "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+            "size_bytes": 4185,
+            "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 509747,
+            "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144341,
+            "sha256": "d5b2b783b603add5ff1baf1e88f52e76769c11a93380dbfb59a514edacdb08f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+            "size_bytes": 81960,
+            "sha256": "f1bdb231bf64b465d2ad2b3b273b6876c8cbf0ec8a8463b3fff5264b4f355d72"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 887216,
+            "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+            "size_bytes": 4185,
+            "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 509747,
+            "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+          }
+        },
+        "runner": {
+          "size_bytes": 4320,
+          "sha256": "f6f35de56d3bc7f726c34c6d0fb7edb02ad7a076bd7c7ff7293d4df33afd3259"
+        },
+        "boundary": "Real SDK MdClient/SPI with synthetic request/response leaves; no provider, actual authenticated identity, or account acceptance."
+      }
+    },
+    {
+      "path": "D:\\temp\\i51-md-identity-source-qa-20261027-r3\\result.json",
+      "size_bytes": 3072,
+      "sha256": "19a69023b3ae9a511caa9cf1f25ce0434670a3f313de7b196cec193c229e3c56",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_MD_IDENTITY_PROJECTION_ONLY",
+        "exit_code": 1,
+        "test_count": 5,
+        "failures": 2,
+        "errors": 0,
+        "skips": 0,
+        "elapsed_seconds": 2.125,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144341,
+            "sha256": "d5b2b783b603add5ff1baf1e88f52e76769c11a93380dbfb59a514edacdb08f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+            "size_bytes": 81924,
+            "sha256": "067985f05c311732759e76c63589cf7d820dbf786c1df13285eb9436b673b081"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 887216,
+            "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+            "size_bytes": 4185,
+            "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 509747,
+            "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144341,
+            "sha256": "d5b2b783b603add5ff1baf1e88f52e76769c11a93380dbfb59a514edacdb08f7"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_registered_sim_store.py": {
+            "size_bytes": 81924,
+            "sha256": "067985f05c311732759e76c63589cf7d820dbf786c1df13285eb9436b673b081"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 887216,
+            "sha256": "4afd798ac861a1503b0fab223b9d330907eb4ec443e517a135f1a09fd70b3ca0"
+          },
+          "D:\\source_code\\backtrader\\tests\\test_utils\\optional_sdk.py": {
+            "size_bytes": 827,
+            "sha256": "708bfd9ae284de3ecc986f0e1e4f4e0523be64018aa3167c93b097093f0b19c1"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\md_identity.py": {
+            "size_bytes": 4185,
+            "sha256": "f884b734fc719d015a58d351c47f493ef368aab54d5437b83e8dfb000d7a9f35"
+          },
+          "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 509747,
+            "sha256": "88b84289b66b39947d1d61ea59bbe0752acdab22a6ed6b7b8a029cb3f534dddc"
+          }
+        },
+        "runner": {
+          "size_bytes": 4363,
+          "sha256": "0a3686066a8627c45f061d2d85a6bd11167d9c1683c9459577ad0212d5259b35"
+        },
+        "boundary": "Real SDK MdClient/SPI with synthetic request/response leaves; no provider, actual authenticated identity, or account acceptance."
+      }
+    }
+  ],
+  "warnings": 1,
+  "independent_review": "history_accept_review static GO; no duplicate QA",
+  "formal_ac_increment": 0,
+  "boundary": "SOURCE_SYNTHETIC_MD_IDENTITY_PROJECTION_ONLY. No provider/private-input/session creation/order/push/worktree."
+}

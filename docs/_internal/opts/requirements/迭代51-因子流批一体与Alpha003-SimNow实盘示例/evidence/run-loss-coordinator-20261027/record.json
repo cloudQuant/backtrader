@@ -1,0 +1,421 @@
+{
+  "schema": "iteration51_run_loss_coordinator_source_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "87733f87837fc68f0c257463f690d80c72f2f4a5",
+  "paths": [
+    "backtrader/stores/factor_execution.py",
+    "tests/unit/stores/test_factor_execution.py",
+    "backtrader/brokers/btapibroker.py",
+    "tests/unit/brokers/test_btapibroker_position_sync.py",
+    "AGENTS.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/迭代计划.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/run-loss-coordinator-20261027/record.json"
+  ],
+  "qa": {
+    "level": "SOURCE_SYNTHETIC_COORDINATOR_LOSS_GUARD_ONLY",
+    "exit_code": 0,
+    "test_count": 10,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "source_pins_unchanged": true,
+    "source_pins_before": {
+      "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+        "size_bytes": 525714,
+        "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\brokers\\test_btapibroker_position_sync.py": {
+        "size_bytes": 28478,
+        "sha256": "7054266dde347d33ed85f93d13fdee8716afe36d5ecd39ef9db93cd6a3335619"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+        "size_bytes": 288295,
+        "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+        "size_bytes": 79124,
+        "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      }
+    },
+    "source_pins_after": {
+      "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+        "size_bytes": 525714,
+        "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\brokers\\test_btapibroker_position_sync.py": {
+        "size_bytes": 28478,
+        "sha256": "7054266dde347d33ed85f93d13fdee8716afe36d5ecd39ef9db93cd6a3335619"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+        "size_bytes": 288295,
+        "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+        "size_bytes": 79124,
+        "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      }
+    },
+    "boundary": "Real journal, Coordinator and Strategy/Store/Broker path with synthetic provider leaves; no 028 policy wiring or actual account acceptance."
+  },
+  "qa_file": {
+    "path": "D:\\temp\\i51-coordinator-loss-source-qa-20261027-r4\\result.json",
+    "size_bytes": 3693,
+    "sha256": "4142e8de6e19b245d449743db143a03e973d77e24ec1eeb067c041ec617e9648"
+  },
+  "historical_qa": [
+    {
+      "path": "D:\\temp\\i51-coordinator-loss-source-qa-20261027-r1\\result.json",
+      "size_bytes": 2871,
+      "sha256": "7c8f2dea10de1265f3d782e8d04bae740a2b5b56c412a6f28ee4b811c4e571bd",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_COORDINATOR_LOSS_GUARD_ONLY",
+        "exit_code": 1,
+        "test_count": 15,
+        "failures": 1,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 78275,
+            "sha256": "70dba2a06604e3b9789ce21ff8f86dcccd9bf7e58820fc00c87496742c3a4815"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 78275,
+            "sha256": "70dba2a06604e3b9789ce21ff8f86dcccd9bf7e58820fc00c87496742c3a4815"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "boundary": "Real journal, Coordinator and Strategy/Store/Broker path with synthetic provider leaves; no 028 policy wiring or actual account acceptance."
+      }
+    },
+    {
+      "path": "D:\\temp\\i51-coordinator-loss-source-qa-20261027-r2\\result.json",
+      "size_bytes": 2870,
+      "sha256": "4976f016b5cab104a812b65e1ca07a8b9e94df4e95c4fb738159244eba5251c2",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_COORDINATOR_LOSS_GUARD_ONLY",
+        "exit_code": 1,
+        "test_count": 1,
+        "failures": 1,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 79124,
+            "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 79124,
+            "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "boundary": "Real journal, Coordinator and Strategy/Store/Broker path with synthetic provider leaves; no 028 policy wiring or actual account acceptance."
+      }
+    },
+    {
+      "path": "D:\\temp\\i51-coordinator-loss-source-qa-20261027-r3\\result.json",
+      "size_bytes": 2870,
+      "sha256": "4976f016b5cab104a812b65e1ca07a8b9e94df4e95c4fb738159244eba5251c2",
+      "result": {
+        "level": "SOURCE_SYNTHETIC_COORDINATOR_LOSS_GUARD_ONLY",
+        "exit_code": 1,
+        "test_count": 1,
+        "failures": 1,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 79124,
+            "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+            "size_bytes": 79124,
+            "sha256": "e81f47d5ee1a4ca3a91af7f8668015113ab604014ac206b2f7cde13c1bbcedcf"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 329937,
+            "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          }
+        },
+        "boundary": "Real journal, Coordinator and Strategy/Store/Broker path with synthetic provider leaves; no 028 policy wiring or actual account acceptance."
+      }
+    }
+  ],
+  "finite_public_origin_diagnostic": {
+    "path": "D:\\temp\\i51-coordinator-loss-source-qa-20261027-r3\\origins.json",
+    "size_bytes": 2647,
+    "sha256": "dbc524529e3dac4cf7ba16c87844127def307ed03b0cf88a85458871ed8c7b9b",
+    "result": {
+      "coordinator": "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py",
+      "journal": "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py",
+      "network_denials": 0,
+      "ambiguous_dataframe_stacks": [
+        [
+          {
+            "file": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\pandas\\core\\generic.py",
+            "function": "__bool__",
+            "line": 1501
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "_position_exchange_from_symbol",
+            "line": 7078
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "<setcomp>",
+            "line": 6836
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "add_data_route",
+            "line": 6833
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "_tracked_position_alias_map",
+            "line": 6866
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "_sync_positions",
+            "line": 6663
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "getposition",
+            "line": 3498
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "_validate_explicit_net_offset",
+            "line": 9002
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "_ensure_required_net_offset",
+            "line": 8963
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "submit",
+            "line": 3632
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py",
+            "function": "sell",
+            "line": 5324
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\strategy.py",
+            "function": "sell",
+            "line": 3682
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py",
+            "function": "command",
+            "line": 1551
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py",
+            "function": "next",
+            "line": 1051
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\lineiterator.py",
+            "function": "_factor_run_callback",
+            "line": 386
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\lineiterator.py",
+            "function": "_next",
+            "line": 2026
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\strategy.py",
+            "function": "_next",
+            "line": 1713
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\_cerebro\\runnext.py",
+            "function": "_runnext",
+            "line": 1463
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\_cerebro\\execution.py",
+            "function": "runstrategies",
+            "line": 266
+          },
+          {
+            "file": "D:\\source_code\\backtrader\\backtrader\\cerebro.py",
+            "function": "run",
+            "line": 931
+          }
+        ]
+      ]
+    }
+  },
+  "acceptance": "14 earlier Coordinator cases plus 10 final focused cases; not a single final 24-case suite.",
+  "warnings_per_run": 1,
+  "independent_review": "nojoin_tests static GO; no duplicate QA",
+  "formal_ac_increment": 0,
+  "boundary": "SOURCE_SYNTHETIC_COORDINATOR_LOSS_GUARD_AND_PANDAS_POSITION_ROUTE_ONLY. No 028 strategy policy wiring or real account acceptance. Sticky recovery test creates a new Coordinator over the same open journal, not a process reopen."
+}

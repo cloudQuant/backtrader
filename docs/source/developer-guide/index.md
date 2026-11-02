@@ -9,6 +9,8 @@ Welcome to the Backtrader development guide. This section covers everything you 
 
 ## Quick Links
 
+[Repository responsibilities (中文)](repository-responsibilities_zh.md) — required reading before repository changes.
+
 | Topic | Link |
 
 |-------|------|

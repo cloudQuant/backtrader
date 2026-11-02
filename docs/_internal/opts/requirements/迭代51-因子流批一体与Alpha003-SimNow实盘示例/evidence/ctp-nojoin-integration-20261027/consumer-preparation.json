@@ -1,0 +1,73 @@
+{
+  "status": "INSTALLED_PENDING_RECORD_VERIFICATION",
+  "sdk_commit": "574cd2dd495a3c675d7cd23fcbf23a797a08c04d",
+  "wheel": {
+    "path": "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+    "size_bytes": 5484867,
+    "sha256": "32811ab303cd875274fc9d69ee3ca3f29d83c33d9d5217f4eadd037cb07123d7"
+  },
+  "base": {
+    "path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+    "size_bytes": 153051,
+    "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+  },
+  "source_python_count": 85,
+  "source_to_wheel_exact": true,
+  "pinned_available_dependency_count": 49,
+  "commands": [
+    {
+      "phase": "venv",
+      "args": [
+        "C:/anaconda3/python.exe",
+        "-I",
+        "-m",
+        "venv",
+        "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\venv.txt",
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "phase": "install",
+      "args": [
+        "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+        "-I",
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-index",
+        "--find-links",
+        "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse",
+        "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+        "D:\\temp\\i51-ctp-nojoin-wheel-20261027-r1\\wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\install.txt",
+        "size_bytes": 6210,
+        "sha256": "c2d8b305cf6d6bf0386cf270c11d385918199d3a82703f068b3b44dc7b8979f3"
+      }
+    },
+    {
+      "phase": "pip-check",
+      "args": [
+        "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+        "-I",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "D:\\temp\\i51-ctp-nojoin-consumer-20261027-r1\\pip-check.txt",
+        "size_bytes": 31,
+        "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+      }
+    }
+  ]
+}

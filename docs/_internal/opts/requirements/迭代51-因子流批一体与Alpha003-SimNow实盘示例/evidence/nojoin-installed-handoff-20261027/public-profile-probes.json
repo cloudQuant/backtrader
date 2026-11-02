@@ -1,0 +1,18 @@
+{
+  "status": "TCP_OBSERVATION_ONLY",
+  "profiles": [
+    {
+      "category": "set2_7x24_4000x",
+      "td_reachable": true,
+      "md_reachable": true
+    },
+    {
+      "category": "set2_7x24",
+      "td_reachable": false,
+      "md_reachable": false
+    }
+  ],
+  "credentials_read": false,
+  "native_api_created": false,
+  "account_login": false
+}

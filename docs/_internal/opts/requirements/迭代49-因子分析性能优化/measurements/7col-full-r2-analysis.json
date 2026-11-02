@@ -1,0 +1,369 @@
+{
+  "acceptance_scope": "analysis only; receipt PASS covers source/output integrity, not timing or memory",
+  "memory_target": {
+    "candidate_peak_limit_bytes": 1000000000,
+    "max_recorded_candidate_peak_bytes": 1286037504,
+    "status": "FAIL"
+  },
+  "per_example": {
+    "025": {
+      "cpu_ns": {
+        "baseline_median": 629390625000,
+        "candidate_median": 153218750000,
+        "candidate_over_baseline_median": 0.24343983515801496,
+        "pair_values": [
+          {
+            "baseline": 629390625000,
+            "candidate": 153218750000,
+            "candidate_over_baseline": 0.24343983515801496,
+            "pair": 1,
+            "reduction_percent": 75.6560164841985
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 7558578176,
+        "candidate_median": 793989120,
+        "candidate_over_baseline_median": 0.1050447718489007,
+        "pair_values": [
+          {
+            "baseline": 7558578176,
+            "candidate": 793989120,
+            "candidate_over_baseline": 0.1050447718489007,
+            "pair": 1,
+            "reduction_percent": 89.49552281510992
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "wall_ns": {
+        "baseline_median": 647158646500,
+        "candidate_median": 157947432900,
+        "candidate_over_baseline_median": 0.24406292607573157,
+        "final_80_percent_target": "FAIL",
+        "pair_values": [
+          {
+            "baseline": 647158646500,
+            "candidate": 157947432900,
+            "candidate_over_baseline": 0.24406292607573157,
+            "pair": 1,
+            "reduction_percent": 75.59370739242685
+          }
+        ],
+        "ratio_range_over_median": null
+      }
+    },
+    "026": {
+      "cpu_ns": {
+        "baseline_median": 1231671875000,
+        "candidate_median": 311046875000,
+        "candidate_over_baseline_median": 0.25254037322237305,
+        "pair_values": [
+          {
+            "baseline": 1231671875000,
+            "candidate": 311046875000,
+            "candidate_over_baseline": 0.25254037322237305,
+            "pair": 1,
+            "reduction_percent": 74.7459626777627
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 10438574080,
+        "candidate_median": 920477696,
+        "candidate_over_baseline_median": 0.0881804055750879,
+        "pair_values": [
+          {
+            "baseline": 10438574080,
+            "candidate": 920477696,
+            "candidate_over_baseline": 0.0881804055750879,
+            "pair": 1,
+            "reduction_percent": 91.1819594424912
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "wall_ns": {
+        "baseline_median": 1268916921500,
+        "candidate_median": 319305820100,
+        "candidate_over_baseline_median": 0.2516365056607057,
+        "final_80_percent_target": "FAIL",
+        "pair_values": [
+          {
+            "baseline": 1268916921500,
+            "candidate": 319305820100,
+            "candidate_over_baseline": 0.2516365056607057,
+            "pair": 1,
+            "reduction_percent": 74.83634943392943
+          }
+        ],
+        "ratio_range_over_median": null
+      }
+    },
+    "027": {
+      "cpu_ns": {
+        "baseline_median": 533078125000,
+        "candidate_median": 213312500000,
+        "candidate_over_baseline_median": 0.40015241668376467,
+        "pair_values": [
+          {
+            "baseline": 533078125000,
+            "candidate": 213312500000,
+            "candidate_over_baseline": 0.40015241668376467,
+            "pair": 1,
+            "reduction_percent": 59.98475833162353
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "recorded_conservative_peak_bytes": {
+        "baseline_median": 3007283200,
+        "candidate_median": 1286037504,
+        "candidate_over_baseline_median": 0.42764096976300736,
+        "pair_values": [
+          {
+            "baseline": 3007283200,
+            "candidate": 1286037504,
+            "candidate_over_baseline": 0.42764096976300736,
+            "pair": 1,
+            "reduction_percent": 57.235903023699265
+          }
+        ],
+        "ratio_range_over_median": null
+      },
+      "wall_ns": {
+        "baseline_median": 548814024600,
+        "candidate_median": 219806693900,
+        "candidate_over_baseline_median": 0.40051216632119574,
+        "final_80_percent_target": "FAIL",
+        "pair_values": [
+          {
+            "baseline": 548814024600,
+            "candidate": 219806693900,
+            "candidate_over_baseline": 0.40051216632119574,
+            "pair": 1,
+            "reduction_percent": 59.94878336788043
+          }
+        ],
+        "ratio_range_over_median": null
+      }
+    }
+  },
+  "phase_note": "exclusive timer sums are mutually exclusive; remainder is main wall minus all reported exclusive phase rows",
+  "receipt": "D:\\temp\\iteration49-final-7col-all-r2b\\full-stage.json",
+  "receipt_status": "PASS",
+  "runs": [
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 14031250000,
+      "cli_total_cpu_ns": 643421875000,
+      "cli_total_wall_ns": 663514632900,
+      "cli_wall_over_main_ns": 16355986400,
+      "cpu_ns": 629390625000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 7558578176,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 47680457900,
+          "collection_finish": 22150765000,
+          "csv_chart_export": 38944138200,
+          "engine": 55679052900,
+          "evaluation_html_report": 60559657100,
+          "fincore_evaluation": 385012000700,
+          "load": 14167993500,
+          "other_small": 22845516100
+        },
+        "main_wall_ns": 647158646500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 647039581400,
+        "unattributed_remainder_ns": 119065100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 7558578176,
+      "resource_peak_tree_rss_bytes": 7447605248,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-baseline-025\\result.json",
+      "result_sha256": "11727487137236cd7146d11571bda71bdf9e5a1356574219e33a8815d5046018",
+      "wall_ns": 647158646500
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 13984375000,
+      "cli_total_cpu_ns": 167203125000,
+      "cli_total_wall_ns": 174227596800,
+      "cli_wall_over_main_ns": 16280163900,
+      "cpu_ns": 153218750000,
+      "example": "025",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 793989120,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 29077985800,
+          "collection_finish": 10512015100,
+          "csv_chart_export": 20932384100,
+          "engine": 25935279100,
+          "evaluation_html_report": 19204413800,
+          "fincore_evaluation": 31974017400,
+          "load": 14414850400,
+          "other_small": 3625580000
+        },
+        "main_wall_ns": 157947432900,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 155676525700,
+        "unattributed_remainder_ns": 2270907200
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 793989120,
+      "resource_peak_tree_rss_bytes": 723300352,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-candidate-025\\result.json",
+      "result_sha256": "a811a5be6e2e40b479716389590c95f648cc9cd5a965e6c720fddbff154aa89e",
+      "wall_ns": 157947432900
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 14265625000,
+      "cli_total_cpu_ns": 1245937500000,
+      "cli_total_wall_ns": 1284642189800,
+      "cli_wall_over_main_ns": 15725268300,
+      "cpu_ns": 1231671875000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 10438574080,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 47308283800,
+          "collection_finish": 38871333800,
+          "csv_chart_export": 60897308400,
+          "engine": 209723237200,
+          "evaluation_html_report": 179863931600,
+          "fincore_evaluation": 549608204800,
+          "load": 14265408600,
+          "other_small": 168245200200
+        },
+        "main_wall_ns": 1268916921500,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 1268782908400,
+        "unattributed_remainder_ns": 134013100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 10438574080,
+      "resource_peak_tree_rss_bytes": 10191200256,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-baseline-026\\result.json",
+      "result_sha256": "d818e1ea986fd540d0d238c4439cdc7ae6ccbf9a606c8daab5dd7dd3e3c46255",
+      "wall_ns": 1268916921500
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 14234375000,
+      "cli_total_cpu_ns": 325281250000,
+      "cli_total_wall_ns": 335783202300,
+      "cli_wall_over_main_ns": 16477382200,
+      "cpu_ns": 311046875000,
+      "example": "026",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 920477696,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 29097423300,
+          "collection_finish": 20885298500,
+          "csv_chart_export": 34341576100,
+          "engine": 73603882800,
+          "evaluation_html_report": 55808464200,
+          "fincore_evaluation": 68965814500,
+          "load": 14312741600,
+          "other_small": 19317870000
+        },
+        "main_wall_ns": 319305820100,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 316333071000,
+        "unattributed_remainder_ns": 2972749100
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 920477696,
+      "resource_peak_tree_rss_bytes": 859328512,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-candidate-026\\result.json",
+      "result_sha256": "93e5d578ec3d3a04462a466ec65bce4e20d0c734d7abd8683507e0b2b284decd",
+      "wall_ns": 319305820100
+    },
+    {
+      "arm": "baseline",
+      "cli_cpu_over_main_ns": 13890625000,
+      "cli_total_cpu_ns": 546968750000,
+      "cli_total_wall_ns": 564512906700,
+      "cli_wall_over_main_ns": 15698882100,
+      "cpu_ns": 533078125000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 3007283200,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 47024017000,
+          "collection_finish": 24785765300,
+          "csv_chart_export": 7139530100,
+          "engine": 296814810900,
+          "evaluation_html_report": 61549831400,
+          "fincore_evaluation": 0,
+          "load": 14300925400,
+          "other_small": 97132850600
+        },
+        "main_wall_ns": 548814024600,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 548747730700,
+        "unattributed_remainder_ns": 66293900
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 3007283200,
+      "resource_peak_tree_rss_bytes": 3007270912,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-baseline-027\\result.json",
+      "result_sha256": "b542c92339091e0ede3e91f6bc68f437805b2babd452e3dbaeba9ba6687f01f8",
+      "wall_ns": 548814024600
+    },
+    {
+      "arm": "candidate",
+      "cli_cpu_over_main_ns": 13906250000,
+      "cli_total_cpu_ns": 227218750000,
+      "cli_total_wall_ns": 234959063200,
+      "cli_wall_over_main_ns": 15152369300,
+      "cpu_ns": 213312500000,
+      "example": "027",
+      "html_report_note": "html_report includes factor evaluation and rendering; positions sub-timers are grouped here using exclusive time only.",
+      "main_peak_working_set_bytes": 1286037504,
+      "pair": 1,
+      "phase_breakdown": {
+        "exclusive_by_stage_ns": {
+          "alignment_preload": 30665837300,
+          "collection_finish": 14534634400,
+          "csv_chart_export": 6984385700,
+          "engine": 127364998900,
+          "evaluation_html_report": 19513763800,
+          "fincore_evaluation": 0,
+          "load": 14188817600,
+          "other_small": 5773065700
+        },
+        "main_wall_ns": 219806693900,
+        "method": "sum wall_exclusive_ns only; inclusive timers are not added",
+        "phase_exclusive_sum_ns": 219025503400,
+        "unattributed_remainder_ns": 781190500
+      },
+      "receipt_metrics_match": true,
+      "recorded_conservative_peak_bytes": 1286037504,
+      "resource_peak_tree_rss_bytes": 1261547520,
+      "result": "D:\\temp\\iteration49-final-7col-all-r2b\\all-p1-candidate-027\\result.json",
+      "result_sha256": "73b02848c44cbfa528bcf0193556ccb8140e02f3018ed8aff8cd5822e8615e4f",
+      "wall_ns": 219806693900
+    }
+  ],
+  "schema": "iteration49.final-analysis.v1",
+  "stage": "all",
+  "timing_target": {
+    "per_example_reduction_percent": 80,
+    "status": "see per-example results"
+  }
+}

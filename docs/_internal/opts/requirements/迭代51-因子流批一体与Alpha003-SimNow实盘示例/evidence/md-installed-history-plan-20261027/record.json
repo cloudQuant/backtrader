@@ -1,0 +1,148 @@
+{
+  "schema": "iteration51_installed_md_and_history_plan_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "967813b1b9ca4e9cb47e6c564225faed56c14ea5",
+  "paths": [
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/迭代计划.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/md-installed-history-plan-20261027/record.json"
+  ],
+  "installed_commit": "87733f87837fc68f0c257463f690d80c72f2f4a5",
+  "result": {
+    "path": "D:\\temp\\i51-md-identity-installed-20261027-r2\\result.json",
+    "size_bytes": 373562,
+    "sha256": "b4da833f95682f013f81c2ed4d62bc6d45ecf917bc5c2b75f2ed271760875e64"
+  },
+  "installed_tests": {
+    "call_failed": 0,
+    "call_passed": 6,
+    "call_skipped": 0,
+    "collected": 6,
+    "collection_errors": 0,
+    "module_origins": {
+      "backtrader": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\__init__.py",
+      "ctp_client": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\client.py",
+      "optional_sdk_helper": "D:\\temp\\i51-md-identity-installed-20261027-r2\\test-run\\tests\\test_utils\\optional_sdk.py",
+      "registered_sim": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\stores\\registered_sim.py"
+    },
+    "network_denial_count": 0,
+    "node_ids": [
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_qualify_current_bound_source_without_raw_identity",
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_zero_response_is_read_only_unqualified",
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_fail_closed_for_login_source_generation_and_day",
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_report_unbound_source_and_revoke_on_disconnect",
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_ignore_stale_callback_after_current_login",
+      "tests/unit/test_registered_sim_store.py::test_registered_sim_md_identity_facts_do_not_create_an_api_or_connection"
+    ],
+    "other_failed_reports": 0,
+    "path_audit_after": {
+      "installed_backtrader_module_count": 419,
+      "installed_sdk_module_count": 29,
+      "optional_sdk_helper_origin_category": "COPIED_PUBLIC_TEST_FIXTURE",
+      "repository_and_build_source_absent_from_sys_path": true,
+      "sys_path_entries": [
+        "D:\\temp\\i51-md-identity-installed-20261027-r2\\test-run",
+        "C:\\anaconda3\\python311.zip",
+        "C:\\anaconda3\\DLLs",
+        "C:\\anaconda3\\Lib",
+        "C:\\anaconda3",
+        "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer",
+        "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages"
+      ]
+    },
+    "path_audit_before": {
+      "installed_backtrader_module_count": 419,
+      "installed_sdk_module_count": 29,
+      "optional_sdk_helper_origin_category": "COPIED_PUBLIC_TEST_FIXTURE",
+      "repository_and_build_source_absent_from_sys_path": true,
+      "sys_path_entries": [
+        "D:\\temp\\i51-md-identity-installed-20261027-r2\\test-run",
+        "C:\\anaconda3\\python311.zip",
+        "C:\\anaconda3\\DLLs",
+        "C:\\anaconda3\\Lib",
+        "C:\\anaconda3",
+        "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer",
+        "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages"
+      ]
+    },
+    "pytest_basetemp": "D:\\temp\\i51-md-identity-installed-20261027-r2\\temp\\pytest",
+    "pytest_console": {
+      "path": "D:\\temp\\i51-md-identity-installed-20261027-r2\\pytest-console.txt",
+      "sha256": "bfb71ff885b655792c7c90000cbed5d04bcd9a434d347321bd152b7dda72f67e",
+      "size_bytes": 98
+    },
+    "pytest_console_sha256": "bfb71ff885b655792c7c90000cbed5d04bcd9a434d347321bd152b7dda72f67e",
+    "pytest_cwd": "D:\\temp\\i51-md-identity-installed-20261027-r2\\test-run",
+    "pytest_exit_code": 0,
+    "pytest_main_invoked": true,
+    "schema": "i51_md_identity_installed_test_child_v1",
+    "status": "PASS_INSTALLED_MD_SIX_NODE_ONLY",
+    "test_module_origins": [
+      {
+        "name": "tests.unit.test_registered_sim_store",
+        "origin": "D:\\temp\\i51-md-identity-installed-20261027-r2\\test-run\\tests\\unit\\test_registered_sim_store.py"
+      }
+    ],
+    "tests_invoked": true
+  },
+  "installed_backtrader": {
+    "direct_url_sha256": "8b3da0a5659888175cacdb09ae9ad4a34fe2c04b5d5520e83c0b6afcdff111a6",
+    "installed_backtrader_pyc_count": 0,
+    "payload_files_verified": 668,
+    "record": {
+      "path": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\back_trader_python-1.4.0.dist-info\\RECORD",
+      "sha256": "a7f449388b5ace1935c096aa417b2db314bf69d1bec16b9f8f27e7147c649106",
+      "size_bytes": 66816
+    },
+    "record_entry_count": 678
+  },
+  "sdk_after_install": {
+    "base_record": {
+      "path": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_base-0.15.8.dist-info\\RECORD",
+      "sha256": "6284d7236b283cbcc5599d2ad14e5ab81d83d93ee641392ef612acbe1df54dda",
+      "size_bytes": 15821
+    },
+    "ctp_record": {
+      "path": "D:\\temp\\i51-query-origins-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp-2.0.4+iteration41.i9.dist-info\\RECORD",
+      "sha256": "ec812e9940d462bf46c4725b20a7a06d934b0ceb1266ee6f96ae5d2c89829d43",
+      "size_bytes": 14197
+    },
+    "records_and_payloads_unchanged": true
+  },
+  "script": {
+    "path": "D:\\temp\\i51-md-identity-installed-20261027-r4.py",
+    "sha256": "12e8a3eca2c1a261e27bff68eb2c0bea34cf0217a42edf18d5138f54514d977f",
+    "size_bytes": 51696
+  },
+  "pip_check_before": {
+    "exit_code": 0,
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 31,
+    "stdout_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+  },
+  "pip_check_after": {
+    "exit_code": 0,
+    "stderr_bytes": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 31,
+    "stdout_sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf"
+  },
+  "previous_failed_build": {
+    "path": "D:\\temp\\i51-md-identity-installed-20261027-r1\\result.json",
+    "size_bytes": 365475,
+    "sha256": "b5e9634d5119c4ba33e4a3b1d29397e413645bdf46c3e8e550551f3ec0f6c3b0",
+    "phase": "offline_wheel_build",
+    "installation_or_tests_reached": false
+  },
+  "history_contract_design": {
+    "path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_history_gap_plan_revision_20261027.md",
+    "size_bytes": 9391,
+    "sha256": "c4df994e88097555a6c82c94b36b45c658fafb0ce0d90ce9be5297e44e8d381c",
+    "status": "PLAN_REVISION_PENDING_IMPLEMENTATION_AND_ACCEPTANCE"
+  },
+  "review": "Root inspected doc diff and installed result; existing independent caller review GO",
+  "formal_ac_increment": 0,
+  "boundary": "Installed synthetic six-node contract and explicit future history-gap plan only. R6 actual not launched by this round."
+}

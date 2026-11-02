@@ -1,0 +1,90 @@
+{
+  "schema": "backtrader.alpha003.simnow_runner.v1",
+  "mode": "live",
+  "entry": {
+    "tier": "live"
+  },
+  "factor": {
+    "mode": "native",
+    "direction": 1,
+    "preheat_bars": 30,
+    "rebalance_every": 5
+  },
+  "selection": {
+    "source": "ctp_query",
+    "bundle": null,
+    "authorized_products": null,
+    "daily_bundles": [],
+    "max_epochs": 1
+  },
+  "inputs": {
+    "minute_tape": null,
+    "execution_quotes": null,
+    "instrument_metadata": null,
+    "history_decision_tape": null
+  },
+  "research": {
+    "start": null,
+    "end": null,
+    "source_timezone": "Asia/Shanghai",
+    "price_basis": null
+  },
+  "cohort": {
+    "calendar_id": "alpha003-one-minute-v1",
+    "calendar_version": "source-session-snapshot-v1",
+    "epoch_id": 1,
+    "clock_domain_id": "i51-md-20261027-shadow-r1",
+    "timezone_id": "UTC",
+    "session_semantics": "exchange-session-calendar-v1",
+    "max_pending_slots": 8,
+    "max_window_bars": 512,
+    "wait_timeout_seconds": 5.0,
+    "max_live_bar_age_seconds": 60,
+    "max_future_skew_seconds": 0
+  },
+  "replay": {
+    "starting_cash": null,
+    "commission": null
+  },
+  "risk": {
+    "policy_id": null,
+    "max_hold_eligible_bars": null,
+    "preclose_grace_seconds": null,
+    "run_end_policy": null,
+    "quote_max_age_seconds": null,
+    "max_state_age_seconds": null,
+    "max_notional_per_position": null,
+    "max_total_notional": null,
+    "max_margin_per_position": null,
+    "max_total_margin": null,
+    "max_loss_per_position": null,
+    "max_total_loss": null,
+    "round_trip_fee_upper_bound_per_contract": null,
+    "stop_loss_ticks": null,
+    "max_order_intents_per_grid": null,
+    "max_order_intents_per_run": null
+  },
+  "live": {
+    "store_config_env": "BT_SIMNOW_CONFIG_JSON",
+    "allow_writes": false,
+    "account_scope": "i5051:simnow:set1_group1_vpn:readonly:20261027-01",
+    "strategy_scope": "i5051:alpha003:r0-readonly:20261027-01",
+    "logical_run_id": "i5051:ac50-01-r0-readonly:20261027-01",
+    "journal_path": "D:/temp/i5051-r0-readonly-20261027-01/journal.sqlite3",
+    "arm_templates": [],
+    "ready_timeout_seconds": 300,
+    "refresh_timeout_seconds": 300,
+    "refresh_overall_timeout_seconds": 300,
+    "refresh_interval_seconds": 5,
+    "quote_max_age_seconds": 60,
+    "query_max_age_seconds": 300,
+    "shutdown_grace_seconds": 30,
+    "golden_targets": null
+  },
+  "output": {
+    "directory": "D:/temp/i5051-r0-readonly-20261027-01/output",
+    "evaluate_with_fincore": false,
+    "decision_tape_path": "D:/temp/i5051-r0-readonly-20261027-01/decision-tape.jsonl",
+    "decision_tape_max_bytes": 67108864
+  }
+}

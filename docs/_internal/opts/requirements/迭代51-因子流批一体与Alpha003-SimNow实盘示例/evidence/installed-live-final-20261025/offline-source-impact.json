@@ -1,0 +1,244 @@
+{
+  "schema": "backtrader.iteration51.offline_a69_impact.v1",
+  "assessment": "READ_ONLY_SOURCE_AND_RECEIPT_IMPACT",
+  "report_date": "2026-10-25",
+  "current_source_head": "93576f2555037677262e24fc3fa2eb69852ebc9d",
+  "qa_or_cli_run": false,
+  "current_artifacts": {
+    "wheel": {
+      "path": "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+      "sha256": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+      "package_payloads": 667
+    },
+    "consumer_venv": "D:\\temp\\i5051c-20261025-r6\\venv",
+    "consumer_venv_payload_match": {
+      "matched": 667,
+      "mismatched": 0
+    },
+    "old_receipt_wheel": {
+      "sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "installed_record_sha256": "de0cf4d6f391686d8706d9cba205a0e7374871566e6b0fd30a7d905cef13ab52",
+      "package_payloads": 667
+    },
+    "wheel_payload_comparison": {
+      "scope": "non-dist-info package payload paths under backtrader/ and backtrader_runtime/",
+      "same_path_count": 667,
+      "content_identical_count": 664,
+      "changed_payload_count": 3,
+      "composition": {
+        "backtrader_paths": 626,
+        "backtrader_runtime_paths": 41,
+        "python_files": 662,
+        "non_python_package_data_files": 5
+      },
+      "changed_payloads": [
+        "backtrader/research/live_cohort.py",
+        "backtrader/stores/btapistore.py",
+        "backtrader/stores/factor_execution_facts.py"
+      ],
+      "pins": {
+        "backtrader/research/live_cohort.py": {
+          "old_size_bytes": 116549,
+          "old_sha256": "B71B24D60C34DE20767C6B23BFEB724E48880A659086E416EB28CECC7F5AEE96",
+          "current_size_bytes": 116603,
+          "current_sha256": "69F31733AD0FEDC126837F6595B752CF2E2B180471DA2352AB98CCB2E825B0D6",
+          "change_commit": "718ca1dc644321b316c761d361a04497fc2719af"
+        },
+        "backtrader/stores/btapistore.py": {
+          "old_size_bytes": 859533,
+          "old_sha256": "C6CCB7945800EDA11E98BB802BB622F664C137CE1EC10BA2D8D2ADE9076FA2C2",
+          "current_size_bytes": 860515,
+          "current_sha256": "737213FCABBC8AB62ACC9322CD18C29808C83F2B10E9DF37BB735F58FA2EB290",
+          "change_commit": "a025256eb"
+        },
+        "backtrader/stores/factor_execution_facts.py": {
+          "old_size_bytes": 202838,
+          "old_sha256": "1B8A3A2553A979D0CF9CE0754B736872E88D244B6B4B3ED8AE0AAEED1FDB304F",
+          "current_size_bytes": 217000,
+          "current_sha256": "86E69116AA0DC35FC6175497CFA0E2147124009232207F64106A452B8CCBDCB",
+          "change_commits": ["31dc70ae2", "a69a494e7"]
+        }
+      }
+    }
+  },
+  "count_scope_reconciliation": {
+    "wheel_payload_comparison_667": "Package payload entries only: 626 backtrader/ plus 41 backtrader_runtime/ paths. Both wheels have the same 667 package paths; 664 contents match and 3 differ.",
+    "wheel_verification_source_file_count_671": "The build verifier's source-tree digest includes 667 package payloads plus four top-level build files (setup.py, README.md, LICENSE, pyproject.toml). Its source_python_file_count=662 counts the 625 backtrader and 37 backtrader_runtime Python files.",
+    "wheel_record_file_count_673": "All wheel ZIP entries: 667 package payloads plus six .dist-info entries.",
+    "consumer_installed_record_path_count_1339": "The installed distribution RECORD rows include 662 .py files, 662 generated .pyc cache files, nine .dist-info paths, and six other paths (the console executable plus five package data files). This is the installed RECORD inventory, not a package-payload count."
+  },
+  "public_config_provenance": {
+    "template_path": "examples/unified/028_alpha003_simnow_minute/config.yaml",
+    "git_tracked": true,
+    "git_mode_and_blob": "100644 d41705b7d01e9c6a8479eba081e588a1f4209c80",
+    "git_ignored": false,
+    "fixture_copy_contract": "scripts/iteration51_installed_fixture.py::copy_public_example copies this tracked config as one of four PUBLIC_FILES; optional offline configs are separate fixture-config.yaml files.",
+    "prepared_input_manifest": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\prepared-inputs-manifest.json",
+    "manifest_facts": {
+      "generator": "tests.unit.test_alpha003_simnow_runner._base_config + _write_source_inputs",
+      "private_config_or_env_read": false,
+      "cli_invoked": false
+    },
+    "private_config_read_during_audit": false
+  },
+  "old_example_source_pins": {
+    "run.py": {
+      "sha256": "4d916d1ae8fb32627941216198e89c8eaab57ecdbbc1b4ee0ecfea9d3891f74c",
+      "size_bytes": 193918
+    },
+    "alpha003_strategy.py": {
+      "sha256": "2c32286f5439a0b6f06d1ad7e0b1dae6268b20f637de9ad1974fd55905eef1bd",
+      "size_bytes": 194704
+    },
+    "entry_tier.py": {
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+      "size_bytes": 4449
+    },
+    "config.yaml": {
+      "sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+      "size_bytes": 3674
+    }
+  },
+  "current_example_source_pins": {
+    "run.py": {
+      "sha256": "7703D0B4F21205AAF7B90900BCCEEC2D67461C2E20D70239F2E214540704FC3B",
+      "size_bytes": 195092
+    },
+    "alpha003_strategy.py": {
+      "sha256": "B7D65886D10B792AF58BF8100A9E94F3DA1B1405B2A6D0247315DCAAA8DFA058",
+      "size_bytes": 198547
+    },
+    "entry_tier.py": {
+      "sha256": "230AB3AB1BB94313A186FEF2BF181F1E1D80E769CD029832BAB1614EA659C15E",
+      "size_bytes": 4449
+    },
+    "config.yaml": {
+      "sha256": "B9190EB06954D49A8D4402C2B71A9A11E2D6A9739E0FB9C66C76BCF81A1AD4E5",
+      "size_bytes": 3674
+    }
+  },
+  "old_receipts": [
+    {
+      "profile": "dry-native",
+      "receipt": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\dry-native\\iteration51-installed-cli-fixture.json",
+      "receipt_sha256": "ab3078a66b773f4c8b21549a99f782e70e02470bcf51b0f0a6428e51380413fe",
+      "receipt_bytes": 2398,
+      "mode": "dry",
+      "factor_mode": "native",
+      "result": "DRY_VALIDATION_COMPLETE",
+      "wheel_sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "loaded_modules_verified": 534,
+      "module_origins_sha256": "525eb4924c9e5bf3107f9ba1f690e5a6ebc7278b3a9db0695a287820216091e0",
+      "stdout_sha256": "259a77b14466f1ded2485418f53a64458213ad2cd2d9e64ce5f4661e3e9a48dd"
+    },
+    {
+      "profile": "research-native",
+      "receipt": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\research-native\\iteration51-installed-cli-fixture.json",
+      "receipt_sha256": "ec36785573d5d5ef3075ca5486f4816fe9f219afb7c5fe61ded2783a8f41e0f6",
+      "receipt_bytes": 3369,
+      "mode": "research",
+      "factor_mode": "native",
+      "result": "RESEARCH_COMPLETE",
+      "wheel_sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "loaded_modules_verified": 538,
+      "module_origins_sha256": "9c0e48d36fa0b35b947d5cc8cfb66ed7496d668301c6c72ecfb141018ff970d5",
+      "stdout_sha256": "b6fd1c9fc14c72a1114aeb3fbf0d2d8fdacf41d50acd4974e5f1f780cbecdfe3",
+      "offline_config_sha256": "7754d078d7136097c4b02f54a9ca4a4d613cf3e07dd9825f43181c9be8d9f7bb"
+    },
+    {
+      "profile": "research-build",
+      "receipt": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\research-build\\iteration51-installed-cli-fixture.json",
+      "receipt_sha256": "ca69cfd5d87116bd4d6f5e762c94a232850b7988d2d24afae61c29d6a10e6435",
+      "receipt_bytes": 3358,
+      "mode": "research",
+      "factor_mode": "build",
+      "result": "RESEARCH_COMPLETE",
+      "wheel_sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "loaded_modules_verified": 539,
+      "module_origins_sha256": "79c5491ec1be3994bc7859a01ea9479a82fef6c3132d14b40b171a5e30c2cd33",
+      "stdout_sha256": "11881ce6958184a9a66a2ceae5d244400b154d3d8f609959f64259adb680083c",
+      "offline_config_sha256": "fa9c0a68eefb3d4524cf8d9f68e4780ed9db564a1ad0c132f1301646b72462c6"
+    },
+    {
+      "profile": "replay-native",
+      "receipt": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\iteration51-installed-cli-fixture.json",
+      "receipt_sha256": "20ce35734539618779feeb8c8edb94a4151a1147e1537e3dc7169eaf8c3ed744",
+      "receipt_bytes": 5633,
+      "mode": "replay",
+      "factor_mode": "native",
+      "result": "REPLAY_COMPLETE",
+      "wheel_sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "loaded_modules_verified": 539,
+      "module_origins_sha256": "89f9671075ebd9b08bc2ee01ce3891abcc21af7d31b5b543a92507cb39991d00",
+      "stdout_sha256": "d78ebd3f41045966473809e1e1c626b83a696231875462c44a22d49579fefe26",
+      "offline_config_sha256": "dc31cf79d6b62ddd3c6bb67499435a56007c71b2065fc45f5e7af3cd6f694c82"
+    },
+    {
+      "profile": "replay-build",
+      "receipt": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-build\\iteration51-installed-cli-fixture.json",
+      "receipt_sha256": "2bf33727c7f2350fa0fd9ad29d7b77fb1e3dcd32461a76ff89034207279f851b",
+      "receipt_bytes": 5620,
+      "mode": "replay",
+      "factor_mode": "build",
+      "result": "REPLAY_COMPLETE",
+      "wheel_sha256": "c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399",
+      "loaded_modules_verified": 540,
+      "module_origins_sha256": "20001542251a15df93140d623864e266a4cd6113845485a2751e92b9f3ac445d",
+      "stdout_sha256": "42619dd848909404745cdae7945182081da7d2d78a1423d023c3ca01a26521b7",
+      "offline_config_sha256": "d62e8e729883ded0858af1c04a6dc500d1c4ea1d6db44d605a7772f8a30a2b8d"
+    }
+  ],
+  "fixture_input_pins": {
+    "selection.json": "80b133c3c1c72b9bc001747e79d62c250b0e6f26a2e142b258b9a6c2fa472da7",
+    "minute.json": "f41b4f1498707831ad065c148611ee3580b771b63ea8b2747b1e52477546a0d6",
+    "quotes.json": "5b78a716199fb17de0800e4f0cd309b53ee6a9eaaf8d72890cfbc5d40d249296",
+    "instruments.json": "1fad7f71cd332a946e4aba453a82cf4374ec2387b10ae7b79a58d24bd1712880"
+  },
+  "offline_path_impact": [
+    {
+      "change": "a025256eb Store raw-bar/history copy preserves a legal field_observations MappingProxyType as a separate read-only map",
+      "offline_call_path": "dry validates configuration; research consumes minute tape into pandas/aligned feeds; replay consumes minute tape and quotes through BtApiFeed plus CausalReplayBroker",
+      "impact": "not exercised by these offline paths"
+    },
+    {
+      "change": "718ca1dc6 LiveBarCohort.seal returns immediately when already sealed",
+      "offline_call_path": "run_replay seals once before Cerebro.add_live_bar_cohort; Cerebro.add_live_bar_cohort seals the same cohort again",
+      "impact": "replay calls the changed branch; the previous call only repeated immutable member/calendar coverage validation before setting the already-true flag, so no replay data/output mutation is identified"
+    },
+    {
+      "change": "31dc70ae2 passive read-only fact projection and Alpha003 live shutdown retirement path",
+      "offline_call_path": "replay sets replay_mode=true and uses _update_replay_shutdown_state; _update_shutdown_state/read_only_observation_ready is used by live fact refresh, not replay; research uses FactorStrategy",
+      "impact": "live-only; no research/replay behavioral path change identified"
+    },
+    {
+      "change": "ccf6717a9 and later 028 run.py changes: CTP YYYYMMDD calendar encoding only when run_live passes ctp_trading_days=true; a69 UTC query timestamp callback; exception-only live epoch evidence",
+      "offline_call_path": "dry/research do not create cohorts; replay uses default ctp_trading_days=false, ISO calendar dates, and no QueryRefreshLoop",
+      "impact": "live-only for CTP/date and query-clock behavior; replay date normalization preserves ISO date strings; epoch diagnostics affect only live exceptions"
+    },
+    {
+      "change": "31dc70ae2 alpha003_strategy source pins differ by live fact-state/shutdown support",
+      "offline_call_path": "research builds FactorStrategy from make_alpha003_factor_spec; replay's explicit replay_mode branch bypasses _live_facts and _update_shutdown_state",
+      "impact": "live-only for relevant hunks; no change to offline factor definitions or recorded native/build outputs identified"
+    }
+  ],
+  "receipt_limitations": {
+    "old_loaded_module_evidence": "Each receipt records loaded_modules_verified and one aggregate module_origins_sha256, not the individual module-origin/hash rows. The verifier also records the old wheel SHA and RECORD digest and validates the active child against that wheel.",
+    "current_comparison": "Current wheel and consumer venv match all 667 package payloads; archive comparison found only the three listed package payloads changed from the old receipt wheel.",
+    "exact_wheel_claim": "None of the five receipts is evidence that wheel bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee executed. They remain pinned to wheel c4099c2adf58f030feb19e9b63d1e40d6dbe808be1a022fa3d4bfd12886aa399."
+  },
+  "reuse_decision": {
+    "old_five_behavior_results_reusable_for_offline_behavioral_claim": true,
+    "evidence_scope": "REUSE_WITH_SOURCE_IMPACT_RECONCILIATION; not an exact-a69-wheel CLI acceptance",
+    "rationale": "All five exact old outcomes, configs and fixture inputs remain recorded. Every source/package delta was traced to live-only paths or the replay's idempotent second seal, which has no state effect for the already-sealed unchanged cohort.",
+    "rerun_required_for_offline_behavioral_reuse": [],
+    "conditional_reruns": [
+      "If acceptance specifically requires current-wheel execution of the changed replay path, run replay/native and replay/build in fresh workspaces against wheel bc338...; this is exact-wheel evidence, not a prerequisite for reusing the old behavior outcomes.",
+      "If requiring a complete native/build x dry/research/replay six-cell matrix on the current wheel, dry/build is also the missing cell; the five existing receipts cover only dry/native, research/native+build, and replay/native+build."
+    ]
+  },
+  "future_saved_history_input": {
+    "status": "not present in current audited 028 config/run source",
+    "scope_assumption": "Root indicates the planned patch will be optional and live-only",
+    "offline_impact_if_live_only": "none; revisit only if its parsing/config selection is shared with dry, research, or replay"
+  }
+}

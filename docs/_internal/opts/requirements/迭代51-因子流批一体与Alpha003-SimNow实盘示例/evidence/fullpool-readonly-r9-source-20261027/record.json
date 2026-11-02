@@ -1,0 +1,268 @@
+{
+  "schema": "backtrader.iteration51.fullpool_readonly_r9_source_record.v1",
+  "created_at_utc": "2026-10-27T18:48:08.6242064+08:00",
+  "evidence_level": "PUBLIC_SOURCE_DRAFT_AND_SYNTHETIC_QA_ONLY",
+  "status": "R9_DRAFT_UNEXECUTABLE",
+  "plan": {
+    "path": "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "sha256_after_addendum": "bb19e099c2bbeb21693917e13a2df2f111551186fecd268b2a9e8b26fd2e9a5f",
+    "addendum_heading": "## 2026-10-27 R9 全池只读来源草稿与合成验证记录"
+  },
+  "scope": {
+    "full_pool_targets": 87,
+    "same_run_minute_grid_slots": 195,
+    "witness_targets_same_full_pool_tape": [
+      "DCE.I",
+      "SHFE.RB",
+      "CZCE.MA"
+    ],
+    "minimum_live_ready_rows": 100,
+    "minimum_run_seconds": 7200,
+    "offline_validation_modes": [
+      "native",
+      "build"
+    ],
+    "attempt_window_shanghai": {
+      "date": "2026-10-28",
+      "start_inclusive": "08:30",
+      "end_exclusive": "08:35",
+      "status": "ATTEMPT_WINDOW_ONLY"
+    },
+    "preopen_query_and_subscription_availability": "UNKNOWN",
+    "requirements_are_not_results": true,
+    "same_pool_not_independent_three_member_cerebro": true
+  },
+  "acceptance_boundaries": [
+    "The full 87-target cohort, one same-run plan, and the complete 195-slot tape remain required; the three named targets are only a same-tape continuous witness slice.",
+    "The existing saved-factor-tape validator remains required in native and build modes against the same closed tape.",
+    "Zero execution writes, controlled stop, resource cleanup, minimum qualified rows, and source pins are caller acceptance predicates, not passed by this source-QA record.",
+    "RSS/resource-window acceptance is NOT_RUN; no OS-wall-clock mapping is inferred from the provider event-time tape marker.",
+    "No real market, account/provider call, actual full-pool run, or formal Iteration 51 AC was completed."
+  ],
+  "r9_drafts": [
+    {
+      "path": ".codex-tmp/i51_root_golden_minute_actual_r9_fullpool_20261028.py",
+      "size_bytes": 45029,
+      "sha256": "9abc5d8ebd104529105fa52090ac7dac5c9f1e09c5cb6ac0b7a69fdefad78224"
+    },
+    {
+      "path": ".codex-tmp/i51_fullpool_golden_postflight_r9_20261027.py",
+      "size_bytes": 29425,
+      "sha256": "320e7fd9fc009a73e248d7f2fbbe2e3eb451235ebd641ec10883eeb49712e747"
+    },
+    {
+      "path": ".codex-tmp/test_i51_golden_fullpool_postflight_r9_20261027.py",
+      "size_bytes": 22755,
+      "sha256": "a46b4dce0e18165f9be07c3de7cae29886f73253d9852f4999f5362ec7f96a68"
+    },
+    {
+      "path": ".codex-tmp/i51_golden_fullpool_profile_r9_20261028.json",
+      "size_bytes": 2809,
+      "sha256": "c1da03a96911d85a951f2ac00cd94f1cf1fbe1a8752dd2efa9f22e2b9e7396c9"
+    }
+  ],
+  "caller_declared_public_dependencies": [
+    {
+      "path": ".codex-tmp/i51_root_readonly_write_observation_20261027.py",
+      "size_bytes": 9324,
+      "sha256": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+      "caller_expected_sha256": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+      "public_source_review": "bounded public helper/profile source; no credentials or private inputs"
+    },
+    {
+      "path": ".codex-tmp/i51_golden_minute_profile_r7_20261028.json",
+      "size_bytes": 2858,
+      "sha256": "20651d0e1d9abcc7d1bd1762fd6f5d1841f5dc79ee79f56519a8b96298b9172d",
+      "caller_expected_sha256": "20651d0e1d9abcc7d1bd1762fd6f5d1841f5dc79ee79f56519a8b96298b9172d",
+      "public_source_review": "bounded public helper/profile source; no credentials or private inputs"
+    },
+    {
+      "path": ".codex-tmp/i51_root_golden_minute_span_r4_20261027.py",
+      "size_bytes": 35631,
+      "sha256": "59b475eb6e3bf63c8710e990b0e6d85e7a6767fbe953fd42b25f92d3dd837bb9",
+      "caller_expected_sha256": "59b475eb6e3bf63c8710e990b0e6d85e7a6767fbe953fd42b25f92d3dd837bb9",
+      "public_source_review": "bounded public helper/profile source; no credentials or private inputs"
+    },
+    {
+      "path": ".codex-tmp/i51_golden_postflight_r1_20261027.py",
+      "size_bytes": 43064,
+      "sha256": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+      "caller_expected_sha256": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+      "public_source_review": "bounded public helper/profile source; no credentials or private inputs"
+    }
+  ],
+  "qa": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "--tb=short",
+      "--junitxml=D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\junit.xml",
+      "--noconftest",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=D:/temp/i51-r9-fullpool-public-pytest-20261027-r1",
+      ".codex-tmp/test_i51_golden_fullpool_postflight_r9_20261027.py"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 1.265999999945052,
+    "counts": {
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "warning_count": 1,
+    "warning": "Existing pytest configuration warning: unknown option asyncio_default_fixture_loop_scope.",
+    "source_pins_unchanged": true,
+    "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY",
+    "raw_artifacts": [
+      {
+        "path": "D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\spec.json",
+        "size_bytes": 1375,
+        "sha256": "c7d05ef493f24a7ca7628e95676d399edc45f5efa1acf784574713efb5602107"
+      },
+      {
+        "path": "D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\stdout.txt",
+        "size_bytes": 635,
+        "sha256": "557fcae8b0a0b281b4df9d801502fe7db320ca6d580d9a22c621bbbdf86086ba"
+      },
+      {
+        "path": "D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\stderr.txt",
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\junit.xml",
+        "size_bytes": 6121,
+        "sha256": "10e272658b79e35ef3e3e46df18ba12c9c11c56becf0cb9ea5ad4e6a444aa89d"
+      },
+      {
+        "path": "D:\\temp\\i51-r9-fullpool-public-focus-20261027-r1\\result.json",
+        "size_bytes": 2865,
+        "sha256": "0c4d04ae2be33994838e50ed4cb7f5b263038b12a9794bf6d4b375b1e856b973"
+      }
+    ],
+    "verified_qa_pins_before_after": {
+      ".codex-tmp/i51_root_golden_minute_actual_r9_fullpool_20261028.py": "9abc5d8ebd104529105fa52090ac7dac5c9f1e09c5cb6ac0b7a69fdefad78224",
+      ".codex-tmp/i51_fullpool_golden_postflight_r9_20261027.py": "320e7fd9fc009a73e248d7f2fbbe2e3eb451235ebd641ec10883eeb49712e747",
+      ".codex-tmp/test_i51_golden_fullpool_postflight_r9_20261027.py": "a46b4dce0e18165f9be07c3de7cae29886f73253d9852f4999f5362ec7f96a68",
+      ".codex-tmp/i51_golden_fullpool_profile_r9_20261028.json": "c1da03a96911d85a951f2ac00cd94f1cf1fbe1a8752dd2efa9f22e2b9e7396c9",
+      "scripts/validate_iteration51_saved_factor_tape.py": "7800089b42c54c2902873d69b95a867cc6849599b290fb780fa4756dedf4592d",
+      "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": "0ec9a612fdbd08033430ecb67924dd56e4272a48d0889c6169960e43ca11c9fe",
+      "examples/unified/028_alpha003_simnow_minute/run.py": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e",
+      "examples/unified/028_alpha003_simnow_minute/entry_tier.py": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    }
+  },
+  "r8_history": {
+    "counts": {
+      "tests": 30,
+      "passed": 28,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0
+    },
+    "exit_code": 1,
+    "result": {
+      "path": "D:\\temp\\i51-r8-fullpool-public-focus-20261027-r1\\result.json",
+      "size_bytes": 2866,
+      "sha256": "14c7d9aa44679353f50391d18f2729eb9138304649d2010eb2c2cd62c02a4452"
+    },
+    "diagnosis": "Both failures came from the same synthetic fixture omission: first_full_cohort_live_ready_available_at_utc was absent from the postflight fixture. The real helper returns this field and the caller maps it into first_qualified_source_available_at_utc. R9 fixes the fixture/mapping coverage without weakening the comparison."
+  },
+  "archive": {
+    "path": "public-qa.zip",
+    "size_bytes": 49221,
+    "sha256": "708471533f1674a0f563275963a42c184a5ee5460c9a2560e2f355012359602e",
+    "entry_count": 14,
+    "entries": [
+      {
+        "path": "r9-draft/i51_root_golden_minute_actual_r9_fullpool_20261028.py",
+        "size_bytes": 45029,
+        "sha256": "9abc5d8ebd104529105fa52090ac7dac5c9f1e09c5cb6ac0b7a69fdefad78224",
+        "role": "R9 caller draft"
+      },
+      {
+        "path": "r9-draft/i51_fullpool_golden_postflight_r9_20261027.py",
+        "size_bytes": 29425,
+        "sha256": "320e7fd9fc009a73e248d7f2fbbe2e3eb451235ebd641ec10883eeb49712e747",
+        "role": "R9 postflight helper draft"
+      },
+      {
+        "path": "r9-draft/test_i51_golden_fullpool_postflight_r9_20261027.py",
+        "size_bytes": 22755,
+        "sha256": "a46b4dce0e18165f9be07c3de7cae29886f73253d9852f4999f5362ec7f96a68",
+        "role": "R9 synthetic tests"
+      },
+      {
+        "path": "r9-draft/i51_golden_fullpool_profile_r9_20261028.json",
+        "size_bytes": 2809,
+        "sha256": "c1da03a96911d85a951f2ac00cd94f1cf1fbe1a8752dd2efa9f22e2b9e7396c9",
+        "role": "R9 profile draft"
+      },
+      {
+        "path": "public-dependencies/i51_root_readonly_write_observation_20261027.py",
+        "size_bytes": 9324,
+        "sha256": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+        "role": "public read-only write observer helper"
+      },
+      {
+        "path": "public-dependencies/i51_golden_minute_profile_r7_20261028.json",
+        "size_bytes": 2858,
+        "sha256": "20651d0e1d9abcc7d1bd1762fd6f5d1841f5dc79ee79f56519a8b96298b9172d",
+        "role": "public profile dependency"
+      },
+      {
+        "path": "public-dependencies/i51_root_golden_minute_span_r4_20261027.py",
+        "size_bytes": 35631,
+        "sha256": "59b475eb6e3bf63c8710e990b0e6d85e7a6767fbe953fd42b25f92d3dd837bb9",
+        "role": "public span and stop observer helper"
+      },
+      {
+        "path": "public-dependencies/i51_golden_postflight_r1_20261027.py",
+        "size_bytes": 43064,
+        "sha256": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+        "role": "public prior postflight helper"
+      },
+      {
+        "path": "qa/r9/spec.json",
+        "size_bytes": 1375,
+        "sha256": "c7d05ef493f24a7ca7628e95676d399edc45f5efa1acf784574713efb5602107",
+        "role": "R9 QA specification"
+      },
+      {
+        "path": "qa/r9/stdout.txt",
+        "size_bytes": 635,
+        "sha256": "557fcae8b0a0b281b4df9d801502fe7db320ca6d580d9a22c621bbbdf86086ba",
+        "role": "R9 original stdout"
+      },
+      {
+        "path": "qa/r9/stderr.txt",
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "role": "R9 original stderr"
+      },
+      {
+        "path": "qa/r9/junit.xml",
+        "size_bytes": 6121,
+        "sha256": "10e272658b79e35ef3e3e46df18ba12c9c11c56becf0cb9ea5ad4e6a444aa89d",
+        "role": "R9 original JUnit report"
+      },
+      {
+        "path": "qa/r9/result.json",
+        "size_bytes": 2865,
+        "sha256": "0c4d04ae2be33994838e50ed4cb7f5b263038b12a9794bf6d4b375b1e856b973",
+        "role": "R9 original result"
+      },
+      {
+        "path": "history/r8-result.json",
+        "size_bytes": 2866,
+        "sha256": "14c7d9aa44679353f50391d18f2729eb9138304649d2010eb2c2cd62c02a4452",
+        "role": "R8 failed result preserved as history"
+      }
+    ]
+  }
+}

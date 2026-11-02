@@ -9,6 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from backtrader.errors import FactorComputationError
+
 from backtrader.research.alpha101 import get_alpha
 from backtrader.research import operators
 from backtrader.research.operators import (
@@ -56,7 +58,33 @@ def test_alpha003_native_build_graph_matches_every_node(alpha003_pair):
     assert report["assets"] == ["asset-%d" % index for index in range(6)]
 
 
-@pytest.mark.parametrize("damage", ("value", "reason", "asset", "duplicate", "empty", "marker"))
+def test_alpha003_pair_panel_strict_error_keeps_concrete_asset(alpha003_pair, monkeypatch):
+    native, _build = alpha003_pair
+    context = native._factor_runtime.get("strict_context")
+    assert context is not None
+    physical = native._physical_nodes[0]
+    failed_index = 2
+    failed_target = native.target_datas[failed_index]
+    failed_input = physical._values[failed_index]
+    original_read_panel_window = operators._read_panel_window
+
+    def fail_one_asset(source, target, period):
+        if source is failed_input and target is failed_target:
+            raise operators.OperatorInputError("synthetic pair-panel source failure")
+        return original_read_panel_window(source, target, period)
+
+    monkeypatch.setattr(operators, "_read_panel_window", fail_one_asset)
+    with pytest.raises(FactorComputationError) as captured:
+        physical._evaluate_panel()
+
+    assert captured.value.asset == context.asset_for(failed_target)
+    assert captured.value.asset == "asset-%d" % failed_index
+
+
+@pytest.mark.parametrize(
+    "damage",
+    ("value", "reason", "asset", "duplicate", "empty", "marker", "physical-binding"),
+)
 def test_alpha003_graph_pair_rejects_corruption(alpha003_pair, damage):
     native, build = alpha003_pair
 
@@ -73,9 +101,12 @@ def test_alpha003_graph_pair_rejects_corruption(alpha003_pair, damage):
         build._nodes["extra-diagnostic-label"] = build._nodes["negate_0"]
     elif damage == "empty":
         build._nodes.clear()
-    else:
+    elif damage == "marker":
         node = build._nodes["correlation10_0"]
         node._operand_args[0]._factor_research_target = object()
+    else:
+        physical = native._physical_nodes[0]
+        physical._logical_views = tuple(reversed(physical._logical_views))
 
     report = compare_factor_graphs(native, build, 3)
 
@@ -95,21 +126,24 @@ def _clone_with_reason(node, target, reason_delta):
 
 
 def test_duplicate_ast_nodes_pair_by_value_and_reason_not_insertion_order(alpha003_pair):
-    native, build = alpha003_pair
-    target_native = native.target_datas[0]
-    target_build = build.target_datas[0]
-    base_native = native._nodes.pop("negate_0")
-    base_build = build._nodes.pop("negate_0")
-    first_native = _clone_with_reason(base_native, target_native, 0.0)
-    second_native = _clone_with_reason(base_native, target_native, 1.0)
-    first_build = _clone_with_reason(base_build, target_build, 0.0)
-    second_build = _clone_with_reason(base_build, target_build, 1.0)
-    native._nodes["native-copy-a"] = first_native
-    native._nodes["native-copy-b"] = second_native
-    build._nodes["build-copy-b"] = second_build
-    build._nodes["build-copy-a"] = first_build
+    _native, build = alpha003_pair
+    left = copy.copy(build)
+    right = copy.copy(build)
+    left._nodes = dict(build._nodes)
+    right._nodes = dict(build._nodes)
+    target = build.target_datas[0]
+    base_left = left._nodes.pop("negate_0")
+    base_right = right._nodes.pop("negate_0")
+    first_left = _clone_with_reason(base_left, target, 0.0)
+    second_left = _clone_with_reason(base_left, target, 1.0)
+    first_right = _clone_with_reason(base_right, target, 0.0)
+    second_right = _clone_with_reason(base_right, target, 1.0)
+    left._nodes["left-copy-a"] = first_left
+    left._nodes["left-copy-b"] = second_left
+    right._nodes["right-copy-b"] = second_right
+    right._nodes["right-copy-a"] = first_right
 
-    report = compare_factor_graphs(native, build, 3)
+    report = compare_factor_graphs(left, right, 3)
 
     assert report["equal"], report["failures"]
     assert report["node_count_left"] == report["node_count_right"] == 15

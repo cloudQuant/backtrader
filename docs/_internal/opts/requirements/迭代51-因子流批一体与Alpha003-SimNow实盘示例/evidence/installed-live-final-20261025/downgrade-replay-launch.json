@@ -1,0 +1,40 @@
+{
+  "command": [
+    "D:/temp/i5051c-20261025-r6/venv/Scripts/python.exe",
+    "-I",
+    "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py",
+    "--wheel",
+    "D:/temp/i5051b-03852948a7a4/wheel/back_trader_python-1.4.0-py3-none-any.whl",
+    "--wheel-sha256",
+    "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+    "--workspace",
+    "D:\\temp\\i51-offline-a69\\replay-downgrade",
+    "--config",
+    "D:\\temp\\i51-offline-a69\\replay-downgrade\\runner.yaml",
+    "--mode",
+    "replay",
+    "--factor-mode",
+    "native"
+  ],
+  "helper_sha256": "6b7ecf3f19ec7617c56cc13849ec4dfe0973b244c5e5594233bebc9aa42cf5ae",
+  "input_pins": {
+    "D:\\temp\\i51-offline-a69\\replay-downgrade\\selection.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\selection.json",
+      "sha256": "80b133c3c1c72b9bc001747e79d62c250b0e6f26a2e142b258b9a6c2fa472da7"
+    },
+    "D:\\temp\\i51-offline-a69\\replay-downgrade\\minute.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\minute.json",
+      "sha256": "f41b4f1498707831ad065c148611ee3580b771b63ea8b2747b1e52477546a0d6"
+    },
+    "D:\\temp\\i51-offline-a69\\replay-downgrade\\quotes.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\quotes.json",
+      "sha256": "5b78a716199fb17de0800e4f0cd309b53ee6a9eaaf8d72890cfbc5d40d249296"
+    },
+    "D:\\temp\\i51-offline-a69\\replay-downgrade\\instruments.json": {
+      "source": "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\prepared-workspaces\\replay-native\\instruments.json",
+      "sha256": "1fad7f71cd332a946e4aba453a82cf4374ec2387b10ae7b79a58d24bd1712880"
+    }
+  },
+  "config_sha256": "55075fdc2b1d96b97700ac5561a170afb79e43f9fec72ed10d8bf45de93d9ce8",
+  "config_delta": "entry.tier replay -> live; input/output paths rebased to fresh workspace"
+}

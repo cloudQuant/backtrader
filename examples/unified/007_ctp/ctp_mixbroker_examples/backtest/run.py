@@ -4,23 +4,26 @@ This module runs backtest examples using MixBroker with configuration from YAML 
 """
 from __future__ import annotations
 
-# This fence must remain before every legacy framework, CTP, or provider import.
+# Keep this retirement fence before every legacy framework, CTP, or provider import.
 import sys as _iteration41_sys
 from pathlib import Path as _Iteration41Path
 
 _ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parents[2] / "runtime"
+_ITERATION41_EXAMPLE_ROOT = _ITERATION41_RUNTIME_DIR.parent
 _ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[3]
 if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
     _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+if str(_ITERATION41_EXAMPLE_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_EXAMPLE_ROOT))
 
-from backtrader_runtime.legacy import (  # noqa: E402
+from iteration41_007_ctp_retired_runtime import (  # noqa: E402
     legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
-    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+    run_retired_ctp_runtime_cli as _iteration41_run_retired_ctp_runtime_cli,
 )
 
 
 def _run_config_first_cli(argv=None) -> int:
-    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+    return _iteration41_run_retired_ctp_runtime_cli(_ITERATION41_RUNTIME_DIR, argv)
 
 
 def main(*args, **kwargs):

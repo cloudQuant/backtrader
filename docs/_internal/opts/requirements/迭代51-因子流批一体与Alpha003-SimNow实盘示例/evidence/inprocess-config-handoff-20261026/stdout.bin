@@ -1,0 +1,69 @@
+FF............F...                                                       [100%]
+================================== FAILURES ===================================
+_ test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed] _
+tests\integration\test_live_alpha003_history_catchup_execution.py:856: in test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel
+    result = cerebro.run(runonce=False, preload=False)
+backtrader\cerebro.py:107: in _wrapped
+    result = run_method(self, *args, **kwargs)
+backtrader\cerebro.py:931: in run
+    runstrat = self.runstrategies(iterstrat)
+backtrader\_cerebro\execution.py:223: in runstrategies
+    strat._start()
+backtrader\strategy.py:1901: in _start
+    self.start()
+tests\integration\test_live_alpha003_history_catchup_execution.py:771: in start
+    self.seed_order = self.buy(
+backtrader\strategy.py:3615: in buy
+    order = self.broker.buy(
+backtrader\brokers\btapibroker.py:5253: in buy
+    order = BuyOrder(
+backtrader\order.py:925: in __init__
+    super().__init__(**kwargs)
+backtrader\order.py:578: in __init__
+    pclose = self.data.close[0] if not self.p.simulated else self.price
+backtrader\linebuffer.py:603: in __getitem__
+    raise IndexError("array index out of range")
+E   IndexError: array index out of range
+_ test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape] _
+tests\integration\test_live_alpha003_history_catchup_execution.py:856: in test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel
+    result = cerebro.run(runonce=False, preload=False)
+backtrader\cerebro.py:107: in _wrapped
+    result = run_method(self, *args, **kwargs)
+backtrader\cerebro.py:931: in run
+    runstrat = self.runstrategies(iterstrat)
+backtrader\_cerebro\execution.py:223: in runstrategies
+    strat._start()
+backtrader\strategy.py:1901: in _start
+    self.start()
+tests\integration\test_live_alpha003_history_catchup_execution.py:771: in start
+    self.seed_order = self.buy(
+backtrader\strategy.py:3615: in buy
+    order = self.broker.buy(
+backtrader\brokers\btapibroker.py:5253: in buy
+    order = BuyOrder(
+backtrader\order.py:925: in __init__
+    super().__init__(**kwargs)
+backtrader\order.py:578: in __init__
+    pclose = self.data.close[0] if not self.p.simulated else self.price
+backtrader\linebuffer.py:603: in __getitem__
+    raise IndexError("array index out of range")
+E   IndexError: array index out of range
+_________ test_prenext_durably_records_each_complete_warmup_grid_once _________
+tests\unit\test_alpha003_simnow_strategy.py:1017: in test_prenext_durably_records_each_complete_warmup_grid_once
+    _STRATEGY.Alpha003TargetStrategy.prenext(strategy)
+examples\unified\028_alpha003_simnow_minute\alpha003_strategy.py:4447: in prenext
+    self._run_live_prenext_risk()
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_run_live_prenext_risk'
+============================== warnings summary ===============================
+C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394
+  C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: D:\temp\i51-functional-focus-20261026-r2\junit.xml ----
+=========================== short test summary info ===========================
+FAILED tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[tape-write-failed]
+FAILED tests/integration/test_live_alpha003_history_catchup_execution.py::test_alpha003_prenext_history_warmup_dispatches_owned_risk_cancel[durable-tape]
+FAILED tests/unit/test_alpha003_simnow_strategy.py::test_prenext_durably_records_each_complete_warmup_grid_once
+3 failed, 15 passed, 1 warning in 10.49s

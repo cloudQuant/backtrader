@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, Mapping, Optional
 
-from backtrader.feeds import BarEvidence, ClockMapping, CtpQuoteEvidence
+from backtrader.feeds import BarEvidence, ClockMapping, MarketQuoteEvidence
 
 UTC = timezone.utc
 REPLAY_BASE = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
@@ -154,10 +154,10 @@ class ReplayQuoteProducer:
             received_at = event_time
             sequence = self._quote_sequence(minute_index, sample, leg_index)
             price = self._quote_prices(minute_index, symbol)
-            typed = CtpQuoteEvidence(
+            typed = MarketQuoteEvidence(
                 symbol=symbol,
                 exchange=self.exchange,
-                asset_type="ctp-option" if symbol != self.contracts["future"] else "ctp-future",
+                asset_type="option" if symbol != self.contracts["future"] else "future",
                 bid=float(price["bid"]),
                 ask=float(price["ask"]),
                 bid_size=float(price["bid_qty"]),
@@ -171,8 +171,8 @@ class ReplayQuoteProducer:
                 ingest_seq=sequence,
                 connection_generation=self.generation,
                 subscription_epoch=1,
-                trading_day=self.trading_day,
-                action_day=self.trading_day,
+                trading_date=self.trading_day,
+                event_session_date=self.trading_day,
                 clock_domain_id=REPLAY_CLOCK_DOMAIN,
                 rules_hash=self.rules_hash,
                 source="iter24-explicit-replay-quote",
@@ -184,7 +184,7 @@ class ReplayQuoteProducer:
         return tuple(result)
 
     def _quote_mapping(
-        self, quote: CtpQuoteEvidence, event_time: datetime, received_at: datetime
+        self, quote: MarketQuoteEvidence, event_time: datetime, received_at: datetime
     ) -> Dict[str, Any]:
         return {
             "symbol": quote.symbol,
@@ -194,8 +194,8 @@ class ReplayQuoteProducer:
             "received_monotonic_ns": quote.receive_monotonic_ns,
             "ingest_seq": quote.ingest_seq,
             "generation": quote.connection_generation,
-            "trading_day": quote.trading_day,
-            "action_day": quote.action_day,
+            "trading_date": quote.trading_date,
+            "event_session_date": quote.event_session_date,
             "session_segment": REPLAY_SESSION,
             "rules_hash": quote.rules_hash,
             "clock_domain": quote.clock_domain_id,

@@ -1,0 +1,13 @@
+Processing d:\temp\ac51-r0-sdk-20261026-r2\stage\bt_api_ctp
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_ctp
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl size=5481703 sha256=b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f
+  Stored in directory: D:\temp\ac51-r0-sdk-20261026-r2\build-temp\pip-ephem-wheel-cache-gtfk9xoi\wheels\1a\2c\2f\a11d7a6599980b0e815bfe482b7290696c5acf5ad78dcc036c
+Successfully built bt_api_ctp

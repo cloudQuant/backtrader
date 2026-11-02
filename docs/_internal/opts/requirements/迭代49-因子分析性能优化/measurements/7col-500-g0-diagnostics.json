@@ -1,0 +1,961 @@
+{
+  "status": "ACCEPTED_G0_LOCAL_500_ONLY",
+  "diagnostic_note": "One separate full diagnostic per arm for 026/027; not included in formal three-pair ratios. No full universe acceptance.",
+  "diagnostics": [
+    {
+      "example": "026",
+      "arm": "a",
+      "result_path": "D:\\temp\\iteration49-7col-g0-diagnostic-a-026\\result.json",
+      "result_pin": {
+        "sha256": "168958c5787f8e7411487dd6663a5cf26eb123dc128d29c4c03e6564fa3cce7b",
+        "size_bytes": 1339329
+      },
+      "diagnostic_sources": {
+        "fingerprint_value": {
+          "aliases_wrapped": [
+            "fincore.factor_analysis.models.fingerprint_value",
+            "fincore.factor_analysis.research.fingerprint_value"
+          ],
+          "filename": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\factor_analysis\\models.py",
+          "firstlineno": 1329,
+          "module": "fincore.factor_analysis.models",
+          "qualname": "fingerprint_value"
+        },
+        "strategy_periodset": true,
+        "validate_factors": true
+      },
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 2421875000,
+          "process_cpu_inclusive_ns": 2421875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2582338800,
+          "wall_inclusive_ns": 2582338800
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 2062500000,
+          "process_cpu_inclusive_ns": 24531250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2007326500,
+          "wall_inclusive_ns": 25646957900
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 2937500000,
+          "process_cpu_inclusive_ns": 2937500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3007009500,
+          "wall_inclusive_ns": 3007009500
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 27046875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 65902000,
+          "wall_inclusive_ns": 28295198700
+        },
+        "dataframe_to_csv": {
+          "calls": 13,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 5468750000,
+          "process_cpu_inclusive_ns": 5468750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 5593865900,
+          "wall_inclusive_ns": 5593865900
+        },
+        "diagnostic_fingerprint_value": {
+          "calls": 13,
+          "parent_labels": [
+            "fincore_evaluate",
+            "html_report"
+          ],
+          "process_cpu_exclusive_ns": 48359375000,
+          "process_cpu_inclusive_ns": 48359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 49995223500,
+          "wall_inclusive_ns": 49995223500
+        },
+        "diagnostic_periodset": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1015625000,
+          "process_cpu_inclusive_ns": 1015625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1042824500,
+          "wall_inclusive_ns": 1042824500
+        },
+        "diagnostic_validate_factors": {
+          "calls": 1,
+          "parent_labels": [
+            "fincore_evaluate"
+          ],
+          "process_cpu_exclusive_ns": 1062500000,
+          "process_cpu_inclusive_ns": 1062500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1074057800,
+          "wall_inclusive_ns": 1074057800
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 16531250000,
+          "process_cpu_inclusive_ns": 19468750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 17359649200,
+          "wall_inclusive_ns": 20366658700
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 203125000,
+          "process_cpu_inclusive_ns": 45203125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 209567800,
+          "wall_inclusive_ns": 46544194900
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 531250000,
+          "process_cpu_inclusive_ns": 531250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 564055200,
+          "wall_inclusive_ns": 564055200
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 5156250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3287100,
+          "wall_inclusive_ns": 5299075500
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1671875000,
+          "process_cpu_inclusive_ns": 1671875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1922942300,
+          "wall_inclusive_ns": 1922942300
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 8453125000,
+          "process_cpu_inclusive_ns": 45000000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 8673401500,
+          "wall_inclusive_ns": 46334627100
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 10343750000,
+          "process_cpu_inclusive_ns": 23218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 10744929600,
+          "wall_inclusive_ns": 24152985300
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1515625000,
+          "process_cpu_inclusive_ns": 1515625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1627859500,
+          "wall_inclusive_ns": 1627859500
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 296875000,
+          "process_cpu_inclusive_ns": 296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 287651900,
+          "wall_inclusive_ns": 287651900
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 19554000,
+          "wall_inclusive_ns": 307205900
+        }
+      },
+      "memory": {
+        "after_imports_before_main": {
+          "peak_working_set_bytes": 174821376,
+          "rss_bytes": 174821376,
+          "working_set_bytes": 174821376
+        },
+        "after_load_daily_panel": {
+          "elapsed_main_ns": 1415947000,
+          "rss_bytes": 191238144
+        },
+        "after_main": {
+          "peak_working_set_bytes": 1243078656,
+          "rss_bytes": 412106752,
+          "working_set_bytes": 412106752
+        },
+        "panel_dataframe_deep_bytes": 5750400,
+        "panel_dataframe_deep_measurement_ns": 217502100
+      },
+      "runner_sha256": {
+        "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+        "size_bytes": 33507
+      },
+      "backtrader_source": {
+        "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+        "kind": "verified_snapshot_manifest_v1",
+        "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+        "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+      },
+      "fincore_source": {
+        "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+        "kind": "verified_snapshot_manifest_v1",
+        "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+        "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+      },
+      "main_wall_seconds": 106.7980767
+    },
+    {
+      "example": "026",
+      "arm": "b",
+      "result_path": "D:\\temp\\iteration49-7col-g0-diagnostic-b-026\\result.json",
+      "result_pin": {
+        "sha256": "30e71ad59c1d755be700c81c59eaccaced7259a317de5187e49978455619db03",
+        "size_bytes": 1323300
+      },
+      "diagnostic_sources": {
+        "fingerprint_value": {
+          "aliases_wrapped": [
+            "fincore.factor_analysis.models.fingerprint_value",
+            "fincore.factor_analysis.research.fingerprint_value"
+          ],
+          "filename": "D:\\source_code\\fincore\\fincore\\factor_analysis\\models.py",
+          "firstlineno": 1329,
+          "module": "fincore.factor_analysis.models",
+          "qualname": "fingerprint_value"
+        },
+        "strategy_periodset": true,
+        "validate_factors": true
+      },
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 875000000,
+          "process_cpu_inclusive_ns": 875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 901779600,
+          "wall_inclusive_ns": 901779600
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1921875000,
+          "process_cpu_inclusive_ns": 26218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1964522200,
+          "wall_inclusive_ns": 26806755500
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runonce"
+          ],
+          "process_cpu_exclusive_ns": 3187500000,
+          "process_cpu_inclusive_ns": 3187500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 3213247600,
+          "wall_inclusive_ns": 3213247600
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 46875000,
+          "process_cpu_inclusive_ns": 27140625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 70650700,
+          "wall_inclusive_ns": 27779185800
+        },
+        "dataframe_to_csv": {
+          "calls": 13,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 5546875000,
+          "process_cpu_inclusive_ns": 5546875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 5704643400,
+          "wall_inclusive_ns": 5704643400
+        },
+        "diagnostic_fingerprint_value": {
+          "calls": 13,
+          "parent_labels": [
+            "fincore_evaluate",
+            "html_report"
+          ],
+          "process_cpu_exclusive_ns": 48343750000,
+          "process_cpu_inclusive_ns": 48343750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 49932579800,
+          "wall_inclusive_ns": 49932579800
+        },
+        "diagnostic_periodset": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 31250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 27931700,
+          "wall_inclusive_ns": 27931700
+        },
+        "diagnostic_validate_factors": {
+          "calls": 1,
+          "parent_labels": [
+            "fincore_evaluate"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 15625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 20964700,
+          "wall_inclusive_ns": 20964700
+        },
+        "engine_runonce": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 18937500000,
+          "process_cpu_inclusive_ns": 22125000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 19360625100,
+          "wall_inclusive_ns": 22573872700
+        },
+        "evaluate_frames": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 93750000,
+          "process_cpu_inclusive_ns": 43765625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 103606900,
+          "wall_inclusive_ns": 45408104800
+        },
+        "evaluation_charts": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluation_export"
+          ],
+          "process_cpu_exclusive_ns": 515625000,
+          "process_cpu_inclusive_ns": 515625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 507451600,
+          "wall_inclusive_ns": 507451600
+        },
+        "evaluation_export": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 0,
+          "process_cpu_inclusive_ns": 5187500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2644900,
+          "wall_inclusive_ns": 5321288000
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1828125000,
+          "process_cpu_inclusive_ns": 1828125000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1922233700,
+          "wall_inclusive_ns": 1922233700
+        },
+        "fincore_evaluate": {
+          "calls": 1,
+          "parent_labels": [
+            "evaluate_frames"
+          ],
+          "process_cpu_exclusive_ns": 8296875000,
+          "process_cpu_inclusive_ns": 43671875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 8709901000,
+          "wall_inclusive_ns": 45304497900
+        },
+        "html_report": {
+          "calls": 3,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 10875000000,
+          "process_cpu_inclusive_ns": 23859375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 11405966100,
+          "wall_inclusive_ns": 24764913700
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1718750000,
+          "process_cpu_inclusive_ns": 1718750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1821049300,
+          "wall_inclusive_ns": 1821049300
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 296875000,
+          "process_cpu_inclusive_ns": 296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 293090500,
+          "wall_inclusive_ns": 293090500
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 312500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 25104700,
+          "wall_inclusive_ns": 318195200
+        }
+      },
+      "memory": {
+        "after_imports_before_main": {
+          "peak_working_set_bytes": 174718976,
+          "rss_bytes": 174718976,
+          "working_set_bytes": 174718976
+        },
+        "after_load_daily_panel": {
+          "elapsed_main_ns": 1600169000,
+          "rss_bytes": 191156224
+        },
+        "after_main": {
+          "peak_working_set_bytes": 1244454912,
+          "rss_bytes": 413155328,
+          "working_set_bytes": 413155328
+        },
+        "panel_dataframe_deep_bytes": 5750400,
+        "panel_dataframe_deep_measurement_ns": 226870700
+      },
+      "runner_sha256": {
+        "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+        "size_bytes": 33507
+      },
+      "backtrader_source": {
+        "branch": "dev",
+        "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+        "kind": "git_worktree",
+        "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+        "source_status": [
+          " M backtrader/research/specs.py",
+          " M backtrader/strategy.py",
+          " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+        ]
+      },
+      "fincore_source": {
+        "branch": "dev",
+        "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+        "kind": "git_worktree",
+        "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+        "source_status": [
+          " M fincore/factor_analysis/research.py"
+        ]
+      },
+      "main_wall_seconds": 106.0054669
+    },
+    {
+      "example": "027",
+      "arm": "a",
+      "result_path": "D:\\temp\\iteration49-7col-g0-diagnostic-a-027\\result.json",
+      "result_pin": {
+        "sha256": "5ddc3a474e8d07f2ac09dd122cd9efdb860b1995c5f4a19549d745fd1f29d0d8",
+        "size_bytes": 699065
+      },
+      "diagnostic_sources": {
+        "fingerprint_value": {
+          "aliases_wrapped": [
+            "fincore.factor_analysis.models.fingerprint_value",
+            "fincore.factor_analysis.research.fingerprint_value"
+          ],
+          "filename": "D:\\temp\\iteration49-b0-fincore-e04bd08\\fincore\\factor_analysis\\models.py",
+          "firstlineno": 1329,
+          "module": "fincore.factor_analysis.models",
+          "qualname": "fingerprint_value"
+        },
+        "strategy_periodset": true,
+        "validate_factors": true
+      },
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 2359375000,
+          "process_cpu_inclusive_ns": 2359375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 2474098700,
+          "wall_inclusive_ns": 2474098700
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 968750000,
+          "process_cpu_inclusive_ns": 31890625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1070699100,
+          "wall_inclusive_ns": 33185674800
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runnext"
+          ],
+          "process_cpu_exclusive_ns": 1984375000,
+          "process_cpu_inclusive_ns": 1984375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1916841100,
+          "wall_inclusive_ns": 1916841100
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 375000000,
+          "process_cpu_inclusive_ns": 34625000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 343644500,
+          "wall_inclusive_ns": 36003418000
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 609375000,
+          "process_cpu_inclusive_ns": 609375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 647057700,
+          "wall_inclusive_ns": 647057700
+        },
+        "diagnostic_fingerprint_value": {
+          "calls": 2,
+          "parent_labels": [
+            "html_report"
+          ],
+          "process_cpu_exclusive_ns": 4375000000,
+          "process_cpu_inclusive_ns": 4375000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4709733000,
+          "wall_inclusive_ns": 4709733000
+        },
+        "diagnostic_periodset": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 546875000,
+          "process_cpu_inclusive_ns": 546875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 572271700,
+          "wall_inclusive_ns": 572271700
+        },
+        "engine_runnext": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 26234375000,
+          "process_cpu_inclusive_ns": 28218750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 27516622000,
+          "wall_inclusive_ns": 29433463100
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1875000000,
+          "process_cpu_inclusive_ns": 1875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1839289800,
+          "wall_inclusive_ns": 1839289800
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 3921875000,
+          "process_cpu_inclusive_ns": 8296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4028645900,
+          "wall_inclusive_ns": 8738378900
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1593750000,
+          "process_cpu_inclusive_ns": 1593750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1609120200,
+          "wall_inclusive_ns": 1609120200
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 250000000,
+          "process_cpu_inclusive_ns": 250000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 248729400,
+          "wall_inclusive_ns": 248729400
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 31250000,
+          "process_cpu_inclusive_ns": 281250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 21221700,
+          "wall_inclusive_ns": 269951100
+        }
+      },
+      "memory": {
+        "after_imports_before_main": {
+          "peak_working_set_bytes": 174813184,
+          "rss_bytes": 174813184,
+          "working_set_bytes": 174813184
+        },
+        "after_load_daily_panel": {
+          "elapsed_main_ns": 1381718800,
+          "rss_bytes": 190910464
+        },
+        "after_main": {
+          "peak_working_set_bytes": 495431680,
+          "rss_bytes": 357945344,
+          "working_set_bytes": 357945344
+        },
+        "panel_dataframe_deep_bytes": 5750400,
+        "panel_dataframe_deep_measurement_ns": 230395300
+      },
+      "runner_sha256": {
+        "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+        "size_bytes": 33507
+      },
+      "backtrader_source": {
+        "commit": "e305e48de1d3f2f0aa428a506aff0eeba398a338",
+        "kind": "verified_snapshot_manifest_v1",
+        "manifest_sha256": "937180bbc54b424edf016f38535da3cbf97f0cb1e5f9e4914277e76d5fe93132",
+        "source_content_sha256": "4f43ef50fb0ab8224cce9f8447b93b8ddf4089179056606fcc4f167930fedf9e"
+      },
+      "fincore_source": {
+        "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+        "kind": "verified_snapshot_manifest_v1",
+        "manifest_sha256": "439eadb28881b3910862891d6232c9c6e6b453868cf81b3702db0ff7ef3f0cf5",
+        "source_content_sha256": "f4d5081f1959a7d5399dc5aee93c4b86ba0401ef0b9981b3f30245d41906561f"
+      },
+      "main_wall_seconds": 47.0081942
+    },
+    {
+      "example": "027",
+      "arm": "b",
+      "result_path": "D:\\temp\\iteration49-7col-g0-diagnostic-b-027\\result.json",
+      "result_pin": {
+        "sha256": "de4a2ab48fbaf39bb7f701fb95b2617b2e78be10ddea3788d6c762c0f25b5259",
+        "size_bytes": 681631
+      },
+      "diagnostic_sources": {
+        "fingerprint_value": {
+          "aliases_wrapped": [
+            "fincore.factor_analysis.models.fingerprint_value",
+            "fincore.factor_analysis.research.fingerprint_value"
+          ],
+          "filename": "D:\\source_code\\fincore\\fincore\\factor_analysis\\models.py",
+          "firstlineno": 1329,
+          "module": "fincore.factor_analysis.models",
+          "qualname": "fingerprint_value"
+        },
+        "strategy_periodset": true,
+        "validate_factors": true
+      },
+      "phase_timers": {
+        "align_to_grid": {
+          "calls": 500,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 875000000,
+          "process_cpu_inclusive_ns": 875000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 885564200,
+          "wall_inclusive_ns": 885564200
+        },
+        "cerebro_run": {
+          "calls": 1,
+          "parent_labels": [
+            "collection"
+          ],
+          "process_cpu_exclusive_ns": 1078125000,
+          "process_cpu_inclusive_ns": 31062500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1091674800,
+          "wall_inclusive_ns": 32570527200
+        },
+        "collect_grid_points": {
+          "calls": 243,
+          "parent_labels": [
+            "engine_runnext"
+          ],
+          "process_cpu_exclusive_ns": 1906250000,
+          "process_cpu_inclusive_ns": 1906250000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1911091300,
+          "wall_inclusive_ns": 1911091300
+        },
+        "collection": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 359375000,
+          "process_cpu_inclusive_ns": 32296875000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 352526600,
+          "wall_inclusive_ns": 33808618000
+        },
+        "dataframe_to_csv": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 625000000,
+          "process_cpu_inclusive_ns": 625000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 762489400,
+          "wall_inclusive_ns": 762489400
+        },
+        "diagnostic_fingerprint_value": {
+          "calls": 2,
+          "parent_labels": [
+            "html_report"
+          ],
+          "process_cpu_exclusive_ns": 4234375000,
+          "process_cpu_inclusive_ns": 4234375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4486765400,
+          "wall_inclusive_ns": 4486765400
+        },
+        "diagnostic_periodset": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 15625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 17144500,
+          "wall_inclusive_ns": 17144500
+        },
+        "engine_runnext": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 26062500000,
+          "process_cpu_inclusive_ns": 27968750000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 27382368500,
+          "wall_inclusive_ns": 29293459800
+        },
+        "feed_preload": {
+          "calls": 500,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 1750000000,
+          "process_cpu_inclusive_ns": 1750000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1886052700,
+          "wall_inclusive_ns": 1886052700
+        },
+        "html_report": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 3906250000,
+          "process_cpu_inclusive_ns": 8140625000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 4058924300,
+          "wall_inclusive_ns": 8545689700
+        },
+        "load_daily_panel": {
+          "calls": 1,
+          "parent_labels": [],
+          "process_cpu_exclusive_ns": 1562500000,
+          "process_cpu_inclusive_ns": 1562500000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 1601183100,
+          "wall_inclusive_ns": 1601183100
+        },
+        "sink_finalize": {
+          "calls": 1,
+          "parent_labels": [
+            "strategy_stop"
+          ],
+          "process_cpu_exclusive_ns": 234375000,
+          "process_cpu_inclusive_ns": 234375000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 264768200,
+          "wall_inclusive_ns": 264768200
+        },
+        "strategy_stop": {
+          "calls": 1,
+          "parent_labels": [
+            "cerebro_run"
+          ],
+          "process_cpu_exclusive_ns": 15625000,
+          "process_cpu_inclusive_ns": 250000000,
+          "recursive_suppressed": 0,
+          "wall_exclusive_ns": 17427200,
+          "wall_inclusive_ns": 282195400
+        }
+      },
+      "memory": {
+        "after_imports_before_main": {
+          "peak_working_set_bytes": 174362624,
+          "rss_bytes": 174362624,
+          "working_set_bytes": 174362624
+        },
+        "after_load_daily_panel": {
+          "elapsed_main_ns": 1373997100,
+          "rss_bytes": 190898176
+        },
+        "after_main": {
+          "peak_working_set_bytes": 495095808,
+          "rss_bytes": 357097472,
+          "working_set_bytes": 357097472
+        },
+        "panel_dataframe_deep_bytes": 5750400,
+        "panel_dataframe_deep_measurement_ns": 230406700
+      },
+      "runner_sha256": {
+        "sha256": "a971ca097236c6ffbaf85f5291bf58e47022d1f452c861e810bc3b8190a2ea0a",
+        "size_bytes": 33507
+      },
+      "backtrader_source": {
+        "branch": "dev",
+        "commit": "1108ad608eb1c3c5f4b273fef85d0174ed94735b",
+        "kind": "git_worktree",
+        "source_content_sha256": "6f67cfa751592d55e1695a8f4abc81ba7e5c091b0ef3f6f53e06af0fb6388ac5",
+        "source_status": [
+          " M backtrader/research/specs.py",
+          " M backtrader/strategy.py",
+          " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+        ]
+      },
+      "fincore_source": {
+        "branch": "dev",
+        "commit": "e04bd082b85374d58e304ec15d43dd134b7fe77b",
+        "kind": "git_worktree",
+        "source_content_sha256": "7b8e3915bf0447357bba88abf0386120ac2e8a0132bee51095487bc7cb5e8b81",
+        "source_status": [
+          " M fincore/factor_analysis/research.py"
+        ]
+      },
+      "main_wall_seconds": 44.7279722
+    }
+  ],
+  "source_pins": {
+    "D:\\source_code\\backtrader\\backtrader\\research\\specs.py": {
+      "sha256": "172347f62f38fb394b6ea76e7c2f89926d95dbe30d819e67bbfb5d1cb23c65c4",
+      "size_bytes": 29396
+    },
+    "D:\\source_code\\backtrader\\backtrader\\strategy.py": {
+      "sha256": "b24dd6f4d401760a0a64d15934a01c36ca6bb3636c205eb42273c87a31e44d76",
+      "size_bytes": 199696
+    },
+    "D:\\source_code\\backtrader\\tests\\unit\\test_factor_research_inputs.py": {
+      "sha256": "e1129fc0958838b6a151e7f09c321c6cbcd172d0f40e0cc2a14138499aa00b42",
+      "size_bytes": 7406
+    },
+    "D:\\source_code\\backtrader\\tests\\unit\\core\\test_strategy_periodset.py": {
+      "sha256": "b2cec741366cb57f2aef57445eb35a3001d86f8112222832543df5aa461c3f53",
+      "size_bytes": 7308
+    },
+    "D:\\source_code\\fincore\\fincore\\factor_analysis\\research.py": {
+      "sha256": "e9395c56e3a3dd36424a8f7092e4177244d1d726640192e21a99038b0bd375a0",
+      "size_bytes": 87570
+    },
+    "D:\\source_code\\fincore\\tests\\factor_analysis\\test_factor_analysis_research.py": {
+      "sha256": "5764b848a7d5a50dbbac530010933d30305cbcf8f08f7a392be8046fd7bd966e",
+      "size_bytes": 22023
+    }
+  },
+  "tests": {
+    "fincore_research": 28,
+    "initial_bt_inputs_and_periodset": 18,
+    "final_strategy_and_periodset": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "1289",
+      "time": "280.473",
+      "timestamp": "2026-10-23T15:01:56.077406",
+      "hostname": "yun"
+    },
+    "xml_path": "D:\\temp\\iteration49-g0-strategies-r1.xml",
+    "xml_pin": {
+      "sha256": "71c951a25babb7e86005a92aa0e95e5b21da52761476ec0af2a59c487f1912ee",
+      "size_bytes": 194582
+    },
+    "stdout_log_pin": {
+      "sha256": "3cbae094b8fdccbb79df9bd986c97033a3a71be2fa3482bfcc07021a3129c3dd",
+      "size_bytes": 5270
+    },
+    "warnings": "15 in full strategy lane: 9 existing pytest config, 3 pandas FutureWarning, 3 joblib physical-core fallback; initial async plugin collection failure ran no tests."
+  },
+  "review": "Independent final G0 source review GO; custom dynamic feed/lines preserve fallback semantics."
+}

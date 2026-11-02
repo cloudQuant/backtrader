@@ -1,0 +1,8504 @@
+"""Standalone entry point for the shared native Alpha003 example.
+
+The runner only adapts explicit inputs to Backtrader's normal Cerebro,
+FactorStrategy, shared bar-cohort, Broker and Store APIs.  It contains no
+Alpha003 formula and never turns an observed-bar intersection into a calendar.
+"""
+
+from __future__ import annotations
+
+import argparse
+from contextlib import contextmanager
+from copy import deepcopy
+from collections import defaultdict, deque
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
+import errno
+import hashlib
+import inspect
+import json
+import math
+import os
+from pathlib import Path
+import signal
+import stat
+import sys
+import threading
+import time
+from types import MappingProxyType
+from typing import Any, Callable, Mapping, Optional, Tuple
+import uuid
+
+import yaml
+
+from entry_tier import conflict as tier_conflict
+from entry_tier import decide as decide_tier
+from entry_tier import invalid as tier_invalid
+
+
+SCHEMA = "backtrader.alpha003.simnow_runner.v1"
+MINUTE_TAPE_SCHEMA = "backtrader.alpha003.minute_tape.v1"
+QUOTE_TAPE_SCHEMA = "backtrader.alpha003.execution_quote_tape.v1"
+METADATA_SCHEMA = "backtrader.alpha003.replay_instrument_metadata.v1"
+LEGACY_DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
+DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v2"
+SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
+# The 87-target GRID receipt and its production execution evidence exceed the
+# journal's general 64 KiB default. Keep this run-local cap bounded and leave
+# the journal-wide default unchanged.
+_LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES = 131_072
+
+
+UTC = timezone.utc
+OHLCV_FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
+RISK_FIELDS = (
+    "max_hold_eligible_bars",
+    "preclose_grace_seconds",
+    "run_end_policy",
+    "quote_max_age_seconds",
+    "max_state_age_seconds",
+    "max_notional_per_position",
+    "max_total_notional",
+    "max_margin_per_position",
+    "max_total_margin",
+    "max_loss_per_position",
+    "max_total_loss",
+    "round_trip_fee_upper_bound_per_contract",
+    "stop_loss_ticks",
+    "max_order_intents_per_grid",
+    "max_order_intents_per_run",
+)
+
+
+class RunnerError(ValueError):
+    """A public example input cannot establish its required run contract."""
+
+    def __init__(self, code: str, detail: Optional[str] = None) -> None:
+        self.code = code
+        self.detail = detail
+        super().__init__(code if detail is None else f"{code}: {detail}")
+
+
+def _mapping(value: Any, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RunnerError("INPUT_OBJECT_REQUIRED", label)
+    return value
+
+
+def _exact_keys(value: Mapping[str, Any], expected: set[str], label: str) -> None:
+    missing = expected.difference(value)
+    extra = set(value).difference(expected)
+    if missing or extra:
+        raise RunnerError(
+            "INPUT_FIELDS_INVALID",
+            f"{label}: missing={sorted(missing)} extra={sorted(extra)}",
+        )
+
+
+def _text(value: Any, label: str) -> str:
+    if type(value) is not str or not value or value != value.strip():
+        raise RunnerError("INPUT_TEXT_INVALID", label)
+    return value
+
+
+def _aware_datetime(value: Any, label: str) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    elif type(value) is str:
+        raw = value[:-1] + "+00:00" if value.endswith("Z") else value
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError:
+            raise RunnerError("INPUT_TIMESTAMP_INVALID", label) from None
+    else:
+        raise RunnerError("INPUT_TIMESTAMP_INVALID", label)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RunnerError("INPUT_TIMESTAMP_NAIVE", label)
+    return parsed.astimezone(UTC)
+
+
+def _iso_date(value: Any, label: str) -> date:
+    if type(value) is not str:
+        raise RunnerError("INPUT_DATE_INVALID", label)
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        raise RunnerError("INPUT_DATE_INVALID", label) from None
+    if parsed.isoformat() != value:
+        raise RunnerError("INPUT_DATE_INVALID", label)
+    return parsed
+
+
+def _tape_trading_day(value: Any, label: str) -> str:
+    """Serialize a neutral ISO trading date without parsing provider wire forms."""
+    return _iso_date(value, label).isoformat()
+
+
+def _number(value: Any, label: str, *, positive: bool = False, nonnegative: bool = False) -> float:
+    if isinstance(value, bool) or value is None:
+        raise RunnerError("INPUT_NUMBER_INVALID", label)
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        raise RunnerError("INPUT_NUMBER_INVALID", label) from None
+    if not math.isfinite(number):
+        raise RunnerError("INPUT_NUMBER_INVALID", label)
+    if positive and number <= 0:
+        raise RunnerError("INPUT_NUMBER_INVALID", label)
+    if nonnegative and number < 0:
+        raise RunnerError("INPUT_NUMBER_INVALID", label)
+    return number
+
+
+def _decimal(value: Any, label: str, *, positive: bool = False) -> Decimal:
+    if isinstance(value, bool) or value is None:
+        raise RunnerError("INPUT_DECIMAL_INVALID", label)
+    try:
+        number = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        raise RunnerError("INPUT_DECIMAL_INVALID", label) from None
+    if not number.is_finite() or (positive and number <= 0):
+        raise RunnerError("INPUT_DECIMAL_INVALID", label)
+    return number
+
+
+def _read_json(path: Path, label: str) -> Mapping[str, Any]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            value = json.load(handle, parse_float=Decimal)
+    except OSError:
+        raise RunnerError("INPUT_FILE_UNAVAILABLE", label) from None
+    except (json.JSONDecodeError, UnicodeError):
+        raise RunnerError("INPUT_JSON_INVALID", label) from None
+    return _mapping(value, label)
+
+
+def _resolve_path(config_path: Path, value: Any, label: str) -> Path:
+    if type(value) is not str or not value or value != value.strip():
+        raise RunnerError("INPUT_PATH_REQUIRED", label)
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = config_path.parent / path
+    return path.resolve(strict=False)
+
+
+_CONFIG_KEYS = {
+    "schema",
+    "mode",
+    "entry",
+    "factor",
+    "selection",
+    "inputs",
+    "research",
+    "cohort",
+    "replay",
+    "risk",
+    "live",
+    "output",
+}
+_SECTION_KEYS = {
+    "entry": {"tier"},
+    "factor": {"mode", "direction", "preheat_bars", "rebalance_every"},
+    "selection": {
+        "source",
+        "query_mode",
+        "bundle",
+        "authorized_products",
+        "daily_bundles",
+        "max_epochs",
+    },
+    "inputs": {"minute_tape", "execution_quotes", "instrument_metadata", "history_decision_tape"},
+    "research": {"start", "end", "source_timezone", "price_basis"},
+    "cohort": {
+        "calendar_id",
+        "calendar_version",
+        "epoch_id",
+        "clock_domain_id",
+        "timezone_id",
+        "session_semantics",
+        "max_pending_slots",
+        "max_window_bars",
+        "wait_timeout_seconds",
+        "max_live_bar_age_seconds",
+        "max_future_skew_seconds",
+    },
+    "replay": {"starting_cash", "commission"},
+    "risk": {"policy_id", *RISK_FIELDS},
+    "live": {
+        "store_config_env",
+        "allow_writes",
+        "account_scope",
+        "strategy_scope",
+        "logical_run_id",
+        "journal_path",
+        "arm_templates",
+        "ready_timeout_seconds",
+        "refresh_timeout_seconds",
+        "refresh_overall_timeout_seconds",
+        "refresh_interval_seconds",
+        "quote_max_age_seconds",
+        "query_max_age_seconds",
+        "loss_guard_net_loss_threshold",
+        "loss_guard_max_observation_age_seconds",
+        "shutdown_grace_seconds",
+        "golden_targets",
+    },
+    "output": {
+        "directory",
+        "evaluate_with_fincore",
+        "decision_tape_path",
+        "decision_tape_max_bytes",
+    },
+}
+
+
+def load_config(config_path: Path) -> dict[str, Any]:
+    try:
+        with config_path.open("r", encoding="utf-8") as handle:
+            config = yaml.safe_load(handle)
+    except OSError:
+        raise RunnerError("CONFIG_FILE_UNAVAILABLE", str(config_path)) from None
+    except yaml.YAMLError:
+        raise RunnerError("CONFIG_YAML_INVALID", str(config_path)) from None
+    config = dict(_mapping(config, "config"))
+    unknown = set(config).difference(_CONFIG_KEYS)
+    missing = _CONFIG_KEYS.difference(config)
+    if unknown or missing:
+        raise RunnerError(
+            "CONFIG_FIELDS_INVALID", f"missing={sorted(missing)} extra={sorted(unknown)}"
+        )
+    if config.get("schema") != SCHEMA:
+        raise RunnerError("CONFIG_SCHEMA_UNSUPPORTED", str(config.get("schema")))
+    if config.get("mode") not in {"dry", "research", "replay", "live"}:
+        raise RunnerError("CONFIG_MODE_INVALID")
+    for section, expected in _SECTION_KEYS.items():
+        row = dict(_mapping(config.get(section), section))
+        # Keep the original one-bundle public configuration valid.  Daily
+        # rollover is an additive opt-in and omitted source/epoch keys retain
+        # the original offline-bundle behavior for copied configurations.
+        if section == "selection":
+            row.setdefault("source", "bundle")
+            row.setdefault("query_mode", "legacy_two_query")
+            row.setdefault("daily_bundles", [])
+            row.setdefault("max_epochs", 1)
+        elif section == "inputs":
+            # Existing copied configurations remain valid; saved-history
+            # continuation is an explicit live-only opt-in.
+            row.setdefault("history_decision_tape", None)
+        elif section == "live":
+            # Golden live validation is an explicit feed subset; omitted keys
+            # preserve the existing complete-pool runner behavior.
+            row.setdefault("golden_targets", None)
+            # Existing copied configs remain valid for dry/read-only runs. A
+            # write-enabled live run validates these explicitly before setup.
+            row.setdefault("loss_guard_net_loss_threshold", None)
+            row.setdefault("loss_guard_max_observation_age_seconds", None)
+        extra = set(row).difference(expected)
+        missing_section = expected.difference(row)
+        if extra or missing_section:
+            raise RunnerError(
+                "CONFIG_SECTION_FIELDS_INVALID",
+                f"{section}: missing={sorted(missing_section)} extra={sorted(extra)}",
+            )
+        config[section] = row
+    daily_bundles = config["selection"]["daily_bundles"]
+    if type(daily_bundles) is not list:
+        raise RunnerError("DAILY_SELECTION_BUNDLES_INVALID")
+    for index, value in enumerate(daily_bundles):
+        _text(value, f"selection.daily_bundles[{index}]")
+    selection = config["selection"]
+    if selection["source"] not in {"bundle", "ctp_query"}:
+        raise RunnerError("SELECTION_SOURCE_INVALID")
+    if type(selection["query_mode"]) is not str or selection["query_mode"] not in {
+        "legacy_two_query",
+        "futures_market_snapshot",
+    }:
+        raise RunnerError("SELECTION_QUERY_MODE_INVALID")
+    if (
+        selection["source"] == "ctp_query"
+        and selection["query_mode"] != "futures_market_snapshot"
+    ):
+        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_MARKET_SNAPSHOT")
+    if selection["source"] != "ctp_query" and selection["query_mode"] != "legacy_two_query":
+        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_MARKET_SNAPSHOT")
+    max_epochs = selection["max_epochs"]
+    if type(max_epochs) is not int or not 1 <= max_epochs <= 100:
+        raise RunnerError("SELECTION_MAX_EPOCHS_INVALID")
+    if selection["source"] == "ctp_query" and daily_bundles:
+        raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
+    return config
+
+
+def _validate_golden_targets_option(
+    config: Mapping[str, Any], *, mode: str, decision: Any, allow_write_flag: bool
+) -> Optional[tuple[str, ...]]:
+    """Validate the opt-in read-only CTP golden feed subset before resources."""
+
+    live = config.get("live")
+    if not isinstance(live, Mapping):
+        raise RunnerError("LIVE_SECTION_INVALID")
+    raw_targets = live.get("golden_targets")
+    if raw_targets is None:
+        return None
+    selection = config.get("selection")
+    if (
+        mode != "live"
+        or not isinstance(selection, Mapping)
+        or selection.get("source") != "ctp_query"
+        or selection.get("daily_bundles")
+    ):
+        raise RunnerError("GOLDEN_TARGETS_LIVE_CTP_QUERY_REQUIRED")
+    if (
+        live.get("allow_writes") is not False
+        or allow_write_flag is not False
+        or getattr(decision, "effective_tier", None) != "live"
+    ):
+        raise RunnerError("GOLDEN_TARGETS_READ_ONLY_REQUIRED")
+    arm_templates = live.get("arm_templates")
+    if type(arm_templates) is not list or arm_templates:
+        raise RunnerError("GOLDEN_TARGETS_WRITE_CONFIGURATION_UNSUPPORTED")
+    if type(raw_targets) is not list:
+        raise RunnerError("GOLDEN_TARGETS_INVALID")
+    if not 3 <= len(raw_targets) <= 5:
+        raise RunnerError("GOLDEN_TARGETS_COUNT_INVALID")
+    targets = []
+    for target in raw_targets:
+        if (
+            type(target) is not str
+            or not target
+            or target != target.strip()
+            or target != target.upper()
+            or target.count(".") != 1
+            or any(not part for part in target.split("."))
+        ):
+            raise RunnerError("GOLDEN_TARGETS_INVALID")
+        targets.append(target)
+    if len(targets) != len(set(targets)):
+        raise RunnerError("GOLDEN_TARGETS_DUPLICATE")
+    authorized = selection.get("authorized_products")
+    if authorized is not None and (
+        type(authorized) is not list
+        or not authorized
+        or any(type(target) is not str or not target for target in authorized)
+        or not set(authorized).intersection(targets)
+    ):
+        raise RunnerError("GOLDEN_AUTHORIZED_TARGETS_EMPTY")
+    return tuple(sorted(targets))
+
+
+def _daily_bundle_paths(config: Mapping[str, Any], config_path: Path) -> tuple[Path, ...]:
+    """Resolve the ordered future bundles without opening their contents."""
+
+    rows = config["selection"].get("daily_bundles", [])
+    if type(rows) is not list:
+        raise RunnerError("DAILY_SELECTION_BUNDLES_INVALID")
+    primary = _resolve_path(config_path, config["selection"]["bundle"], "selection.bundle")
+    paths = tuple(
+        _resolve_path(config_path, value, f"selection.daily_bundles[{index}]")
+        for index, value in enumerate(rows)
+    )
+    if primary in paths or len(paths) != len(set(paths)):
+        raise RunnerError("DAILY_SELECTION_BUNDLE_DUPLICATE")
+    return paths
+
+
+def _requested_mode(config: Mapping[str, Any], cli_mode: Optional[str]) -> str:
+    return str(cli_mode or config["mode"])
+
+
+def resolve_mode(config: Mapping[str, Any], cli_mode: Optional[str]):
+    mode = _requested_mode(config, cli_mode)
+    requested_tier = "dry" if mode in ("dry", "research") else mode
+    decision = decide_tier(config, requested_tier if cli_mode is not None else None)
+    if tier_invalid(decision):
+        raise RunnerError("ENTRY_TIER_INVALID")
+    if tier_conflict(decision):
+        raise RunnerError("ENTRY_TIER_ESCALATION_DENIED")
+    mode_tier = "dry" if mode in ("dry", "research") else mode
+    rank = {"dry": 0, "replay": 1, "live": 2}
+    if rank[mode_tier] > rank[decision.effective_tier]:
+        raise RunnerError("ENTRY_TIER_ESCALATION_DENIED")
+    return mode, decision
+
+
+def _target_id(product: Any) -> str:
+    return f"{product.exchange_id}.{product.product_id}"
+
+
+def _session_documents(bundle: Mapping[str, Any]):
+    from backtrader.feeds.futures_sessions import load_exchange_session_calendar
+
+    docs = bundle.get("calendars")
+    if type(docs) is not list or not docs:
+        raise RunnerError("SESSION_CALENDAR_REQUIRED")
+    calendars = {}
+    for document in docs:
+        _mapping(document, "session calendar")
+        if document.get("schema") != "backtrader.exchange_session_calendar.v1":
+            raise RunnerError("SESSION_CALENDAR_SCHEMA_REQUIRED")
+        calendar = load_exchange_session_calendar(document)
+        if calendar.exchange_id in calendars:
+            raise RunnerError("SESSION_CALENDAR_DUPLICATE_EXCHANGE")
+        calendars[calendar.exchange_id] = calendar
+    return calendars
+
+
+def load_market_plan(
+    config: Mapping[str, Any], config_path: Path, *, bundle_path: Optional[Path] = None
+):
+    """Recompute contract selection and all-member UTC minute slots."""
+    from backtrader.feeds.futures_selection_io import load_selection_bundle
+    from backtrader.feeds.futures_sessions import build_common_minute_grid
+
+    selection_path = (
+        _resolve_path(config_path, config["selection"]["bundle"], "selection.bundle")
+        if bundle_path is None
+        else Path(bundle_path).expanduser().resolve(strict=False)
+    )
+    bundle = _read_json(selection_path, "selection.bundle")
+    manifest = load_selection_bundle(bundle)
+    if manifest.status != "READY":
+        raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
+    route_pairs = manifest.selected_mapping()
+    routes = dict(route_pairs)
+    products = tuple(manifest.target_products)
+    if set(routes) != set(products):
+        raise RunnerError("POINT_IN_TIME_ROUTE_SET_MISMATCH")
+    day_by_exchange = {row.exchange_id: row.current_trading_day for row in manifest.trading_days}
+    if set(day_by_exchange) != {product.exchange_id for product in products}:
+        raise RunnerError("POINT_IN_TIME_TRADING_DAY_SET_MISMATCH")
+    session_calendars = _session_documents(bundle)
+    if set(session_calendars) != {product.exchange_id for product in products}:
+        raise RunnerError("SESSION_CALENDAR_SET_MISMATCH")
+    product_days = {product: (day_by_exchange[product.exchange_id],) for product in products}
+    grid = build_common_minute_grid(
+        products,
+        tuple(session_calendars.values()),
+        product_days,
+        decision_at=manifest.decision_at,
+    )
+    if grid.status != "READY" or not grid.minutes:
+        raise RunnerError("PLANNED_MINUTE_GRID_BLOCKED", grid.status)
+    authorized_values = config["selection"]["authorized_products"]
+    if authorized_values is None:
+        authorized = tuple(_target_id(product) for product in products)
+    else:
+        if type(authorized_values) is not list or not authorized_values:
+            raise RunnerError("AUTHORIZED_PRODUCTS_INVALID")
+        authorized = tuple(_text(item, "authorized product") for item in authorized_values)
+        target_names = {_target_id(product) for product in products}
+        if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
+            raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
+    return {
+        "bundle": bundle,
+        "manifest": manifest,
+        "products": products,
+        "routes": routes,
+        "targets": tuple(_target_id(product) for product in products),
+        "product_by_target": {_target_id(product): product for product in products},
+        "target_by_product": {product: _target_id(product) for product in products},
+        "authorized_targets": authorized,
+        "session_calendars": session_calendars,
+        "grid": grid,
+        "selection_path": selection_path,
+        "selection_source": "saved_bundle_legacy",
+        "source_snapshot_id": manifest.source_snapshot_id,
+    }
+
+
+def build_futures_market_plan(store, config, *, clock, environment):
+    """Build a complete futures plan through one explicitly selected SDK route."""
+
+    from backtrader.feeds.futures_expected_calendar import (
+        ExpectedCalendarError,
+        build_expected_daytime_calendars,
+    )
+    from backtrader.feeds.futures_main_contract import (
+        FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+        ExchangeTradingDay,
+        ProductKey,
+        select_main_contracts,
+    )
+    from backtrader.feeds.futures_sessions import build_common_minute_grid
+    from backtrader.feeds.futures_snapshot import (
+        FuturesSnapshotError,
+        LeasedFuturesSnapshot,
+        collect_futures_snapshot,
+    )
+
+    if type(environment) is not str or environment != "simnow":
+        raise RunnerError("SIMNOW_PROFILE_REQUIRED")
+    selection = config.get("selection")
+    query_mode = selection.get("query_mode", "legacy_two_query") if isinstance(
+        selection, Mapping
+    ) else "legacy_two_query"
+    if type(query_mode) is not str or query_mode != "futures_market_snapshot":
+        raise RunnerError("FUTURES_MARKET_QUERY_MODE_UNSUPPORTED")
+
+    try:
+        from bt_api_py.futures_contracts import (
+            FuturesCatalogRecord,
+            FuturesContractKind,
+            FuturesMarketSnapshotRequest,
+            FuturesProductKey,
+            FuturesQuantityUnit,
+            FuturesVolumeSemantics,
+        )
+        from bt_api_py.facade_protocol import MarketInstrumentKey
+        from bt_api_py.futures_contracts import QuerySnapshotLease
+        from bt_api_py.facade_protocol import (
+            FuturesExpectedCalendarCompositionError,
+            FuturesExpectedCalendarPort,
+            FuturesExpectedCalendarSelector,
+        )
+        from bt_api_py.futures_expected_calendar_contracts import (
+            FuturesExpectedCalendarError,
+            FuturesExpectedCalendarRequest,
+            FuturesExpectedCalendarSnapshot,
+            FuturesExpectedTradingDay,
+            FuturesProductLastTradingDay,
+        )
+        from bt_api_py.futures_market_facade import (
+            FuturesMarketSnapshot,
+            FuturesMarketSnapshotFacade,
+        )
+        from bt_api_py.query_composition import QueryCompositionError
+        from bt_api_py.query_facade import QueryFacade
+    except ImportError:
+        raise RunnerError("FUTURES_MARKET_SDK_CONTRACT_UNAVAILABLE") from None
+
+    get_query_facade = getattr(store, "query_facade", None)
+    if not callable(get_query_facade):
+        raise RunnerError("SDK_STORE_QUERY_FACADE_UNAVAILABLE")
+    try:
+        query_facade = get_query_facade(_FUTURES_SDK_ROUTE)
+    except QueryCompositionError as error:
+        code = getattr(error, "code", None)
+        if type(code) is not str or not code.isascii() or not code.startswith("QUERY_"):
+            code = "QUERY_PROVIDER_SELECTION_FAILED"
+        raise RunnerError("FUTURES_QUERY_ROUTE_UNAVAILABLE", code) from None
+    except Exception:
+        raise RunnerError("FUTURES_QUERY_ROUTE_UNAVAILABLE") from None
+    if type(query_facade) is not QueryFacade:
+        raise RunnerError("FUTURES_QUERY_FACADE_TYPE_INVALID")
+    sdk_api = getattr(store, "sdk_api", None)
+    if sdk_api is None or not isinstance(sdk_api, FuturesExpectedCalendarSelector):
+        raise RunnerError("SDK_EXPECTED_CALENDAR_SELECTOR_UNAVAILABLE")
+    try:
+        calendar_port = sdk_api.futures_expected_calendar(_FUTURES_SDK_ROUTE)
+    except FuturesExpectedCalendarCompositionError as error:
+        code = error.code if type(error.code) is str and error.code.isascii() else (
+            "FUTURES_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE"
+        )
+        raise RunnerError("SDK_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE", code) from None
+    except Exception:
+        raise RunnerError("SDK_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE") from None
+    if not isinstance(calendar_port, FuturesExpectedCalendarPort):
+        raise RunnerError("SDK_EXPECTED_CALENDAR_PORT_INVALID")
+    try:
+        snapshot_facade = FuturesMarketSnapshotFacade(query_facade)
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_FACADE_UNAVAILABLE") from None
+
+    request_ref = "bt028-" + uuid.uuid4().hex
+    try:
+        request = FuturesMarketSnapshotRequest(
+            request_ref=request_ref,
+            environment=environment,
+            trading_day=None,
+            venues=None,
+            products=None,
+            instruments=None,
+            contract_kinds=(FuturesContractKind.FUTURE,),
+            require_active_session=False,
+            require_product_universe=True,
+            include_depth=False,
+            required_quote_fields=("open_interest", "volume"),
+            required_open_interest_unit=FuturesQuantityUnit.CONTRACTS,
+            required_volume_unit=FuturesQuantityUnit.CONTRACTS,
+            required_volume_semantics=FuturesVolumeSemantics.CUMULATIVE_TRADING_DAY,
+        )
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_REQUEST_INVALID") from None
+
+    try:
+        leased = collect_futures_snapshot(
+            snapshot_facade,
+            request,
+            max_collection_seconds=300.0,
+            max_snapshot_age_seconds=300.0,
+            lease_seconds=30.0,
+        )
+    except FuturesSnapshotError as error:
+        detail = error.code if type(error.code) is str and error.code.isascii() else (
+            "FUTURES_SNAPSHOT_UNAVAILABLE"
+        )
+        runner_error = RunnerError("FUTURES_MARKET_SNAPSHOT_COLLECTION_FAILED", detail)
+        runner_error.query_diagnostics = _project_futures_snapshot_query_diagnostics(error)
+        raise runner_error from None
+    except Exception:
+        runner_error = RunnerError("FUTURES_MARKET_SNAPSHOT_COLLECTION_FAILED")
+        runner_error.query_diagnostics = {
+            "status": "UNAVAILABLE",
+            "category": "UNEXPECTED_COLLECTION_FAILURE",
+        }
+        raise runner_error from None
+    if type(leased) is not LeasedFuturesSnapshot:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_RESULT_INVALID")
+    snapshot = leased.snapshot
+    snapshot_lease = leased.lease
+    if type(snapshot) is not FuturesMarketSnapshot or type(snapshot_lease) is not QuerySnapshotLease:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_RESULT_INVALID")
+
+    coverage = snapshot.coverage
+    product_coverage = getattr(coverage, "product_universe", None)
+    if (
+        snapshot.request.require_product_universe is not True
+        or snapshot.product_universe_snapshot is None
+        or snapshot.product_universe_complete is not True
+        or coverage.scope_complete is not True
+        or coverage.complete is not True
+        or product_coverage is None
+        or product_coverage.complete is not True
+        or coverage.product_keys != snapshot.products
+        or coverage.missing_products
+        or coverage.unexpected_products
+        or not snapshot.products
+        or any(type(item) is not FuturesProductKey for item in snapshot.products)
+    ):
+        raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
+    expected_products = tuple(
+        ProductKey(item.venue, item.product_id)
+        for item in sorted(snapshot.products, key=lambda product: (product.venue, product.product_id))
+    )
+    if not expected_products:
+        raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
+
+    current_days = {}
+    for product in expected_products:
+        trading_day = snapshot.trading_days.get(product.exchange_id)
+        if type(trading_day) is not date:
+            raise RunnerError("FUTURES_TRADING_DAY_UNAVAILABLE")
+        current_days[product.exchange_id] = trading_day
+    day_rows = tuple(
+        ExchangeTradingDay(exchange_id, trading_day)
+        for exchange_id, trading_day in sorted(current_days.items())
+    )
+    decision_at = _aware_datetime(clock.utc_now(), "futures selection decision time")
+
+    def _calendar_build(overlays=()):
+        try:
+            calendar_request = FuturesExpectedCalendarRequest(
+                products=tuple(snapshot.products),
+                current_trading_days=tuple(
+                    FuturesExpectedTradingDay(venue, trading_day)
+                    for venue, trading_day in sorted(current_days.items())
+                ),
+                as_of_utc=decision_at,
+                selected_contract_last_trading_days=tuple(overlays),
+            )
+            calendar_snapshot = calendar_port.build(calendar_request)
+        except FuturesExpectedCalendarError as error:
+            code = error.code if type(error.code) is str and error.code.isascii() else (
+                "FUTURES_EXPECTED_CALENDAR_UNAVAILABLE"
+            )
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE") from None
+        if type(calendar_snapshot) is not FuturesExpectedCalendarSnapshot:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_RESULT_INVALID")
+        try:
+            return build_expected_daytime_calendars(
+                calendar_snapshot,
+                calendar_port=calendar_port,
+            )
+        except ExpectedCalendarError as error:
+            code = error.code if type(error.code) is str and error.code.isascii() else (
+                "FUTURES_EXPECTED_CALENDAR_RESULT_INVALID"
+            )
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_RESULT_INVALID") from None
+
+    try:
+        calendar_build = _calendar_build()
+        policy = FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY
+        manifest = select_main_contracts(
+            snapshot,
+            expected_products,
+            day_rows,
+            calendar_build.trading_calendars,
+            decision_at=decision_at,
+            policy=policy,
+            snapshot_lease=snapshot_lease,
+            snapshot_facade=snapshot_facade,
+        )
+        if manifest.status != "READY":
+            raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
+        routes = dict(manifest.selected_mapping())
+        selected_assessments = {
+            (item.product, item.instrument_id): item for item in manifest.candidates
+        }
+        catalog_by_selection = {}
+        for record in snapshot.catalog:
+            if (
+                type(record) is not FuturesCatalogRecord
+                or type(record.product) is not FuturesProductKey
+                or type(record.instrument) is not MarketInstrumentKey
+            ):
+                raise RunnerError("FUTURES_CATALOG_RESULT_INVALID")
+            key = (
+                ProductKey(record.product.venue, record.product.product_id),
+                record.instrument.instrument_id,
+            )
+            if key in catalog_by_selection:
+                raise RunnerError("FUTURES_CATALOG_IDENTITY_AMBIGUOUS")
+            catalog_by_selection[key] = record
+        selected_calendar_overlays = []
+        for product, instrument_id in sorted(
+            routes.items(), key=lambda item: (item[0].exchange_id, item[0].product_id)
+        ):
+            if (
+                product.exchange_id != "CFFEX"
+                or product.product_id not in {"TF", "T", "TS", "TL"}
+            ):
+                continue
+            record = catalog_by_selection.get((product, instrument_id))
+            assessment = selected_assessments.get((product, instrument_id))
+            if (
+                record is None
+                or assessment is None
+                or assessment.expiry_date != record.expiry_date
+            ):
+                raise RunnerError("FUTURES_SELECTED_CATALOG_BINDING_INVALID")
+            # Preserve a missing selected expiry so the SDK reports PARTIAL.
+            selected_calendar_overlays.append(
+                FuturesProductLastTradingDay(
+                    instrument=record.instrument,
+                    product=record.product,
+                    last_trading_day=record.expiry_date,
+                )
+            )
+        if selected_calendar_overlays:
+            selected_calendar_overlays = tuple(
+                sorted(
+                    selected_calendar_overlays,
+                    key=lambda item: (
+                        item.product.venue,
+                        item.product.product_id,
+                        item.instrument.instrument_id,
+                    ),
+                )
+            )
+            calendar_build = _calendar_build(selected_calendar_overlays)
+            manifest = select_main_contracts(
+                snapshot,
+                expected_products,
+                day_rows,
+                calendar_build.trading_calendars,
+                decision_at=decision_at,
+                policy=policy,
+                snapshot_lease=snapshot_lease,
+                snapshot_facade=snapshot_facade,
+            )
+            if manifest.status != "READY":
+                raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
+            updated_routes = dict(manifest.selected_mapping())
+            if updated_routes != routes:
+                raise RunnerError("FUTURES_EXPECTED_CALENDAR_SELECTION_CHANGED")
+            routes = updated_routes
+        products = tuple(manifest.target_products)
+        if not products:
+            raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
+        product_days = {
+            product: (current_days[product.exchange_id],) for product in products
+        }
+        grid = build_common_minute_grid(
+            products,
+            calendar_build.session_calendars,
+            product_days,
+            decision_at=decision_at,
+        )
+    except RunnerError:
+        raise
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_PLAN_BUILD_FAILED") from None
+    if grid.status != "READY" or not grid.minutes:
+        raise RunnerError("PLANNED_MINUTE_GRID_BLOCKED", grid.status)
+    if set(routes) != set(products):
+        raise RunnerError("POINT_IN_TIME_ROUTE_SET_MISMATCH")
+    catalog_instruments = {}
+    for record in snapshot.catalog:
+        if (
+            type(record) is not FuturesCatalogRecord
+            or type(record.instrument) is not MarketInstrumentKey
+        ):
+            raise RunnerError("FUTURES_CATALOG_INSTRUMENT_IDENTITY_INVALID")
+        identity = (record.product.venue, record.instrument.instrument_id)
+        if identity in catalog_instruments:
+            raise RunnerError("FUTURES_CATALOG_INSTRUMENT_IDENTITY_AMBIGUOUS")
+        catalog_instruments[identity] = record.instrument
+    market_instrument_by_target = {}
+    for product in products:
+        instrument_id = routes[product]
+        instrument = catalog_instruments.get((product.exchange_id, instrument_id))
+        target = _target_id(product)
+        if (
+            type(instrument) is not MarketInstrumentKey
+            or instrument.venue != product.exchange_id
+            or instrument.environment != environment
+        ):
+            raise RunnerError("FUTURES_SELECTED_INSTRUMENT_KEY_UNAVAILABLE")
+        market_instrument_by_target[target] = instrument
+
+    authorized_values = config["selection"]["authorized_products"]
+    if authorized_values is None:
+        authorized = tuple(_target_id(product) for product in products)
+    else:
+        if type(authorized_values) is not list or not authorized_values:
+            raise RunnerError("AUTHORIZED_PRODUCTS_INVALID")
+        authorized = tuple(_text(item, "authorized product") for item in authorized_values)
+        target_names = {_target_id(product) for product in products}
+        if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
+            raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
+
+    source_snapshot_id = snapshot.receipt.receipt_digest
+    if type(source_snapshot_id) is not str or not source_snapshot_id:
+        raise RunnerError("FUTURES_SNAPSHOT_ID_UNAVAILABLE")
+    return {
+        "bundle": None,
+        "manifest": manifest,
+        "products": products,
+        "routes": routes,
+        "targets": tuple(_target_id(product) for product in products),
+        "product_by_target": {_target_id(product): product for product in products},
+        "target_by_product": {product: _target_id(product) for product in products},
+        "market_instrument_by_target": market_instrument_by_target,
+        "authorized_targets": authorized,
+        "session_calendars": calendar_build.session_calendar_by_exchange,
+        "grid": grid,
+        "selection_path": f"futures-market://{source_snapshot_id}",
+        "selection_source": "futures_market_snapshot_equal_weight_v1",
+        "source_snapshot_id": source_snapshot_id,
+        "calendar_evidence_mode": calendar_build.evidence_mode,
+        "calendar_rules_sha256": calendar_build.rules_manifest_sha256,
+    }
+
+_FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES = frozenset(
+    {"refresh", "lease_acquire", "lease_pre_consume", "lease_post_consume"}
+)
+_FUTURES_SNAPSHOT_DIAGNOSTIC_CODE = re.compile(
+    r"(?:FUTURES|QUERY)_[A-Z0-9_]{1,96}\Z", re.ASCII
+)
+_FUTURES_SNAPSHOT_UNAVAILABLE_CATEGORIES = frozenset(
+    {
+        "DIAGNOSTIC_CONTRACT_UNAVAILABLE",
+        "ERROR_TYPE_UNTRUSTED",
+        "NO_QUERY_OBSERVATION",
+        "INVALID_DIAGNOSTICS",
+        "UNEXPECTED_COLLECTION_FAILURE",
+    }
+)
+
+
+def _sanitize_futures_snapshot_query_diagnostics(value):
+    """Sanitize only exact neutral futures-snapshot observation DTO projections."""
+
+    unavailable = {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
+    if not isinstance(value, Mapping):
+        return unavailable
+    status = value.get("status")
+    if status == "UNAVAILABLE":
+        category = value.get("category")
+        if category not in _FUTURES_SNAPSHOT_UNAVAILABLE_CATEGORIES:
+            return unavailable
+        return {"status": "UNAVAILABLE", "category": category}
+    if status != "AVAILABLE" or value.get("schema_version") != 1:
+        return unavailable
+    stages = value.get("stages")
+    if type(stages) is not list or not stages or len(stages) > 8:
+        return unavailable
+    expected = {
+        "stage",
+        "entered",
+        "returned",
+        "elapsed_seconds",
+        "code",
+        "complete",
+        "scope_complete",
+    }
+    sanitized = []
+    for row in stages:
+        if type(row) is not dict or set(row) != expected:
+            return unavailable
+        stage = row["stage"]
+        entered = row["entered"]
+        returned = row["returned"]
+        elapsed = row["elapsed_seconds"]
+        code = row["code"]
+        complete = row["complete"]
+        scope_complete = row["scope_complete"]
+        if (
+            type(stage) is not str
+            or stage not in _FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES
+            or type(entered) is not bool
+            or type(returned) is not bool
+            or (elapsed is not None and (
+                type(elapsed) not in (int, float)
+                or not math.isfinite(float(elapsed))
+                or float(elapsed) < 0
+            ))
+            or (code is not None and (
+                type(code) is not str
+                or _FUTURES_SNAPSHOT_DIAGNOSTIC_CODE.fullmatch(code) is None
+            ))
+            or (complete is not None and type(complete) is not bool)
+            or (scope_complete is not None and type(scope_complete) is not bool)
+        ):
+            return unavailable
+        sanitized.append(dict(row))
+    return {"schema_version": 1, "status": "AVAILABLE", "stages": sanitized}
+
+
+def _project_futures_snapshot_query_diagnostics(error):
+    """Project finite neutral query/lease observations without provider details."""
+
+    unavailable = lambda category: {"status": "UNAVAILABLE", "category": category}
+    try:
+        from backtrader.feeds.futures_snapshot import (
+            FuturesSnapshotError,
+            FuturesSnapshotQueryObservation,
+        )
+    except ImportError:
+        return unavailable("DIAGNOSTIC_CONTRACT_UNAVAILABLE")
+    if type(error) is not FuturesSnapshotError:
+        return unavailable("ERROR_TYPE_UNTRUSTED")
+    observations = getattr(error, "query_observations", None)
+    if type(observations) is not tuple or not observations:
+        return unavailable("NO_QUERY_OBSERVATION")
+    if len(observations) > 8 or any(
+        type(item) is not FuturesSnapshotQueryObservation for item in observations
+    ):
+        return unavailable("INVALID_DIAGNOSTICS")
+    stages = []
+    for item in observations:
+        elapsed = item.elapsed_seconds
+        code = item.code
+        if (
+            type(item.stage) is not str
+            or item.stage not in _FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES
+            or type(item.entered) is not bool
+            or type(item.returned) is not bool
+            or (elapsed is not None and (
+                type(elapsed) not in (int, float)
+                or not math.isfinite(float(elapsed))
+                or float(elapsed) < 0
+            ))
+            or (code is not None and (
+                type(code) is not str
+                or _FUTURES_SNAPSHOT_DIAGNOSTIC_CODE.fullmatch(code) is None
+            ))
+            or (item.complete is not None and type(item.complete) is not bool)
+            or (item.scope_complete is not None and type(item.scope_complete) is not bool)
+        ):
+            return unavailable("INVALID_DIAGNOSTICS")
+        stages.append(
+            {
+                "stage": item.stage,
+                "entered": item.entered,
+                "returned": item.returned,
+                "elapsed_seconds": elapsed,
+                "code": code,
+                "complete": item.complete,
+                "scope_complete": item.scope_complete,
+            }
+        )
+    return _sanitize_futures_snapshot_query_diagnostics(
+        {"schema_version": 1, "status": "AVAILABLE", "stages": stages}
+    )
+
+def _apply_golden_target_subset(plan, requested_targets):
+    """Project a read-only subset only after the complete CTP plan is READY."""
+
+    if requested_targets is None:
+        return plan
+    try:
+        from bt_api_py.facade_protocol import MarketInstrumentKey
+    except ImportError:
+        raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
+    manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
+    if (
+        plan.get("selection_source") != "futures_market_snapshot_equal_weight_v1"
+        or getattr(manifest, "status", None) != "READY"
+    ):
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_NOT_READY")
+    try:
+        full_products = tuple(plan["products"])
+        full_routes = dict(plan["routes"])
+        full_targets = tuple(plan["targets"])
+        product_by_target = dict(plan["product_by_target"])
+        target_by_product = dict(plan["target_by_product"])
+        full_market_instrument_by_target = dict(plan["market_instrument_by_target"])
+        full_authorized_targets = tuple(plan["authorized_targets"])
+        full_grid = plan["grid"]
+        route_rows = dict(manifest.selected_mapping())
+    except Exception as error:
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_INVALID", type(error).__name__) from None
+    expected_targets = tuple(_target_id(product) for product in full_products)
+    if (
+        not full_products
+        or len(set(full_products)) != len(full_products)
+        or full_targets != expected_targets
+        or set(product_by_target) != set(full_targets)
+        or set(full_market_instrument_by_target) != set(full_targets)
+        or any(
+            type(instrument) is not MarketInstrumentKey
+            for instrument in full_market_instrument_by_target.values()
+        )
+        or any(
+            product_by_target[target] != product
+            for target, product in zip(full_targets, full_products)
+        )
+        or target_by_product
+        != {product: target for product, target in zip(full_products, full_targets)}
+        or set(full_routes) != set(full_products)
+        or full_routes != route_rows
+        or set(getattr(manifest, "target_products", ())) != set(full_products)
+        or getattr(full_grid, "status", None) != "READY"
+        or not getattr(full_grid, "minutes", ())
+        or set(getattr(full_grid, "target_products", ())) != set(full_products)
+        or len(full_authorized_targets) != len(set(full_authorized_targets))
+        or not set(full_authorized_targets).issubset(set(full_targets))
+    ):
+        raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_INVALID")
+    requested = set(requested_targets)
+    unknown = requested.difference(full_targets)
+    if unknown:
+        raise RunnerError("GOLDEN_TARGETS_OUTSIDE_SELECTED_POOL")
+    active_targets = tuple(target for target in full_targets if target in requested)
+    active_products = tuple(product_by_target[target] for target in active_targets)
+    if not active_products:
+        raise RunnerError("GOLDEN_TARGETS_EMPTY")
+    try:
+        from backtrader.feeds.futures_sessions import build_common_minute_grid
+
+        product_days = dict(full_grid.product_trading_days)
+        if set(product_days) != set(full_products):
+            raise ValueError("full grid TradingDay map differs from full selection")
+        calendars = plan["session_calendars"]
+        if not isinstance(calendars, Mapping):
+            raise ValueError("session calendars are unavailable")
+        active_grid = build_common_minute_grid(
+            active_products,
+            tuple(calendars.values()),
+            {product: product_days[product] for product in active_products},
+            decision_at=full_grid.decision_at,
+        )
+    except Exception as error:
+        raise RunnerError("GOLDEN_TARGETS_GRID_BUILD_FAILED", type(error).__name__) from None
+    if active_grid.status != "READY" or not active_grid.minutes:
+        raise RunnerError("GOLDEN_TARGETS_GRID_UNAVAILABLE", active_grid.status)
+
+    active_routes = {product: full_routes[product] for product in active_products}
+    active_product_by_target = {
+        target: product_by_target[target] for target in active_targets
+    }
+    active_target_set = set(active_targets)
+    active_authorized_targets = tuple(
+        target for target in full_authorized_targets if target in active_target_set
+    )
+    projected = dict(plan)
+    projected.update(
+        {
+            "full_products": full_products,
+            "full_routes": full_routes,
+            "full_selected_targets": full_targets,
+            "full_product_by_target": product_by_target,
+            "full_target_by_product": target_by_product,
+            "full_authorized_targets": full_authorized_targets,
+            "full_grid": full_grid,
+            "active_shadow_targets": active_targets,
+            "golden_targets": active_targets,
+            "products": active_products,
+            "routes": active_routes,
+            "targets": active_targets,
+            "product_by_target": active_product_by_target,
+            "market_instrument_by_target": {
+                target: full_market_instrument_by_target[target]
+                for target in active_targets
+            },
+            "target_by_product": {
+                product: target for target, product in active_product_by_target.items()
+            },
+            "authorized_targets": active_authorized_targets,
+            "grid": active_grid,
+        }
+    )
+    return projected
+
+
+def _minute_slot_index(grid: Any):
+    from backtrader.feeds.futures_sessions import PlannedCommonMinute
+
+    index = {}
+    for minute in grid.minutes:
+        if not isinstance(minute, PlannedCommonMinute):
+            raise RunnerError("PLANNED_GRID_RECORD_INVALID")
+        if minute.close_time in index:
+            raise RunnerError("PLANNED_GRID_DUPLICATE_CLOSE")
+        index[minute.close_time] = minute
+    return index
+
+
+def load_minute_tape(path: Path, plan: Mapping[str, Any], cohort_config: Mapping[str, Any]):
+    """Validate immutable saved minute events against the complete planned grid."""
+    document = _read_json(path, "minute_tape")
+    required = {"schema", "snapshot_id", "source_ref", "source_timezone", "price_basis", "bars"}
+    if set(document).difference(required) or required.difference(document):
+        raise RunnerError("MINUTE_TAPE_FIELDS_INVALID")
+    if document["schema"] != MINUTE_TAPE_SCHEMA:
+        raise RunnerError("MINUTE_TAPE_SCHEMA_UNSUPPORTED")
+    snapshot_id = _text(document["snapshot_id"], "minute tape snapshot_id")
+    source_ref = _text(document["source_ref"], "minute tape source_ref")
+    source_timezone = _text(document["source_timezone"], "minute tape source_timezone")
+    price_basis = _text(document["price_basis"], "minute tape price_basis")
+    if price_basis.lower() in {"default", "unknown", "unspecified"}:
+        raise RunnerError("MINUTE_TAPE_PRICE_BASIS_UNSPECIFIED")
+    configured_tz = plan.get("source_timezone")
+    if configured_tz and configured_tz != source_timezone:
+        raise RunnerError("MINUTE_TAPE_TIMEZONE_MISMATCH")
+    configured_basis = plan.get("price_basis")
+    if configured_basis and configured_basis != price_basis:
+        raise RunnerError("MINUTE_TAPE_PRICE_BASIS_MISMATCH")
+    clock_domain_id = _text(cohort_config["clock_domain_id"], "clock_domain_id")
+    timezone_id = _text(cohort_config["timezone_id"], "timezone_id")
+    raw_bars = document["bars"]
+    if type(raw_bars) is not list or not raw_bars:
+        raise RunnerError("MINUTE_TAPE_BARS_REQUIRED")
+    planned = _minute_slot_index(plan["grid"])
+    expected_targets = set(plan["targets"])
+    route_by_target = {
+        _target_id(product): (instrument, product.exchange_id)
+        for product, instrument in plan["routes"].items()
+    }
+    sequences = {}
+    seen_bar_ids = set()
+    events = defaultdict(dict)
+    for ordinal, raw in enumerate(raw_bars):
+        row = _mapping(raw, f"bars[{ordinal}]")
+        expected_keys = {
+            "target",
+            "instrument",
+            "exchange",
+            "bucket_start",
+            "bucket_end",
+            "available_at",
+            "trading_day",
+            "session_segment",
+            "timezone_id",
+            "clock_domain_id",
+            "connection_generation",
+            "bar_sequence",
+            "bar_id",
+            "timestamp",
+            "present",
+            "complete",
+            "quality",
+            "quality_flags",
+            *OHLCV_FIELDS,
+        }
+        if set(row) != expected_keys:
+            raise RunnerError("MINUTE_BAR_FIELDS_INVALID", str(ordinal))
+        target = _text(row["target"], f"bars[{ordinal}].target")
+        if target not in expected_targets:
+            raise RunnerError("MINUTE_BAR_TARGET_OUTSIDE_POOL", target)
+        instrument, exchange = route_by_target[target]
+        if row["instrument"] != instrument or row["exchange"] != exchange:
+            raise RunnerError("MINUTE_BAR_ROUTE_MISMATCH", target)
+        start = _aware_datetime(row["bucket_start"], "bucket_start")
+        end = _aware_datetime(row["bucket_end"], "bucket_end")
+        available = _aware_datetime(row["available_at"], "available_at")
+        if end <= start or end - start != timedelta(minutes=1) or available < end:
+            raise RunnerError("MINUTE_BAR_AVAILABILITY_INVALID", target)
+        slot = planned.get(end)
+        if slot is None or start != end - timedelta(minutes=1):
+            raise RunnerError("MINUTE_BAR_OUTSIDE_PLANNED_GRID", target)
+        member_by_product = {member.product: member for member in slot.members}
+        member = member_by_product.get(plan["product_by_target"][target])
+        if member is None:
+            raise RunnerError("MINUTE_BAR_PLANNED_MEMBER_MISSING", target)
+        trading_day = _iso_date(row["trading_day"], "trading_day").isoformat()
+        if (
+            trading_day != member.trading_day.isoformat()
+            or row["session_segment"] != member.session_id
+        ):
+            raise RunnerError("MINUTE_BAR_SESSION_MISMATCH", target)
+        if row["timezone_id"] != timezone_id or row["clock_domain_id"] != clock_domain_id:
+            raise RunnerError("MINUTE_BAR_CLOCK_PROFILE_MISMATCH", target)
+        generation = row["connection_generation"]
+        if type(generation) not in (str, int) or generation in ("", 0):
+            raise RunnerError("MINUTE_BAR_GENERATION_INVALID", target)
+        sequence = row["bar_sequence"]
+        if type(sequence) is not int or sequence <= 0:
+            raise RunnerError("MINUTE_BAR_SEQUENCE_INVALID", target)
+        key = (target, generation)
+        if sequence <= sequences.get(key, 0):
+            raise RunnerError("MINUTE_BAR_SEQUENCE_NOT_INCREASING", target)
+        sequences[key] = sequence
+        bar_id = _text(row["bar_id"], "bar_id")
+        if (target, bar_id) in seen_bar_ids:
+            raise RunnerError("MINUTE_BAR_ID_DUPLICATE", target)
+        seen_bar_ids.add((target, bar_id))
+        if type(row["present"]) is not bool or row["present"] is not True:
+            raise RunnerError("MINUTE_BAR_NOT_PRESENT", target)
+        if type(row["complete"]) is not bool or row["complete"] is not True:
+            raise RunnerError("MINUTE_BAR_INCOMPLETE", target)
+        if row["quality"] != "GOOD" or row["quality_flags"] != []:
+            raise RunnerError("MINUTE_BAR_QUALITY_BLOCKED", target)
+        values = {
+            name: _number(
+                row[name], f"{name}[{ordinal}]", nonnegative=name in {"volume", "openinterest"}
+            )
+            for name in OHLCV_FIELDS
+        }
+        if values["open"] <= 0 or values["high"] <= 0 or values["low"] <= 0 or values["close"] <= 0:
+            raise RunnerError("MINUTE_BAR_PRICE_INVALID", target)
+        if (
+            values["low"] > min(values["open"], values["close"])
+            or values["high"] < max(values["open"], values["close"])
+            or values["low"] > values["high"]
+        ):
+            raise RunnerError("MINUTE_BAR_OHLC_INVALID", target)
+        timestamp = _number(row["timestamp"], "bar timestamp", positive=True)
+        if abs(timestamp - end.timestamp()) > 1e-6:
+            raise RunnerError("MINUTE_BAR_TIMESTAMP_MISMATCH", target)
+        event = dict(row)
+        event.update(
+            {
+                "instrument": instrument,
+                "symbol": instrument,
+                "datetime": end.isoformat(),
+                "timestamp": timestamp,
+                "bucket_start": start,
+                "bucket_end": end,
+                "available_at": available,
+                "trading_day": trading_day,
+                "source": "saved-minute-tape",
+                "source_snapshot_id": snapshot_id,
+                "source_ref": source_ref,
+                # The cohort freezes source envelopes; retain the validated
+                # empty marker as a tuple rather than the mutable JSON list.
+                "quality_flags": (),
+            }
+        )
+        events[target][end] = MappingProxyType(event)
+    for target, by_close in events.items():
+        if tuple(sorted(by_close)) != tuple(by_close):
+            # JSON order is source order; do not silently sort a malformed tape.
+            raise RunnerError("MINUTE_TAPE_SOURCE_ORDER_INVALID", target)
+    return {
+        "snapshot_id": snapshot_id,
+        "source_ref": source_ref,
+        "source_timezone": source_timezone,
+        "price_basis": price_basis,
+        "clock_domain_id": clock_domain_id,
+        "timezone_id": timezone_id,
+        "events": {target: tuple(rows.values()) for target, rows in events.items()},
+    }
+
+
+def _require_grid_endpoints(config: Mapping[str, Any], grid: Any):
+    start = config["research"]["start"]
+    end = config["research"]["end"]
+    if start is None or end is None:
+        raise RunnerError("RESEARCH_ENDPOINTS_REQUIRED")
+    start_utc = _aware_datetime(start, "research.start")
+    end_utc = _aware_datetime(end, "research.end")
+    closes = {minute.close_time for minute in grid.minutes}
+    if start_utc not in closes or end_utc not in closes or start_utc > end_utc:
+        raise RunnerError("RESEARCH_ENDPOINTS_OUTSIDE_PLANNED_GRID")
+    return start_utc, end_utc
+
+
+def _factor_parameters(config: Mapping[str, Any], cli_factor_mode: Optional[str]):
+    factor = config["factor"]
+    mode = cli_factor_mode or factor["mode"] or "native"
+    if mode not in ("native", "build"):
+        raise RunnerError("FACTOR_MODE_INVALID")
+    direction = factor["direction"]
+    if type(direction) is not int or direction not in (-1, 1):
+        raise RunnerError("FACTOR_DIRECTION_INVALID")
+    preheat = factor["preheat_bars"]
+    cadence = factor["rebalance_every"]
+    if type(preheat) is not int or preheat < 1 or type(cadence) is not int or cadence < 1:
+        raise RunnerError("FACTOR_WINDOW_INVALID")
+    return mode, direction, preheat, cadence
+
+
+def _make_research_spec(
+    config: Mapping[str, Any], plan: Mapping[str, Any], tape: Mapping[str, Any]
+):
+    import pandas as pd
+    from backtrader.research.specs import ResearchSpec
+
+    start, end = _require_grid_endpoints(config, plan["grid"])
+    times = [minute.close_time for minute in plan["grid"].minutes]
+    frame = pd.DataFrame(
+        {"open_time": [close - timedelta(minutes=1) for close in times]},
+        index=pd.DatetimeIndex(times, name="close_time"),
+    )
+    return ResearchSpec(
+        grid=frame,
+        start=start,
+        end=end,
+        targets=plan["targets"],
+        source_timezone=tape["source_timezone"],
+        snapshot_id=tape["snapshot_id"],
+        price_basis=tape["price_basis"],
+        calendar_id=config["cohort"]["calendar_id"],
+        frequency="1min",
+    )
+
+
+def run_research(
+    config: Mapping[str, Any], config_path: Path, plan: Mapping[str, Any], mode: str, direction: int
+):
+    import backtrader as bt
+    import pandas as pd
+    from backtrader.research import FactorStrategy, align_to_grid
+    from alpha003_strategy import make_alpha003_factor_spec
+
+    input_path = _resolve_path(config_path, config["inputs"]["minute_tape"], "inputs.minute_tape")
+    tape = load_minute_tape(input_path, plan, config["cohort"])
+    research = _make_research_spec(config, plan, tape)
+    cerebro = bt.Cerebro(stdstats=False)
+    for target in plan["targets"]:
+        rows = tape["events"].get(target, ())
+        source = pd.DataFrame(
+            [
+                {
+                    field: _number(
+                        event[field], field, nonnegative=field in {"volume", "openinterest"}
+                    )
+                    for field in OHLCV_FIELDS
+                }
+                for event in rows
+            ],
+            index=pd.DatetimeIndex([event["bucket_end"] for event in rows], name="close_time"),
+        )
+        aligned = align_to_grid(source, research, target, data_version=tape["snapshot_id"])
+        cerebro.adddata(aligned.feed, name=target)
+    spec = make_alpha003_factor_spec(mode=mode, direction=direction)
+    cerebro.addstrategy(FactorStrategy, research=research, factors={spec.name: spec})
+    strategies = cerebro.run()
+    strategy = strategies[0]
+    panel = strategy.get_panel()
+    output_dir = _resolve_path(config_path, config["output"]["directory"], "output.directory")
+    output_path = panel.to_csv(output_dir)
+    summary: dict[str, Any] = {
+        "status": "RESEARCH_COMPLETE",
+        "mode": "research",
+        "factor_mode": mode,
+        "direction": direction,
+        "snapshot_id": tape["snapshot_id"],
+        "grid_sha256": research.grid_sha256,
+        "target_count": len(plan["targets"]),
+        "grid_count": len(research.grid),
+        "output_directory": str(output_path),
+    }
+    if config["output"]["evaluate_with_fincore"] is True:
+        evaluation = strategy.evaluate()
+        summary["evaluation_status"] = getattr(evaluation, "status", None)
+    elif config["output"]["evaluate_with_fincore"] is not False:
+        raise RunnerError("FINCORE_FLAG_INVALID")
+    return summary
+
+
+def _member_session_api():
+    import backtrader.research.live_cohort as cohort_module
+
+    slot_parameters = inspect.signature(cohort_module.LiveCalendarSlot).parameters
+    session_cls = getattr(cohort_module, "LiveCalendarMemberSession", None)
+    return cohort_module, slot_parameters, session_cls
+
+
+def _calendar_slots(
+    grid: Any,
+    *,
+    begin_at: Optional[datetime] = None,
+):
+    def calendar_day(value):
+        if type(value) is not date:
+            raise RunnerError("COHORT_TRADING_DAY_INVALID")
+        return value.isoformat()
+
+    cohort_module, slot_parameters, member_session_cls = _member_session_api()
+    slots = []
+    for minute in _remaining_live_grid_minutes(grid, begin_at):
+        start = minute.close_time - timedelta(minutes=1)
+        members = {
+            f"{item.product.exchange_id}.{item.product.product_id}": item for item in minute.members
+        }
+        session_pairs = {(calendar_day(item.trading_day), item.session_id) for item in minute.members}
+        member_sessions = None
+        if len(session_pairs) > 1:
+            if "member_sessions" not in slot_parameters or member_session_cls is None:
+                raise RunnerError("COHORT_MEMBER_SESSION_API_REQUIRED")
+            member_sessions = {
+                target: member_session_cls(
+                    trading_day=calendar_day(member.trading_day),
+                    session_segment=member.session_id,
+                )
+                for target, member in members.items()
+            }
+        elif "member_sessions" in slot_parameters and member_session_cls is not None:
+            member_sessions = {
+                target: member_session_cls(
+                    trading_day=calendar_day(member.trading_day),
+                    session_segment=member.session_id,
+                )
+                for target, member in members.items()
+            }
+        trading_day, session_segment = next(iter(session_pairs))
+        kwargs = {
+            "slot_id": f"minute:{minute.close_time.isoformat()}",
+            "bucket_start": start,
+            "close_time": minute.close_time,
+            "trading_day": trading_day,
+            "session_segment": session_segment,
+        }
+        if member_sessions is not None:
+            kwargs["member_sessions"] = MappingProxyType(member_sessions)
+        slots.append(cohort_module.LiveCalendarSlot(**kwargs))
+    if not slots:
+        raise RunnerError("COHORT_HAS_NO_PLANNED_SLOTS")
+    return tuple(slots)
+
+
+def _remaining_live_grid_minutes(grid: Any, begin_at: Optional[datetime]):
+    """Return planned minutes whose bucket start is not before live startup."""
+
+    from backtrader.feeds.futures_sessions import PlannedCommonMinute
+
+    remaining = []
+    for minute in grid.minutes:
+        if not isinstance(minute, PlannedCommonMinute):
+            raise RunnerError("PLANNED_GRID_RECORD_INVALID")
+        start = minute.close_time - timedelta(minutes=1)
+        if begin_at is not None and start < begin_at:
+            continue
+        remaining.append(minute)
+    return tuple(remaining)
+
+
+def _make_live_calendar(
+    config: Mapping[str, Any],
+    grid: Any,
+    *,
+    begin_at: Optional[datetime] = None,
+):
+    from backtrader.research.live_cohort import LiveCohortCalendar
+
+    cohort_cfg = config["cohort"]
+    if type(cohort_cfg["epoch_id"]) is not int or cohort_cfg["epoch_id"] < 1:
+        raise RunnerError("COHORT_EPOCH_INVALID")
+    return LiveCohortCalendar(
+        calendar_id=_text(cohort_cfg["calendar_id"], "calendar_id"),
+        version=_text(cohort_cfg["calendar_version"], "calendar_version"),
+        epoch_id=cohort_cfg["epoch_id"],
+        frequency="1min",
+        frequency_seconds=60,
+        timezone_id=_text(cohort_cfg["timezone_id"], "timezone_id"),
+        clock_domain_id=_text(cohort_cfg["clock_domain_id"], "clock_domain_id"),
+        session_semantics=_text(cohort_cfg["session_semantics"], "session_semantics"),
+        slots=_calendar_slots(grid, begin_at=begin_at),
+    )
+
+
+def _make_cohort(
+    config: Mapping[str, Any],
+    grid: Any,
+    *,
+    begin_at: Optional[datetime] = None,
+    calendar_override: Any = None,
+):
+    from backtrader.research.live_cohort import LiveBarCohort, LiveCohortCalendar
+
+    cohort_cfg = config["cohort"]
+    wait_seconds = _number(
+        cohort_cfg["wait_timeout_seconds"], "wait_timeout_seconds", positive=True
+    )
+    if calendar_override is None:
+        calendar = _make_live_calendar(
+            config, grid, begin_at=begin_at
+        )
+    elif type(calendar_override) is not LiveCohortCalendar:
+        raise RunnerError("COHORT_CALENDAR_OVERRIDE_INVALID")
+    else:
+        calendar = calendar_override
+        if (
+            calendar.calendar_id != cohort_cfg["calendar_id"]
+            or calendar.version != cohort_cfg["calendar_version"]
+            or calendar.epoch_id != cohort_cfg["epoch_id"]
+        ):
+            raise RunnerError("COHORT_CALENDAR_OVERRIDE_IDENTITY_INVALID")
+    kwargs: dict[str, Any] = {
+        "max_pending_slots": cohort_cfg["max_pending_slots"],
+        "max_window_bars": cohort_cfg["max_window_bars"],
+        "wait_timeout_ns": int(wait_seconds * 1_000_000_000),
+    }
+    return LiveBarCohort(
+        cohort_id=f"alpha003:{cohort_cfg['calendar_id']}:{cohort_cfg['epoch_id']}",
+        calendar=calendar,
+        **kwargs,
+    )
+
+
+def _risk_policy(config: Mapping[str, Any]):
+    from alpha003_strategy import Alpha003RiskPolicy
+
+    raw = config["risk"]
+    optional_fields = {"round_trip_fee_upper_bound_per_contract"}
+    if raw["policy_id"] is None or any(
+        raw[key] is None for key in RISK_FIELDS if key not in optional_fields
+    ):
+        return None
+    values = {"risk_policy_id": _text(raw["policy_id"], "risk.policy_id")}
+    for name in RISK_FIELDS:
+        value = raw[name]
+        if name in {"run_end_policy"}:
+            values[name] = _text(value, f"risk.{name}")
+        elif name in {
+            "quote_max_age_seconds",
+            "max_state_age_seconds",
+            "max_notional_per_position",
+            "max_total_notional",
+            "max_margin_per_position",
+            "max_total_margin",
+            "max_loss_per_position",
+            "max_total_loss",
+        }:
+            values[name] = _decimal(value, f"risk.{name}", positive=True)
+        elif name == "round_trip_fee_upper_bound_per_contract":
+            values[name] = None if value is None else _decimal(value, f"risk.{name}")
+            if values[name] is not None and values[name] < 0:
+                raise RunnerError("RISK_POLICY_INVALID", name)
+        else:
+            if type(value) is not int:
+                raise RunnerError("RISK_POLICY_INVALID", name)
+            values[name] = value
+    try:
+        return Alpha003RiskPolicy(**values)
+    except (TypeError, ValueError):
+        raise RunnerError("RISK_POLICY_INVALID") from None
+
+
+def _run_loss_guard_policy(config: Mapping[str, Any], *, write_enabled: bool):
+    """Require the separate run-level CNY loss policy only for live writes."""
+    if type(write_enabled) is not bool:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    if not write_enabled:
+        return None, None
+    live = config["live"]
+    raw_threshold = live.get("loss_guard_net_loss_threshold")
+    raw_age = live.get("loss_guard_max_observation_age_seconds")
+    if raw_threshold is None or raw_age is None:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_REQUIRED")
+    try:
+        threshold = _decimal(
+            raw_threshold,
+            "live.loss_guard_net_loss_threshold",
+            positive=True,
+        )
+    except RunnerError:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID") from None
+    parts = threshold.as_tuple()
+    if (
+        len(parts.digits) > 256
+        or abs(parts.exponent) > 1000
+        or abs(threshold.adjusted()) > 1000
+    ):
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    if type(raw_age) is not int or not 1 <= raw_age <= 86_400:
+        raise RunnerError("LIVE_RUN_LOSS_POLICY_INVALID")
+    return threshold, raw_age
+
+
+def _require_replay_budgets(config: Mapping[str, Any]):
+    policy = _risk_policy(config)
+    if policy is None:
+        raise RunnerError("REPLAY_RISK_BUDGETS_REQUIRED")
+    replay = config["replay"]
+    cash = _number(replay["starting_cash"], "replay.starting_cash", positive=True)
+    commission = _number(replay["commission"], "replay.commission", nonnegative=True)
+    return policy, cash, commission
+
+
+def _quote_tape(path: Path, plan: Mapping[str, Any], cohort_config: Mapping[str, Any]):
+    from alpha003_strategy import Alpha003ReplayQuoteFact
+
+    document = _read_json(path, "execution_quotes")
+    if set(document) != {"schema", "snapshot_id", "source_ref", "quotes"}:
+        raise RunnerError("QUOTE_TAPE_FIELDS_INVALID")
+    if document["schema"] != QUOTE_TAPE_SCHEMA:
+        raise RunnerError("QUOTE_TAPE_SCHEMA_UNSUPPORTED")
+    snapshot_id = _text(document["snapshot_id"], "quote snapshot_id")
+    root_source = _text(document["source_ref"], "quote source_ref")
+    rows = document["quotes"]
+    if type(rows) is not list or not rows:
+        raise RunnerError("QUOTE_TAPE_ROWS_REQUIRED")
+    route_by_target = {
+        _target_id(product): (instrument, product.exchange_id)
+        for product, instrument in plan["routes"].items()
+    }
+    quote_facts = []
+    seen = set()
+    for ordinal, raw in enumerate(rows):
+        row = _mapping(raw, f"quotes[{ordinal}]")
+        expected = {
+            "target",
+            "instrument",
+            "exchange",
+            "event_time",
+            "available_at",
+            "bid",
+            "ask",
+            "source_ref",
+            "quote_id",
+        }
+        if set(row) != expected:
+            raise RunnerError("QUOTE_FIELDS_INVALID", str(ordinal))
+        target = _text(row["target"], "quote target")
+        if (
+            target not in route_by_target
+            or (row["instrument"], row["exchange"]) != route_by_target[target]
+        ):
+            raise RunnerError("QUOTE_ROUTE_MISMATCH", target)
+        event_time = _aware_datetime(row["event_time"], "quote event_time")
+        available_at = _aware_datetime(row["available_at"], "quote available_at")
+        if available_at < event_time:
+            raise RunnerError("QUOTE_AVAILABILITY_INVALID", target)
+        bid = _decimal(row["bid"], "quote bid", positive=True)
+        ask = _decimal(row["ask"], "quote ask", positive=True)
+        if bid > ask:
+            raise RunnerError("QUOTE_CROSSED", target)
+        quote_id = _text(row["quote_id"], "quote_id")
+        if quote_id in seen:
+            raise RunnerError("QUOTE_ID_DUPLICATE", quote_id)
+        seen.add(quote_id)
+        quote_facts.append(
+            Alpha003ReplayQuoteFact(
+                instrument=row["instrument"],
+                exchange=row["exchange"],
+                event_time=event_time,
+                available_at=available_at,
+                bid=bid,
+                ask=ask,
+                source_ref=_text(row["source_ref"] or root_source, "quote source_ref"),
+                quote_id=quote_id,
+            )
+        )
+    return snapshot_id, tuple(quote_facts)
+
+
+def _replay_instruments(path: Path, plan: Mapping[str, Any]):
+    document = _read_json(path, "instrument_metadata")
+    if set(document) != {"schema", "snapshot_id", "available_at", "instruments"}:
+        raise RunnerError("REPLAY_METADATA_FIELDS_INVALID")
+    if document["schema"] != METADATA_SCHEMA:
+        raise RunnerError("REPLAY_METADATA_SCHEMA_UNSUPPORTED")
+    snapshot = _text(document["snapshot_id"], "metadata snapshot_id")
+    available_at = _aware_datetime(document["available_at"], "metadata available_at")
+    rows = document["instruments"]
+    if type(rows) is not list:
+        raise RunnerError("REPLAY_METADATA_ROWS_INVALID")
+    fields = {
+        "target",
+        "instrument",
+        "exchange",
+        "snapshot_id",
+        "available_at",
+        "trading_permitted",
+        "multiplier",
+        "long_margin_per_hand",
+        "short_margin_per_hand",
+        "tick_size",
+        "lower_limit",
+        "upper_limit",
+    }
+    route_by_target = {
+        _target_id(product): (instrument, product.exchange_id)
+        for product, instrument in plan["routes"].items()
+    }
+    metadata = {}
+    for ordinal, raw in enumerate(rows):
+        row = _mapping(raw, f"instruments[{ordinal}]")
+        if set(row) != fields:
+            raise RunnerError("REPLAY_INSTRUMENT_FIELDS_INVALID", str(ordinal))
+        target = _text(row["target"], "metadata target")
+        if (
+            target not in route_by_target
+            or (row["instrument"], row["exchange"]) != route_by_target[target]
+        ):
+            raise RunnerError("REPLAY_METADATA_ROUTE_MISMATCH", target)
+        if type(row["trading_permitted"]) is not bool:
+            raise RunnerError("REPLAY_PERMISSION_INVALID", target)
+        local_available = _aware_datetime(row["available_at"], "instrument available_at")
+        if local_available != available_at:
+            raise RunnerError("REPLAY_METADATA_AVAILABILITY_MISMATCH", target)
+        metadata[target] = {
+            "instrument": row["instrument"],
+            "exchange": row["exchange"],
+            "snapshot_id": _text(row["snapshot_id"], "instrument snapshot_id") or snapshot,
+            "available_at": local_available,
+            "trading_permitted": row["trading_permitted"],
+            "multiplier": _decimal(row["multiplier"], "multiplier", positive=True),
+            "long_margin_per_hand": _decimal(
+                row["long_margin_per_hand"], "long margin", positive=True
+            ),
+            "short_margin_per_hand": _decimal(
+                row["short_margin_per_hand"], "short margin", positive=True
+            ),
+            "tick_size": _decimal(row["tick_size"], "tick_size", positive=True),
+            "lower_limit": _decimal(row["lower_limit"], "lower_limit", positive=True),
+            "upper_limit": _decimal(row["upper_limit"], "upper_limit", positive=True),
+        }
+        if metadata[target]["lower_limit"] >= metadata[target]["upper_limit"]:
+            raise RunnerError("REPLAY_PRICE_LIMITS_INVALID", target)
+    if set(metadata) != set(plan["targets"]):
+        raise RunnerError("REPLAY_METADATA_TARGET_SET_MISMATCH")
+    return snapshot, metadata
+
+
+class ReplayTapeClock:
+    """Replay time stays on a slot until its cohort batch completes.
+
+    Cerebro and its feeds may sample ``monotonic_ns`` several times within a
+    round, so those samples advance only the monotonic clock. When bound to a
+    cohort, ``utc_now`` follows a published completed batch and ``wait`` moves
+    to the next slot. An unbound clock remains at its first UTC slot.
+    """
+
+    def __init__(self, times, *, cohort=None):
+        ordered = tuple(times)
+        if not ordered or any(not isinstance(item, datetime) for item in ordered):
+            raise ValueError("ReplayTapeClock requires explicit availability times")
+        utc_times = tuple(_aware_datetime(item, "replay clock time") for item in ordered)
+        if tuple(sorted(utc_times)) != utc_times:
+            raise ValueError("ReplayTapeClock times must be monotone")
+        if cohort is not None and not callable(getattr(cohort, "current_batch", None)):
+            raise ValueError("ReplayTapeClock cohort must expose current_batch")
+        self._times = utc_times
+        self._cohort = cohort
+        self._index = 0
+        self._started = False
+        self._mono = 1_000_000_000
+        self._lock = threading.Lock()
+
+    def utc_now(self):
+        with self._lock:
+            if not self._started:
+                raise RuntimeError("ReplayTapeClock has not entered a Cerebro round")
+        batch = self._cohort.current_batch() if self._cohort is not None else None
+        slot_index = getattr(batch, "slot_index", None)
+        batch_complete = getattr(batch, "status", None) == "COMPLETE"
+        with self._lock:
+            if (
+                batch_complete
+                and type(slot_index) is int
+                and 0 <= slot_index < len(self._times)
+                and slot_index > self._index
+            ):
+                self._index = slot_index
+            return self._times[self._index]
+
+    def monotonic_ns(self):
+        with self._lock:
+            self._mono += 1_000_000
+            self._started = True
+            return self._mono
+
+    def wait(self, timeout_seconds):
+        del timeout_seconds
+        batch = self._cohort.current_batch() if self._cohort is not None else None
+        slot_index = getattr(batch, "slot_index", None)
+        batch_complete = getattr(batch, "status", None) == "COMPLETE"
+        with self._lock:
+            self._mono += 1_000_000
+            if (
+                batch_complete
+                and type(slot_index) is int
+                and 0 <= slot_index < len(self._times)
+                and slot_index >= self._index
+            ):
+                self._index = min(slot_index + 1, len(self._times) - 1)
+
+
+def _replay_clock_schedule(grid, tape, quotes):
+    """Build a bounded decision-time schedule from source availability.
+
+    Quote rows are assigned to the planned minute interval in which their
+    source event occurred. A quote must be available by the next planned close
+    to be consumed at this decision; a late row is left out, so a stale signal
+    cannot wait hours for it and then become actionable.
+    """
+    minutes = tuple(grid.minutes)
+    schedule = []
+    late_quote_count = 0
+    for index, minute in enumerate(minutes):
+        next_close = (
+            minutes[index + 1].close_time
+            if index + 1 < len(minutes)
+            else minute.close_time + timedelta(minutes=1)
+        )
+        available_at = max(
+            event["available_at"]
+            for target in tape["events"]
+            for event in tape["events"][target]
+            if event["bucket_end"] == minute.close_time
+        )
+        for quote in quotes:
+            if not (minute.close_time <= quote.event_time < next_close):
+                continue
+            if quote.available_at <= next_close:
+                available_at = max(available_at, quote.available_at)
+            else:
+                late_quote_count += 1
+        if schedule:
+            available_at = max(schedule[-1], available_at)
+        schedule.append(available_at)
+    return tuple(schedule), late_quote_count
+
+
+class RunnerWallClock:
+    """Scheduler clock; it does not rewrite exchange timestamps or source bars."""
+
+    def utc_now(self):
+        return datetime.now(UTC)
+
+    def monotonic_ns(self):
+        return time.monotonic_ns()
+
+    def wait(self, timeout_seconds):
+        time.sleep(timeout_seconds)
+
+    def wait_interruptibly(self, timeout_seconds, wait_for_event):
+        """Wait on the engine's generation-bound condition without moving UTC."""
+        return wait_for_event(timeout_seconds)
+
+
+def _assert_strategy_params(strategy_cls, required):
+    names = set(strategy_cls.params._getkeys())
+    missing = set(required).difference(names)
+    if missing:
+        raise RunnerError("ALPHA003_STRATEGY_API_PENDING", ",".join(sorted(missing)))
+
+
+def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, replay, **extra):
+    from alpha003_strategy import Alpha003TargetStrategy
+
+    required = {
+        "cohort",
+        "calendar_id",
+        "strategy_scope",
+        "product_keys",
+        "authorized_targets",
+        "replay_mode",
+        "execution_enabled",
+        "risk_policy",
+        "replay_quotes",
+        "replay_instruments",
+        "session_calendars",
+        "routes",
+        "market_instrument_keys",
+        "account_scope",
+        "account_route",
+        "logical_run_id",
+        "market_environment",
+        "source_kind",
+        "max_live_bar_age_seconds",
+        "max_future_skew_seconds",
+        "live_ready_callback",
+        "live_next_callback",
+        "live_capacity_callback",
+        "loss_guard_net_loss_threshold",
+        "loss_guard_max_observation_age_seconds",
+    }
+    _assert_strategy_params(Alpha003TargetStrategy, required)
+    route_by_target = {
+        _target_id(product): (instrument, product.exchange_id)
+        for product, instrument in plan["routes"].items()
+    }
+    strategy_scope = config["live"]["strategy_scope"] or "alpha003-example"
+    return {
+        "cohort": extra.pop("cohort"),
+        "calendar_id": config["cohort"]["calendar_id"],
+        "strategy_scope": strategy_scope,
+        "product_keys": {
+            target: (product.exchange_id, product.product_id)
+            for target, product in plan["product_by_target"].items()
+        },
+        "authorized_targets": tuple(plan["authorized_targets"]),
+        "factor_mode": factor_mode,
+        "direction": direction,
+        "preheat_bars": config["factor"]["preheat_bars"],
+        "max_pending_slots": config["cohort"]["max_pending_slots"],
+        "max_window_bars": config["cohort"]["max_window_bars"],
+        "wait_timeout_ns": int(float(config["cohort"]["wait_timeout_seconds"]) * 1_000_000_000),
+        "rebalance_every": config["factor"]["rebalance_every"],
+        "replay_mode": replay,
+        "execution_enabled": replay,
+        "risk_policy": risk_policy,
+        "loss_guard_net_loss_threshold": extra.pop("loss_guard_net_loss_threshold", None),
+        "loss_guard_max_observation_age_seconds": extra.pop(
+            "loss_guard_max_observation_age_seconds", None
+        ),
+        "routes": route_by_target,
+        "session_calendars": plan["session_calendars"],
+        "account_scope": extra.pop("account_scope", None),
+        "account_route": extra.pop("account_route", None),
+        "market_environment": extra.pop("market_environment", "simnow"),
+        "logical_run_id": extra.pop("logical_run_id", None),
+        "replay_quotes": extra.pop("replay_quotes", ()),
+        "replay_instruments": extra.pop("replay_instruments", {}),
+        "live_ready_callback": extra.pop("live_ready_callback", None),
+        "live_next_callback": extra.pop("live_next_callback", None),
+        "live_capacity_callback": extra.pop("live_capacity_callback", None),
+        **extra,
+    }
+
+
+def _check_tape_complete(plan, tape):
+    expected_closes = tuple(minute.close_time for minute in plan["grid"].minutes)
+    for target in plan["targets"]:
+        actual = tuple(event["bucket_end"] for event in tape["events"].get(target, ()))
+        if actual != expected_closes:
+            missing = len(set(expected_closes).difference(actual))
+            extra = len(set(actual).difference(expected_closes))
+            raise RunnerError(
+                "REPLAY_TAPE_NOT_FULL_GRID", f"{target}: missing={missing} extra={extra}"
+            )
+
+
+def _canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
+    try:
+        return (
+            json.dumps(
+                value,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+            + b"\n"
+        )
+    except (TypeError, ValueError, UnicodeError):
+        raise RunnerError("DECISION_TAPE_VALUE_INVALID") from None
+
+
+def _tape_scalar(value: Any, label: str) -> Any:
+    """Return a bounded JSON scalar while preserving finite numeric values."""
+    if value is None or type(value) in (str, int, bool):
+        return value
+    if isinstance(value, datetime):
+        return _json_time(value)
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise RunnerError("DECISION_TAPE_VALUE_INVALID", label)
+        return str(value)
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise RunnerError("DECISION_TAPE_VALUE_INVALID", label)
+        return value
+    if hasattr(value, "value") and type(getattr(value, "value")) in (str, int, bool):
+        return value.value
+    raise RunnerError("DECISION_TAPE_VALUE_INVALID", label)
+
+
+def _tape_factor_value(value: Any) -> Mapping[str, Any]:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return {"finite": False, "value": None, "float64_hex": None}
+    if not math.isfinite(number):
+        return {"finite": False, "value": None, "float64_hex": number.hex()}
+    return {"finite": True, "value": number, "float64_hex": number.hex()}
+
+
+def _decision_tape_record(
+    batch: Any,
+    snapshot: Any,
+    target_decision: Any,
+    order_plan: Any,
+    *,
+    file_id: str,
+    index: int,
+    targets: tuple[str, ...],
+    calendar_fingerprint: Optional[str] = None,
+) -> dict[str, Any]:
+    members = getattr(batch, "members", None)
+    if not isinstance(members, Mapping) or tuple(sorted(members)) != tuple(sorted(targets)):
+        raise RunnerError("DECISION_TAPE_MEMBER_SET_INVALID")
+    if (
+        getattr(batch, "status", None) != "COMPLETE"
+        or getattr(snapshot, "batch_complete", None) is not True
+        or getattr(snapshot, "batch_id", None) != getattr(batch, "batch_id", None)
+        or getattr(snapshot, "close_time", None) != getattr(batch, "close_time", None)
+    ):
+        raise RunnerError("DECISION_TAPE_BATCH_SNAPSHOT_MISMATCH")
+
+    member_rows = {}
+    for target in sorted(targets):
+        receipt = members[target]
+        envelope = getattr(receipt, "envelope", None)
+        if envelope is None or getattr(envelope, "member_id", None) != target:
+            raise RunnerError("DECISION_TAPE_RECEIPT_INVALID", target)
+        raw_values = getattr(envelope, "raw_values", None)
+        if not isinstance(raw_values, Mapping) or not set(OHLCV_FIELDS).issubset(raw_values):
+            raise RunnerError("DECISION_TAPE_RAW_FIELDS_INVALID", target)
+        member_rows[target] = {
+            "cohort_id": _tape_scalar(getattr(envelope, "cohort_id", None), "cohort_id"),
+            "calendar_id": _tape_scalar(getattr(envelope, "calendar_id", None), "calendar_id"),
+            "epoch_id": _tape_scalar(getattr(envelope, "epoch_id", None), "epoch_id"),
+            "slot_index": _tape_scalar(getattr(envelope, "slot_index", None), "slot_index"),
+            "slot_id": _tape_scalar(getattr(envelope, "slot_id", None), "slot_id"),
+            "instrument": _tape_scalar(getattr(envelope, "instrument", None), "instrument"),
+            "source_ref": _tape_scalar(getattr(envelope, "source_ref", None), "source_ref"),
+            "origin_partition": _tape_origin_partition(
+                getattr(envelope, "origin_partition", None), target
+            ),
+            "source_role": _tape_scalar(getattr(envelope, "source_role", None), "source_role"),
+            "connection_generation": _tape_scalar(
+                getattr(envelope, "connection_generation", None), "connection_generation"
+            ),
+            "feed_sequence": _tape_scalar(
+                getattr(envelope, "feed_sequence", None), "feed_sequence"
+            ),
+            "bucket_start": _tape_scalar(getattr(envelope, "bucket_start", None), "bucket_start"),
+            "close_time": _tape_scalar(getattr(envelope, "close_time", None), "close_time"),
+            "available_at": _tape_scalar(getattr(envelope, "available_at", None), "available_at"),
+            "trading_day": _tape_trading_day(
+                getattr(envelope, "trading_day", None), "trading_day"
+            ),
+            "session_segment": _tape_scalar(
+                getattr(envelope, "session_segment", None), "session_segment"
+            ),
+            "timezone_id": _tape_scalar(getattr(envelope, "timezone_id", None), "timezone_id"),
+            "clock_domain_id": _tape_scalar(
+                getattr(envelope, "clock_domain_id", None), "clock_domain_id"
+            ),
+            "bar_id": _tape_scalar(getattr(envelope, "bar_id", None), "bar_id"),
+            "complete": _tape_scalar(getattr(envelope, "complete", None), "complete"),
+            "quality": _tape_scalar(getattr(envelope, "quality", None), "quality"),
+            "present": _tape_scalar(getattr(envelope, "present", None), "present"),
+            "quality_flags": list(getattr(envelope, "quality_flags", ())),
+            "event_source": _tape_scalar(getattr(envelope, "event_source", None), "event_source"),
+            "received_monotonic_ns": _tape_scalar(
+                getattr(envelope, "received_monotonic_ns", None), "received_monotonic_ns"
+            ),
+            "raw_values": {
+                field: _tape_scalar(raw_values[field], f"{target}.{field}")
+                for field in sorted(raw_values)
+            },
+        }
+        if calendar_fingerprint is not None:
+            member_rows[target]["missing_fields"] = list(
+                getattr(envelope, "missing_fields", ())
+            )
+            member_rows[target]["rules_hash"] = _tape_scalar(
+                getattr(envelope, "rules_hash", None), "rules_hash"
+            )
+
+    factors = getattr(snapshot, "factors", None)
+    if not isinstance(factors, Mapping) or not factors:
+        raise RunnerError("DECISION_TAPE_FACTOR_SNAPSHOT_INVALID")
+    factor_rows = {}
+    for name, factor in sorted(factors.items()):
+        values = getattr(factor, "values", None)
+        if not isinstance(values, Mapping) or tuple(sorted(values)) != tuple(sorted(targets)):
+            raise RunnerError("DECISION_TAPE_FACTOR_TARGET_SET_INVALID", str(name))
+        factor_rows[str(name)] = {
+            "mode": _tape_scalar(getattr(factor, "mode", None), "factor mode"),
+            "panel_line": _tape_scalar(getattr(factor, "panel_line", None), "factor panel"),
+            "direction": _tape_scalar(getattr(factor, "direction", None), "factor direction"),
+            "source_sha256": _tape_scalar(
+                getattr(factor, "source_sha256", None), "factor source hash"
+            ),
+            "values": {
+                target: {
+                    "value": _tape_factor_value(getattr(values[target], "value", None)),
+                    "status": _tape_scalar(
+                        getattr(values[target], "status", None), "factor status"
+                    ),
+                    "reason": _tape_scalar(
+                        getattr(values[target], "reason", None), "factor reason"
+                    ),
+                    "present": _tape_scalar(
+                        getattr(values[target], "present", None), "factor present"
+                    ),
+                    "complete": _tape_scalar(
+                        getattr(values[target], "complete", None), "factor complete"
+                    ),
+                    "quality": _tape_scalar(
+                        getattr(values[target], "quality", None), "factor quality"
+                    ),
+                    "source_role": _tape_scalar(
+                        getattr(values[target], "source_role", None), "factor source role"
+                    ),
+                    "member_id": _tape_scalar(
+                        getattr(values[target], "member_id", None), "factor member"
+                    ),
+                    "source_ref": _tape_scalar(
+                        getattr(values[target], "source_ref", None), "factor source ref"
+                    ),
+                    "sequence": _tape_scalar(
+                        getattr(values[target], "sequence", None), "factor sequence"
+                    ),
+                    "generation": _tape_scalar(
+                        getattr(values[target], "generation", None), "factor generation"
+                    ),
+                }
+                for target in sorted(targets)
+            },
+        }
+
+    decision_row = None
+    if target_decision is not None:
+        target_rows = []
+        for item in getattr(target_decision, "targets", ()):
+            product = getattr(item, "product_key", None)
+            target_rows.append(
+                {
+                    "target_id": _tape_scalar(getattr(item, "target_id", None), "decision target"),
+                    "product_key": {
+                        "exchange_id": _tape_scalar(
+                            getattr(product, "exchange_id", None), "product exchange"
+                        ),
+                        "product_id": _tape_scalar(
+                            getattr(product, "product_id", None), "product id"
+                        ),
+                    },
+                    "target_position": _tape_scalar(
+                        getattr(item, "target_position", None), "target position"
+                    ),
+                    "raw_score": _tape_factor_value(getattr(item, "raw_score", None)),
+                    "oriented_score": _tape_factor_value(getattr(item, "oriented_score", None)),
+                }
+            )
+        decision_row = {
+            name: _tape_scalar(getattr(target_decision, name), f"decision {name}")
+            for name in (
+                "status",
+                "reason",
+                "factor_name",
+                "mode",
+                "execution_mode",
+                "direction",
+                "source_sha256",
+                "cohort_id",
+                "batch_id",
+                "close_time",
+                "available_at",
+                "eligible_grid_index",
+                "rebalance_every",
+            )
+        }
+        decision_row.update(
+            authorized_targets=list(getattr(target_decision, "authorized_targets", ())),
+            eligible_targets=list(getattr(target_decision, "eligible_targets", ())),
+            targets=target_rows,
+        )
+
+    plan_row = None
+    if order_plan is not None:
+        actions = []
+        plan_mapping = order_plan if isinstance(order_plan, Mapping) else None
+        if plan_mapping is not None:
+            required_plan_fields = {
+                "status",
+                "reason",
+                "decision_batch_id",
+                "decision_available_at",
+                "actions",
+            }
+            if not required_plan_fields.issubset(plan_mapping):
+                raise RunnerError("DECISION_TAPE_ORDER_PLAN_INVALID")
+            raw_actions = plan_mapping.get("actions")
+        else:
+            raw_actions = getattr(order_plan, "actions", ())
+        if not isinstance(raw_actions, (tuple, list)):
+            raise RunnerError("DECISION_TAPE_ORDER_PLAN_INVALID")
+        action_fields = (
+            "action",
+            "target_id",
+            "instrument",
+            "side",
+            "position_effect",
+            "quantity",
+            "limit_price",
+            "offset",
+            "reason",
+            "planned_stop_price",
+            "exchange",
+            "decision_available_at",
+            "entry_grid_ordinal",
+        )
+        for action in raw_actions:
+            if isinstance(action, Mapping):
+                if not set(action_fields).issubset(action):
+                    raise RunnerError("DECISION_TAPE_ORDER_ACTION_INVALID")
+                read_action = action.get
+            else:
+                read_action = lambda name, _default=None, item=action: getattr(item, name, _default)
+            actions.append(
+                {
+                    name: _tape_scalar(read_action(name), f"order action {name}")
+                    for name in action_fields
+                }
+            )
+        def plan_value(name):
+            if plan_mapping is not None:
+                return plan_mapping.get(name)
+            return getattr(order_plan, name, None)
+
+        plan_row = {
+            "status": _tape_scalar(plan_value("status"), "plan status"),
+            "reason": _tape_scalar(plan_value("reason"), "plan reason"),
+            "decision_batch_id": _tape_scalar(plan_value("decision_batch_id"), "plan batch"),
+            "decision_available_at": _tape_scalar(
+                plan_value("decision_available_at"), "plan availability"
+            ),
+            "actions": actions,
+        }
+
+    row = {
+        "schema": DECISION_TAPE_SCHEMA,
+        "record_type": "DECISION",
+        "file_id": file_id,
+        "record_index": index,
+        "batch_id": _tape_scalar(getattr(batch, "batch_id", None), "batch_id"),
+        "cohort_id": _tape_scalar(getattr(batch, "cohort_id", None), "cohort_id"),
+        "calendar_id": _tape_scalar(getattr(batch, "calendar_id", None), "calendar_id"),
+        "calendar_version": _tape_scalar(
+            getattr(batch, "calendar_version", None), "calendar_version"
+        ),
+        "epoch_id": _tape_scalar(getattr(batch, "epoch_id", None), "epoch_id"),
+        "slot_index": _tape_scalar(getattr(batch, "slot_index", None), "slot_index"),
+        "close_time": _tape_scalar(getattr(batch, "close_time", None), "close_time"),
+        "available_at": _tape_scalar(getattr(batch, "available_at", None), "available_at"),
+        "readiness": _tape_scalar(getattr(snapshot, "readiness", None), "snapshot readiness"),
+        "readiness_reasons": list(getattr(snapshot, "readiness_reasons", ())),
+        "members": member_rows,
+        "factors": {
+            "plan_id": _tape_scalar(getattr(snapshot, "plan_id", None), "factor plan"),
+            "factors": factor_rows,
+        },
+        "target_decision": decision_row,
+        "order_plan": plan_row,
+    }
+    if calendar_fingerprint is not None:
+        row["calendar_fingerprint"] = calendar_fingerprint
+        row["slot_id"] = member_rows[sorted(member_rows)[0]]["slot_id"]
+    return row
+
+
+_DECISION_TAPE_GENERATION_LEASE_SCHEMA = (
+    "backtrader.alpha003.decision_tape_generation_lease.v1"
+)
+_DECISION_TAPE_GENERATION_LEASE_SUFFIX = ".generation.lock"
+_DECISION_TAPE_GENERATION_LEASE_MAX_ANCHOR_BYTES = 512
+_DECISION_TAPE_GENERATION_LOCAL_OWNERS = {}
+_DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK = threading.Lock()
+_DECISION_TAPE_GENERATION_FORK_LOCK = threading.RLock()
+
+
+def _generation_file_identity(metadata) -> tuple[int, int]:
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+    try:
+        device = int(metadata.st_dev)
+        file_id = int(metadata.st_ino)
+    except (AttributeError, TypeError, ValueError):
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_UNAVAILABLE") from None
+    if device < 0 or file_id <= 0:
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_UNAVAILABLE")
+    return device, file_id
+
+
+def _linux_local_filesystem_type(directory: Path) -> Optional[str]:
+    if not sys.platform.startswith("linux"):
+        return None
+    mountinfo = Path("/proc/self/mountinfo")
+    try:
+        lines = mountinfo.read_text(encoding="utf-8").splitlines()
+        resolved = directory.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+
+    def unescape(value: str) -> str:
+        return value.replace("\\040", " ").replace("\\011", "\t").replace("\\134", "\\")
+
+    matches = []
+    for line in lines:
+        fields = line.split()
+        try:
+            separator = fields.index("-")
+            mountpoint = Path(unescape(fields[4]))
+            filesystem = fields[separator + 1]
+            if os.path.commonpath((str(resolved), str(mountpoint))) == str(mountpoint):
+                matches.append((len(str(mountpoint)), filesystem))
+        except (IndexError, ValueError):
+            continue
+    return max(matches)[1] if matches else None
+
+
+def _require_local_generation_lease_filesystem(
+    directory: Path, *, platform_name: Optional[str] = None
+) -> None:
+    platform_name = os.name if platform_name is None else platform_name
+    if platform_name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            volume_path_fn = kernel32.GetVolumePathNameW
+            volume_path_fn.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+            volume_path_fn.restype = wintypes.BOOL
+            drive_type_fn = kernel32.GetDriveTypeW
+            drive_type_fn.argtypes = [wintypes.LPCWSTR]
+            drive_type_fn.restype = wintypes.UINT
+            volume_info_fn = kernel32.GetVolumeInformationW
+            volume_info_fn.argtypes = [
+                wintypes.LPCWSTR,
+                wintypes.LPWSTR,
+                wintypes.DWORD,
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+                wintypes.LPWSTR,
+                wintypes.DWORD,
+            ]
+            volume_info_fn.restype = wintypes.BOOL
+            volume_path = ctypes.create_unicode_buffer(32768)
+            if not volume_path_fn(
+                str(directory), volume_path, len(volume_path)
+            ):
+                raise OSError(ctypes.get_last_error(), "GetVolumePathNameW")
+            if drive_type_fn(volume_path.value) != 3:  # DRIVE_FIXED
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+            filesystem = ctypes.create_unicode_buffer(64)
+            if not volume_info_fn(
+                volume_path.value,
+                None,
+                0,
+                None,
+                None,
+                None,
+                filesystem,
+                len(filesystem),
+            ):
+                raise OSError(ctypes.get_last_error(), "GetVolumeInformationW")
+            if filesystem.value.upper() not in {"NTFS", "REFS"}:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+            return
+        except RunnerError:
+            raise
+        except (AttributeError, OSError):
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED") from None
+
+    if platform_name != "posix":
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+    filesystem = _linux_local_filesystem_type(directory)
+    if filesystem not in {"btrfs", "ext2", "ext3", "ext4", "f2fs", "tmpfs", "xfs"}:
+        raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILESYSTEM_UNSUPPORTED")
+
+
+class _DecisionTapeGenerationLease:
+    """Non-expiring local OS lock for one tape pathname; never recovers a tape."""
+
+    def __init__(self, tape_path: Path) -> None:
+        self.tape_path = tape_path.resolve(strict=False)
+        self.path = self.tape_path.with_name(
+            self.tape_path.name + _DECISION_TAPE_GENERATION_LEASE_SUFFIX
+        )
+        self._file = None
+        self._identity = None
+        self._locked = False
+        self._registry_key = None
+        self._writer = None
+        self._tape_handle = None
+
+    @property
+    def held(self) -> bool:
+        return self._locked and self._file is not None and not self._file.closed
+
+    def _register_local_owner(self) -> None:
+        key = os.path.normcase(str(self.path))
+        with _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK:
+            if key in _DECISION_TAPE_GENERATION_LOCAL_OWNERS:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY")
+            _DECISION_TAPE_GENERATION_LOCAL_OWNERS[key] = self
+            self._registry_key = key
+
+    def _unregister_local_owner(self) -> None:
+        key = self._registry_key
+        if key is None:
+            return
+        with _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK:
+            if _DECISION_TAPE_GENERATION_LOCAL_OWNERS.get(key) is self:
+                del _DECISION_TAPE_GENERATION_LOCAL_OWNERS[key]
+        self._registry_key = None
+
+    @staticmethod
+    def _open_windows_lock_file(path: Path):
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        class _ByHandleFileInformation(ctypes.Structure):
+            _fields_ = [
+                ("dwFileAttributes", wintypes.DWORD),
+                ("ftCreationTimeLow", wintypes.DWORD),
+                ("ftCreationTimeHigh", wintypes.DWORD),
+                ("ftLastAccessTimeLow", wintypes.DWORD),
+                ("ftLastAccessTimeHigh", wintypes.DWORD),
+                ("ftLastWriteTimeLow", wintypes.DWORD),
+                ("ftLastWriteTimeHigh", wintypes.DWORD),
+                ("dwVolumeSerialNumber", wintypes.DWORD),
+                ("nFileSizeHigh", wintypes.DWORD),
+                ("nFileSizeLow", wintypes.DWORD),
+                ("nNumberOfLinks", wintypes.DWORD),
+                ("nFileIndexHigh", wintypes.DWORD),
+                ("nFileIndexLow", wintypes.DWORD),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file = kernel32.CreateFileW
+        create_file.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        ]
+        create_file.restype = wintypes.HANDLE
+        get_info = kernel32.GetFileInformationByHandle
+        get_info.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ByHandleFileInformation)]
+        get_info.restype = wintypes.BOOL
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+        set_handle_information = kernel32.SetHandleInformation
+        set_handle_information.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
+        set_handle_information.restype = wintypes.BOOL
+
+        ctypes.set_last_error(0)
+        handle = create_file(
+            str(path),
+            0x80000000 | 0x40000000,  # GENERIC_READ | GENERIC_WRITE
+            0x00000001 | 0x00000002,  # FILE_SHARE_READ | FILE_SHARE_WRITE; deny delete sharing
+            None,
+            4,  # OPEN_ALWAYS
+            0x00000080 | 0x00200000,  # FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT
+            None,
+        )
+        invalid_handle = wintypes.HANDLE(-1).value
+        if not handle or handle == invalid_handle:
+            raise OSError(ctypes.get_last_error(), "CreateFileW")
+        created = ctypes.get_last_error() != 183  # ERROR_ALREADY_EXISTS
+        try:
+            info = _ByHandleFileInformation()
+            if not get_info(handle, ctypes.byref(info)):
+                raise OSError(ctypes.get_last_error(), "GetFileInformationByHandle")
+            if info.dwFileAttributes & (0x00000400 | 0x00000010):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+            if not set_handle_information(handle, 0x00000001, 0):
+                raise OSError(ctypes.get_last_error(), "SetHandleInformation")
+            fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY)
+            handle = None  # ownership transferred to the CRT descriptor
+            try:
+                os.set_inheritable(fd, False)
+            except OSError:
+                os.close(fd)
+                raise RunnerError(
+                    "DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE"
+                ) from None
+            return fd, created
+        finally:
+            if handle:
+                close_handle(handle)
+
+    def _open_lock_file(self):
+        if os.name == "nt":
+            return self._open_windows_lock_file(self.path)
+        if os.name != "posix" or not hasattr(os, "O_NOFOLLOW"):
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_UNSUPPORTED")
+        flags = os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        try:
+            fd = os.open(self.path, flags | os.O_EXCL, 0o600)
+            created = True
+        except FileExistsError:
+            metadata = os.lstat(self.path)
+            identity = _generation_file_identity(metadata)
+            if identity is None or metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID") from None
+            fd = os.open(self.path, os.O_RDWR | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0))
+            created = False
+        try:
+            os.set_inheritable(fd, False)
+        except OSError:
+            os.close(fd)
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE") from None
+        return fd, created
+
+    def _lock_file(self, fd: int) -> None:
+        if os.name == "nt":
+            import msvcrt
+
+            os.lseek(fd, 0, os.SEEK_SET)
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            except OSError as error:
+                if getattr(error, "winerror", None) in {33, 158} or error.errno in {
+                    errno.EACCES,
+                    errno.EAGAIN,
+                    errno.EDEADLK,
+                }:
+                    raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY") from None
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ACQUIRE_FAILED") from None
+            return
+        import fcntl
+
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            if error.errno in {errno.EACCES, errno.EAGAIN}:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_BUSY") from None
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ACQUIRE_FAILED") from None
+
+    def _unlock_file(self, fd: int) -> None:
+        if os.name == "nt":
+            import msvcrt
+
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            return
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+    def _assert_lock_path_identity(self) -> None:
+        try:
+            metadata = os.lstat(self.path)
+            identity = _generation_file_identity(metadata)
+        except OSError:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH") from None
+        if os.name == "nt" and getattr(metadata, "st_file_attributes", 0) & 0x00000400:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH")
+        if identity != self._identity:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_IDENTITY_MISMATCH")
+
+    def _anchor_bytes(self) -> bytes:
+        return _canonical_json_bytes(
+            {
+                "schema": _DECISION_TAPE_GENERATION_LEASE_SCHEMA,
+                "device": self._identity[0],
+                "file_id": self._identity[1],
+            }
+        )
+
+    def _check_or_write_anchor(self, *, allow_initialize: bool = False) -> None:
+        self._file.seek(0)
+        current = self._file.read(_DECISION_TAPE_GENERATION_LEASE_MAX_ANCHOR_BYTES + 1)
+        expected = self._anchor_bytes()
+        if not current:
+            if not allow_initialize:
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_INVALID")
+            self._file.seek(0)
+            written = self._file.write(expected)
+            if written != len(expected):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_WRITE_FAILED")
+            self._file.flush()
+            os.fsync(self._file.fileno())
+        elif current != expected:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_ANCHOR_INVALID")
+
+    def acquire(self):
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            return self._acquire()
+
+    def _acquire(self):
+        if self.held:
+            return self
+        self._register_local_owner()
+        fd = None
+        try:
+            _require_local_generation_lease_filesystem(self.tape_path.parent)
+            fd, _created = self._open_lock_file()
+            if os.get_inheritable(fd):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_INHERITABLE_HANDLE")
+            metadata = os.fstat(fd)
+            self._identity = _generation_file_identity(metadata)
+            if os.name == "posix" and (
+                metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077
+            ):
+                raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FILE_INVALID")
+            self._file = os.fdopen(fd, "r+b", buffering=0)
+            fd = None
+            self._lock_file(self._file.fileno())
+            self._locked = True
+            self._assert_lock_path_identity()
+            self._check_or_write_anchor(allow_initialize=True)
+            self._assert_lock_path_identity()
+            return self
+        except BaseException:
+            if self._file is not None:
+                try:
+                    if self._locked:
+                        self._unlock_file(self._file.fileno())
+                except OSError:
+                    pass
+                try:
+                    self._file.close()
+                except OSError:
+                    pass
+                if self._file.closed:
+                    self._locked = False
+                    self._file = None
+                    self._unregister_local_owner()
+            elif fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                self._unregister_local_owner()
+            else:
+                self._unregister_local_owner()
+            raise
+
+    def validate(self, tape_handle=None) -> None:
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            self._validate(tape_handle)
+
+    def _validate(self, tape_handle=None) -> None:
+        if not self.held:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_NOT_HELD")
+        self._assert_lock_path_identity()
+        self._check_or_write_anchor()
+        if tape_handle is not None:
+            try:
+                handle_identity = _generation_file_identity(os.fstat(tape_handle.fileno()))
+                path_metadata = os.lstat(self.tape_path)
+                path_identity = _generation_file_identity(path_metadata)
+            except OSError:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH") from None
+            if os.name == "nt" and getattr(path_metadata, "st_file_attributes", 0) & 0x00000400:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH")
+            if handle_identity != path_identity:
+                raise RunnerError("DECISION_TAPE_GENERATION_TAPE_IDENTITY_MISMATCH")
+
+    def release(self) -> None:
+        with _DECISION_TAPE_GENERATION_FORK_LOCK:
+            self._release()
+
+    def _release(self) -> None:
+        if self._file is None:
+            self._unregister_local_owner()
+            return
+        fd = self._file.fileno()
+        error = None
+        if self._locked:
+            try:
+                self._unlock_file(fd)
+            except OSError:
+                error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        try:
+            self._file.close()
+        except OSError:
+            error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        if self._file.closed:
+            self._locked = False
+            self._file = None
+            self._writer = None
+            self._tape_handle = None
+            self._unregister_local_owner()
+        if error is not None:
+            raise RunnerError(error) from None
+
+    def bind_writer(self, writer) -> None:
+        if not self.held:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_NOT_HELD")
+        self._writer = writer
+        self._tape_handle = writer._handle
+
+    def _close_inherited_after_fork(self) -> None:
+        tape_handle = self._tape_handle
+        writer = self._writer
+        if tape_handle is not None:
+            try:
+                tape_handle.close()
+            except BaseException:
+                pass
+        if writer is not None:
+            writer._failed = True
+            writer._closed = bool(tape_handle is None or tape_handle.closed)
+            writer._lock = threading.RLock()
+        if self._file is not None:
+            try:
+                self._file.close()
+            except BaseException:
+                pass
+            if self._file.closed:
+                self._file = None
+                self._locked = False
+                self._writer = None
+                self._tape_handle = None
+        self._registry_key = None
+
+
+def _decision_tape_generation_before_fork() -> None:
+    _DECISION_TAPE_GENERATION_FORK_LOCK.acquire()
+
+
+def _decision_tape_generation_after_fork_parent() -> None:
+    _DECISION_TAPE_GENERATION_FORK_LOCK.release()
+
+
+def _decision_tape_generation_after_fork_child() -> None:
+    global _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK
+    global _DECISION_TAPE_GENERATION_FORK_LOCK
+    owners = tuple(_DECISION_TAPE_GENERATION_LOCAL_OWNERS.values())
+    for lease in owners:
+        lease._close_inherited_after_fork()
+    _DECISION_TAPE_GENERATION_LOCAL_OWNERS.clear()
+    _DECISION_TAPE_GENERATION_LOCAL_OWNERS_LOCK = threading.Lock()
+    _DECISION_TAPE_GENERATION_FORK_LOCK = threading.RLock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(
+        before=_decision_tape_generation_before_fork,
+        after_in_parent=_decision_tape_generation_after_fork_parent,
+        after_in_child=_decision_tape_generation_after_fork_child,
+    )
+
+
+class DecisionTapeWriter:
+    """Exclusive, byte-bounded JSONL tape for replayable cohort decisions."""
+
+    def __init__(
+        self,
+        path: Path,
+        max_bytes: int,
+        *,
+        mode: str,
+        factor_mode: str,
+        direction: int,
+        targets: tuple[str, ...],
+        calendar_id: str,
+        grid_sha256: Optional[str],
+        source_snapshot_id: Optional[str],
+        restart_identity: Optional[Mapping[str, Any]] = None,
+        selection_evidence: Optional[Mapping[str, Any]] = None,
+        calendar_fingerprint: Optional[str] = None,
+        cross_process_generation_lease: bool = False,
+    ) -> None:
+        if type(max_bytes) is not int or max_bytes < 1:
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+        if mode not in {"replay", "live"}:
+            raise RunnerError("DECISION_TAPE_MODE_INVALID")
+        if type(cross_process_generation_lease) is not bool:
+            raise RunnerError("DECISION_TAPE_GENERATION_LEASE_FLAG_INVALID")
+        self.mode = mode
+        self.factor_mode = factor_mode
+        self.direction = direction
+        self.path = path.resolve(strict=False)
+        self.max_bytes = max_bytes
+        self.targets = tuple(sorted(targets))
+        self.calendar_id = calendar_id
+        self.grid_sha256 = grid_sha256
+        self.source_snapshot_id = source_snapshot_id
+        if not self.targets or len(self.targets) != len(set(self.targets)):
+            raise RunnerError("DECISION_TAPE_TARGETS_INVALID")
+        self.file_id = str(uuid.uuid4())
+        self._bytes = 0
+        self._record_count = 0
+        self._hash = hashlib.sha256()
+        self._closed = False
+        self._failed = False
+        self._lock = threading.RLock()
+        self._last_record_reference = None
+        self._last_record_offset = None
+        self._last_record_raw = None
+        self._header_record_id = None
+        if calendar_fingerprint is not None and (
+            type(calendar_fingerprint) is not str
+            or len(calendar_fingerprint) != 64
+            or any(ch not in "0123456789abcdef" for ch in calendar_fingerprint)
+        ):
+            raise RunnerError("DECISION_TAPE_CALENDAR_FINGERPRINT_INVALID")
+        self.calendar_fingerprint = calendar_fingerprint
+        self._selection_evidence = (
+            json.loads(
+                _canonical_json_bytes(
+                    _validate_selection_evidence(selection_evidence)
+                )
+            )
+            if selection_evidence is not None
+            else None
+        )
+        self._selection_evidence_sha256 = (
+            self._selection_evidence["binding_sha256"]
+            if self._selection_evidence is not None
+            else None
+        )
+        self._restart_identity = (
+            None
+            if restart_identity is None
+            else json.loads(_canonical_json_bytes(restart_identity))
+        )
+        self._generation_lease = None
+
+        # Build the complete header before opening either the tape or the
+        # generation lease.  Serialization failures must not leave an open
+        # data handle or a held cross-process lock behind.
+        header = {
+            "schema": DECISION_TAPE_SCHEMA,
+            "origin_partition_schema": SOURCE_ORIGIN_PARTITION_SCHEMA,
+            "record_type": "HEADER",
+            "file_id": self.file_id,
+            "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "mode": mode,
+            "factor_mode": factor_mode,
+            "direction": direction,
+            "targets": list(self.targets),
+            "calendar_id": calendar_id,
+            "grid_sha256": grid_sha256,
+            "source_snapshot_id": source_snapshot_id,
+        }
+        if calendar_fingerprint is not None:
+            header["calendar_fingerprint"] = calendar_fingerprint
+        if restart_identity is not None:
+            _canonical_json_bytes(restart_identity)
+            header["restart_identity"] = dict(restart_identity)
+        if self._selection_evidence is not None:
+            header["selection_evidence"] = dict(self._selection_evidence)
+        canonical = _canonical_json_bytes(header)
+        self._header_record_id = hashlib.sha256(canonical.rstrip(b"\n")).hexdigest()
+        header["record_id"] = self._header_record_id
+        header_raw = _canonical_json_bytes(header)
+
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            if cross_process_generation_lease:
+                with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                    self._generation_lease = _DecisionTapeGenerationLease(self.path)
+                    self._generation_lease.acquire()
+                    self._handle = self.path.open("xb")
+                    self._generation_lease.bind_writer(self)
+            else:
+                self._handle = self.path.open("xb")
+        except OSError:
+            self._cleanup_initialization_failure()
+            raise RunnerError("DECISION_TAPE_CREATE_FAILED") from None
+        except BaseException:
+            self._cleanup_initialization_failure()
+            raise
+        try:
+            self._append(header_raw, count_record=False)
+        except BaseException:
+            self._cleanup_initialization_failure()
+            raise
+
+    def _cleanup_initialization_failure(self) -> None:
+        """Close constructor-owned resources without racing a POSIX fork."""
+        lease = self._generation_lease
+        handle = getattr(self, "_handle", None)
+
+        def close_handle_and_release() -> None:
+            if handle is not None:
+                try:
+                    handle.close()
+                except BaseException:
+                    self._failed = True
+                try:
+                    handle_closed = bool(handle.closed)
+                except BaseException:
+                    handle_closed = False
+                self._closed = handle_closed
+            else:
+                # No data handle was returned by Path.open, so releasing the
+                # lease cannot expose a live writer handle.
+                handle_closed = True
+                self._closed = True
+
+            if lease is not None and handle_closed:
+                try:
+                    lease.release()
+                except BaseException:
+                    self._failed = True
+            elif lease is not None:
+                self._failed = True
+
+        if lease is None:
+            close_handle_and_release()
+            return
+        try:
+            with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                close_handle_and_release()
+        except BaseException:
+            # Preserve the constructor's original exception.  Failure to
+            # establish a closed handle leaves the lease held and failed.
+            self._failed = True
+
+    @property
+    def last_record_reference(self):
+        with self._lock:
+            return self._last_record_reference
+
+    def _append(self, raw: bytes, *, count_record: bool) -> None:
+        with self._lock:
+            if self._generation_lease is None:
+                self._append_locked(raw, count_record=count_record)
+            else:
+                with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                    self._append_locked(raw, count_record=count_record)
+
+    def _append_locked(self, raw: bytes, *, count_record: bool) -> None:
+        if self._closed or self._failed:
+            raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+        if self._generation_lease is not None:
+            try:
+                self._generation_lease.validate(self._handle)
+            except RunnerError:
+                self._failed = True
+                raise
+        offset = self._bytes
+        if offset + len(raw) > self.max_bytes:
+            self._failed = True
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+        try:
+            written = self._handle.write(raw)
+            if written != len(raw):
+                raise OSError("short decision tape write")
+            self._handle.flush()
+            os.fsync(self._handle.fileno())
+        except BaseException:
+            try:
+                os.ftruncate(self._handle.fileno(), offset)
+                self._handle.seek(offset)
+                self._handle.flush()
+                os.fsync(self._handle.fileno())
+            except BaseException:
+                pass
+            self._failed = True
+            raise RunnerError("DECISION_TAPE_WRITE_FAILED") from None
+        if self._generation_lease is not None:
+            try:
+                self._generation_lease.validate(self._handle)
+            except RunnerError:
+                self._failed = True
+                raise
+        self._bytes += len(raw)
+        self._hash.update(raw)
+        if count_record:
+            self._record_count += 1
+            self._last_record_offset = offset
+            self._last_record_raw = bytes(raw)
+
+    def record_decision(self, batch, snapshot, target_decision, order_plan):
+        with self._lock:
+            if self._closed or self._failed:
+                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
+            index = self._record_count + 1
+            row = _decision_tape_record(
+                batch,
+                snapshot,
+                target_decision,
+                order_plan,
+                file_id=self.file_id,
+                index=index,
+                targets=self.targets,
+                calendar_fingerprint=self.calendar_fingerprint,
+            )
+            if self._selection_evidence_sha256 is not None:
+                row["selection_evidence_sha256"] = self._selection_evidence_sha256
+            row["header_record_id"] = self._header_record_id
+            digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
+            row["record_id"] = digest
+            raw = _canonical_json_bytes(row)
+            self._append(raw, count_record=True)
+            self._last_record_reference = MappingProxyType(
+                {
+                    "file_id": self.file_id,
+                    "record_id": digest,
+                    "record_index": index,
+                    "batch_id": row["batch_id"],
+                }
+            )
+            return True
+
+    def record_verified_source_prewarm(
+        self,
+        *,
+        key,
+        batch,
+        source_receipt,
+        coordinator,
+    ):
+        """Verify this live writer's latest no-intent row before anchoring it."""
+
+        import bt_api_py.execution_journal as journal_api
+
+        with self._lock:
+            try:
+                readback = self._verified_source_tape_readback_locked(
+                    source_receipt, journal_api
+                )
+                return coordinator.record_verified_source_prewarm(
+                    key=key,
+                    batch=batch,
+                    tape_readback=readback,
+                )
+            except BaseException:
+                self._failed = True
+                raise
+
+    def _verified_source_tape_readback_locked(
+        self,
+        source_receipt,
+        journal_api,
+    ):
+        receipt_is_valid = type(source_receipt) is journal_api.ExecutionSourceReceipt
+        readiness_allowed = receipt_is_valid and source_receipt.readiness in ("WARMUP", "CATCHING_UP")
+        if (
+            self.mode != "live"
+            or self._closed
+            or self._failed
+            or not receipt_is_valid
+            or not readiness_allowed
+            or self._generation_lease is None
+            or not self._generation_lease.held
+            or self._last_record_raw is None
+            or self._last_record_offset is None
+            or self._last_record_reference is None
+        ):
+            raise RunnerError("DECISION_TAPE_SOURCE_READBACK_UNAVAILABLE")
+        try:
+            self._generation_lease.validate(self._handle)
+            handle_metadata = os.fstat(self._handle.fileno())
+            path_metadata = os.lstat(self.path)
+            handle_identity = _generation_file_identity(handle_metadata)
+            path_identity = _generation_file_identity(path_metadata)
+            if (
+                handle_identity != path_identity
+                or handle_metadata.st_size != self._bytes
+                or path_metadata.st_size != self._bytes
+                or self._last_record_offset + len(self._last_record_raw) != self._bytes
+                or self._record_count != source_receipt.tape_record_index
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_IDENTITY_MISMATCH")
+
+            with self.path.open("rb") as readback_file:
+                before = os.fstat(readback_file.fileno())
+                if _generation_file_identity(before) != handle_identity:
+                    raise RunnerError("DECISION_TAPE_SOURCE_READBACK_IDENTITY_MISMATCH")
+                readback_file.seek(self._last_record_offset)
+                raw = readback_file.read(len(self._last_record_raw))
+                after = os.fstat(readback_file.fileno())
+            path_after = os.lstat(self.path)
+            self._generation_lease.validate(self._handle)
+            if (
+                raw != self._last_record_raw
+                or _generation_file_identity(after) != handle_identity
+                or after.st_size != self._bytes
+                or _generation_file_identity(path_after) != handle_identity
+                or path_after.st_size != self._bytes
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+
+            row = json.loads(raw)
+            if not isinstance(row, Mapping) or _canonical_json_bytes(row) != raw:
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+            record_id = row.get("record_id")
+            unhashed = dict(row)
+            unhashed.pop("record_id", None)
+            calculated_record_id = hashlib.sha256(
+                _canonical_json_bytes(unhashed).rstrip(b"\n")
+            ).hexdigest()
+            reference = self._last_record_reference
+            plan = row.get("order_plan")
+            plan_matches = (
+                isinstance(plan, Mapping)
+                and plan.get("status") == "NO_ACTION"
+                and plan.get("actions") == []
+            )
+            decision_matches = True
+            if (
+                row.get("schema") != DECISION_TAPE_SCHEMA
+                or row.get("record_type") != "DECISION"
+                or row.get("file_id") != self.file_id
+                or row.get("record_index") != self._record_count
+                or row.get("header_record_id") != self._header_record_id
+                or row.get("batch_id") != reference.get("batch_id")
+                or record_id != calculated_record_id
+                or record_id != reference.get("record_id")
+                or reference.get("file_id") != self.file_id
+                or reference.get("record_index") != self._record_count
+                or row.get("readiness") != source_receipt.readiness
+                or not isinstance(row.get("factors"), Mapping)
+                or not row.get("factors", {}).get("factors")
+                or not isinstance(row.get("members"), Mapping)
+                or tuple(sorted(row["members"])) != self.targets
+                or not plan_matches
+                or not decision_matches
+            ):
+                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+
+            members = _source_members_from_tape_row(row, journal_api)
+            receipt = journal_api.ExecutionSourceReceipt(
+                source_kind=source_receipt.source_kind,
+                cohort_id=row["cohort_id"],
+                calendar_id=row["calendar_id"],
+                calendar_version=row["calendar_version"],
+                calendar_fingerprint=row["calendar_fingerprint"],
+                epoch_id=row["epoch_id"],
+                slot_index=row["slot_index"],
+                slot_id=row["slot_id"],
+                close_time=row["close_time"],
+                batch_id=row["batch_id"],
+                readiness=row["readiness"],
+                tape_file_id=row["file_id"],
+                tape_record_id=row["record_id"],
+                tape_record_index=row["record_index"],
+                members=members,
+                predecessor=source_receipt.predecessor,
+                restart_marker=source_receipt.restart_marker,
+            )
+            if receipt != source_receipt:
+                raise RunnerError("DECISION_TAPE_SOURCE_RECEIPT_MISMATCH")
+            return journal_api._make_verified_source_tape_readback(
+                receipt=receipt,
+                tape_file_identity=handle_identity,
+                tape_size=self._bytes,
+                record_offset=self._last_record_offset,
+                record_size=len(raw),
+                record_count=self._record_count,
+                record_sha256=hashlib.sha256(raw).hexdigest(),
+                prefix_sha256=self._hash.hexdigest(),
+                writer_instance_id=id(self),
+                generation_lock_identity=self._generation_lease._identity,
+                purpose="PREWARM",
+            )
+        except RunnerError:
+            raise
+        except BaseException:
+            raise RunnerError("DECISION_TAPE_SOURCE_READBACK_FAILED") from None
+
+    def latch_failure(self):
+        with self._lock:
+            self._failed = True
+
+    def close(self):
+        with self._lock:
+            if self._closed:
+                return self.summary()
+            if self._generation_lease is None:
+                try:
+                    self._handle.flush()
+                    os.fsync(self._handle.fileno())
+                except OSError:
+                    self._failed = True
+                    raise RunnerError("DECISION_TAPE_CLOSE_FAILED") from None
+                finally:
+                    try:
+                        self._handle.close()
+                    except OSError:
+                        self._failed = True
+                self._closed = True
+                if self._failed:
+                    raise RunnerError("DECISION_TAPE_CLOSE_FAILED")
+                return self.summary()
+            with _DECISION_TAPE_GENERATION_FORK_LOCK:
+                return self._close_with_generation_lease()
+
+    def _close_with_generation_lease(self):
+        close_error = None
+        try:
+            self._generation_lease.validate(self._handle)
+        except RunnerError as error:
+            self._failed = True
+            close_error = error.code
+        try:
+            self._handle.flush()
+            os.fsync(self._handle.fileno())
+        except OSError:
+            self._failed = True
+            close_error = "DECISION_TAPE_CLOSE_FAILED"
+        try:
+            self._handle.close()
+        except OSError:
+            self._failed = True
+            close_error = "DECISION_TAPE_CLOSE_FAILED"
+        self._closed = self._handle.closed
+        if self._generation_lease is not None and self._handle.closed:
+            try:
+                self._generation_lease.release()
+            except RunnerError:
+                self._failed = True
+                close_error = "DECISION_TAPE_GENERATION_LEASE_RELEASE_FAILED"
+        if close_error is not None:
+            raise RunnerError(close_error) from None
+        if not self._closed:
+            raise RunnerError("DECISION_TAPE_CLOSE_FAILED") from None
+        if self._failed:
+            raise RunnerError("DECISION_TAPE_CLOSE_FAILED")
+        return self.summary()
+
+    def summary(self):
+        return {
+            "file_id": self.file_id,
+            "path": str(self.path),
+            "bytes": self._bytes,
+            "max_bytes": self.max_bytes,
+            "record_count": self._record_count,
+            "sha256": self._hash.hexdigest(),
+            "closed": self._closed,
+            "failed": self._failed,
+            "last_record_reference": (
+                dict(self._last_record_reference)
+                if self._last_record_reference is not None
+                else None
+            ),
+        }
+
+
+def _is_lower_sha256(value: Any) -> bool:
+    return bool(
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _source_members_from_tape_row(row, journal_api):
+    member_rows = row.get("members")
+    if not isinstance(member_rows, Mapping) or not member_rows:
+        raise RunnerError("SOURCE_TAPE_MEMBERS_INVALID")
+    result = []
+    try:
+        for member_id in sorted(member_rows):
+            member = member_rows[member_id]
+            if not isinstance(member, Mapping):
+                raise RunnerError("SOURCE_TAPE_MEMBER_INVALID")
+            result.append(
+                journal_api.ExecutionSourceMemberReceipt(
+                    member_id=member_id,
+                    source_ref=member["source_ref"],
+                    source_role=member["source_role"],
+                    connection_generation=member["connection_generation"],
+                    feed_sequence=member["feed_sequence"],
+                    bar_id=member["bar_id"],
+                    bucket_start=member["bucket_start"],
+                    close_time=member["close_time"],
+                    available_at=member["available_at"],
+                    trading_day=member["trading_day"],
+                    session_segment=member["session_segment"],
+                    timezone_id=member["timezone_id"],
+                    clock_domain_id=member["clock_domain_id"],
+                    complete=member["complete"],
+                    quality=member["quality"],
+                    present=member["present"],
+                    missing_fields=tuple(member.get("missing_fields", ())),
+                    quality_flags=tuple(member.get("quality_flags", ())),
+                    event_source=member.get("event_source", ""),
+                    received_monotonic_ns=member.get("received_monotonic_ns"),
+                    rules_hash=member.get("rules_hash"),
+                    origin_partition=member.get("origin_partition"),
+                )
+            )
+    except RunnerError:
+        raise
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        journal_api.ExecutionDecisionJournalError,
+    ) as error:
+        code = getattr(error, "code", None)
+        raise RunnerError(
+            "SOURCE_TAPE_MEMBER_INVALID", code if type(code) is str else None
+        ) from None
+    return tuple(result)
+
+
+def iter_decision_tape(
+    path: Path,
+    *,
+    max_bytes: int,
+    max_record_bytes: Optional[int] = None,
+    _raw_hasher=None,
+):
+    """Read and verify one JSONL record at a time under the declared byte cap."""
+    if type(max_bytes) is not int or max_bytes < 1:
+        raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+    if max_record_bytes is not None and (type(max_record_bytes) is not int or max_record_bytes < 1):
+        raise RunnerError("DECISION_TAPE_RECORD_BYTE_LIMIT_INVALID")
+    if _raw_hasher is not None and not callable(getattr(_raw_hasher, "update", None)):
+        raise RunnerError("DECISION_TAPE_HASHER_INVALID")
+    try:
+        if path.stat().st_size > max_bytes:
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+        handle = path.open("rb")
+    except OSError:
+        raise RunnerError("DECISION_TAPE_READ_FAILED") from None
+    with handle:
+        total = 0
+        index = 0
+        header_seen = False
+        tape_schema = None
+        file_id = None
+        targets = None
+        header_record_id = None
+        selection_evidence_sha256 = None
+        require_header_binding = False
+        while True:
+            read_size = max_bytes - total + 1
+            if max_record_bytes is not None:
+                read_size = min(read_size, max_record_bytes + 1)
+            raw = handle.readline(read_size)
+            if not raw:
+                break
+            if _raw_hasher is not None:
+                _raw_hasher.update(raw)
+            if max_record_bytes is not None and len(raw) > max_record_bytes:
+                raise RunnerError("DECISION_TAPE_RECORD_BYTE_LIMIT_EXCEEDED")
+            total += len(raw)
+            if total > max_bytes:
+                if max_record_bytes is None:
+                    raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+                raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
+            if not raw.endswith(b"\n"):
+                raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+            try:
+                row = json.loads(raw.decode("utf-8"))
+            except (UnicodeError, json.JSONDecodeError):
+                raise RunnerError("DECISION_TAPE_RECORD_INVALID") from None
+            if not isinstance(row, dict):
+                raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+            record_id = row.pop("record_id", None)
+            expected = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
+            row["record_id"] = record_id
+            if type(record_id) is not str or record_id != expected:
+                raise RunnerError("DECISION_TAPE_RECORD_HASH_INVALID")
+            if not header_seen:
+                tape_schema = row.get("schema")
+                if (
+                    row.get("record_type") != "HEADER"
+                    or tape_schema not in (LEGACY_DECISION_TAPE_SCHEMA, DECISION_TAPE_SCHEMA)
+                    or (
+                        tape_schema == DECISION_TAPE_SCHEMA
+                        and row.get("origin_partition_schema") != SOURCE_ORIGIN_PARTITION_SCHEMA
+                    )
+                    or (
+                        tape_schema == LEGACY_DECISION_TAPE_SCHEMA
+                        and "origin_partition_schema" in row
+                    )
+                ):
+                    raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                file_id = row.get("file_id")
+                targets = row.get("targets")
+                header_record_id = record_id
+                if type(file_id) is not str or type(targets) is not list or not targets:
+                    raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                if len(targets) != len(set(targets)) or tuple(targets) != tuple(sorted(targets)):
+                    raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                if "selection_evidence" in row:
+                    selection_evidence = _validate_selection_evidence(row["selection_evidence"])
+                    if row.get("source_snapshot_id") != selection_evidence["source_snapshot_id"]:
+                        raise RunnerError("DECISION_TAPE_HEADER_INVALID")
+                    selection_evidence_sha256 = selection_evidence["binding_sha256"]
+                    require_header_binding = (
+                        selection_evidence["selection_source"]
+                        == "futures_market_snapshot_equal_weight_v1"
+                    )
+                header_seen = True
+            else:
+                index += 1
+                if (
+                    row.get("record_type") != "DECISION"
+                    or row.get("schema") != tape_schema
+                    or row.get("file_id") != file_id
+                    or row.get("record_index") != index
+                    or set(row.get("members", {})) != set(targets)
+                ):
+                    raise RunnerError("DECISION_TAPE_RECORD_INVALID")
+                if "header_record_id" in row:
+                    if row["header_record_id"] != header_record_id:
+                        raise RunnerError("DECISION_TAPE_HEADER_BINDING_MISMATCH")
+                elif require_header_binding:
+                    raise RunnerError("DECISION_TAPE_HEADER_BINDING_REQUIRED")
+                if selection_evidence_sha256 is None:
+                    if "selection_evidence_sha256" in row:
+                        raise RunnerError("DECISION_TAPE_SELECTION_EVIDENCE_MISMATCH")
+                elif row.get("selection_evidence_sha256") != selection_evidence_sha256:
+                    raise RunnerError("DECISION_TAPE_SELECTION_EVIDENCE_MISMATCH")
+            yield MappingProxyType(row)
+    if not header_seen:
+        raise RunnerError("DECISION_TAPE_HEADER_MISSING")
+
+
+def _new_decision_tape(
+    config,
+    config_path,
+    plan,
+    *,
+    mode,
+    factor_mode,
+    direction,
+    source_snapshot_id,
+    restart_identity=None,
+    selection_evidence=None,
+    calendar_fingerprint=None,
+):
+    raw_path = config["output"]["decision_tape_path"]
+    raw_budget = config["output"]["decision_tape_max_bytes"]
+    if raw_path is None or raw_budget is None:
+        raise RunnerError("DECISION_TAPE_PROFILE_REQUIRED")
+    if type(raw_budget) is not int or raw_budget < 1:
+        raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+    path = _resolve_path(config_path, raw_path, "output.decision_tape_path")
+    return DecisionTapeWriter(
+        path,
+        raw_budget,
+        mode=mode,
+        factor_mode=factor_mode,
+        direction=direction,
+        targets=tuple(plan["targets"]),
+        calendar_id=config["cohort"]["calendar_id"],
+        grid_sha256=getattr(plan["grid"], "evidence_sha256", None),
+        source_snapshot_id=source_snapshot_id,
+        restart_identity=restart_identity,
+        selection_evidence=selection_evidence,
+        calendar_fingerprint=calendar_fingerprint,
+        cross_process_generation_lease=(mode == "live"),
+    )
+
+
+def _live_restart_identity(config, config_path, plan, *, factor_mode, direction, simnow_profile):
+    """Bind a saved live tape to the exact public run/journal continuation scope."""
+    cohort = config["cohort"]
+    live = config["live"]
+    risk = config["risk"]
+    epoch_id = cohort["epoch_id"]
+    if type(epoch_id) is not int or epoch_id < 1:
+        raise RunnerError("LIVE_HISTORY_EPOCH_INVALID")
+    scope_hashes = {
+        name: hashlib.sha256(_text(live[name], "live." + name).encode("utf-8")).hexdigest()
+        for name in ("account_scope", "strategy_scope", "logical_run_id")
+    }
+    journal_path = _resolve_path(config_path, live["journal_path"], "live.journal_path")
+    identity = {
+        "schema": "backtrader.alpha003.live_restart_identity.v1",
+        "epoch_id": epoch_id,
+        "mode": "live",
+        "factor_mode": factor_mode,
+        "direction": direction,
+        "scope_sha256": scope_hashes,
+        "journal_path_sha256": hashlib.sha256(str(journal_path).encode("utf-8")).hexdigest(),
+        "selection_source": plan.get("selection_source"),
+        "source_snapshot_id": plan.get("source_snapshot_id"),
+        "targets": sorted(plan["targets"]),
+        "authorized_targets": sorted(plan["authorized_targets"]),
+        "selector_policy": _selector_policy_projection(
+            plan, config["factor"]["rebalance_every"]
+        ),
+        "routes": {
+            target: plan["routes"][plan["product_by_target"][target]]
+            for target in sorted(plan["targets"])
+        },
+        "calendar": {
+            "calendar_id": _text(cohort["calendar_id"], "cohort.calendar_id"),
+            "calendar_version": _text(cohort["calendar_version"], "cohort.calendar_version"),
+            "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
+            "grid_sha256": getattr(plan["grid"], "evidence_sha256", None),
+            "clock_domain_id": _text(cohort["clock_domain_id"], "cohort.clock_domain_id"),
+            "timezone_id": _text(cohort["timezone_id"], "cohort.timezone_id"),
+            "session_semantics": _text(cohort["session_semantics"], "cohort.session_semantics"),
+            "frequency": "1min",
+        },
+        "simnow_profile": {
+            "verified": simnow_profile.get("verified"),
+            "environment": simnow_profile.get("environment"),
+            "profile": simnow_profile.get("profile"),
+        },
+        "risk": {name: risk[name] for name in ("policy_id", *RISK_FIELDS)},
+    }
+    if plan.get("golden_targets") is not None:
+        identity.update(
+            {
+                "full_selected_targets": sorted(plan["full_selected_targets"]),
+                "active_shadow_targets": sorted(plan["active_shadow_targets"]),
+                "full_authorized_targets": sorted(plan["full_authorized_targets"]),
+                "full_routes": _full_route_summary(plan),
+                "full_grid_semantics_sha256": _grid_semantics_sha256(plan["full_grid"]),
+                "active_grid_semantics_sha256": _grid_semantics_sha256(plan["grid"]),
+            }
+        )
+    _canonical_json_bytes(identity)
+    return identity
+
+
+def _selection_evidence_matches_identity(evidence, identity):
+    if "active_shadow_targets" in evidence:
+        return bool(
+            evidence["epoch_id"] == identity.get("epoch_id")
+            and evidence["selection_source"] == identity.get("selection_source")
+            and evidence["source_snapshot_id"] == identity.get("source_snapshot_id")
+            and evidence["routes"] == identity.get("full_routes")
+            and evidence["authorized_targets"] == identity.get("full_authorized_targets")
+            and evidence["full_selected_targets"] == identity.get("full_selected_targets")
+            and evidence["active_shadow_targets"] == identity.get("active_shadow_targets")
+            and evidence["active_routes"] == identity.get("routes")
+            and evidence["active_authorized_targets"] == identity.get("authorized_targets")
+            and evidence.get("selector_policy") == identity.get("selector_policy")
+            and evidence["grid_semantics_sha256"] == identity.get("full_grid_semantics_sha256")
+            and evidence["active_grid_semantics_sha256"]
+            == identity.get("active_grid_semantics_sha256")
+        )
+    return bool(
+        evidence["epoch_id"] == identity.get("epoch_id")
+        and evidence["selection_source"] == identity.get("selection_source")
+        and evidence["source_snapshot_id"] == identity.get("source_snapshot_id")
+        and evidence["routes"] == identity.get("routes")
+        and sorted(evidence["routes"]) == identity.get("targets")
+        and sorted(evidence["authorized_targets"]) == identity.get("authorized_targets")
+        and evidence.get("selector_policy") == identity.get("selector_policy")
+    )
+
+
+def _load_saved_live_history(
+    config,
+    config_path,
+    plan,
+    *,
+    source_refs_by_target,
+    restart_identity,
+    selection_evidence=None,
+    now,
+    journal=None,
+    scopes=None,
+    source_kind="ALPHA003_GRID",
+):
+    """Stream-verify a prior decision tape and retain only one bounded warmup window."""
+    raw_path = config["inputs"].get("history_decision_tape")
+    if raw_path is None:
+        return None
+    selection_source = config["selection"]["source"]
+    query_selection = selection_source == "ctp_query"
+    if selection_source not in {"bundle", "ctp_query"} or config["selection"]["daily_bundles"]:
+        raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+    if query_selection:
+        if selection_evidence is None:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        selection_evidence = _validate_selection_evidence(selection_evidence)
+        if (
+            selection_evidence["selection_source"]
+            != "futures_market_snapshot_equal_weight_v1"
+            or not _selection_evidence_matches_identity(selection_evidence, restart_identity)
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    elif selection_evidence is not None:
+        selection_evidence = _validate_selection_evidence(selection_evidence)
+        if not _selection_evidence_matches_identity(selection_evidence, restart_identity):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    source_path = _resolve_path(config_path, raw_path, "inputs.history_decision_tape")
+    output_path = _resolve_path(
+        config_path, config["output"]["decision_tape_path"], "output.decision_tape_path"
+    )
+    journal_path = _resolve_path(config_path, config["live"]["journal_path"], "live.journal_path")
+    if source_path in {output_path, journal_path}:
+        raise RunnerError("LIVE_HISTORY_PATH_CONFLICT")
+    preheat_bars = config["factor"]["preheat_bars"]
+    if type(preheat_bars) is not int or preheat_bars < 1:
+        raise RunnerError("LIVE_HISTORY_WARMUP_INVALID")
+    now = _aware_datetime(now, "live history cutover time")
+    future_slots = _remaining_live_grid_minutes(plan["grid"], now)
+    if not future_slots:
+        raise RunnerError("LIVE_HISTORY_GRID_WINDOW_UNAVAILABLE")
+    if (
+        not isinstance(source_refs_by_target, Mapping)
+        or set(source_refs_by_target) != set(plan["targets"])
+        or any(
+            type(source_ref) is not str or not source_ref or source_ref != source_ref.strip()
+            for source_ref in source_refs_by_target.values()
+        )
+    ):
+        raise RunnerError("LIVE_HISTORY_SOURCE_IDENTITY_UNAVAILABLE")
+    if journal is None or not isinstance(scopes, Mapping):
+        raise RunnerError("LIVE_HISTORY_SOURCE_JOURNAL_REQUIRED")
+    source_highwater = journal.source_highwater(
+        scopes["account_scope"],
+        scopes["strategy_scope"],
+        scopes["logical_run_id"],
+        source_kind,
+    )
+    if source_highwater is None:
+        raise RunnerError("LIVE_HISTORY_SOURCE_HIGHWATER_MISSING")
+    slot_by_close = {minute.close_time: minute for minute in plan["grid"].minutes}
+    target_set = tuple(sorted(plan["targets"]))
+    tail = deque(maxlen=preheat_bars)
+    previous_close = None
+    previous_slot_index = None
+    previous_batch_id = None
+    previous_sequences = {}
+    generations = {}
+    previous_origin_partitions = {}
+    previous_origin_sequences = {}
+    previous_source_roles = {}
+    source_cohort_id = None
+    source_epoch_id = None
+    historical_grid_cursor = None
+    source_calendar_fingerprint = None
+    header = None
+    tape_schema = None
+    record_count = 0
+    latest_grid_anchor = None
+    iterator = iter_decision_tape(
+        source_path, max_bytes=config["output"]["decision_tape_max_bytes"]
+    )
+    for row in iterator:
+        if header is None:
+            header = row
+            tape_schema = row["schema"]
+            source_calendar_fingerprint = row.get("calendar_fingerprint")
+            if (
+                type(source_calendar_fingerprint) is not str
+                or len(source_calendar_fingerprint) != 64
+                or any(ch not in "0123456789abcdef" for ch in source_calendar_fingerprint)
+            ):
+                raise RunnerError("LIVE_HISTORY_HEADER_CALENDAR_FINGERPRINT_INVALID")
+            identity = row.get("restart_identity")
+            if not isinstance(identity, Mapping):
+                raise RunnerError("LIVE_HISTORY_IDENTITY_REQUIRED")
+            try:
+                _exact_keys(identity, set(restart_identity), "live history identity")
+            except RunnerError:
+                raise RunnerError("LIVE_HISTORY_IDENTITY_INVALID") from None
+            old_epoch = identity.get("epoch_id")
+            current_epoch = restart_identity["epoch_id"]
+            if type(old_epoch) is not int or old_epoch < 1 or old_epoch >= current_epoch:
+                raise RunnerError("LIVE_HISTORY_EPOCH_INVALID")
+            if (
+                row.get("mode") != "live"
+                or row.get("factor_mode") != restart_identity["factor_mode"]
+            ):
+                raise RunnerError("LIVE_HISTORY_MODE_MISMATCH")
+            old_selection_evidence = row.get("selection_evidence")
+            if query_selection and old_selection_evidence is None:
+                raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+            if old_selection_evidence is not None:
+                old_selection_evidence = _validate_selection_evidence(old_selection_evidence)
+                if not _selection_evidence_matches_identity(old_selection_evidence, identity):
+                    raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+                if query_selection:
+                    if (
+                        old_selection_evidence["selection_source"]
+                        != "futures_market_snapshot_equal_weight_v1"
+                    ):
+                        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+                    if _query_history_selection_projection(
+                        old_selection_evidence
+                    ) != _query_history_selection_projection(selection_evidence):
+                        raise RunnerError("LIVE_HISTORY_SELECTION_MISMATCH")
+            header_targets = row.get("targets")
+            if (
+                type(header_targets) is not list
+                or tuple(header_targets) != target_set
+                or row.get("calendar_id") != config["cohort"]["calendar_id"]
+                or row.get("direction") != identity.get("direction")
+                or row.get("source_snapshot_id") != identity.get("source_snapshot_id")
+                or row.get("grid_sha256") != identity.get("calendar", {}).get("grid_sha256")
+            ):
+                raise RunnerError("LIVE_HISTORY_HEADER_MISMATCH")
+            same_query_source = (
+                query_selection
+                and identity.get("selection_source")
+                == "futures_market_snapshot_equal_weight_v1"
+                and restart_identity.get("selection_source")
+                == "futures_market_snapshot_equal_weight_v1"
+            )
+            for name, expected in restart_identity.items():
+                if name == "epoch_id" or (name == "source_snapshot_id" and same_query_source):
+                    continue
+                if name == "calendar" and same_query_source:
+                    old_calendar = dict(identity[name])
+                    current_calendar = dict(expected)
+                    old_calendar.pop("grid_sha256", None)
+                    current_calendar.pop("grid_sha256", None)
+                    if _canonical_json_bytes(old_calendar) != _canonical_json_bytes(
+                        current_calendar
+                    ):
+                        raise RunnerError("LIVE_HISTORY_IDENTITY_MISMATCH")
+                    continue
+                if _canonical_json_bytes(identity[name]) != _canonical_json_bytes(expected):
+                    raise RunnerError("LIVE_HISTORY_IDENTITY_MISMATCH")
+            source_epoch_id = old_epoch
+            source_cohort_id = "alpha003:{}:{}".format(config["cohort"]["calendar_id"], old_epoch)
+            historical_grid_cursor = journal.grid_cursor(
+                scopes["account_scope"],
+                scopes["strategy_scope"],
+                source_cohort_id,
+            )
+            continue
+
+        record_count += 1
+        close_time = _aware_datetime(row.get("close_time"), "saved decision close_time")
+        if previous_close is not None and close_time <= previous_close:
+            raise RunnerError("LIVE_HISTORY_ORDER_INVALID")
+        previous_close = close_time
+        if close_time > now or close_time not in slot_by_close:
+            raise RunnerError("LIVE_HISTORY_OUTSIDE_CURRENT_GRID")
+        minute = slot_by_close[close_time]
+        slot_index = row.get("slot_index")
+        batch_id = row.get("batch_id")
+        decision_available_at = _aware_datetime(
+            row.get("available_at"), "saved decision available_at"
+        )
+        if type(slot_index) is not int or slot_index < 0:
+            raise RunnerError("LIVE_HISTORY_SLOT_IDENTITY_INVALID")
+        if previous_slot_index is not None and slot_index != previous_slot_index + 1:
+            raise RunnerError("LIVE_HISTORY_SLOT_SEQUENCE_INVALID")
+        expected_batch_id = "{}:{}:{}:{}:{}".format(
+            source_cohort_id,
+            config["cohort"]["calendar_id"],
+            source_epoch_id,
+            config["cohort"]["calendar_version"],
+            slot_index,
+        )
+        if type(batch_id) is not str or batch_id != expected_batch_id:
+            raise RunnerError("LIVE_HISTORY_BATCH_ID_INVALID")
+        if batch_id == previous_batch_id:
+            raise RunnerError("LIVE_HISTORY_BATCH_ID_INVALID")
+        if decision_available_at < close_time or decision_available_at > now:
+            raise RunnerError("LIVE_HISTORY_AVAILABILITY_INVALID")
+        previous_slot_index = slot_index
+        previous_batch_id = batch_id
+        readiness = row.get("readiness")
+        if (
+            row.get("epoch_id") != source_epoch_id
+            or type(row.get("epoch_id")) is not int
+            or row.get("cohort_id") != source_cohort_id
+            or row.get("calendar_id") != config["cohort"]["calendar_id"]
+            or row.get("calendar_version") != config["cohort"]["calendar_version"]
+            or type(row.get("calendar_fingerprint")) is not str
+            or len(row.get("calendar_fingerprint")) != 64
+            or row.get("calendar_fingerprint") != source_calendar_fingerprint
+            or row.get("slot_id") != f"minute:{close_time.isoformat()}"
+            or type(readiness) is not str
+            or readiness not in {
+                "INITIALIZING", "WARMUP", "CATCHING_UP", "LIVE_READY", "DEGRADED"
+            }
+        ):
+            raise RunnerError("LIVE_HISTORY_RECORD_IDENTITY_INVALID")
+        members = row.get("members")
+        if not isinstance(members, Mapping) or set(members) != set(target_set):
+            raise RunnerError("LIVE_HISTORY_MEMBER_SET_INVALID")
+        event_rows = {}
+        event_source_roles = {}
+        for target in target_set:
+            member = members[target]
+            expected_member_keys = {
+                "cohort_id", "calendar_id", "epoch_id", "slot_index", "slot_id", "instrument",
+                "source_ref", "source_role", "connection_generation", "feed_sequence",
+                "bucket_start", "close_time", "available_at", "trading_day", "session_segment",
+                "timezone_id", "clock_domain_id", "bar_id", "complete", "quality", "present",
+                "quality_flags", "missing_fields", "rules_hash", "event_source",
+                "received_monotonic_ns", "raw_values",
+            }
+            if tape_schema == DECISION_TAPE_SCHEMA:
+                expected_member_keys.add("origin_partition")
+            try:
+                _exact_keys(member, expected_member_keys, "saved history member")
+            except RunnerError:
+                raise RunnerError("LIVE_HISTORY_MEMBER_INVALID") from None
+            instrument = plan["routes"][plan["product_by_target"][target]]
+            source_ref = source_refs_by_target[target]
+            product = plan["product_by_target"][target]
+            planned_member = next(item for item in minute.members if item.product == product)
+            bucket_start = _aware_datetime(member["bucket_start"], "saved history bucket_start")
+            member_close = _aware_datetime(member["close_time"], "saved history member close_time")
+            available_at = _aware_datetime(member["available_at"], "saved history available_at")
+            day = _iso_date(member["trading_day"], "saved history trading_day")
+            source_role = member["source_role"]
+            generation = member["connection_generation"]
+            sequence = member["feed_sequence"]
+            bar_id = member["bar_id"]
+            if tape_schema == DECISION_TAPE_SCHEMA:
+                origin_partition = _tape_origin_partition(member["origin_partition"], target)
+            elif source_role == "live":
+                # A legacy live row's original partition is uniquely recoverable
+                # from its exact, journal-anchored current source identity.
+                origin_partition = {
+                    "schema": SOURCE_ORIGIN_PARTITION_SCHEMA,
+                    "cohort_id": source_cohort_id,
+                    "epoch_id": source_epoch_id,
+                    "member_id": target,
+                    "source_ref": source_ref,
+                    "source_role": "live",
+                    "connection_generation": generation,
+                }
+            else:
+                # Legacy history rows have already discarded their origin role
+                # and generation partition. Only fail if one enters the bounded
+                # restored tail; older rows remain validation context.
+                origin_partition = None
+            if source_role not in ("history", "live"):
+                raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_INVALID", target)
+            if (
+                member["cohort_id"] != source_cohort_id
+                or member["calendar_id"] != config["cohort"]["calendar_id"]
+                or member["epoch_id"] != source_epoch_id
+                or type(member["slot_index"]) is not int
+                or member["slot_index"] != slot_index
+                or member["slot_id"] != f"minute:{close_time.isoformat()}"
+                or member["instrument"] != instrument
+                or member["source_ref"] != source_ref
+                or isinstance(generation, bool)
+                or not isinstance(generation, (str, int))
+                or generation in ("", 0)
+                or type(sequence) is not int
+                or sequence < 1
+                or type(bar_id) is not str
+                or not bar_id
+                or member_close != close_time
+                or bucket_start != minute.close_time - timedelta(minutes=1)
+                or close_time != minute.close_time
+                or available_at < close_time
+                or available_at > decision_available_at
+                or day != planned_member.trading_day
+                or member["session_segment"] != planned_member.session_id
+                or member["timezone_id"] != config["cohort"]["timezone_id"]
+                or member["clock_domain_id"] != config["cohort"]["clock_domain_id"]
+                or member["complete"] is not True
+                or member["present"] is not True
+                or member["quality"] != "GOOD"
+                or type(member["quality_flags"]) is not list
+                or member["quality_flags"] not in ([], ["LEGACY_SCHEMA"])
+                or type(member["missing_fields"]) is not list
+                or member["missing_fields"] != []
+                or (
+                    member["rules_hash"] is not None
+                    and (
+                        type(member["rules_hash"]) is not str
+                        or len(member["rules_hash"]) != 64
+                        or any(ch not in "0123456789abcdef" for ch in member["rules_hash"])
+                    )
+                )
+                or type(member["event_source"]) is not str
+                or type(member["raw_values"]) is not dict
+                or set(member["raw_values"]) != set(OHLCV_FIELDS)
+            ):
+                raise RunnerError("LIVE_HISTORY_MEMBER_INVALID", target)
+            previous_role = previous_source_roles.get(target)
+            if previous_role == "live" and source_role != "live":
+                raise RunnerError("LIVE_HISTORY_SOURCE_ROLE_ORDER_INVALID", target)
+            if origin_partition is not None:
+                origin_role = origin_partition["source_role"]
+                origin_epoch = origin_partition["epoch_id"]
+                if (
+                    origin_partition["cohort_id"] == ""
+                    or origin_partition["source_ref"] != source_ref
+                    or origin_partition["connection_generation"] != generation
+                    or origin_epoch > source_epoch_id
+                    or (
+                        origin_epoch == source_epoch_id
+                        and (
+                            origin_partition["cohort_id"] != source_cohort_id
+                            or origin_role != source_role
+                        )
+                    )
+                    or (origin_epoch < source_epoch_id and origin_partition["cohort_id"] == source_cohort_id)
+                    or (source_role == "live" and origin_role != "live")
+                ):
+                    raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_INVALID", target)
+            previous_partition = previous_origin_partitions.get(target)
+            if origin_partition is not None:
+                if previous_partition is not None:
+                    if not _origin_partition_follows(previous_partition, origin_partition):
+                        raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_ORDER_INVALID", target)
+                    if (
+                        dict(previous_partition) == dict(origin_partition)
+                        and sequence <= previous_origin_sequences[target]
+                    ):
+                        raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
+                previous_origin_partitions[target] = origin_partition
+                previous_origin_sequences[target] = sequence
+            else:
+                role_key = (target, source_role)
+                if role_key in generations and generations[role_key] != generation:
+                    raise RunnerError("LIVE_HISTORY_GENERATION_CHANGED", target)
+                prior_sequence = previous_sequences.get(role_key)
+                if prior_sequence is not None and sequence <= prior_sequence:
+                    raise RunnerError("LIVE_HISTORY_SEQUENCE_INVALID", target)
+                generations[role_key] = generation
+                previous_sequences[role_key] = sequence
+            previous_source_roles[target] = source_role
+            values = {
+                name: _number(member["raw_values"][name], "saved history " + target + "." + name)
+                for name in OHLCV_FIELDS
+            }
+            if (
+                min(values["open"], values["high"], values["low"], values["close"]) <= 0
+                or values["high"] < max(values["open"], values["close"], values["low"])
+                or values["low"] > min(values["open"], values["close"], values["high"])
+                or values["volume"] < 0
+                or values["openinterest"] < 0
+            ):
+                raise RunnerError("LIVE_HISTORY_OHLCV_INVALID", target)
+            tape_anchor_identity = (
+                row["file_id"],
+                row["record_id"],
+                row["record_index"],
+                batch_id,
+                source_cohort_id,
+                source_epoch_id,
+                row["calendar_id"],
+                row["calendar_version"],
+                row["calendar_fingerprint"],
+                slot_index,
+                row["slot_id"],
+                close_time,
+            )
+            event_rows[target] = MappingProxyType(
+                {
+                    "instrument": instrument,
+                    "symbol": instrument,
+                    "exchange": product.exchange_id,
+                    "source_ref": source_ref,
+                    "timestamp": close_time.timestamp(),
+                    "datetime": close_time,
+                    "bucket_start": bucket_start,
+                    "bucket_end": close_time,
+                    "available_at": available_at,
+                    "trading_day": day.strftime("%Y%m%d"),
+                    "session_segment": member["session_segment"],
+                    "timezone_id": member["timezone_id"],
+                    "clock_domain_id": member["clock_domain_id"],
+                    "connection_generation": generation,
+                    "bar_sequence": sequence,
+                    "bar_id": bar_id,
+                    "rules_hash": member["rules_hash"],
+                    "received_monotonic_ns": member["received_monotonic_ns"],
+                    "origin_partition": (
+                        None
+                        if origin_partition is None
+                        else MappingProxyType(dict(origin_partition))
+                    ),
+                    "present": True,
+                    "complete": True,
+                    "quality": "GOOD",
+                    "quality_flags": tuple(member["quality_flags"]),
+                    "missing_fields": tuple(member["missing_fields"]),
+                    "source": member["event_source"],
+                    "_saved_history_tape_anchor": tape_anchor_identity,
+                    "_saved_history_record_source_role": source_role,
+                    **values,
+                }
+            )
+            event_source_roles[target] = source_role
+        decision_reference = MappingProxyType(
+            {
+                "file_id": row["file_id"],
+                "record_id": row["record_id"],
+                "record_index": row["record_index"],
+                "calendar_fingerprint": row["calendar_fingerprint"],
+                "calendar_id": row["calendar_id"],
+                "calendar_version": row["calendar_version"],
+                "slot_index": row["slot_index"],
+                "slot_id": row["slot_id"],
+                "readiness": readiness,
+                "members": members,
+                "batch_id": batch_id,
+                "close_time": close_time,
+                "cohort_id": source_cohort_id,
+                "epoch_id": source_epoch_id,
+            }
+        )
+        if (
+            historical_grid_cursor is not None
+            and historical_grid_cursor.epoch_id == str(source_epoch_id)
+            and historical_grid_cursor.batch_id == batch_id
+            and _aware_datetime(historical_grid_cursor.close_time, "history grid cursor")
+            == close_time
+        ):
+            latest_grid_anchor = decision_reference
+        tail.append(
+            (
+                close_time,
+                readiness,
+                slot_index,
+                batch_id,
+                event_rows,
+                event_source_roles,
+                decision_reference,
+            )
+        )
+
+    if header is None or not record_count:
+        raise RunnerError("LIVE_HISTORY_RECORDS_MISSING")
+    if len(tail) != preheat_bars:
+        raise RunnerError("LIVE_HISTORY_WARMUP_NOT_CONTIGUOUS")
+    if any(
+        event["origin_partition"] is None
+        for item in tail
+        for event in item[4].values()
+    ):
+        raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN")
+    if any(item[1] not in {"WARMUP", "CATCHING_UP", "LIVE_READY"} for item in tail):
+        raise RunnerError("LIVE_HISTORY_TAIL_NOT_RESTORABLE")
+    for target in target_set:
+        events = tuple(item[4][target] for item in tail)
+        if any(
+            events[index]["bucket_end"] - events[index - 1]["bucket_end"] != timedelta(minutes=1)
+            for index in range(1, len(events))
+        ):
+            raise RunnerError("LIVE_HISTORY_WARMUP_NOT_CONTIGUOUS", target)
+        if len({(event["trading_day"], event["session_segment"]) for event in events}) != 1:
+            raise RunnerError("LIVE_HISTORY_SESSION_CHANGED", target)
+    last_reference = tail[-1][6]
+    source_receipt = source_highwater.receipt
+    if (
+        source_highwater.account_scope != scopes["account_scope"]
+        or source_highwater.strategy_scope != scopes["strategy_scope"]
+        or source_highwater.logical_run_id != scopes["logical_run_id"]
+        or source_receipt.cohort_id != source_cohort_id
+        or source_receipt.calendar_id != config["cohort"]["calendar_id"]
+        or source_receipt.calendar_version != config["cohort"]["calendar_version"]
+        or source_receipt.epoch_id != source_epoch_id
+        or source_receipt.tape_file_id != header["file_id"]
+        or source_receipt.tape_record_id != last_reference["record_id"]
+        or source_receipt.tape_record_index != record_count
+        or source_receipt.batch_id != last_reference["batch_id"]
+        or source_receipt.close_time != _json_time(last_reference["close_time"])
+        or source_receipt.calendar_fingerprint != last_reference["calendar_fingerprint"]
+    ):
+        raise RunnerError("LIVE_HISTORY_SOURCE_HIGHWATER_MISMATCH")
+    from backtrader.research.live_cohort import (
+        LiveCohortJournalHighWater,
+        LiveCohortJournalMemberHighWater,
+    )
+
+    calendar_highwater = LiveCohortJournalHighWater(
+        cohort_id=source_receipt.cohort_id,
+        calendar_id=source_receipt.calendar_id,
+        calendar_version=source_receipt.calendar_version,
+        calendar_fingerprint=source_receipt.calendar_fingerprint,
+        epoch_id=source_receipt.epoch_id,
+        slot_index=source_receipt.slot_index,
+        slot_id=source_receipt.slot_id,
+        close_time=_aware_datetime(source_receipt.close_time, "source high-water close_time"),
+        batch_id=source_receipt.batch_id,
+        members={
+            member.member_id: LiveCohortJournalMemberHighWater(
+                member_id=member.member_id,
+                source_ref=member.source_ref,
+                source_role=member.source_role,
+                connection_generation=member.connection_generation,
+                feed_sequence=member.feed_sequence,
+                bar_id=member.bar_id,
+                close_time=_aware_datetime(member.close_time, "source member close_time"),
+                trading_day=member.trading_day,
+                session_segment=member.session_segment,
+            )
+            for member in source_receipt.members
+        },
+    )
+    decision_anchors = list(item[6] for item in tail)
+    if latest_grid_anchor is not None and all(
+        item["record_index"] != latest_grid_anchor["record_index"] for item in decision_anchors
+    ):
+        decision_anchors.append(latest_grid_anchor)
+    return {
+        "source_path": source_path,
+        "source_file_id": header["file_id"],
+        "source_epoch_id": source_epoch_id,
+        "source_cohort_id": source_cohort_id,
+        "record_count": record_count,
+        "bar_count": preheat_bars,
+        "first_bucket_start": tail[0][4][target_set[0]]["bucket_start"],
+        "last_close_time": tail[-1][0],
+        "last_batch_id": tail[-1][3],
+        "decision_anchors": tuple(decision_anchors),
+        "source_highwater": source_highwater,
+        "calendar_highwater": calendar_highwater,
+        "latest_grid_anchor": latest_grid_anchor,
+        "bars_by_target": {
+            target: tuple(item[4][target] for item in tail) for target in target_set
+        },
+    }
+
+
+def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
+    """Bind every restored source row to its atomic GRID or SOURCE_ONLY record."""
+    from bt_api_py.execution_journal import (
+        ExecutionDecisionKey,
+        ExecutionDecisionJournalError,
+        ExecutionDecisionRecord,
+        _source_receipt_from_values,
+        _source_receipt_sha256,
+    )
+    from backtrader.research.live_cohort import (
+        _SAVED_HISTORY_ANCHOR_EVENT_KEY,
+        _make_verified_saved_history_journal_anchor,
+    )
+
+    verified_records = {}
+    for anchor in saved_history["decision_anchors"]:
+        close_time = anchor["close_time"].isoformat().replace("+00:00", "Z")
+        key = ExecutionDecisionKey(
+            account_scope=scopes["account_scope"],
+            strategy_scope=scopes["strategy_scope"],
+            logical_run_id=scopes["logical_run_id"],
+            cohort_id=anchor["cohort_id"],
+            close_time=close_time,
+            decision_kind=saved_history["source_highwater"].source_kind,
+        )
+        record = journal.decision_for_key(key)
+        if (
+            not isinstance(record, ExecutionDecisionRecord)
+            or record.key != key
+            or not isinstance(record.economic_payload, Mapping)
+        ):
+            raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+        payload = record.economic_payload
+        receipt = payload.get("_execution_source_receipt")
+        source_only = payload.get("_execution_source_anchor_only") is True
+        grid_candidate = (
+            anchor["readiness"] == "LIVE_READY"
+            and all(member["source_role"] == "live" for member in anchor["members"].values())
+            and all(
+                member["complete"] is True
+                and member["present"] is True
+                and member["quality"] == "GOOD"
+                and member["missing_fields"] == []
+                and set(member["quality_flags"]).issubset({"LEGACY_SCHEMA"})
+                for member in anchor["members"].values()
+            )
+        )
+        if (
+            not isinstance(receipt, Mapping)
+            or (not source_only and payload.get("_execution_source_anchor_only") is not None)
+            or (not source_only and not grid_candidate)
+            or (source_only and record.intent_keys)
+        ):
+            raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+        expected_source = {
+            "source_kind": saved_history["source_highwater"].source_kind,
+            "cohort_id": anchor["cohort_id"],
+            "calendar_id": anchor["calendar_id"],
+            "calendar_version": anchor["calendar_version"],
+            "calendar_fingerprint": anchor["calendar_fingerprint"],
+            "epoch_id": anchor["epoch_id"],
+            "slot_index": anchor["slot_index"],
+            "slot_id": anchor["slot_id"],
+            "close_time": _json_time(anchor["close_time"]),
+            "batch_id": anchor["batch_id"],
+            "readiness": anchor["readiness"],
+            "tape_file_id": anchor["file_id"],
+            "tape_record_id": anchor["record_id"],
+            "tape_record_index": anchor["record_index"],
+        }
+        if any(receipt.get(name) != expected for name, expected in expected_source.items()):
+            raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
+        member_values = receipt.get("members")
+        if type(member_values) not in (tuple, list) or len(member_values) != len(anchor["members"]):
+            raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
+        expected_members = []
+        for member_id, member in sorted(anchor["members"].items()):
+            expected_member = {
+                    "member_id": member_id,
+                    "source_ref": member["source_ref"],
+                    "source_role": member["source_role"],
+                    "connection_generation": member["connection_generation"],
+                    "feed_sequence": member["feed_sequence"],
+                    "bar_id": member["bar_id"],
+                    "bucket_start": member["bucket_start"],
+                    "close_time": member["close_time"],
+                    "available_at": member["available_at"],
+                    "trading_day": member["trading_day"].replace("-", ""),
+                    "session_segment": member["session_segment"],
+                    "timezone_id": member["timezone_id"],
+                    "clock_domain_id": member["clock_domain_id"],
+                    "complete": member["complete"],
+                    "quality": member["quality"],
+                    "present": member["present"],
+                    "missing_fields": tuple(member["missing_fields"]),
+                    "quality_flags": tuple(member["quality_flags"]),
+                    "event_source": member["event_source"],
+                    "received_monotonic_ns": member["received_monotonic_ns"],
+                    "rules_hash": member["rules_hash"],
+                }
+            if "origin_partition" in member:
+                expected_member["origin_partition"] = dict(member["origin_partition"])
+            expected_members.append(expected_member)
+
+        def _comparison_member(value):
+            # Durable member receipts carry the source TradingDay in either the
+            # compact CTP form or ISO-8601. Compare the canonical value while
+            # leaving every other stored field exact.
+            if not isinstance(value, Mapping):
+                return value
+            values = dict(value)
+            day = values.get("trading_day")
+            if type(day) is str:
+                values["trading_day"] = day.replace("-", "")
+            return values
+
+        if [_comparison_member(item) for item in member_values] != expected_members:
+            raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
+        if not source_only:
+            expected_references = (
+                ("decision_tape_file_id", "file_id"),
+                ("decision_tape_record_id", "record_id"),
+                ("decision_tape_record_index", "record_index"),
+                ("decision_tape_batch_id", "batch_id"),
+            )
+            if (
+                payload.get("batch_id") != anchor["batch_id"]
+                # Durable decision payloads store the epoch id as canonical
+                # text while saved-history anchors keep the numeric value.
+                or str(payload.get("epoch_id")) != str(anchor["epoch_id"])
+                or payload.get("decision_tape_status") != "DURABLE"
+                or any(
+                    payload.get(payload_key) != anchor[reference_key]
+                    for payload_key, reference_key in expected_references
+                )
+            ):
+                raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+        try:
+            typed_receipt = _source_receipt_from_values(receipt)
+            receipt_sha256 = _source_receipt_sha256(typed_receipt)
+        except (ExecutionDecisionJournalError, TypeError, ValueError, KeyError):
+            raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH") from None
+        anchor_identity = (
+            anchor["file_id"],
+            anchor["record_id"],
+            anchor["record_index"],
+            anchor["batch_id"],
+            anchor["cohort_id"],
+            anchor["epoch_id"],
+            anchor["calendar_id"],
+            anchor["calendar_version"],
+            anchor["calendar_fingerprint"],
+            anchor["slot_index"],
+            anchor["slot_id"],
+            _aware_datetime(anchor["close_time"], "saved history anchor close_time"),
+        )
+        verified_records[anchor_identity] = {
+            "decision_id": record.decision_id,
+            "receipt_sha256": receipt_sha256,
+            "receipt_members": {
+                member["member_id"]: dict(member) for member in member_values
+            },
+            "anchor": anchor,
+        }
+
+    # Do not publish any row capability until every tail decision and member
+    # receipt has passed the exact journal-to-tape checks above.
+    verified_anchors = {}
+    for target, events in saved_history["bars_by_target"].items():
+        for event in events:
+            anchor_identity = event.get(_SAVED_HISTORY_ANCHOR_EVENT_KEY)
+            verified_record = verified_records.get(anchor_identity)
+            if verified_record is None:
+                raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+            member_receipt = verified_record["receipt_members"].get(target)
+            if member_receipt is None:
+                raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH")
+            origin_partition = event.get("origin_partition")
+            if not isinstance(origin_partition, Mapping):
+                raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN", target)
+            receipt_partition = member_receipt.get("origin_partition")
+            if receipt_partition is None:
+                # Old source receipts omitted this optional field. A live row's
+                # origin is uniquely recoverable from its source cohort/epoch,
+                # exact member/source and generation already checked above.
+                if (
+                    member_receipt.get("source_role") != "live"
+                    or origin_partition.get("cohort_id")
+                    != verified_record["anchor"]["cohort_id"]
+                    or origin_partition.get("epoch_id")
+                    != verified_record["anchor"]["epoch_id"]
+                    or origin_partition.get("source_role") != "live"
+                    or origin_partition.get("member_id") != member_receipt["member_id"]
+                    or origin_partition.get("source_ref") != member_receipt["source_ref"]
+                    or origin_partition.get("connection_generation")
+                    != member_receipt["connection_generation"]
+                ):
+                    raise RunnerError("LIVE_HISTORY_ORIGIN_PARTITION_UNPROVEN", target)
+            elif dict(receipt_partition) != dict(origin_partition):
+                raise RunnerError("LIVE_HISTORY_SOURCE_RECEIPT_MISMATCH", target)
+            anchor = verified_record["anchor"]
+            facts = {
+                "decision_id": verified_record["decision_id"],
+                "receipt_sha256": verified_record["receipt_sha256"],
+                "tape_file_id": anchor["file_id"],
+                "tape_record_id": anchor["record_id"],
+                "tape_record_index": anchor["record_index"],
+                "batch_id": anchor["batch_id"],
+                "source_cohort_id": anchor["cohort_id"],
+                "source_epoch_id": anchor["epoch_id"],
+                "calendar_id": anchor["calendar_id"],
+                "calendar_version": anchor["calendar_version"],
+                "calendar_fingerprint": anchor["calendar_fingerprint"],
+                "slot_index": anchor["slot_index"],
+                "slot_id": anchor["slot_id"],
+                "close_time": anchor["close_time"],
+                "member_receipt": member_receipt,
+                "origin_partition": origin_partition,
+            }
+            verified_anchors[(anchor_identity, target)] = (
+                _make_verified_saved_history_journal_anchor(**facts)
+            )
+    saved_history["verified_journal_anchors"] = MappingProxyType(verified_anchors)
+
+
+def _decision_tape_readback(
+    path: Path,
+    max_bytes: int,
+    *,
+    expected_close_times: Optional[tuple[datetime, ...]] = None,
+) -> Mapping[str, Any]:
+    header = None
+    count = 0
+    last_reference = None
+    raw_hasher = hashlib.sha256()
+    for row in iter_decision_tape(path, max_bytes=max_bytes, _raw_hasher=raw_hasher):
+        if header is None:
+            header = row
+            continue
+        if expected_close_times is not None:
+            expected_index = count
+            if expected_index >= len(expected_close_times) or row.get("close_time") != _json_time(
+                expected_close_times[expected_index]
+            ):
+                raise RunnerError("DECISION_TAPE_GRID_COVERAGE_MISMATCH")
+        count += 1
+        last_reference = {
+            "file_id": row["file_id"],
+            "record_id": row["record_id"],
+            "record_index": row["record_index"],
+            "batch_id": row["batch_id"],
+        }
+    if header is None:
+        raise RunnerError("DECISION_TAPE_HEADER_MISSING")
+    if expected_close_times is not None and count != len(expected_close_times):
+        raise RunnerError("DECISION_TAPE_GRID_COVERAGE_MISMATCH")
+    return {
+        "file_id": header["file_id"],
+        "record_count": count,
+        "last_record_reference": last_reference,
+        "actual_bytes": path.stat().st_size,
+        "raw_sha256": raw_hasher.hexdigest(),
+    }
+
+
+def _live_source_continuity_status(
+    journal, scopes, decision_tape, strategy, source_kind="ALPHA003_GRID"
+):
+    """Project whether this run's fsynced tape is durably anchored through its tail."""
+
+    tape = decision_tape.summary()
+    record_count = tape.get("record_count")
+    if type(record_count) is not int or record_count < 0:
+        return {
+            "status": "UNAVAILABLE",
+            "available": False,
+            "record_count": 0,
+            "failure_count": 1,
+            "first_error": "SOURCE_TAPE_COUNT_INVALID",
+            "final_highwater_matches_tape": False,
+        }
+    if record_count == 0:
+        return {
+            "status": "NOT_APPLICABLE",
+            "available": False,
+            "record_count": 0,
+            "failure_count": 0,
+            "first_error": None,
+            "final_highwater_matches_tape": None,
+            "reason": "NO_ROWS",
+        }
+
+    strategy_failures = getattr(strategy, "source_continuity_failure_count", 0)
+    first_error = getattr(strategy, "source_continuity_first_error", None)
+    if type(strategy_failures) is not int or strategy_failures < 0:
+        strategy_failures = 1
+        first_error = "SOURCE_CONTINUITY_STATE_INVALID"
+    if first_error is not None and first_error not in {
+        "DURABLE_DECISION_COORDINATOR_UNAVAILABLE",
+        "SOURCE_RECEIPT_BUILD_FAILED",
+        "SOURCE_RECEIPT_WRITE_FAILED",
+        "SOURCE_HIGHWATER_CONFIRMATION_FAILED",
+    }:
+        first_error = "SOURCE_CONTINUITY_STATE_INVALID"
+        strategy_failures = max(strategy_failures, 1)
+
+    highwater_read_error = False
+    if journal is None:
+        highwater = None
+    else:
+        try:
+            highwater = journal.source_highwater(
+                scopes["account_scope"],
+                scopes["strategy_scope"],
+                scopes["logical_run_id"],
+                source_kind,
+            )
+        except Exception:
+            highwater = None
+            highwater_read_error = True
+    last = tape.get("last_record_reference")
+    receipt = None if highwater is None else highwater.receipt
+    final_match = bool(
+        highwater is not None
+        and receipt is not None
+        and highwater.anchor_kind in {"GRID", "SOURCE_ONLY"}
+        and isinstance(last, Mapping)
+        and tape.get("file_id") == decision_tape.file_id == receipt.tape_file_id
+        and type(last.get("record_index")) is int
+        and last.get("record_index") == record_count == receipt.tape_record_index
+        and last.get("record_id") == receipt.tape_record_id
+        and last.get("batch_id") == receipt.batch_id
+        and receipt.calendar_fingerprint == decision_tape.calendar_fingerprint
+    )
+    if not final_match:
+        strategy_failures += 1
+        if first_error is None:
+            if highwater_read_error:
+                first_error = "SOURCE_HIGHWATER_FINAL_READ_FAILED"
+            else:
+                first_error = (
+                    "SOURCE_HIGHWATER_MISSING"
+                    if highwater is None
+                    else "SOURCE_HIGHWATER_FINAL_MISMATCH"
+                )
+    available = strategy_failures == 0 and final_match
+    return {
+        "status": "AVAILABLE" if available else "UNAVAILABLE",
+        "available": available,
+        "record_count": record_count,
+        "failure_count": strategy_failures,
+        "first_error": first_error,
+        "final_highwater_matches_tape": final_match,
+    }
+
+
+def _run_cerebro_with_decision_tape(
+    cerebro,
+    strategy_cls,
+    strategy_kwargs,
+    writer,
+    *,
+    expected_close_times=None,
+):
+    strategy = None
+    primary_error = None
+    primary_traceback = None
+    close_error = None
+    close_traceback = None
+    try:
+        strategy_kwargs["decision_tape"] = writer
+        cerebro.addstrategy(strategy_cls, **strategy_kwargs)
+        strategy = cerebro.run(runonce=False, preload=False)[0]
+    except BaseException as error:
+        primary_error = error
+        primary_traceback = error.__traceback__
+    try:
+        writer.close()
+    except BaseException as error:
+        close_error = error
+        close_traceback = error.__traceback__
+    if primary_error is not None:
+        raise primary_error.with_traceback(primary_traceback)
+    if close_error is not None:
+        raise close_error.with_traceback(close_traceback)
+    readback = _decision_tape_readback(
+        writer.path,
+        writer.max_bytes,
+        expected_close_times=expected_close_times,
+    )
+    if (
+        readback["file_id"] != writer.file_id
+        or readback["record_count"] != writer.summary()["record_count"]
+        or readback["raw_sha256"] != writer.summary()["sha256"]
+    ):
+        raise RunnerError("DECISION_TAPE_READBACK_MISMATCH")
+    return strategy, writer.summary(), readback
+
+
+def run_replay(config, config_path, plan, factor_mode, direction):
+    import backtrader as bt
+    from backtrader.brokers.factor_replay import CausalReplayBroker, ReplayBarTiming
+    from backtrader.feeds.btapifeed import BtApiFeed
+    from alpha003_strategy import Alpha003TargetStrategy
+
+    risk_policy, starting_cash, commission = _require_replay_budgets(config)
+    tape_path = _resolve_path(config_path, config["inputs"]["minute_tape"], "inputs.minute_tape")
+    tape = load_minute_tape(tape_path, plan, config["cohort"])
+    _check_tape_complete(plan, tape)
+    quote_path = _resolve_path(
+        config_path, config["inputs"]["execution_quotes"], "inputs.execution_quotes"
+    )
+    _quote_snapshot, replay_quotes = _quote_tape(quote_path, plan, config["cohort"])
+    metadata_path = _resolve_path(
+        config_path, config["inputs"]["instrument_metadata"], "inputs.instrument_metadata"
+    )
+    _metadata_snapshot, replay_instruments = _replay_instruments(metadata_path, plan)
+    cohort = _make_cohort(config, plan["grid"])
+    broker = CausalReplayBroker(cash=starting_cash)
+    broker.setcommission(commission=commission)
+    cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
+    cerebro.setbroker(broker)
+    data_by_target = {}
+    for target in plan["targets"]:
+        product = plan["product_by_target"][target]
+        instrument = plan["routes"][product]
+        events = tape["events"][target]
+        feed = BtApiFeed(
+            dataname=instrument,
+            historical_bars=events,
+            live_bars=(),
+            backfill_start=False,
+            cohort_source_mode=True,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=1,
+        )
+        cerebro.adddata(feed, name=target)
+        cohort.register_member(
+            target,
+            feed,
+            instrument=instrument,
+            source_ref=tape["source_ref"],
+            line_fields=OHLCV_FIELDS,
+            raw_fields=OHLCV_FIELDS,
+            clock_domain_id=tape["clock_domain_id"],
+            timezone_id=tape["timezone_id"],
+            session_semantics=config["cohort"]["session_semantics"],
+            numeric_fields=OHLCV_FIELDS,
+        )
+        timings = tuple(
+            ReplayBarTiming(event["bucket_start"], event["bucket_end"], event["available_at"])
+            for event in events
+        )
+        broker.bind_data_timing(feed, timings)
+        data_by_target[target] = feed
+    cohort.seal()
+    availability_by_slot, late_quote_count = _replay_clock_schedule(
+        plan["grid"], tape, replay_quotes
+    )
+    clock = ReplayTapeClock(availability_by_slot, cohort=cohort)
+    cerebro.add_live_bar_cohort(cohort, clock=clock, winddown_timeout_seconds=0.0)
+    run_id = f"replay-{tape['snapshot_id']}"
+    decision_tape = _new_decision_tape(
+        config,
+        config_path,
+        plan,
+        mode="replay",
+        factor_mode=factor_mode,
+        direction=direction,
+        source_snapshot_id=tape["snapshot_id"],
+    )
+    strategy_kwargs = _make_strategy_kwargs(
+        config,
+        plan,
+        factor_mode,
+        direction,
+        risk_policy,
+        replay=True,
+        cohort=cohort,
+        account_scope=f"local-replay:{run_id}",
+        logical_run_id=run_id,
+        replay_quotes=replay_quotes,
+        replay_instruments=replay_instruments,
+    )
+    strategy, decision_tape_summary, decision_tape_readback = _run_cerebro_with_decision_tape(
+        cerebro,
+        Alpha003TargetStrategy,
+        strategy_kwargs,
+        decision_tape,
+        expected_close_times=tuple(minute.close_time for minute in plan["grid"].minutes),
+    )
+    decision = getattr(strategy, "last_target_decision", None)
+    factor_snapshot = strategy.live_factors.snapshot()
+    factor_outputs = next(iter(factor_snapshot.factors.values())).values
+    shutdown_ready = getattr(strategy, "shutdown_ready", False) is True
+    shutdown_blocker = getattr(strategy, "shutdown_blocker", None)
+    output = {
+        "status": "REPLAY_COMPLETE" if shutdown_ready else "REPLAY_INCOMPLETE",
+        "mode": "replay",
+        "factor_mode": factor_mode,
+        "snapshot_id": tape["snapshot_id"],
+        "grid_sha256": plan["grid"].evidence_sha256
+        if hasattr(plan["grid"], "evidence_sha256")
+        else None,
+        "target_count": len(plan["targets"]),
+        "cohort_status": getattr(cohort.current_batch(), "status", None),
+        "signal_block_reason": getattr(strategy, "last_signal_block_reason", None),
+        "signal_status": getattr(decision, "status", None),
+        "order_plan_status": getattr(getattr(strategy, "last_order_plan", None), "status", None),
+        "order_plan_reason": getattr(getattr(strategy, "last_order_plan", None), "reason", None),
+        "execution_block_reason": getattr(strategy, "last_execution_block_reason", None),
+        "decision_close_time": _json_time(getattr(decision, "close_time", None)),
+        "factor_readiness": getattr(
+            factor_snapshot.readiness, "value", str(factor_snapshot.readiness)
+        ),
+        "factor_readiness_reasons": list(factor_snapshot.readiness_reasons),
+        "factor_batch_complete": factor_snapshot.batch_complete,
+        "factor_outputs": {
+            target: {
+                "status": getattr(row.status, "value", str(row.status)),
+                "reason": row.reason,
+                "source_role": row.source_role,
+                "present": row.present,
+                "complete": row.complete,
+                "quality": row.quality,
+                "finite": math.isfinite(row.value),
+            }
+            for target, row in factor_outputs.items()
+        },
+        "cash": broker.getcash(),
+        "value": broker.getvalue(),
+        "positions": {
+            target: broker.getposition(feed).size for target, feed in data_by_target.items()
+        },
+        "orders": _replay_order_summary(broker, data_by_target, tape),
+        "execution_mode": "LOCAL_BACKBROKER_CAUSAL_REPLAY",
+        "shutdown_status": "PASS" if shutdown_ready else "BLOCKED",
+        "shutdown_blocker": shutdown_blocker,
+        "late_quote_count": late_quote_count,
+        "decision_tape": decision_tape_summary,
+        "decision_tape_readback": decision_tape_readback,
+    }
+    return output
+
+
+def _json_time(value):
+    return (
+        value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+        if isinstance(value, datetime)
+        else None
+    )
+
+
+def _replay_order_summary(broker, data_by_target, tape):
+    """Expose ordinary BackBroker orders with their exact matched tape bars."""
+    from backtrader.utils.dateintern import num2date
+
+    target_by_feed = {id(feed): target for target, feed in data_by_target.items()}
+    event_index = {target: tuple(tape["events"].get(target, ())) for target in data_by_target}
+    summaries = []
+    for order in getattr(broker, "orders", ()):
+        target = target_by_feed.get(id(order.data))
+        if target is None:
+            continue
+        cutoff = order.info.get("decision_available_at")
+        executions = []
+        for bit in getattr(order.executed, "exbits", ()):
+            end = _aware_datetime(num2date(bit.dt, tz=UTC, naive=False), "replay execution label")
+            matched = next(
+                (
+                    event
+                    for event in event_index[target]
+                    if abs((event["bucket_end"] - end).total_seconds()) <= 0.001
+                ),
+                None,
+            )
+            start = matched["bucket_start"] if matched is not None else None
+            available = matched["available_at"] if matched is not None else None
+            executions.append(
+                {
+                    "size": str(bit.size),
+                    "price": str(bit.price),
+                    "bar_start": _json_time(start),
+                    "bar_end": _json_time(matched["bucket_end"]) if matched is not None else None,
+                    "bar_available_at": _json_time(available),
+                    "timing_verified": matched is not None,
+                    "causal": (
+                        matched is not None
+                        and isinstance(cutoff, datetime)
+                        and start >= _aware_datetime(cutoff, "decision_available_at")
+                    ),
+                }
+            )
+        summaries.append(
+            {
+                "ref": order.ref,
+                "target": target,
+                "instrument": order.info.get("instrument_id"),
+                "exchange": order.info.get("exchange_id"),
+                "side": "BUY" if order.isbuy() else "SELL",
+                "position_effect": order.info.get("factor_position_effect"),
+                "status": order.getstatusname().upper(),
+                "decision_available_at": _json_time(cutoff),
+                "quote_id": order.info.get("replay_quote_id"),
+                "executed_size": str(order.executed.size),
+                "executed_price": str(order.executed.price),
+                "executions": executions,
+            }
+        )
+    return summaries
+
+
+class QueryRefreshLoop:
+    """One serialized live refresher over the selected SDK QueryFacade."""
+
+    def __init__(
+        self,
+        store,
+        broker,
+        targets,
+        *,
+        execution_target_ids=None,
+        coordinator,
+        account_scope,
+        strategy_scope,
+        clock,
+        quote_max_age,
+        max_query_age,
+        timeout,
+        overall_timeout,
+        interval,
+        cerebro,
+        shutdown_grace_seconds,
+    ):
+        try:
+            from bt_api_py.query_facade import QueryFacade
+        except ImportError:
+            raise RunnerError("SDK_QUERY_FACADE_UNAVAILABLE") from None
+        query_facade = getattr(coordinator, "query_facade", None)
+        if type(query_facade) is not QueryFacade:
+            raise RunnerError("LIVE_QUERY_FACADE_UNAVAILABLE")
+        self.store = store
+        self.broker = broker
+        self.targets = tuple(targets)
+        full_target_ids = tuple(getattr(target, "target_id", None) for target in self.targets)
+        if (
+            not full_target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in full_target_ids
+            )
+            or len(set(full_target_ids)) != len(full_target_ids)
+        ):
+            raise RunnerError("LIVE_REFRESH_TARGETS_INVALID")
+        if execution_target_ids is None:
+            self.execution_target_ids = full_target_ids
+        elif (
+            type(execution_target_ids) is not tuple
+            or not execution_target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in execution_target_ids
+            )
+            or len(set(execution_target_ids)) != len(execution_target_ids)
+            or not set(execution_target_ids).issubset(set(full_target_ids))
+        ):
+            raise RunnerError("LIVE_EXECUTION_TARGETS_INVALID")
+        else:
+            selected = set(execution_target_ids)
+            self.execution_target_ids = tuple(
+                target_id for target_id in full_target_ids if target_id in selected
+            )
+        if type(account_scope) is not str or not account_scope or account_scope != account_scope.strip():
+            raise RunnerError("LIVE_ACCOUNT_SCOPE_INVALID")
+        if type(strategy_scope) is not str or not strategy_scope or strategy_scope != strategy_scope.strip():
+            raise RunnerError("LIVE_STRATEGY_SCOPE_INVALID")
+        if not callable(getattr(clock, "utc_now", None)):
+            raise RunnerError("LIVE_REFRESH_CLOCK_UNAVAILABLE")
+        if type(quote_max_age) is not timedelta or quote_max_age.total_seconds() <= 0:
+            raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", "quote_max_age")
+        if type(max_query_age) is not timedelta or max_query_age.total_seconds() <= 0:
+            raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", "max_query_age")
+        durations = {
+            "timeout": timeout,
+            "overall_timeout": overall_timeout,
+            "interval": interval,
+            "shutdown_grace_seconds": shutdown_grace_seconds,
+        }
+        for name, value in durations.items():
+            if (
+                type(value) not in (int, float)
+                or not math.isfinite(float(value))
+                or float(value) <= 0
+            ):
+                raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", name)
+        self.coordinator = coordinator
+        self.query_facade = query_facade
+        self.account_scope = account_scope
+        self.strategy_scope = strategy_scope
+        self.clock = clock
+        self.quote_max_age = quote_max_age
+        self.max_query_age = max_query_age
+        self.timeout = float(timeout)
+        self.overall_timeout = float(overall_timeout)
+        self.interval = float(interval)
+        self.cerebro = cerebro
+        self.shutdown_grace_seconds = float(shutdown_grace_seconds)
+        self._stop = threading.Event()
+        self._refresh_wakeup = threading.Event()
+        self._shutdown_event = threading.Event()
+        self._interrupt_refresh = threading.Event()
+        self._refresh_start_lock = threading.Lock()
+        self._strategy_lock = threading.RLock()
+        self._fact_snapshot_lock = threading.Lock()
+        self._refresh_serialization_lock = threading.Lock()
+        self._fact_projection_waiting = threading.Event()
+        self._projection_wake_error = None
+        self._strategy = None
+        self._shutdown_forwarded = False
+        self._shutdown_deadline = None
+        self.shutdown_status = "NOT_REQUESTED"
+        self.shutdown_blocker = None
+        self.shutdown_requested_at = None
+        self.shutdown_completed_at = None
+        self._thread = threading.Thread(
+            target=self._run, name="alpha003-query-refresh", daemon=False
+        )
+        self.last_receipt = None
+        self.last_lease = None
+        self.last_facts = None
+        self.last_error_code = None
+        self.last_reconciliation_blockers = ()
+        self._reconciliation_blockers_work = []
+        self.joined = False
+        self.started = False
+        self._startup_refresh_deadline = None
+        self._dispatching_recovery_retry_pending = False
+
+    def bind_strategy(self, strategy):
+        with self._strategy_lock:
+            if self._strategy is not None and self._strategy is not strategy:
+                raise RunnerError("LIVE_STRATEGY_BINDING_CONFLICT")
+            self._strategy = strategy
+
+    @contextmanager
+    def strategy_fact_projection_scope(self):
+        """Try to pin one complete Store/query-set view without blocking."""
+
+        if not self._fact_snapshot_lock.acquire(blocking=False):
+            self._fact_projection_waiting.set()
+            yield False
+            return
+        # A successful reader is itself the retry after a previously busy
+        # projection, so it can consume the pending wake request.
+        self._fact_projection_waiting.clear()
+        try:
+            yield True
+        finally:
+            self._fact_snapshot_lock.release()
+
+    def _wake_waiting_strategy_projection(self):
+        if not self._fact_projection_waiting.is_set():
+            return
+        if not (self._thread.is_alive() or self._shutdown_event.is_set()):
+            return
+        # Clear before calling the wake API. A new failed projection racing
+        # this wake sets the event again and will be signaled by the next pass.
+        self._fact_projection_waiting.clear()
+        wake = getattr(self.cerebro, "wake_live_bar_cohort", None)
+        if not callable(wake):
+            self._projection_wake_error = "LIVE_COHORT_WAKE_API_UNAVAILABLE"
+            self._fact_projection_waiting.set()
+            return
+        try:
+            wake()
+        except Exception as error:
+            self._projection_wake_error = "LIVE_COHORT_WAKE_FAILED:" + type(error).__name__
+            self._fact_projection_waiting.set()
+            return
+        self._projection_wake_error = None
+
+    def request_shutdown(self):
+        """Publish a winddown request for the serialized refresh loop."""
+        if not self._shutdown_event.is_set():
+            self.shutdown_requested_at = time.monotonic()
+            self.shutdown_status = "REQUESTED"
+        self._shutdown_event.set()
+        self._refresh_wakeup.set()
+        return True
+
+    def _observe_strategy_shutdown_request(self):
+        """Promote the Strategy's finite-epoch request to the control loop."""
+        with self._strategy_lock:
+            strategy = self._strategy
+        if strategy is None:
+            return False
+        try:
+            requested = strategy.shutdown_requested is True
+        except Exception as error:
+            self.last_error_code = "STRATEGY_SHUTDOWN_STATE_UNAVAILABLE:" + type(error).__name__
+            return False
+        if requested and not self._shutdown_event.is_set():
+            self.request_shutdown()
+            return True
+        return False
+
+    def _wake_engine(self):
+        wake = getattr(self.cerebro, "wake_live_bar_cohort", None)
+        if not callable(wake):
+            self.shutdown_status = "BLOCKED"
+            self.shutdown_blocker = "LIVE_COHORT_WAKE_API_UNAVAILABLE"
+            return False
+        try:
+            wake()
+        except Exception as error:
+            self.shutdown_status = "BLOCKED"
+            self.shutdown_blocker = "LIVE_COHORT_WAKE_FAILED:" + type(error).__name__
+            return False
+        return True
+
+    def _advance_shutdown(self, *, wake_engine=False):
+        """Forward a request and observe state without stopping the engine.
+
+        Strategy.notify_idle owns risk-reduction decisions and calls the public
+        Cerebro runstop API only after it has fresh authoritative shutdown
+        proof. This loop keeps the serialized Store refresher alive until the
+        Strategy/core finishes or the core's bounded winddown expires.
+        """
+        if not self._shutdown_event.is_set():
+            return False
+        with self._strategy_lock:
+            strategy = self._strategy
+        if strategy is None:
+            return False
+        newly_forwarded = False
+        if not self._shutdown_forwarded:
+            try:
+                strategy.request_shutdown()
+            except Exception as error:
+                self.shutdown_status = "BLOCKED"
+                self.shutdown_blocker = "STRATEGY_SHUTDOWN_REQUEST_FAILED:" + type(error).__name__
+                return False
+            self._shutdown_forwarded = True
+            newly_forwarded = True
+            requested_at = self.shutdown_requested_at
+            if requested_at is None:
+                requested_at = time.monotonic()
+            self._shutdown_deadline = requested_at + self.shutdown_grace_seconds
+        if (newly_forwarded or wake_engine) and not self._wake_engine():
+            return True
+        try:
+            ready = strategy.shutdown_ready
+            blocker = strategy.shutdown_blocker
+        except Exception as error:
+            ready = False
+            blocker = "STRATEGY_SHUTDOWN_STATE_UNAVAILABLE:" + type(error).__name__
+        if ready is True:
+            self.shutdown_status = "PASS"
+            self.shutdown_blocker = None
+            self.shutdown_completed_at = time.monotonic()
+            return False
+        self.shutdown_blocker = (
+            blocker if type(blocker) is str and blocker else "OWNED_STATE_NOT_TERMINAL"
+        )
+        if time.monotonic() >= self._shutdown_deadline:
+            self.shutdown_status = "BLOCKED"
+            self.shutdown_completed_at = time.monotonic()
+            # The core winddown owns the engine deadline and raises on timeout.
+            # Keep refreshing evidence; never turn unresolved state into a
+            # normal runstop from this control path.
+        return False
+
+    def _receipt_complete(receipt):
+        try:
+            from bt_api_py.query_contracts import QueryBatchReceipt, QueryRequest
+        except ImportError:
+            return False
+        if type(receipt) is not QueryBatchReceipt or receipt.complete is not True:
+            return False
+        required = {"account", "positions", "open_orders", "instruments"}
+        requests = tuple(receipt.requests)
+        refs = tuple(getattr(request, "request_ref", None) for request in requests)
+        return (
+            len(requests) == len(required)
+            and all(type(request) is QueryRequest for request in requests)
+            and {request.family for request in requests} == required
+            and len(set(refs)) == len(refs)
+            and all(
+                type(ref) is str and ref and ref == ref.strip()
+                for ref in refs
+            )
+            and all(
+                request.filters == {}
+                and request.required is True
+                and request.require_complete_scope is True
+                for request in requests
+            )
+        )
+    
+    @staticmethod
+    def _execution_error_code(error):
+        code = getattr(error, "code", None)
+        if type(code) is str and code and code == code.strip():
+            return code
+        return type(error).__name__
+
+    def _dispatching_recovery_candidate(self):
+        """Return whether this refresh must hold the durable recovery gate.
+
+        The journal projection is intentionally bounded.  A truncated page is
+        ambiguous, so it takes the gate conservatively.  The coordinator then
+        validates each exact source observation against the durable journal;
+        this hint never resolves or selects an intent itself.
+        """
+
+        if self.coordinator is None:
+            return False
+        try:
+            cancel_absence_page = self.coordinator.dispatching_cancel_store_absence_candidates(
+                limit=128
+            )
+        except Exception as error:
+            raise RunnerError(
+                "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING",
+                self._execution_error_code(error),
+            ) from None
+        cancel_candidates = getattr(cancel_absence_page, "items", None)
+        cancel_truncated = getattr(cancel_absence_page, "truncated", None)
+        if type(cancel_candidates) is not tuple or type(cancel_truncated) is not bool:
+            raise RunnerError("LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING")
+        if cancel_candidates or cancel_truncated:
+            return True
+        try:
+            page = self.coordinator.execution_intent_snapshot(limit=128)
+        except Exception as error:
+            raise RunnerError(
+                "LIVE_RECOVERY_INTENT_SNAPSHOT_UNAVAILABLE",
+                self._execution_error_code(error),
+            ) from None
+        items = getattr(page, "items", None)
+        truncated = getattr(page, "truncated", None)
+        if type(items) is not tuple or type(truncated) is not bool:
+            raise RunnerError("LIVE_RECOVERY_INTENT_SNAPSHOT_INVALID")
+        if any(type(getattr(item, "state", None)) is not str for item in items):
+            raise RunnerError("LIVE_RECOVERY_INTENT_SNAPSHOT_INVALID")
+        return bool(
+            self._dispatching_recovery_retry_pending
+            or truncated
+            or any(item.state == "DISPATCHING" for item in items)
+        )
+
+    def _require_dispatching_cancel_absence_ack(self):
+        """Keep facts unpublished until every durable cancel marker is acked."""
+
+        if self.coordinator is None:
+            return
+        try:
+            page = self.coordinator.dispatching_cancel_store_absence_candidates(limit=128)
+        except Exception as error:
+            self.last_receipt = None
+            self.last_lease = None
+            self.last_facts = None
+            self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
+            self._dispatching_recovery_retry_pending = True
+            raise RunnerError(
+                self.last_error_code,
+                self._execution_error_code(error),
+            ) from None
+        items = getattr(page, "items", None)
+        truncated = getattr(page, "truncated", None)
+        if type(items) is not tuple or type(truncated) is not bool or items or truncated:
+            self.last_receipt = None
+            self.last_lease = None
+            self.last_facts = None
+            self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
+            self._dispatching_recovery_retry_pending = True
+            raise RunnerError(self.last_error_code)
+
+    def refresh_initial(self, *, wait_timeout):
+        """Perform the first refresh, retrying only bounded gate contention.
+
+        A competing live process may still own the dispatch gate.  Retry that
+        admission briefly without querying or holding the gate during the
+        wait; other incomplete refreshes retain the existing startup behavior.
+        """
+
+        deadline = time.monotonic() + wait_timeout
+        self._startup_refresh_deadline = deadline
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    if self.last_error_code is None:
+                        self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
+                    return None
+                self._startup_recovery_scope_timeout = remaining
+                try:
+                    receipt = self.refresh_once()
+                except Exception as error:
+                    self.last_error_code = self._execution_error_code(error)
+                    if self.last_error_code != "DISPATCH_SERIALIZATION_BUSY":
+                        raise
+                    receipt = None
+                finally:
+                    self._startup_recovery_scope_timeout = None
+                if self.last_error_code != "DISPATCH_SERIALIZATION_BUSY":
+                    return receipt
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return receipt
+                time.sleep(min(0.05, remaining))
+        finally:
+            self._startup_refresh_deadline = None
+
+    def refresh_once(self):
+        """Refresh one neutral query batch and publish its exact lease-bound facts."""
+
+        with self._refresh_serialization_lock:
+            try:
+                with self._fact_snapshot_lock:
+                    self._reconciliation_blockers_work = []
+                    self.last_reconciliation_blockers = ()
+                    try:
+                        return self._refresh_once_locked()
+                    except Exception:
+                        self.last_reconciliation_blockers = tuple(
+                            self._reconciliation_blockers_work[:16]
+                        )
+                        raise
+            finally:
+                self._wake_waiting_strategy_projection()
+
+    def _refresh_once_locked(self):
+        self.last_receipt = None
+        self.last_lease = None
+        self.last_facts = None
+        self.last_error_code = None
+        self.last_reconciliation_blockers = ()
+        return self._refresh_once_body()
+    
+    def _refresh_once_body(self):
+        from bt_api_py.query_contracts import QueryBatchReceipt, QueryRequest, QuerySnapshotLease
+
+        if not self.targets:
+            self.last_error_code = "LIVE_REFRESH_TARGETS_REQUIRED"
+            return None
+        if self.coordinator is None or getattr(self.coordinator, "query_facade", None) is None:
+            self.last_error_code = "QUERY_FACADE_UNAVAILABLE"
+            return None
+
+        started_at = _aware_datetime(self.clock.utc_now(), "live refresh start time")
+        refresh_timeout = min(self.timeout, self.overall_timeout)
+        startup_deadline = self._startup_refresh_deadline
+        if startup_deadline is not None:
+            remaining = startup_deadline - time.monotonic()
+            if remaining <= 0:
+                self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
+                return None
+            refresh_timeout = min(refresh_timeout, remaining)
+        if refresh_timeout <= 0:
+            self.last_error_code = "LIVE_QUERY_DEADLINE_INVALID"
+            return None
+
+        deadline = started_at + timedelta(seconds=refresh_timeout)
+        request_prefix = "bt028-live-" + uuid.uuid4().hex
+        requests = tuple(
+            QueryRequest(
+                request_ref=request_prefix + "-" + family,
+                family=family,
+                filters={},
+                required=True,
+                require_complete_scope=True,
+            )
+            for family in ("account", "positions", "open_orders", "instruments")
+        )
+        try:
+            receipt = self.coordinator.query(requests, deadline=deadline)
+            if type(receipt) is not QueryBatchReceipt or not self._receipt_complete(receipt):
+                raise RunnerError("LIVE_QUERY_REFRESH_INCOMPLETE")
+            refreshed_at = _aware_datetime(self.clock.utc_now(), "live refresh validation time")
+            if refreshed_at >= deadline:
+                raise RunnerError("LIVE_QUERY_REFRESH_DEADLINE_EXCEEDED")
+            lease = self.coordinator.acquire_snapshot_lease(
+                receipt,
+                purpose="backtrader.factor_execution.facts",
+                expires_at=refreshed_at + timedelta(seconds=30),
+            )
+            if type(lease) is not QuerySnapshotLease:
+                raise RunnerError("QUERY_SNAPSHOT_LEASE_INVALID")
+            if not self.coordinator.validate_snapshot_lease(
+                lease, receipt, now=refreshed_at
+            ):
+                raise RunnerError("QUERY_SNAPSHOT_LEASE_INVALID")
+            self.last_receipt = receipt
+            self.last_lease = lease
+            with self._strategy_lock:
+                strategy = self._strategy
+            if strategy is not None:
+                session = _account_session_snapshot(self.store, write_enabled=False)
+                facts = self.coordinator.collect_facts(
+                    strategy=strategy,
+                    receipt=receipt,
+                    lease=lease,
+                    account_session_snapshot=session,
+                    now=refreshed_at,
+                )
+                if (
+                    getattr(facts, "account_session_snapshot", None) is not session
+                    or getattr(facts, "source_ref", None) != receipt.source_ref
+                    or getattr(facts, "generation", None) != receipt.generation
+                    or getattr(facts, "session_ref", None) != session.session_ref
+                    or getattr(facts, "fee_receipt", object()) is not None
+                    or getattr(facts, "fee_status", None) != "UNAVAILABLE"
+                ):
+                    raise RunnerError("NEUTRAL_FACTOR_FACTS_BINDING_INVALID")
+                self.last_facts = facts
+            self.last_error_code = None
+            return receipt
+        except Exception as error:
+            self.last_receipt = None
+            self.last_lease = None
+            self.last_facts = None
+            self.last_error_code = self._execution_error_code(error)
+            return None
+    
+    def start(self):
+        self._thread.start()
+        self.started = True
+
+    def _reserve_refresh_start(self):
+        """Clear cancellation only when this refresh wins the stop boundary."""
+
+        with self._refresh_start_lock:
+            if self._stop.is_set():
+                return False
+            self._interrupt_refresh.clear()
+            return True
+
+    def _run(self):
+        next_refresh_at = 0.0
+        while not self._stop.is_set():
+            observed_request = self._observe_strategy_shutdown_request()
+            if observed_request:
+                next_refresh_at = min(next_refresh_at, time.monotonic())
+            if self._shutdown_event.is_set():
+                self._advance_shutdown()
+            now = time.monotonic()
+            if now >= next_refresh_at:
+                # Reserve the refresh start atomically with stop_and_join().
+                # If stop won the lock, do not erase its cancellation or begin
+                # another query cycle after shutdown was requested.
+                if not self._reserve_refresh_start():
+                    break
+                try:
+                    self.refresh_once()
+                except Exception as error:
+                    self.last_error_code = self._execution_error_code(error)
+                next_refresh_at = time.monotonic() + self.interval
+                if self._shutdown_event.is_set():
+                    # The first forwarded request wakes the engine. Subsequent
+                    # refreshes keep its evidence current without turning the
+                    # control loop into a second engine waker.
+                    self._advance_shutdown()
+            # Shutdown flags are independent of Store query cadence: finite
+            # EOF must be noticed promptly even when refresh_interval is long.
+            wait_for = min(0.05, max(0.0, next_refresh_at - time.monotonic()))
+            self._refresh_wakeup.wait(wait_for)
+            self._refresh_wakeup.clear()
+
+    def stop_and_join(self):
+        with self._strategy_lock:
+            strategy = self._strategy
+        preserve_current_refresh = False
+        if strategy is not None:
+            try:
+                requested = strategy.shutdown_requested is True
+                ready = strategy.shutdown_ready is True
+                blocker = strategy.shutdown_blocker
+            except Exception as error:
+                requested = False
+                ready = False
+                blocker = "STRATEGY_SHUTDOWN_STATE_UNAVAILABLE:" + type(error).__name__
+            if requested and ready:
+                self.shutdown_status = "PASS"
+                self.shutdown_blocker = None
+                self.shutdown_completed_at = time.monotonic()
+            elif requested:
+                self.shutdown_status = "BLOCKED"
+                self.shutdown_blocker = (
+                    blocker
+                    if type(blocker) is str and blocker
+                    else "TERMINAL_WINDDOWN_NOT_CONFIRMED"
+                )
+                self.shutdown_completed_at = time.monotonic()
+            # A requested shutdown must still hand the strategy a complete
+            # final query-set receipt. Interrupting the in-flight pass would
+            # replace the last complete receipt with a partial one and make
+            # UNKNOWN reconciliation fail closed on a missing receipt.
+            preserve_current_refresh = bool(requested)
+        with self._refresh_start_lock:
+            self._stop.set()
+            if not preserve_current_refresh:
+                # A successful engine-thread winddown still needs a fresh
+                # post-join query-set projection. Cancelling an already-running
+                # refresh here would replace the last complete receipt with a
+                # partial one and make Strategy.stop() fail its final proof.
+                # The current pass is bounded by overall_timeout (twice when
+                # the coordinator performs its post-trade second query-set pass).
+                self._interrupt_refresh.set()
+        self._refresh_wakeup.set()
+        if self._thread.ident is not None:
+            join_timeout = self.overall_timeout * (2 if preserve_current_refresh else 1) + 1.0
+            self._thread.join(timeout=join_timeout)
+            if self._thread.is_alive():
+                self.joined = False
+                raise RunnerError("LIVE_QUERY_REFRESH_DID_NOT_JOIN")
+        self.joined = True
+        return True
+
+
+def _cleanup_live_resource(cleanup, name, operation, *, project=None):
+    """Attempt one cleanup action and retain a finite outcome without masking errors."""
+
+    try:
+        result = operation()
+    except BaseException as error:
+        row = {"resource": name, "status": "FAILED", "error_type": type(error).__name__}
+    else:
+        row = {"resource": name, "status": "RETURNED"}
+        if project is not None:
+            try:
+                row.update(project(result))
+            except BaseException as error:
+                row.update(status="UNPROVEN", projection_error_type=type(error).__name__)
+    cleanup.append(row)
+    return row
+
+
+def _store_stop_evidence(result):
+    state = result.get("shutdown_state") if isinstance(result, Mapping) else None
+    if type(state) is not str or state not in {"PASS", "FAIL", "INCOMPLETE", "NOT_STARTED"}:
+        state = "UNPROVEN"
+    close_failures = result.get("market_tick_projector_close_failures", 0) if isinstance(
+        result, Mapping
+    ) else None
+    if type(close_failures) is not int or close_failures < 0:
+        close_failures = None
+    return {
+        "shutdown_state": state,
+        "market_tick_projector_close_failures": close_failures,
+    }
+
+
+def _broker_shutdown_evidence(broker):
+    try:
+        summary = broker.get_shutdown_summary()
+    except Exception as error:
+        return {"status": "UNPROVEN", "summary_error_type": type(error).__name__}
+    if not isinstance(summary, Mapping):
+        return {"status": "UNPROVEN"}
+    allowed = {
+        "PASS",
+        "FAIL",
+        "INCOMPLETE",
+        "BLOCKED",
+        "NOT_STARTED",
+        "OBSERVATION_ONLY",
+        "OBSERVATION_ONLY_NONFLAT",
+    }
+    status = summary.get("status")
+    store_state = summary.get("store_shutdown_state")
+    return {
+        "status": status if type(status) is str and status in allowed else "UNPROVEN",
+        "store_shutdown_state": (
+            store_state
+            if type(store_state) is str
+            and store_state in {"PASS", "FAIL", "INCOMPLETE", "UNPROVEN"}
+            else "UNPROVEN"
+        ),
+    }
+
+
+def _attach_cleanup_results(error, cleanup):
+    try:
+        error.cleanup_results = tuple(dict(item) for item in cleanup)
+    except Exception:
+        pass
+
+
+def _attach_unclosed_live_resources(error, resources, cleanup):
+    """Keep uncertain local handles reachable for embedded callers."""
+
+    if _cleanup_complete(cleanup):
+        return
+    try:
+        error.retained_live_resources = MappingProxyType(
+            {name: value for name, value in resources.items() if value is not None}
+        )
+    except Exception:
+        pass
+
+
+def _live_epoch_failure_evidence(config, plan, cerebro, refresh_loop, cleanup):
+    """Project only public lifecycle state needed to diagnose a failed epoch.
+
+    In particular, keep the old exact routes visible when a shutdown is
+    blocked.  This is not a claim that a remote order is flat or resolved;
+    it lets the caller retain the route identity while deciding whether a
+    later selection may be opened.
+    """
+
+    strategy = getattr(refresh_loop, "_strategy", None) if refresh_loop is not None else None
+    try:
+        shutdown_requested = getattr(strategy, "shutdown_requested", False) is True
+        shutdown_ready = getattr(strategy, "shutdown_ready", False) is True
+        shutdown_blocker = getattr(strategy, "shutdown_blocker", None)
+        shutdown_post_join_confirmed = (
+            getattr(strategy, "shutdown_post_join_confirmed", False) is True
+        )
+        shutdown_post_join_blocker = getattr(strategy, "shutdown_post_join_blocker", None)
+    except Exception as error:
+        shutdown_requested = False
+        shutdown_ready = False
+        shutdown_blocker = "STRATEGY_STATE_UNAVAILABLE:" + type(error).__name__
+        shutdown_post_join_confirmed = False
+        shutdown_post_join_blocker = "STRATEGY_FINAL_STATE_UNAVAILABLE:" + type(error).__name__
+    try:
+        order_event_projection = _project_strategy_order_events(
+            strategy, plan, config["cohort"]["epoch_id"]
+        )
+    except Exception as error:
+        # Failure diagnostics must preserve the original lifecycle error.
+        order_event_projection = {
+            "status": "BLOCKED",
+            "reason": "STRATEGY_ORDER_EVENT_PROJECTION_FAILED:" + type(error).__name__,
+            "events": [],
+        }
+    try:
+        winddown_status = getattr(cerebro, "live_bar_cohort_winddown_status", None)
+        winddown_reason = getattr(cerebro, "live_bar_cohort_winddown_reason", None)
+    except Exception:
+        winddown_status = None
+        winddown_reason = None
+    return {
+        "epoch_id": config["cohort"]["epoch_id"],
+        "selection_path": str(plan["selection_path"]) if plan is not None else None,
+        "selection_source": plan.get("selection_source") if plan is not None else None,
+        "source_snapshot_id": plan.get("source_snapshot_id") if plan is not None else None,
+        "routes": _route_summary(plan) if plan is not None else {},
+        "engine_winddown_status": winddown_status,
+        "engine_winddown_reason": winddown_reason,
+        "strategy_shutdown_requested": shutdown_requested,
+        "strategy_shutdown_ready": shutdown_ready,
+        "strategy_shutdown_blocker": (shutdown_blocker if type(shutdown_blocker) is str else None),
+        "strategy_shutdown_post_join_confirmed": shutdown_post_join_confirmed,
+        "strategy_shutdown_post_join_blocker": (
+            shutdown_post_join_blocker if type(shutdown_post_join_blocker) is str else None
+        ),
+        "strategy_order_events": order_event_projection,
+        "refresh_status": (
+            refresh_loop.shutdown_status if refresh_loop is not None else "NOT_CREATED"
+        ),
+        "refresh_blocker": (refresh_loop.shutdown_blocker if refresh_loop is not None else None),
+        "refresh_error_code": (
+            refresh_loop.last_error_code if refresh_loop is not None else "NOT_CREATED"
+        ),
+        "reconciliation_blockers": (
+            list(refresh_loop.last_reconciliation_blockers) if refresh_loop is not None else []
+        ),
+        "resource_shutdown": [dict(item) for item in cleanup],
+        "cleanup_complete": _cleanup_complete(cleanup),
+    }
+
+
+def _project_strategy_order_events(strategy, plan, epoch_id):
+    """Bind the Strategy's bounded callback window to this exact epoch route set.
+
+    The Strategy keeps at most 128 callback observations.  A full window is
+    conservatively marked truncated because the public surface does not expose
+    a dropped-event counter; retirement proof still comes from the Strategy's
+    current facts, journal and position projection.
+    """
+
+    if plan is None:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": "SELECTION_PLAN_UNAVAILABLE",
+            "capacity": 128,
+            "retained_count": 0,
+            "truncated": None,
+            "events": [],
+        }
+    events = getattr(strategy, "order_events", None) if strategy is not None else None
+    if events is None:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": "STRATEGY_ORDER_EVENT_SURFACE_UNAVAILABLE",
+            "capacity": 128,
+            "retained_count": 0,
+            "truncated": None,
+            "events": [],
+        }
+    if not isinstance(events, (deque, list, tuple)) or len(events) > 128:
+        return {
+            "status": "BLOCKED",
+            "reason": "STRATEGY_ORDER_EVENT_SURFACE_INVALID",
+            "capacity": 128,
+            "retained_count": None,
+            "truncated": None,
+            "events": [],
+        }
+
+    target_by_instrument = defaultdict(list)
+    for target in plan["targets"]:
+        product = plan["product_by_target"][target]
+        target_by_instrument[plan["routes"][product]].append((target, product.exchange_id))
+
+    projected = []
+    for event in tuple(events):
+        if not isinstance(event, Mapping):
+            return {
+                "status": "BLOCKED",
+                "reason": "STRATEGY_ORDER_EVENT_INVALID",
+                "capacity": 128,
+                "retained_count": len(events),
+                "truncated": len(events) == 128,
+                "events": projected,
+            }
+        raw_instrument = event.get("instrument")
+        event_exchange = event.get("exchange")
+        if isinstance(raw_instrument, tuple) and len(raw_instrument) == 2:
+            instrument, route_exchange = raw_instrument
+            if event_exchange is not None and event_exchange != route_exchange:
+                return {
+                    "status": "BLOCKED",
+                    "reason": "STRATEGY_ORDER_EVENT_ROUTE_UNBOUND",
+                    "capacity": 128,
+                    "retained_count": len(events),
+                    "truncated": len(events) == 128,
+                    "events": projected,
+                }
+            event_exchange = route_exchange
+        else:
+            instrument = raw_instrument
+        matches = target_by_instrument.get(instrument, ())
+        if not isinstance(instrument, str) or (
+            event_exchange is not None and not isinstance(event_exchange, str)
+        ):
+            matches = ()
+        elif event_exchange is not None:
+            matches = tuple(item for item in matches if item[1] == event_exchange)
+        if len(matches) != 1:
+            return {
+                "status": "BLOCKED",
+                "reason": "STRATEGY_ORDER_EVENT_ROUTE_UNBOUND",
+                "capacity": 128,
+                "retained_count": len(events),
+                "truncated": len(events) == 128,
+                "events": projected,
+            }
+        target, exchange = matches[0]
+        ref = event.get("ref")
+        status = event.get("status")
+        executed_size = event.get("executed_size")
+        executed_price = event.get("executed_price")
+        if (
+            type(ref) is not int
+            or ref <= 0
+            or not isinstance(status, str)
+            or not status
+            or not isinstance(executed_size, str)
+            or not isinstance(executed_price, str)
+        ):
+            return {
+                "status": "BLOCKED",
+                "reason": "STRATEGY_ORDER_EVENT_FIELDS_INVALID",
+                "capacity": 128,
+                "retained_count": len(events),
+                "truncated": len(events) == 128,
+                "events": projected,
+            }
+        projected.append(
+            {
+                "epoch_id": epoch_id,
+                "target": target,
+                "instrument": instrument,
+                "exchange": exchange,
+                "ref": ref,
+                "status": status,
+                "executed_size": executed_size,
+                "executed_price": executed_price,
+            }
+        )
+    return {
+        "status": "AVAILABLE",
+        "reason": None,
+        "capacity": 128,
+        "retained_count": len(projected),
+        "truncated": len(projected) == 128,
+        "events": projected,
+    }
+
+
+def _attach_live_epoch_failure_evidence(error, config, plan, cerebro, refresh_loop, cleanup):
+    try:
+        error.live_epoch_evidence = _live_epoch_failure_evidence(
+            config, plan, cerebro, refresh_loop, cleanup
+        )
+    except Exception:
+        # Diagnostics must never replace the original setup, run, or cleanup
+        # failure.
+        pass
+
+
+def _cleanup_complete(cleanup):
+    required = {"query_refresh", "broker", "store", "journal", "decision_tape"}
+    rows = {item.get("resource"): item for item in cleanup}
+    if not required.issubset(rows):
+        return False
+    loop = rows["query_refresh"]
+    broker = rows["broker"]
+    store = rows["store"]
+    journal = rows["journal"]
+    decision_tape = rows["decision_tape"]
+    store_state = store.get("shutdown_state")
+    store_ok = (store.get("status") == "NOT_CREATED" and store_state == "NOT_CREATED") or (
+        store.get("status") in {"RETURNED", "CLOSED_BY_BROKER"} and store_state == "PASS"
+    )
+    if store.get("status") not in {"NOT_CREATED"}:
+        store_ok = store_ok and store.get("market_tick_projector_close_failures") == 0
+    broker_status = broker.get("status")
+    if broker_status in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}:
+        broker_ok = broker.get("store_shutdown_state") == "PASS"
+    elif broker_status in {"NOT_RUN", "NOT_CREATED"}:
+        # Setup failures may stop the Store directly before the Broker starts.
+        broker_ok = store_ok
+    else:
+        broker_ok = False
+    return (
+        loop.get("joined") is True
+        and broker_ok
+        and store_ok
+        and journal.get("status") in {"CLOSED", "NOT_CREATED"}
+        and decision_tape.get("status") in {"CLOSED", "NOT_CREATED"}
+    )
+
+
+def _validated_live_store_config(row):
+    """Validate the exact config/api_kwargs shape without exposing values."""
+
+    _mapping(row, "live Store config")
+    if set(row) != {"config", "api_kwargs"}:
+        raise RunnerError("LIVE_STORE_CONFIG_FIELDS_INVALID")
+    config_values = dict(_mapping(row["config"], "live Store config.config"))
+    api_kwargs = dict(_mapping(row["api_kwargs"], "live Store config.api_kwargs"))
+    if (
+        "api_cls" in config_values
+        or "api_cls" in api_kwargs
+        or "api" in config_values
+        or "api" in api_kwargs
+    ):
+        raise RunnerError("LIVE_STORE_CONFIG_INJECTION_DENIED")
+    return config_values, api_kwargs
+
+
+def _live_env_config(config, *, override=None):
+    """Read the legacy environment input or validate an in-process override."""
+
+    if override is not None:
+        return _validated_live_store_config(override)
+    name = _text(config["live"]["store_config_env"], "live.store_config_env")
+    payload = os.environ.get(name)
+    if payload is None:
+        raise RunnerError("LIVE_STORE_CONFIG_ENV_MISSING", name)
+    try:
+        row = json.loads(payload)
+    except json.JSONDecodeError:
+        raise RunnerError("LIVE_STORE_CONFIG_ENV_INVALID", name) from None
+    return _validated_live_store_config(row)
+
+
+_SDK_STORE_CONFIGURATION_KEYS = frozenset(
+    {
+        "debug",
+        "transport_mode",
+        "forwarding_config",
+        "event_bus",
+        "execution_config",
+        "symbol_routes",
+        "require_account_risk",
+    }
+)
+_FUTURES_SDK_ROUTE = "CTP___FUTURE"
+
+
+def _live_sdk_store_options(config_values, api_values):
+    """Place the protected route payload behind one explicit SDK route key."""
+
+    route_options = {}
+    generic_config = {}
+    generic_kwargs = {}
+    for source, generic_target in (
+        (config_values, generic_config),
+        (api_values, generic_kwargs),
+    ):
+        if not isinstance(source, Mapping):
+            raise RunnerError("LIVE_STORE_CONFIG_FIELDS_INVALID")
+        explicit_routes = source.get("exchange_kwargs")
+        if explicit_routes is not None:
+            if not isinstance(explicit_routes, Mapping) or set(explicit_routes) != {
+                _FUTURES_SDK_ROUTE
+            }:
+                raise RunnerError("LIVE_SDK_ROUTE_SCOPE_INVALID")
+            selected = explicit_routes[_FUTURES_SDK_ROUTE]
+            if not isinstance(selected, Mapping):
+                raise RunnerError("LIVE_SDK_ROUTE_CONFIGURATION_INVALID")
+            route_options.update(selected)
+        for key, value in source.items():
+            if key == "exchange_kwargs":
+                continue
+            if key in _SDK_STORE_CONFIGURATION_KEYS:
+                generic_target[key] = value
+            elif key not in {"api", "api_cls", "provider", "backend"}:
+                # The example treats route-specific configuration as opaque.
+                # The SDK route owner validates its own provider options.
+                route_options[key] = value
+    if not route_options:
+        raise RunnerError("LIVE_SDK_ROUTE_CONFIGURATION_REQUIRED")
+    generic_config["exchange_kwargs"] = {_FUTURES_SDK_ROUTE: route_options}
+    return generic_config, generic_kwargs
+
+
+def _account_session_snapshot(store, *, write_enabled=False):
+    """Read one exact SDK session DTO for the explicit futures route."""
+
+    try:
+        from bt_api_py.facade_protocol import AccountSessionSnapshot
+    except ImportError:
+        raise RunnerError("SDK_ACCOUNT_SESSION_CONTRACT_UNAVAILABLE") from None
+    reader = getattr(store, "account_session_snapshot", None)
+    if not callable(reader):
+        raise RunnerError("SDK_STORE_ACCOUNT_SESSION_CAPABILITY_UNAVAILABLE")
+    try:
+        snapshot = reader(_FUTURES_SDK_ROUTE)
+    except Exception:
+        raise RunnerError("SDK_ACCOUNT_SESSION_SNAPSHOT_UNAVAILABLE") from None
+    if type(snapshot) is not AccountSessionSnapshot or snapshot.exchange_name != _FUTURES_SDK_ROUTE:
+        raise RunnerError("SDK_ACCOUNT_SESSION_SNAPSHOT_INVALID")
+    if (
+        snapshot.available is not True
+        or snapshot.connected is not True
+        or snapshot.authenticated is not True
+    ):
+        raise RunnerError("SDK_ACCOUNT_SESSION_NOT_READY")
+    if write_enabled and snapshot.trading_enabled is not True:
+        raise RunnerError("SDK_ACCOUNT_SESSION_TRADING_DISABLED")
+    return snapshot
+
+
+def _account_preflight(store, *, route, symbol, deadline):
+    """Require request-bound SDK readiness without treating it as write authority."""
+
+    try:
+        from bt_api_py.facade_protocol import (
+            AccountPreflightRequest,
+            AccountPreflightSnapshot,
+        )
+    except ImportError:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_CONTRACT_UNAVAILABLE") from None
+    reader = getattr(store, "account_preflight", None)
+    if not callable(reader):
+        raise RunnerError("SDK_STORE_ACCOUNT_PREFLIGHT_CAPABILITY_UNAVAILABLE")
+    try:
+        request = AccountPreflightRequest(
+            exchange_name=route,
+            symbol=symbol,
+            operation="submit",
+            deadline=deadline,
+        )
+        snapshot = reader(request)
+    except Exception:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_UNAVAILABLE") from None
+    if type(snapshot) is not AccountPreflightSnapshot or snapshot.request != request:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_INVALID")
+    if snapshot.available is not True or snapshot.ready is not True:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_NOT_READY")
+    return snapshot
+
+
+def _same_sdk_session(left, right):
+    return all(
+        getattr(left, name, None) == getattr(right, name, None)
+        for name in ("exchange_name", "source_ref", "generation", "session_ref", "business_day")
+    )
+
+
+def validate_official_simnow_store_profile(
+    config: Mapping[str, Any], api_kwargs: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Delegate provider-owned SimNow config checks to the unified SDK."""
+
+    try:
+        from bt_api_py.ctp_profiles import (
+            SimNowProfileError,
+            validate_official_simnow_store_profile as validate_profile,
+        )
+    except ImportError:
+        raise RunnerError("SDK_SIMNOW_PROFILE_CAPABILITY_UNAVAILABLE") from None
+    try:
+        return validate_profile(config, api_kwargs)
+    except SimNowProfileError as error:
+        code = error.code if type(error.code) is str else "CTP_PROFILE_NOT_OFFICIAL_SIMNOW"
+        raise RunnerError("SIMNOW_PROFILE_REJECTED", code) from None
+
+
+def _tape_origin_partition(value: Any, member_id: str) -> dict[str, Any]:
+    names = {
+        "schema",
+        "cohort_id",
+        "epoch_id",
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+    }
+    if not isinstance(value, Mapping) or set(value) != names:
+        raise RunnerError("DECISION_TAPE_ORIGIN_PARTITION_INVALID", member_id)
+    generation = value["connection_generation"]
+    if (
+        value["schema"] != SOURCE_ORIGIN_PARTITION_SCHEMA
+        or type(value["cohort_id"]) is not str
+        or not value["cohort_id"]
+        or type(value["epoch_id"]) is not int
+        or value["epoch_id"] < 1
+        or value["member_id"] != member_id
+        or type(value["source_ref"]) is not str
+        or not value["source_ref"]
+        or value["source_role"] not in ("history", "live")
+        or type(value["source_role"]) is not str
+        or type(generation) not in (str, int)
+        or (type(generation) is str and not generation)
+        or (type(generation) is int and generation <= 0)
+    ):
+        raise RunnerError("DECISION_TAPE_ORIGIN_PARTITION_INVALID", member_id)
+    return {name: value[name] for name in (
+        "schema",
+        "cohort_id",
+        "epoch_id",
+        "member_id",
+        "source_ref",
+        "source_role",
+        "connection_generation",
+    )}
+
+
+def _origin_partition_follows(previous: Mapping[str, Any], current: Mapping[str, Any]) -> bool:
+    if dict(previous) == dict(current):
+        return True
+    if current["epoch_id"] > previous["epoch_id"]:
+        return current["cohort_id"] != previous["cohort_id"]
+    return bool(
+        current["epoch_id"] == previous["epoch_id"]
+        and current["cohort_id"] == previous["cohort_id"]
+        and current["member_id"] == previous["member_id"]
+        and current["source_ref"] == previous["source_ref"]
+        and previous["source_role"] == "history"
+        and current["source_role"] == "live"
+    )
+
+
+def _write_requested(config, allow_write_flag, decision):
+    write_cfg = config["live"]["allow_writes"]
+    if type(write_cfg) is not bool:
+        raise RunnerError("LIVE_WRITE_FLAG_INVALID")
+    if allow_write_flag and not write_cfg:
+        raise RunnerError("LIVE_WRITE_GRANT_MISSING_IN_CONFIG")
+    if allow_write_flag and decision.effective_tier != "live":
+        raise RunnerError("LIVE_WRITE_TIER_REQUIRED")
+    return bool(allow_write_flag and write_cfg and decision.effective_tier == "live")
+
+
+def _install_shutdown_signal_handlers(refresh_loop):
+    """Install minimal handlers that only publish a control-thread request."""
+
+    if threading.current_thread() is not threading.main_thread():
+        return {}
+
+    def request_shutdown(_signum, _frame):
+        refresh_loop.request_shutdown()
+
+    installed = {}
+    candidates = (signal.SIGINT, signal.SIGTERM, getattr(signal, "SIGBREAK", None))
+    try:
+        for signum in dict.fromkeys(item for item in candidates if item is not None):
+            installed[signum] = signal.getsignal(signum)
+            signal.signal(signum, request_shutdown)
+    except (OSError, ValueError):
+        for signum, previous in reversed(tuple(installed.items())):
+            signal.signal(signum, previous)
+        raise RunnerError("LIVE_SHUTDOWN_SIGNAL_HANDLER_UNAVAILABLE") from None
+    return installed
+
+
+def _restore_shutdown_signal_handlers(installed):
+    for signum, previous in reversed(tuple(installed.items())):
+        signal.signal(signum, previous)
+
+
+def _full_route_summary(plan):
+    targets = tuple(plan.get("full_selected_targets", plan["targets"]))
+    product_by_target = plan.get("full_product_by_target", plan["product_by_target"])
+    routes = plan.get("full_routes", plan["routes"])
+    return {target: routes[product_by_target[target]] for target in targets}
+
+
+def _full_authorized_targets(plan):
+    return tuple(plan.get("full_authorized_targets", plan["authorized_targets"]))
+
+
+def _grid_semantics_sha256(grid):
+    grid_to_dict = getattr(grid, "to_dict", None)
+    if not callable(grid_to_dict):
+        raise RunnerError("SELECTION_EVIDENCE_GRID_UNAVAILABLE")
+    grid_row = grid_to_dict()
+    if type(grid_row) is not dict or set(grid_row) != {
+        "schema",
+        "status",
+        "decision_at",
+        "target_products",
+        "product_trading_days",
+        "calendar_hashes",
+        "minutes",
+    }:
+        raise RunnerError("SELECTION_EVIDENCE_GRID_INVALID")
+    stable_grid = {
+        key: value
+        for key, value in grid_row.items()
+        if key not in {"decision_at", "calendar_hashes"}
+    }
+    return hashlib.sha256(_canonical_json_bytes(stable_grid).rstrip(b"\n")).hexdigest()
+
+
+def _live_source_lineage_kind_from_days(trading_days):
+    """Name one source-continuity lane by its complete exchange-day map."""
+
+    if not isinstance(trading_days, Mapping) or not trading_days:
+        raise RunnerError("LIVE_SOURCE_TRADING_DAYS_UNAVAILABLE")
+    normalized = {}
+    for exchange_id, trading_day in trading_days.items():
+        exchange_id = _text(exchange_id, "source lineage exchange_id")
+        if type(trading_day) is not date or exchange_id in normalized:
+            raise RunnerError("LIVE_SOURCE_TRADING_DAYS_INVALID")
+        normalized[exchange_id] = trading_day.isoformat()
+    identity = {
+        "schema": "backtrader.alpha003.source_lineage.trading_day_map.v1",
+        "trading_days": {exchange: normalized[exchange] for exchange in sorted(normalized)},
+    }
+    digest = hashlib.sha256(_canonical_json_bytes(identity).rstrip(b"\n")).hexdigest()
+    return "ALPHA003_GRID:trading-day-map-v1:" + digest
+
+
+def _live_source_lineage_kind(plan):
+    manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
+    rows = getattr(manifest, "trading_days", None)
+    if type(rows) not in (tuple, list) or not rows:
+        raise RunnerError("LIVE_SOURCE_TRADING_DAYS_UNAVAILABLE")
+    trading_days = {}
+    for row in rows:
+        exchange_id = getattr(row, "exchange_id", None)
+        trading_day = getattr(row, "current_trading_day", None)
+        if exchange_id in trading_days:
+            raise RunnerError("LIVE_SOURCE_TRADING_DAYS_INVALID")
+        trading_days[exchange_id] = trading_day
+    return _live_source_lineage_kind_from_days(trading_days)
+
+
+def _reject_legacy_live_source_highwater(journal, scopes):
+    if journal.source_highwater(
+        scopes["account_scope"],
+        scopes["strategy_scope"],
+        scopes["logical_run_id"],
+        "ALPHA003_GRID",
+    ) is not None:
+        raise RunnerError("LIVE_LEGACY_SOURCE_HIGHWATER_UNSUPPORTED")
+
+
+def _selector_policy_projection(plan, rebalance_every):
+    """Bind the canonical Alpha003 selector inputs to the validated plan."""
+
+    if type(rebalance_every) is not int or rebalance_every < 1:
+        raise RunnerError("SELECTION_EVIDENCE_REBALANCE_INVALID")
+    targets = plan.get("targets") if isinstance(plan, Mapping) else None
+    products = plan.get("product_by_target") if isinstance(plan, Mapping) else None
+    if (
+        type(targets) not in (tuple, list)
+        or not targets
+        or any(type(target) is not str or not target for target in targets)
+        or len(targets) != len(set(targets))
+        or not isinstance(products, Mapping)
+        or set(products) != set(targets)
+    ):
+        raise RunnerError("SELECTION_EVIDENCE_PRODUCT_KEYS_INVALID")
+    product_keys = {}
+    try:
+        for target in sorted(targets):
+            product = products[target]
+            if isinstance(product, (tuple, list)) and len(product) == 2:
+                exchange_id, product_id = product
+            else:
+                exchange_id = getattr(product, "exchange_id", None)
+                product_id = getattr(product, "product_id", None)
+            if (
+                type(exchange_id) is not str
+                or not exchange_id
+                or exchange_id != exchange_id.strip()
+                or type(product_id) is not str
+                or not product_id
+                or product_id != product_id.strip()
+            ):
+                raise ValueError("product key fields are invalid")
+            product_keys[target] = {
+                "exchange_id": exchange_id,
+                "product_id": product_id,
+            }
+    except Exception:
+        raise RunnerError("SELECTION_EVIDENCE_PRODUCT_KEYS_INVALID") from None
+    return {
+        "rebalance_every": rebalance_every,
+        "product_keys": product_keys,
+    }
+
+
+def _selection_evidence(plan, epoch_id, *, max_bytes, rebalance_every=None):
+    """Return bounded, JSON-safe selection evidence bound to one epoch route set."""
+
+    if type(max_bytes) is not int or max_bytes < 1:
+        raise RunnerError("SELECTION_EVIDENCE_BYTE_BUDGET_INVALID")
+    if type(epoch_id) is not int or epoch_id < 1:
+        raise RunnerError("SELECTION_EVIDENCE_EPOCH_INVALID")
+    manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
+    to_dict = getattr(manifest, "to_dict", None)
+    manifest_digest = getattr(manifest, "manifest_sha256", None)
+    if not callable(to_dict) or type(manifest_digest) is not str:
+        raise RunnerError("SELECTION_EVIDENCE_MANIFEST_UNAVAILABLE")
+    try:
+        manifest_row = to_dict()
+        if not isinstance(manifest_row, dict):
+            raise TypeError("manifest projection is not a mapping")
+        encoded_manifest = _canonical_json_bytes(manifest_row)
+        if hashlib.sha256(encoded_manifest.rstrip(b"\n")).hexdigest() != manifest_digest:
+            raise ValueError("manifest digest does not match its projection")
+        golden_subset = plan.get("golden_targets") is not None
+        routes = _full_route_summary(plan) if golden_subset else _route_summary(plan)
+        authorized_targets = (
+            sorted(_full_authorized_targets(plan))
+            if golden_subset
+            else plan.get("authorized_targets")
+        )
+        route_targets = set(routes)
+        if (
+            type(authorized_targets) not in (tuple, list)
+            or not authorized_targets
+            or any(type(target) is not str or not target for target in authorized_targets)
+            or len(set(authorized_targets)) != len(authorized_targets)
+            or not set(authorized_targets).issubset(route_targets)
+        ):
+            raise RunnerError("SELECTION_EVIDENCE_AUTHORIZED_TARGETS_INVALID")
+        authorized_targets = list(authorized_targets)
+        binding = {
+            "schema": "backtrader.alpha003_epoch_selection_evidence.v1",
+            "epoch_id": epoch_id,
+            "selection_source": str(plan["selection_source"]),
+            "selection_path": str(plan["selection_path"]),
+            "source_snapshot_id": plan.get("source_snapshot_id"),
+            "manifest_sha256": manifest_digest,
+            "routes": routes,
+            "authorized_targets": authorized_targets,
+        }
+        if rebalance_every is not None:
+            binding["selector_policy"] = _selector_policy_projection(
+                plan, rebalance_every
+            )
+        if binding["selection_source"] == "futures_market_snapshot_equal_weight_v1":
+            evidence_grid = plan.get("full_grid") if golden_subset else plan.get("grid")
+            binding["grid_semantics_sha256"] = _grid_semantics_sha256(evidence_grid)
+        if golden_subset:
+            binding.update(
+                {
+                    "full_selected_targets": sorted(plan["full_selected_targets"]),
+                    "active_shadow_targets": sorted(plan["active_shadow_targets"]),
+                    "active_routes": _route_summary(plan),
+                    "active_authorized_targets": sorted(plan["authorized_targets"]),
+                    "active_grid_semantics_sha256": _grid_semantics_sha256(plan["grid"]),
+                }
+            )
+        binding_sha256 = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
+        evidence = {
+            **binding,
+            "binding_sha256": binding_sha256,
+            "manifest": manifest_row,
+        }
+        encoded_evidence = _canonical_json_bytes(evidence)
+    except RunnerError:
+        raise
+    except Exception as error:
+        raise RunnerError("SELECTION_EVIDENCE_SERIALIZATION_FAILED", type(error).__name__) from None
+    if len(encoded_evidence) > max_bytes:
+        raise RunnerError("SELECTION_EVIDENCE_BYTE_BUDGET_EXCEEDED")
+    return evidence
+
+
+def _validate_selection_evidence(value):
+    """Verify the public hashes and shape of saved epoch selection evidence."""
+
+    expected_keys = {
+        "schema",
+        "epoch_id",
+        "selection_source",
+        "selection_path",
+        "source_snapshot_id",
+        "manifest_sha256",
+        "routes",
+        "authorized_targets",
+        "binding_sha256",
+        "manifest",
+    }
+    golden_keys = {
+        "full_selected_targets",
+        "active_shadow_targets",
+        "active_routes",
+        "active_authorized_targets",
+        "active_grid_semantics_sha256",
+    }
+    try:
+        if not isinstance(value, Mapping):
+            raise TypeError("selection evidence is not a mapping")
+        if golden_keys.intersection(value):
+            expected_keys.update(golden_keys)
+        if "selector_policy" in value:
+            expected_keys.add("selector_policy")
+        if value.get("selection_source") == "futures_market_snapshot_equal_weight_v1":
+            expected_keys.add("grid_semantics_sha256")
+        _exact_keys(value, expected_keys, "selection evidence")
+        if (
+            value.get("schema") != "backtrader.alpha003_epoch_selection_evidence.v1"
+            or type(value.get("epoch_id")) is not int
+            or value["epoch_id"] < 1
+            or type(value.get("selection_source")) is not str
+            or not value["selection_source"]
+            or type(value.get("selection_path")) is not str
+            or not value["selection_path"]
+            or type(value.get("source_snapshot_id")) not in (str, type(None))
+            or type(value.get("manifest_sha256")) is not str
+            or type(value.get("binding_sha256")) is not str
+            or not isinstance(value.get("manifest"), dict)
+            or not isinstance(value.get("routes"), dict)
+            or type(value.get("authorized_targets")) is not list
+            or (
+                value["selection_source"] == "futures_market_snapshot_equal_weight_v1"
+                and (
+                    type(value.get("grid_semantics_sha256")) is not str
+                    or len(value["grid_semantics_sha256"]) != 64
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in value["grid_semantics_sha256"]
+                    )
+                )
+            )
+        ):
+            raise TypeError("selection evidence fields are invalid")
+        if value["selection_source"] not in {
+            "saved_bundle_legacy",
+            "futures_market_snapshot_equal_weight_v1",
+        }:
+            raise TypeError("selection evidence source is unsupported")
+        if value["selection_source"] == "futures_market_snapshot_equal_weight_v1":
+            if type(value["source_snapshot_id"]) is not str or not value["source_snapshot_id"]:
+                raise TypeError("query selection snapshot is missing")
+        selector_policy = value.get("selector_policy")
+        if selector_policy is not None:
+            _exact_keys(
+                selector_policy,
+                {"rebalance_every", "product_keys"},
+                "selection selector policy",
+            )
+            product_keys = selector_policy.get("product_keys")
+            selector_targets = (
+                value.get("active_routes")
+                if "active_shadow_targets" in value
+                else value["routes"]
+            )
+            if (
+                type(selector_policy.get("rebalance_every")) is not int
+                or selector_policy["rebalance_every"] < 1
+                or not isinstance(product_keys, dict)
+                or not isinstance(selector_targets, Mapping)
+                or set(product_keys) != set(selector_targets)
+            ):
+                raise TypeError("selection selector policy is invalid")
+            for target, product_key in product_keys.items():
+                _exact_keys(
+                    product_key,
+                    {"exchange_id", "product_id"},
+                    "selection product key",
+                )
+                if any(
+                    type(product_key.get(name)) is not str
+                    or not product_key[name]
+                    or product_key[name] != product_key[name].strip()
+                    for name in ("exchange_id", "product_id")
+                ):
+                    raise TypeError("selection product key is invalid")
+        routes = value["routes"]
+        if not routes or any(
+            type(target) is not str
+            or not target
+            or type(instrument) is not str
+            or not instrument
+            for target, instrument in routes.items()
+        ):
+            raise TypeError("selection routes are invalid")
+        authorized = value["authorized_targets"]
+        if (
+            not authorized
+            or any(type(target) is not str or not target for target in authorized)
+            or len(authorized) != len(set(authorized))
+            or not set(authorized).issubset(routes)
+        ):
+            raise TypeError("authorized selection targets are invalid")
+        if golden_keys.issubset(value):
+            full_selected = value["full_selected_targets"]
+            active_selected = value["active_shadow_targets"]
+            active_routes = value["active_routes"]
+            active_authorized = value["active_authorized_targets"]
+            if (
+                type(full_selected) is not list
+                or not full_selected
+                or any(type(target) is not str or not target for target in full_selected)
+                or full_selected != sorted(set(full_selected))
+                or full_selected != sorted(routes)
+                or type(active_selected) is not list
+                or not 3 <= len(active_selected) <= 5
+                or any(type(target) is not str or not target for target in active_selected)
+                or active_selected != sorted(set(active_selected))
+                or not set(active_selected).issubset(full_selected)
+                or type(active_routes) is not dict
+                or set(active_routes) != set(active_selected)
+                or any(
+                    type(active_routes[target]) is not str
+                    or active_routes[target] != routes[target]
+                    for target in active_selected
+                )
+                or type(active_authorized) is not list
+                or active_authorized != sorted(set(active_authorized))
+                or not set(active_authorized).issubset(active_selected)
+                or active_authorized != sorted(set(authorized).intersection(active_selected))
+                or type(value["active_grid_semantics_sha256"]) is not str
+                or len(value["active_grid_semantics_sha256"]) != 64
+                or any(
+                    character not in "0123456789abcdef"
+                    for character in value["active_grid_semantics_sha256"]
+                )
+                or value["selection_source"] != "futures_market_snapshot_equal_weight_v1"
+            ):
+                raise TypeError("golden selection evidence is invalid")
+        manifest_digest = hashlib.sha256(
+            _canonical_json_bytes(value["manifest"]).rstrip(b"\n")
+        ).hexdigest()
+        if value["manifest_sha256"] != manifest_digest:
+            raise TypeError("selection manifest digest is invalid")
+        binding_keys = (
+            "schema",
+            "epoch_id",
+            "selection_source",
+            "selection_path",
+            "source_snapshot_id",
+            "manifest_sha256",
+            "routes",
+            "authorized_targets",
+        )
+        binding = {key: value[key] for key in binding_keys}
+        if "selector_policy" in value:
+            binding["selector_policy"] = value["selector_policy"]
+        if "grid_semantics_sha256" in value:
+            binding["grid_semantics_sha256"] = value["grid_semantics_sha256"]
+        for key in golden_keys:
+            if key in value:
+                binding[key] = value[key]
+        binding_digest = hashlib.sha256(_canonical_json_bytes(binding).rstrip(b"\n")).hexdigest()
+        if value["binding_sha256"] != binding_digest:
+            raise TypeError("selection binding digest is invalid")
+        return dict(value)
+    except Exception:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID") from None
+
+
+def _query_history_selection_projection(evidence):
+    """Project neutral futures scope without per-collection observations."""
+
+    manifest = evidence["manifest"]
+    market_snapshot = manifest.get("market_snapshot")
+    market_coverage = manifest.get("market_coverage")
+    source = manifest.get("source")
+    if (
+        manifest.get("schema") != "backtrader.futures_main_contract_manifest.v3"
+        or manifest.get("status") != "READY"
+        or type(manifest.get("policy")) is not dict
+        or type(manifest.get("target_products")) is not list
+        or type(manifest.get("trading_days")) is not list
+        or type(manifest.get("calendars")) is not list
+        or type(manifest.get("coverage")) is not list
+        or type(manifest.get("products")) is not list
+        or type(manifest.get("candidates")) is not list
+        or type(market_coverage) is not list
+        or type(market_snapshot) is not dict
+        or type(source) is not dict
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    catalog = source.get("catalog")
+    if (
+        type(catalog) is not dict
+        or type(source.get("source_id")) is not str
+        or type(catalog.get("source_id")) is not str
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+
+    def select_rows(rows, keys):
+        if any(type(row) is not dict or not set(keys).issubset(row) for row in rows):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        return [{key: row[key] for key in keys} for row in rows]
+
+    if any(
+        type(row) is not dict
+        for name in ("target_products", "trading_days", "calendars", "coverage", "products")
+        for row in manifest[name]
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_calendars = [
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"available_at", "retrieved_at", "sha256"}
+        }
+        for row in manifest["calendars"]
+    ]
+    calendar_keys = {
+        "exchange_id",
+        "source_id",
+        "version",
+        "coverage_start",
+        "coverage_through",
+        "complete",
+        "trading_days",
+    }
+    if any(not calendar_keys.issubset(row) for row in stable_calendars):
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+
+    stable_catalog_records = []
+    seen_catalog_instruments = set()
+    for row in manifest["candidates"]:
+        if type(row) is not dict:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        product = row.get("product")
+        instrument_id = row.get("instrument_id")
+        if (
+            type(product) is not dict
+            or set(product) != {"exchange_id", "product_id"}
+            or type(product.get("exchange_id")) is not str
+            or not product["exchange_id"]
+            or type(product.get("product_id")) is not str
+            or not product["product_id"]
+            or type(instrument_id) is not str
+            or not instrument_id
+            or type(row.get("asset_type")) is not str
+            or type(row.get("contract_kind")) is not str
+            or row.get("is_trading") is not None
+            and type(row["is_trading"]) is not bool
+            or row.get("expiry_date") is not None
+            and type(row["expiry_date"]) is not str
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        key = (product["exchange_id"], product["product_id"], instrument_id)
+        if key in seen_catalog_instruments:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        seen_catalog_instruments.add(key)
+        stable_catalog_records.append(
+            {
+                "exchange_id": product["exchange_id"],
+                "product_id": product["product_id"],
+                "instrument_id": instrument_id,
+                "asset_type": row["asset_type"],
+                "contract_kind": row["contract_kind"],
+                "is_trading": row["is_trading"],
+                "expiry_date": row["expiry_date"],
+            }
+        )
+    stable_catalog_records.sort(
+        key=lambda row: (row["exchange_id"], row["product_id"], row["instrument_id"])
+    )
+
+    snapshot_keys = {
+        "source_ref",
+        "generation",
+        "records_digest",
+        "request_refs",
+        "requested_at",
+        "completed_at",
+        "observed_at",
+        "complete",
+        "freshness_status",
+        "freshness_blockers",
+        "coverage",
+        "coverage_scope_complete",
+        "coverage_complete",
+        "expected_instrument_count",
+        "missing_quote_instrument_count",
+        "missing_depth_instrument_count",
+        "missing_quote_field_row_count",
+        "unclassified_instrument_count",
+        "quote_unit_mismatch_count",
+        "quote_semantic_mismatch_count",
+        "depth_unit_mismatch_count",
+        "sessions",
+        "blockers",
+    }
+    if set(market_snapshot) != snapshot_keys:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    family_keys = {"session", "catalog", "quotes", "depth"}
+    if type(market_snapshot.get("coverage")) is not dict or set(
+        market_snapshot["coverage"]
+    ) != family_keys:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_family_coverage = {}
+    family_stable_keys = (
+        "family",
+        "completeness",
+        "scope_complete",
+        "complete",
+        "record_count",
+        "blockers",
+        "continuation_present",
+    )
+    family_exact_keys = {
+        *family_stable_keys,
+        "request_ref",
+        "source_ref",
+        "generation",
+        "snapshot_ref",
+        "started_at",
+        "completed_at",
+        "observed_at",
+        "records_digest",
+    }
+    for family, row in market_snapshot["coverage"].items():
+        if row is None:
+            stable_family_coverage[family] = None
+            continue
+        if type(row) is not dict or set(row) != family_exact_keys:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        stable_family_coverage[family] = {key: row[key] for key in family_stable_keys}
+    session_rows = market_snapshot.get("sessions")
+    if type(session_rows) is not list:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_sessions = select_rows(
+        session_rows, ("venue", "environment", "trading_day", "session_status")
+    )
+    stable_market_snapshot = {
+        key: market_snapshot[key]
+        for key in (
+            "complete",
+            "freshness_status",
+            "freshness_blockers",
+            "coverage_scope_complete",
+            "coverage_complete",
+            "expected_instrument_count",
+            "missing_quote_instrument_count",
+            "missing_depth_instrument_count",
+            "missing_quote_field_row_count",
+            "unclassified_instrument_count",
+            "quote_unit_mismatch_count",
+            "quote_semantic_mismatch_count",
+            "depth_unit_mismatch_count",
+            "blockers",
+        )
+    }
+    stable_market_snapshot.update(
+        {"coverage": stable_family_coverage, "sessions": stable_sessions}
+    )
+    market_coverage_keys = {
+        "product",
+        "catalog_instrument_ids",
+        "expected_quote_instrument_ids",
+        "observed_quote_instrument_ids",
+        "metric_unit",
+        "volume_semantics",
+    }
+    stable_market_coverage = []
+    for row in market_coverage:
+        if (
+            type(row) is not dict
+            or set(row) != market_coverage_keys
+            or type(row.get("product")) is not dict
+            or set(row["product"]) != {"exchange_id", "product_id"}
+            or row.get("metric_unit") != "contracts"
+            or row.get("volume_semantics") != "cumulative_trading_day"
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        for name in (
+            "catalog_instrument_ids",
+            "expected_quote_instrument_ids",
+            "observed_quote_instrument_ids",
+        ):
+            values = row[name]
+            if type(values) is not list or any(type(item) is not str or not item for item in values):
+                raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        stable_market_coverage.append(dict(row))
+
+    grid_semantics_sha256 = evidence.get("grid_semantics_sha256")
+    if type(grid_semantics_sha256) is not str:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    projection = {
+        "selection_source": evidence["selection_source"],
+        "routes": evidence["routes"],
+        "authorized_targets": sorted(evidence["authorized_targets"]),
+        "grid_semantics_sha256": grid_semantics_sha256,
+        "manifest": {
+            "schema": manifest["schema"],
+            "policy": manifest["policy"],
+            "target_products": manifest["target_products"],
+            "source_ids": {
+                "source_id": source["source_id"],
+                "catalog_source_id": catalog["source_id"],
+            },
+            "trading_days": manifest["trading_days"],
+            "calendars": stable_calendars,
+            "catalog_records": stable_catalog_records,
+            "coverage": select_rows(
+                manifest["coverage"],
+                (
+                    "product",
+                    "candidate_count",
+                    "expected_instrument_ids",
+                    "candidate_set_complete",
+                    "ranking_values_complete",
+                    "finalized",
+                    "ranking_trading_day",
+                    "open_interest_unit",
+                    "volume_unit",
+                ),
+            ),
+            "products": select_rows(
+                manifest["products"],
+                (
+                    "product",
+                    "in_target_pool",
+                    "status",
+                    "expected_prior_trading_day",
+                    "ranking_trading_day",
+                    "selected_instrument_id",
+                ),
+            ),
+            "market_snapshot": stable_market_snapshot,
+            "market_coverage": stable_market_coverage,
+        },
+    }
+    if "active_shadow_targets" in evidence:
+        projection.update(
+            {
+                "full_selected_targets": evidence["full_selected_targets"],
+                "active_shadow_targets": evidence["active_shadow_targets"],
+                "active_routes": evidence["active_routes"],
+                "active_authorized_targets": evidence["active_authorized_targets"],
+                "active_grid_semantics_sha256": evidence[
+                    "active_grid_semantics_sha256"
+                ],
+            }
+        )
+    try:
+        return _canonical_json_bytes(projection)
+    except RunnerError:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID") from None
+
+
+def _live_shutdown_path(cerebro, result, refresh_loop):
+    """Return the lifecycle path only when its corresponding proof is complete."""
+
+    winddown_status = getattr(cerebro, "live_bar_cohort_winddown_status", None)
+    winddown_reason = getattr(cerebro, "live_bar_cohort_winddown_reason", None)
+    if winddown_status == "STOPPED":
+        return "final_grid_winddown"
+
+    controlled_stop_proven = (
+        winddown_status == "NOT_REACHED"
+        and winddown_reason == "final_batch_not_reached"
+        and getattr(result, "shutdown_requested", False) is True
+        and getattr(result, "shutdown_ready", False) is True
+        and getattr(result, "shutdown_blocker", None) is None
+        and getattr(result, "shutdown_post_join_confirmed", False) is True
+        and getattr(result, "shutdown_post_join_blocker", None) is None
+        and getattr(refresh_loop, "shutdown_status", None) == "PASS"
+        and getattr(refresh_loop, "joined", False) is True
+    )
+    if controlled_stop_proven:
+        return "controlled_application_stop"
+
+    raise RunnerError(
+        "LIVE_CORE_WINDDOWN_NOT_CONFIRMED",
+        f"{winddown_status}:{winddown_reason}",
+    )
+
+
+def _new_live_capacity_run_capture(run_id, epoch_id, calendar):
+    """Create process-bound count capture only for an explicit live opt-in."""
+    from backtrader.research.live_capacity import LiveCapacityRunCapture
+
+    process_id = None
+    process_create_time = None
+    identity_issue = None
+    try:
+        process_id = os.getpid()
+    except Exception:
+        identity_issue = "process_id_unavailable"
+    if process_id is not None:
+        try:
+            import psutil
+
+            process_create_time = psutil.Process(process_id).create_time()
+        except Exception:
+            identity_issue = "process_create_time_unavailable"
+    else:
+        identity_issue = "process_id_unavailable"
+    try:
+        slot_count = len(calendar.slots)
+    except Exception:
+        slot_count = 0
+    return LiveCapacityRunCapture(
+        run_id,
+        epoch_id=epoch_id,
+        calendar_id=getattr(calendar, "calendar_id", None),
+        calendar_slot_count=slot_count,
+        process_id=process_id,
+        process_create_time=process_create_time,
+        process_identity_issue=identity_issue,
+    )
+
+
+def _live_capacity_evidence(capture, result, cleanup, *, run_id, epoch_id, run_completed):
+    if capture is None:
+        return None
+    if getattr(result, "_live_capacity_callback_failed", False) is True:
+        capture.mark_callback_failure()
+    report = dict(capture.report())
+    cleanup_complete = _cleanup_complete(cleanup)
+    postflight_ok = run_completed is True and cleanup_complete is True
+    report["postflight"] = {
+        "status": "OBSERVED" if postflight_ok else "INCOMPLETE",
+        "run_id": run_id,
+        "epoch_id": epoch_id,
+        "cleanup_complete": cleanup_complete,
+        "run_completed": run_completed is True,
+    }
+    if not postflight_ok:
+        report["status"] = "INCOMPLETE"
+        report["issues"] = tuple(
+            dict.fromkeys((*report.get("issues", ()), "run_postflight_incomplete"))
+        )
+    return report
+
+
+def _live_capacity_retirement_unproven(evidence):
+    """Preserve opt-in capture while refusing to treat an unretired epoch as complete."""
+
+    if not isinstance(evidence, Mapping):
+        return None
+    report = dict(evidence)
+    issue = "daily_epoch_retirement_unproven"
+
+    def with_issue(value):
+        existing = value if isinstance(value, (tuple, list)) else ()
+        result = tuple(existing)
+        if issue not in result:
+            result += (issue,)
+        return result
+
+    report["status"] = "INCOMPLETE"
+    report["issues"] = with_issue(report.get("issues"))
+    postflight = report.get("postflight")
+    if isinstance(postflight, Mapping):
+        postflight = dict(postflight)
+    else:
+        postflight = {}
+    postflight["status"] = "INCOMPLETE"
+    postflight["retirement_proven"] = False
+    postflight["issues"] = with_issue(postflight.get("issues"))
+    report["postflight"] = postflight
+    return report
+
+
+def run_live(
+    config,
+    config_path,
+    plan,
+    factor_mode,
+    direction,
+    *,
+    decision,
+    allow_write_flag,
+    execution_authorization=None,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _live_ready_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
+    _live_next_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
+    _capture_live_capacity: bool = False,
+    previous_plan=None,
+    _include_plan=False,
+):
+    """Run through an explicit SDK route and provider-neutral contracts."""
+
+    if _live_ready_callback is not None and not callable(_live_ready_callback):
+        raise RunnerError("LIVE_READY_CALLBACK_INVALID")
+    if _live_next_callback is not None and not callable(_live_next_callback):
+        raise RunnerError("LIVE_NEXT_CALLBACK_INVALID")
+    if type(_capture_live_capacity) is not bool:
+        raise RunnerError("LIVE_CAPACITY_CAPTURE_FLAG_INVALID")
+    golden_targets = _validate_golden_targets_option(
+        config,
+        mode="live",
+        decision=decision,
+        allow_write_flag=allow_write_flag,
+    )
+    if golden_targets is not None and plan is not None:
+        raise RunnerError("GOLDEN_TARGETS_QUERY_PLAN_REQUIRED")
+    import backtrader as bt
+    from backtrader.brokers.btapibroker import BtApiBroker
+    from alpha003_strategy import Alpha003TargetStrategy
+
+    from backtrader.factor_execution.factor_execution_facts import FactorExecutionTarget
+    from bt_api_py.facade_protocol import MarketInstrumentKey
+
+    if _live_store_config_override is not None and decision.effective_tier != "live":
+        raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
+
+    max_targets = 256
+    query_selection = plan is None
+    if query_selection and config["selection"]["source"] != "ctp_query":
+        raise RunnerError("CTP_QUERY_SELECTION_NOT_CONFIGURED")
+    if plan is not None and len(plan["targets"]) > max_targets:
+        raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
+    write_enabled = _write_requested(config, allow_write_flag, decision)
+    if not write_enabled and execution_authorization is not None:
+        raise RunnerError("LIVE_EXECUTION_AUTHORIZATION_UNEXPECTED")
+    if write_enabled and execution_authorization is None:
+        raise RunnerError("SDK_EXECUTION_AUTHORIZATION_UNAVAILABLE")
+    if write_enabled:
+        # The sample has no SDK-issued managed execution facade to bind to the
+        # authorization. A session snapshot or injected authorization object
+        # alone cannot authorize Broker submissions.
+        raise RunnerError("SDK_MANAGED_EXECUTION_FACADE_UNAVAILABLE")
+    loss_guard_threshold, loss_guard_max_age = _run_loss_guard_policy(
+        config, write_enabled=write_enabled
+    )
+    age_bound = config["cohort"]["max_live_bar_age_seconds"]
+    skew_bound = config["cohort"]["max_future_skew_seconds"]
+    if age_bound is None or skew_bound is None:
+        raise RunnerError("LIVE_BAR_AGE_PROFILE_REQUIRED")
+    age_bound = _number(age_bound, "max_live_bar_age_seconds", positive=True)
+    skew_bound = _number(skew_bound, "max_future_skew_seconds", nonnegative=True)
+    risk_policy = _risk_policy(config)
+    if write_enabled and risk_policy is None:
+        raise RunnerError("LIVE_RISK_BUDGETS_REQUIRED")
+    scopes = {
+        name: _text(config["live"][name], f"live.{name}")
+        for name in ("account_scope", "strategy_scope", "logical_run_id")
+    }
+    journal_path = _resolve_path(config_path, config["live"]["journal_path"], "live.journal_path")
+    ready_timeout = _number(
+        config["live"]["ready_timeout_seconds"], "ready_timeout_seconds", positive=True
+    )
+    query_timeout = _number(
+        config["live"]["refresh_timeout_seconds"], "refresh_timeout_seconds", positive=True
+    )
+    overall_timeout = _number(
+        config["live"]["refresh_overall_timeout_seconds"],
+        "refresh_overall_timeout_seconds",
+        positive=True,
+    )
+    interval = _number(
+        config["live"]["refresh_interval_seconds"], "refresh_interval_seconds", positive=True
+    )
+    shutdown_grace = _number(
+        config["live"]["shutdown_grace_seconds"],
+        "live.shutdown_grace_seconds",
+        positive=True,
+    )
+    quote_max_age = timedelta(
+        seconds=_number(
+            config["live"]["quote_max_age_seconds"], "live.quote_max_age_seconds", positive=True
+        )
+    )
+    max_query_age = timedelta(
+        seconds=_number(
+            config["live"]["query_max_age_seconds"], "live.query_max_age_seconds", positive=True
+        )
+    )
+    if _live_store_config_override is None:
+        store_config, api_kwargs = _live_env_config(config)
+    else:
+        store_config, api_kwargs = _live_env_config(config, override=_live_store_config_override)
+    simnow_profile = validate_official_simnow_store_profile(store_config, api_kwargs)
+    store = None
+    broker = None
+    journal = None
+    refresh_loop = None
+    decision_tape = None
+    saved_history = None
+    result = None
+    source_continuity = None
+    strategy_ready = False
+    strategy_blocker = None
+    primary_error = None
+    primary_traceback = None
+    cleanup = []
+    engine_ran = False
+    broker_evidence = None
+    clock = None
+    session_before_selection = None
+    selection_snapshot_id = None
+    capacity_capture = None
+
+    def create_store():
+        nonlocal store
+        if store is not None:
+            return store
+        try:
+            from backtrader.stores.btapistore import BtApiStore
+        except ImportError:
+            raise RunnerError("UNIFIED_STORE_UNAVAILABLE") from None
+        sdk_config, sdk_kwargs = _live_sdk_store_options(store_config, api_kwargs)
+        try:
+            store = BtApiStore(
+                provider="ctp",
+                config=sdk_config,
+                api_kwargs=sdk_kwargs,
+                execution_authorization=execution_authorization,
+                autostart=False,
+            )
+        except Exception:
+            raise RunnerError("UNIFIED_STORE_CONFIGURATION_UNAVAILABLE") from None
+        return store
+
+    try:
+        from bt_api_py.execution_journal import ExecutionDecisionJournal
+        from backtrader.factor_execution.factor_execution import FactorExecutionCoordinator
+
+        if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
+            raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
+        clock = RunnerWallClock()
+        tape_path = config["output"]["decision_tape_path"]
+        tape_budget = config["output"]["decision_tape_max_bytes"]
+        if tape_path is None or tape_budget is None:
+            raise RunnerError("DECISION_TAPE_PROFILE_REQUIRED")
+        if type(tape_budget) is not int or tape_budget < 1:
+            raise RunnerError("DECISION_TAPE_BYTE_BUDGET_INVALID")
+        journal = ExecutionDecisionJournal(
+            journal_path,
+            max_payload_bytes=_LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
+        )
+        _reject_legacy_live_source_highwater(journal, scopes)
+
+        history_input = config["inputs"].get("history_decision_tape")
+        if (
+            history_input is not None
+            and config["selection"]["source"] == "ctp_query"
+            and not query_selection
+        ):
+            raise RunnerError("LIVE_HISTORY_FRESH_SELECTION_REQUIRED")
+        if history_input is not None and config["selection"]["daily_bundles"]:
+            raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+        create_store()
+        session_before_selection = _account_session_snapshot(
+            store, write_enabled=write_enabled
+        )
+        if query_selection:
+            plan = build_futures_market_plan(
+                store,
+                config,
+                clock=clock,
+                environment=simnow_profile["environment"],
+            )
+            if len(plan["targets"]) > max_targets:
+                raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
+            if previous_plan is not None:
+                _assert_daily_plan_transition(previous_plan, plan)
+            session_after_selection = _account_session_snapshot(
+                store, write_enabled=write_enabled
+            )
+            if not _same_sdk_session(session_before_selection, session_after_selection):
+                raise RunnerError("LIVE_SESSION_CHANGED_DURING_SELECTION")
+            plan = _apply_golden_target_subset(plan, golden_targets)
+            selection_snapshot_id = plan["source_snapshot_id"]
+        elif plan is None:
+            raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
+        try:
+            market_instrument_by_target = plan.get("market_instrument_by_target")
+            if market_instrument_by_target is None:
+                market_instrument_by_target = {}
+            if not isinstance(market_instrument_by_target, Mapping) or (
+                market_instrument_by_target
+                and set(market_instrument_by_target) != set(plan["targets"])
+            ) or any(
+                type(value) is not MarketInstrumentKey
+                for value in market_instrument_by_target.values()
+            ):
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE")
+        except RunnerError:
+            raise
+        except Exception:
+            raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
+        try:
+            from backtrader.feeds.market_factor_source import (
+                MarketFactorSourceBinding,
+                MarketFactorSourceCalendar,
+                MarketFactorSourceError,
+            )
+            from bt_api_py.service_contracts import MarketSourceDescriptor, MarketSubscriptionKey
+            from bt_api_py.service_market_tick_projection import (
+                MarketTickIdentityStatus,
+                MarketTickStreamIdentity,
+            )
+        except ImportError:
+            raise RunnerError("SDK_MARKET_SOURCE_CONTRACT_UNAVAILABLE") from None
+
+        try:
+            market_source_calendar = MarketFactorSourceCalendar.from_grid(
+                plan["grid"], plan["session_calendars"]
+            )
+        except MarketFactorSourceError as error:
+            raise RunnerError(
+                "MARKET_FACTOR_SOURCE_CALENDAR_UNAVAILABLE", error.code
+            ) from None
+        except Exception:
+            raise RunnerError("MARKET_FACTOR_SOURCE_CALENDAR_UNAVAILABLE") from None
+
+        configured_market_instrument_by_target = {}
+        market_session_resolver_by_target = {}
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            instrument = plan["routes"][product]
+            try:
+                configured_key = store.get_market_instrument_key(instrument)
+            except Exception:
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
+            if (
+                type(configured_key) is not MarketInstrumentKey
+                or configured_key.provider != "ctp"
+                or configured_key.environment != simnow_profile["environment"]
+                or configured_key.venue != product.exchange_id
+                or configured_key.product_type != "future"
+                or (
+                    target in market_instrument_by_target
+                    and configured_key != market_instrument_by_target[target]
+                )
+            ):
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_MISMATCH")
+            configured_market_instrument_by_target[target] = configured_key
+            try:
+                market_session_resolver_by_target[target] = store.market_session_resolver(
+                    instrument
+                )
+            except Exception:
+                raise RunnerError("SDK_MARKET_SESSION_RESOLVER_UNAVAILABLE") from None
+
+        broker = BtApiBroker(
+            store=store,
+            provider="ctp",
+            market_data_only=True,
+            force_refresh_queries=False,
+            flatten_on_stop=False,
+            contract_metadata={
+                target: {
+                    "instrument_id": plan["routes"][plan["product_by_target"][target]],
+                    "exchange_id": plan["product_by_target"][target].exchange_id,
+                    "instrument_key": configured_market_instrument_by_target[target],
+                }
+                for target in plan["targets"]
+            },
+        )
+        try:
+            store.start(broker=broker)
+        except Exception:
+            raise RunnerError("SDK_MARKET_STORE_START_UNAVAILABLE") from None
+
+        market_source_binding_by_target = {}
+        market_source_ref_by_target = {}
+        product_days = dict(plan["grid"].product_trading_days)
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            instrument = plan["routes"][product]
+            trading_days = product_days.get(product)
+            if (
+                type(trading_days) is not tuple
+                or len(trading_days) != 1
+                or type(trading_days[0]) is not date
+            ):
+                raise RunnerError("MARKET_FACTOR_SOURCE_TRADING_DAY_UNAVAILABLE")
+            try:
+                store.subscribe(instrument)
+                identity = store.market_stream_identity(instrument)
+            except Exception:
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_UNAVAILABLE") from None
+            if type(identity) is not MarketTickStreamIdentity:
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_TYPE_INVALID")
+            if identity.status is not MarketTickIdentityStatus.AVAILABLE:
+                code = identity.unavailable_code
+                if (
+                    type(code) is not str
+                    or not code
+                    or not code.isascii()
+                    or any(not (char.isupper() or char.isdigit() or char == "_") for char in code)
+                ):
+                    code = "IDENTITY_UNAVAILABLE"
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_UNAVAILABLE", code)
+            descriptor = identity.source_descriptor
+            instrument_key = configured_market_instrument_by_target[target]
+            if (
+                type(descriptor) is not MarketSourceDescriptor
+                or type(descriptor.key) is not MarketSubscriptionKey
+                or descriptor.key.instrument != instrument_key
+                or descriptor.key.channel != "tick"
+                or descriptor.provider != instrument_key.provider
+                or type(identity.source_ref) is not str
+                or not identity.source_ref
+                or identity.source_ref != identity.source_ref.strip()
+                or type(identity.connection_generation) is not int
+                or identity.connection_generation <= 0
+                or descriptor.connection_generation != identity.connection_generation
+            ):
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_INVALID")
+            try:
+                market_source_binding_by_target[target] = MarketFactorSourceBinding(
+                    calendar=market_source_calendar,
+                    target_id=target,
+                    product=product,
+                    instrument=instrument_key,
+                    trading_date=trading_days[0],
+                    expected_connection_generation=identity.connection_generation,
+                    session_resolver=market_session_resolver_by_target[target],
+                )
+            except MarketFactorSourceError as error:
+                raise RunnerError("MARKET_FACTOR_SOURCE_BINDING_UNAVAILABLE", error.code) from None
+            except Exception:
+                raise RunnerError("MARKET_FACTOR_SOURCE_BINDING_UNAVAILABLE") from None
+            market_source_ref_by_target[target] = identity.source_ref
+
+        source_kind = _live_source_lineage_kind(plan)
+        startup_time_utc = _aware_datetime(clock.utc_now(), "live startup time")
+        if not _remaining_live_grid_minutes(plan["grid"], startup_time_utc):
+            raise RunnerError("LIVE_GRID_HAS_NO_REMAINING_COMMON_MINUTES")
+        restart_identity = _live_restart_identity(
+            config,
+            config_path,
+            plan,
+            factor_mode=factor_mode,
+            direction=direction,
+            simnow_profile=simnow_profile,
+        )
+        selection_evidence = _selection_evidence(
+            plan,
+            config["cohort"]["epoch_id"],
+            max_bytes=tape_budget,
+            rebalance_every=config["factor"]["rebalance_every"],
+        )
+        saved_history = _load_saved_live_history(
+            config,
+            config_path,
+            plan,
+            source_refs_by_target=market_source_ref_by_target,
+            restart_identity=restart_identity,
+            selection_evidence=selection_evidence,
+            now=startup_time_utc,
+            journal=journal,
+            scopes=scopes,
+            source_kind=source_kind,
+        )
+        if saved_history is not None:
+            history_cursor = journal.grid_cursor(
+                scopes["account_scope"],
+                scopes["strategy_scope"],
+                saved_history["source_cohort_id"],
+            )
+            latest_grid_anchor = saved_history["latest_grid_anchor"]
+            if latest_grid_anchor is None and history_cursor is not None:
+                raise RunnerError("LIVE_HISTORY_JOURNAL_HIGHWATER_MISMATCH")
+            if latest_grid_anchor is not None and (
+                history_cursor is None
+                or _aware_datetime(history_cursor.close_time, "history journal cursor")
+                != latest_grid_anchor["close_time"]
+                or history_cursor.batch_id != latest_grid_anchor["batch_id"]
+                or history_cursor.epoch_id != str(saved_history["source_epoch_id"])
+            ):
+                raise RunnerError("LIVE_HISTORY_JOURNAL_HIGHWATER_MISMATCH")
+            saved_history["prior_grid_cursor_close_time"] = (
+                None if history_cursor is None else history_cursor.close_time
+            )
+            saved_history["prior_grid_cursor_batch_id"] = (
+                None if history_cursor is None else history_cursor.batch_id
+            )
+            _verify_saved_history_decision_anchors(journal, scopes, saved_history)
+            saved_history["prior_run_order_intents"] = journal.run_order_count(
+                scopes["account_scope"], scopes["strategy_scope"], scopes["logical_run_id"]
+            )
+        elif journal.source_highwater(
+            scopes["account_scope"],
+            scopes["strategy_scope"],
+            scopes["logical_run_id"],
+            source_kind,
+        ) is not None:
+            raise RunnerError("LIVE_HISTORY_TAPE_REQUIRED_FOR_SOURCE_HIGHWATER")
+        if store is None:
+            create_store()
+        session_before_market_feed = _account_session_snapshot(
+            store, write_enabled=write_enabled
+        )
+        if not _same_sdk_session(session_before_selection, session_before_market_feed):
+            raise RunnerError("LIVE_SESSION_CHANGED_BEFORE_MARKET_FEED")
+        cutover_time_utc = _aware_datetime(clock.utc_now(), "live cohort cutover time")
+        full_calendar = _make_live_calendar(
+            config,
+            plan["grid"],
+            begin_at=(
+                saved_history["first_bucket_start"]
+                if saved_history is not None
+                else cutover_time_utc
+            ),
+        )
+        calendar = full_calendar
+        source_restart_marker = None
+        if saved_history is not None:
+            from backtrader.research.live_cohort import (
+                LiveCohortError,
+                LiveCohortCalendar,
+            )
+            from bt_api_py.execution_journal import (
+                ExecutionSourceRestartMarker,
+            )
+
+            slots_by_id = {slot.slot_id: index for index, slot in enumerate(full_calendar.slots)}
+            highwater_index = slots_by_id.get(saved_history["calendar_highwater"].slot_id)
+            first_live = next(
+                (
+                    slot
+                    for slot in full_calendar.slots
+                    if slot.bucket_start >= cutover_time_utc
+                ),
+                None,
+            )
+            if highwater_index is None or first_live is None:
+                raise RunnerError("LIVE_HISTORY_RESTART_CALENDAR_UNAVAILABLE")
+            first_live_index = slots_by_id[first_live.slot_id]
+            if first_live_index <= highwater_index:
+                raise RunnerError("LIVE_HISTORY_RESTART_CALENDAR_ORDER_INVALID")
+            if first_live_index == highwater_index + 1:
+                gap_fingerprint = None
+            else:
+                try:
+                    calendar = LiveCohortCalendar.with_restart_gap(
+                        full_calendar,
+                        startup_time_utc=cutover_time_utc,
+                        journal_highwater=saved_history["calendar_highwater"],
+                        first_live_slot_id=first_live.slot_id,
+                    )
+                except LiveCohortError as error:
+                    raise RunnerError("LIVE_HISTORY_RESTART_GAP_INVALID") from error
+                gap_fingerprint = calendar.restart_gap.fingerprint
+            source_restart_marker = ExecutionSourceRestartMarker(
+                prior_highwater=saved_history["source_highwater"].reference,
+                gap_fingerprint=gap_fingerprint,
+            )
+            saved_history["restart_gap_fingerprint"] = gap_fingerprint
+            saved_history["first_live_slot_id"] = first_live.slot_id
+        cohort = _make_cohort(
+            config,
+            plan["grid"],
+            calendar_override=calendar,
+        )
+        if _capture_live_capacity:
+            capacity_capture = _new_live_capacity_run_capture(
+                scopes["logical_run_id"], config["cohort"]["epoch_id"], calendar
+            )
+        decision_tape = _new_decision_tape(
+            config,
+            config_path,
+            plan,
+            mode="live",
+            factor_mode=factor_mode,
+            direction=direction,
+            source_snapshot_id=plan.get("source_snapshot_id"),
+            restart_identity=restart_identity,
+            selection_evidence=selection_evidence,
+            calendar_fingerprint=cohort.calendar_fingerprint,
+        )
+        cerebro = bt.Cerebro(stdstats=False, exactbars=1, runonce=False, preload=False)
+        cerebro.setbroker(broker)
+        query_targets = []
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            instrument = plan["routes"][product]
+            source_ref = market_source_ref_by_target[target]
+            history_origin = None
+            feed_options = {
+                "market_factor_source_binding": market_source_binding_by_target[target],
+            }
+            if saved_history is not None:
+                from backtrader.research.live_cohort import LiveSourceOrigin
+
+                history_bars = saved_history["bars_by_target"][target]
+                first_history = history_bars[0]
+                history_origin = LiveSourceOrigin(
+                    member_id=target,
+                    epoch_id=config["cohort"]["epoch_id"],
+                    source_ref=source_ref,
+                    source_role="history",
+                    connection_generation=first_history["connection_generation"],
+                    bar_id=first_history["bar_id"],
+                    feed_sequence=first_history["bar_sequence"],
+                    close_time=first_history["bucket_end"],
+                    origin_partition=first_history["origin_partition"],
+                )
+                feed_options = {
+                    "historical_bars": history_bars,
+                    "cohort_source_origin": history_origin,
+                    "market_factor_source_binding": market_source_binding_by_target[target],
+                }
+            data = store.getdata(
+                dataname=instrument,
+                backfill_start=False,
+                timeframe=bt.TimeFrame.Minutes,
+                compression=1,
+                clock=clock,
+                cohort_source_mode=True,
+                bar_watermark_ms=int(store_config.get("bar_watermark_ms", 500)),
+                **feed_options,
+            )
+            cerebro.adddata(data, name=target)
+            cohort.register_member(
+                target,
+                data,
+                instrument=instrument,
+                source_ref=source_ref,
+                line_fields=OHLCV_FIELDS,
+                raw_fields=OHLCV_FIELDS,
+                clock_domain_id=config["cohort"]["clock_domain_id"],
+                timezone_id=config["cohort"]["timezone_id"],
+                session_semantics=config["cohort"]["session_semantics"],
+                numeric_fields=OHLCV_FIELDS,
+                source_origin=history_origin,
+            )
+            query_targets.append(
+                FactorExecutionTarget(
+                    target_id=target,
+                    data=data,
+                    instrument=configured_market_instrument_by_target[target],
+                )
+            )
+        try:
+            from bt_api_py.query_composition import QueryCompositionError
+            from bt_api_py.query_facade import QueryFacade
+
+            query_facade = store.query_facade(_FUTURES_SDK_ROUTE)
+        except QueryCompositionError as error:
+            code = getattr(error, "code", None)
+            if type(code) is not str or not code.isascii() or not code.startswith("QUERY_"):
+                code = "QUERY_PROVIDER_SELECTION_FAILED"
+            raise RunnerError("LIVE_QUERY_ROUTE_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("LIVE_QUERY_ROUTE_UNAVAILABLE") from None
+        if type(query_facade) is not QueryFacade:
+            raise RunnerError("LIVE_QUERY_FACADE_TYPE_INVALID")
+        coordinator = FactorExecutionCoordinator(
+            broker,
+            query_facade=query_facade,
+            managed_execution_facade=None,
+            targets=tuple(query_targets),
+        )
+        if saved_history is not None:
+            from backtrader.research.live_cohort import (
+                LiveCohortError,
+                _SAVED_HISTORY_ANCHOR_EVENT_KEY,
+                _VERIFIED_HISTORY_PROOF_EVENT_KEY,
+            )
+
+            verified_anchors = saved_history.get("verified_journal_anchors")
+            if not isinstance(verified_anchors, Mapping):
+                raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+            authorized_history_sources = {}
+            for target in plan["targets"]:
+                data = next(item.data for item in query_targets if item.target_id == target)
+                authorized_events = []
+                for event in data._cohort_history_source:
+                    anchor_identity = event.get(_SAVED_HISTORY_ANCHOR_EVENT_KEY)
+                    anchor = verified_anchors.get((anchor_identity, target))
+                    if anchor is None:
+                        raise RunnerError("LIVE_HISTORY_JOURNAL_DECISION_ANCHOR_MISMATCH")
+                    try:
+                        proof = cohort._issue_verified_saved_history_origin_proof(
+                            data, event, anchor
+                        )
+                    except LiveCohortError as error:
+                        raise RunnerError("LIVE_HISTORY_ORIGIN_PROOF_INVALID", target) from error
+                    authorized_event = dict(event)
+                    authorized_event[_VERIFIED_HISTORY_PROOF_EVENT_KEY] = proof
+                    authorized_events.append(MappingProxyType(authorized_event))
+                authorized_history_sources[target] = tuple(authorized_events)
+            # Sign and validate every feed's complete history window before
+            # replacing any source tuple that Cerebro could later consume.
+            for target in plan["targets"]:
+                data = next(item.data for item in query_targets if item.target_id == target)
+                data._cohort_history_source = authorized_history_sources[target]
+        cohort.seal()
+        cerebro.add_live_bar_cohort(
+            cohort,
+            clock=clock,
+            winddown_timeout_seconds=shutdown_grace,
+        )
+
+        session_after_market_feed = _account_session_snapshot(
+            store, write_enabled=write_enabled
+        )
+        if not _same_sdk_session(session_before_market_feed, session_after_market_feed):
+            raise RunnerError("LIVE_SESSION_CHANGED_DURING_MARKET_FEED_BINDING")
+
+        refresh_loop = QueryRefreshLoop(
+            store,
+            broker,
+            tuple(query_targets),
+            execution_target_ids=tuple(plan["authorized_targets"]),
+            coordinator=coordinator,
+            account_scope=scopes["account_scope"],
+            strategy_scope=scopes["strategy_scope"],
+            clock=clock,
+            quote_max_age=quote_max_age,
+            max_query_age=max_query_age,
+            timeout=query_timeout,
+            overall_timeout=overall_timeout,
+            interval=interval,
+            cerebro=cerebro,
+            shutdown_grace_seconds=shutdown_grace,
+        )
+        try:
+            refresh_loop.refresh_initial(wait_timeout=ready_timeout)
+        except Exception as error:
+            refresh_loop.last_error_code = refresh_loop._execution_error_code(error)
+            if write_enabled:
+                raise RunnerError("LIVE_INITIAL_QUERY_REFRESH_FAILED") from None
+        if write_enabled and refresh_loop.last_error_code is not None:
+            raise RunnerError("LIVE_INITIAL_QUERY_REFRESH_INCOMPLETE")
+
+        strategy_kwargs = _make_strategy_kwargs(
+            config,
+            plan,
+            factor_mode,
+            direction,
+            risk_policy,
+            replay=False,
+            account_route=_FUTURES_SDK_ROUTE,
+            market_environment=simnow_profile["environment"],
+            cohort=cohort,
+            account_scope=scopes["account_scope"],
+            logical_run_id=scopes["logical_run_id"],
+            replay_quotes=(),
+            replay_instruments={},
+            quote_max_age_seconds=quote_max_age.total_seconds(),
+            max_query_age_seconds=max_query_age.total_seconds(),
+            max_live_bar_age_seconds=age_bound,
+            max_future_skew_seconds=skew_bound,
+            live_ready_callback=_live_ready_callback,
+            live_next_callback=_live_next_callback,
+            execution_enabled=write_enabled,
+            loss_guard_net_loss_threshold=loss_guard_threshold,
+            loss_guard_max_observation_age_seconds=loss_guard_max_age,
+            decision_tape=decision_tape,
+            source_restart_marker=source_restart_marker,
+            source_kind=source_kind,
+            live_capacity_callback=(
+                None
+                if capacity_capture is None
+                else lambda strategy, event: capacity_capture.observe(
+                    strategy, event, store=store
+                )
+            ),
+            market_instrument_keys=configured_market_instrument_by_target,
+        )
+        strategy_kwargs["control_refresh_loop"] = refresh_loop
+        cerebro.addstrategy(Alpha003TargetStrategy, **strategy_kwargs)
+        refresh_loop.start()
+        signal_handlers = _install_shutdown_signal_handlers(refresh_loop)
+        try:
+            engine_ran = True
+            result = cerebro.run(runonce=False, preload=False)[0]
+            winddown_status = getattr(cerebro, "live_bar_cohort_winddown_status", None)
+            winddown_reason = getattr(cerebro, "live_bar_cohort_winddown_reason", None)
+            shutdown_path = _live_shutdown_path(cerebro, result, refresh_loop)
+            strategy_shutdown_requested = (
+                getattr(result, "shutdown_requested", False) is True
+            )
+            strategy_ready = getattr(result, "shutdown_ready", False) is True
+            strategy_blocker = getattr(result, "shutdown_blocker", None)
+            if not strategy_ready or strategy_blocker is not None:
+                raise RunnerError(
+                    "LIVE_STRATEGY_SHUTDOWN_NOT_CONFIRMED",
+                    strategy_blocker if type(strategy_blocker) is str else None,
+                )
+            strategy_post_join_confirmed = (
+                getattr(result, "shutdown_post_join_confirmed", False) is True
+            )
+            strategy_post_join_blocker = getattr(result, "shutdown_post_join_blocker", None)
+            if not strategy_post_join_confirmed or strategy_post_join_blocker is not None:
+                raise RunnerError(
+                    "LIVE_STRATEGY_POST_JOIN_RETIREMENT_NOT_CONFIRMED",
+                    strategy_post_join_blocker if type(strategy_post_join_blocker) is str else None,
+                )
+        finally:
+            _restore_shutdown_signal_handlers(signal_handlers)
+    except BaseException as error:
+        primary_error = error
+        primary_traceback = error.__traceback__
+    finally:
+        if refresh_loop is None:
+            cleanup.append(
+                {
+                    "resource": "query_refresh",
+                    "status": "NOT_CREATED",
+                    "started": False,
+                    "joined": True,
+                }
+            )
+            refresh_joined = True
+        else:
+            loop_result = _cleanup_live_resource(
+                cleanup,
+                "query_refresh",
+                refresh_loop.stop_and_join,
+            )
+            loop_result["started"] = refresh_loop.started
+            loop_result["joined"] = refresh_loop.joined
+            refresh_joined = refresh_loop.joined
+
+        if decision_tape is None:
+            cleanup.append({"resource": "decision_tape", "status": "NOT_CREATED"})
+        else:
+            _cleanup_live_resource(
+                cleanup,
+                "decision_tape",
+                decision_tape.close,
+                project=lambda summary: {
+                    "status": "CLOSED"
+                    if summary.get("closed") is True and summary.get("failed") is False
+                    else "UNPROVEN",
+                    "record_count": summary.get("record_count"),
+                    "bytes": summary.get("bytes"),
+                    "sha256": summary.get("sha256"),
+                },
+            )
+
+        if broker is None:
+            cleanup.append(
+                {"resource": "broker", "status": "NOT_CREATED", "store_shutdown_state": "UNPROVEN"}
+            )
+        else:
+            broker_evidence = _broker_shutdown_evidence(broker)
+            if not engine_ran and broker_evidence["status"] == "NOT_STARTED":
+                broker_evidence["status"] = "NOT_RUN"
+            cleanup.append({"resource": "broker", **broker_evidence})
+
+        if store is None:
+            cleanup.append(
+                {"resource": "store", "status": "NOT_CREATED", "shutdown_state": "NOT_CREATED"}
+            )
+        elif not refresh_joined:
+            cleanup.append(
+                {
+                    "resource": "store",
+                    "status": "SKIPPED_REFRESH_UNJOINED",
+                    "shutdown_state": "UNPROVEN",
+                }
+            )
+        elif engine_ran:
+            try:
+                store_health = store.get_command_health()
+                store_projection = _store_stop_evidence(store_health)
+            except BaseException:
+                store_projection = {
+                    "shutdown_state": "UNPROVEN",
+                    "market_tick_projector_close_failures": None,
+                }
+            broker_closed = (
+                broker_evidence is not None
+                and broker_evidence.get("status")
+                in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}
+                and broker_evidence.get("store_shutdown_state") == "PASS"
+            )
+            if (
+                broker_closed
+                and store_projection.get("shutdown_state") == "PASS"
+                and store_projection.get("market_tick_projector_close_failures") == 0
+            ):
+                # Cerebro has already stopped the Broker, which owns this
+                # Store's lifecycle. Do not make a second stop call.
+                cleanup.append(
+                    {"resource": "store", "status": "CLOSED_BY_BROKER", **store_projection}
+                )
+            else:
+                cleanup.append(
+                    {
+                        "resource": "store",
+                        "status": "SKIPPED_BROKER_SHUTDOWN_UNPROVEN",
+                        **store_projection,
+                    }
+                )
+        else:
+            _cleanup_live_resource(
+                cleanup,
+                "store",
+                store.stop,
+                project=_store_stop_evidence,
+            )
+
+        if result is not None and decision_tape is not None:
+            source_continuity = _live_source_continuity_status(
+                journal,
+                scopes,
+                decision_tape,
+                result,
+                source_kind=source_kind,
+            )
+
+        if journal is None:
+            cleanup.append({"resource": "journal", "status": "NOT_CREATED"})
+        elif not refresh_joined:
+            cleanup.append({"resource": "journal", "status": "SKIPPED_REFRESH_UNJOINED"})
+        else:
+            if saved_history is not None:
+                saved_history["run_order_intents_after"] = journal.run_order_count(
+                    scopes["account_scope"],
+                    scopes["strategy_scope"],
+                    scopes["logical_run_id"],
+                )
+            _cleanup_live_resource(
+                cleanup,
+                "journal",
+                journal.close,
+                project=lambda _result: {"status": "CLOSED"},
+            )
+
+    if primary_error is not None:
+        _attach_cleanup_results(primary_error, cleanup)
+        if capacity_capture is not None:
+            primary_error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
+        _attach_live_epoch_failure_evidence(
+            primary_error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
+        )
+        _attach_unclosed_live_resources(
+            primary_error,
+            {
+                "cerebro": locals().get("cerebro"),
+                "refresh_loop": refresh_loop,
+                "broker": broker,
+                "store": store,
+                "journal": journal,
+                "decision_tape": decision_tape,
+            },
+            cleanup,
+        )
+        raise primary_error.with_traceback(primary_traceback)
+    if refresh_loop is not None and refresh_loop.shutdown_status != "PASS":
+        error = RunnerError(
+            "LIVE_SHUTDOWN_NOT_CONFIRMED",
+            refresh_loop.shutdown_blocker or refresh_loop.shutdown_status,
+        )
+        _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
+        _attach_live_epoch_failure_evidence(
+            error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
+        )
+        _attach_unclosed_live_resources(
+            error,
+            {
+                "cerebro": locals().get("cerebro"),
+                "refresh_loop": refresh_loop,
+                "broker": broker,
+                "store": store,
+                "journal": journal,
+                "decision_tape": decision_tape,
+            },
+            cleanup,
+        )
+        raise error
+    if not _cleanup_complete(cleanup):
+        error = RunnerError("LIVE_RESOURCE_CLEANUP_INCOMPLETE")
+        _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
+        _attach_live_epoch_failure_evidence(
+            error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
+        )
+        _attach_unclosed_live_resources(
+            error,
+            {
+                "cerebro": locals().get("cerebro"),
+                "refresh_loop": refresh_loop,
+                "broker": broker,
+                "store": store,
+                "journal": journal,
+                "decision_tape": decision_tape,
+            },
+            cleanup,
+        )
+        raise error
+    if (
+        source_continuity is not None
+        and source_continuity["record_count"] > 0
+        and source_continuity["available"] is not True
+    ):
+        error = RunnerError("LIVE_SOURCE_CONTINUITY_UNAVAILABLE")
+        error.source_continuity = dict(source_continuity)
+        _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
+        _attach_live_epoch_failure_evidence(
+            error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
+        )
+        raise error
+    try:
+        decision_tape_readback = _decision_tape_readback(
+            decision_tape.path,
+            decision_tape.max_bytes,
+        )
+        if (
+            decision_tape_readback["file_id"] != decision_tape.file_id
+            or decision_tape_readback["record_count"] != decision_tape.summary()["record_count"]
+            or decision_tape_readback["raw_sha256"] != decision_tape.summary()["sha256"]
+        ):
+            raise RunnerError("DECISION_TAPE_READBACK_MISMATCH")
+    except BaseException as error:
+        _attach_cleanup_results(error, cleanup)
+        if capacity_capture is not None:
+            error.live_capacity = _live_capacity_evidence(
+                capacity_capture,
+                result,
+                cleanup,
+                run_id=scopes["logical_run_id"],
+                epoch_id=config["cohort"]["epoch_id"],
+                run_completed=False,
+            )
+        _attach_live_epoch_failure_evidence(
+            error, config, plan, locals().get("cerebro"), refresh_loop, cleanup
+        )
+        raise
+    live_capacity_evidence = _live_capacity_evidence(
+        capacity_capture,
+        result,
+        cleanup,
+        run_id=scopes["logical_run_id"],
+        epoch_id=config["cohort"]["epoch_id"],
+        run_completed=True,
+    )
+    summary = {
+        "status": "LIVE_RUN_COMPLETE",
+        "mode": "live",
+        "epoch_id": config["cohort"]["epoch_id"],
+        "selection_path": str(plan["selection_path"]),
+        "selection_source": plan["selection_source"],
+        "source_snapshot_id": plan.get("source_snapshot_id"),
+        "selection_evidence": selection_evidence,
+        "simnow_profile": {
+            "verified": simnow_profile["verified"],
+            "environment": simnow_profile["environment"],
+            "profile": simnow_profile["profile"],
+        },
+        "calendar_evidence_mode": plan.get("calendar_evidence_mode"),
+        "calendar_rules_sha256": plan.get("calendar_rules_sha256"),
+        "selection_decision_at": plan["manifest"].decision_at.isoformat(),
+        "trading_days": {
+            row.exchange_id: row.current_trading_day.isoformat()
+            for row in plan["manifest"].trading_days
+        },
+        "routes": {
+            target: plan["routes"][plan["product_by_target"][target]] for target in plan["targets"]
+        },
+        "tier": decision.effective_tier,
+        "write_mode": write_enabled,
+        "factor_mode": factor_mode,
+        "source_clock_domain_id": config["cohort"]["clock_domain_id"],
+        "scheduler_clock": "host-utc-plus-monotonic",
+        "last_signal_block_reason": getattr(result, "last_signal_block_reason", None),
+        "refresh_blockers": list(getattr(refresh_loop.last_receipt, "blockers", ()))
+        if refresh_loop
+        else [],
+        "refresh_error_code": refresh_loop.last_error_code if refresh_loop else "NOT_CREATED",
+        "journal_enabled": journal is not None,
+        "shutdown_status": refresh_loop.shutdown_status if refresh_loop else "NOT_REQUESTED",
+        "shutdown_blocker": refresh_loop.shutdown_blocker if refresh_loop else None,
+        "strategy_shutdown_ready": strategy_ready,
+        "strategy_shutdown_requested": strategy_shutdown_requested,
+        "strategy_shutdown_blocker": strategy_blocker,
+        "strategy_shutdown_post_join_confirmed": strategy_post_join_confirmed,
+        "strategy_shutdown_post_join_blocker": strategy_post_join_blocker,
+        "engine_winddown_status": getattr(cerebro, "live_bar_cohort_winddown_status", None),
+        "engine_winddown_reason": getattr(cerebro, "live_bar_cohort_winddown_reason", None),
+        "shutdown_path": shutdown_path,
+        "decision_tape": decision_tape.summary(),
+        "decision_tape_readback": decision_tape_readback,
+        "source_continuity": source_continuity
+        if source_continuity is not None
+        else {
+            "status": "NOT_APPLICABLE",
+            "available": False,
+            "record_count": 0,
+            "failure_count": 0,
+            "first_error": None,
+            "final_highwater_matches_tape": None,
+            "reason": "NO_ROWS",
+        },
+        "history_resume": (
+            None
+            if saved_history is None
+            else {
+                "source_file_id": saved_history["source_file_id"],
+                "source_epoch_id": saved_history["source_epoch_id"],
+                "source_cohort_id": saved_history["source_cohort_id"],
+                "restored_bar_count": saved_history["bar_count"],
+                "first_bucket_start": _json_time(saved_history["first_bucket_start"]),
+                "last_close_time": _json_time(saved_history["last_close_time"]),
+                "prior_grid_cursor_close_time": saved_history["prior_grid_cursor_close_time"],
+                "prior_grid_cursor_batch_id": saved_history["prior_grid_cursor_batch_id"],
+                "prior_run_order_intents": saved_history["prior_run_order_intents"],
+                "run_order_intents_after": saved_history["run_order_intents_after"],
+                "restart_gap_fingerprint": saved_history["restart_gap_fingerprint"],
+                "first_live_slot_id": saved_history["first_live_slot_id"],
+            }
+        ),
+        "strategy_order_events": _project_strategy_order_events(
+            result, plan, config["cohort"]["epoch_id"]
+        ),
+        "resource_shutdown": cleanup,
+        "cleanup_complete": _cleanup_complete(cleanup),
+    }
+    if live_capacity_evidence is not None:
+        summary["live_capacity"] = live_capacity_evidence
+    if plan.get("golden_targets") is not None:
+        summary.update(
+            {
+                "full_selected_targets": list(plan["full_selected_targets"]),
+                "active_shadow_targets": list(plan["active_shadow_targets"]),
+            }
+        )
+    if _include_plan:
+        summary["_plan"] = plan
+    return summary
+
+
+def _route_summary(plan):
+    if plan is None:
+        return {}
+    return {target: plan["routes"][plan["product_by_target"][target]] for target in plan["targets"]}
+
+
+def _assert_daily_plan_transition(previous, current):
+    """Keep the product pool fixed while requiring a later PIT epoch."""
+
+    previous_products = previous.get("full_products", previous["products"])
+    current_products = current.get("full_products", current["products"])
+    if set(previous_products) != set(current_products):
+        raise RunnerError("DAILY_SELECTION_PRODUCT_POOL_CHANGED")
+    if previous["manifest"].policy != current["manifest"].policy:
+        raise RunnerError("DAILY_SELECTION_POLICY_CHANGED")
+    previous_authorized = previous.get("full_authorized_targets", previous["authorized_targets"])
+    current_authorized = current.get("full_authorized_targets", current["authorized_targets"])
+    if set(previous_authorized) != set(current_authorized):
+        raise RunnerError("DAILY_SELECTION_AUTHORIZED_POOL_CHANGED")
+    if set(previous["session_calendars"]) != set(current["session_calendars"]):
+        raise RunnerError("DAILY_SELECTION_EXCHANGE_SET_CHANGED")
+    previous_decision = _aware_datetime(
+        previous["manifest"].decision_at, "previous selection decision_at"
+    )
+    current_decision = _aware_datetime(
+        current["manifest"].decision_at, "next selection decision_at"
+    )
+    if current_decision <= previous_decision:
+        raise RunnerError("DAILY_SELECTION_DECISION_TIME_NOT_ADVANCED")
+    previous_days = {
+        row.exchange_id: row.current_trading_day for row in previous["manifest"].trading_days
+    }
+    current_days = {
+        row.exchange_id: row.current_trading_day for row in current["manifest"].trading_days
+    }
+    if set(previous_days) != set(current_days):
+        raise RunnerError("DAILY_SELECTION_TRADING_DAY_SET_CHANGED")
+    if any(current_days[exchange] <= day for exchange, day in previous_days.items()):
+        raise RunnerError("DAILY_SELECTION_TRADING_DAY_NOT_ADVANCED")
+
+
+def _daily_epoch_tape_path(config, config_path, *, epoch_index):
+    base = _resolve_path(
+        config_path,
+        config["output"]["decision_tape_path"],
+        "output.decision_tape_path",
+    )
+    if epoch_index == 0:
+        return base
+    return base.with_name(f"{base.stem}.epoch-{epoch_index + 1:04d}{base.suffix or '.jsonl'}")
+
+
+def _live_epoch_retired(summary):
+    if not isinstance(summary, Mapping):
+        return False
+    resources = summary.get("resource_shutdown")
+    if not isinstance(resources, list):
+        return False
+    rows = {row.get("resource"): row for row in resources if isinstance(row, Mapping)}
+    loop = rows.get("query_refresh", {})
+    store = rows.get("store", {})
+    return bool(
+        summary.get("status") == "LIVE_RUN_COMPLETE"
+        and summary.get("engine_winddown_status") == "STOPPED"
+        and summary.get("strategy_shutdown_ready") is True
+        and summary.get("strategy_shutdown_blocker") is None
+        and summary.get("strategy_shutdown_post_join_confirmed") is True
+        and summary.get("strategy_shutdown_post_join_blocker") is None
+        and summary.get("shutdown_status") == "PASS"
+        and summary.get("cleanup_complete") is True
+        and _cleanup_complete(resources)
+        and loop.get("joined") is True
+        and store.get("shutdown_state") == "PASS"
+    )
+
+
+def _live_epoch_controlled_stopped(summary):
+    """Accept an explicit app stop only after the same strict cleanup proof."""
+
+    if not isinstance(summary, Mapping):
+        return False
+    resources = summary.get("resource_shutdown")
+    if not isinstance(resources, list) or not all(
+        isinstance(row, Mapping) for row in resources
+    ):
+        return False
+    rows = {row.get("resource"): row for row in resources}
+    loop = rows.get("query_refresh", {})
+    store = rows.get("store", {})
+    return bool(
+        summary.get("status") == "LIVE_RUN_COMPLETE"
+        and summary.get("shutdown_path") == "controlled_application_stop"
+        and summary.get("engine_winddown_status") == "NOT_REACHED"
+        and summary.get("engine_winddown_reason") == "final_batch_not_reached"
+        and summary.get("strategy_shutdown_requested") is True
+        and summary.get("strategy_shutdown_ready") is True
+        and summary.get("strategy_shutdown_blocker") is None
+        and summary.get("strategy_shutdown_post_join_confirmed") is True
+        and summary.get("strategy_shutdown_post_join_blocker") is None
+        and summary.get("shutdown_status") == "PASS"
+        and summary.get("shutdown_blocker") is None
+        and summary.get("cleanup_complete") is True
+        and _cleanup_complete(resources)
+        and loop.get("joined") is True
+        and store.get("shutdown_state") == "PASS"
+    )
+
+
+def _run_ctp_query_live_epochs(
+    config,
+    config_path,
+    factor_mode,
+    direction,
+    *,
+    decision,
+    allow_write_flag,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _capture_live_capacity: bool = False,
+):
+    """Query and run epochs serially, creating no next Store early."""
+
+    if decision.effective_tier != "live":
+        raise RunnerError("QUERY_SELECTION_LIVE_TIER_REQUIRED")
+    count = config["selection"]["max_epochs"]
+    if count > 1:
+        risk_policy = _risk_policy(config)
+        if risk_policy is None or risk_policy.run_end_policy != "CLOSE_ALL":
+            raise RunnerError("DAILY_ROLLOVER_CLOSE_ALL_POLICY_REQUIRED")
+
+    original_epoch = config["cohort"]["epoch_id"]
+    if type(original_epoch) is not int or original_epoch < 1:
+        raise RunnerError("COHORT_EPOCH_INVALID")
+    summaries = []
+    query_attempts = []
+    assembly_attempts = []
+    previous_plan = None
+    previous_result = None
+    failed_epoch = None
+    sequence_status = "LIVE_EPOCH_SEQUENCE_COMPLETE"
+    stop_reason = None
+    try:
+        for index in range(count):
+            epoch_config = deepcopy(config)
+            epoch_config["cohort"]["epoch_id"] = original_epoch + index
+            epoch_config["output"]["decision_tape_path"] = str(
+                _daily_epoch_tape_path(config, config_path, epoch_index=index)
+            )
+            if index:
+                epoch_config["inputs"]["history_decision_tape"] = None
+            epoch_id = epoch_config["cohort"]["epoch_id"]
+            assembly_attempts.append(epoch_id)
+            query_attempts.append(epoch_id)
+            # run_live creates one Store, queries it after readiness, then
+            # assembles the plan and engine from that same Store. This call
+            # returns only after the prior epoch's cleanup has completed.
+            result = run_live(
+                epoch_config,
+                config_path,
+                None,
+                factor_mode,
+                direction,
+                decision=decision,
+                allow_write_flag=allow_write_flag,
+                _live_store_config_override=_live_store_config_override,
+                _capture_live_capacity=_capture_live_capacity,
+                previous_plan=previous_plan,
+                _include_plan=True,
+            )
+            plan = result.pop("_plan")
+            retired = _live_epoch_retired(result)
+            controlled_stop = _live_epoch_controlled_stopped(result)
+            if not retired and not controlled_stop:
+                failed_epoch = {
+                    "epoch_id": epoch_id,
+                    "selection_path": result.get("selection_path"),
+                    "selection_source": result.get("selection_source"),
+                    "routes": _route_summary(plan),
+                    "status": "RETIREMENT_UNPROVEN",
+                    "engine_winddown_status": result.get("engine_winddown_status"),
+                    "strategy_shutdown_ready": result.get("strategy_shutdown_ready"),
+                    "strategy_shutdown_blocker": result.get("strategy_shutdown_blocker"),
+                    "strategy_shutdown_post_join_confirmed": result.get(
+                        "strategy_shutdown_post_join_confirmed"
+                    ),
+                    "strategy_shutdown_post_join_blocker": result.get(
+                        "strategy_shutdown_post_join_blocker"
+                    ),
+                    "shutdown_status": result.get("shutdown_status"),
+                    "resource_shutdown": result.get("resource_shutdown", []),
+                    "cleanup_complete": result.get("cleanup_complete") is True,
+                    "live_capacity": _live_capacity_retirement_unproven(
+                        result.get("live_capacity")
+                    ),
+                }
+                raise RunnerError("DAILY_EPOCH_RETIREMENT_UNPROVEN", f"epoch={epoch_id}")
+            row = {
+                "epoch_id": epoch_id,
+                "selection_source": plan["selection_source"],
+                "selection_path": str(plan["selection_path"]),
+                "source_snapshot_id": plan.get("source_snapshot_id"),
+                "selection_evidence": result["selection_evidence"],
+                "simnow_profile": result["simnow_profile"],
+                "selection_decision_at": plan["manifest"].decision_at.isoformat(),
+                "calendar_evidence_mode": result.get("calendar_evidence_mode"),
+                "calendar_rules_sha256": result.get("calendar_rules_sha256"),
+                "trading_days": {
+                    item.exchange_id: item.current_trading_day.isoformat()
+                    for item in plan["manifest"].trading_days
+                },
+                "routes": _route_summary(plan),
+                "status": result["status"],
+                "retirement_proven": retired,
+                "shutdown_path": result.get("shutdown_path"),
+                "shutdown_status": result["shutdown_status"],
+                "strategy_shutdown_ready": result["strategy_shutdown_ready"],
+                "strategy_shutdown_post_join_confirmed": result[
+                    "strategy_shutdown_post_join_confirmed"
+                ],
+                "engine_winddown_status": result["engine_winddown_status"],
+                "cleanup_complete": result["cleanup_complete"],
+                "decision_tape": result["decision_tape"],
+                "decision_tape_readback": result["decision_tape_readback"],
+                "strategy_order_events": result.get("strategy_order_events"),
+                "live_capacity": result.get("live_capacity"),
+            }
+            if plan.get("golden_targets") is not None:
+                row.update(
+                    {
+                        "full_selected_targets": list(plan["full_selected_targets"]),
+                        "active_shadow_targets": list(plan["active_shadow_targets"]),
+                    }
+                )
+            summaries.append(row)
+            previous_plan = plan
+            previous_result = result
+            if controlled_stop:
+                sequence_status = "LIVE_EPOCH_SEQUENCE_STOPPED"
+                stop_reason = "controlled_application_stop"
+                break
+    except BaseException as error:
+        failed_epoch = failed_epoch or getattr(error, "live_epoch_evidence", None)
+        try:
+            error.epoch_results = tuple(dict(row) for row in summaries)
+            error.query_epoch_attempts = tuple(query_attempts)
+            error.later_bundle_reads = ()
+            error.assembly_attempts = tuple(assembly_attempts)
+            error.previous_epoch_routes = (
+                _route_summary(previous_plan) if previous_plan is not None else None
+            )
+            error.previous_epoch_status = (
+                previous_result.get("status") if previous_result is not None else None
+            )
+            if failed_epoch is not None:
+                error.failed_epoch = dict(failed_epoch)
+            error.next_bundle_read_count = 0
+            error.next_bundle_loaded = False
+            error.next_epoch_load_permitted = False
+            error.next_query_permitted = False
+        except Exception:
+            pass
+        raise
+
+    summary = {
+        "status": sequence_status,
+        "mode": "live",
+        "tier": decision.effective_tier,
+        "write_mode": bool(allow_write_flag),
+        "factor_mode": factor_mode,
+        "selection_source": "futures_market_snapshot_equal_weight_v1",
+        "epoch_count": len(summaries),
+        "epochs": summaries,
+        "query_epoch_attempts": query_attempts,
+        "later_bundle_reads": [],
+        "assembly_attempts": assembly_attempts,
+        "cleanup_complete": all(row["cleanup_complete"] for row in summaries),
+        "next_epoch_loaded": len(summaries) > 1,
+        "stop_reason": stop_reason,
+    }
+    if summaries and "active_shadow_targets" in summaries[-1]:
+        summary.update(
+            {
+                "full_selected_targets": summaries[-1]["full_selected_targets"],
+                "active_shadow_targets": summaries[-1]["active_shadow_targets"],
+            }
+        )
+    return summary
+
+
+def run_live_epochs(
+    config,
+    config_path,
+    first_plan,
+    factor_mode,
+    direction,
+    *,
+    decision,
+    allow_write_flag,
+    _live_store_config_override: Optional[Mapping[str, Any]] = None,
+    _capture_live_capacity: bool = False,
+):
+    """Run finite, independently assembled live epochs in bundle order.
+
+    The next bundle is opened only after the old engine has completed its
+    strategy-owned winddown and its local resources have closed with proof.
+    """
+
+    if (
+        config["inputs"].get("history_decision_tape") is not None
+        and config["selection"]["daily_bundles"]
+    ):
+        raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+    if config["selection"]["source"] == "ctp_query":
+        if config["selection"]["daily_bundles"]:
+            raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
+        return _run_ctp_query_live_epochs(
+            config,
+            config_path,
+            factor_mode,
+            direction,
+            decision=decision,
+            allow_write_flag=allow_write_flag,
+            _live_store_config_override=_live_store_config_override,
+            _capture_live_capacity=_capture_live_capacity,
+        )
+
+    daily_paths = _daily_bundle_paths(config, config_path)
+    if not daily_paths:
+        return run_live(
+            config,
+            config_path,
+            first_plan,
+            factor_mode,
+            direction,
+            decision=decision,
+            allow_write_flag=allow_write_flag,
+            _live_store_config_override=_live_store_config_override,
+            _capture_live_capacity=_capture_live_capacity,
+        )
+    if decision.effective_tier != "live":
+        raise RunnerError("DAILY_ROLLOVER_LIVE_TIER_REQUIRED")
+    risk_policy = _risk_policy(config)
+    if risk_policy is None or risk_policy.run_end_policy != "CLOSE_ALL":
+        raise RunnerError("DAILY_ROLLOVER_CLOSE_ALL_POLICY_REQUIRED")
+
+    original_epoch = config["cohort"]["epoch_id"]
+    if type(original_epoch) is not int or original_epoch < 1:
+        raise RunnerError("COHORT_EPOCH_INVALID")
+    paths = (first_plan["selection_path"],) + daily_paths
+    summaries = []
+    later_bundle_reads = []
+    assembly_attempts = []
+    previous_plan = first_plan
+    previous_result = None
+    failed_epoch = None
+    try:
+        for index, bundle_path in enumerate(paths):
+            if index == 0:
+                plan = first_plan
+            else:
+                # This is intentionally after the preceding run_live return:
+                # no next-day bundle bytes are opened while the previous
+                # Broker, feed, Strategy, or query loop is active.
+                plan = load_market_plan(config, config_path, bundle_path=bundle_path)
+                later_bundle_reads.append(str(bundle_path))
+                _assert_daily_plan_transition(previous_plan, plan)
+
+            epoch_config = deepcopy(config)
+            epoch_config["selection"]["bundle"] = str(bundle_path)
+            epoch_config["cohort"]["epoch_id"] = original_epoch + index
+            epoch_config["output"]["decision_tape_path"] = str(
+                _daily_epoch_tape_path(config, config_path, epoch_index=index)
+            )
+            assembly_attempts.append(epoch_config["cohort"]["epoch_id"])
+            try:
+                result = run_live(
+                    epoch_config,
+                    config_path,
+                    plan,
+                    factor_mode,
+                    direction,
+                    decision=decision,
+                    allow_write_flag=allow_write_flag,
+                    _live_store_config_override=_live_store_config_override,
+                    _capture_live_capacity=_capture_live_capacity,
+                )
+            except BaseException as error:
+                failed_epoch = getattr(error, "live_epoch_evidence", None)
+                if not isinstance(failed_epoch, Mapping):
+                    failed_epoch = {
+                        "epoch_id": epoch_config["cohort"]["epoch_id"],
+                        "selection_path": str(plan["selection_path"]),
+                        "routes": _route_summary(plan),
+                        "status": "FAILED_OR_BLOCKED",
+                        "error_code": getattr(error, "code", type(error).__name__),
+                        "cleanup_complete": False,
+                    }
+                else:
+                    failed_epoch = dict(failed_epoch)
+                failed_epoch.setdefault("error_code", getattr(error, "code", type(error).__name__))
+                raise
+            if not _live_epoch_retired(result):
+                failed_epoch = {
+                    "epoch_id": epoch_config["cohort"]["epoch_id"],
+                    "selection_path": str(plan["selection_path"]),
+                    "routes": _route_summary(plan),
+                    "status": "RETIREMENT_UNPROVEN",
+                    "engine_winddown_status": result.get("engine_winddown_status"),
+                    "strategy_shutdown_ready": result.get("strategy_shutdown_ready"),
+                    "strategy_shutdown_blocker": result.get("strategy_shutdown_blocker"),
+                    "strategy_shutdown_post_join_confirmed": result.get(
+                        "strategy_shutdown_post_join_confirmed"
+                    ),
+                    "strategy_shutdown_post_join_blocker": result.get(
+                        "strategy_shutdown_post_join_blocker"
+                    ),
+                    "shutdown_status": result.get("shutdown_status"),
+                    "resource_shutdown": result.get("resource_shutdown", []),
+                    "cleanup_complete": result.get("cleanup_complete") is True,
+                    "live_capacity": _live_capacity_retirement_unproven(
+                        result.get("live_capacity")
+                    ),
+                }
+                raise RunnerError(
+                    "DAILY_EPOCH_RETIREMENT_UNPROVEN",
+                    f"epoch={epoch_config['cohort']['epoch_id']}",
+                )
+            epoch_summary = {
+                "epoch_id": epoch_config["cohort"]["epoch_id"],
+                "selection_path": str(plan["selection_path"]),
+                "selection_evidence": result.get("selection_evidence"),
+                "simnow_profile": result.get("simnow_profile"),
+                "selection_decision_at": plan["manifest"].decision_at.isoformat(),
+                "trading_days": {
+                    row.exchange_id: row.current_trading_day.isoformat()
+                    for row in plan["manifest"].trading_days
+                },
+                "routes": _route_summary(plan),
+                "status": result["status"],
+                "retirement_proven": True,
+                "shutdown_status": result["shutdown_status"],
+                "strategy_shutdown_ready": result["strategy_shutdown_ready"],
+                "strategy_shutdown_post_join_confirmed": result[
+                    "strategy_shutdown_post_join_confirmed"
+                ],
+                "engine_winddown_status": result["engine_winddown_status"],
+                "cleanup_complete": result["cleanup_complete"],
+                "decision_tape": result["decision_tape"],
+                "decision_tape_readback": result["decision_tape_readback"],
+                "strategy_order_events": result.get(
+                    "strategy_order_events",
+                    {
+                        "status": "UNAVAILABLE",
+                        "reason": "STRATEGY_ORDER_EVENT_SURFACE_UNAVAILABLE",
+                        "capacity": 128,
+                        "retained_count": 0,
+                        "truncated": None,
+                        "events": [],
+                    },
+                ),
+                "live_capacity": result.get("live_capacity"),
+            }
+            summaries.append(epoch_summary)
+            previous_plan = plan
+            previous_result = result
+    except BaseException as error:
+        try:
+            error.epoch_results = tuple(dict(row) for row in summaries)
+            error.later_bundle_reads = tuple(later_bundle_reads)
+            error.assembly_attempts = tuple(assembly_attempts)
+            error.previous_epoch_routes = (
+                _route_summary(previous_plan) if previous_plan is not None else None
+            )
+            error.previous_epoch_status = (
+                previous_result.get("status") if previous_result is not None else None
+            )
+            if failed_epoch is not None:
+                error.failed_epoch = dict(failed_epoch)
+            error.next_bundle_read_count = len(later_bundle_reads)
+            error.next_bundle_loaded = False
+            error.old_route_handling = (
+                "LOCAL_RESOURCES_RETAINED"
+                if failed_epoch is not None and failed_epoch.get("cleanup_complete") is not True
+                else (
+                    "OLD_ROUTE_UNRESOLVED_LOCAL_RESOURCES_CLOSED"
+                    if failed_epoch is not None
+                    and (
+                        failed_epoch.get("strategy_shutdown_ready") is not True
+                        or failed_epoch.get("strategy_shutdown_post_join_confirmed") is not True
+                    )
+                    else "LOCAL_EPOCH_CLOSE_UNPROVEN"
+                )
+            )
+            error.next_epoch_load_permitted = False
+        except Exception:
+            pass
+        raise
+
+    return {
+        "status": "LIVE_EPOCH_SEQUENCE_COMPLETE",
+        "mode": "live",
+        "tier": decision.effective_tier,
+        "write_mode": bool(allow_write_flag),
+        "factor_mode": factor_mode,
+        "epoch_count": len(summaries),
+        "epochs": summaries,
+        "later_bundle_reads": later_bundle_reads,
+        "assembly_attempts": assembly_attempts,
+        "cleanup_complete": all(row["cleanup_complete"] for row in summaries),
+        "next_epoch_loaded": len(summaries) > 1,
+    }
+
+
+def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] = None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=Path, default=Path(__file__).with_name("config.yaml"))
+    parser.add_argument("--mode", choices=("dry", "research", "replay", "live"))
+    parser.add_argument("--factor-mode", choices=("native", "build"))
+    parser.add_argument("--allow-write", action="store_true")
+    parser.add_argument(
+        "--capture-live-capacity",
+        action="store_true",
+        help="opt in to bounded count-only live object snapshots",
+    )
+    ns = parser.parse_args(args)
+    config_path = ns.config.expanduser().resolve(strict=False)
+    try:
+        config = load_config(config_path)
+        mode, tier = resolve_mode(config, ns.mode)
+        if ns.capture_live_capacity and mode != "live":
+            raise RunnerError("LIVE_CAPACITY_CAPTURE_REQUIRES_LIVE_MODE")
+        if _live_store_config_override is not None:
+            if mode != "live":
+                raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
+            # Validate before plan loading or any live Store can be constructed.
+            _validated_live_store_config(_live_store_config_override)
+        factor_mode, direction, _preheat, _cadence = _factor_parameters(config, ns.factor_mode)
+        daily_bundles = config["selection"]["daily_bundles"]
+        selection_source = config["selection"]["source"]
+        if config["inputs"].get("history_decision_tape") is not None and mode != "live":
+            raise RunnerError("LIVE_HISTORY_LIVE_MODE_REQUIRED")
+        if selection_source == "ctp_query" and mode in {"research", "replay"}:
+            raise RunnerError("OFFLINE_MODE_REQUIRES_SAVED_SELECTION_BUNDLE")
+        if selection_source == "ctp_query" and daily_bundles:
+            raise RunnerError("QUERY_SELECTION_DAILY_BUNDLES_UNSUPPORTED")
+        if daily_bundles and mode != "live":
+            raise RunnerError("DAILY_ROLLOVER_LIVE_MODE_REQUIRED")
+        if daily_bundles:
+            if tier.effective_tier != "live":
+                raise RunnerError("DAILY_ROLLOVER_LIVE_TIER_REQUIRED")
+            risk_policy = _risk_policy(config)
+            if risk_policy is None or risk_policy.run_end_policy != "CLOSE_ALL":
+                raise RunnerError("DAILY_ROLLOVER_CLOSE_ALL_POLICY_REQUIRED")
+            _daily_bundle_paths(config, config_path)
+        if ns.allow_write and mode != "live":
+            raise RunnerError("ALLOW_WRITE_REQUIRES_LIVE_MODE")
+        if mode == "dry":
+            summary = {
+                "status": "DRY_VALIDATION_COMPLETE",
+                "mode": mode,
+                "factor_mode": factor_mode,
+                **tier.as_evidence(),
+            }
+        elif mode == "live" and selection_source == "ctp_query":
+            if tier.effective_tier != "live":
+                raise RunnerError("LIVE_TIER_REQUIRED")
+            summary = run_live_epochs(
+                config,
+                config_path,
+                None,
+                factor_mode,
+                direction,
+                decision=tier,
+                allow_write_flag=ns.allow_write,
+                _live_store_config_override=_live_store_config_override,
+                _capture_live_capacity=ns.capture_live_capacity,
+            )
+            summary.update({**tier.as_evidence(), "mode": mode})
+        else:
+            if selection_source != "bundle":
+                raise RunnerError("SAVED_SELECTION_BUNDLE_REQUIRED")
+            plan = load_market_plan(config, config_path)
+            if mode == "research":
+                summary = run_research(config, config_path, plan, factor_mode, direction)
+            elif mode == "replay":
+                if tier.effective_tier not in ("replay", "live"):
+                    raise RunnerError("REPLAY_TIER_REQUIRED")
+                summary = run_replay(config, config_path, plan, factor_mode, direction)
+            else:
+                if tier.effective_tier != "live":
+                    raise RunnerError("LIVE_TIER_REQUIRED")
+                summary = run_live_epochs(
+                    config,
+                    config_path,
+                    plan,
+                    factor_mode,
+                    direction,
+                    decision=tier,
+                    allow_write_flag=ns.allow_write,
+                    _live_store_config_override=_live_store_config_override,
+                    _capture_live_capacity=ns.capture_live_capacity,
+                )
+            summary.update({**tier.as_evidence(), "mode": mode})
+        public_summary = dict(summary)
+        public_summary.pop("_plan", None)
+        print(json.dumps(public_summary, sort_keys=True, default=str))
+        if summary.get("status") == "REPLAY_INCOMPLETE":
+            return 2
+        return 0
+    except RunnerError as error:
+        payload = {"status": "BLOCKED", "code": error.code, "detail": error.detail}
+        if hasattr(error, "cleanup_results"):
+            payload["resource_shutdown"] = list(error.cleanup_results)
+            payload["cleanup_complete"] = _cleanup_complete(error.cleanup_results)
+        for name in (
+            "epoch_results",
+            "later_bundle_reads",
+            "assembly_attempts",
+            "previous_epoch_routes",
+            "previous_epoch_status",
+            "failed_epoch",
+            "next_bundle_read_count",
+            "next_bundle_loaded",
+            "next_epoch_load_permitted",
+            "next_query_permitted",
+            "query_epoch_attempts",
+            "old_route_handling",
+            "live_epoch_evidence",
+            "query_diagnostics",
+            "live_capacity",
+        ):
+            if hasattr(error, name):
+                value = getattr(error, name)
+                if name == "query_diagnostics":
+                    value = _sanitize_futures_snapshot_query_diagnostics(value)
+                payload[name] = value
+        print(json.dumps(payload, sort_keys=True, default=str))
+        return 2
+    except Exception as error:
+        # Keep user/provider configuration and SDK exception text out of logs.
+        payload = {"status": "FAILED", "error_type": type(error).__name__}
+        if hasattr(error, "cleanup_results"):
+            payload["resource_shutdown"] = list(error.cleanup_results)
+            payload["cleanup_complete"] = _cleanup_complete(error.cleanup_results)
+        for name in (
+            "epoch_results",
+            "later_bundle_reads",
+            "assembly_attempts",
+            "previous_epoch_routes",
+            "previous_epoch_status",
+            "failed_epoch",
+            "next_bundle_read_count",
+            "next_bundle_loaded",
+            "next_epoch_load_permitted",
+            "next_query_permitted",
+            "query_epoch_attempts",
+            "old_route_handling",
+            "live_epoch_evidence",
+            "query_diagnostics",
+        ):
+            if hasattr(error, name):
+                value = getattr(error, name)
+                if name == "query_diagnostics":
+                    value = _sanitize_futures_snapshot_query_diagnostics(value)
+                payload[name] = value
+        print(json.dumps(payload, sort_keys=True, default=str))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())

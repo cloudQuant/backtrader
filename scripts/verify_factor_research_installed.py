@@ -74,6 +74,7 @@ _ARCHIVE_PATHS = {
         "fincore",
     ),
 }
+_OPTIONAL_ARCHIVE_PATHS = frozenset({"backtrader_runtime"})
 _FACTOR_MODE_PAIR_ARCHIVE_PATHS = (
     *_FACTOR_MODE_PAIR_TEST_INPUTS,
     _PAIR_SEMANTICS_HELPER,
@@ -140,6 +141,39 @@ def _archive_paths(
     if factor_mode_pair and name == "backtrader":
         return (*paths, *_FACTOR_MODE_PAIR_ARCHIVE_PATHS)
     return paths
+
+
+def _archive_paths_for_commit(
+    repo: Path,
+    commit: str,
+    name: str,
+    *,
+    factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
+) -> Tuple[str, ...]:
+    """Select optional source roots from the exact commit tree being archived.
+
+    ``backtrader_runtime`` remains part of historical factor source snapshots,
+    but Iteration 53 removed it from current Backtrader source and wheels. Keep
+    the historical wheel/source audit intact without passing a missing path to
+    ``git archive`` for newer commits.
+    """
+
+    paths = _archive_paths(
+        name,
+        factor_mode_pair=factor_mode_pair,
+        alpha101_build_pair=alpha101_build_pair,
+    )
+    optional = _OPTIONAL_ARCHIVE_PATHS.intersection(paths)
+    if not optional:
+        return paths
+
+    tree_paths = frozenset(
+        _run(["git", "-C", repo, "ls-tree", "--name-only", commit]).stdout.splitlines()
+    )
+    return tuple(
+        path for path in paths if path not in optional or path in tree_paths
+    )
 
 
 def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
@@ -862,7 +896,9 @@ def _extract_archive(
 ) -> Tuple[Path, str]:
     destination.mkdir(parents=True)
     archive = destination / (name + ".tar")
-    archive_paths = _archive_paths(
+    archive_paths = _archive_paths_for_commit(
+        repo,
+        commit,
         name,
         factor_mode_pair=factor_mode_pair,
         alpha101_build_pair=alpha101_build_pair,

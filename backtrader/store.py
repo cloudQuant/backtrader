@@ -1,30 +1,13 @@
 #!/usr/bin/env python
-"""Store Module - Data storage and broker connection management.
+"""Store base classes.
 
-This module provides base classes for Store implementations, which manage
-connections to external data sources and brokers. It includes singleton
-pattern support and parameter management for store classes.
-
-.. note:: **Two Store hierarchies coexist in backtrader**
-
-   1. **Legacy ``Store``** (this module) — singleton-based, ``getbroker()`` is
-      a ``@classmethod`` that binds ``broker._store = cls`` (class-level),
-      ``start(self, data=None, broker=None)``.  Used by legacy stores
-      (IB, Oanda, VChart, etc.).
-
-   2. **``LiveStoreBase``** (``backtrader/stores/livestore.py``) — ABC-based,
-      ``getbroker()`` is an instance method, ``start(self, data=None,
-      broker=None)``.  ``BtApiStore`` inherits from this class.
-
-   The two hierarchies are **independent** — ``BtApiStore`` does *not*
-   inherit from ``Store``.  New store implementations should prefer
-   ``LiveStoreBase``.  This legacy ``Store`` is preserved for backward
-   compatibility with existing community stores.
+Store provides per-instance state and lifecycle helpers for store
+implementations. LiveStoreBase builds on it as the contract for live
+stores. Store instances do not impose singleton behavior.
 
 Classes:
-    SingletonMixin: Mixin class to implement singleton pattern.
     StoreParams: Parameter management for Store classes.
-    Store: Base class for all Store implementations (legacy).
+    Store: Per-instance base class for Store implementations.
 
 Example:
     Using a store to get data and broker:
@@ -36,56 +19,12 @@ Example:
 import collections
 from typing import Any, Optional
 
+# Keep the generic mixin import path; Store itself does not inherit it.
+from .mixins.singleton import SingletonMixin
 from .parameters import make_legacy_parameter_accessor
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-
-
-# Simple singleton implementation without metaclass
-class SingletonMixin:
-    """Mixin class to make a class a singleton without using metaclasses.
-
-    This mixin ensures only one instance of the class exists. The instance
-    is created on first instantiation and reused on subsequent calls.
-    """
-
-    # Dynamic singleton bookkeeping (set in __new__). Declared for typing only;
-    # no default value so `hasattr(cls, "_singleton")` stays False until created.
-    _singleton: "SingletonMixin"
-    _initialized: bool
-
-    def __new__(cls, *args, **kwargs):
-        """Create and return the singleton instance.
-
-        Args:
-            *args: Positional arguments passed to the class constructor.
-            **kwargs: Keyword arguments passed to the class constructor.
-
-        Returns:
-            SingletonMixin: The single instance of this class.
-        """
-        if not hasattr(cls, "_singleton"):
-            cls._singleton = super().__new__(cls)
-            cls._singleton._initialized = False
-        return cls._singleton
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the singleton instance only once.
-
-        Args:
-            *args: Positional arguments passed to the parent __init__.
-            **kwargs: Keyword arguments passed to the parent __init__.
-
-        Note:
-            If the singleton has already been initialized, this method
-            returns immediately without reinitializing.
-        """
-        if self._initialized:
-            return
-        self._initialized = True
-        # Call the original __init__ if it exists
-        super().__init__(*args, **kwargs)
 
 
 # Store parameter management
@@ -108,8 +47,8 @@ class StoreParams:
 
 
 # Store base class
-class Store(SingletonMixin, StoreParams):
-    """Base class for all Stores.
+class Store(StoreParams):
+    """Per-instance base class for store implementations.
 
     Stores manage connections to external data sources and brokers.
     They provide data feeds and broker instances, and handle
@@ -123,19 +62,17 @@ class Store(SingletonMixin, StoreParams):
         DataCls: The data class to use (None by default).
     """
 
-    # Started, defaults to False
+    # Default retained for subclasses that inspect the class before instance
+    # initialization. Each Store instance receives its own value in __init__.
     _started = False
-    # Parameters
     params = ()
+    BrokerCls: Any = None  # broker class registered by a concrete Store
+    DataCls: Any = None  # feed class registered by a concrete Store
 
-    # Get data
     def __init__(self):
-        """Initialize the Store instance.
-
-        Sets up internal state for broker, environment, cerebro,
-        data sources, and notifications.
-        """
+        """Initialize parameters and per-instance Store lifecycle state."""
         super().__init__()
+        self._started = False
         self.broker = None
         self._env = None
         self._cerebro = None
@@ -143,25 +80,25 @@ class Store(SingletonMixin, StoreParams):
         self.notifs: Optional[collections.deque] = None
 
     def getdata(self, *args, **kwargs):
-        """Returns ``DataCls`` with args, kwargs"""
+        """Construct the configured feed and bind it to this Store instance."""
+        if self.DataCls is None:
+            raise NotImplementedError("A concrete Store must provide DataCls or override getdata")
         data = self.DataCls(*args, **kwargs)
         data._store = self
         return data
 
-    # Get broker
-    @classmethod
-    def getbroker(cls, *args, **kwargs):
-        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
-        broker = cls.BrokerCls(*args, **kwargs)
-        broker._store = cls
+    def getbroker(self, *args, **kwargs):
+        """Construct the configured broker and bind it to this Store instance."""
+        if self.BrokerCls is None:
+            raise NotImplementedError(
+                "A concrete Store must provide BrokerCls or override getbroker"
+            )
+        broker = self.BrokerCls(*args, **kwargs)
+        broker._store = self
         return broker
 
-    BrokerCls: Any = None  # broker class will autoregister
-    DataCls: Any = None  # data class will auto register
-
-    # Start
     def start(self, data=None, broker=None):
-        """Start the store and initialize connections.
+        """Register Store participants and initialize common lifecycle state.
 
         Args:
             data: Data feed to register with the store (optional).
@@ -191,15 +128,12 @@ class Store(SingletonMixin, StoreParams):
         elif broker is not None:
             self.broker = broker
 
-    # End
     def stop(self):
-        """Stop the store and clean up resources.
+        """Stop the Store.
 
-        This method should be overridden by subclasses to perform
-        any necessary cleanup.
+        Concrete stores with resources to release should override this hook.
         """
 
-    # Add message to notifications
     def put_notification(self, msg, *args, **kwargs):
         """Add a message to the notification queue.
 
@@ -212,7 +146,6 @@ class Store(SingletonMixin, StoreParams):
             self.notifs = collections.deque()
         self.notifs.append((msg, args, kwargs))
 
-    # Get notification message
     def get_notifications(self):
         """Return the pending "store" notifications"""
         if self.notifs is None:

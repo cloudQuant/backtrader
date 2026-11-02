@@ -1,10 +1,9 @@
 """Frozen local replay fixture for the mid-frequency pair-arbitrage example.
 
-The importable ``run_replay`` fixture keeps the historical synthetic ticks for
-offline regression.  Direct script execution is intentionally configuration
-first: it delegates to the reviewed Iteration 41 runtime entrypoint before
-this module imports a framework, provider, or historical SimNow wiring.
+The importable run_replay fixture remains available to the canonical run.py.
+The legacy Backtrader runtime CLI is retired.
 """
+
 
 import datetime as dt
 import hashlib
@@ -17,43 +16,41 @@ from collections.abc import Mapping
 from collections import deque
 from pathlib import Path
 
+# The former runtime CLI is retired; the importable replay fixture remains.
+def _retired_runtime_cli(argv=None) -> int:
+    del argv
+    print(
+        json.dumps(
+            {
+                "status": "RETIRED",
+                "reason": "BACKTRADER_RUNTIME_RETIRED",
+                "replacement": "run.py",
+                "message": "Use run.py for the supported replay or managed entrypoint.",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(_retired_runtime_cli())
+
+
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
-# Make the configuration-first runtime package available for direct script use.
+# Make the example and repository imports available when loaded by run.py.
 for path in (str(HERE), str(REPO_ROOT)):
     if path not in sys.path:
         sys.path.insert(0, path)
 
 
-def _run_config_first_cli(argv=None) -> int:
-    """Route the retired legacy CLI through the sealed replay runtime.
+class LegacyRuntimeUnavailableError(RuntimeError):
+    """Stable local failure for a direct execution path retired with the old runtime."""
 
-    The historical flags (including ``--replay`` and ``--config``) never
-    select a mode at runtime.  Operators use ``bt-runtime`` to bootstrap and
-    run the registered ``runtime/`` directory; a no-argument legacy invocation
-    is retained only as a safe convenience alias for that same route.
-    """
+    code = "BACKTRADER_RUNTIME_RETIRED"
 
-    arguments = tuple(sys.argv[1:] if argv is None else argv)
-    if arguments:
-        from backtrader_runtime import PRESET_POLICY_VIOLATION, RuntimeConfigError
-
-        error = RuntimeConfigError(
-            PRESET_POLICY_VIOLATION,
-            "legacy CLI arguments cannot select or override an Iteration 41 runtime",
-            field_path="argv",
-            reason="legacy_cli_arguments_not_supported",
-        )
-        print(json.dumps(error.as_dict(), ensure_ascii=False, sort_keys=True), file=sys.stderr)
-        return 2
-
-    from backtrader_runtime.cli import main as runtime_main
-
-    return runtime_main(("run", "--strategy-dir", str(HERE / "runtime")))
-
-
-if __name__ == "__main__":
-    raise SystemExit(_run_config_first_cli())
 
 import backtrader as bt  # noqa: E402
 from backtrader.events import TickEvent  # noqa: E402
@@ -399,17 +396,12 @@ def run_live(*_args, **_kwargs):
     reviewed config-v4 registration and managed-execution acceptance.
     """
 
-    from backtrader_runtime import PRESET_POLICY_VIOLATION, RuntimeConfigError
-
-    raise RuntimeConfigError(
-        PRESET_POLICY_VIOLATION,
-        "legacy direct SimNow execution is not supported by this Iteration 41 runtime",
-        field_path="runtime.preset",
-        reason="legacy_direct_live_not_supported",
+    raise LegacyRuntimeUnavailableError(
+        "legacy direct SimNow execution is retired; use the supported run.py managed entrypoint"
     )
 
 
 def main(argv=None) -> int:
-    """Compatibility entrypoint that cannot select the retired direct profile."""
+    """Retire the legacy command without loading runtime configuration."""
 
-    return _run_config_first_cli(argv)
+    return _retired_runtime_cli(argv)

@@ -1,0 +1,430 @@
+{
+  "credential_env_names": [
+    "BINANCE_DEMO_API_KEY",
+    "BINANCE_DEMO_SECRET",
+    "OKX_DEMO_API_KEY",
+    "OKX_DEMO_SECRET",
+    "OKX_DEMO_PASSPHRASE"
+  ],
+  "entry_tier": {
+    "cli_tier": "live",
+    "config_tier": null,
+    "effective_tier": "live",
+    "tier_selection_reason": "cli_requested"
+  },
+  "reason": "round_trip_closed_verified",
+  "report": {
+    "broker_started": true,
+    "cleanup_steps": [
+      "broker.stop",
+      "store.stop"
+    ],
+    "code": "run_completed",
+    "config_sha256": "3f8f985d3844983bf8ba9a9e454c2f56fb1b8ebe3fda2571cc4d740e0f460710",
+    "environment": "demo",
+    "execution_summary": {
+      "broker": {
+        "active_orders": 0,
+        "arm_managed": false,
+        "arm_proof_sha256": null,
+        "arm_revoked": false,
+        "armed": false,
+        "as_of_monotonic_ns": 59247265000000,
+        "cancel_calls": 0,
+        "ctp_budget": {
+          "candidate_budget_cny": "10000",
+          "frozen_reason": null,
+          "historical_min_pnl_cny": "0",
+          "ordinary_cap_cny": "8000",
+          "ordinary_reserved_cny": "0",
+          "pending_reservations": [],
+          "production_status": "PRODUCTION_BLOCKED_SELLER_OR_ACCOUNT_SOURCE",
+          "reservations": [],
+          "schema_version": "ctp-execution-budget-v1",
+          "total_reserved_cny": "0",
+          "uncertain_reservations": [],
+          "valuation_unknown": false
+        },
+        "estimated_fee_orders": [],
+        "evidence_complete": true,
+        "evidence_errors": [],
+        "fee_unresolved_orders": [],
+        "fencing_epoch": 112,
+        "funding_evidence_status": "unavailable",
+        "funding_unresolved_orders": [],
+        "generation": 1,
+        "identity_binding_sha256": "9a3c014e7fe22bd2faa029e11192d95f33c4fd8b10c67b3c0d7d0b2b6bb883dd",
+        "last_arm_proof_sha256": null,
+        "loss_limit_bps": "50",
+        "loss_limit_breached": false,
+        "market_data_only": false,
+        "proof_sha256": null,
+        "reconciliation_errors": {},
+        "revocation_reason": null,
+        "session_enabled": true,
+        "session_generation": 1,
+        "signed_funding_cashflow": null,
+        "submit_calls": 2,
+        "trading_blocked": false,
+        "unknown_ids": []
+      },
+      "store": {
+        "active_orders": 0,
+        "arm_managed": false,
+        "arm_proof_sha256": null,
+        "arm_revoked": false,
+        "armed": false,
+        "cancel_calls": 0,
+        "ctp_budget": {
+          "candidate_budget_cny": "10000",
+          "frozen_reason": null,
+          "historical_min_pnl_cny": "0",
+          "ordinary_cap_cny": "8000",
+          "ordinary_reserved_cny": "0",
+          "pending_reservations": [],
+          "production_status": "PRODUCTION_BLOCKED_SELLER_OR_ACCOUNT_SOURCE",
+          "reservations": [],
+          "schema_version": "ctp-execution-budget-v1",
+          "total_reserved_cny": "0",
+          "uncertain_reservations": [],
+          "valuation_unknown": false
+        },
+        "estimated_fee_orders": [],
+        "evidence_complete": true,
+        "evidence_errors": [],
+        "fee_unresolved_orders": [],
+        "fencing_epoch": 112,
+        "funding_evidence_status": "unavailable",
+        "funding_unresolved_orders": [],
+        "generation": null,
+        "last_arm_proof_sha256": null,
+        "loss_limit_bps": "50",
+        "loss_limit_breached": false,
+        "market_data_only": false,
+        "proof_sha256": null,
+        "reconciliation_errors": {},
+        "revocation_reason": null,
+        "session_enabled": true,
+        "session_generation": null,
+        "signed_funding_cashflow": null,
+        "submit_calls": 2,
+        "trading_blocked": false,
+        "unknown_ids": []
+      }
+    },
+    "failure_detail": "",
+    "mode": "paper",
+    "provider_ref": "provider/okx_demo",
+    "readiness": {
+      "reconcile": {
+        "active_orders": 0,
+        "open_orders": 0,
+        "positions": 0,
+        "unknown_ids": 0
+      },
+      "symbols": {
+        "BTC-USDT-SWAP": {
+          "can_trade": true,
+          "environment": "demo",
+          "multiplier": 0.01,
+          "order_ready": true,
+          "position_mode": "dual_side"
+        }
+      }
+    },
+    "run_id": "i52-okx-demo-20261031T014230Z-ec45db47",
+    "shutdown": {
+      "broker_shutdown_state": {
+        "flat_proven": false,
+        "live_winddown_started": false,
+        "reason": "store_shutdown_complete",
+        "status": "PASS",
+        "store_shutdown_state": "PASS"
+      },
+      "broker_stop": "returned",
+      "post_execution_summary": {
+        "broker": {
+          "active_orders": 0,
+          "arm_managed": false,
+          "arm_proof_sha256": null,
+          "arm_revoked": false,
+          "armed": false,
+          "as_of_monotonic_ns": 59247265000000,
+          "cancel_calls": 0,
+          "ctp_budget": {
+            "candidate_budget_cny": "10000",
+            "frozen_reason": null,
+            "historical_min_pnl_cny": "0",
+            "ordinary_cap_cny": "8000",
+            "ordinary_reserved_cny": "0",
+            "pending_reservations": [],
+            "production_status": "PRODUCTION_BLOCKED_SELLER_OR_ACCOUNT_SOURCE",
+            "reservations": [],
+            "schema_version": "ctp-execution-budget-v1",
+            "total_reserved_cny": "0",
+            "uncertain_reservations": [],
+            "valuation_unknown": false
+          },
+          "estimated_fee_orders": [],
+          "evidence_complete": true,
+          "evidence_errors": [],
+          "fee_unresolved_orders": [],
+          "fencing_epoch": 112,
+          "funding_evidence_status": "unavailable",
+          "funding_unresolved_orders": [],
+          "generation": 1,
+          "identity_binding_sha256": "9a3c014e7fe22bd2faa029e11192d95f33c4fd8b10c67b3c0d7d0b2b6bb883dd",
+          "last_arm_proof_sha256": null,
+          "loss_limit_bps": "50",
+          "loss_limit_breached": false,
+          "market_data_only": false,
+          "proof_sha256": null,
+          "reconciliation_errors": {},
+          "revocation_reason": null,
+          "session_enabled": true,
+          "session_generation": 1,
+          "signed_funding_cashflow": null,
+          "submit_calls": 2,
+          "trading_blocked": false,
+          "unknown_ids": []
+        },
+        "store": {
+          "active_orders": 0,
+          "arm_managed": false,
+          "arm_proof_sha256": null,
+          "arm_revoked": false,
+          "armed": false,
+          "cancel_calls": 0,
+          "ctp_budget": {
+            "candidate_budget_cny": "10000",
+            "frozen_reason": null,
+            "historical_min_pnl_cny": "0",
+            "ordinary_cap_cny": "8000",
+            "ordinary_reserved_cny": "0",
+            "pending_reservations": [],
+            "production_status": "PRODUCTION_BLOCKED_SELLER_OR_ACCOUNT_SOURCE",
+            "reservations": [],
+            "schema_version": "ctp-execution-budget-v1",
+            "total_reserved_cny": "0",
+            "uncertain_reservations": [],
+            "valuation_unknown": false
+          },
+          "estimated_fee_orders": [],
+          "evidence_complete": false,
+          "evidence_errors": [
+            "account_risk_snapshot_refresh_required"
+          ],
+          "fee_unresolved_orders": [],
+          "fencing_epoch": 113,
+          "funding_evidence_status": "unavailable",
+          "funding_unresolved_orders": [],
+          "generation": null,
+          "last_arm_proof_sha256": null,
+          "loss_limit_bps": "50",
+          "loss_limit_breached": false,
+          "market_data_only": false,
+          "proof_sha256": null,
+          "reconciliation_errors": {},
+          "revocation_reason": null,
+          "session_enabled": true,
+          "session_generation": null,
+          "signed_funding_cashflow": null,
+          "submit_calls": 0,
+          "trading_blocked": true,
+          "unknown_ids": []
+        }
+      },
+      "store_connected": false,
+      "unknown_recovery": {
+        "recovered": 0,
+        "unknown_before": 0
+      }
+    },
+    "started": true,
+    "status": "COMPLETED",
+    "store_started": true,
+    "strategy_facts": {
+      "cancel_error": null,
+      "cancel_requested": false,
+      "close_at": 59241.859,
+      "close_order": {
+        "alive": false,
+        "commission": 0.07352069,
+        "executed_price": 77390.2,
+        "executed_size": -0.19,
+        "executed_value": 147.06266,
+        "info": {
+          "approval_expires_at_utc": "2026-10-31T01:44:30Z",
+          "approval_max_order_count": 2,
+          "approval_operation": "submit",
+          "approval_operation_count": 2,
+          "approval_risk_reducing": true,
+          "client_order_id": "969766254500",
+          "ctp_order_ref": "969766254500",
+          "error_code": "query_execution_unknown",
+          "execution_fill_source": "trade",
+          "execution_pending_trades": false,
+          "execution_unknown": true,
+          "external_order_id": "OKX___SWAP:4057018383764893697",
+          "offset": "close",
+          "position_mode": "dual_side",
+          "position_side": "long",
+          "quantity_unit": "contracts",
+          "reconcile_attempts": 1,
+          "reconcile_max_attempts": 6,
+          "reconcile_next_monotonic_ns": null,
+          "reconcile_receipt_id": "57cecde2eb26404abf3356e69418764b",
+          "reconcile_requested": false,
+          "reduce_only": true,
+          "runtime_order_id": null,
+          "sdk_execution_contract": "{'side': 'sell', 'position_side': 'long', 'offset': 'close', 'position_mode': 'dual_side', 'quantity_unit': 'contracts', 'requested_quantity': '0.19', 'reduce_only': True, 'strategy_identity_sha256': ",
+          "submit_command_completed": true,
+          "submit_receipt_id": "af6a4a2156f647709ad5a880628cefb6",
+          "time_in_force": "IOC"
+        },
+        "ref": 2,
+        "status": "Completed"
+      },
+      "events": [
+        {
+          "at_monotonic": 59237.828,
+          "event": "open_submitted",
+          "ref": 1,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59237.828,
+          "event": "order_submitted",
+          "ref": 1,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59239.718,
+          "event": "order_submitted",
+          "ref": 1,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59239.718,
+          "event": "order_submitted",
+          "ref": 1,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59239.718,
+          "event": "order_completed",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 59239.718,
+          "event": "close_scheduled",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 59239.859,
+          "event": "order_completed",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 59239.859,
+          "event": "close_scheduled",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 59241.859,
+          "event": "close_submitted",
+          "ref": 2,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59241.875,
+          "event": "order_submitted",
+          "ref": 2,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59242.015,
+          "event": "order_submitted",
+          "ref": 2,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59242.015,
+          "event": "order_submitted",
+          "ref": 2,
+          "status": "Submitted"
+        },
+        {
+          "at_monotonic": 59242.015,
+          "event": "order_completed",
+          "ref": 2,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 59242.14,
+          "event": "order_completed",
+          "ref": 2,
+          "status": "Completed"
+        }
+      ],
+      "idle_calls": 554,
+      "maintenance_calls": 568,
+      "maintenance_state": {
+        "alive": false,
+        "cancel_at": null,
+        "now": 59247.171,
+        "phase": "closed_verified"
+      },
+      "open_order": {
+        "alive": false,
+        "commission": 0.07353133,
+        "executed_price": 77401.4,
+        "executed_size": 0.19,
+        "executed_value": 147.06266,
+        "info": {
+          "approval_expires_at_utc": "2026-10-31T01:44:30Z",
+          "approval_max_order_count": 2,
+          "approval_operation": "submit",
+          "approval_operation_count": 1,
+          "approval_risk_reducing": false,
+          "client_order_id": "965726439400",
+          "ctp_order_ref": "965726439400",
+          "error_code": "query_execution_unknown",
+          "execution_fill_source": "trade",
+          "execution_pending_trades": false,
+          "execution_unknown": true,
+          "external_order_id": "OKX___SWAP:4057018306723917825",
+          "offset": "open",
+          "position_mode": "dual_side",
+          "position_side": "long",
+          "quantity_unit": "contracts",
+          "reconcile_attempts": 1,
+          "reconcile_max_attempts": 6,
+          "reconcile_next_monotonic_ns": null,
+          "reconcile_receipt_id": "8b0f5b72c3b44728bbab9b7a4154ec35",
+          "reconcile_requested": false,
+          "runtime_order_id": null,
+          "sdk_execution_contract": "{'side': 'buy', 'position_side': 'long', 'offset': 'open', 'position_mode': 'dual_side', 'quantity_unit': 'contracts', 'requested_quantity': '0.19', 'reduce_only': False, 'strategy_identity_sha256': N",
+          "submit_command_completed": true,
+          "submit_receipt_id": "19de8f94b9814870afefd736ca130167",
+          "time_in_force": "IOC"
+        },
+        "ref": 1,
+        "status": "Completed"
+      },
+      "phase": "closed_verified",
+      "quantity_unit": "contracts",
+      "stop_at": 59245.14
+    },
+    "symbols": [
+      "BTC-USDT-SWAP"
+    ],
+    "topology": "direct"
+  },
+  "status": "PASS",
+  "venue": "OKX"
+}

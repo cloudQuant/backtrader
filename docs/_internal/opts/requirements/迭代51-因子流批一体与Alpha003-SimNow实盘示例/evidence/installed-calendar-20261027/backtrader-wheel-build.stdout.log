@@ -1,0 +1,13 @@
+Processing .\source
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: back-trader-python
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=2441813 sha256=c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16
+  Stored in directory: C:\Users\yunji\AppData\Local\Temp\pip-ephem-wheel-cache-09kzi3nu\wheels\33\2f\f8\bcec251b06c236a2f4eac1470613254575ea17361a489cac14
+Successfully built back-trader-python

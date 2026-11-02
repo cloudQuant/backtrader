@@ -1,0 +1,224 @@
+{
+  "actual_runs": [
+    {
+      "arm": "a",
+      "log_sha256": "19e3329c34da887e8b06cc66b4bed019d2d5970d2de2ddc2a50eda067d636748",
+      "pair": 1,
+      "result_sha256": "4d9f2b9bbf6c4d29d781a11e59f73f642472d7cacd4a6c0d7c901033d526ebb5"
+    },
+    {
+      "arm": "b",
+      "log_sha256": "3f64a1de23e5931a8dd10c2911c41d31660d2eaa0e270f36887783e7a4093092",
+      "pair": 1,
+      "result_sha256": "4fb5aa3d3f8efe6782414756f5f06bf7bdc071cda41f3895a2baebc7c8869a91"
+    },
+    {
+      "arm": "a",
+      "log_sha256": "30a10b1c8d76749f5ff0b6fdb2e211d32bbed0afd0f7166b5d305786d872e082",
+      "pair": 2,
+      "result_sha256": "810ceba12742774eb90b98b8a4b6299da621fa7d90081fc3854b1e9fadea7948"
+    },
+    {
+      "arm": "b",
+      "log_sha256": "d62d19167019960d82563d85730e87d0f73e59554c4976a3f80a361943f917b1",
+      "pair": 2,
+      "result_sha256": "e87670b8d4ec8b5800206dc9b2796c3fa7ff1e7062de7f4605698eb1aa41b743"
+    },
+    {
+      "arm": "a",
+      "log_sha256": "4663008697a4fa57c926e8c761ad2ed244545e118c9645a17a655e2e952653ab",
+      "pair": 3,
+      "result_sha256": "4a6fa5d20e4159a64d5d62d4a54f3e28dadd9f09c5e0796c59e86e69b11284b0"
+    },
+    {
+      "arm": "b",
+      "log_sha256": "850d75adcd559901e7ac5b6de0b508d0c15c826b6a84a8283710069cebf484aa",
+      "pair": 3,
+      "result_sha256": "f36adefea80cf31ed86d2f76b561679295f085c381e1972a2c3eb23ee1a5a01c"
+    }
+  ],
+  "counts": {
+    "actual_runs": 6,
+    "full_verifiers": 3,
+    "independent_025_026_comparisons": 0,
+    "reused_control_slots": 6,
+    "reused_unique_controls": 2,
+    "unique_comparisons": 3,
+    "verifier_slots": 9
+  },
+  "evidence_archive": {
+    "member_count": 25,
+    "path": "D:\\source_code\\backtrader\\docs\\_internal\\opts\\requirements\\迭代49-因子分析性能优化\\measurements\\7col-500-g3-presence-evidence.zip",
+    "sha256": "4efd49fa2ab2a0cd82afde59362f6b3d01919576cb251551a771f5095c61f386",
+    "size_bytes": 752829
+  },
+  "limitations": [
+    "025/026 verifier slots reuse the same G6 p3 B controls; no separate 025/026 G3 measurements.",
+    "No full-101 matrix was run or accepted.",
+    "Three-pair wall dispersion is reported as (max(B/A)-min(B/A))/median(B/A); above 5% means no stable speedup claim.",
+    "Peak combines main-process working-set peak and sampled process-tree RSS; it is not a full-universe resource gate."
+  ],
+  "measurements": {
+    "main_process_cpu_ns": {
+      "baseline_median": 32062500000,
+      "baseline_median_seconds": 32.0625,
+      "candidate_median": 26703125000,
+      "candidate_median_seconds": 26.703125,
+      "median_b_over_a": 0.8373904576436222,
+      "median_change_percent": -16.260954235637783,
+      "pairs": [
+        {
+          "b_over_a": 0.8373904576436222,
+          "baseline": 32093750000,
+          "candidate": 26875000000,
+          "pair": 1
+        },
+        {
+          "b_over_a": 0.8079922027290448,
+          "baseline": 32062500000,
+          "candidate": 25906250000,
+          "pair": 2
+        },
+        {
+          "b_over_a": 0.8523690773067332,
+          "baseline": 31328125000,
+          "candidate": 26703125000,
+          "pair": 3
+        }
+      ],
+      "ratio_max": 0.8523690773067332,
+      "ratio_min": 0.8079922027290448,
+      "relative_dispersion_percent": 5.299424440847202
+    },
+    "main_wall_ns": {
+      "baseline_median": 33111482200,
+      "baseline_median_seconds": 33.1114822,
+      "candidate_median": 27520954000,
+      "candidate_median_seconds": 27.520954,
+      "median_b_over_a": 0.8366112767975092,
+      "median_change_percent": -16.338872320249077,
+      "pairs": [
+        {
+          "b_over_a": 0.8366112767975092,
+          "baseline": 33111482200,
+          "candidate": 27701439400,
+          "pair": 1
+        },
+        {
+          "b_over_a": 0.8082706332626759,
+          "baseline": 33249284700,
+          "candidate": 26874420400,
+          "pair": 2
+        },
+        {
+          "b_over_a": 0.8524007089498018,
+          "baseline": 32286404400,
+          "candidate": 27520954000,
+          "pair": 3
+        }
+      ],
+      "ratio_max": 0.8524007089498018,
+      "ratio_min": 0.8082706332626759,
+      "relative_dispersion_percent": 5.274860250037845
+    },
+    "reported_peak_bytes": {
+      "baseline_median": 307830784,
+      "candidate_median": 307175424,
+      "median_b_over_a": 0.997831206674029,
+      "median_change_percent": -0.21687933259709746,
+      "pairs": [
+        {
+          "b_over_a": 0.997831206674029,
+          "baseline": 307843072,
+          "candidate": 307175424,
+          "pair": 1
+        },
+        {
+          "b_over_a": 0.9983891581021354,
+          "baseline": 307675136,
+          "candidate": 307179520,
+          "pair": 2
+        },
+        {
+          "b_over_a": 0.9948771855124146,
+          "baseline": 307830784,
+          "candidate": 306253824,
+          "pair": 3
+        }
+      ],
+      "ratio_max": 0.9983891581021354,
+      "ratio_min": 0.9948771855124146,
+      "relative_dispersion_percent": 0.3519605887479616
+    }
+  },
+  "pair_order": {
+    "1": "AB",
+    "2": "BA",
+    "3": "AB"
+  },
+  "qa": {
+    "compatibility_focus": {
+      "sha256": "db3c7c3e10b71d87ce001cb6e54999df45b38728376f73acc843861f56830d97",
+      "status": "55 passed, 1 known warning in 5.55s"
+    },
+    "presence_focus": {
+      "sha256": "69c8a8db2901668b577a6d9b5ed62d3ad576a26ad5c25a5503b00009055e3a6b",
+      "status": "14 passed, 1 known warning in 3.33s"
+    }
+  },
+  "schema_version": 1,
+  "scope": "027 native full report; 500 symbols x 243 dates",
+  "source_identity": {
+    "A": {
+      "commit": "3ba75fe5eb910c87624ce03350745a3efd708a74",
+      "kind": "verified_snapshot_manifest_v1",
+      "manifest_sha256": "04d99a2f0a2f89c9018529157b0aa7a577719bae5d6e9d887f1d90f8c3e5d7d6",
+      "source_content_sha256": "22c8fd588d1cc47fa7b48f9c17645c7078ebab5b3e4fcc771488d1b470de8bd2"
+    },
+    "B": {
+      "branch": "dev",
+      "commit": "a47ae1e508351ab2d9e825d4965ebe6d4ce55ee0",
+      "kind": "git_worktree",
+      "source_content_sha256": "2f27b45955f13e40f5ae10495fd432543471a740d4e391957ff8f6fc3deb820c",
+      "source_status": [
+        " M backtrader/research/operators.py",
+        " M examples/backtest/027_alpha003_panel_acceptance/run_daily.py"
+      ]
+    },
+    "B_note": "B source map records pre-existing unrelated run_daily.py alongside the selected operators.py change.",
+    "runner_sha256": {
+      "sha256": "63233d4cdfae9fc3f79813f88b96840a9019ea6fcb09d0cb80b667e62c1a8dd2",
+      "size_bytes": 39888
+    },
+    "shared_data": {
+      "dates": 243,
+      "files_sha256": "92330cdea2880a9825d35ebaf4763ac330063c7183c669d9e8f0ce6955d98347",
+      "grid_cells": 121500,
+      "ordered_symbols_sha256": "dda661efc19e42770028a61d4b43a4160a0bf08b3adf4dae353e8234d7ad5dbe",
+      "selection_sha256": "14f789a9d9e649987b93bc0477a0f94acc5223edd7ccd70166c8ea4b33ba35dc",
+      "symbols": 500,
+      "universe": "fixed500"
+    },
+    "shared_fincore": {
+      "commit": "4e01ac9f6f081f13acd60b45559119e1a5ed4a4f",
+      "kind": "verified_snapshot_manifest_v1",
+      "manifest_sha256": "dd302498270cf278766dca2dbb3c9494abe54c908f84b8c7f97b1493efa7af3c",
+      "source_content_sha256": "7489ddea3d62eeeadf73effbf22bb380e096892e0b08c4c3cbd328f8c94347b6"
+    }
+  },
+  "status": "DIRECTIONAL_IMPROVEMENT_STABILITY_GATE_NOT_MET",
+  "verifiers": [
+    {
+      "pair": 1,
+      "sha256": "6f5dd013099979f171401db88f6228816069699d2fcdd3dd7c922314dc39dcb2"
+    },
+    {
+      "pair": 2,
+      "sha256": "cc78fd20c7db730398109a6d97764496d54ce2868de8d96ee87eb236ebe0facf"
+    },
+    {
+      "pair": 3,
+      "sha256": "fe4140ec5a557077fb38f29e2f19e14b1bbbef3ebdde1ed0af25220ddf199f68"
+    }
+  ]
+}

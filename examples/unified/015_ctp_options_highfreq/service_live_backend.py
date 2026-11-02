@@ -221,10 +221,8 @@ def run_live_service(args: Any, raw_config: Mapping[str, Any], decision: Any, ru
             cohort_now_provider=None,
         )
 
-        from backtrader_runtime.service_observation import (
-            ServiceObservationInstrument,
-            open_service_read_session,
-        )
+        from bt_api_py.service_observation_assembly import ServiceObservationInstrument
+        from backtrader.service.service_observation import open_service_read_session
         import backtrader as bt
 
         instruments = _instruments(service, contracts, ServiceObservationInstrument)
@@ -250,6 +248,7 @@ def run_live_service(args: Any, raw_config: Mapping[str, Any], decision: Any, ru
         with open_service_read_session(
             service,
             instruments=instruments,
+            provider_route="CTP___FUTURE",
             allow_write=False,
             timeout_seconds=float(timeout_config.get("stop_seconds") or 10.0),
         ) as session:

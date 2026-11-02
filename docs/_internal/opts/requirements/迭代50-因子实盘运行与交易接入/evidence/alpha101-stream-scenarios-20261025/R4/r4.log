@@ -1,0 +1,126 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.5, pytest-8.0.0, pluggy-1.5.0 -- C:\anaconda3\python.exe
+cachedir: .pytest_cache
+backtrader: D:\source_code\backtrader\backtrader\__init__.py
+rootdir: D:\source_code\backtrader
+configfile: pytest.ini
+collecting ... collected 6 items
+
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers[build] PASSED
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_gap_advances_one_planned_grid_and_blocks_then_recovers[native] PASSED
+tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix[build] FAILED
+
+================================== FAILURES ===================================
+_ test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix[build] _
+
+factor_mode = 'build'
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    @pytest.mark.parametrize("factor_mode", ("native", "build"))
+    def test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix(factor_mode):
+        """Future prices, derived/PIT fields, arrival time, and feed order cannot alter prior rows."""
+    
+        base_frames = positive_target_frames(_CAUSAL_ROWS)
+        targets = tuple(base_frames)
+        benchmark_and_targets = targets + (BENCHMARK_NAME,)
+        changed_frames = _perturb_future_frames(base_frames, _CAUSAL_PREFIX_ROWS)
+        for asset in targets:
+            left = base_frames[asset].iloc[_CAUSAL_PREFIX_ROWS:]
+            right = changed_frames[asset].iloc[_CAUSAL_PREFIX_ROWS:]
+            changed_fields = {
+                field
+                for field in TARGET_LINE_FIELDS
+                if any(
+                    not _same_cell(left.iloc[row][field], right.iloc[row][field])
+                    for row in range(len(left))
+                )
+            }
+            if changed_fields != set(TARGET_LINE_FIELDS):
+                raise AssertionError(
+                    "future perturbation did not change every declared target field: %r"
+                    % sorted(set(TARGET_LINE_FIELDS) - changed_fields)
+                )
+    
+        partitions = _full_alpha_partitions()
+        checked = set()
+        for _batch_name, alpha_ids in partitions:
+            baseline, baseline_cohort, _base_clock, grid = _run_live(
+                base_frames,
+                alpha_ids,
+                factor_mode=factor_mode,
+                availability_delay_seconds=2,
+                run_label="causal-base",
+            )
+            changed, changed_cohort, _changed_clock, changed_grid = _run_live(
+                changed_frames,
+                alpha_ids,
+                factor_mode=factor_mode,
+                future_available_from=_CAUSAL_PREFIX_ROWS,
+                availability_delay_seconds=AVAILABILITY_DELAY_SECONDS,
+                feed_order=tuple(reversed(benchmark_and_targets)),
+                run_label="causal-future-permuted",
+            )
+            _assert_contiguous_complete_grid(baseline, baseline_cohort, grid)
+            _assert_contiguous_complete_grid(changed, changed_cohort, changed_grid)
+            if tuple(grid) != tuple(changed_grid):
+                raise AssertionError("future perturbation changed the fixed sealed grid")
+>           if not _base_receipt_prefix_equal(
+                baseline,
+                changed,
+                prefix_rows=_CAUSAL_PREFIX_ROWS,
+                targets=targets,
+            ):
+
+tests\integration\test_live_alpha101_stream_scenarios.py:1274: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+left = <tests.integration.test_live_alpha101_stream_scenarios._ScenarioCapture object at 0x000001C90E68F550>
+right = <tests.integration.test_live_alpha101_stream_scenarios._ScenarioCapture object at 0x000001C90FD77C10>
+
+    def _base_receipt_prefix_equal(
+        left: _ScenarioCapture,
+        right: _ScenarioCapture,
+        *,
+        prefix_rows: int,
+        targets: Sequence[str],
+    ) -> bool:
+        if len(left.readings) < prefix_rows or len(right.readings) < prefix_rows:
+            return False
+        for index in range(prefix_rows):
+            left_record, right_record = left.readings[index], right.readings[index]
+            if left_record["close_time"] != right_record["close_time"]:
+                return False
+            if left_record["available_at"] != right_record["available_at"]:
+                return False
+            if left_record["callback_time"] != right_record["callback_time"]:
+                return False
+            for name in tuple(targets) + (BENCHMARK_NAME,):
+                left_receipt = left_record["receipts"][name]
+                right_receipt = right_record["receipts"][name]
+                if (
+>                   left_receipt.bar_id != right_receipt.bar_id
+                    or left_receipt.member_id != right_receipt.member_id
+                    or left_receipt.source_role != right_receipt.source_role
+                    or left_receipt.present is not right_receipt.present
+                    or left_receipt.complete is not right_receipt.complete
+                    or left_receipt.quality != right_receipt.quality
+                    or left_receipt.missing_fields != right_receipt.missing_fields
+                    or left_receipt.available_at != right_receipt.available_at
+                    or dict(left_receipt.envelope.raw_values) != dict(right_receipt.envelope.raw_values)
+                ):
+E               AttributeError: 'LiveDeliveryReceipt' object has no attribute 'bar_id'
+
+tests\integration\test_live_alpha101_stream_scenarios.py:1372: AttributeError
+============================== warnings summary ===============================
+C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394
+  C:\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1394: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\source_code\backtrader\.codex-tmp\ac50_full101_stream_scenarios_r4_20261025.xml -
+=========================== short test summary info ===========================
+FAILED tests/integration/test_live_alpha101_stream_scenarios.py::test_full_alpha101_future_fields_benchmark_and_member_order_keep_sealed_prefix[build]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+============= 1 failed, 2 passed, 1 warning in 1547.52s (0:25:47) =============

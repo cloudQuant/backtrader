@@ -1,0 +1,53 @@
+{
+  "head": "a22f38601793df082086b06687f9abaf21d8554a",
+  "package_commit": "a69a494e7b26251703c130c2b9083f9ce196ef2c",
+  "reviewed_uncommitted_helper_sha256": "6b7ecf3f19ec7617c56cc13849ec4dfe0973b244c5e5594233bebc9aa42cf5ae",
+  "helper_status_before": " M scripts/iteration51_installed_fixture.py\n",
+  "command": [
+    "D:\\temp\\i5051c-20261025-r6\\venv\\Scripts\\python.exe",
+    "-I",
+    "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py",
+    "--wheel",
+    "D:\\temp\\i5051b-03852948a7a4\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+    "--wheel-sha256",
+    "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+    "--workspace",
+    "D:\\temp\\i51-installed-final-20261025-r13\\native\\case",
+    "--synthetic-live",
+    "--factor-mode",
+    "native",
+    "--sdk-selector-source",
+    "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\selector-source-fixture\\bt_api_ctp\\ctp_env_selector.py",
+    "--timeout-seconds",
+    "300"
+  ],
+  "source_pins": {
+    "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py": {
+      "sha256": "6b7ecf3f19ec7617c56cc13849ec4dfe0973b244c5e5594233bebc9aa42cf5ae",
+      "size": 203651
+    },
+    "D:\\source_code\\backtrader\\scripts\\iteration50_installed_fixture.py": {
+      "sha256": "4f9cd4610a21f6eb5ced5dd824f89501a056f114e0b39deabe94c6da1e33285a",
+      "size": 159625
+    },
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+      "sha256": "7703d0b4f21205aaf7b90900bcceec2d67461c2e20d70239f2e214540704fc3b",
+      "size": 195092
+    },
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\entry_tier.py": {
+      "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+      "size": 4449
+    },
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+      "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058",
+      "size": 198547
+    },
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+      "sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+      "size": 3674
+    }
+  },
+  "wheel_sha256": "bc33814b37ab44963ab9a964e689ee7c2665ed9a709b5bcbe0eb0bcd9770b7ee",
+  "started_unix": 1792941258.2163324,
+  "evidence_level": "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+}

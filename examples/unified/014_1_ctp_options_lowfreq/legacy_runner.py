@@ -19,24 +19,15 @@ _ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[3]
 if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
     _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
 
-def _iteration41_legacy():
-    """Import the config-first helpers only where the legacy CLI path needs them.
-
-    ``run.py`` loads this module for its offline dry and replay tiers, which must
-    also work from a copy of this folder where ``backtrader_runtime`` is not
-    installed.  Only the retired direct-script route and the config-first CLI
-    below ever need that package, so it is imported on demand here.
-    """
-
-    from backtrader_runtime import legacy
-
-    return legacy
+class LegacyRuntimeUnavailable(RuntimeError):
+    """The former Backtrader config-first runtime is retired."""
 
 
 def _run_config_first_cli(argv=None) -> int:
-    """Route the retired script through its fixed registered replay runtime."""
-
-    return _iteration41_legacy().run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+    """Reject the retired route without loading a config or provider."""
+    del argv
+    _iteration41_sys.stderr.write("CTP_LEGACY_RUNTIME_RETIRED\n")
+    return 2
 
 
 def main(argv=None) -> int:
@@ -454,7 +445,7 @@ def _legacy_main(argv: list[str] | None = None) -> int:
     Returns 0 only for a completed replay and 2 for any rejected or
     non-replay mode, after emitting a fail-closed report.
     """
-    raise _iteration41_legacy().legacy_direct_execution_error("examples/unified/014_1_ctp_options_lowfreq/run.py")
+    raise LegacyRuntimeUnavailable("examples/unified/014_1_ctp_options_lowfreq/run.py")
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)

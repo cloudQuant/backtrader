@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "parent": "8945951345f6849859a02f6a7eecb8d684204b25",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "evidence_level": "SOURCE_FAKE_DISCOVERY_CLOSE_AND_INSTALLED_RECEIPT_COMPATIBILITY_ONLY",
+  "source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/discovery_lifecycle.py": "305ecf7cb89ccf8aee15179312fbf4b311f41ead7e65a97b01e19c0e3ccb3f3d",
+    "tests/unit/test_alpha003_discovery_lifecycle.py": "35bb0e992f5560930f0bd6d5379075dad808e39418e80abe2a1f1570ea21d715"
+  },
+  "payload_pins": {
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/author-qa.json": "6b0ba61a7a106a56c6e68444787968be4e9cd5fc6bdefa222bd87af9263f27fb",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/repair-qa.json": "8901317afcbc31ba732fd5a5fa76c6248fac8577f654a70b79e75fd143888484",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/repair-stdout.txt": "4072d56247b4ba42770e341b01a55bf04dad39985d97af159d0652b4cf7ec8b9",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/review-initial.md": "80b1d16297d87c8f55fa0b2dae7a48b8c4c3010cad50cb870c387fb2e40b7b53",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/review-final.md": "66b8fbf8af676458e382a564050bfdc472c0a90a1e684511495749f62dcdcdda",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/installed-receipt-check.py": "cc1fec9310f7150cd00e82b436ca928e947eb944148ac54793f5e12849a5da4e",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/installed-receipt-result.json": "be3ff04feaec078c30643e2f5c372492bc5790189ff158895d880d1e89509ab4",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/discovery-lifecycle-20261027/source-close-plan.md": "c453503edfebe2632b3ce528b24ab353b3161700ae6eeb56c7b13d1f353cb0c4"
+  },
+  "tests": {
+    "initial_focus_passed": 8,
+    "changed_and_new_focus_passed": 2,
+    "distinct_final_test_functions": 9,
+    "single_nine_case_run_claimed": false,
+    "unchanged_tests_not_repeated": 7,
+    "warning": "existing asyncio config option"
+  },
+  "root_installed_receipt_check": {
+    "tool_chunk": "3aa34d",
+    "exit_code": 0,
+    "helper_before_md_guard_fix": "9cf046246e803eec81002b8152307ac78825cbef351facb26e2c4739e0e4607f",
+    "four_real_sdk_dataclasses_and_impostor_and_unstarted_store_health": true,
+    "tested_receipt_parser_unchanged_by_md_guard_fix": true,
+    "native_close_proven": false
+  },
+  "limitations": [
+    "Author original8 results have summarized inline output only; no original standalone stdout/chunk was retained.",
+    "Repair record says six unchanged tests; the final file has nine test functions, so seven unchanged functions were not repeated.",
+    "Initial source plan predates review: generation-zero MD receipt now blocks completion even when SDK complete is true.",
+    "Tests use fake clients/native leaves with real Store objects. Actual account/provider lifecycle not accepted.",
+    "Synchronous stop/detach is not wall-time bounded by the Join timeout; any uncertainty retains custody."
+  ]
+}

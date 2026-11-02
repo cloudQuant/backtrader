@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "evidence_level": "LOCAL_INSTALLED_WHEEL_CONSUMER_ONLY",
+  "original_run_manifest": {
+    "archive_path": "run-manifest.json",
+    "bytes": 8858,
+    "sha256": "7719c237dbea268403a1da7bb6bd62ea5a8e33e599deb548b4b7407945db3ee4",
+    "original_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\run-manifest.json"
+  },
+  "execution_provenance": {
+    "archive_path": "provenance/execution-provenance.json",
+    "bytes": 4096,
+    "sha256": "8e9887ca256728bcfdc105255829baee6cc25c892158bfb0cebd7334b003aad1",
+    "tool": "functions.exec -> tools.exec_command",
+    "chunk_id": "b74a31",
+    "session_id": 97889,
+    "terminal_exit_code": 0,
+    "persisted_exit_code": 0,
+    "wrapper_sha256": "41f3aa2062d259271cb11b4405c572f2189ad4c520c41f2408fa130e749fc834",
+    "prelaunch_and_postrun_hashes_equal": true,
+    "atomic_runtime_hash_claimed": false
+  },
+  "source": {
+    "backtrader_revision": "3eacbd197ed4812c2e0627d2f994065934d6f978",
+    "backtrader_tree": "932be2af4cededba965ef97a128800577515d634",
+    "source_archive_sha256": "e87684dc41b91760220c68e668302feb9fdf38e548b6d8fa85b683dca013be56",
+    "bt_api_base_commit": "fb47f3dd733613494aa1d86cfd94b2d6fe70314d",
+    "bt_api_ctp_commit": "48b476ea90665791c7d2f86935720ce238931520"
+  },
+  "wheel_artifacts": [
+    {
+      "name": "back_trader_python-1.4.0-py3-none-any.whl",
+      "bytes": 2440898,
+      "sha256": "d342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc",
+      "archived": false
+    },
+    {
+      "name": "bt_api_base-0.15.8-py3-none-any.whl",
+      "bytes": 153051,
+      "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39",
+      "archived": false
+    },
+    {
+      "name": "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+      "bytes": 5481703,
+      "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f",
+      "archived": false
+    }
+  ],
+  "observed_results": {
+    "source_python_members": 662,
+    "wheel_python_members": 662,
+    "missing_members": 0,
+    "extra_members": 0,
+    "hash_mismatches": 0,
+    "record_hashes_verified": {
+      "back-trader-python": 676,
+      "bt-api-base": 103,
+      "bt-api-ctp": 96
+    },
+    "pip_check": "PASS",
+    "install_index_disabled": true,
+    "ctp_native_loaded": true,
+    "formal_account_acceptance_claimed": false
+  },
+  "pinned_copies": [
+    {
+      "archive_path": "run-manifest.json",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\run-manifest.json",
+      "bytes": 8858,
+      "sha256": "7719c237dbea268403a1da7bb6bd62ea5a8e33e599deb548b4b7407945db3ee4",
+      "matches_source": true
+    },
+    {
+      "archive_path": "consumer-r1.ps1",
+      "source_path": "D:\\source_code\\backtrader\\.codex-tmp\\ac51_r0_sdk_build_consumer_r1_20261026.ps1",
+      "bytes": 18951,
+      "sha256": "41f3aa2062d259271cb11b4405c572f2189ad4c520c41f2408fa130e749fc834",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/build.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\build.stdout.log",
+      "bytes": 968,
+      "sha256": "51d179dcaaab40517db17a174c48d76dbaf972e3d927ab54512f40f1e9392e5b",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/build.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/vcvars.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\vcvars.log",
+      "bytes": 298,
+      "sha256": "6ae0449df92a1ed439d52e195c8631217433e86735dc40a21b05adcc88b25984",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/compiler.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\compiler.log",
+      "bytes": 106,
+      "sha256": "bb66c6182fc603fe4657c9224529d5f6935189b9ccc23a44a09c2679e927c17a",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/compiler-environment.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\compiler-environment.log",
+      "bytes": 236,
+      "sha256": "1d5ab4d4b9eaafc1b57a8761b7a88cd133d304232f436674b3598391990b6f8f",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/install.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\install.stdout.log",
+      "bytes": 8924,
+      "sha256": "baf54ca29a925ccfe7ed240772dff02ca5b3c32b671687f6a49f54bffbfb4ff0",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/install.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\install.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/pip-check.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\pip-check.stdout.log",
+      "bytes": 31,
+      "sha256": "672aec65a45bed50e70229c70934a7eebf0462595c459b83023027645d57cccf",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/pip-check.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\pip-check.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/verify.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\verify.stdout.log",
+      "bytes": 754,
+      "sha256": "50f89e0cde2b5cf3f602f01bd30275434341fd35abe152097d9ca3acb528b580",
+      "matches_source": true
+    },
+    {
+      "archive_path": "logs/verify.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\verify.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/backtrader-wheel-build.json",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.json",
+      "bytes": 807,
+      "sha256": "e5b1cbdeff86f7c60acf3298635c32d276049b0d5dc10b7a759a2d79f823f1b1",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/backtrader-wheel-build.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.stdout.log",
+      "bytes": 983,
+      "sha256": "c2d33a49926196fb75a8b5bab7f526abb96d181f3e0d0919b10a93ef1a5f2c72",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/backtrader-wheel-build.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/backtrader-wheel-build.exit-code.txt",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\backtrader-wheel-build.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/source-provenance.json",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\source-provenance.json",
+      "bytes": 124998,
+      "sha256": "4757e61f26fda9545e3e807a5976bc4921e0d8298d6aa7b5f2af73f58fa3a7df",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/verify_wheel_python_payload.py",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\verify_wheel_python_payload.py",
+      "bytes": 1717,
+      "sha256": "2227f82deb762dafe21de37da7e2bc5f38421cd529001f7943e90c35aa678541",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/wheel-python-payload-verification.json",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel-python-payload-verification.json",
+      "bytes": 547,
+      "sha256": "b3ab608b76852fe4c9e31320037ce8453883abce529f50403bc509737bafb18f",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/wheel-payload-verification.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel-payload-verification.stdout.log",
+      "bytes": 511,
+      "sha256": "13d048c1419c42056ecc257a6d2941498cf5afe1706fdca7d4a91515c4271bd3",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/wheel-payload-verification.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel-payload-verification.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/wheel-payload-verification.exit-code.txt",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel-payload-verification.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/r0-wrapper.stdout.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.stdout.log",
+      "bytes": 83,
+      "sha256": "1589b48ca81d68bee10eb10cad08301b726e301cc90d99a0d9b28978bc374b01",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/r0-wrapper.stderr.log",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/r0-wrapper.exit-code.txt",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.exit-code.txt",
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "matches_source": true
+    },
+    {
+      "archive_path": "provenance/execution-provenance.json",
+      "source_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\execution-provenance.json",
+      "bytes": 4096,
+      "sha256": "8e9887ca256728bcfdc105255829baee6cc25c892158bfb0cebd7334b003aad1",
+      "matches_source": true
+    },
+    {
+      "archive_path": "acceptance.md",
+      "source_path": "archive-authored",
+      "bytes": 2492,
+      "sha256": "9030a478268e9e7bc41098a2453c781566c96f66d6024debc3db4a1964058ecd",
+      "matches_source": null
+    }
+  ],
+  "archive_exclusions": [
+    "wheel binaries",
+    "virtual environment",
+    "source ZIP/archive binary",
+    "private configuration",
+    "account data"
+  ]
+}

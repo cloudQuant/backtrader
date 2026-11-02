@@ -25,6 +25,7 @@ Example:
     >>> cerebro.adddata(data)
 """
 
+import importlib as _importlib
 import os as _os
 
 from .barrier import BarBarrierPolicy as BarBarrierPolicy
@@ -37,26 +38,12 @@ from .barrier import MinuteDecisionInput as MinuteDecisionInput
 from .barrier import MultiLegBarBarrier as MultiLegBarBarrier
 from .barrier import QuoteCutoffResult as QuoteCutoffResult
 from .barrier import validate_quote_against_bar as validate_quote_against_bar
-from .ctpcohort import CtpCohortLeg as CtpCohortLeg
-from .ctpcohort import CtpCohortNow as CtpCohortNow
-from .ctpcohort import CtpCohortPolicy as CtpCohortPolicy
-from .ctpcohort import CtpCohortReason as CtpCohortReason
-from .ctpcohort import CtpCohortResult as CtpCohortResult
-from .ctpcohort import CtpQuoteCohort as CtpQuoteCohort
-from .ctpcohort import CtpQuoteCohortValidator as CtpQuoteCohortValidator
-from .ctpcohort import CtpQuoteEvidence as CtpQuoteEvidence
-from .ctpcohort import CtpQuoteValidation as CtpQuoteValidation
-from .ctpcohort import validate_ctp_quote as validate_ctp_quote
-
-if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
+if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() not in {
     "1",
     "true",
     "yes",
     "on",
 }:
-    from .btapifeed import BtApiFeed as BtApiFeed
-else:
-    from .btapifeed import BtApiFeed as BtApiFeed
     from .btcsv import *
     from .chainer import Chainer as Chainer
     from .cryptohftdata import CryptoHFTData as CryptoHFTData
@@ -73,3 +60,65 @@ else:
     from .vchartcsv import *
     from .vchartfile import VChartFile as VChartFile
     from .yahoo import *
+
+
+_MARKET_FACTOR_SOURCE_EXPORTS = frozenset(
+    {
+        "MarketFactorSourceBinding",
+        "MarketFactorSourceCalendar",
+        "MarketFactorSourceError",
+        "MarketFactorTickProjection",
+        "project_market_factor_tick",
+    }
+)
+
+_MARKET_COHORT_EXPORTS = frozenset(
+    {
+        "MarketCohortLeg",
+        "MarketCohortNow",
+        "MarketCohortPolicy",
+        "MarketCohortReason",
+        "MarketCohortResult",
+        "MarketQuoteCohort",
+        "MarketQuoteCohortValidator",
+        "MarketQuoteEvidence",
+        "MarketQuoteValidation",
+        "validate_market_quote",
+    }
+)
+
+_OPTIONAL_FEED_EXPORTS = frozenset({"BtApiFeed"})
+
+
+def __getattr__(name):
+    """Load optional SDK-backed market projections only when requested."""
+
+    if name in _OPTIONAL_FEED_EXPORTS:
+        module = _importlib.import_module(".btapifeed", __name__)
+    elif name in _MARKET_COHORT_EXPORTS:
+        module = _importlib.import_module("bt_api_py.market_cohort")
+    elif name in _MARKET_FACTOR_SOURCE_EXPORTS:
+        module = _importlib.import_module(".market_factor_source", __name__)
+    else:
+        raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name))
+    value = getattr(module, name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(
+        set(globals())
+        | _MARKET_FACTOR_SOURCE_EXPORTS
+        | _MARKET_COHORT_EXPORTS
+        | _OPTIONAL_FEED_EXPORTS
+    )
+
+
+# Keep star imports of the package's already-eager public names compatible.
+# Cohort attributes are resolved only if a caller explicitly imports them.
+__all__ = sorted(
+    {name for name in globals() if not name.startswith("_")}
+    | _MARKET_COHORT_EXPORTS
+    | _OPTIONAL_FEED_EXPORTS
+)

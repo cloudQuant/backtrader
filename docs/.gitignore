@@ -1,7 +1,8 @@
 # Sphinx build outputs
 _build/
-_static/
-_templates/
+# Anchored: docs/source/_static and docs/source/_templates are real sources.
+/_static/
+/_templates/
 
 # Generated files
 *.pyc

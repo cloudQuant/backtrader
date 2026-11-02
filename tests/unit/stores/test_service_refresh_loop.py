@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from backtrader.stores.service_refresh_loop import (
-    ManagedOrderRefreshLoop,
-    RefreshLoopError,
-)
-from backtrader.stores.service_execution_adapter import ServiceExecutionReadError
+from bt_api_py.managed_order_refresh import RefreshLoopError
+
+from backtrader.service.service_refresh_loop import ManagedOrderRefreshLoop
+from backtrader.service.service_execution_adapter import ServiceExecutionReadError
 
 
 class _Clock:

@@ -1,0 +1,148 @@
+{
+  "schema": "iteration51.golden_postflight_source_round.v1",
+  "parent_dev_commit": "f71d3ec49a3cbb08d630da5cba285235800639f1",
+  "scope": "Root-only bounded postflight for a closed same-run three-target golden DecisionTape",
+  "evidence_level": "SOURCE_SYNTHETIC_CLOSED_TAPE_POSTFLIGHT_ONLY",
+  "source_pins": {
+    ".codex-tmp/i51_golden_postflight_r1_20261027.py": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+    ".codex-tmp/test_i51_golden_postflight_r1_20261027.py": "e88c9c76267b2368ddf5aef8a3eafe941587e13a73657f1af6f6343acd539d49",
+    "examples/unified/028_alpha003_simnow_minute/run.py": "3513942b9d47d97f0ea720e1bab69a0734084e8a5b2538b0be3f17eb3225ad92",
+    "examples/unified/028_alpha003_simnow_minute/entry_tier.py": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "tests": 16,
+      "exit_code": 0,
+      "known_config_warnings": 1,
+      "result": {
+        "exit_code": 0,
+        "start_utc": "2026-10-26T23:55:12.6208753Z",
+        "end_utc": "2026-10-26T23:55:14.3509576Z",
+        "seconds": 1.7300823,
+        "source_pins_unchanged": true,
+        "evidence_level": "SOURCE_SYNTHETIC_CLOSED_TAPE_POSTFLIGHT_ONLY",
+        "provider_calls": 0,
+        "private_input_reads": 0
+      },
+      "source_dir": "D:\\temp\\i51-golden-postflight-source-qa-20261027-r1"
+    },
+    {
+      "run": 2,
+      "tests": 3,
+      "exit_code": 0,
+      "known_config_warnings": 1,
+      "result": {
+        "exit_code": 0,
+        "start_utc": "2026-10-26T23:58:26.6858276Z",
+        "end_utc": "2026-10-26T23:58:27.9104559Z",
+        "seconds": 1.2246283,
+        "source_pins_unchanged": true,
+        "evidence_level": "SOURCE_SYNTHETIC_CLOSED_TAPE_POSTFLIGHT_TUPLE_REPAIR_ONLY",
+        "provider_calls": 0,
+        "private_input_reads": 0
+      },
+      "source_dir": "D:\\temp\\i51-golden-postflight-source-qa-20261027-r2"
+    }
+  ],
+  "aggregation": "16 pre-tuple-repair cases plus final-source 3 focused cases; 18 different nodes across runs, not a final-source 18-case suite",
+  "static_review": {
+    "reviewer": "/root/capacity_review",
+    "final_status": "GO_TUPLE_CONTRACT_DELTA_ONLY_WITH_PRIOR_SOURCE_REVIEW",
+    "initial_hold": "Missing exact CTP source_ref, slot_id, duplicate-bar rejection, and faithful full-to-active golden fixture; fixed before first QA",
+    "subsequent_hold": "First 16 cases used a dict-returning synthetic manifest; real selected_mapping returns tuple pairs. Earlier GO withdrawn for this concrete production mismatch.",
+    "resolution": "Strict tuple-of-two-tuples conversion rejects duplicate product keys; synthetic manifest now returns actual contract tuple, with focused success/duplicate cases",
+    "reviewer_tests_or_imports": false
+  },
+  "manifest_contract": {
+    "checkout_sha256": "70b83d738ec9f66cd349b525416ed6168eed70c3e7e642d6fa93421b86c5dfa6",
+    "installed_sha256": "70b83d738ec9f66cd349b525416ed6168eed70c3e7e642d6fa93421b86c5dfa6",
+    "normalized_source_equal": true,
+    "import_or_provider_operation": false
+  },
+  "actual_use": {
+    "call": "validate_golden_postflight(runner, ROOT_STATE[summary], clock_domain_id=..., calendar_id=..., expected_cohort=..., normal_cleanup_complete=...)",
+    "same_run_inputs": "Retained actual summary._plan, closed writer/readback receipts, fixed public profile cohort fields; no expected grid inferred from tape",
+    "planned_scope": "3 active daytime products /225 planned closes, full pool/195 common closes, at least3 contiguous observed complete minute cohorts after clipped startup",
+    "root_separate_gates": "Caller source pins unchanged; full selected count87 and active count3; exact read-only profile; timer joined and controlled stop; zero write surfaces before/after; native cleanup and private context closed",
+    "limits": "No full-session,100-LIVE_READY,offline-factor parity,actual provider/account or write acceptance from this source round"
+  },
+  "provider_calls": 0,
+  "private_input_reads": 0,
+  "active_journal_reads": 0,
+  "wheel_or_sdk_changes": false,
+  "pushed": false,
+  "archive_sha256": "cec398bc0a6857a6f01c45e01311e1abbcf7781560596d10ed9364145cfcd632",
+  "archive_entries": [
+    {
+      "member": "r1/command.json",
+      "bytes": 1036,
+      "sha256": "d4de97bde35a4c897eeff2dd8488fe908268d34c02a7bb0661e2d16e9274d0f7"
+    },
+    {
+      "member": "r1/result.json",
+      "bytes": 299,
+      "sha256": "ada2fcdbf21a3d65b977cea32a2a0a1faf872c9563ed52698bd9d0b2b2be686e"
+    },
+    {
+      "member": "r1/junit.xml",
+      "bytes": 2836,
+      "sha256": "62915dde21f2cccbfd07c5b4ae434a0d32b77c6d1e8d5fe3c1595587e4f6fd76"
+    },
+    {
+      "member": "r1/stdout.txt",
+      "bytes": 638,
+      "sha256": "bc2d999d1d5eef5377abf8188bde552c28c6ddf5f750fe321f0f51ca9d1c38f6"
+    },
+    {
+      "member": "r1/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "r1/helper_source.py",
+      "bytes": 42456,
+      "sha256": "3aceff9516320eecdeb2a6e8e7f69040f700a111c7a1bcb68986733ca8b18475"
+    },
+    {
+      "member": "r1/test_source.py",
+      "bytes": 23527,
+      "sha256": "d91d654c630a101c96c9d2e0e79dd322575e8a9e68860d0215be9ec4c60e3dbe"
+    },
+    {
+      "member": "r2/command.json",
+      "bytes": 1210,
+      "sha256": "cd1d433ba2ff0c484fecb2bb73fec238afc37d1d7e1ca6075fb4b3d7cf30ff7e"
+    },
+    {
+      "member": "r2/result.json",
+      "bytes": 312,
+      "sha256": "b7ea6a24e8b371474b4079247ac1be90cb233c7d8cd6a45f1bc61d5d86e04ec2"
+    },
+    {
+      "member": "r2/junit.xml",
+      "bytes": 684,
+      "sha256": "62f5c4ae507ad971792d49abae18e2843f2988476f0c45592eb8cbc63bbbe20b"
+    },
+    {
+      "member": "r2/stdout.txt",
+      "bytes": 637,
+      "sha256": "776549d84ab773151274158fd44e0a6b8573e20b3ef2eb6a031e976cddf61c78"
+    },
+    {
+      "member": "r2/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "member": "r2/helper_source.py",
+      "bytes": 43064,
+      "sha256": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459"
+    },
+    {
+      "member": "r2/test_source.py",
+      "bytes": 24532,
+      "sha256": "e88c9c76267b2368ddf5aef8a3eafe941587e13a73657f1af6f6343acd539d49"
+    }
+  ]
+}

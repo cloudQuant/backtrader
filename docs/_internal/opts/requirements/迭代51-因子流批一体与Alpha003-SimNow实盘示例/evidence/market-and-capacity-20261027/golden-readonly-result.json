@@ -1,0 +1,92 @@
+{
+  "schema": "i51_root_golden_minute_readonly.v1",
+  "status": "BLOCKED_ROOT_GOLDEN_MINUTE_READONLY",
+  "root_pid": 48700,
+  "started_at": "2026-10-27T01:08:33.986215+00:00",
+  "phase": "complete",
+  "allow_writes": false,
+  "expected_targets": 3,
+  "expected_full_selected_targets": 87,
+  "source_pins": {
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": "220330a52a0acc65427f5c68448e82b80f4ef9fdddc8c7a75eceb0bea4ee3521",
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\discovery_lifecycle.py": "305ecf7cb89ccf8aee15179312fbf4b311f41ead7e65a97b01e19c0e3ccb3f3d",
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\entry_tier.py": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\protected_simnow.py": "c4269bb9b78e40fd60843e32af5616dece5052d621258add12ba82f9696c1982",
+    "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": "3513942b9d47d97f0ea720e1bab69a0734084e8a5b2538b0be3f17eb3225ad92",
+    "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_readonly_write_observation_20261027.py": "cf0c540c68ce23959e4d63d007ab1aae6b526710523b2d4be4cc313d4385ec59",
+    "D:\\source_code\\backtrader\\.codex-tmp\\i51_golden_minute_profile_20261027.json": "0c046fe5dea2b124bb50ed389269bb4d534dfb30b5be45ef724358d460abbc04",
+    "D:\\source_code\\backtrader\\.codex-tmp\\i51_root_golden_minute_span_r2_20261027.py": "394a2bd78881e20a0b61095e42ddfbaaa4051778b335f91e1d75e988617db5d4"
+  },
+  "full_factor_acceptance": false,
+  "account_acceptance": false,
+  "private_values_exported": false,
+  "profile_category": "set1_group1_vpn",
+  "reason": "CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED",
+  "engine_span_reached": false,
+  "resources": [
+    {
+      "resource": "query_refresh",
+      "status": "NOT_CREATED",
+      "shutdown_state": null,
+      "store_shutdown_state": null,
+      "started": false,
+      "joined": true
+    },
+    {
+      "resource": "decision_tape",
+      "status": "NOT_CREATED",
+      "shutdown_state": null,
+      "store_shutdown_state": null,
+      "started": null,
+      "joined": null
+    },
+    {
+      "resource": "broker",
+      "status": "NOT_CREATED",
+      "shutdown_state": null,
+      "store_shutdown_state": "UNPROVEN",
+      "started": null,
+      "joined": null
+    },
+    {
+      "resource": "store",
+      "status": "RETURNED",
+      "shutdown_state": "PASS",
+      "store_shutdown_state": null,
+      "started": null,
+      "joined": null
+    },
+    {
+      "resource": "journal",
+      "status": "NOT_CREATED",
+      "shutdown_state": null,
+      "store_shutdown_state": null,
+      "started": null,
+      "joined": null
+    }
+  ],
+  "observation": {
+    "status": "RUN_LIVE_FAILED",
+    "capture_count": 0,
+    "loop_bound": false,
+    "observer_begin_ok": false,
+    "observer_finish_ok": false,
+    "write_zero_confirmed": null,
+    "timer_started": false,
+    "timer_failed": false,
+    "timer_fired": false,
+    "request_count": 0,
+    "request_returned": false,
+    "request_failed": false,
+    "timer_joined": true,
+    "cleanup_confirmed": true,
+    "controlled_stop": false,
+    "profile_restore_failed": false
+  },
+  "write_surfaces_observed_zero": false,
+  "native_cleanup_confirmed": true,
+  "timer_joined": true,
+  "private_context_closed": true,
+  "finished_at": "2026-10-27T01:10:54.501779+00:00",
+  "source_pins_unchanged": true
+}

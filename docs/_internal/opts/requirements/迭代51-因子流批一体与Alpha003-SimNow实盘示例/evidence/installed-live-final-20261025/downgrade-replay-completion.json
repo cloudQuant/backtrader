@@ -1,0 +1,13 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 10.96899999998277,
+  "helper_unchanged": true,
+  "observed_tier": {
+    "status": "REPLAY_COMPLETE",
+    "config_tier": "live",
+    "cli_tier": "replay",
+    "effective_tier": "replay",
+    "tier_selection_reason": "cli_override"
+  },
+  "downgrade_accepted": true
+}

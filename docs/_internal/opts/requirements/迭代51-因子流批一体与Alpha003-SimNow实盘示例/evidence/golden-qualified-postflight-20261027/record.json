@@ -1,0 +1,121 @@
+{
+  "schema": "iteration51.golden_qualified_postflight.v1",
+  "parent_dev_commit": "e9bc7737d852690241a158dc9d9e94d92b223387",
+  "evidence_level": "SOURCE_SYNTHETIC_QUALIFIED_CLOSED_TAPE_ONLY",
+  "result": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "--tb=short",
+      "--junitxml=D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\junit.xml",
+      "--noconftest",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=D:/temp/i51-qualified-golden-postflight-qa-20261027-r1/tmp",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_three_consecutive_warmup_cohorts_do_not_qualify",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_two_live_ready_grids_do_not_qualify",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_three_consecutive_qualified_live_ready_grids_pass",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_warmup_prefix_before_three_qualified_grids_is_allowed",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_warmup_readiness_breaks_qualified_streak",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_unavailable_factor_output_breaks_qualified_streak",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_nonconsecutive_planned_closes_do_not_satisfy_three_slot_gate",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_manifest_selected_mapping_tuple_contract",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py::test_qualified_streak_resets_even_when_complete_streak_passes"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 1.827999999979511,
+    "counts": {
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "pins_before": {
+      ".codex-tmp/i51_golden_postflight_r2_20261027.py": "b677e10f12e3661052511e9e4a7248c9704ef81c3ace2e017f2f8b92eb50dcf8",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py": "0618a420b458cb27a308987ea949e8e408791999b8d80c3aacaa61886230d0a1",
+      ".codex-tmp/i51_golden_postflight_r1_20261027.py": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+      ".codex-tmp/test_i51_golden_postflight_r1_20261027.py": "e88c9c76267b2368ddf5aef8a3eafe941587e13a73657f1af6f6343acd539d49",
+      "examples/unified/028_alpha003_simnow_minute/run.py": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e",
+      "examples/unified/028_alpha003_simnow_minute/entry_tier.py": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "pins_after": {
+      ".codex-tmp/i51_golden_postflight_r2_20261027.py": "b677e10f12e3661052511e9e4a7248c9704ef81c3ace2e017f2f8b92eb50dcf8",
+      ".codex-tmp/test_i51_golden_postflight_r2_20261027.py": "0618a420b458cb27a308987ea949e8e408791999b8d80c3aacaa61886230d0a1",
+      ".codex-tmp/i51_golden_postflight_r1_20261027.py": "d11859309e21991e04271c8bb19ad211a420926b33e6972622767b1176b53459",
+      ".codex-tmp/test_i51_golden_postflight_r1_20261027.py": "e88c9c76267b2368ddf5aef8a3eafe941587e13a73657f1af6f6343acd539d49",
+      "examples/unified/028_alpha003_simnow_minute/run.py": "ea2a21325f5f1e56fac3aed09f5a16bbc24fdccce754e8fe1ddc87bb3653619e",
+      "examples/unified/028_alpha003_simnow_minute/entry_tier.py": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e"
+    },
+    "source_pins_unchanged": true,
+    "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+  },
+  "review": {
+    "reviewer": "/root/r0_recipe_review",
+    "status": "GO_STATIC",
+    "executed_tests": false,
+    "resolved_finding": "Initial gap test stopped at preexisting complete-cohort gate; added separate plan-gap and slot-gap cases with a passing complete streak but failing qualified streak before first Root QA."
+  },
+  "predicate": "At least 3 consecutive LIVE_READY rows with empty readiness reasons and every active factor finite/OUTPUT_AVAILABLE/reason None; unchanged complete/present/GOOD/source/member/sequence/generation and bounded tape/hash/cleanup checks. Warmup, unavailable output, slot or plan gap resets qualified streak.",
+  "preservation": "R1 helper/test and all original accepted complete-tape-only evidence preserved. No retroactive qualified or actual acceptance claim.",
+  "runtime_boundary": "Actual R7 is unexecuted; next caller must aggregate independent read-only, 3/87 counts, controlled-stop, epoch, strategy, native/private/timer cleanup and source-pin facts. Full87 factors, offline parity, history restart, two-hour session and trading remain outstanding.",
+  "provider_calls": 0,
+  "private_input_reads": 0,
+  "formal_ac_increase": 0,
+  "package_or_sdk_changes": false,
+  "pushed": false,
+  "archive_sha256": "f2a5446624cf27e318300248bc488c1b0d24a454c5301c2cd5fba855689b0821",
+  "archive_entries": [
+    {
+      "member": "helper.py",
+      "source_path": "D:\\source_code\\backtrader\\.codex-tmp\\i51_golden_postflight_r2_20261027.py",
+      "size_bytes": 44323,
+      "sha256": "b677e10f12e3661052511e9e4a7248c9704ef81c3ace2e017f2f8b92eb50dcf8"
+    },
+    {
+      "member": "test_helper.py",
+      "source_path": "D:\\source_code\\backtrader\\.codex-tmp\\test_i51_golden_postflight_r2_20261027.py",
+      "size_bytes": 28448,
+      "sha256": "0618a420b458cb27a308987ea949e8e408791999b8d80c3aacaa61886230d0a1"
+    },
+    {
+      "member": "root_qa_runner.py",
+      "source_path": "D:\\source_code\\backtrader\\.codex-tmp\\run_i51_public_focus_20261027.py",
+      "size_bytes": 2219,
+      "sha256": "04420e489106f243e549791d323a380f59358888ae4468b7bcf51cdf553f65af"
+    },
+    {
+      "member": "spec.json",
+      "source_path": "D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\spec.json",
+      "size_bytes": 2198,
+      "sha256": "0ecd8454887dd6655e34d12740907ed760431177659591b591b949c11e770a3b"
+    },
+    {
+      "member": "result.json",
+      "source_path": "D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\result.json",
+      "size_bytes": 3241,
+      "sha256": "84fc77974637479dad3d27c62d333f81129e857b3fc46865794f29a6cc222a5f"
+    },
+    {
+      "member": "junit.xml",
+      "source_path": "D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\junit.xml",
+      "size_bytes": 1904,
+      "sha256": "11ce096c470a4ba9462d8c7bc0b749ef0989faa5d92762a6460c03241138efb7"
+    },
+    {
+      "member": "stdout.txt",
+      "source_path": "D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\stdout.txt",
+      "size_bytes": 641,
+      "sha256": "f577b7f55ec405e33d251cecbfd4f038bff1f30615310dbfaf8b49cd7dbd55a3"
+    },
+    {
+      "member": "stderr.txt",
+      "source_path": "D:\\temp\\i51-qualified-golden-postflight-qa-20261027-r1\\stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

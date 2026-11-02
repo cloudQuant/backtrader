@@ -1,0 +1,827 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="10" time="4.115" timestamp="2026-10-25T23:56:24.719259" hostname="yun"><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle[saved-history-real-live-restart]" time="1.124"><failure message="AssertionError: assert 'LIVE_HISTORY_MEMBER_INVALID' == 'DECISION_TAPE_RECORD_INVALID'&#10;  &#10;  - DECISION_TAPE_RECORD_INVALID&#10;  + LIVE_HISTORY_MEMBER_INVALID">tmp_path = WindowsPath('C:/Users/yunji/AppData/Local/Temp/pytest-of-yunji/pytest-1008/test_live_two_epoch_uses_real_0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000020C773B87D0&gt;
+selection_source = 'bundle', unresolved_position = False
+saved_history_restart = True
+
+    @pytest.mark.parametrize(
+        ("selection_source", "unresolved_position", "saved_history_restart"),
+        (
+            ("bundle", False, False),
+            ("bundle", True, False),
+            ("ctp_query", False, False),
+            ("bundle", False, True),
+        ),
+        ids=(
+            "flat-two-epoch-positive",
+            "nonflat-winddown-timeout",
+            "same-store-query-live",
+            "saved-history-real-live-restart",
+        ),
+    )
+    def test_live_two_epoch_uses_real_three_route_cerebro_and_closes_before_next_bundle(
+        tmp_path, monkeypatch, selection_source, unresolved_position, saved_history_restart
+    ):
+        """Exercise daily assembly through the real Store/Broker/Cerebro stack.
+    
+        The CTP query and completed-bar provider leaves are synthetic. Selection,
+        RegisteredSimStore, BtApiBroker, facts projection, cohort delivery,
+        Alpha003 Strategy, journal, refresh loop, shutdown and tape are production
+        objects.
+        """
+        from collections import defaultdict
+        from types import SimpleNamespace
+    
+        import backtrader.stores.registered_sim as registered_sim_module
+        from backtrader.feeds import futures_ctp_snapshot
+        from tests.unit.stores import test_factor_execution_facts as facts_fixture
+        from tests.test_utils.optional_sdk import optional_sdk
+    
+        query_result_type = optional_sdk("bt_api_ctp.query").QueryResult
+    
+        # Keep the controlled source/session timestamps historical relative to the
+        # host query collector's completion time. This exercises strict causal
+        # freshness without advancing a virtual clock days into the future.
+        first_day = date(2026, 10, 22)
+        second_day = date(2026, 10, 23)
+        first_decision = datetime(2026, 10, 21, 9, 10, tzinfo=UTC)
+        second_decision = datetime(2026, 10, 22, 9, 10, tzinfo=UTC)
+        config = _base_config(tmp_path, "live")
+        first_bundle = _write_json(
+            tmp_path / "selection-first.json",
+            _selection_bundle(
+                current_day=first_day,
+                decision_at=first_decision,
+                select_first=False,
+                session_end=(10, 59),
+            ),
+        )
+        config["selection"]["bundle"] = str(first_bundle)
+        config_path, config, first_plan, _tape, _quotes = _write_source_inputs(
+            tmp_path,
+            config,
+            current_day=first_day,
+            decision_at=first_decision,
+            connection_generation=1,
+            session_end=(10, 59),
+        )
+        second_bundle = _write_json(
+            tmp_path / "selection-second.json",
+            _selection_bundle(
+                current_day=second_day,
+                decision_at=second_decision,
+                select_first=True,
+                session_end=(10, 59),
+            ),
+        )
+        if selection_source == "ctp_query":
+            config["selection"].update(
+                source="ctp_query",
+                bundle=None,
+                daily_bundles=[],
+                max_epochs=2,
+                # Keep the complete three-product mapping for selection and
+                # evidence, while authorizing only a strict trading subset.
+                authorized_products=["DCE.M", "DCE.A"],
+            )
+            config["risk"].update(
+                policy_id="query-two-epoch-risk-v1",
+                max_hold_eligible_bars=12,
+                preclose_grace_seconds=300,
+                run_end_policy="CLOSE_ALL",
+                quote_max_age_seconds=60,
+                max_state_age_seconds=7200,
+                max_notional_per_position=100_000,
+                max_total_notional=300_000,
+                max_margin_per_position=10_000,
+                max_total_margin=30_000,
+                max_loss_per_position=10_000,
+                max_total_loss=20_000,
+                round_trip_fee_upper_bound_per_contract="1.00",
+                stop_loss_ticks=1,
+                max_order_intents_per_grid=2,
+                max_order_intents_per_run=100,
+            )
+        elif saved_history_restart:
+            config["selection"]["daily_bundles"] = []
+        else:
+            config["selection"]["daily_bundles"] = [str(second_bundle)]
+        config["live"].update(
+            account_scope="alpha003-two-epoch-account",
+            strategy_scope="alpha003-two-epoch-shadow",
+            logical_run_id="alpha003-two-epoch-shadow-run",
+            journal_path=str(tmp_path / "live-decisions.sqlite"),
+            ready_timeout_seconds=1.0,
+            refresh_timeout_seconds=1.0,
+            refresh_overall_timeout_seconds=10.0,
+            # One complete query refresh runs at startup and when finite EOF
+            # requests winddown. Keep the immutable query-set receipt stable
+            # between those two control points during this short tape fixture.
+            refresh_interval_seconds=60.0,
+            quote_max_age_seconds=60.0,
+            # Keep the synthetic query evidence on the same controlled clock as
+            # the tape, with a finite bound that spans this one-session fixture.
+            query_max_age_seconds=12 * 60 * 60,
+            shutdown_grace_seconds=0.05 if unresolved_position else 5.0,
+            allow_writes=False,
+        )
+        config["cohort"].update(max_live_bar_age_seconds=30.0, max_future_skew_seconds=0.0)
+        config["output"]["decision_tape_path"] = str(tmp_path / "live-decisions.jsonl")
+        config["output"]["decision_tape_max_bytes"] = 50_000_000
+        config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    
+        now = (
+            datetime(2026, 10, 22, 1, 0, tzinfo=UTC)
+            if selection_source == "ctp_query"
+            else first_plan["grid"].minutes[0].close_time - timedelta(minutes=1)
+        )
+        restart_cut = config["factor"]["preheat_bars"] + 12
+        restart_cut_2 = restart_cut + config["factor"]["preheat_bars"] + 8
+        restart_cut_3 = restart_cut_2 + 8
+        assert restart_cut_3 &lt; len(first_plan["grid"].minutes)
+        trace = []
+        api_clients = []
+        contexts = deque()
+    
+        class CausalFixtureClock:
+            """Virtual UTC follows tape availability; monotonic drives deadlines."""
+    
+            def __init__(self, start):
+                self._now = start
+                self._mono = 1_000_000_000
+                self._lock = threading.RLock()
+                self._availability = ()
+                self._availability_index = 0
+    
+            def utc_now(self):
+                with self._lock:
+                    return self._now
+    
+            def monotonic_ns(self):
+                with self._lock:
+                    self._mono = time.monotonic_ns()
+                    return self._mono
+    
+            def wait(self, timeout_seconds):
+                del timeout_seconds
+                with self._lock:
+                    # The fixture's virtual market clock advances only through the
+                    # Cerebro/feed wait path, never through background query waits.
+                    if saved_history_restart:
+                        return
+                    if self._availability_index &lt; len(self._availability):
+                        self._now = max(self._now, self._availability[self._availability_index])
+                        self._availability_index += 1
+    
+            def set_epoch_events(self, events, *, start_at=None):
+                with self._lock:
+                    self._availability = tuple(
+                        sorted(
+                            {
+                                (
+                                    datetime.fromisoformat(row["available_at"].replace("Z", "+00:00"))
+                                    if isinstance(row["available_at"], str)
+                                    else row["available_at"]
+                                )
+                                for rows in events.values()
+                                for row in rows
+                            }
+                        )
+                    )
+                    self._availability_index = 0
+                    # Startup facts are queried at the first planned bucket start.
+                    # A restart resumes after the last saved history receipt instead
+                    # of rewinding the shared virtual clock.
+                    self._now = (
+                        start_at
+                        if start_at is not None
+                        else self._availability[0] - timedelta(seconds=62)
+                    )
+    
+            def set_utc_now(self, value):
+                with self._lock:
+                    self._now = value
+    
+            def wait_interruptibly(self, timeout_seconds, wait_for_event):
+                # Check an actual Cerebro/Store wake first. During an epoch, move
+                # UTC only to the next explicit provider availability time; no
+                # host time is used to release a bar.
+                if wait_for_event(0.0):
+                    return True
+                with self._lock:
+                    while (
+                        self._availability_index &lt; len(self._availability)
+                        and self._availability[self._availability_index] &lt;= self._now
+                    ):
+                        self._availability_index += 1
+                    if self._availability_index &lt; len(self._availability):
+                        self._now = max(self._now, self._availability[self._availability_index])
+                        self._availability_index += 1
+                        return False
+                return wait_for_event(min(float(timeout_seconds), 0.01))
+    
+        clock = CausalFixtureClock(now)
+        monkeypatch.setattr(RUNNER, "RunnerWallClock", lambda: clock)
+        current_plan = {"value": first_plan}
+        strategy_instances = []
+    
+        def make_context(plan, epoch_id, *, context=None):
+            bar_rows = defaultdict(list)
+            for ordinal, minute in enumerate(plan["grid"].minutes, 1):
+                if saved_history_restart:
+                    if epoch_id == 1 and ordinal &gt; restart_cut:
+                        continue
+                    if epoch_id == 2 and not restart_cut &lt; ordinal &lt;= restart_cut_2:
+                        continue
+                    if epoch_id == 3 and not restart_cut_2 &lt; ordinal &lt;= restart_cut_3:
+                        continue
+                    if epoch_id not in (1, 2, 3):
+                        raise AssertionError("unexpected saved-history epoch")
+                member_by_product = {member.product: member for member in minute.members}
+                for target_index, target in enumerate(plan["targets"]):
+                    product = plan["product_by_target"][target]
+                    instrument = plan["routes"][product]
+                    member = member_by_product[product]
+                    close_time = minute.close_time
+                    start_time = close_time - timedelta(minutes=1)
+                    # Each target gets an independently moving open rank and
+                    # volume rank; equal cross-sections make Alpha003's rolling
+                    # correlation undefined and would test only the fail-closed
+                    # branch instead of a real finite factor output.
+                    base_price = (
+                        100.0
+                        + (ordinal % 7) * 0.13
+                        + ((ordinal * (target_index + 1)) % 5) * 0.07
+                        + target_index * 0.03
+                    )
+                    bar_rows[instrument].append(
+                        {
+                            "instrument": instrument,
+                            "symbol": instrument,
+                            "exchange": product.exchange_id,
+                            "bucket_start": start_time,
+                            "bucket_end": close_time,
+                            "available_at": close_time + timedelta(seconds=2),
+                            "trading_day": member.trading_day.strftime("%Y%m%d"),
+                            "session_segment": member.session_id,
+                            "timezone_id": "UTC",
+                            "clock_domain_id": config["cohort"]["clock_domain_id"],
+                            "connection_generation": f"epoch-{epoch_id}-generation-1",
+                            # A new provider generation starts its own sequence at
+                            # one. History and live therefore must be validated
+                            # independently by source role.
+                            "bar_sequence": (
+                                ordinal - restart_cut
+                                if saved_history_restart and epoch_id == 2
+                                else ordinal - restart_cut_2
+                                if saved_history_restart and epoch_id == 3
+                                else ordinal
+                            ),
+                            "bar_id": f"epoch-{epoch_id}:{target}:{ordinal}",
+                            "timestamp": close_time.timestamp(),
+                            "present": True,
+                            "complete": True,
+                            "quality": "GOOD",
+                            "quality_flags": (),
+                            "open": base_price,
+                            "high": base_price + 0.5,
+                            "low": base_price - 0.5,
+                            "close": base_price + (0.2 if (ordinal + target_index) % 2 else -0.2),
+                            "volume": float(
+                                100 + ((ordinal * (target_index + 2) + target_index * 3) % 11) * 10
+                            ),
+                            "openinterest": 0.0,
+                        }
+                    )
+            rows = context.rows if context is not None else facts_fixture._query_rows()
+            routes = [
+                (
+                    target,
+                    plan["routes"][plan["product_by_target"][target]],
+                    plan["product_by_target"][target].exchange_id,
+                )
+                for target in plan["targets"]
+            ]
+            context_day = next(iter(plan["manifest"].trading_days)).current_trading_day.strftime(
+                "%Y%m%d"
+            )
+            if context is None or not getattr(context, "all_catalog_facts", False):
+                rows["instruments_result"] = [
+                    {
+                        "InstrumentID": instrument,
+                        "ExchangeID": exchange,
+                        "IsTrading": 1,
+                        "VolumeMultiple": 10,
+                        "PriceTick": 0.1,
+                        "LowerLimitPrice": 80,
+                        "UpperLimitPrice": 130,
+                    }
+                    for _target, instrument, exchange in routes
+                ]
+            rows["instrument_margin_rate_result"] = [
+                {
+                    "InstrumentID": instrument,
+                    "ExchangeID": exchange,
+                    "HedgeFlag": "1",
+                    "LongMarginRatioByMoney": "0.1",
+                    "LongMarginRatioByVolume": "0",
+                    "ShortMarginRatioByMoney": "0.1",
+                    "ShortMarginRatioByVolume": "0",
+                }
+                for _target, instrument, exchange in routes
+            ]
+            if unresolved_position:
+                # This row is an actual CTP-shaped remote nonflat position. The
+                # local Broker remains flat and the shared facts projector must
+                # keep retirement blocked; no caller-supplied "unready" flag is
+                # involved.
+                _target, instrument, exchange = routes[0]
+                rows["positions_result"] = [
+                    facts_fixture._dated_position_row(
+                        1,
+                        trading_day=context_day,
+                        InstrumentID=instrument,
+                        ExchangeID=exchange,
+                    )
+                ]
+            if context is None:
+                context = SimpleNamespace(
+                    epoch_id=epoch_id,
+                    trading_day=context_day,
+                    rows=rows,
+                    bars={},
+                    catalog_rows=(),
+                    quote_rows=(),
+                    all_catalog_facts=False,
+                )
+            context.epoch_id = epoch_id
+            context.trading_day = context_day
+            context.rows = rows
+            context.bars = {instrument: deque(events) for instrument, events in bar_rows.items()}
+            clock.set_epoch_events(
+                bar_rows,
+                start_at=(clock.utc_now() if saved_history_restart and epoch_id &gt; 1 else None),
+            )
+            return context
+    
+        def make_query_context(epoch_id, trading_day):
+            day_text = trading_day.strftime("%Y%m%d")
+            rows = facts_fixture._query_rows()
+            catalog_rows = []
+            quote_rows = []
+            all_instrument_rows = []
+            all_margin_rows = []
+            for product in PRODUCTS:
+                for contract_index, month in enumerate(("11", "12")):
+                    instrument = f"{product.product_id}{str(trading_day.year)[-2:]}{month}"
+                    catalog_rows.append(
+                        {
+                            "InstrumentID": instrument,
+                            "ExchangeID": product.exchange_id,
+                            "ProductID": product.product_id.lower(),
+                            "ProductClass": "1",
+                            "IsTrading": 1,
+                            "ExpireDate": "20261116" if month == "11" else "20261214",
+                        }
+                    )
+                    selected = contract_index == (1 if epoch_id == 1 else 0)
+                    quote_rows.append(
+                        {
+                            "InstrumentID": instrument,
+                            "ExchangeID": product.exchange_id,
+                            "TradingDay": day_text,
+                            "OpenInterest": 2000 if selected else 1000,
+                            "Volume": 1500 if selected else 1000,
+                        }
+                    )
+                    all_instrument_rows.append(
+                        {
+                            "InstrumentID": instrument,
+                            "ExchangeID": product.exchange_id,
+                            "ProductID": product.product_id.lower(),
+                            "ProductClass": "1",
+                            "IsTrading": 1,
+                            "ExpireDate": "20261116" if month == "11" else "20261214",
+                            "VolumeMultiple": 10,
+                            "PriceTick": 0.1,
+                            "LowerLimitPrice": 80,
+                            "UpperLimitPrice": 130,
+                        }
+                    )
+                    all_margin_rows.append(
+                        {
+                            "InstrumentID": instrument,
+                            "ExchangeID": product.exchange_id,
+                            "HedgeFlag": "1",
+                            "LongMarginRatioByMoney": "0.1",
+                            "LongMarginRatioByVolume": "0",
+                            "ShortMarginRatioByMoney": "0.1",
+                            "ShortMarginRatioByVolume": "0",
+                        }
+                    )
+            rows["instruments_result"] = all_instrument_rows
+            rows["instrument_margin_rate_result"] = all_margin_rows
+            return SimpleNamespace(
+                epoch_id=epoch_id,
+                trading_day=day_text,
+                rows=rows,
+                bars={},
+                catalog_rows=tuple(catalog_rows),
+                quote_rows=tuple(quote_rows),
+                all_catalog_facts=True,
+            )
+    
+        class FakeCtpWrapper(facts_fixture._FakeRegisteredSimWrapper):
+            def __init__(self, *args, **kwargs):
+                allow_writes = kwargs.pop("registered_sim_allow_writes", False)
+                history_limit = kwargs.pop("registered_sim_history_limit", 64)
+                terminal_limit = kwargs.pop("registered_sim_terminal_order_limit", 512)
+                context = contexts.popleft()
+                if context.epoch_id &gt; 1 and not saved_history_restart:
+                    clock.set_utc_now(datetime(2026, 10, 23, 1, 0, tzinfo=UTC))
+                super().__init__(
+                    *args,
+                    registered_sim_allow_writes=allow_writes,
+                    registered_sim_history_limit=history_limit,
+                    registered_sim_terminal_order_limit=terminal_limit,
+                    query_rows=context.rows,
+                    query_time=clock.utc_now(),
+                    ticks={},
+                    **kwargs,
+                )
+                self.context = context
+                self._selection_request_id = 0
+                client = self.trader_client
+                client._account_fingerprint = "alpha003-two-epoch-account"
+                client._trading_day = context.trading_day
+                client._front_id = 100 + context.epoch_id
+                client._session_id = 10 + context.epoch_id
+                client.is_ready = True
+                client.is_trading_ready = False
+                client.is_read_only_ready = True
+                client.wait_ready = lambda timeout: True
+                client._gate_state.update(
+                    connection_generation=client._connection_generation,
+                    trading_day=context.trading_day,
+                )
+                client.get_session_state = lambda: {
+                    "connected": self._connected,
+                    "read_only_ready": True,
+                    "trading_ready": False,
+                    "account_fingerprint": client._account_fingerprint,
+                    "connection_generation": client._connection_generation,
+                    "trading_day": client._trading_day,
+                }
+                self.closed = False
+                self._first_bar_logged = False
+                api_clients.append(self)
+                trace.append(("api_created", context.epoch_id))
+    
+            def connect(self):
+                self._connected = True
+                trace.append(("api_connected", self.context.epoch_id))
+    
+            def disconnect(self):
+                self._connected = False
+                self.closed = True
+                trace.append(("api_closed", self.context.epoch_id))
+    
+            def get_session_state(self):
+                client = self.trader_client
+                return {
+                    "connected": self._connected,
+                    "read_only_ready": client.is_read_only_ready,
+                    "connection_generation": client._connection_generation,
+                    "trading_day": client._trading_day,
+                }
+    
+            def _get_live_ctp_stream_health(self):
+                return {
+                    "generation_callbacks_supported": True,
+                    "source_generation": self.trader_client._connection_generation,
+                    "source_revision": 0,
+                    "stale": False,
+                    "stale_reason": "",
+                    "symbols": (),
+                    "stale_tick_drop_count": 0,
+                    "stale_tick_drop_reason": "",
+                }
+    
+            def _selection_query_result(self, request_type, records):
+                self._selection_request_id += 1
+                retrieved_at = clock.utc_now()
+                return query_result_type(
+                    request_type=request_type,
+                    request_id=self._selection_request_id,
+                    connection_generation=self.trader_client._connection_generation,
+                    account_fingerprint=self.trader_client._account_fingerprint,
+                    started_at_utc=retrieved_at - timedelta(milliseconds=2),
+                    completed_at_utc=retrieved_at - timedelta(milliseconds=1),
+                    is_last_seen=True,
+                    error_code=None,
+                    error_message="",
+                    timed_out=False,
+                    complete=True,
+                    records=tuple(records),
+                    late_callback_count=0,
+                    unsupported=False,
+                    submit_code=0,
+                )
+    
+            def query_instruments_result(
+                self,
+                instrument_id="",
+                exchange_id="",
+                timeout=5.0,
+                *,
+                product_id="",
+                max_duration=None,
+                **filters,
+            ):
+                if max_duration is not None:
+                    assert instrument_id == exchange_id == product_id == ""
+                    assert not filters
+                    trace.append(("selection_catalog_query", self.context.epoch_id))
+                    return self._selection_query_result("instruments", self.context.catalog_rows)
+                return super().query_instruments_result(
+                    timeout=timeout,
+                    instrument_id=instrument_id,
+                    exchange_id=exchange_id,
+                    product_id=product_id,
+                    **filters,
+                )
+    
+            def query_depth_market_data_result(self, instrument_id="", exchange_id="", timeout=5.0):
+                assert instrument_id == exchange_id == ""
+                trace.append(("selection_depth_query", self.context.epoch_id))
+                return self._selection_query_result("depth_market_data", self.context.quote_rows)
+    
+            def get_balance(self):
+                return {"cash": 1_000_000.0, "value": 1_000_000.0}
+    
+            def get_positions(self):
+                return []
+    
+            def fetch_open_orders(self):
+                return []
+    
+            def get_open_orders(self):
+                return []
+    
+            def subscribe(self, _symbols):
+                return None
+    
+            def poll_bar(self, instrument):
+                queue = self.context.bars.get(instrument)
+                if not queue:
+                    return None
+                event = queue[0]
+                if event["available_at"] &gt; clock.utc_now():
+                    return None
+                row = queue.popleft()
+                if saved_history_restart and not self._first_bar_logged:
+                    self._first_bar_logged = True
+                    trace.append(("first_provider_bar", self.context.epoch_id, row["bar_sequence"]))
+                return row
+    
+        original_factory = registered_sim_module._make_api_factory
+        monkeypatch.setattr(
+            registered_sim_module,
+            "_make_api_factory",
+            lambda allow_writes, history_limit, terminal_limit, api_cls: original_factory(
+                allow_writes, history_limit, terminal_limit, FakeCtpWrapper
+            ),
+        )
+        monkeypatch.setattr(RUNNER, "_live_env_config", lambda _config: _official_simnow_store_config())
+        original_refresh_initial = RUNNER.QueryRefreshLoop.refresh_initial
+    
+        def tracked_refresh_initial(refresh_loop, *args, **kwargs):
+            result = original_refresh_initial(refresh_loop, *args, **kwargs)
+            if saved_history_restart:
+                trace.append(("initial_refresh_complete", config["cohort"]["epoch_id"]))
+            return result
+    
+        monkeypatch.setattr(RUNNER.QueryRefreshLoop, "refresh_initial", tracked_refresh_initial)
+        if selection_source == "ctp_query":
+            monkeypatch.setattr(futures_ctp_snapshot, "_now_utc", clock.utc_now)
+            contexts.append(make_query_context(1, first_day))
+            contexts.append(make_query_context(2, second_day))
+    
+        original_load = RUNNER.load_market_plan
+    
+        def tracked_load(*args, bundle_path=None, **kwargs):
+            if selection_source == "ctp_query":
+                raise AssertionError("query selection must not open a saved bundle")
+            if bundle_path is not None:
+                assert api_clients and api_clients[0].closed is True, trace
+                trace.append(("second_bundle_loaded", Path(bundle_path).name))
+            plan = original_load(*args, bundle_path=bundle_path, **kwargs)
+            current_plan["value"] = plan
+            return plan
+    
+        monkeypatch.setattr(RUNNER, "load_market_plan", tracked_load)
+        if selection_source == "ctp_query":
+            original_query_plan = RUNNER.build_ctp_query_market_plan
+    
+            def tracked_query_plan(*args, **kwargs):
+                plan = original_query_plan(*args, **kwargs)
+                current_plan["value"] = plan
+                trace.append(("query_plan_ready", plan["source_snapshot_id"]))
+                return plan
+    
+            monkeypatch.setattr(RUNNER, "build_ctp_query_market_plan", tracked_query_plan)
+        original_make_cohort = RUNNER._make_cohort
+    
+        def tracked_make_cohort(epoch_config, grid, *, begin_at=None, **kwargs):
+            plan = current_plan["value"]
+            assert grid is plan["grid"]
+            epoch_id = epoch_config["cohort"]["epoch_id"]
+            if selection_source == "ctp_query":
+                context = api_clients[-1].context
+                assert context.all_catalog_facts is True
+                make_context(plan, epoch_id, context=context)
+            else:
+                contexts.append(make_context(plan, epoch_id))
+            trace.append(("cohort_assembled", epoch_id))
+            return original_make_cohort(epoch_config, grid, begin_at=begin_at, **kwargs)
+    
+        monkeypatch.setattr(RUNNER, "_make_cohort", tracked_make_cohort)
+        original_run_live = RUNNER.run_live
+    
+        def tracked_run_live(epoch_config, *args, **kwargs):
+            result = original_run_live(epoch_config, *args, **kwargs)
+            trace.append(("run_live_returned", epoch_config["cohort"]["epoch_id"]))
+            return result
+    
+        monkeypatch.setattr(RUNNER, "run_live", tracked_run_live)
+        strategy_module = importlib.import_module("alpha003_strategy")
+        original_next = strategy_module.Alpha003TargetStrategy.next
+        original_notify_idle = strategy_module.Alpha003TargetStrategy.notify_idle
+    
+        def request_restart_after_final_batch(strategy):
+            if not saved_history_restart or strategy.shutdown_requested:
+                return
+            epoch_id = strategy.p.cohort.epoch_id
+            final_ordinal = {
+                1: restart_cut,
+                2: restart_cut_2,
+                3: restart_cut_3,
+            }.get(epoch_id)
+            if final_ordinal is None:
+                return
+            final_close = first_plan["grid"].minutes[final_ordinal - 1].close_time
+            batch = strategy.p.cohort.current_batch()
+            context = api_clients[-1].context if api_clients else None
+            receipts = tuple(batch.members.values()) if batch is not None else ()
+            complete_final_batch = (
+                batch is not None
+                and batch.status == "COMPLETE"
+                and batch.epoch_id == epoch_id
+                and batch.close_time == final_close
+                and set(batch.members) == set(first_plan["targets"])
+                and all(
+                    receipt.epoch_id == epoch_id
+                    and receipt.close_time == final_close
+                    and receipt.source_role == "live"
+                    and receipt.complete is True
+                    and receipt.present is True
+                    and receipt.quality == "GOOD"
+                    and not receipt.missing_fields
+                    for receipt in receipts
+                )
+            )
+            provider_exhausted = (
+                context is not None
+                and context.epoch_id == epoch_id
+                and all(not queue for queue in context.bars.values())
+            )
+            tape_committed = (
+                strategy._last_decision_tape_batch_id == getattr(batch, "batch_id", None)
+                and strategy._last_decision_tape_reference is not None
+                and strategy._last_decision_tape_error is None
+            )
+            if complete_final_batch and provider_exhausted and tape_committed:
+                refresh_loop = strategy.p.control_refresh_loop
+                assert refresh_loop.request_shutdown() is True
+                trace.append(
+                    (
+                        "fixture_restart_requested",
+                        epoch_id,
+                        batch.batch_id,
+                        batch.close_time.isoformat(),
+                    )
+                )
+    
+        def tracked_next(strategy):
+            result = original_next(strategy)
+            request_restart_after_final_batch(strategy)
+            return result
+    
+        def tracked_notify_idle(strategy):
+            original_notify_idle(strategy)
+            if strategy.shutdown_requested:
+                loop = strategy.p.control_refresh_loop
+                facts = getattr(strategy, "last_execution_facts", None)
+                summary = (
+                    strategy.p.cohort.epoch_id,
+                    strategy.shutdown_ready,
+                    strategy.shutdown_blocker,
+                    getattr(loop, "last_error_code", None),
+                    tuple(getattr(loop, "last_reconciliation_blockers", ())),
+                    getattr(facts, "read_only_reconciliation_ready", None),
+                    tuple(getattr(facts, "read_only_reconciliation_blockers", ())),
+                    tuple(getattr(facts, "blockers", ())),
+                )
+                if not trace or trace[-1] != ("shutdown_state", summary):
+                    trace.append(("shutdown_state", summary))
+                if strategy not in strategy_instances:
+                    strategy_instances.append(strategy)
+    
+        monkeypatch.setattr(strategy_module.Alpha003TargetStrategy, "next", tracked_next)
+        monkeypatch.setattr(strategy_module.Alpha003TargetStrategy, "notify_idle", tracked_notify_idle)
+    
+        failure = None
+        result = None
+        try:
+            if saved_history_restart:
+                config["risk"].update(
+                    policy_id="saved-history-budget-v1",
+                    max_hold_eligible_bars=12,
+                    preclose_grace_seconds=300,
+                    run_end_policy="CLOSE_ALL",
+                    quote_max_age_seconds=60,
+                    max_state_age_seconds=7200,
+                    max_notional_per_position=100_000,
+                    max_total_notional=300_000,
+                    max_margin_per_position=10_000,
+                    max_total_margin=30_000,
+                    max_loss_per_position=10_000,
+                    max_total_loss=20_000,
+                    round_trip_fee_upper_bound_per_contract="1.00",
+                    stop_loss_ticks=1,
+                    max_order_intents_per_grid=2,
+                    max_order_intents_per_run=100,
+                )
+                config["cohort"]["epoch_id"] = 1
+                first_result = RUNNER.run_live(
+                    config,
+                    config_path,
+                    first_plan,
+                    "native",
+                    1,
+                    decision=SimpleNamespace(effective_tier="live"),
+                    allow_write_flag=False,
+                )
+                assert first_result["status"] == "LIVE_RUN_COMPLETE"
+                assert first_result["cleanup_complete"] is True
+                first_tape_path = Path(first_result["decision_tape"]["path"])
+                first_tape_rows = tuple(
+                    RUNNER.iter_decision_tape(first_tape_path, max_bytes=50_000_000)
+                )
+                first_decisions = first_tape_rows[1:]
+                assert len(first_decisions) == restart_cut
+                assert first_tape_rows[0]["restart_identity"]["epoch_id"] == 1
+                assert first_tape_rows[0]["targets"] == sorted(first_plan["targets"])
+                assert first_decisions[0]["readiness"] == "WARMUP"
+                assert all(
+                    member["quality_flags"] == []
+                    for row in first_decisions
+                    for member in row["members"].values()
+                )
+                first_slot_indexes = [row["slot_index"] for row in first_decisions]
+                assert all(
+                    right == left + 1
+                    for left, right in zip(first_slot_indexes, first_slot_indexes[1:])
+                )
+                assert all(
+                    member["slot_index"] == row["slot_index"]
+                    and member["slot_id"] == "minute:" + RUNNER._aware_datetime(
+                        row["close_time"], "tape slot close"
+                    ).isoformat()
+                    for row in first_decisions
+                    for member in row["members"].values()
+                )
+                assert all(row["epoch_id"] == 1 for row in first_decisions)
+    
+                config["cohort"]["epoch_id"] = 2
+                config["inputs"]["history_decision_tape"] = str(first_tape_path)
+                config["output"]["decision_tape_path"] = str(tmp_path / "live-decisions-resumed.jsonl")
+                truncated_path = tmp_path / "history-truncated.jsonl"
+                truncated_path.write_bytes(first_tape_path.read_bytes()[:-1])
+                config["inputs"]["history_decision_tape"] = str(truncated_path)
+                with pytest.raises(RUNNER.RunnerError) as truncated_error:
+                    RUNNER.run_live(
+                        config,
+                        config_path,
+                        first_plan,
+                        "native",
+                        1,
+                        decision=SimpleNamespace(effective_tier="live"),
+                        allow_write_flag=False,
+                    )
+&gt;               assert truncated_error.value.code == "DECISION_TAPE_RECORD_INVALID"
+E               AssertionError: assert 'LIVE_HISTORY_MEMBER_INVALID' == 'DECISION_TAPE_RECORD_INVALID'
+E                 
+E                 - DECISION_TAPE_RECORD_INVALID
+E                 + LIVE_HISTORY_MEMBER_INVALID
+
+tests\unit\test_alpha003_simnow_runner.py:1683: AssertionError</failure></testcase><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[engine-reason-drift]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[engine-status-drift]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[refresh-not-joined]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[refresh-blocked]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[post-join-blocker]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[post-join-unconfirmed]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[strategy-blocker]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[nonflat-or-unready]" time="0.001" /><testcase classname="tests.unit.test_alpha003_simnow_runner" name="test_controlled_application_stop_requires_exact_post_join_proof[not-requested]" time="0.001" /></testsuite></testsuites>

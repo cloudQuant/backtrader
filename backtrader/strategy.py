@@ -46,9 +46,13 @@ from collections.abc import Mapping
 from decimal import Decimal
 from typing import Optional
 
+from ._cerebro.lifecycle import (
+    _record_startup_observer_stop_error,
+    _startup_observer_stop_capture_active,
+)
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
-from .lineseries import LineSeriesStub
+from .lineseries import Lines, LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
 from .parameters import make_legacy_parameter_accessor
@@ -83,6 +87,7 @@ from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 logger = get_logger(__name__)
+_NATIVE_LINES_ITER = Lines.__iter__
 _INF = float("inf")
 _SERVICE_RECOVERY_TRADE_STATE_SCHEMA = "backtrader.managed_paper_trade.v1"
 _SERVICE_RECOVERY_TRADE_STATE_FIELDS = frozenset(
@@ -112,9 +117,23 @@ _SERVICE_RECOVERY_TRADE_STATE_FIELDS = frozenset(
         "historyon",
     }
 )
+_SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2 = "backtrader.managed_paper_trade.v2"
+_SERVICE_RECOVERY_TRADE_STATE_FIELDS_V2 = _SERVICE_RECOVERY_TRADE_STATE_FIELDS | {
+    "strategy_position_ref"
+}
 _SERVICE_RECOVERY_TRADE_NOTIFICATION_FIELDS = frozenset(
     {"callback", "data_name", "tradeid"}
 )
+
+
+def _service_recovery_strategy_position_ref(value):
+    prefix = "btsp1_"
+    return (
+        type(value) is str
+        and value.startswith(prefix)
+        and len(value) == len(prefix) + 64
+        and all(character in "0123456789abcdef" for character in value[len(prefix) :])
+    )
 
 
 def _set_current_datetime(line, value):
@@ -784,9 +803,9 @@ class Strategy(StrategyBase):
 
         def iter_indicator_tree(indicators):
             seen = set()
-            stack = list(indicators)
+            stack = collections.deque(indicators)
             while stack:
-                lineiter = stack.pop(0)
+                lineiter = stack.popleft()
                 lineiter_id = id(lineiter)
                 if lineiter_id in seen:
                     continue
@@ -802,6 +821,7 @@ class Strategy(StrategyBase):
 
         # Data IDs
         dataids = [id(data) for data in self.datas]
+        dataid_set = set(dataids)
         # Data minimum periods
         _dminperiods = collections.defaultdict(list)
         # Loop through all indicators
@@ -827,16 +847,78 @@ class Strategy(StrategyBase):
         # that resolves to a feed *line* (e.g. data.high) can be attributed to
         # its feed.
         _line_to_feed = {}
+        # MinimalClock recovery historically scans feeds in order, checking
+        # each feed itself before its lines. Keep that first-match behavior in
+        # a separate map: _line_to_feed intentionally retains its existing
+        # last-owner behavior for source attribution above. Use the map only
+        # when every feed has the standard Lines iterator and list storage;
+        # custom line containers retain the original per-indicator scan.
+        _first_data_owner_by_id = {}
+        _can_use_first_data_owner_map = True
+
+        def _feed_has_stable_lines(feed, observed_lines):
+            if type(feed).__getattribute__ is not object.__getattribute__:
+                return False
+            try:
+                feed_instance_dict = object.__getattribute__(feed, "__dict__")
+            except Exception:
+                return False
+            if feed_instance_dict.get("lines") is not observed_lines:
+                return False
+
+            for feed_type in type(feed).__mro__:
+                if "lines" not in feed_type.__dict__:
+                    continue
+                class_lines = feed_type.__dict__["lines"]
+                if not isinstance(class_lines, type):
+                    return False
+                try:
+                    if not issubclass(class_lines, Lines):
+                        return False
+                except TypeError:
+                    return False
+                class_lines_type = type(class_lines)
+                if hasattr(class_lines_type, "__set__") or hasattr(
+                    class_lines_type, "__delete__"
+                ):
+                    return False
+            return True
+
         for _data in self.datas:
+            _first_data_owner_by_id.setdefault(id(_data), _data)
             _dlines = getattr(_data, "lines", None)
             if _dlines is None:
+                _can_use_first_data_owner_map = False
                 continue
+            _standard_lines_container = (
+                isinstance(_dlines, Lines)
+                and Lines.__iter__ is _NATIVE_LINES_ITER
+                and type(_dlines).__iter__ is _NATIVE_LINES_ITER
+                and type(_dlines).__getattribute__ is object.__getattribute__
+                and not any("lines" in cls.__dict__ for cls in type(_dlines).__mro__)
+                and _feed_has_stable_lines(_data, _dlines)
+            )
+            if _standard_lines_container:
+                try:
+                    _lines_instance_dict = object.__getattribute__(_dlines, "__dict__")
+                except Exception:
+                    _standard_lines_container = False
+                else:
+                    _standard_lines_container = (
+                        type(_lines_instance_dict.get("lines")) is list
+                    )
+            if not _standard_lines_container:
+                _can_use_first_data_owner_map = False
             try:
                 for _ln in _dlines:
                     _line_to_feed[id(_ln)] = _data
+                    _first_data_owner_by_id.setdefault(id(_ln), _data)
             except TypeError:
                 # Feed lines not iterable; skip mapping this feed's lines.
                 logger.debug("strategy:726 ignored TypeError")
+                _can_use_first_data_owner_map = False
+        if not _can_use_first_data_owner_map:
+            _first_data_owner_by_id = None
 
         def _feed_of(node, _seen=None):
             """Resolve a data node to the concrete feed it ultimately follows."""
@@ -845,7 +927,7 @@ class Strategy(StrategyBase):
             if node is None or id(node) in _seen:
                 return None
             _seen.add(id(node))
-            if id(node) in dataids:
+            if id(node) in dataid_set:
                 return node
             if id(node) in _line_to_feed:
                 return _line_to_feed[id(node)]
@@ -855,7 +937,7 @@ class Strategy(StrategyBase):
                 logger.warning("strategy:745 fallback on Exception")
                 src = None
             if src is not None and src is not node:
-                if id(src) in dataids:
+                if id(src) in dataid_set:
                     return src
                 if id(src) in _line_to_feed:
                     return _line_to_feed[id(src)]
@@ -903,7 +985,7 @@ class Strategy(StrategyBase):
                 if not idatas:
                     continue
                 feed = _feed_of(idatas[0])
-                if feed is not None and feed is not primary_feed and id(feed) in dataids:
+                if feed is not None and feed is not primary_feed and id(feed) in dataid_set:
                     # Pin only the advance clock used by the runonce post-phase
                     # loop and Indicator.advance(); deliberately do NOT change
                     # lineiter._clock here so the existing minperiod-to-feed
@@ -929,19 +1011,25 @@ class Strategy(StrategyBase):
                     clock_set = False
                     if hasattr(lineiter, "datas") and lineiter.datas:
                         ind_data = lineiter.datas[0]
-                        for data_feed in self.datas:
-                            # Check if ind_data is the data feed itself
-                            if ind_data is data_feed:
-                                clk = data_feed
+                        if _first_data_owner_by_id is not None:
+                            ind_data_id = id(ind_data)
+                            if ind_data_id in _first_data_owner_by_id:
+                                clk = _first_data_owner_by_id[ind_data_id]
                                 clock_set = True
-                                break
-                            # Check if ind_data is one of the lines of this data feed
-                            if hasattr(data_feed, "lines") and any(
-                                ind_data is line for line in data_feed.lines
-                            ):
-                                clk = data_feed
-                                clock_set = True
-                                break
+                        else:
+                            for data_feed in self.datas:
+                                # Check if ind_data is the data feed itself
+                                if ind_data is data_feed:
+                                    clk = data_feed
+                                    clock_set = True
+                                    break
+                                # Check if ind_data is one of the lines of this data feed
+                                if hasattr(data_feed, "lines") and any(
+                                    ind_data is line for line in data_feed.lines
+                                ):
+                                    clk = data_feed
+                                    clock_set = True
+                                    break
                     if not clock_set:
                         clk = self.datas[0]
                     lineiter._clock = clk  # Update indicator's clock
@@ -967,7 +1055,7 @@ class Strategy(StrategyBase):
             # If clk is not None
             while True:
                 # If clk is a data feed, break
-                if id(clk) in dataids:
+                if id(clk) in dataid_set:
                     break  # already top-level clock (data feed)
 
                 # See if the current clock has higher level clocks
@@ -2023,16 +2111,20 @@ class Strategy(StrategyBase):
             analyzer._stop()
 
         # Stop observers (flush logs, etc.)
-        for observer in self._get_all_observers():
+        for observer_index, observer in enumerate(self._get_all_observers()):
             try:
                 if hasattr(observer, "stop"):
                     observer.stop()
-            except Exception:
-                logger.warning(
-                    "Observer %s.stop() raised an exception",
-                    type(observer).__name__,
-                    exc_info=True,
-                )
+            except Exception as exc:
+                _record_startup_observer_stop_error(self, observer_index, observer, exc)
+                if _startup_observer_stop_capture_active():
+                    logger.warning("Observer %s.stop() raised an exception", type(observer).__name__)
+                else:
+                    logger.warning(
+                        "Observer %s.stop() raised an exception",
+                        type(observer).__name__,
+                        exc_info=True,
+                    )
 
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
@@ -2092,7 +2184,15 @@ class Strategy(StrategyBase):
 
     @classmethod
     def _service_recovery_trade_state(
-        cls, trade, *, data_name, tradeid, receipt_id, fill_id, match_time_ns
+        cls,
+        trade,
+        *,
+        data_name,
+        tradeid,
+        receipt_id,
+        fill_id,
+        match_time_ns,
+        strategy_position_ref=None,
     ):
         if (
             not isinstance(data_name, str)
@@ -2120,6 +2220,10 @@ class Strategy(StrategyBase):
             or type(trade.barclose) is not int
             or trade.barclose != 0
             or trade.history
+            or (
+                strategy_position_ref is not None
+                and not _service_recovery_strategy_position_ref(strategy_position_ref)
+            )
         ):
             raise ValueError("recovery Trade state is not a single open fill")
         size = cls._service_recovery_trade_float_hex(trade.size, nonzero=True)
@@ -2133,8 +2237,12 @@ class Strategy(StrategyBase):
         dtclose = cls._service_recovery_trade_float_hex(trade.dtclose)
         if float.fromhex(dtclose) != 0.0:
             raise ValueError("open recovery Trade has a close time")
-        return {
-            "schema": _SERVICE_RECOVERY_TRADE_STATE_SCHEMA,
+        state = {
+            "schema": (
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                if strategy_position_ref is not None
+                else _SERVICE_RECOVERY_TRADE_STATE_SCHEMA
+            ),
             "data_name": data_name,
             "tradeid": tradeid,
             "receipt_id": receipt_id,
@@ -2158,13 +2266,44 @@ class Strategy(StrategyBase):
             "barlen": 0,
             "historyon": False,
         }
+        if strategy_position_ref is not None:
+            state["strategy_position_ref"] = strategy_position_ref
+        return state
 
     @classmethod
-    def _service_recovery_trade_from_state(cls, data, state, *, data_name, tradeid):
+    def _service_recovery_trade_from_state(
+        cls, data, state, *, data_name, tradeid, strategy_position_ref=None
+    ):
+        state_schema = state.get("schema") if isinstance(state, Mapping) else None
+        state_fields = (
+            _SERVICE_RECOVERY_TRADE_STATE_FIELDS_V2
+            if state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+            else _SERVICE_RECOVERY_TRADE_STATE_FIELDS
+        )
+        state_position_ref = (
+            state.get("strategy_position_ref")
+            if state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+            else None
+        )
         if (
             not isinstance(state, Mapping)
-            or frozenset(state) != _SERVICE_RECOVERY_TRADE_STATE_FIELDS
-            or state.get("schema") != _SERVICE_RECOVERY_TRADE_STATE_SCHEMA
+            or frozenset(state) != state_fields
+            or state_schema
+            not in {
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA,
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2,
+            }
+            or (state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                and not _service_recovery_strategy_position_ref(state_position_ref))
+            or (
+                strategy_position_ref is not None
+                and not _service_recovery_strategy_position_ref(strategy_position_ref)
+            )
+            or (
+                state_position_ref is not None
+                and strategy_position_ref is not None
+                and state_position_ref != strategy_position_ref
+            )
             or state.get("data_name") != data_name
             or type(state.get("tradeid")) is not int
             or state.get("tradeid") != tradeid
@@ -2238,6 +2377,9 @@ class Strategy(StrategyBase):
         trade.service_execution_recovery_receipt_id = state["receipt_id"]
         trade.service_execution_recovery_fill_id = state["fill_id"]
         trade.service_execution_recovery_match_time_ns = state["match_time_ns"]
+        resolved_ref = state_position_ref or strategy_position_ref
+        if resolved_ref is not None:
+            trade.service_execution_strategy_position_ref = resolved_ref
         return trade
 
     @staticmethod
@@ -2297,9 +2439,30 @@ class Strategy(StrategyBase):
             raise RuntimeError("managed paper Trade checkpoints are unavailable")
         seen = set()
         for checkpoint in checkpoints:
+            checkpoint_fields = (
+                frozenset(checkpoint) if isinstance(checkpoint, Mapping) else frozenset()
+            )
+            if checkpoint_fields == {
+                "data_name",
+                "tradeid",
+                "state",
+                "receipt_id",
+            }:
+                checkpoint_ref = None
+            elif checkpoint_fields == {
+                "data_name",
+                "tradeid",
+                "state",
+                "receipt_id",
+                "strategy_position_ref",
+            }:
+                checkpoint_ref = checkpoint.get("strategy_position_ref")
+                if not _service_recovery_strategy_position_ref(checkpoint_ref):
+                    raise RuntimeError("managed paper Trade checkpoint reference is invalid")
+            else:
+                raise RuntimeError("managed paper Trade checkpoint row is invalid")
             if (
                 not isinstance(checkpoint, Mapping)
-                or frozenset(checkpoint) != {"data_name", "tradeid", "state", "receipt_id"}
             ):
                 raise RuntimeError("managed paper Trade checkpoint row is invalid")
             data_name = checkpoint["data_name"]
@@ -2321,13 +2484,34 @@ class Strategy(StrategyBase):
                 or projection.get("trade_state") != state
             ):
                 raise RuntimeError("managed paper Trade checkpoint receipt is not ready")
+            try:
+                resolved_ref = adapter.recovery_strategy_position_ref_for_key(
+                    data_name, tradeid
+                )
+            except Exception as error:
+                raise RuntimeError(
+                    "managed paper Trade checkpoint identity is unavailable"
+                ) from error
+            if checkpoint_ref is not None and resolved_ref != checkpoint_ref:
+                raise RuntimeError("managed paper Trade checkpoint identity changed")
+            if projection.get("strategy_position_ref") not in (None, resolved_ref):
+                raise RuntimeError("managed paper fill position reference changed")
+            if (
+                state.get("schema") == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                and state.get("strategy_position_ref") != resolved_ref
+            ):
+                raise RuntimeError("managed paper Trade checkpoint reference changed")
             notification = self._service_recovery_trade_notifications(
                 projection.get("trade_notification"),
                 data_name=data_name,
                 tradeid=tradeid,
             )
             trade = self._service_recovery_trade_from_state(
-                feed, state, data_name=data_name, tradeid=tradeid
+                feed,
+                state,
+                data_name=data_name,
+                tradeid=tradeid,
+                strategy_position_ref=resolved_ref,
             )
             fill = projection.get("fill")
             intent_context = projection.get("intent_context")

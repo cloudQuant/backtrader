@@ -29,6 +29,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
+import datetime as _dt
 from typing import List, Optional, Tuple
 
 _CLOCK_DOMAIN_ID = f"process-{os.getpid()}-{uuid.uuid4().hex}"
@@ -429,6 +430,156 @@ class OrderBookSnapshot(EventData):
         if self.bids[0][0] >= self.asks[0][0]:
             return False
         return True
+
+
+@dataclass(frozen=True)
+class MarketOrderBookEnvelope:
+    """Backtrader callback envelope retaining one exact SDK book event.
+
+    Unlike :class:`OrderBookSnapshot`, this envelope does not invent receive
+    clocks, freshness, or a midpoint timestamp. The SDK event remains intact
+    at ``sdk_event`` and carries the authoritative source, cursor, and clock.
+    These events are suitable for notification callbacks only;
+    ``execution_eligible`` is permanently false until a separate clock and
+    execution-quality contract is available.
+    """
+
+    sdk_event: object
+    data_name: str
+    exchange_name: str
+    execution_eligible: bool = False
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.data_name) is not str
+            or not self.data_name
+            or type(self.exchange_name) is not str
+            or not self.exchange_name
+            or type(self.execution_eligible) is not bool
+            or self.execution_eligible
+        ):
+            raise ValueError("invalid SDK market order-book envelope")
+        event = self.sdk_event
+        source = getattr(event, "source", None)
+        cursor = getattr(event, "cursor", None)
+        instrument = getattr(event, "instrument", None)
+        clock = getattr(event, "clock", None)
+        if (
+            source is None
+            or cursor is None
+            or instrument is None
+            or clock is None
+            or getattr(source, "key", None) != getattr(event, "key", None)
+            or getattr(source, "key", None) is None
+            or getattr(source.key, "channel", None) != "orderbook"
+            or getattr(source.key, "instrument", None) != instrument
+            or getattr(clock, "source", None) != source
+            or getattr(clock, "cursor", None) != cursor
+            or getattr(event, "complete_state", None) is not True
+        ):
+            raise ValueError("SDK event is not a complete source-bound order book")
+
+    @property
+    def event_type(self) -> str:
+        return "orderbook"
+
+    @property
+    def symbol(self) -> str:
+        return self.data_name
+
+    @property
+    def exchange(self) -> str:
+        return self.exchange_name
+
+    @property
+    def asset_type(self) -> str:
+        return str(self.sdk_event.instrument.product_type)
+
+    @property
+    def key(self):
+        return self.sdk_event.key
+
+    @property
+    def instrument(self):
+        return self.sdk_event.instrument
+
+    @property
+    def source_descriptor(self):
+        return self.sdk_event.source
+
+    @property
+    def cursor(self):
+        return self.sdk_event.cursor
+
+    @property
+    def clock(self):
+        return self.sdk_event.clock
+
+    @property
+    def event_time_utc(self):
+        return self.sdk_event.clock.provider_event_time_utc
+
+    @property
+    def timestamp(self):
+        value = self.event_time_utc
+        if value is None:
+            return None
+        try:
+            parsed = _dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.timestamp()
+
+    @property
+    def local_time(self):
+        return None
+
+    @property
+    def bids(self):
+        return tuple((level.price, level.quantity) for level in self.sdk_event.bids)
+
+    @property
+    def asks(self):
+        return tuple((level.price, level.quantity) for level in self.sdk_event.asks)
+
+    @property
+    def sequence(self) -> int:
+        return self.sdk_event.provider_sequence
+
+    @property
+    def previous_sequence(self):
+        return self.sdk_event.provider_previous_sequence
+
+    @property
+    def snapshot_or_delta(self) -> str:
+        return self.sdk_event.snapshot_or_delta
+
+    @property
+    def continuity_status(self) -> str:
+        return self.sdk_event.continuity_status
+
+    @property
+    def stale(self) -> bool:
+        return self.sdk_event.stale
+
+    @property
+    def stale_reason(self) -> str:
+        return self.sdk_event.stale_reason
+
+    @property
+    def recovery_snapshot(self) -> bool:
+        return self.sdk_event.recovery_snapshot
+
+    @property
+    def freshness_status(self):
+        return self.sdk_event.clock.freshness_status
+
+    @property
+    def event_id(self) -> str:
+        cursor = self.sdk_event.cursor
+        return f"{cursor.stream_id}:{cursor.epoch}:{cursor.sequence}"
 
 
 @dataclass(init=False)

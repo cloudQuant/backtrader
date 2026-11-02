@@ -2,9 +2,9 @@
 
 The module consumes an already frozen :class:`MinuteDecisionInput`.  It does
 not create a clock mapping, fill missing identity fields, query an account, or
-retain a mutable latest quote.  The replay producer lives in ``fq2_fixture``;
-the feed-sealed live route freezes the same input shape around a non-synthetic
-run clock mapping.  This file is deliberately a stateless feature boundary.
+retain a mutable latest quote.  The local replay producer lives in
+``fq2_fixture``.  This feature layer does not attest a provider, session, clock
+mapping, or freshness; those facts must come from the SDK and feed boundary.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import math
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from backtrader.feeds import CtpQuoteEvidence, MinuteDecisionInput
+from backtrader.feeds import MarketQuoteEvidence, MinuteDecisionInput
 
 
 class FeatureReason:
@@ -312,15 +312,15 @@ class QuoteSnapshot:
 
 
 def _typed_quote_to_mapping(
-    event: CtpQuoteEvidence,
+    event: MarketQuoteEvidence,
     *,
     session_segment: Optional[str] = None,
     candidate_id: Optional[str] = None,
     clock_mode: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Adapt one already validated CTP quote without dropping its fields.
+    """Adapt one already validated provider-neutral quote without dropping fields.
 
-    ``CtpQuoteEvidence`` deliberately carries connection identity but does not
+    ``MarketQuoteEvidence`` deliberately carries connection identity but does not
     carry the strategy candidate, the session label or the clock mode.  Those
     values are supplied by the frozen minute scope when a typed quote is
     consumed (the clock mode mirrors the barrier's own quote mapping).  The
@@ -340,7 +340,7 @@ def _typed_quote_to_mapping(
         "received_monotonic_ns": event.receive_monotonic_ns,
         "ingest_seq": event.ingest_seq,
         "generation": event.connection_generation,
-        "trading_day": event.trading_day,
+        "trading_date": event.trading_date,
         "session_segment": session_segment,
         "rules_hash": event.rules_hash,
         "clock_domain": event.clock_domain_id,
@@ -366,14 +366,14 @@ def _normalize_quote(
     session_segment: Optional[str] = None,
     candidate_id: Optional[str] = None,
 ) -> QuoteSnapshot:
-    if isinstance(event, CtpQuoteEvidence):
+    if isinstance(event, MarketQuoteEvidence):
         data = _typed_quote_to_mapping(
             event, session_segment=session_segment, candidate_id=candidate_id
         )
     elif isinstance(event, Mapping):
         data = dict(event)
     else:
-        raise ValueError("quote must be a mapping or CtpQuoteEvidence")
+        raise ValueError("quote must be a mapping or MarketQuoteEvidence")
     event_time = _datetime_value(data, "event_time", "event_time_utc", "source_time")
     receive_time = _datetime_value(data, "received_at", "recv_time_utc", "received_wall_time")
     if event_time is None or receive_time is None:
@@ -385,12 +385,12 @@ def _normalize_quote(
         "event_time": event_time,
         "received_at": receive_time,
         "ingest_seq": _value(data, "ingest_seq", "sequence"),
-        "bid": _value(data, "bid", "bid_price", "BidPrice1"),
-        "ask": _value(data, "ask", "ask_price", "AskPrice1"),
-        "bid_qty": _value(data, "bid_qty", "bid_size", "bid_volume", "BidVolume1"),
-        "ask_qty": _value(data, "ask_qty", "ask_size", "ask_volume", "AskVolume1"),
+        "bid": _value(data, "bid", "bid_price"),
+        "ask": _value(data, "ask", "ask_price"),
+        "bid_qty": _value(data, "bid_qty", "bid_size", "bid_volume"),
+        "ask_qty": _value(data, "ask_qty", "ask_size", "ask_volume"),
         "generation": _value(data, "generation", "connection_generation"),
-        "trading_day": _value(data, "trading_day", "TradingDay"),
+        "trading_day": _value(data, "trading_date", "trading_day"),
         "session_segment": _value(data, "session_segment", "session"),
         "rules_hash": _value(data, "rules_hash"),
         "clock_domain": _value(data, "clock_domain", "clock_domain_id"),
@@ -600,14 +600,14 @@ def _validate_input(
         for raw in raw_events:
             try:
                 raw_data = dict(raw) if isinstance(raw, Mapping) else {}
-                if isinstance(raw, CtpQuoteEvidence):
+                if isinstance(raw, MarketQuoteEvidence):
                     raw_data = _typed_quote_to_mapping(
                         raw,
                         session_segment=decision_input.session_segment,
                         candidate_id=decision_input.candidate_id,
                         clock_mode=decision_input.clock_mode,
                     )
-                raw_exchange = _value(raw_data, "exchange", "exchange_id", "ExchangeID")
+                raw_exchange = _value(raw_data, "exchange", "exchange_id")
                 if raw_exchange != bar.exchange:
                     reasons.append(FeatureReason.FEATURE_QUOTE_IDENTITY)
                     continue
@@ -650,7 +650,7 @@ def _validate_input(
                 }
                 actual = {
                     "generation": event.generation,
-                    "trading_day": event.trading_day,
+                    "trading_day": event.trading_date,
                     "session_segment": event.session_segment,
                     "rules_hash": event.rules_hash,
                     "clock_domain": event.clock_domain,

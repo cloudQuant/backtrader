@@ -1,0 +1,648 @@
+{
+  "schema": "iteration51_run_loss_strategy_wiring_dev_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "cc2c37d3efeb280403bda11584833cbb83a187bf",
+  "scope": [
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+    "examples/unified/028_alpha003_simnow_minute/run.py",
+    "examples/unified/028_alpha003_simnow_minute/config.yaml",
+    "tests/unit/test_alpha003_simnow_strategy.py",
+    "tests/unit/test_alpha003_simnow_runner.py"
+  ],
+  "accepted_level": "SOURCE_SYNTHETIC_STRATEGY_LOSS_WIRING_ONLY",
+  "behavior": [
+    "Write-enabled live runs require explicit bounded loss threshold and observation freshness before resource setup; read-only and replay remain inert.",
+    "Complete source-bound CNY CloseProfit + PositionProfit - Commission observations seed the durable baseline once and update only with qualified observations.",
+    "No automatic baseline reset on restart, recovery, changed day, invalid snapshot or policy conflict.",
+    "New OPEN decisions/prepare/dispatch use the Coordinator guard; source-unqualified PnL blocks OPEN while independently qualified owned CANCEL/CLOSE remains available.",
+    "Missing refresh binding or invalid observation clock is a fatal wiring error.",
+    "Public template uses a CNY1000 net-loss threshold and 30-second freshness; this is a sticky no-new-OPEN trigger, not a guaranteed final loss cap or authorization to trade."
+  ],
+  "qa": [
+    {
+      "generation": "r1",
+      "result_path": "D:\\temp\\i51-loss-wiring-qa-20261027-r1\\result.json",
+      "result_pin": {
+        "size_bytes": 8796,
+        "sha256": "f84aa23401bdcf08475e49352dec77e9bb71e18bf233438879174925b41934f0"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 1,
+        "elapsed_seconds": 9.015999999945052,
+        "test_count": 146,
+        "failures": 8,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 154785,
+            "sha256": "f90b807260119c0f70bb8670914eeb6cbbcd706f06490b33ad58e1970e89eed3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 235518,
+            "sha256": "4c7b570b63f17dd33c4c0c5d7f8e1da2b5e19ce664c1a663d9f850f79f33a2a9"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 154785,
+            "sha256": "f90b807260119c0f70bb8670914eeb6cbbcd706f06490b33ad58e1970e89eed3"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 235518,
+            "sha256": "4c7b570b63f17dd33c4c0c5d7f8e1da2b5e19ce664c1a663d9f850f79f33a2a9"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_strategy.py",
+          "tests/unit/test_alpha003_simnow_runner.py::test_run_loss_policy_is_explicit_for_writes_and_inert_for_read_only",
+          "tests/unit/test_alpha003_simnow_runner.py::test_write_enabled_strategy_kwargs_forward_the_separate_loss_guard_policy",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource",
+          "tests/unit/test_alpha003_simnow_runner.py::test_real_cerebro_live_strategy_winddown_is_ready_or_times_out",
+          "tests/unit/test_alpha003_simnow_runner.py::test_public_config_defaults_to_dry_and_cli_cannot_escalate",
+          "tests/unit/test_alpha003_simnow_runner.py::test_replay_executes_real_cerebro_orders_only_on_causal_later_bars"
+        ],
+        "spec": {
+          "size_bytes": 4948,
+          "sha256": "eef6ae8f32c868a44f51679d2ed2017e163b8c60860f058d6b5763b8944d6a9d"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "junit_pin": {
+        "size_bytes": 31716,
+        "sha256": "59f0422c6526b58b1db80191415ab703763c7b6724312208ddbf71becb7718b4"
+      },
+      "stdout_pin": {
+        "size_bytes": 8217,
+        "sha256": "b3e3548ec0e4c7f87d69664611379a68ad0d2e982c73cc12eafd4a5db40c547b"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "generation": "r2",
+      "result_path": "D:\\temp\\i51-loss-wiring-qa-20261027-r2\\result.json",
+      "result_pin": {
+        "size_bytes": 9259,
+        "sha256": "7166d140bd1ab790d07ef49085627e248317f7fd5c614da2b34c35bc4f2980f9"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 1,
+        "elapsed_seconds": 6.437999999965541,
+        "test_count": 18,
+        "failures": 7,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 155989,
+            "sha256": "68f64384577575130267e45b166b6e834c912173a08bf62ca120575379178d45"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 239732,
+            "sha256": "c55617c655b2c7e4163538dff4a6f5012de543a48ca4b7568fac0fd652575cc2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 155989,
+            "sha256": "68f64384577575130267e45b166b6e834c912173a08bf62ca120575379178d45"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 239732,
+            "sha256": "c55617c655b2c7e4163538dff4a6f5012de543a48ca4b7568fac0fd652575cc2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_grid_scope_forwards_sampled_budget_count_and_exit_reserve",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_uses_complete_source_pnl_once_and_latches_without_rebaseline",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_unqualified_live_pnl_never_seeds_guard_and_read_only_skips_requirement",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_incomplete_live_refresh_never_seeds_guard",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_refresh_binding_and_clock_failures_are_fatal",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_loss_guard_trading_day_change_never_rebaselines_same_run",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource",
+          "tests/unit/test_alpha003_simnow_runner.py::test_replay_executes_real_cerebro_orders_only_on_causal_later_bars"
+        ],
+        "spec": {
+          "size_bytes": 5412,
+          "sha256": "208393af5e5950ae60a773a20c6811c78679481a3b0a80015741ac4feaa9102e"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "junit_pin": {
+        "size_bytes": 9114,
+        "sha256": "20ed5240619c233272fef4238db956b0e7ecfcd131fc244a689e85e3c5052bf2"
+      },
+      "stdout_pin": {
+        "size_bytes": 6877,
+        "sha256": "9b12691769e49152596cd4ddb2bdffa8588395e7c481a9c5404cc26af996ff22"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "generation": "r3",
+      "result_path": "D:\\temp\\i51-loss-wiring-qa-20261027-r3\\result.json",
+      "result_pin": {
+        "size_bytes": 9103,
+        "sha256": "164947881e92f8d337481f0ffb303f9d21158e4969d09d96b9f50f5c3bf441bd"
+      },
+      "result": {
+        "level": "SOURCE_NATIVE_SYNTHETIC_ONLY",
+        "lane": "backtrader",
+        "exit_code": 0,
+        "elapsed_seconds": 4.781000000075437,
+        "test_count": 7,
+        "failures": 0,
+        "errors": 0,
+        "skips": 0,
+        "source_pins_unchanged": true,
+        "source_pins_before": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 157607,
+            "sha256": "a8c95c9d5edea8c9c0ad7cd605aac83ac56ac40d404363c9080f7061aa2f8e87"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 239882,
+            "sha256": "de573b6450a6a25fbcdf32bcc149c94d4e4b70e800b9eeabf817412b93ef9aea"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "source_pins_after": {
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+            "size_bytes": 216885,
+            "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+            "size_bytes": 300870,
+            "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+          },
+          "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+            "size_bytes": 4591,
+            "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_strategy.py": {
+            "size_bytes": 157607,
+            "sha256": "a8c95c9d5edea8c9c0ad7cd605aac83ac56ac40d404363c9080f7061aa2f8e87"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\test_alpha003_simnow_runner.py": {
+            "size_bytes": 239882,
+            "sha256": "de573b6450a6a25fbcdf32bcc149c94d4e4b70e800b9eeabf817412b93ef9aea"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+            "size_bytes": 378324,
+            "sha256": "4bb854e89a95e0ebe1a4eb5c6d5bd92bf26e780a3f6b3569495f98d70ee2359f"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\execution_durable_capacity.py": {
+            "size_bytes": 19940,
+            "sha256": "fdf1b79becfc1cd86f953291f801c6145b26a66246348617383e149298072688"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+            "size_bytes": 288295,
+            "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+            "size_bytes": 219489,
+            "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+            "size_bytes": 144382,
+            "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\stores\\btapistore.py": {
+            "size_bytes": 888832,
+            "sha256": "4de5c66997072da7bb397f230ac0f9955e5f900d9396134264ace341c7c0a568"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+            "size_bytes": 525714,
+            "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+          },
+          "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+            "size_bytes": 159045,
+            "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live.py": {
+            "size_bytes": 71236,
+            "sha256": "ade26ec53cc4b6d262eeeb889816f7493058cff719a6eb580508323f9ae440f7"
+          },
+          "D:\\source_code\\backtrader\\backtrader\\research\\live_cohort.py": {
+            "size_bytes": 145308,
+            "sha256": "914df8ecd7474a6efdd8e04ee079c08f7b388ba425fff91c62053d84bedba8a1"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\query.py": {
+            "size_bytes": 14630,
+            "sha256": "bf6bfcdf41614c216c79d2e137756bacfc1a45b7e903bb4335399d65e8bb3dfb"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\client.py": {
+            "size_bytes": 508688,
+            "sha256": "5caca800ccba1169253d8cf1d1853e66c85806f84f81e8ead600957f7285445c"
+          },
+          "D:\\bt_api_py\\bt_api\\bt_api_ctp\\src\\bt_api_ctp\\ctp\\callback_ingress.py": {
+            "size_bytes": 73492,
+            "sha256": "c7dbae9aad0aafc7ab1afb4e7a682957f6125abb3b4ba270dd516acdf70294f7"
+          }
+        },
+        "nodes": [
+          "tests/unit/test_alpha003_simnow_strategy.py::test_live_run_keeps_source_backed_owned_order_cancel_during_warmup_without_open_readiness",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_unqualified_live_pnl_never_seeds_guard_and_read_only_skips_requirement",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[late_enable-RUN_LOSS_GUARD_LATE_ENABLE_AFTER_OPEN]",
+          "tests/unit/test_alpha003_simnow_strategy.py::test_cerebro_strategy_blocks_open_then_replays_owned_close_once[scan_limit-RUN_LOSS_GUARD_ENABLE_SCAN_LIMIT]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[grid_crossing-COHORT_HAS_NO_PLANNED_SLOTS-False-True]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[refresh-LIVE_INITIAL_QUERY_REFRESH_FAILED-True-True]",
+          "tests/unit/test_alpha003_simnow_runner.py::test_live_setup_failures_close_every_created_resource[arm-RuntimeError-True-True]"
+        ],
+        "spec": {
+          "size_bytes": 5257,
+          "sha256": "e5d2d3ed60aa122905f422afd3c0f9a0a5677bb4709fb945adcaf457800f5b76"
+        },
+        "runner": {
+          "size_bytes": 4408,
+          "sha256": "2e7e707c9bd53f0e160f5a4cc4a10345b1ee333779a1877e948ea8265d1e0e10"
+        },
+        "boundary": "Real SDK/SPI and query fields; synthetic request/OS leaves. Network denied. No provider/account acceptance."
+      },
+      "junit_pin": {
+        "size_bytes": 1495,
+        "sha256": "afcd3adb6e64db19d03401535195a4efa04f4406452f3b5e590c780e5017b3ea"
+      },
+      "stdout_pin": {
+        "size_bytes": 726,
+        "sha256": "8cb1cf38efb1f01483815425cd05ed4943590ddd66f30ae5fca242e9ff103e5d"
+      },
+      "stderr_pin": {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "accepted_distinct_cases": 146,
+  "qa_note": "R1 138/146; R2 11/18; R3 7/7. All 146 distinct original cases have a passing latest result. Production three-file pins stayed identical across all three runs. Later changes only repair faithful source/query/cleanup/test configuration fixtures and associated assertions; this is not one final 146-case run.",
+  "warnings": [
+    "One inherited unknown asyncio_default_fixture_loop_scope pytest configuration warning per run."
+  ],
+  "independent_static_review": "nojoin_tests GO on final two test pins; earlier loss5 source review preserved. Final repair retains all production planner/guard gates.",
+  "source_pins": {
+    "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py": {
+      "size_bytes": 216885,
+      "sha256": "d88d2674a9b8d5a987caf777590756805d70c713361c3a0944b2482d04a6aa37"
+    },
+    "examples/unified/028_alpha003_simnow_minute/run.py": {
+      "size_bytes": 300870,
+      "sha256": "327d7bdf488015396d6c3d076688641a417fa01fdc42311894ec075aca982044"
+    },
+    "examples/unified/028_alpha003_simnow_minute/config.yaml": {
+      "size_bytes": 4591,
+      "sha256": "9eecf5a4dba7786aa391c1b8c8bb90747f7b06692679e7b9d851c052d646841d"
+    },
+    "tests/unit/test_alpha003_simnow_strategy.py": {
+      "size_bytes": 157607,
+      "sha256": "a8c95c9d5edea8c9c0ad7cd605aac83ac56ac40d404363c9080f7061aa2f8e87"
+    },
+    "tests/unit/test_alpha003_simnow_runner.py": {
+      "size_bytes": 239882,
+      "sha256": "de573b6450a6a25fbcdf32bcc149c94d4e4b70e800b9eeabf817412b93ef9aea"
+    }
+  },
+  "boundary": "Production Strategy/Cerebro/query projection/Coordinator/journal with synthetic provider and dispatch leaves; no actual account PnL, provider write, OS restart or formal AC acceptance.",
+  "formal_case_increment": 0
+}

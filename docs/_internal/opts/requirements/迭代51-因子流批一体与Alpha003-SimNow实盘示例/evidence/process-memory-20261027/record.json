@@ -1,0 +1,46 @@
+{
+  "schema": "iteration51.source_round.v1",
+  "date": "2026-10-27",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "parent_commit": "210c246b41aa559f3d59fde1bb6883fbafb63766",
+  "scope": "External bounded process-tree RSS sampling and explicit post-warmup window summaries",
+  "evidence_level": "LOCAL_SYNTHETIC_PROCESS_OBSERVER_ONLY",
+  "source": {
+    "path": "scripts/observe_iteration51_process_memory.py",
+    "checkout_sha256": "f28fe86e34b6a80867fc6b59c4554bced0ac8bf3442bdf9d3c54cc6711754e1d"
+  },
+  "tests": {
+    "path": "tests/unit/scripts/test_iteration51_process_memory.py",
+    "checkout_sha256": "5018b56cf560c9a74d663d80a00784e45b620ca1e44e370ac32abb008930445b"
+  },
+  "root_acceptance": {
+    "command": "C:/anaconda3/python.exe -m pytest -p no:asyncio -q tests/unit/scripts/test_iteration51_process_memory.py --junitxml=.codex-tmp/i51_process_memory_root_qa_20261027.xml",
+    "plugin_autoload": false,
+    "passed": 9,
+    "warnings": 1,
+    "warning_category": "Existing pytest asyncio_default_fixture_loop_scope configuration warning",
+    "exit_code": 0,
+    "junit": "root-junit.xml",
+    "junit_sha256": "b8673bd972e4b04d2ada7f0cf5ee9d37ea4236f21b259096747d20ff5dfec475",
+    "review": "Root reviewed receipt bounds, PID/create-time identity, recursive RSS sum, error handling, raw-row window compatibility and missed-deadline scheduling. The final synthetic parent waits for its child to exit before writing its completion receipt."
+  },
+  "runtime_contract": {
+    "interval_seconds": 1,
+    "maximum_hours": 7,
+    "maximum_output_bytes": 33554432,
+    "maximum_receipt_bytes": 65536,
+    "maximum_tree_processes": 256,
+    "window_seconds": 1800,
+    "window_bounds": "Caller must supply actual warmup-end and run-end UTC times; bar counts are not inferred from elapsed time.",
+    "completion_receipt": "An explicitly supplied public completion_receipt.json containing only status, closed or cleanup_complete, and receipt_id.",
+    "observations": "PID/create_time, UTC/monotonic time, per-process and total RSS, validity, missing samples and finite error categories only."
+  },
+  "limitations": [
+    "No live run was observed in this round and no account acceptance increased.",
+    "The sampler neither stops a process nor reads command lines, environments, trading configuration, tapes or journals.",
+    "A completion receipt is an external assertion, not independent proof of native cleanup or remote account state.",
+    "Actual memory acceptance still needs adequate first/last window coverage and separate line/cohort/cache capacity evidence.",
+    "The accepted package wheel and SDK were not rebuilt or modified."
+  ]
+}

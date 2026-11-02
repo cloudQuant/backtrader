@@ -1,7 +1,7 @@
-"""Native Backtrader SA mid-frequency strategy for replay/shadow/SimNow.
+"""SA mid-frequency strategy over provider-neutral and replay projections.
 
-The strategy owns SA-specific signals and policy only.  CTP protocol, durable
-order identity, complete queries, and recovery remain Store/SDK responsibilities.
+The strategy owns SA-specific signals and policy. SDK/Store boundaries own
+provider identity, market quality, durable order state, and reconciliation.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from decimal import Decimal, InvalidOperation
 import re
 import time
 from collections import deque
@@ -52,6 +53,14 @@ def _epoch(value: Any) -> float:
     return result / 1000.0 if result > 10_000_000_000 else result
 
 
+def _date_key(value: Any) -> str:
+    """Normalize a neutral calendar date for exact local-day comparisons."""
+    if hasattr(value, "isoformat") and not isinstance(value, str):
+        value = value.isoformat()
+    text = str(value or "").strip().replace("-", "")
+    return text if len(text) == 8 and text.isdigit() else ""
+
+
 class SystemClock:
     """Wall and monotonic clock seam, replaceable for deterministic tests."""
 
@@ -91,7 +100,7 @@ def _account_core(value: Any) -> str:
 def _shadow_startup_account_has_external_state(params: Any) -> bool:
     """Whether the account-wide startup snapshot forbids a flat-state claim.
 
-    A selected feed can be flat while another CTP contract has a position or
+    A selected feed can be flat while another venue instrument has a position or
     an account-owned order is open.  Shadow mode must retain that distinction:
     it neither owns nor mutates either condition, so a controlled stop is an
     observation result rather than ``STOPPED_FLAT``.  The snapshot is created
@@ -182,8 +191,14 @@ class SAMidFrequencyStrategy(bt.Strategy):
         ("purpose", "observation"),
         ("candidate_id", "iter22-sa-v0"),
         ("instrument", ""),
+        ("venue", ""),
         ("trading_day", ""),
-        ("connection_generation", 0),
+        ("source_ref", ""),
+        ("generation", 0),
+        ("session_ref", ""),
+        ("replay_source_mode", ""),
+        ("replay_source_ref", ""),
+        ("replay_epoch", ""),
         ("account_fingerprint", ""),
         ("environment_profile", ""),
         ("tick_size", 1.0),
@@ -264,6 +279,10 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._latest_bar_event = None
         self._last_bar_sequence = 0
         self._last_bar_ingest_seq = 0
+        self._last_replay_bar_sequence = 0
+        self._last_replay_bar_tick_sequence = 0
+        self._last_replay_tick_sequence = 0
+        self._replay_projected_bars = 0
         self._current_session_id = ""
         self._current_session_end = 0.0
         self._session_has_new_bar = False
@@ -453,7 +472,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             and re.fullmatch(r"[0-9a-f]{64}", token)
             and action.get("execution_cycle_id") == cycle_id
             and action_instrument == instrument
-            and str(action.get("exchange_id") or "").upper() in {"CZCE", "ZCE"}
+            and str(action.get("venue") or "").upper() == str(self.p.venue or "").upper()
             and str(action.get("position_side") or "").lower() == expected_position_side
             and str(action.get("side") or "").lower() == expected_side
             and str(action.get("offset") or "").lower() == "close"
@@ -553,6 +572,109 @@ class SAMidFrequencyStrategy(bt.Strategy):
 
     def _bar_identity(self, fallback_start: float) -> tuple[str, float, float, str, bool, str]:
         event = self._latest_bar_event
+        if str(self.p.mode).lower() == "replay":
+            required = (
+                "schema_version",
+                "symbol",
+                "venue",
+                "asset_type",
+                "source_mode",
+                "replay_source_ref",
+                "replay_epoch",
+                "replay_bar_sequence",
+                "first_replay_sequence",
+                "last_replay_sequence",
+                "replay_bucket_start",
+                "replay_bucket_end",
+                "replay_available_at",
+                "replay_bar_status",
+                "replay_close_reason",
+                "replay_bar_id",
+                "replay_volume_complete",
+                "replay_quality_flags",
+                "trading_day",
+                "event_session_date",
+            )
+            missing = [name for name in required if not _event_present(event, name)]
+            if missing:
+                return (
+                    "",
+                    fallback_start,
+                    fallback_start,
+                    "",
+                    False,
+                    "replay_bar_schema_missing:" + ",".join(missing),
+                )
+            try:
+                start = _epoch(_event_value(event, "replay_bucket_start"))
+                end = _epoch(_event_value(event, "replay_bucket_end"))
+                available = _epoch(_event_value(event, "replay_available_at"))
+                bar_sequence = _event_value(event, "replay_bar_sequence")
+                first_sequence = _event_value(event, "first_replay_sequence")
+                last_sequence = _event_value(event, "last_replay_sequence")
+            except (TypeError, ValueError, OverflowError):
+                return "", fallback_start, fallback_start, "", False, "replay_bar_time_invalid"
+            if start is None or end is None or available is None:
+                return "", fallback_start, fallback_start, "", False, "replay_bar_time_invalid"
+            symbol = str(_event_value(event, "symbol") or "").upper()
+            venue = str(_event_value(event, "venue") or "").upper()
+            asset_type = str(_event_value(event, "asset_type") or "").lower()
+            source_mode = str(_event_value(event, "source_mode") or "").lower()
+            source_ref = str(_event_value(event, "replay_source_ref") or "")
+            replay_epoch = str(_event_value(event, "replay_epoch") or "")
+            bar_id = str(_event_value(event, "replay_bar_id") or "")
+            status = str(_event_value(event, "replay_bar_status") or "")
+            close_reason = str(_event_value(event, "replay_close_reason") or "")
+            trading_day = _date_key(_event_value(event, "trading_day"))
+            event_session_date = _date_key(_event_value(event, "event_session_date"))
+            flags_value = _event_value(event, "replay_quality_flags")
+            flags = (
+                tuple(flags_value)
+                if isinstance(flags_value, (tuple, list, set, frozenset))
+                else ("invalid_replay_quality_flags",)
+            )
+            previous_last = int(getattr(self, "_last_replay_bar_tick_sequence", 0))
+            valid = (
+                _event_value(event, "schema_version") == "bt.replay.market.bar.v1"
+                and source_mode in {"replay", "synthetic"}
+                and source_mode == str(self.p.replay_source_mode or "").lower()
+                and bool(source_ref and source_ref == self.p.replay_source_ref)
+                and bool(replay_epoch and replay_epoch == self.p.replay_epoch)
+                and symbol == str(self.p.instrument or self.data._name).upper()
+                and venue == str(self.p.venue or "").upper()
+                and asset_type in {"future", "futures"}
+                and status == "fixture_projection"
+                and _event_value(event, "replay_volume_complete") is True
+                and not flags
+                and type(bar_sequence) is int
+                and bar_sequence > int(getattr(self, "_last_replay_bar_sequence", 0))
+                and type(first_sequence) is int
+                and type(last_sequence) is int
+                and first_sequence > previous_last
+                and last_sequence >= first_sequence
+                and (previous_last == 0 or first_sequence == previous_last + 1)
+                and bool(bar_id and trading_day and event_session_date)
+                and math.isclose(end - start, 60.0, rel_tol=0.0, abs_tol=1e-6)
+                and available + 1e-9 >= end
+                and close_reason in {"event_time_watermark", "source_exhausted"}
+            )
+            expected_session_date = datetime.fromtimestamp(
+                start, timezone.utc
+            ).astimezone(BEIJING).strftime("%Y%m%d")
+            if self.p.trading_day and trading_day != _date_key(self.p.trading_day):
+                valid = False
+                flags = (*flags, "replay_bar_trading_day_mismatch")
+            if event_session_date != expected_session_date:
+                valid = False
+                flags = (*flags, "replay_event_session_date_invalid")
+            if valid:
+                self._last_replay_bar_sequence = bar_sequence
+                self._last_replay_bar_tick_sequence = last_sequence
+                self._replay_projected_bars += 1
+            elif not flags:
+                flags = ("replay_bar_contract_invalid",)
+            return bar_id, end, available, trading_day, valid, ",".join(map(str, flags))
+
         required = (
             "symbol",
             "exchange",
@@ -566,13 +688,22 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "quality_flags",
             "volume_complete",
             "trading_day",
-            "action_day",
+            "event_session_date",
             "connection_generation",
             "first_ingest_seq",
             "last_ingest_seq",
             "bar_sequence",
             "closure_reason",
         )
+        if not _event_present(event, "event_session_date"):
+            return (
+                "",
+                fallback_start,
+                fallback_start,
+                "",
+                False,
+                "provider_neutral_bar_calendar_identity_unavailable",
+            )
         missing = [name for name in required if not _event_present(event, name)]
         if missing:
             return (
@@ -595,12 +726,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
             return "", fallback_start, fallback_start, "", False, "bar_schema_value_invalid"
         bar_id = str(_event_value(event, "bar_id") or "")
         symbol = str(_event_value(event, "symbol") or "").upper()
-        exchange = str(_event_value(event, "exchange") or "").upper()
+        venue = str(_event_value(event, "exchange") or "").upper()
         asset_type = str(_event_value(event, "asset_type") or "").lower()
         complete = _event_value(event, "complete") is True
         volume_complete = _event_value(event, "volume_complete") is True
         trading_day = str(_event_value(event, "trading_day") or "")
-        action_day = str(_event_value(event, "action_day") or "")
+        event_session_date = _date_key(_event_value(event, "event_session_date"))
         flags_value = _event_value(event, "quality_flags")
         flags = (
             tuple(flags_value)
@@ -616,10 +747,10 @@ class SAMidFrequencyStrategy(bt.Strategy):
             and not flags
             and quality == "GOOD"
             and symbol == str(self.p.instrument or self.data._name).upper()
-            and exchange in {"CZCE", "ZCE"}
+            and venue == str(self.p.venue or venue).upper()
             and asset_type in {"future", "futures"}
             and closure_reason in {"load", "idle", "tick", "source_exhausted"}
-            and bool(bar_id and trading_day and action_day)
+            and bool(bar_id and trading_day and event_session_date)
             and generation > 0
             and first_sequence > 0
             and last_sequence >= first_sequence
@@ -631,20 +762,18 @@ class SAMidFrequencyStrategy(bt.Strategy):
         )
         if not valid and not flags:
             flags = ("bar_contract_invalid",)
-        if self.p.connection_generation and generation != int(self.p.connection_generation):
+        if self.p.generation and generation != int(self.p.generation):
             valid = False
             flags = (*flags, "bar_generation_mismatch")
-        if self.p.trading_day and trading_day != str(self.p.trading_day):
+        if self.p.trading_day and _date_key(trading_day) != _date_key(self.p.trading_day):
             valid = False
             flags = (*flags, "bar_trading_day_mismatch")
-        if len(action_day) != 8 or not action_day.isdigit():
+        expected_session_date = datetime.fromtimestamp(
+            start, timezone.utc
+        ).astimezone(BEIJING).strftime("%Y%m%d")
+        if event_session_date != expected_session_date:
             valid = False
-            flags = (*flags, "bar_action_day_invalid")
-        elif action_day != datetime.fromtimestamp(start, timezone.utc).astimezone(BEIJING).strftime(
-            "%Y%m%d"
-        ):
-            valid = False
-            flags = (*flags, "bar_action_day_mismatch")
+            flags = (*flags, "bar_event_session_date_mismatch")
         if valid:
             self._last_bar_sequence = bar_sequence
             self._last_bar_ingest_seq = last_sequence
@@ -702,10 +831,20 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 "close": current_close,
                 "volume": current_volume,
                 "minute_features": self.last_minute.as_dict(),
+                **(
+                    {
+                        "source_mode": self.p.replay_source_mode,
+                        "replay_source_ref": self.p.replay_source_ref,
+                        "replay_epoch": self.p.replay_epoch,
+                    }
+                    if self.p.mode == "replay"
+                    else {}
+                ),
             },
         )
         self.valid_volumes.append((trading_day, current_volume))
-        self._qualified_bars += 1
+        if self.p.mode != "replay":
+            self._qualified_bars += 1
         self._first_bar_end = bar_end if self._first_bar_end is None else self._first_bar_end
         self._last_bar_end = bar_end
         if self._current_session_id:
@@ -722,6 +861,9 @@ class SAMidFrequencyStrategy(bt.Strategy):
         rejected and reset confirmation; valid quotes update the feature
         window, evidence streams, deadlines, and entry evaluation.
         """
+        if str(self.p.mode).lower() == "replay":
+            self._notify_replay_tick(tick)
+            return
         raw_event_time = _event_value(tick, "event_time_utc", "timestamp", default=None)
         try:
             _epoch(raw_event_time)
@@ -746,17 +888,15 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._reject_quote(validation.reason)
             return
         quote = validation.quote
-        if self.p.trading_day and quote.trading_day != str(self.p.trading_day):
+        if self.p.trading_day and quote.trading_day != _date_key(self.p.trading_day):
             self._reject_quote("trading_day_mismatch")
             return
-        if self.p.connection_generation and quote.connection_generation != int(
-            self.p.connection_generation
-        ):
-            self._reject_quote("connection_generation_mismatch")
+        if self.p.generation and quote.generation != int(self.p.generation):
+            self._reject_quote("provider_generation_mismatch")
             return
         local_day = datetime.fromtimestamp(quote.event_time, timezone.utc).astimezone(BEIJING)
-        if quote.action_day != local_day.strftime("%Y%m%d"):
-            self._reject_quote("action_day_event_time_mismatch")
+        if quote.event_session_date != local_day.strftime("%Y%m%d"):
+            self._reject_quote("event_session_date_time_mismatch")
             return
         if self.p.mode == "simnow" and not self.p.session_calendar_sha256:
             self._reject_quote("session_calendar_binding_missing")
@@ -781,7 +921,8 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 "event_time": quote.event_time,
                 "recv_time_utc": quote.recv_time_utc,
                 "recv_monotonic": quote.recv_monotonic,
-                "ingest_seq": quote.ingest_seq,
+                "sequence": quote.sequence,
+                "sequence_namespace": "provider_ingest",
                 "bid": quote.bid,
                 "ask": quote.ask,
                 "bid_size": quote.bid_size,
@@ -790,8 +931,8 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 "cum_volume": quote.cum_volume,
                 "delta_volume": quote.delta_volume,
                 "trading_day": quote.trading_day,
-                "action_day": quote.action_day,
-                "connection_generation": quote.connection_generation,
+                "event_session_date": quote.event_session_date,
+                "generation": quote.generation,
                 "lower_limit": quote.lower_limit,
                 "upper_limit": quote.upper_limit,
                 "source": quote.source,
@@ -808,6 +949,103 @@ class SAMidFrequencyStrategy(bt.Strategy):
         if self._qualified_quotes - getattr(self, "_trade_logger_last_attempted_quotes", 0) >= 128:
             _publish_trade_logger_context_if_ready(self)
 
+    def _notify_replay_tick(self, tick: Any) -> None:
+        """Consume one exact replay projection without treating it as live data."""
+        if _event_value(tick, "schema_version") != "sdk.replay.market.tick.v1":
+            self._reject_quote("replay_schema_unavailable")
+            return
+        validation = normalize_quote(tick, tick_size=self.p.tick_size)
+        if not validation.valid or validation.quote is None:
+            self._reject_quote(validation.reason)
+            return
+        quote = validation.quote
+        instrument = _event_value(tick, "instrument")
+        try:
+            from bt_api_py.replay_market_contracts import MarketInstrumentKey
+        except (ImportError, ModuleNotFoundError):
+            self._reject_quote("replay_instrument_contract_unavailable")
+            return
+        if (
+            quote.source_mode != str(self.p.replay_source_mode or "").lower()
+            or quote.replay_source_ref != str(self.p.replay_source_ref or "")
+            or quote.replay_epoch != str(self.p.replay_epoch or "")
+            or _event_value(tick, "provider") != "local_replay"
+            or _event_value(tick, "environment") != "local_fixture"
+            or str(_event_value(tick, "symbol") or "").upper()
+            != str(self.p.instrument or self.data._name).upper()
+            or str(_event_value(tick, "venue", "exchange") or "").upper()
+            != str(self.p.venue or "").upper()
+            or type(instrument) is not MarketInstrumentKey
+            or instrument.provider != "local_replay"
+            or instrument.environment != "local_fixture"
+            or instrument.instrument_id.upper()
+            != str(self.p.instrument or self.data._name).upper()
+            or instrument.native_symbol.upper()
+            != str(self.p.instrument or self.data._name).upper()
+            or instrument.venue.upper() != str(self.p.venue or "").upper()
+            or _event_value(instrument, "provider") != "local_replay"
+            or _event_value(instrument, "environment") != "local_fixture"
+            or str(_event_value(instrument, "instrument_id") or "").upper()
+            != str(self.p.instrument or self.data._name).upper()
+            or str(_event_value(instrument, "venue") or "").upper()
+            != str(self.p.venue or "").upper()
+        ):
+            self._reject_quote("replay_instrument_or_lineage_mismatch")
+            return
+        if self.p.trading_day and quote.trading_day != _date_key(self.p.trading_day):
+            self._reject_quote("replay_trading_day_mismatch")
+            return
+        local_day = datetime.fromtimestamp(quote.event_time, timezone.utc).astimezone(BEIJING)
+        if quote.event_session_date != local_day.strftime("%Y%m%d"):
+            self._reject_quote("replay_session_date_event_time_mismatch")
+            return
+        if not self.quote_window.add(quote):
+            self._reject_quote(self.quote_window.last_invalid_reason)
+            return
+        if quote.replay_sequence is None or quote.replay_sequence <= self._last_replay_tick_sequence:
+            self._reject_quote("nonincreasing_replay_sequence")
+            return
+        self._last_replay_tick_sequence = quote.replay_sequence
+        session = _session_for_epoch(quote.event_time, self.p.sessions)
+        session_id = session[0] if session else ""
+        if session_id != self._current_session_id:
+            self.confirmation.reset()
+            self._current_session_id = session_id
+            self._current_session_end = session[1] if session else 0.0
+            self._session_has_new_bar = False
+        self.last_quote = quote
+        self._record(
+            "quotes",
+            {
+                "schema_version": quote.schema_version,
+                "source_mode": quote.source_mode,
+                "replay_source_ref": quote.replay_source_ref,
+                "replay_epoch": quote.replay_epoch,
+                "replay_sequence": quote.replay_sequence,
+                "event_time_utc": datetime.fromtimestamp(
+                    quote.event_time, timezone.utc
+                ).isoformat(),
+                "instrument": self.p.instrument or self.data._name,
+                "venue": self.p.venue,
+                "trading_day": quote.trading_day,
+                "event_session_date": quote.event_session_date,
+                "bid_price": quote.bid,
+                "ask_price": quote.ask,
+                "bid_size": quote.bid_size,
+                "ask_size": quote.ask_size,
+                "last_price": quote.last,
+                "delta_volume": quote.delta_volume,
+                "volume_semantics": "delta",
+                "freshness_status": "unavailable",
+                "source_clock_quality": "unknown",
+                "receive_clock_quality": "unknown",
+                "execution_eligible": False,
+            },
+        )
+        self.last_fast = self.quote_window.calculate()
+        self._advance_time(self._clock.monotonic_now(), quote.event_time)
+        self._evaluate_entry(quote)
+
     def _reject_quote(self, reason: str) -> None:
         self._invalid_quotes += 1
         self._block("quote:" + reason)
@@ -816,7 +1054,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._observation_last_contiguous_event = None
 
     def _observe_valid_quote(self, quote, session_id: str) -> None:
-        key = (session_id, quote.trading_day, quote.connection_generation)
+        key = (session_id, quote.trading_day, quote.generation)
         if (
             key == self._observation_last_key
             and self._observation_last_contiguous_event is not None
@@ -836,7 +1074,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._observation_last_event = quote.event_time
         self._observation_last_key = key
         self._observation_last_contiguous_event = quote.event_time
-        self._observation_generations.add(quote.connection_generation)
+        self._observation_generations.add(quote.generation)
         self._qualified_quotes += 1
 
     def _block(self, reason: str) -> None:
@@ -949,12 +1187,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
             if direction == 0:
                 self._block("engineering_trigger_not_reached")
                 return
-            version = f"engineering:{self.p.engineering_trigger['trigger_id']}:{quote.ingest_seq}"
+            version = f"engineering:{self.p.engineering_trigger['trigger_id']}:{quote.sequence}"
             self._record(
                 "signals",
                 {
                     "event_time": quote.event_time,
-                    "tick_seq": quote.ingest_seq,
+                    "tick_seq": quote.sequence,
                     "bar_id": self.last_minute.bar_id,
                     "engineering_trigger": dict(self.p.engineering_trigger),
                     "decision_version": version,
@@ -987,7 +1225,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         )
         signal_record = {
             "event_time_utc": datetime.fromtimestamp(quote.event_time, timezone.utc).isoformat(),
-            "tick_seq": quote.ingest_seq,
+            "tick_seq": quote.sequence,
             "bar_id": self.last_minute.bar_id,
             "bar_available_at": self.last_minute.available_at,
             "decision": decision.as_dict(),
@@ -1000,7 +1238,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             if decision.reasons:
                 self._block(decision.reasons[0])
             return
-        version = f"{self.last_minute.bar_id}:{decision.direction}:{quote.ingest_seq}"
+        version = f"{self.last_minute.bar_id}:{decision.direction}:{quote.sequence}"
         if version in self._decision_versions:
             self._block("duplicate_decision_version")
             return
@@ -1014,7 +1252,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         if (
             str(trigger.get("instrument") or "").upper() != str(self.p.instrument).upper()
             or str(trigger.get("trading_day") or "") != str(self.p.trading_day)
-            or quote.ingest_seq < int(trigger.get("minimum_ingest_seq") or 0)
+            or quote.sequence < int(trigger.get("minimum_sequence") or 0)
         ):
             return 0
         try:
@@ -1042,8 +1280,14 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "signals",
             {
                 "event_time": quote.event_time,
-                "tick_seq": quote.ingest_seq,
+                "tick_seq": quote.sequence,
+                "sequence_namespace": (
+                    "replay" if quote.source_mode in {"replay", "synthetic"} else "provider_ingest"
+                ),
                 "bar_id": self.last_minute.bar_id if self.last_minute else None,
+                "source_mode": quote.source_mode,
+                "replay_source_ref": quote.replay_source_ref or None,
+                "replay_epoch": quote.replay_epoch or None,
                 "decision": decision.as_dict() if decision else None,
                 "executable": executable,
                 "blocked_by": base_reason,
@@ -1147,7 +1391,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             (
                 str(getattr(self.p, "account_fingerprint", "") or ""),
                 str(getattr(self.p, "trading_day", "") or ""),
-                str(getattr(self.p, "connection_generation", 0) or 0),
+                str(getattr(self.p, "generation", 0) or 0),
                 str(getattr(self.p, "instrument", "") or getattr(self.data, "_name", "")),
                 str(self._cycle_sequence),
                 format(float(submitted_at), ".9f"),
@@ -1261,7 +1505,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             close_kwargs["position_side"] = position_side
         if recovery_only:
             close_kwargs["quantity_unit"] = recovery_action["quantity_unit"]
-            close_kwargs["exchange_id"] = recovery_action["exchange_id"]
+            close_kwargs["venue"] = recovery_action["venue"]
             submit = self.buy if side == "buy" else self.sell
             order = submit(**close_kwargs)
         else:
@@ -1407,6 +1651,8 @@ class SAMidFrequencyStrategy(bt.Strategy):
         stale quotes, and requests an emergency exit while holding a
         position on stale market data.
         """
+        if str(self.p.mode).lower() == "replay":
+            return
         now = self._clock.monotonic_now()
         self._advance_time(now, self._clock.utc_now())
         if self.state == "RECOVERING":
@@ -1477,20 +1723,19 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "execution_cycle_id"
         )
         external_order_id = order.info.get("external_order_id")
-        order_sys_id = (
-            order.info.get("order_sys_id")
-            or order.info.get("ctp_order_sys_id")
-            or order.info.get("venue_order_id")
-            or external_order_id
+        order_id = (
+            order.info.get("order_id")
+            or order.info.get("provider_order_id")
+            or order.info.get("external_order_id")
         )
         record = {
             "ref": order.ref,
             "cycle_id": cycle_id,
             "account_fingerprint": self.p.account_fingerprint or None,
             "trading_day": self.p.trading_day or None,
-            "connection_generation": self.p.connection_generation or None,
+            "generation": self.p.generation or None,
             "instrument": self.p.instrument or self.data._name,
-            "exchange": "CZCE" if self.p.mode == "simnow" else None,
+            "venue": getattr(self.p, "venue", None) or None,
             "role": role,
             "normal_cycle": role in {"entry", "exit"},
             "status": status,
@@ -1500,24 +1745,25 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "commission": float(order.executed.comm or 0.0),
             "time_in_force": order.info.get("time_in_force", "GFD"),
             "offset": order.info.get("offset"),
-            "external_order_id": external_order_id,
-            "ctp_order_sys_id": order_sys_id,
-            "ctp_order_ref": order.info.get("ctp_order_ref"),
-            "ctp_front_id": order.info.get("ctp_front_id", order.info.get("front_id")),
-            "ctp_session_id": order.info.get("ctp_session_id", order.info.get("session_id")),
-            "ctp_exchange_id": order.info.get("ctp_exchange_id", order.info.get("exchange_id")),
-            "ctp_instrument_id": self.p.instrument or self.data._name,
+            "order_id": order_id,
+            "client_order_id": order.info.get("client_order_id"),
+            "intent_ref": order.info.get("intent_ref"),
+            "instrument_ref": order.info.get("instrument_ref"),
+            "source_ref": order.info.get("source_ref"),
+            "generation": order.info.get("generation"),
+            "session_ref": order.info.get("session_ref"),
         }
-        record["ctp_identity_complete"] = all(
+        record["execution_identity_complete"] = all(
             record.get(name) not in {None, ""}
             for name in (
                 "cycle_id",
-                "ctp_order_sys_id",
-                "ctp_order_ref",
-                "ctp_front_id",
-                "ctp_session_id",
-                "ctp_exchange_id",
-                "ctp_instrument_id",
+                "order_id",
+                "client_order_id",
+                "intent_ref",
+                "instrument_ref",
+                "source_ref",
+                "generation",
+                "session_ref",
             )
         )
         self._orders.append(record)
@@ -1612,11 +1858,10 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "hypothetical": self.p.mode == "replay",
             "trading_day": self.p.trading_day,
             "account_fingerprint": self.p.account_fingerprint or None,
-            "connection_generation": self.p.connection_generation or None,
+            "generation": self.p.generation or None,
             "instrument": self.p.instrument or self.data._name,
-            "exchange": "CZCE" if self.p.mode == "simnow" else None,
-            "ctp_identity_source": "post_close_reconciliation_queries",
-            "ctp_identity_complete": False,
+            "venue": self.p.venue or None,
+            "identity_status": "UNAVAILABLE_NEUTRAL_RECONCILIATION_BINDING",
             "order_identities": [],
             "trade_identities": [],
         }
@@ -1672,410 +1917,136 @@ class SAMidFrequencyStrategy(bt.Strategy):
         return True
 
     def notify_reconciliation(self, snapshot: dict[str, Any]) -> bool:
-        """Consume an already-complete public SDK/Store reconciliation summary."""
+        """Accept only a route-bound, provider-neutral reconciliation projection.
 
-        query_results = dict(snapshot.get("query_results") or snapshot.get("queries") or {})
-        query_ids = []
-        queries_complete = True
-        for name in ("account", "positions", "orders", "trades"):
-            result = dict(query_results.get(name) or {})
-            raw_request_id = result.get("request_id")
-            try:
-                parsed_request_id = int(raw_request_id)
-            except (TypeError, ValueError):
-                parsed_request_id = 0
-            request_id_value = str(parsed_request_id) if parsed_request_id > 0 else ""
-            if isinstance(raw_request_id, bool) or not request_id_value:
-                queries_complete = False
-            query_ids.append(f"{name}:{request_id_value}")
-            queries_complete = queries_complete and (
-                result.get("complete") is True
-                and result.get("is_last_seen") is True
-                and result.get("timed_out") is False
-                and result.get("unsupported") is not True
-                and result.get("error_code") in {None, "", 0, "0"}
-            )
+        The current BT Store projection does not yet carry all three required
+        SDK identity facts (`source_ref`, `generation`, `session_ref`). Missing
+            facts leave reconciliation unavailable; provider-native rows are never
+        parsed as a substitute.
+        """
+        if not isinstance(snapshot, Mapping):
+            self._block("neutral_reconciliation_projection_unavailable")
+            return False
+        if snapshot.get("schema_version") != "backtrader.execution.reconciliation.v1":
+            self._block("neutral_reconciliation_schema_unavailable")
+            return False
+        source_ref = snapshot.get("source_ref")
+        generation = snapshot.get("generation")
+        session_ref = snapshot.get("session_ref")
         if (
-            len(set(query_ids)) != 4
-            or len({item.split(":", 1)[1] for item in query_ids if ":" in item}) != 4
+            type(source_ref) is not str
+            or not source_ref
+            or generation is None
+            or type(session_ref) is not str
+            or not session_ref
         ):
-            queries_complete = False
-        composite_request_id = "|".join(query_ids)
-        order_rows = list(dict(query_results.get("orders") or {}).get("records") or ())
-        trade_rows = list(dict(query_results.get("trades") or {}).get("records") or ())
-
-        def complete_ctp_row(row: Any, groups: tuple[tuple[str, ...], ...]) -> bool:
-            return isinstance(row, dict) and all(
-                any(row.get(name) not in {None, ""} for name in names) for names in groups
-            )
-
-        def row_matches_contract(row: dict[str, Any]) -> bool:
-            instrument = str(row.get("instrument_id") or row.get("InstrumentID") or "").upper()
-            exchange = str(row.get("exchange_id") or row.get("ExchangeID") or "").upper()
-            return instrument == str(self.p.instrument).upper() and exchange in {"CZCE", "ZCE"}
-
-        def order_sys_id(value: Any) -> str:
-            text = str(value or "").strip()
-            return text.rsplit(":", 1)[-1] if text else ""
-
-        order_identities = [
-            {
-                "instrument": str(
-                    row.get("instrument_id") or row.get("InstrumentID") or ""
-                ).upper(),
-                "exchange": str(row.get("exchange_id") or row.get("ExchangeID") or "").upper(),
-                "front_id": str(row.get("front_id") or row.get("FrontID") or ""),
-                "session_id": str(row.get("session_id") or row.get("SessionID") or ""),
-                "order_ref": str(
-                    row.get("order_ref") or row.get("OrderRef") or row.get("ctp_order_ref") or ""
-                ),
-                "order_sys_id": order_sys_id(
-                    row.get("external_order_id") or row.get("OrderSysID") or row.get("order_sys_id")
-                ),
-            }
-            for row in order_rows
-            if row_matches_contract(row)
-            and complete_ctp_row(
-                row,
-                (
-                    ("instrument_id", "InstrumentID"),
-                    ("exchange_id", "ExchangeID"),
-                    ("front_id", "FrontID"),
-                    ("session_id", "SessionID"),
-                    ("order_ref", "OrderRef", "ctp_order_ref"),
-                    ("external_order_id", "OrderSysID", "order_sys_id"),
-                ),
-            )
-        ]
-        trade_identities = [
-            {
-                "instrument": str(
-                    row.get("instrument_id") or row.get("InstrumentID") or ""
-                ).upper(),
-                "exchange": str(row.get("exchange_id") or row.get("ExchangeID") or "").upper(),
-                "trade_id": str(row.get("trade_id") or row.get("TradeID") or ""),
-                "order_sys_id": order_sys_id(
-                    row.get("external_order_id") or row.get("OrderSysID") or row.get("order_sys_id")
-                ),
-            }
-            for row in trade_rows
-            if row_matches_contract(row)
-            and complete_ctp_row(
-                row,
-                (
-                    ("instrument_id", "InstrumentID"),
-                    ("exchange_id", "ExchangeID"),
-                    ("trade_id", "TradeID"),
-                    ("external_order_id", "OrderSysID", "order_sys_id"),
-                ),
-            )
-        ]
-        order_identity_complete = bool(order_identities)
-        trade_identity_complete = bool(trade_identities)
-        phase = str(self._reconciliation_phase or "")
-        active_cycle_id = str(getattr(self, "_active_cycle_id", "") or "")
-        cycle_binding_complete = phase not in {"closed", "unknown_resolution"}
-        if phase in {"closed", "unknown_resolution"}:
-            cycle_orders = [
-                item
-                for item in getattr(self, "_orders", ())
-                if item.get("cycle_id") == active_cycle_id
-                and item.get("ctp_identity_complete") is True
-                and item.get("account_fingerprint") == self.p.account_fingerprint
-                and item.get("trading_day") == self.p.trading_day
-                and item.get("connection_generation") == self.p.connection_generation
-                and str(item.get("instrument") or "").upper() == str(self.p.instrument).upper()
-                and str(item.get("exchange") or "").upper() == "CZCE"
-            ]
-            query_orders = {item["order_sys_id"]: item for item in order_identities}
-            matched_roles: dict[str, dict[str, Any]] = {}
-            matched_local_orders: dict[str, Mapping[str, Any]] = {}
-            for item in cycle_orders:
-                sys_id = order_sys_id(item.get("ctp_order_sys_id") or item.get("external_order_id"))
-                query_row = query_orders.get(sys_id)
-                if (
-                    query_row
-                    and query_row["front_id"] == str(item.get("ctp_front_id") or "")
-                    and query_row["session_id"] == str(item.get("ctp_session_id") or "")
-                    and query_row["order_ref"] == str(item.get("ctp_order_ref") or "")
-                ):
-                    matched_roles[str(item.get("role") or "")] = query_row
-                    matched_local_orders[sys_id] = item
-            local_order_ids = {
-                order_sys_id(item.get("ctp_order_sys_id") or item.get("external_order_id"))
-                for item in cycle_orders
-            }
-            matched_order_ids = set(matched_local_orders)
-            matched_trades = [
-                item for item in trade_identities if item["order_sys_id"] in matched_order_ids
-            ]
-            trade_order_ids = {item["order_sys_id"] for item in matched_trades}
-            executed_order_ids = {
-                sys_id
-                for sys_id, item in matched_local_orders.items()
-                if float(item.get("executed_size") or 0.0) > 0
-            }
-            cycle_binding_complete = bool(
-                active_cycle_id
-                and local_order_ids
-                and local_order_ids == matched_order_ids
-                and executed_order_ids.issubset(trade_order_ids)
-                and (
-                    phase != "closed"
-                    or (
-                        {"entry", "exit"}.issubset(matched_roles)
-                        and matched_order_ids == trade_order_ids
-                        and len({item["trade_id"] for item in matched_trades}) >= 2
-                    )
-                )
-            )
-            if cycle_binding_complete:
-                order_identities = list(matched_roles.values())
-                trade_identities = matched_trades
-                order_identity_complete = True
-                trade_identity_complete = bool(matched_trades) or not executed_order_ids
-        session = dict(snapshot.get("session") or {})
-        snapshot_hash = str(
-            snapshot.get("reconciliation_fingerprint") or snapshot.get("snapshot_hash") or ""
-        )
-        if not snapshot_hash and snapshot.get("evidence_complete") is True:
-            snapshot_hash = hashlib.sha256(
-                json.dumps(
-                    {
-                        "positions": snapshot.get("positions"),
-                        "orders": snapshot.get("orders"),
-                        "trades": snapshot.get("trades"),
-                    },
-                    sort_keys=True,
-                    default=str,
-                ).encode("utf-8")
-            ).hexdigest()
-
-        complete = (
-            queries_complete and snapshot.get("evidence_complete", snapshot.get("complete")) is True
-        )
-        raw_position_lots = snapshot.get("position_lots")
-        summary_counts_present = bool(
-            not isinstance(raw_position_lots, bool)
-            and isinstance(raw_position_lots, (int, float))
-            and math.isfinite(float(raw_position_lots))
-            and float(raw_position_lots) >= 0.0
-            and all(
-                type(snapshot.get(name)) is int and snapshot[name] >= 0
-                for name in (
-                    "active_order_count",
-                    "unknown_intent_count",
-                    "unmatched_trade_count",
-                )
-            )
-        )
-        if summary_counts_present:
-            position_lots = float(raw_position_lots)
-            active_order_count = snapshot["active_order_count"]
-            unknown_intent_count = snapshot["unknown_intent_count"]
-            unmatched_trade_count = snapshot["unmatched_trade_count"]
-        else:
-            position_lots = math.inf
-            active_order_count = unknown_intent_count = unmatched_trade_count = -1
-        flat_flag = snapshot.get("flat")
-        flat = (
-            summary_counts_present
-            and (flat_flag is True or (flat_flag is None and position_lots == 0))
-            and position_lots == 0
-            and active_order_count == 0
-            and len(snapshot.get("nonzero_positions") or ()) == 0
-            and len(snapshot.get("active_orders") or ()) == 0
-            and unknown_intent_count == 0
-            and unmatched_trade_count == 0
-        )
-        identity = snapshot_hash
-        request_id = str(snapshot.get("request_id") or composite_request_id)
-        reconciliation_identity = (
-            str(
-                snapshot.get("connection_generation") or session.get("connection_generation") or ""
-            ),
-            str(snapshot.get("account_fingerprint") or session.get("account_fingerprint") or ""),
-            str(snapshot.get("trading_day") or session.get("trading_day") or ""),
-        )
-        expected_account = _account_core(self.p.account_fingerprint)
-        observed_account = _account_core(reconciliation_identity[1])
-        try:
-            observed_generation = int(reconciliation_identity[0])
-        except (TypeError, ValueError):
-            observed_generation = 0
-        identity_matches = (
-            observed_generation > 0
-            and (
-                not self.p.connection_generation
-                or observed_generation == int(self.p.connection_generation)
-            )
-            and (not expected_account or observed_account == expected_account)
-            and bool(observed_account)
-            and len(reconciliation_identity[2]) == 8
-            and reconciliation_identity[2].isdigit()
-            and (not self.p.trading_day or reconciliation_identity[2] == str(self.p.trading_day))
-        )
-        if request_id and request_id in self._reconciliation_request_ids_seen:
+            self._block("reconciliation_route_identity_unavailable")
             return False
         if (
-            not complete
-            or not flat
-            or not identity
-            or not request_id
-            or not all(reconciliation_identity)
-            or not identity_matches
-            or not cycle_binding_complete
+            source_ref != str(self.p.source_ref or "")
+            or str(generation) != str(self.p.generation or "")
+            or session_ref != str(self.p.session_ref or "")
         ):
+            self._block("reconciliation_route_identity_mismatch")
+            return False
+        if (
+            snapshot.get("complete") is not True
+            or snapshot.get("evidence_complete") is not True
+            or snapshot.get("safe_to_resume") is not True
+        ):
+            self._block("neutral_reconciliation_evidence_incomplete")
             self._reconciliation_hash = ""
             self._reconciliation_count = 0
             return False
-        if (
-            identity == self._reconciliation_hash
-            and reconciliation_identity == self._reconciliation_identity
+        snapshot_id = snapshot.get("snapshot_id")
+        digest = snapshot.get("consistency_digest")
+        request_id = snapshot.get("request_id")
+        if not all(type(value) is str and value for value in (snapshot_id, digest, request_id)):
+            self._block("neutral_reconciliation_identity_unavailable")
+            return False
+        if request_id in self._reconciliation_request_ids_seen:
+            self._block("neutral_reconciliation_request_reused")
+            return False
+        positions = snapshot.get("positions")
+        open_orders = snapshot.get("open_orders")
+        if not isinstance(positions, (list, tuple)) or type(open_orders) is not int:
+            self._block("neutral_reconciliation_scope_unavailable")
+            return False
+        try:
+            positions_flat = all(
+                isinstance(row, Mapping)
+                and type(row.get("instrument_ref")) is str
+                and bool(row.get("instrument_ref"))
+                and type(row.get("symbol")) is str
+                and bool(row.get("symbol"))
+                and type(row.get("quantity_unit")) is str
+                and bool(row.get("quantity_unit"))
+                and not isinstance(row.get("quantity"), bool)
+                and Decimal(str(row.get("quantity"))).is_finite()
+                and Decimal(str(row.get("quantity"))) == 0
+                for row in positions
+            )
+        except (InvalidOperation, TypeError, ValueError):
+            positions_flat = False
+        if not positions_flat or open_orders != 0:
+            self._block("neutral_reconciliation_not_flat")
+            self._reconciliation_hash = ""
+            self._reconciliation_count = 0
+            return False
+        # Account flatness may release a flat drain once the route-bound SDK
+        # proof exists. Per-cycle close and unknown-intent resolution also need
+        # neutral order/fill identity joins, which this projection does not yet
+        # provide to the strategy.
+        if self._reconciliation_phase in {"closed", "unknown_resolution"}:
+            self._block("neutral_order_fill_identity_unavailable")
+            return False
+        if self._reconciliation_phase not in {"flat_release", "drain_flat", "manual_monitor"}:
+            self._block("neutral_reconciliation_phase_unavailable")
+            return False
+        if digest == self._reconciliation_hash and snapshot_id != getattr(
+            self, "_reconciliation_snapshot_id", ""
         ):
             self._reconciliation_count += 1
         else:
-            self._reconciliation_hash = identity
+            self._reconciliation_hash = digest
             self._reconciliation_count = 1
-            self._reconciliation_identity = reconciliation_identity
+        self._reconciliation_snapshot_id = snapshot_id
         self._reconciliation_request_id = request_id
         self._reconciliation_request_ids_seen.add(request_id)
         self._reconciliation_round_request_ids.append(request_id)
         if self._reconciliation_count < 2:
             self._last_reconciliation_requested = None
             return False
-        now = float(snapshot.get("completed_monotonic", self._clock.monotonic_now()))
-        account_core = _account_core(reconciliation_identity[1])
-        bound_account = f"acct_{account_core}" if account_core else ""
-        cycle_evidence = {
-            "cycle_id": active_cycle_id or None,
-            "account_fingerprint": bound_account,
-            "trading_day": reconciliation_identity[2],
-            "connection_generation": int(reconciliation_identity[0]),
-            "instrument": str(self.p.instrument).upper(),
-            "exchange": "CZCE",
-            "order_identities": sorted(
-                order_identities,
-                key=lambda item: (
-                    item["order_sys_id"],
-                    item["front_id"],
-                    item["session_id"],
-                    item["order_ref"],
-                ),
-            ),
-            "trade_identities": sorted(
-                trade_identities,
-                key=lambda item: (item["trade_id"], item["order_sys_id"]),
-            ),
-        }
-        cycle_identity_sha256 = (
-            hashlib.sha256(
-                json.dumps(
-                    cycle_evidence,
-                    ensure_ascii=False,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
-                ).encode("utf-8")
-            ).hexdigest()
-            if phase == "closed" and cycle_binding_complete
-            else None
-        )
-        proof = {
-            "phase": self._reconciliation_phase,
-            "complete": True,
-            "request_ids": list(self._reconciliation_round_request_ids[-2:]),
-            "distinct_request_ids": len(set(self._reconciliation_round_request_ids[-2:])) == 2,
-            "snapshot_hash": identity,
-            **cycle_evidence,
-            "cycle_identity_sha256": cycle_identity_sha256,
-            "ctp_order_identity_complete": order_identity_complete,
-            "ctp_trade_identity_complete": trade_identity_complete,
-            "cycle_binding_complete": cycle_binding_complete,
-        }
-        self._reconciliation_proofs.append(proof)
-        _publish_trade_logger_context_if_ready(self)
-        if phase == "closed" and cycle_identity_sha256:
-            for trade in reversed(self._trades):
-                if (
-                    trade.get("cycle_id") == active_cycle_id
-                    and trade.get("hypothetical") is False
-                    and trade.get("ctp_identity_complete") is not True
-                ):
-                    trade.update(
-                        {
-                            **cycle_evidence,
-                            "cycle_identity_sha256": cycle_identity_sha256,
-                            "ctp_identity_complete": True,
-                        }
-                    )
-                    self._record(
-                        "trades",
-                        {
-                            "event": "reconciliation_cycle_binding",
-                            **cycle_evidence,
-                            "cycle_identity_sha256": cycle_identity_sha256,
-                        },
-                    )
-                    break
-        for row in order_rows:
-            self._record(
-                "orders",
-                {
-                    "event": "reconciliation_ctp_identity",
-                    "request_id": request_id,
-                    "InstrumentID": row.get("InstrumentID", row.get("instrument_id")),
-                    "ExchangeID": row.get("ExchangeID", row.get("exchange_id")),
-                    "FrontID": row.get("FrontID", row.get("front_id")),
-                    "SessionID": row.get("SessionID", row.get("session_id")),
-                    "OrderRef": row.get("OrderRef", row.get("order_ref")),
-                    "OrderSysID": row.get("OrderSysID", row.get("external_order_id")),
-                    "ctp_identity_complete": order_identity_complete,
-                },
-            )
-        for row in trade_rows:
-            self._record(
-                "trades",
-                {
-                    "event": "reconciliation_ctp_identity",
-                    "request_id": request_id,
-                    "InstrumentID": row.get("InstrumentID", row.get("instrument_id")),
-                    "ExchangeID": row.get("ExchangeID", row.get("exchange_id")),
-                    "TradeID": row.get("TradeID", row.get("trade_id")),
-                    "OrderSysID": row.get("OrderSysID", row.get("external_order_id")),
-                    "ctp_identity_complete": trade_identity_complete,
-                },
-            )
         self._reconciliation_count = 0
         self._reconciliation_hash = ""
         self._reconciliation_started = None
-        if self._reconciliation_phase == "closed":
-            self._cooldown_started = now
-            self._transition("COOLDOWN", "post_close_reconciled", now)
-        elif self._reconciliation_phase == "flat_release":
-            self._transition("FLAT", "flat_release_reconciled", now)
+        self._record(
+            "reconciliation",
+            {
+                "schema_version": snapshot.get("schema_version"),
+                "snapshot_id": snapshot_id,
+                "consistency_digest": digest,
+                "source_ref": source_ref,
+                "generation": generation,
+                "session_ref": session_ref,
+                "phase": self._reconciliation_phase,
+                "complete": True,
+                "safe_to_resume": True,
+                "position_count": len(positions),
+                "open_orders": 0,
+            },
+        )
+        now = self._clock.monotonic_now()
+        if self._reconciliation_phase == "flat_release":
+            self._transition("FLAT", "neutral_flat_release_reconciled", now)
         elif self._reconciliation_phase == "drain_flat":
-            self._transition("STOPPED_FLAT", "drain_reconciled_flat", now)
+            self._transition("STOPPED_FLAT", "neutral_drain_reconciled_flat", now)
             if self.state == "STOPPED_FLAT":
                 self.env.runstop()
-        elif self._reconciliation_phase == "unknown_resolution":
-            self._unknown_intents = 0
-            self._active_order = None
-            self.deadline.confirmed_terminal()
-            if self._unknown_origin_was_draining:
-                self._transition("STOPPED_FLAT", "unknown_resolved_flat", now)
-                if self.state == "STOPPED_FLAT":
-                    self.env.runstop()
-            else:
-                self._cooldown_started = now
-                self._transition("COOLDOWN", "unknown_resolved_flat", now)
-        elif self._reconciliation_phase == "manual_monitor":
-            if getattr(self, "_recovery_only", False):
-                self._begin_execution_recovery_completion(now)
-            else:
-                self._transition("STOPPED_FLAT", "manual_read_only_reconciled_flat", now)
-                if self.state == "STOPPED_FLAT":
-                    self.env.runstop()
+        else:
+            self._transition("STOPPED_FLAT", "neutral_manual_monitor_reconciled_flat", now)
+            if self.state == "STOPPED_FLAT":
+                self.env.runstop()
         return True
 
     def _begin_reconciliation(self, phase: str, reason: str, now: float) -> None:
@@ -2103,19 +2074,17 @@ class SAMidFrequencyStrategy(bt.Strategy):
         ):
             self._enter_manual_monitor("unknown_reconciliation_two_rounds_exhausted", now)
             return
-        method = getattr(self.broker, "request_ctp_reconciliation", None)
-        if not callable(method):
-            method = getattr(self.broker, "request_reconciliation", None)
+        method = getattr(self.broker, "request_reconciliation", None)
         if not callable(method):
             self._block("broker_reconciliation_api_missing")
             return
-        # The Broker owns the non-blocking query lane and invokes this callback
-        # later from its Cerebro-thread ``next`` hook.  No CTP query may run
-        # synchronously inside a Strategy callback.
+        # The Broker owns the non-blocking SDK-neutral query lane and invokes
+        # this callback later from its Cerebro-thread ``next`` hook.
         try:
             accepted = method(self.notify_reconciliation)
-        except TypeError:
-            accepted = method()
+        except Exception:
+            self._block("neutral_reconciliation_request_failed")
+            return
         self._last_reconciliation_requested = now
         self._reconciliation_requests_issued += 1
         if accepted is False or (isinstance(accepted, dict) and accepted.get("queued") is not True):
@@ -2188,7 +2157,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
     def _cached_report_position_lots(self) -> tuple[int | None, bool]:
         """Return local cached gross exposure without calling ``getposition``.
 
-        Live CTP brokers may refresh synchronously from ``getposition``.  The
+        Provider-backed brokers may refresh synchronously from ``getposition``.  The
         generic report path is intentionally forbidden from doing that.  New
         broker caches expose ``position_legs`` so a dual-side account retains
         both legs; an older cache can only prove a net position and is marked
@@ -2251,7 +2220,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         """Return SA-specific evidence for TradeLogger's report extension.
 
         TradeLogger owns the generic runtime snapshot and freezes the final
-        report.  This strategy only supplies the controlled CTP state needed
+        report.  This strategy only supplies the controlled execution state needed
         by the Iteration 22 admission, reconciliation, and G3/G4 judges.
         """
         report_data = self._report_data()
@@ -2333,8 +2302,8 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "observation_evidence": {
                 "profile": self.p.environment_profile or None,
                 "trading_day": self.p.trading_day or None,
-                "expected_connection_generation": self.p.connection_generation or None,
-                "observed_connection_generations": sorted(self._observation_generations),
+                "expected_generation": self.p.generation or None,
+                "observed_generations": sorted(self._observation_generations),
                 "first_valid_quote_utc": (
                     datetime.fromtimestamp(self._observation_first_event, timezone.utc).isoformat()
                     if self._observation_first_event is not None

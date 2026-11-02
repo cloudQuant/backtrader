@@ -1,0 +1,110 @@
+{
+  "schema": "iteration51_coordinator_sqlite_reopen_round.v1",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "parent_commit": "b8beb3645185e0400c9d57fc913cff90ef223b35",
+  "paths": [
+    "tests/unit/stores/test_factor_execution.py",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/验收方案.md",
+    "docs/_internal/opts/requirements/迭代51-因子流批一体与Alpha003-SimNow实盘示例/evidence/run-loss-coordinator-reopen-20261027/record.json"
+  ],
+  "qa_file": {
+    "path": "D:\\temp\\i51-coordinator-reopen-source-qa-20261027-r2\\result.json",
+    "size_bytes": 3708,
+    "sha256": "62763b47f94ba9483cbdb7901dbea34fd7d32ed8f82d357ebb0ee967e58423cc"
+  },
+  "qa": {
+    "level": "SOURCE_SYNTHETIC_COORDINATOR_SQLITE_REOPEN_ONLY",
+    "exit_code": 0,
+    "test_count": 1,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "source_pins_unchanged": true,
+    "source_pins_before": {
+      "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+        "size_bytes": 525714,
+        "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\brokers\\test_btapibroker_position_sync.py": {
+        "size_bytes": 28478,
+        "sha256": "7054266dde347d33ed85f93d13fdee8716afe36d5ecd39ef9db93cd6a3335619"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+        "size_bytes": 288295,
+        "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+        "size_bytes": 89698,
+        "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      }
+    },
+    "source_pins_after": {
+      "D:\\source_code\\backtrader\\backtrader\\brokers\\btapibroker.py": {
+        "size_bytes": 525714,
+        "sha256": "776087c6b70574df935009038a0cd4cb07d83da078e47b16c854d09e041bed3e"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\brokers\\test_btapibroker_position_sync.py": {
+        "size_bytes": 28478,
+        "sha256": "7054266dde347d33ed85f93d13fdee8716afe36d5ecd39ef9db93cd6a3335619"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution.py": {
+        "size_bytes": 288295,
+        "sha256": "72a1f813537b29cf33ff11d662d79b63bb8c32e4555b02af20d9cd70b104f619"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution.py": {
+        "size_bytes": 89698,
+        "sha256": "3f9ed313837116ecb3baa73778765cc4167ed9f6a469c8925741f84baf7f4995"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\factor_execution_facts.py": {
+        "size_bytes": 219489,
+        "sha256": "769e1b87100022354222023796c22504cae676d3067582b16e146abc3bf6fa2b"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\execution_decision_journal.py": {
+        "size_bytes": 329937,
+        "sha256": "ec39380ee78be028bc24850de57da571bf14a63dc66af7d1ac017f0b8a1ff637"
+      },
+      "D:\\source_code\\backtrader\\backtrader\\stores\\registered_sim.py": {
+        "size_bytes": 144382,
+        "sha256": "fed9eb3106cd3d7b4753157fe75b0723dbdd6bec3775f9c18aad06b71a639a04"
+      },
+      "D:\\source_code\\backtrader\\tests\\unit\\stores\\test_factor_execution_facts.py": {
+        "size_bytes": 159045,
+        "sha256": "2a20ee47bc6ab75d2e422b16e5a0eaf6256dcab1c4abbf0888624220925931d2"
+      }
+    },
+    "boundary": "Real SQLite close and reopen with a fresh Coordinator; synthetic account facts and journal admission only. No fresh-process or provider execution claim."
+  },
+  "prior_failed_fixture": {
+    "result": {
+      "path": "D:\\temp\\i51-coordinator-reopen-source-qa-20261027-r1\\result.json",
+      "size_bytes": 3708,
+      "sha256": "d1f7ff1ce96c0515ca33a3f20e5c61e7721ca3d0fdd1e3afbd33a9cff75ab5e4"
+    },
+    "source": {
+      "path": "D:\\temp\\i51-coordinator-reopen-source-qa-20261027-r1\\test_source.py",
+      "size_bytes": 88889,
+      "sha256": "ac8664ea562826f7b26a36235a707b4a9cf4e3faaf131198fd1f3c1bab23c111"
+    },
+    "cause": "CANCEL and CLOSE for the same instrument in one decision violate the existing uniqueness contract."
+  },
+  "review": "Root inspected public test diff and journal APIs; author nojoin_tests",
+  "formal_ac_increment": 0,
+  "boundary": "Actual SQLite close/reopen with fresh Coordinator and synthetic facts; risk journal admission only. No new OS process, provider dispatch, or account restart acceptance."
+}

@@ -49,7 +49,7 @@ class NotionalAllocationSizer(Sizer):
         if not callable(reader):
             raise ValueError("managed strategy allocation reader is unavailable")
         # Import only on explicit use; ordinary backtests have no SDK dependency.
-        from bt_api_risk.allocation_sizing import size_for_strategy_allocation
+        from bt_api_py.allocation_sizing import size_for_strategy_allocation
 
         snapshot = reader(strategy_id)
         if getattr(snapshot, "strategy_id", None) != strategy_id:

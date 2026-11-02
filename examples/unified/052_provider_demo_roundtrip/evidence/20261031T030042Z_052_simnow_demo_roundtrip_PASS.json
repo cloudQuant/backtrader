@@ -1,0 +1,349 @@
+{
+  "credential_env_names": [
+    "CTP_APP_ID",
+    "CTP_AUTH_CODE",
+    "CTP_BROKER_ID",
+    "CTP_PASSWORD",
+    "CTP_USER_ID"
+  ],
+  "entry_tier": {
+    "cli_tier": "live",
+    "config_tier": null,
+    "effective_tier": "live",
+    "tier_selection_reason": "cli_requested"
+  },
+  "front_selection": {
+    "eligible": [
+      {
+        "index": 3,
+        "kind": "standard",
+        "md_success": 3,
+        "score_ms": 282.0,
+        "td_success": 3,
+        "whitelisted": true
+      }
+    ],
+    "environment_switched_after_write": false,
+    "md_median_ms": 282.0,
+    "md_success": 3,
+    "rejected": [
+      {
+        "index": 0,
+        "kind": "standard",
+        "md_success": 0,
+        "reason": "no_whole_pair_connection",
+        "td_success": 0
+      },
+      {
+        "index": 1,
+        "kind": "standard",
+        "md_success": 0,
+        "reason": "no_whole_pair_connection",
+        "td_success": 0
+      },
+      {
+        "index": 2,
+        "kind": "standard",
+        "md_success": 0,
+        "reason": "no_whole_pair_connection",
+        "td_success": 0
+      },
+      {
+        "index": 4,
+        "kind": "standard",
+        "md_success": 0,
+        "reason": "no_whole_pair_connection",
+        "td_success": 0
+      }
+    ],
+    "samples": 3,
+    "score_ms": 282.0,
+    "selected_index": 3,
+    "selected_kind": "standard",
+    "selected_whitelisted": true,
+    "td_median_ms": 219.0,
+    "td_success": 3,
+    "whitelist_probe_error": null
+  },
+  "reason": "round_trip_closed_verified",
+  "report": {
+    "broker_started": true,
+    "cleanup_steps": [
+      "broker.stop",
+      "store.stop"
+    ],
+    "code": "run_completed",
+    "config_sha256": "a2ac9dd7b6c39e3bd5e076a819b41af698bf00ba911a539a9cd9534450e629b4",
+    "environment": "simulation",
+    "execution_summary": {
+      "broker": {
+        "active_orders": 0,
+        "evidence_complete": true,
+        "evidence_errors": [],
+        "fee_unresolved_orders": [],
+        "session_enabled": false,
+        "source": "registered_sim_execution_summary_v1",
+        "trading_blocked": true,
+        "unknown_ids": []
+      },
+      "store": {
+        "active_orders": 0,
+        "evidence_complete": true,
+        "evidence_errors": [],
+        "fee_unresolved_orders": [],
+        "session_enabled": false,
+        "source": "registered_sim_execution_summary_v1",
+        "trading_blocked": true,
+        "unknown_ids": []
+      }
+    },
+    "failure_detail": "",
+    "mode": "paper",
+    "provider_ref": "provider/simnow_registered_sim",
+    "readiness": {
+      "reconcile": {
+        "active_orders": 0,
+        "open_orders": 0,
+        "positions": 0,
+        "unknown_ids": 0
+      },
+      "symbols": {
+        "SA701": {
+          "can_trade": true,
+          "environment": "simulation",
+          "multiplier": 20.0,
+          "order_ready": true,
+          "position_mode": "dual_side"
+        }
+      }
+    },
+    "run_id": "i52-simnow-paper-20261031T025819Z-cd4fd242",
+    "shutdown": {
+      "broker_shutdown_state": {
+        "flat_proven": false,
+        "live_winddown_started": false,
+        "reason": "store_shutdown_complete",
+        "status": "PASS",
+        "store_shutdown_state": "PASS"
+      },
+      "broker_stop": "returned",
+      "post_execution_summary": {
+        "broker": {
+          "active_orders": 0,
+          "evidence_complete": true,
+          "evidence_errors": [],
+          "fee_unresolved_orders": [],
+          "session_enabled": false,
+          "source": "registered_sim_execution_summary_v1",
+          "trading_blocked": true,
+          "unknown_ids": []
+        },
+        "store": {
+          "active_orders": 0,
+          "evidence_complete": true,
+          "evidence_errors": [],
+          "fee_unresolved_orders": [],
+          "session_enabled": false,
+          "source": "registered_sim_execution_summary_v1",
+          "trading_blocked": true,
+          "unknown_ids": []
+        }
+      },
+      "store_connected": false
+    },
+    "started": true,
+    "status": "COMPLETED",
+    "store_started": true,
+    "strategy_facts": {
+      "cancel_error": null,
+      "cancel_requested": false,
+      "close_at": 63907.781,
+      "close_order": {
+        "alive": false,
+        "commission": 0.0,
+        "executed_price": 975.0,
+        "executed_size": -1.0,
+        "executed_value": 19640.0,
+        "info": {
+          "approval_expires_at_utc": "2026-10-31T03:03:19Z",
+          "approval_max_order_count": 2,
+          "approval_operation": "submit",
+          "approval_operation_count": 2,
+          "approval_risk_reducing": true,
+          "cancel_deadline_monotonic_ns": null,
+          "cancel_deadline_unknown_marked": false,
+          "cancel_execution_unknown": false,
+          "cancel_intent_active": false,
+          "cancel_requested_remote": false,
+          "cancel_retry_due_monotonic_ns": null,
+          "cancel_retry_exhausted": false,
+          "ctp_order_ref": "2",
+          "cumulative_fill_quantity": 1.0,
+          "error_msg": "\u5168\u90e8\u6210\u4ea4\u62a5\u5355\u5df2\u63d0\u4ea4",
+          "exchange_id": "CZCE",
+          "execution_fill_source": "cumulative",
+          "execution_pending_trades": false,
+          "execution_unknown": false,
+          "external_order_id": "24597",
+          "front_id": 1,
+          "managed_execution_cancel_freeze_required": false,
+          "managed_execution_cancel_pending": false,
+          "managed_execution_cancel_reconciliation_required": false,
+          "offset": "close",
+          "position_mode": "dual_side",
+          "position_side": "long",
+          "reconcile_exhausted": false,
+          "reconcile_next_monotonic_ns": null,
+          "reconcile_requested": false,
+          "reduce_only": true,
+          "session_id": 1498134885,
+          "time_in_force": "GFD"
+        },
+        "ref": 2,
+        "status": "Completed"
+      },
+      "events": [
+        {
+          "at_monotonic": 63904.718,
+          "event": "open_submitted",
+          "ref": 1,
+          "status": "Accepted"
+        },
+        {
+          "at_monotonic": 63904.734,
+          "event": "order_accepted",
+          "ref": 1,
+          "status": "Accepted"
+        },
+        {
+          "at_monotonic": 63905.781,
+          "event": "order_completed",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 63905.781,
+          "event": "close_scheduled",
+          "ref": 1,
+          "status": "Completed"
+        },
+        {
+          "at_monotonic": 63907.781,
+          "event": "close_submitted",
+          "ref": 2,
+          "status": "Accepted"
+        },
+        {
+          "at_monotonic": 63907.796,
+          "event": "order_accepted",
+          "ref": 2,
+          "status": "Accepted"
+        },
+        {
+          "at_monotonic": 63909.0,
+          "event": "order_completed",
+          "ref": 2,
+          "status": "Completed"
+        }
+      ],
+      "idle_calls": 6893,
+      "maintenance_calls": 6893,
+      "maintenance_state": {
+        "alive": false,
+        "cancel_at": 63908.734,
+        "now": 63914.625,
+        "phase": "closed_verified"
+      },
+      "open_order": {
+        "alive": false,
+        "commission": 0.0,
+        "executed_price": 982.0,
+        "executed_size": 1.0,
+        "executed_value": 19640.0,
+        "info": {
+          "approval_expires_at_utc": "2026-10-31T03:03:19Z",
+          "approval_max_order_count": 2,
+          "approval_operation": "submit",
+          "approval_operation_count": 1,
+          "approval_risk_reducing": false,
+          "cancel_deadline_monotonic_ns": null,
+          "cancel_deadline_unknown_marked": false,
+          "cancel_execution_unknown": false,
+          "cancel_intent_active": false,
+          "cancel_requested_remote": false,
+          "cancel_retry_due_monotonic_ns": null,
+          "cancel_retry_exhausted": false,
+          "ctp_order_ref": "1",
+          "cumulative_fill_quantity": 1.0,
+          "error_msg": "\u5168\u90e8\u6210\u4ea4\u62a5\u5355\u5df2\u63d0\u4ea4",
+          "exchange_id": "CZCE",
+          "execution_fill_source": "cumulative",
+          "execution_pending_trades": false,
+          "execution_unknown": false,
+          "external_order_id": "24596",
+          "front_id": 1,
+          "managed_execution_cancel_freeze_required": false,
+          "managed_execution_cancel_pending": false,
+          "managed_execution_cancel_reconciliation_required": false,
+          "offset": "open",
+          "position_mode": "dual_side",
+          "position_side": "long",
+          "reconcile_exhausted": false,
+          "reconcile_next_monotonic_ns": null,
+          "reconcile_requested": false,
+          "session_id": 1498134885,
+          "time_in_force": "GFD"
+        },
+        "ref": 1,
+        "status": "Completed"
+      },
+      "phase": "closed_verified",
+      "quantity_unit": "contracts",
+      "stop_at": 63912.0
+    },
+    "symbols": [
+      "SA701"
+    ],
+    "topology": "direct"
+  },
+  "simnow_paper": {
+    "account_rows": 1,
+    "arm": {
+      "armed": true,
+      "count": 1,
+      "preflight_sha256": "353489b4d56355bef10829b53dd8ed7b3637bb8348c8b27a9db23d0b96ef5d27"
+    },
+    "credential_env_names": [
+      "CTP_APP_ID",
+      "CTP_AUTH_CODE",
+      "CTP_BROKER_ID",
+      "CTP_USER_ID",
+      "CTP_PASSWORD"
+    ],
+    "environment": "simulation",
+    "exchange": "CZCE",
+    "instrument": "SA701",
+    "instrument_rows": 93,
+    "login": {
+      "connection_generation": 1,
+      "read_only_ready": true,
+      "trading_day": "20261029",
+      "trading_ready": true
+    },
+    "order_rows": 3,
+    "position_mode": "dual_side",
+    "position_rows": 1,
+    "prepared": true,
+    "schema_version": 1,
+    "stop": {
+      "action": "disarm",
+      "final_order_rows": 0,
+      "final_position_rows": 0,
+      "reason": "simnow_paper_clean_stop",
+      "unknown_ids": 0
+    },
+    "venue": "SIMNOW"
+  },
+  "status": "PASS",
+  "venue": "SIMNOW"
+}

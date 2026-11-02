@@ -1,0 +1,90 @@
+{
+  "schema": "iteration51.accepted-source-round.v1",
+  "round": "auction-baseline-20261027",
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "acceptance_parent": "c4c7240ad0b7a5d0e698a9006c95f144ddf8401d",
+  "source_pins": {
+    "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+    "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+    "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c"
+  },
+  "accepted_distinct_cases": 12,
+  "accepted_nodes": [
+    "test_preplanned_observation_seeds_first_minute_and_repeats_do_not_shift_or_add_volume",
+    "test_first_planned_minute_is_discarded_without_an_earlier_observation",
+    "test_same_bucket_cumulative_quotes_cannot_make_the_partial_minute_complete",
+    "test_invalid_preplanned_source_inputs_cannot_seed_the_first_bucket[invalid-price]",
+    "test_invalid_preplanned_source_inputs_cannot_seed_the_first_bucket[invalid-cumulative-volume]",
+    "test_invalid_preplanned_source_inputs_cannot_seed_the_first_bucket[malformed-source-time]",
+    "test_stale_preplanned_observation_does_not_seed_or_poison_event_order",
+    "test_unhealthy_preplanned_observation_does_not_seed_or_poison_event_order",
+    "test_explicit_quote_only_winddown_does_not_seed_the_first_bucket",
+    "test_actual_cffex_index_opening_auction_quote_seeds_baseline_without_auction_bar",
+    "test_opening_auction_baseline_is_limited_to_cffex_index_products_and_times",
+    "test_cffex_first_minute_without_an_actual_auction_quote_keeps_normal_guard"
+  ],
+  "qa_result": {
+    "command": [
+      "C:\\anaconda3\\python.exe",
+      "-m",
+      "pytest",
+      "-p",
+      "no:asyncio",
+      "-q",
+      "--tb=short",
+      "--junitxml=D:\\temp\\i51-auction-and-golden-source-qa-20261027-r1\\junit.xml",
+      "tests/integration/test_ctp_factor_preopen_baseline.py",
+      ".codex-tmp/test_i51_golden_quote_observer_20261027.py"
+    ],
+    "exit_code": 1,
+    "elapsed_seconds": 4.579000000027008,
+    "counts": {
+      "tests": 16,
+      "failures": 4,
+      "errors": 0,
+      "skipped": 0
+    },
+    "pins_before": {
+      "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+      "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+      "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+      "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+      "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+      "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+      "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+      ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+      ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "4c92bdddc000f92d833f3a27b08cf70e9617f7e8161e1647c56199a666e0a674"
+    },
+    "pins_after": {
+      "backtrader/feeds/btapifeed.py": "f08eb46c3ea9320be008de1266078fa1053944ad98e3b4736e3cc91723ed8ed5",
+      "backtrader/feeds/ctp_factor_source.py": "ae2305394a61dd2b4f2af1334a05356644ce6493d8a8c343cff87a88cde89f49",
+      "backtrader/feeds/futures_expected_calendar.py": "6f19a8d9caead6e0ec78a8bfa189c538d6ac326d0be580978fc4097ad963ce25",
+      "tests/integration/test_ctp_factor_preopen_baseline.py": "f53076d11dd9846d30b5ecd354a528bdd86b5756cd376ab65581d1eaa783da9c",
+      "tests/integration/test_ctp_factor_source_cohort.py": "3ec4493afc9186e32e5e1804580067cd390c899fa4c26310d8f92a6deb6ec4c9",
+      "tests/unit/test_alpha003_simnow_runner.py": "68338e564f42829efb68cbcb2f7ca636a1fff0c1ee06913f77107dbed8859ea2",
+      "tests/unit/feeds/test_futures_sessions.py": "91c31100b1750567ba87639f1385c57d62e85b5f022c26edd9fa96a13df936b3",
+      ".codex-tmp/i51_root_golden_quote_observer_20261027.py": "8c99b0838cba10edd61f9b0293cf2f6a70c42468a7f818250ea3741edab68dd9",
+      ".codex-tmp/test_i51_golden_quote_observer_20261027.py": "4c92bdddc000f92d833f3a27b08cf70e9617f7e8161e1647c56199a666e0a674"
+    },
+    "source_pins_unchanged": true,
+    "evidence_level": "PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY"
+  },
+  "evidence_level": "SOURCE_AND_PUBLIC_SYNTHETIC_CTP_CALLBACKS_ONLY",
+  "scope": "An actual valid CFFEX IF/IH/IC/IM opening-auction quote may seed the first partial-minute guard during [09:25,09:30) on the selected TradingDay. Continuous sessions and the common grid are unchanged; no auction bar or invented volume.",
+  "qa_summary": "12 baseline cases passed, including three new auction cases. Four separate golden-observer fixtures failed before reaching the helper because their rule retrieval time exceeded synthetic as_of; those are excluded, not accepted.",
+  "limits": [
+    "No actual auction quote availability or full live-session acceptance.",
+    "The one existing pytest configuration warning remains recorded."
+  ],
+  "rule_sources": [
+    "https://www.cffex.com.cn/u/cms/www/202003/27165436e0mo.pdf",
+    "https://www.cffex.com.cn/u/cms/www/202003/27165822h30l.pdf",
+    "https://www.cffex.com.cn/u/cms/www/202003/27165958okn6.pdf",
+    "https://www.cffex.com.cn/u/cms/www/202207/182020307zry.pdf"
+  ],
+  "archive": {
+    "sha256": "ffd010fec1a78337dd9f6a7d2119a1ee83e9c58f3ec6dab0ed7dec66af1829cc",
+    "size_bytes": 6305
+  }
+}

@@ -2,15 +2,31 @@
 
 from __future__ import annotations
 
+from collections import deque
 from datetime import datetime, timezone
 from functools import wraps
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
-from .. import Indicator
+from ..feed import AbstractDataBase
+from ..feeds.pandafeed import PandasData
+from ..indicator import Indicator
 from ..indicators import SMA
+from ..linebuffer import LineBuffer
+from ..lineiterator import LineIterator
+from ..lineseries import Lines
 from ..utils import num2date
 from ..errors import ResearchConfigError, FactorComputationContext
+
+
+_FACTOR_ONCE_FEED_ADVANCE = AbstractDataBase.advance
+_FACTOR_ONCE_FEED_TICK_NULLIFY = AbstractDataBase._tick_nullify
+_FACTOR_ONCE_FEED_TICK_FILL = AbstractDataBase._tick_fill
+_FACTOR_ONCE_ITERATOR_ADVANCE = LineIterator.advance
+_FACTOR_ONCE_INDICATOR_ADVANCE = Indicator.advance
+_FACTOR_ONCE_LINES_ADVANCE = Lines.advance
+_FACTOR_ONCE_LINE_ADVANCE = LineBuffer.advance
+_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT = 64
 
 
 class _OutputLines:
@@ -34,16 +50,171 @@ class _OutputLines:
         return tuple(self._lines)
 
 
+def _factor_once_method_owner(instance: Any, name: str) -> Optional[type]:
+    """Return the class that supplies one callback on *instance*."""
+    for candidate in type(instance).__mro__:
+        if name in candidate.__dict__:
+            return candidate
+    return None
+
+
+def _factor_once_method_is(instance: Any, name: str, expected: Any) -> bool:
+    """Check an overridable instance hook against its imported implementation."""
+    try:
+        method = object.__getattribute__(instance, name)
+    except (AttributeError, TypeError):
+        return False
+    return (
+        getattr(method, "__self__", None) is instance
+        and getattr(method, "__func__", None) is expected
+    )
+
+
+def _factor_once_lines_ready(instance: Any, end: int, seen: set) -> bool:
+    """Check that a full-array node can be read at absolute once indexes."""
+    if id(instance) in seen:
+        return True
+    seen.add(id(instance))
+
+    if isinstance(instance, Indicator):
+        if not _factor_once_method_is(instance, "advance", _FACTOR_ONCE_INDICATOR_ADVANCE):
+            return False
+    elif isinstance(instance, LineIterator) and not _factor_once_method_is(
+        instance, "advance", _FACTOR_ONCE_ITERATOR_ADVANCE
+    ):
+        return False
+
+    lines = getattr(instance, "lines", None)
+    if lines is not None:
+        if not _factor_once_method_is(lines, "advance", _FACTOR_ONCE_LINES_ADVANCE):
+            return False
+        for line in lines:
+            # The kernel sets these cursors directly to avoid one advance per
+            # feed/child/bar. Keep this limited to the exact standard buffer.
+            if type(line) is not LineBuffer or not _factor_once_method_is(
+                line, "advance", _FACTOR_ONCE_LINE_ADVANCE
+            ):
+                return False
+            if getattr(line, "mode", None) != getattr(line, "UnBounded", 0):
+                return False
+            if len(line.array) < end:
+                return False
+
+    children = getattr(instance, "_lineiterators", {})
+    for child in children.get(LineIterator.IndType, ()):
+        if not _factor_once_lines_ready(child, end, seen):
+            return False
+    return True
+
+
+def _factor_once_supported(instance: Any, optimized_class: type, start: int, end: int) -> bool:
+    """Limit array indexing to the synchronized, full-array research path.
+
+    Exact PandasData instances are the feeds produced by ``align_to_grid``.
+    Subclasses and other feeds retain their ordinary Cerebro callbacks, as do
+    custom callback overrides, qbuffers and indicators pinned to a distinct
+    secondary-feed clock.
+    """
+    if start < 0 or end < start:
+        return False
+    if getattr(instance, "factor_mode", "native") != "native":
+        return False
+    instance_type = type(instance)
+    if isinstance(instance, FactorIndicator):
+        if (
+            instance_type.__bases__ != (optimized_class,)
+            or instance_type.__dict__.get("_factor_bound") is not True
+        ):
+            return False
+    elif instance_type is not optimized_class:
+        return False
+    if _factor_once_method_owner(instance, "next") is not optimized_class:
+        return False
+    if _factor_once_method_owner(instance, "once") is not optimized_class:
+        return False
+    expected_callbacks = optimized_class.__dict__.get("_factor_once_expected_callbacks")
+    if not isinstance(expected_callbacks, tuple) or any(
+        not _factor_once_method_is(instance, name, method) for name, method in expected_callbacks
+    ):
+        return False
+
+    # Preserve user-defined warmup callbacks. FactorIndicator supplies the
+    # ordinary next-delegating defaults; a standard Indicator uses LineIterator.
+    allowed_prenext = (optimized_class, FactorIndicator, LineIterator)
+    allowed_nextstart = (optimized_class, FactorIndicator, LineIterator)
+    if _factor_once_method_owner(instance, "prenext") not in allowed_prenext:
+        return False
+    if _factor_once_method_owner(instance, "nextstart") not in allowed_nextstart:
+        return False
+
+    try:
+        datas = tuple(instance.datas)
+        clock = object.__getattribute__(instance, "_clock")
+    except (AttributeError, TypeError):
+        return False
+    if not datas or clock is not datas[0]:
+        return False
+    resolved_clock = getattr(instance, "_resolved_secondary_clock", None)
+    if resolved_clock is not None and resolved_clock is not datas[0]:
+        return False
+
+    for data in datas:
+        if (
+            type(data) is not PandasData
+            or end > data.buflen()
+            or not _factor_once_method_is(data, "advance", _FACTOR_ONCE_FEED_ADVANCE)
+            or not _factor_once_method_is(data, "_tick_nullify", _FACTOR_ONCE_FEED_TICK_NULLIFY)
+            or not _factor_once_method_is(data, "_tick_fill", _FACTOR_ONCE_FEED_TICK_FILL)
+            or not _factor_once_lines_ready(data, end, set())
+        ):
+            return False
+    return _factor_once_lines_ready(instance, end, set())
+
+
+def _factor_once_execute(
+    instance: Any,
+    optimized_class: type,
+    callback: Any,
+    start: int,
+    end: int,
+    *,
+    phase: str = "once_via_next",
+) -> bool:
+    """Execute one supported array range under the ordinary strict phase."""
+    if not _factor_once_supported(instance, optimized_class, start, end):
+        return False
+    instance._factor_run_callback(callback, phase, start, end)
+    if isinstance(instance, FactorIndicator):
+        instance._record_factor_once(start, end)
+    return True
+
+
+def _factor_once_read(line: Any, index: int, ago: int = 0) -> Any:
+    """Read one preloaded line value through its ordinary strict line API."""
+    line._idx = index
+    line.lencount = index + 1
+    return line[ago]
+
+
+def _factor_once_write(line: Any, index: int, value: Any) -> None:
+    """Store one result through the ordinary strict and bound line API."""
+    line._idx = index
+    line.lencount = index + 1
+    line[0] = value
+
+
 class _PresenceLine(Indicator):
-    """One boolean real-bar flag per bar, advancing on the target feed clock.
+    """One target-membership and source-presence flag per target bar.
 
     Cross-sectional operators read it to exclude an asset whose source feed has
-    no bar on the current grid point.  It carries no point-in-time table, source
-    timestamp or availability reason.
+    no bar on the current grid point. Aligned research data uses its existing
+    immutable presence projection. A cohort feed instead reads the exact
+    receipt published for the current complete batch, after every feed line
+    has advanced and before factor callbacks run.
     """
 
     lines: Any = ("value",)
-    params: Any = (("present", ()),)
+    params: Any = (("present", ()), ("cohort", None))
 
     def __init__(self) -> None:
         self._present = tuple(bool(value) for value in self.p.present)
@@ -53,9 +224,34 @@ class _PresenceLine(Indicator):
         index = self._cursor
         self._cursor += 1
         if index >= len(self._present):
-            self.lines.value[0] = 1.0
+            is_member = True
         else:
-            self.lines.value[0] = 1.0 if self._present[index] else 0.0
+            is_member = self._present[index]
+        cohort = self.p.cohort
+        if cohort is not None:
+            batch = cohort.current_batch()
+            receipt = cohort.current_delivery(self.data)
+            if (
+                batch is None
+                or receipt is None
+                or receipt.feed_ref is not self.data
+                or receipt.batch_id != batch.batch_id
+                or batch.members.get(receipt.member_id) is not receipt
+                or receipt.complete is not True
+                or receipt.quality not in ("GOOD", "MISSING")
+            ):
+                # Unknown live membership is not equivalent to an absent asset.
+                # Panel operators reject this NaN instead of ranking a partial
+                # or stale batch.
+                self.lines.value[0] = float("nan")
+                return
+            is_member = (
+                is_member
+                and receipt.present is True
+                and receipt.quality == "GOOD"
+                and not receipt.missing_fields
+            )
+        self.lines.value[0] = 1.0 if is_member else 0.0
 
 
 class _FeedInputLine(Indicator):
@@ -122,7 +318,16 @@ class FactorIndicator(Indicator):
         asset_names = tuple(self._factor_runtime.get("asset_names", ()))
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
-        self._factor_call_times: List[datetime] = []
+        self._factor_live_bounded_diagnostics = bool(runtime.get("live_source_binding", False))
+        self._factor_call_count = 0
+        self._factor_once_range_count = 0
+        self._factor_once_covered_count = 0
+        if self._factor_live_bounded_diagnostics:
+            self._factor_call_times = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
+            self._factor_once_ranges = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
+        else:
+            self._factor_call_times: List[datetime] = []
+            self._factor_once_ranges: List[Tuple[int, int]] = []
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
@@ -377,6 +582,66 @@ class FactorIndicator(Indicator):
         **params: Any,
     ) -> "FactorIndicator":
         """Construct one native factor with explicit target/input separation."""
+        from .strict import live_source_binding_active
+
+        live_binding_active = live_source_binding_active()
+        inherited_context = None
+        if live_binding_active:
+            # Factor formulas may construct ordinary FactorIndicator operator
+            # nodes from their __init__. Such a child bind has no independent
+            # public factor name; it is trusted only while the exact parent
+            # iterator carrying the real strict context owns construction.
+            from ..metabase import OwnerContext
+
+            owner = OwnerContext.get_current_owner(LineIterator)
+            candidate = getattr(owner, "_factor_strict_context", None)
+            owner_runtime = getattr(type(owner), "_factor_runtime", None)
+            if (
+                isinstance(owner, FactorIndicator)
+                and isinstance(owner_runtime, dict)
+                and owner_runtime.get("live_source_binding") is True
+                and owner_runtime.get("strict_context") is candidate
+                and isinstance(candidate, FactorComputationContext)
+            ):
+                candidate_factor = getattr(candidate, "factor", None)
+                if (
+                    owner_runtime.get("factor_name") == candidate_factor
+                    and isinstance(candidate_factor, str)
+                    and candidate_factor.strip()
+                ):
+                    inherited_context = candidate
+
+        if live_binding_active and strict is not True:
+            raise ResearchConfigError(
+                "active live factor binding requires strict=True",
+                code="UNSUPPORTED_SOURCE",
+            )
+        if (
+            live_binding_active
+            and inherited_context is not None
+            and factor_name is not None
+            and factor_name != inherited_context.factor
+        ):
+            raise ResearchConfigError(
+                "active nested live factor binding must match its parent factor_name",
+                code="UNSUPPORTED_SOURCE",
+            )
+        effective_factor_name = factor_name
+        if (
+            live_binding_active
+            and (not isinstance(effective_factor_name, str) or not effective_factor_name.strip())
+            and factor_name is None
+            and inherited_context is not None
+        ):
+            effective_factor_name = inherited_context.factor
+        if live_binding_active and (
+            not isinstance(effective_factor_name, str) or not effective_factor_name.strip()
+        ):
+            raise ResearchConfigError(
+                "active live factor binding requires a non-empty factor_name",
+                code="UNSUPPORTED_SOURCE",
+            )
+
         cls._validate_bind_request(datas)
         selected_mode = cls._resolve_factor_mode(mode)
         if "mode" in params:
@@ -403,16 +668,19 @@ class FactorIndicator(Indicator):
         runtime = {
             "asset_names": names,
             "asset_by_data_id": asset_by_data_id,
-            "factor_name": factor_name if strict else None,
+            "factor_name": effective_factor_name if strict else None,
             "field_bindings": dict(field_bindings),
             "research": research,
             "available_datas": input_datas,
             "mode": selected_mode,
             "factor_params": resolved_factor_params,
         }
+        runtime["live_source_binding"] = live_binding_active
         context = None
-        if strict and factor_name:
-            context = FactorComputationContext(str(factor_name), phase="construct")
+        if strict and effective_factor_name:
+            context = inherited_context or FactorComputationContext(
+                str(effective_factor_name), phase="construct"
+            )
             for data in input_datas:
                 asset = asset_by_data_id.get(id(data)) or getattr(data, "_name", None)
                 if isinstance(asset, str) and asset:
@@ -456,7 +724,10 @@ class FactorIndicator(Indicator):
         )
         if context is not None:
             cls._validate_bound_sources(context, input_datas, targets, field_bindings)
+            previous_phase = context.phase
             context.phase = "init"
+        else:
+            previous_phase = None
         try:
             instance = bound_class(*datas, **resolved_factor_params)
         except Exception as exc:
@@ -473,8 +744,8 @@ class FactorIndicator(Indicator):
                 raise
             raise wrapped from exc
         finally:
-            if context is not None:
-                context.phase = "construct"
+            if context is not None and previous_phase is not None:
+                context.phase = previous_phase
         if not hasattr(instance, "outputs"):
             raise RuntimeError(
                 "factor __init__ must call super().__init__() before creating child indicators"
@@ -587,24 +858,113 @@ class FactorIndicator(Indicator):
     def _record_factor_call(self) -> None:
         data = self._factor_target_datas[0] if self._factor_target_datas else self.datas[0]
         current = num2date(float(data.datetime[0]), tz=timezone.utc, naive=False)
-        index = len(self._factor_call_times)
+        index = self._factor_call_count
+        if self._factor_once_range_count:
+            raise RuntimeError("factor next() ran after its once coverage began")
         if self._factor_grid is not None:
             if index >= len(self._factor_grid):
                 raise RuntimeError("factor next() ran more than once for the requested grid")
             if current != self._factor_grid[index]:
                 raise RuntimeError("factor next() time does not match its next UTC grid point")
         self._factor_call_times.append(current)
+        self._factor_call_count += 1
+
+    def _record_factor_once(self, start: int, end: int) -> None:
+        """Record a completed ordinary-once range without inventing next calls."""
+        if start == end:
+            return
+        if type(start) is not int or type(end) is not int or start < 0 or end < start:
+            raise RuntimeError("factor once() reported an invalid coverage range")
+        covered = self._factor_call_count + self._factor_once_covered_count
+        if start != covered:
+            raise RuntimeError("factor once() left a gap or overlap in calculation-grid coverage")
+        if self._factor_grid is not None and end > len(self._factor_grid):
+            raise RuntimeError("factor once() covered beyond the requested calculation grid")
+        self._factor_once_ranges.append((start, end))
+        self._factor_once_range_count += 1
+        self._factor_once_covered_count += end - start
 
     @property
     def lifecycle_diagnostics(self) -> Dict[str, Any]:
         """Read-only count and UTC-grid observations for lifecycle acceptance."""
         calls = tuple(self._factor_call_times)
+        once_ranges = tuple(self._factor_once_ranges)
+        if self._factor_live_bounded_diagnostics:
+            coverage_count = self._factor_call_count + self._factor_once_covered_count
+            return {
+                "diagnostic_kind": "bounded_live_samples",
+                "sample_limit": _LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT,
+                "call_count": self._factor_call_count,
+                "call_times": calls,
+                "call_times_truncated": self._factor_call_count > len(calls),
+                "grid_count": None,
+                "grid_matches": None,
+                "next_count": self._factor_call_count,
+                "next_times": calls,
+                "once_ranges": once_ranges,
+                "once_ranges_truncated": self._factor_once_range_count > len(once_ranges),
+                "once_count": self._factor_once_covered_count,
+                "once_times": (),
+                "coverage_count": coverage_count,
+                "coverage_times": calls,
+                "coverage_times_truncated": coverage_count > len(calls),
+                "coverage_matches": None,
+            }
         grid = self._factor_grid
+        once_count = sum(end - start for start, end in once_ranges)
+        once_times = (
+            tuple(value for start, end in once_ranges for value in grid[start:end])
+            if grid is not None
+            else ()
+        )
+        coverage_times = calls + once_times
+        coverage_matches = bool(grid is not None and coverage_times == grid)
         return {
             "call_count": len(calls),
             "call_times": calls,
             "grid_count": len(grid or ()),
             "grid_matches": bool(grid is not None and calls == grid),
+            "next_count": len(calls),
+            "next_times": calls,
+            "once_ranges": once_ranges,
+            "once_count": once_count,
+            "once_times": once_times,
+            "coverage_count": len(calls) + once_count,
+            "coverage_times": coverage_times,
+            "coverage_matches": coverage_matches,
+        }
+
+    @property
+    def lifecycle_capacity_facts(self) -> Dict[str, Any]:
+        """Return count-only lifecycle storage facts without copying samples.
+
+        Live capacity observers call this from the engine callback thread, the
+        same thread that appends lifecycle samples.  This projection never
+        iterates or copies the retained timestamps/ranges.  Non-live instances
+        use lists and are reported as unbounded rather than being mistaken for
+        a bounded zero-length cache.
+        """
+        calls = self._factor_call_times
+        ranges = self._factor_once_ranges
+        calls_bounded = type(calls) is deque and type(calls.maxlen) is int and calls.maxlen > 0
+        ranges_bounded = type(ranges) is deque and type(ranges.maxlen) is int and ranges.maxlen > 0
+        call_samples = len(calls)
+        range_samples = len(ranges)
+        sample_limit = calls.maxlen if calls_bounded and ranges_bounded else None
+        if calls_bounded and ranges_bounded and calls.maxlen != ranges.maxlen:
+            calls_bounded = False
+            ranges_bounded = False
+            sample_limit = None
+        return {
+            "schema": "backtrader.factor_lifecycle_capacity.v1",
+            "status": "OBSERVED" if calls_bounded and ranges_bounded else "UNBOUNDED",
+            "call_count": self._factor_call_count,
+            "once_range_count": self._factor_once_range_count,
+            "call_sample_count": call_samples,
+            "once_range_sample_count": range_samples,
+            "sample_limit": sample_limit,
+            "call_samples_bounded": calls_bounded,
+            "once_range_samples_bounded": ranges_bounded,
         }
 
     def output_for(self, data: Any, line: str = "factor") -> Any:
@@ -678,7 +1038,17 @@ class FactorIndicator(Indicator):
             if not isinstance(alignment, Mapping):
                 alignment = getattr(data, "_factor_research_alignment_v1", None)
             present = tuple(alignment.get("present", ())) if isinstance(alignment, Mapping) else ()
-            members.append(cast(Any, _PresenceLine)(data, present=present).lines.value)
+            cohort = getattr(data, "live_bar_cohort", None)
+            if cohort is not None:
+                from .live_cohort import LiveBarCohort
+
+                if type(cohort) is not LiveBarCohort or cohort.member_for_feed(data) is None:
+                    raise ResearchConfigError(
+                        "live factor presence requires the exact registered cohort feed"
+                    )
+            members.append(
+                cast(Any, _PresenceLine)(data, present=present, cohort=cohort).lines.value
+            )
         self._formula_member_lines = tuple(members)
         return self._formula_member_lines
 

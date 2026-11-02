@@ -4,23 +4,35 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import Mapping
 import copy
 import datetime as _dt
 import math
 import time as _time
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
 from ..feed import DataBase
-from ..stores.btapistore import _normalize_bar, _redact_diagnostic
+from ..utils.bar_projection import normalize_bar as _normalize_bar
+from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
 from .barrier import BarEvidence
-from .ctpcohort import CtpCohortNow
+from .market_cohort import MarketCohortNow
 from .livefeed import LiveFeedBase
+from .market_tick_adapter import (
+    MarketTickAdapterError,
+    adapt_market_tick_event,
+)
 from .service_recovery_quotes import ServiceRecoveryQuoteBindingMixin
+from ._btapi_cohort import (
+    LiveBarCohortFeedMixin,
+    _COHORT_MISSING,
+    _LIVE_COHORT_EXTRA_LINES,
+    _tick_value,
+)
 
 logger = get_logger(__name__)
 _LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
@@ -37,7 +49,17 @@ def _safe_log(level, message, *args):
 
 
 _UTC = _dt.timezone.utc
-_CTP_INVALID_ABS = 1.0e50
+_TICK_PRICE_FIELDS = ("price", "last_price")
+_MAX_DIAGNOSTIC_TEXT = 128
+
+
+def _bounded_context_value(value):
+    """Keep diagnostic identifiers finite without retaining arbitrary objects."""
+    if type(value) is str:
+        return value[:_MAX_DIAGNOSTIC_TEXT]
+    if type(value) is int and -(2**63) <= value < 2**63:
+        return value
+    return None
 
 
 def _set_tick_value(tick, name, value):
@@ -49,118 +71,38 @@ def _set_tick_value(tick, name, value):
 
 
 def _finite_market_number(value):
-    """Return a finite market number, rejecting CTP's DBL_MAX-style sentinels."""
-    if value in (None, "") or isinstance(value, bool):
-        return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError, OverflowError):
-        return None
-    if not math.isfinite(number) or abs(number) >= _CTP_INVALID_ABS:
-        return None
-    return number
+    """Delegate neutral number normalization to the SDK market contract."""
+    from bt_api_py.market_tick_contracts import finite_market_number
+
+    return finite_market_number(value)
 
 
 def _as_utc_datetime(value):
     """Parse an event-time field without silently replacing invalid source time."""
-    if isinstance(value, _dt.datetime):
-        if value.tzinfo is None or value.utcoffset() is None:
-            return value.replace(tzinfo=_UTC)
-        return value.astimezone(_UTC)
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        try:
-            return _dt.datetime.fromtimestamp(_coerce_epoch_seconds(value), _UTC)
-        except (OSError, OverflowError, TypeError, ValueError):
-            return None
-    if isinstance(value, str) and value.strip():
-        try:
-            parsed = _dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        except ValueError:
-            return None
-        if parsed.tzinfo is None or parsed.utcoffset() is None:
-            parsed = parsed.replace(tzinfo=_UTC)
-        return parsed.astimezone(_UTC)
-    return None
+    from bt_api_py.market_tick_contracts import parse_market_event_datetime
 
-
-def _coerce_epoch_seconds(value):
-    ts = float(value)
-    if ts > 10_000_000_000:
-        ts /= 1000.0
-    return ts
-
-
-def _datetime_to_utc_naive(value):
-    if value.tzinfo is not None and value.utcoffset() is not None:
-        return value.astimezone(_UTC).replace(tzinfo=None)
-    return value.replace(tzinfo=None)
-
-
-def _datetime_to_timestamp(value):
-    return _datetime_to_utc_naive(value).replace(tzinfo=_UTC).timestamp()
-
-
-def _tick_value(tick, *names, default=None):
-    if isinstance(tick, dict):
-        for name in names:
-            if name in tick and tick[name] is not None:
-                return tick[name]
-        return default
-
-    for name in names:
-        value = getattr(tick, name, None)
-        if value is not None:
-            return value
-    return default
+    return parse_market_event_datetime(value)
 
 
 def _tick_timestamp(tick):
-    event_time = _as_utc_datetime(_tick_value(tick, "event_time_utc", default=None))
-    if event_time is not None:
-        return event_time.timestamp()
+    from bt_api_py.market_tick_contracts import market_event_timestamp
 
-    value = _tick_value(tick, "timestamp", "Timestamp", default=None)
-    if value is not None:
-        return _coerce_epoch_seconds(value)
-
-    dt_value = _tick_value(tick, "datetime", "dt", default=None)
-    if isinstance(dt_value, _dt.datetime):
-        return _datetime_to_timestamp(dt_value)
-    if isinstance(dt_value, str) and dt_value:
-        try:
-            return _datetime_to_timestamp(
-                _dt.datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
-            )
-        except ValueError:
-            _safe_log("debug", "btapifeed:132 ignored ValueError")
-
-    return _coerce_epoch_seconds(_tick_value(tick, "local_time", "LocalTime", default=0.0) or 0.0)
+    return market_event_timestamp(tick, on_invalid_datetime=_log_invalid_market_datetime)
 
 
 def _tick_datetime(tick):
-    event_time = _as_utc_datetime(_tick_value(tick, "event_time_utc", default=None))
-    if event_time is not None:
-        return event_time.replace(tzinfo=None)
+    from bt_api_py.market_tick_contracts import market_event_utc_naive_datetime
 
-    timestamp_value = _tick_value(tick, "timestamp", "Timestamp", default=None)
-    if timestamp_value not in (None, ""):
-        try:
-            ts = _coerce_epoch_seconds(timestamp_value)
-        except (TypeError, ValueError):
-            _safe_log("debug", "btapifeed:147 ignored TypeError,ValueError")
-        else:
-            if ts > 0:
-                return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
+    return market_event_utc_naive_datetime(tick, on_invalid_datetime=_log_invalid_market_datetime)
 
-    value = _tick_value(tick, "datetime", "dt", default=None)
-    if isinstance(value, _dt.datetime):
-        return _datetime_to_utc_naive(value)
-    if isinstance(value, str) and value:
-        try:
-            return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
-        except ValueError:
-            _safe_log("debug", "btapifeed:159 ignored ValueError")
-    return _dt.datetime.fromtimestamp(_tick_timestamp(tick), _UTC).replace(tzinfo=None)
+
+def _log_invalid_market_datetime(reason):
+    messages = {
+        "timestamp_datetime": "btapifeed:132 ignored ValueError",
+        "datetime_timestamp": "btapifeed:147 ignored TypeError,ValueError",
+        "datetime_datetime": "btapifeed:159 ignored ValueError",
+    }
+    _safe_log("debug", messages[reason])
 
 
 def _causal_event_kwargs(event):
@@ -186,25 +128,44 @@ def _causal_event_kwargs(event):
     }
 
 
-class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
+class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
     """Data feed that backfills and streams bars through BtApiStore.
 
     ``orderbook_as_ticks=True`` exposes each depth snapshot as a zero-volume
     midpoint tick bar before calling ``notify_orderbook``. This gives native
     broker orders a valid feed price and clock even without trade/bar streams.
-    It requires ``timeframe=TimeFrame.Ticks``.
+    It requires ``timeframe=TimeFrame.Ticks`` for legacy non-SDK adapters.
+    SDK order-book events retain their unknown clock/freshness and are delivered
+    only to notification callbacks; they never create midpoint bars.
     """
+
+    # These fixed numeric slots are used by the opt-in research cohort path.
+    # They remain NaN unless the exact registered member maps each field to a
+    # validated raw numeric field. Ordinary feeds keep their historical loader.
+    lines = _LIVE_COHORT_EXTRA_LINES
 
     params = (
         ("store", None),
         ("provider", "btapi"),
+        ("replay_market_tick_port", None),
         ("historical_bars", None),
         ("live_bars", None),
+        # Explicit cohort mode keeps saved source events raw until the cohort
+        # validates them. Ordinary feeds retain their historical tolerant
+        # normalization path.
+        ("cohort_source_mode", False),
+        # Optional SDK-resolved factor source binding. Kept out of ordinary
+        # imports and behavior unless the caller explicitly supplies it.
+        ("market_factor_source_binding", None),
+        # Adapter-authored origin claim; cohort matching does not prove exchange completeness.
+        ("cohort_source_origin", None),
         ("backfill_start", True),
         ("dispatch_ticks", True),
         ("dispatch_orderbooks", True),
         ("dispatch_bars", True),
         ("orderbook_as_ticks", False),
+        ("market_channels", None),
+        ("orderbook_depth", None),
         ("bar_watermark_ms", 500),
         ("event_time_max_age", 2.0),
         ("receive_time_max_age", 2.0),
@@ -227,10 +188,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         ("service_recovery_quote_binding", False),
         ("service_recovery_quote_source_ref", None),
         # A caller-owned, calibrated provider invoked at the synchronous
-        # strategy-dispatch boundary for strict ctp.quote.v2 ticks.  It must
-        # return CtpCohortNow in the event's exact monotonic clock domain.
+        # strategy-dispatch boundary for SDK-qualified market ticks. It must
+        # return MarketCohortNow in the event's exact monotonic clock domain.
         # There is deliberately no process-clock fallback here.
-        ("ctp_decision_now_provider", None),
+        ("market_decision_now_provider", None),
         # A caller-owned adapter from a Feed-owned, immutable closed BarEvent
         # to the public BarEvidence hand-off.  The Feed only attaches a
         # successfully validated object; it never invents a clock mapping or
@@ -275,20 +236,130 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
         self.store = self.p.store
         self.provider = self.p.provider
-        self._history = collections.deque(
-            _normalize_bar(bar) for bar in (self.p.historical_bars or [])
+        self._replay_tick_adapter = None
+        replay_port = self.p.replay_market_tick_port
+        if replay_port is not None or self.provider == "local_replay":
+            if (
+                replay_port is None
+                or self.provider != "local_replay"
+                or self.store is not None
+            ):
+                raise ValueError(
+                    "local_replay requires replay_market_tick_port and store=None"
+                )
+            if (
+                self.p.cohort_source_mode is True
+                or self.p.market_factor_source_binding is not None
+                or bool(self.p.service_recovery_quote_binding)
+                or self.p.closed_bar_evidence_provider is not None
+                or self.p.market_decision_now_provider is not None
+                or bool(self.p.closed_bar_quote_capture)
+                or bool(self.p.orderbook_as_ticks)
+            ):
+                raise ValueError("replay market input cannot use live-only feed bindings")
+            if self.p.backfill_start is not False:
+                raise ValueError("replay market input requires backfill_start=False")
+            for name, rows in (
+                ("historical_bars", self.p.historical_bars),
+                ("live_bars", self.p.live_bars),
+            ):
+                if rows is not None and (
+                    type(rows) not in (tuple, list, collections.deque) or rows
+                ):
+                    raise ValueError(f"replay market input rejects preloaded {name}")
+            from .replay_market_adapter import ReplayMarketTickAdapter
+
+            self._replay_tick_adapter = ReplayMarketTickAdapter(replay_port, self._dataname)
+        history_source = self.p.historical_bars
+        live_source = self.p.live_bars
+        if history_source is None:
+            history_source = ()
+        if live_source is None:
+            live_source = ()
+        cohort_source_mode = self.p.cohort_source_mode
+        if type(cohort_source_mode) is not bool:
+            raise ValueError("cohort_source_mode must be an exact bool")
+        source_binding = self.p.market_factor_source_binding
+        if source_binding is None:
+            self._market_factor_source_binding = None
+            self._market_factor_source_projector = None
+            self._market_factor_source_error_type = None
+        else:
+            # Import only for this explicit live-source mode so a normal
+            # BtApiFeed import remains compatible with Python 3.8 and does
+            # not load the futures-session implementation.
+            from .market_factor_source import (
+                MarketFactorSourceBinding,
+                MarketFactorSourceError,
+                project_market_factor_tick,
+            )
+
+            if not isinstance(source_binding, MarketFactorSourceBinding):
+                raise ValueError("market_factor_source_binding has an unsupported type")
+            if not cohort_source_mode:
+                raise ValueError("market factor source binding requires cohort_source_mode=True")
+            self._market_factor_source_binding = source_binding
+            self._market_factor_source_projector = project_market_factor_tick
+            self._market_factor_source_error_type = MarketFactorSourceError
+        self._market_factor_source_last_cursor_sequence = 0
+        if cohort_source_mode:
+            if type(history_source) is not tuple or type(live_source) is not tuple:
+                raise ValueError("cohort_source_mode requires immutable tuple bar sources")
+            if self.p.backfill_start:
+                raise ValueError(
+                    "cohort_source_mode requires backfill_start=False and explicit source tuples"
+                )
+        # Keep the caller's raw event objects available for the opt-in cohort
+        # path without materializing an arbitrary iterator. Cohort mode accepts
+        # replayable finite sequences here; live stores remain polled directly.
+        self._cohort_history_source = (
+            history_source if isinstance(history_source, (tuple, list)) else None
         )
-        self._live = collections.deque(_normalize_bar(bar) for bar in (self.p.live_bars or []))
+        self._cohort_live_source = live_source if isinstance(live_source, (tuple, list)) else None
+        self._live_bar_cohort = None
+        self._cohort_clock = None
+        self._cohort_history_iter = None
+        self._cohort_live_iter = None
+        self._cohort_history_exhausted = False
+        self._cohort_live_exhausted = False
+        self._cohort_history_lookahead = _COHORT_MISSING
+        self._cohort_live_lookahead = _COHORT_MISSING
+        self._cohort_store_lookahead = _COHORT_MISSING
+        self._cohort_completed_lookahead = _COHORT_MISSING
+        self._cohort_slot_index_by_close = {}
+        self._cohort_last_delivered_slot_index = -1
+        self._cohort_armed_envelope = None
+        self._cohort_staged_delivery = None
+        self._cohort_delivery_failed = False
+        self._cohort_stream_health_baseline = None
+        if cohort_source_mode:
+            # The sealed cohort owns the strict validation boundary. Preserve
+            # exact raw tuples and leave the legacy normalized queues empty so
+            # malformed numbers cannot be silently coerced before capture.
+            self._history = collections.deque()
+            self._live = collections.deque()
+        else:
+            self._history = collections.deque(
+                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                for bar in history_source
+            )
+            self._live = collections.deque(
+                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                for bar in live_source
+            )
         self._live_notified = False
         self._bar_builder = None
         self._bar_builders = collections.OrderedDict()
+        self._initial_volume_baseline_scope = None
+        self._initial_volume_baseline_start = None
         self._bar_quality_overrides = collections.defaultdict(set)
         self._max_event_timestamp = None
         self._last_ingest_monotonic_ns = None
+        self._replay_started = False
         self._last_closed_bucket_end = None
         self._last_connection_generation = None
-        self._last_ctp_scope = None
-        self._highest_ctp_scope = None
+        self._last_market_scope = None
+        self._highest_market_scope = None
         self._bar_sequence = 0
         # Per-feed opaque marker proves that a strategy callback received the
         # sealed event from this exact Feed instance, rather than a caller
@@ -300,9 +371,14 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # replacing the immutable evidence object with a different one.
         self._sealed_closed_bar_evidence_by_event_id = {}
         self._tick_consumer_claimed = False
-        self._history_backfilled = bool(self._history)
+        self._history_backfilled = bool(self._cohort_history_source) or bool(self._history)
         self._continuity_degraded = False
         self._session_active = False
+
+    @property
+    def live_bar_cohort(self):
+        """Return the exact cohort installed by Cerebro for this feed, if any."""
+        return self._live_bar_cohort
 
     def start(self):
         """Start the feed, register it, and backfill if configured."""
@@ -313,26 +389,59 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         claimed_this_start = False
         try:
             super().start()
+            if self.p.cohort_source_mode and self._live_bar_cohort is None:
+                raise ValueError("cohort_source_mode requires Cerebro live cohort activation")
             if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
                 raise ValueError("orderbook_as_ticks requires timeframe=TimeFrame.Ticks")
 
+            if self._replay_tick_adapter is not None:
+                if self.store is not None or getattr(self, "_store", None) is not None:
+                    raise ValueError("replay feed cannot bind a Store")
+                if self._history or self._live or self.p.backfill_start:
+                    raise ValueError("replay feed cannot mix Store or preloaded bar sources")
+                self._replay_tick_adapter.start()
+                self._replay_started = True
+                self._session_active = True
+                return
+
             if self.store is None:
                 self.store = getattr(self, "_store", None)
+
+            if self.p.cohort_source_mode:
+                self._validate_cohort_store_raw_mode(self.store)
 
             if self.store is None:
                 self._session_active = True
                 return
 
             self.store.start(data=self)
+            if self._live_bar_cohort is not None:
+                try:
+                    baseline = self._read_cohort_stream_health()
+                except Exception:
+                    self._freeze_cohort_source(
+                        "store_stream_health_invalid",
+                        "cohort Store stream health is invalid at startup",
+                    )
+                if baseline is not None and (
+                    baseline[1] not in (None, 0) or baseline[2] not in (None, 0) or baseline[3]
+                ):
+                    self._freeze_cohort_source(
+                        "store_stream_degraded_before_cohort_start",
+                        "cohort Store stream was already degraded at startup",
+                    )
+                self._cohort_stream_health_baseline = baseline
             self.store.register(self)
 
-            service_read_only = bool(
-                getattr(self.store, "_service_read_only", False)
-            )
+            service_read_only = bool(getattr(self.store, "_service_read_only", False))
             if service_read_only:
                 # Establish the bounded live cursor before history so bars
                 # published during backfill can be replayed and deduplicated.
-                self.store.subscribe(self._dataname)
+                self.store.subscribe(
+                    self._dataname,
+                    channels=self.p.market_channels,
+                    orderbook_depth=self.p.orderbook_depth,
+                )
 
             if self.p.backfill_start and not self._history and not self._history_backfilled:
                 if service_read_only:
@@ -341,7 +450,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                         timeframe=self._timeframe,
                         compression=self._compression,
                     )
-                    self._history.extend(bars)
+                    if self._live_bar_cohort is not None:
+                        self._cohort_history_iter = iter(bars)
+                        self._cohort_history_exhausted = False
+                    else:
+                        self._history.extend(bars)
                     self._history_backfilled = True
                 else:
                     try:
@@ -350,23 +463,49 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                             timeframe=self._timeframe,
                             compression=self._compression,
                         )
-                        self._history.extend(bars)
+                        if self._live_bar_cohort is not None:
+                            self._cohort_history_iter = iter(bars)
+                            self._cohort_history_exhausted = False
+                        else:
+                            self._history.extend(bars)
                         self._history_backfilled = True
                     except Exception as e:
                         _safe_log("warning", "btapifeed:312 fallback on Exception")
                         _safe_log("debug", "Failed to backfill history: %s", e)
 
             if not service_read_only:
-                claim = getattr(self.store, "claim_tick_consumer", None)
-                if (
-                    callable(claim)
-                    and not self.p.orderbook_as_ticks
-                    and not self._tick_consumer_claimed
-                ):
-                    claim(self._dataname, self)
-                    self._tick_consumer_claimed = True
-                    claimed_this_start = True
-                self.store.subscribe(self._dataname)
+                if self._uses_sdk_market_streams():
+                    self.store.subscribe(
+                        self._dataname,
+                        channels=self.p.market_channels,
+                        orderbook_depth=self.p.orderbook_depth,
+                    )
+                    claim = getattr(self.store, "claim_tick_consumer", None)
+                    supports_ticks = getattr(self.store, "supports_live_ticks", None)
+                    if (
+                        callable(claim)
+                        and callable(supports_ticks)
+                        and supports_ticks(self._dataname)
+                        and not self._tick_consumer_claimed
+                    ):
+                        claim(self._dataname, self)
+                        self._tick_consumer_claimed = True
+                        claimed_this_start = True
+                else:
+                    claim = getattr(self.store, "claim_tick_consumer", None)
+                    if (
+                        callable(claim)
+                        and not self.p.orderbook_as_ticks
+                        and not self._tick_consumer_claimed
+                    ):
+                        claim(self._dataname, self)
+                        self._tick_consumer_claimed = True
+                        claimed_this_start = True
+                    self.store.subscribe(
+                        self._dataname,
+                        channels=self.p.market_channels,
+                        orderbook_depth=self.p.orderbook_depth,
+                    )
             self._session_active = True
         except Exception:
             _safe_log("error", "btapifeed:326 exception before re-raise (Exception)")
@@ -398,13 +537,24 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._last_ingest_monotonic_ns = None
             self._last_closed_bucket_end = None
             self._last_connection_generation = None
-            self._last_ctp_scope = None
-            self._highest_ctp_scope = None
+            self._initial_volume_baseline_scope = None
+            self._initial_volume_baseline_start = None
+            self._last_market_scope = None
+            self._highest_market_scope = None
             self._tick_consumer_claimed = False
             self._session_active = False
+            if self._replay_started:
+                self._replay_tick_adapter.close()
+                self._replay_started = False
 
     def islive(self) -> bool:
         """Return whether this feed has a configured live data source."""
+        if self._replay_tick_adapter is not None:
+            # Cerebro must poll this finite source, but replay never emits a
+            # LIVE readiness notification or a live market-clock assertion.
+            return True
+        if self._live_bar_cohort is not None:
+            return True
         dataname = getattr(self, "_dataname", None)
 
         if self._live:
@@ -419,8 +569,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         if getattr(store, "_sdk_mode", False):
             return True
 
-        live_cache = getattr(store, "_live_bars", {})
-        if dataname is not None and live_cache.get(dataname):
+        has_pending_live_bar = getattr(store, "has_pending_live_bar", None)
+        if dataname is not None and callable(has_pending_live_bar) and has_pending_live_bar(dataname):
             return True
 
         api = getattr(store, "_api", None)
@@ -480,6 +630,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         Treating them as live data here makes Cerebro skip qcheck and spin while
         repeatedly draining ticks that produce no bar.
         """
+        if self._live_bar_cohort is not None:
+            return False
         if self._live:
             return True
 
@@ -487,8 +639,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         if store is None:
             return False
 
-        live_cache = getattr(store, "_live_bars", {})
-        return bool(live_cache.get(self._dataname))
+        has_pending_live_bar = getattr(store, "has_pending_live_bar", None)
+        return bool(has_pending_live_bar(self._dataname)) if callable(has_pending_live_bar) else False
 
     def _load_history(self) -> bool:
         """Load one historical bar if available."""
@@ -499,6 +651,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _load(self) -> bool:
         """Load the next historical or live bar."""
+        if self._live_bar_cohort is not None:
+            # Only Cerebro may arm the exact envelope after every member has
+            # passed preflight.  In particular, do not consume a side queue or
+            # sleep from this path while another cohort member is pending.
+            return self._load_live_bar_cohort_envelope()
+
         if self._history:
             return self._load_history()
 
@@ -509,7 +667,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._mark_live()
             return self._load_bar(self._live.popleft())
 
-        if self.p.orderbook_as_ticks:
+        if self.p.orderbook_as_ticks and not self._uses_sdk_market_streams():
             if self._load_orderbook_tick():
                 return True
             if self._qcheck > 0:
@@ -545,12 +703,22 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""
+        if self._live_bar_cohort is not None:
+            # The cohort runner owns bounded collection and the one shared
+            # wait.  Feed._check must not consume events or sleep per member.
+            return
         super()._check(forcedata=forcedata)
-        if self.p.orderbook_as_ticks:
+        if self.p.orderbook_as_ticks and not self._uses_sdk_market_streams():
             return  # _load must establish the feed clock before the callback.
         if self._live:
             return  # _load must pair the queued callback with its line bar.
-        drained_ticks = self._drain_live_ticks()
+        # The historical Tick-timeframe check path drains every currently
+        # available tick. Keep that behavior for ordinary feeds, while an
+        # explicit quote binding retains the per-bar freeze boundary.
+        stop_after_queued_bar = self._timeframe != TimeFrame.Ticks or bool(
+            self.p.service_recovery_quote_binding
+        )
+        drained_ticks = self._drain_live_ticks(stop_after_queued_bar=stop_after_queued_bar)
         drained_orderbooks = self._drain_live_orderbooks()
         self._flush_ready_bars(reason="idle")
         self._handle_source_exhaustion()
@@ -561,8 +729,17 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         """Load one snapshot per turn so neither another venue nor the broker starves."""
         if self.store is None:
             return False
-        orderbook = self.store.poll_orderbook(self._dataname)
+        orderbook = self.store.poll_orderbook(
+            self._dataname, depth=self.p.orderbook_depth
+        )
         if orderbook is None:
+            return False
+        if getattr(orderbook, "execution_eligible", None) is False:
+            self._handle_event_health(orderbook)
+            if self.p.dispatch_orderbooks:
+                self._dispatch_event("orderbook", EventPriority.ORDERBOOK, orderbook)
+            else:
+                self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
             return False
         if self._handle_event_health(orderbook):
             if self.p.dispatch_orderbooks:
@@ -572,14 +749,12 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             return False
         bids = _tick_value(orderbook, "bids", default=[]) or []
         asks = _tick_value(orderbook, "asks", default=[]) or []
-        if not bids or not asks:
-            self._mark_event_dropped(orderbook, "orderbook_missing_top_of_book")
+        from bt_api_py.market_stream_contracts import orderbook_midpoint
+
+        midpoint, error = orderbook_midpoint(bids, asks)
+        if error is not None:
+            self._mark_event_dropped(orderbook, f"orderbook_{error}")
             return False
-        bid, ask = float(bids[0][0]), float(asks[0][0])
-        if not math.isfinite(bid) or not math.isfinite(ask) or bid <= 0 or ask < bid:
-            self._mark_event_dropped(orderbook, "orderbook_invalid_top_of_book")
-            return False
-        midpoint = (bid + ask) / 2.0
         stamp = _tick_timestamp(orderbook)
         bar = BarEvent(
             timestamp=stamp,
@@ -614,6 +789,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self._dispatch_event("bar", EventPriority.BAR, bar)
         return True
 
+    def _uses_sdk_market_streams(self) -> bool:
+        """Read the Store's explicit stream-mode contract without API probing."""
+        return getattr(self.store, "uses_sdk_market_streams", False) is True
+
     def _load_bar(self, bar) -> bool:
         """Write a normalized bar into line buffers."""
         bar = _normalize_bar(bar)
@@ -624,6 +803,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         self.lines.close[0] = bar["close"]
         self.lines.volume[0] = bar["volume"]
         self.lines.openinterest[0] = bar["openinterest"]
+        for name in _LIVE_COHORT_EXTRA_LINES:
+            getattr(self.lines, name)[0] = math.nan
         if bool(self.p.service_recovery_quote_binding):
             # The trusted recovery binding is frozen at the exact delivery
             # boundary of this bar: the bar index the strategy will observe
@@ -635,30 +816,114 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             )
         return True
 
-    def _drain_live_ticks(self):
-        """Consume ticks only until the next completed bar boundary.
+    def _drain_live_ticks(
+        self,
+        limit=None,
+        *,
+        stop_after_queued_bar=True,
+        deadline_ns=None,
+        quote_only=False,
+    ):
+        """Drain available ticks subject to the caller's count and bar bounds.
 
-        A single ``_load`` turn may inspect many ticks inside one bucket, but
-        it must stop as soon as any bar event closes.  Otherwise callbacks for
-        several future bars can run before the first matching data-line/next
-        turn, which makes the strategy observe the final callback repeatedly.
+        Normal load and cohort collection stop after the next queued bar so
+        its callback stays paired with the matching line turn.  The legacy
+        Tick-timeframe ``_check`` path may opt out of that queued-bar stop.
+        Completed aggregate bars still end a drain on every path.  The private
+        quote-only mode is reserved for a bounded, already-armed cohort
+        winddown: it uses the same source validation and tick dispatch but
+        never mutates or closes a bar builder.  Its integer return is the
+        number of source ticks consumed; the ordinary path keeps its historic
+        boolean return contract.
         """
-        if self.store is None or not hasattr(self.store, "poll_tick"):
-            return False
+        if quote_only and self._live_bar_cohort is None:
+            raise RuntimeError("quote-only tick drain requires an active live bar cohort")
+        if self._replay_tick_adapter is None and (
+            self.store is None or not hasattr(self.store, "poll_tick")
+        ):
+            return 0 if quote_only else False
 
         drained = False
 
-        while True:
+        drained_count = 0
+        while limit is None or drained_count < limit:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                break
             bar_sequence_before = self._bar_sequence
             queued_bars_before = len(self._live)
-            tick = self.store.poll_tick(self._dataname)
+            try:
+                if self._replay_tick_adapter is not None:
+                    tick = self._replay_tick_adapter.poll()
+                else:
+                    tick = self.store.poll_tick(self._dataname)
+            except Exception:
+                if quote_only:
+                    # The cohort cannot be trusted after its bounded quote
+                    # source failed. Mark it frozen while preserving the
+                    # provider exception and traceback for the caller.
+                    self._freeze_cohort_source_state("winddown_quote_poll_failed")
+                raise
+            self._check_cohort_stream_health()
             if tick is None:
                 break
+            if self._replay_tick_adapter is None:
+                try:
+                    tick = adapt_market_tick_event(tick)
+                except MarketTickAdapterError as error:
+                    self._freeze_cohort_source_state(error.code)
+                    raise
+            expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             drained = True
+            drained_count += 1
+            market_factor_planned_minute = True
 
-            self._prepare_tick(tick)
+            if self._market_factor_source_binding is not None:
+                try:
+                    projection = self._market_factor_source_projector(
+                        self._market_factor_source_binding, tick
+                    )
+                    cursor_sequence = projection.cursor_sequence
+                    if (
+                        type(cursor_sequence) is not int
+                        or cursor_sequence <= self._market_factor_source_last_cursor_sequence
+                    ):
+                        raise self._market_factor_source_error_type(
+                            "MARKET_FACTOR_SOURCE_SEQUENCE_INVALID"
+                        )
+                    self._market_factor_source_last_cursor_sequence = cursor_sequence
+                except self._market_factor_source_error_type:
+                    self._freeze_cohort_source_state("market_factor_source_invalid")
+                    raise
+                market_factor_planned_minute = projection.planned_close_time is not None
+                tick.event_time_utc = projection.event_time_utc
+                tick.clock_domain_id = projection.clock_domain_id
+                tick.market_factor_calendar_digest = projection.calendar_digest
+                tick.market_factor_target_id = self._market_factor_source_binding.target_id
+                tick.market_factor_product = (
+                    self._market_factor_source_binding.product.exchange_id,
+                    self._market_factor_source_binding.product.product_id,
+                )
+                tick.market_factor_trading_date = projection.trading_date.isoformat()
+                tick.market_factor_session_date = projection.session_date.isoformat()
+                tick.market_factor_event_session_date = projection.event_session_date.isoformat()
+                tick.exchange_id = projection.venue
+                tick.exchange_id_source = projection.identity_source
+                tick.session_segment = projection.session_segment
+
+            if self._validate_raw_cohort_tick_price(tick) is False:
+                self._mark_event_dropped(tick, "invalid_market_tick")
+                continue
+            self._prepare_tick(
+                tick,
+                quote_only=quote_only or not market_factor_planned_minute,
+            )
+            expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
+                if self._live_bar_cohort is not None:
+                    self._freeze_cohort_source(
+                        "unhealthy_source_tick", "unhealthy tick cannot continue a live cohort"
+                    )
                 if self.p.dispatch_ticks:
                     self._dispatch_event(
                         channel_type="tick",
@@ -667,7 +932,16 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                     )
                 else:
                     self._mark_event_dropped(tick, "tick_dispatch_disabled")
+                if (
+                    expired_after_poll
+                    or expired_after_normalize
+                    or self._cohort_prepare_deadline_expired(deadline_ns)
+                ):
+                    break
                 continue
+
+            if not quote_only:
+                self._record_initial_volume_baseline(tick)
 
             if self.p.dispatch_ticks:
                 self._dispatch_event(
@@ -677,19 +951,105 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
             else:
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
+            if quote_only or not market_factor_planned_minute:
+                if (
+                    expired_after_poll
+                    or expired_after_normalize
+                    or self._cohort_prepare_deadline_expired(deadline_ns)
+                ):
+                    break
+                continue
             self._ingest_tick(tick)
             self._flush_ready_bars(reason="tick")
-            # Tick-timeframe feeds queue one line bar per ingested tick but do
-            # not advance _bar_sequence (which tracks completed aggregates).
-            # Stop as soon as either path queues a bar so _load_bar freezes
-            # the quote observed for that bar before a later tick can replace
-            # the feed's latest quote binding.
+            # _bar_sequence tracks completed aggregate bars. Tick-timeframe
+            # bars instead use the queue length; only ordinary _check may
+            # preserve its historical all-available-ticks behavior.
             if (
-                self._bar_sequence != bar_sequence_before
-                or len(self._live) > queued_bars_before
+                expired_after_poll
+                or expired_after_normalize
+                or self._cohort_prepare_deadline_expired(deadline_ns)
             ):
                 break
-        return drained
+            if self._bar_sequence != bar_sequence_before or (
+                stop_after_queued_bar and len(self._live) > queued_bars_before
+            ):
+                break
+        return drained_count if quote_only else drained
+
+    def _record_initial_volume_baseline(self, tick):
+        """Remember the first incomplete-volume bucket from neutral tick facts."""
+        event = getattr(tick, "market_tick_event", None)
+        if event is None or self._timeframe == TimeFrame.Ticks:
+            return False
+        data = event.data
+        if data.volume_complete or data.cumulative_volume is None:
+            return False
+        trading_date = data.trading_date
+        if type(trading_date) is not str or not trading_date:
+            return False
+        scope = (
+            data.provider_connection_generation,
+            data.provider_subscription_epoch,
+            trading_date,
+        )
+        moment = getattr(tick, "event_time_utc", None)
+        if not isinstance(moment, _dt.datetime) or moment.tzinfo is None:
+            return False
+        bucket_start = self._get_bucket_start(moment.astimezone(_UTC).replace(tzinfo=None))
+        if self._initial_volume_baseline_scope != scope:
+            self._initial_volume_baseline_scope = scope
+            self._initial_volume_baseline_start = bucket_start
+        elif self._initial_volume_baseline_start is None:
+            self._initial_volume_baseline_start = bucket_start
+        return True
+
+    def _cohort_drain_winddown_quotes(self, *, limit, deadline_ns):
+        """Consume a bounded source-backed quote prefix without bar work."""
+        if self._live_bar_cohort is None:
+            return 0
+        if self._live_bar_cohort.frozen or self._cohort_delivery_failed:
+            return 0
+        return self._drain_live_ticks(
+            limit=limit,
+            stop_after_queued_bar=False,
+            deadline_ns=deadline_ns,
+            quote_only=True,
+        )
+
+    def _validate_raw_cohort_tick_price(self, tick):
+        """Reject an invalid neutral quote before tolerant line conversion."""
+        cohort = self._live_bar_cohort
+        if cohort is None:
+            return True
+
+        raw_price = _tick_value(tick, "price", "last_price", default=None)
+        price = _finite_market_number(raw_price)
+        if price is not None and price > 0:
+            return True
+
+        member = cohort.member_for_feed(self)
+        instrument = member.instrument if member is not None else self._dataname
+        report = {
+            "source": "BtApiFeed.tick",
+            "instrument": _bounded_context_value(instrument),
+            "field": "price",
+            "category": "missing_or_invalid",
+            "generation": _bounded_context_value(
+                _tick_value(tick, "connection_generation", default=None)
+            ),
+            "sequence": _bounded_context_value(
+                _tick_value(tick, "sequence", default=None)
+            ),
+            "reason": "LAST_PRICE_INVALID",
+        }
+        cohort._freeze("invalid_source_tick_price")
+        self._cohort_delivery_failed = True
+        from ..research.live_cohort import LiveCohortValidationError
+
+        error = LiveCohortValidationError("tick price rejected: LAST_PRICE_INVALID")
+        error.code = "LAST_PRICE_INVALID"
+        error.report = MappingProxyType(report)
+        raise error
 
     def _handle_source_exhaustion(self):
         """Finalize an explicitly finite source and report natural EOF.
@@ -702,35 +1062,53 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         """
 
         store = self.store
-        exhausted = getattr(store, "is_source_exhausted", None) if store is not None else None
-        if not callable(exhausted) or not exhausted(self._dataname):
-            return False
+        if self._replay_tick_adapter is not None:
+            if not self._replay_tick_adapter.exhausted:
+                return False
+            watermark_dt = self._replay_tick_adapter.final_event_time_watermark_utc
+        else:
+            exhausted = getattr(store, "is_source_exhausted", None) if store is not None else None
+            if not callable(exhausted) or not exhausted(self._dataname):
+                return False
 
-        watermark_reader = getattr(store, "get_source_event_time_watermark", None)
-        watermark = watermark_reader(self._dataname) if callable(watermark_reader) else None
-        watermark_dt = _as_utc_datetime(watermark)
+            watermark_reader = (
+                getattr(store, "get_source_event_time_watermark", None)
+                if store is not None
+                else None
+            )
+            watermark = watermark_reader(self._dataname) if callable(watermark_reader) else None
+            watermark_dt = _as_utc_datetime(watermark)
         if watermark_dt is not None:
             watermark_ts = watermark_dt.timestamp()
             if self._max_event_timestamp is None or watermark_ts > self._max_event_timestamp:
                 self._max_event_timestamp = watermark_ts
-                self._last_ingest_monotonic_ns = self._now_monotonic_ns()
+                if self._replay_tick_adapter is None:
+                    self._last_ingest_monotonic_ns = self._now_monotonic_ns()
             self._flush_ready_bars(reason="source_exhausted")
 
         if self._bar_builders:
             self._flush_ready_bars(reason="source_exhausted_incomplete", force_invalid=True)
         return True
 
-    def _drain_live_orderbooks(self):
+    def _drain_live_orderbooks(self, limit=None, *, deadline_ns=None):
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
             return False
 
         drained = False
 
-        while True:
-            orderbook = self.store.poll_orderbook(self._dataname)
+        drained_count = 0
+        while limit is None or drained_count < limit:
+            if self._cohort_prepare_deadline_expired(deadline_ns):
+                break
+            orderbook = self.store.poll_orderbook(
+                self._dataname, depth=self.p.orderbook_depth
+            )
             if orderbook is None:
                 break
-            drained = True
+            expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
+            observer_only = getattr(orderbook, "execution_eligible", None) is False
+            drained = drained or not observer_only
+            drained_count += 1
 
             self._handle_event_health(orderbook)
 
@@ -742,6 +1120,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 )
             else:
                 self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
+            if expired_after_poll or self._cohort_prepare_deadline_expired(deadline_ns):
+                break
         return drained
 
     def _ingest_tick(self, tick):
@@ -749,19 +1129,44 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         tick_dt = _tick_datetime(tick)
         tick_ts = _tick_timestamp(tick)
 
+        market_tick_event = getattr(tick, "market_tick_event", None)
+        if market_tick_event is not None and self._timeframe != TimeFrame.Ticks:
+            data = market_tick_event.data
+            scope = (
+                data.provider_connection_generation,
+                data.provider_subscription_epoch,
+                data.trading_date,
+            )
+            bucket_start = self._get_bucket_start(tick_dt)
+            if (
+                scope == self._initial_volume_baseline_scope
+                and bucket_start == self._initial_volume_baseline_start
+            ):
+                # The SDK's neutral volume contract marks an incomplete
+                # baseline explicitly. Skip only that partially observed
+                # bucket; do not re-difference cumulative volume in Backtrader.
+                cohort = self._live_bar_cohort
+                if cohort is not None:
+                    bucket_end = self._get_bucket_end(bucket_start)
+                    if isinstance(bucket_end, _dt.datetime):
+                        cohort.note_cold_start_skipped_slot(
+                            bucket_end.replace(tzinfo=_UTC)
+                        )
+                return
+
         price = _finite_market_number(
-            _tick_value(tick, "price", "last_price", "LastPrice", default=None)
+            _tick_value(tick, "price", "last_price", default=None)
         )
         if price is None or price <= 0 or not bool(_tick_value(tick, "bar_eligible", default=True)):
             return
 
         volume = _finite_market_number(
-            _tick_value(tick, "delta_volume", "volume", "Volume", default=0.0)
+            _tick_value(tick, "delta_volume", "volume", default=0.0)
         )
         if volume is None or volume <= 0:
             return
         openinterest = _finite_market_number(
-            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0)
+            _tick_value(tick, "openinterest", "open_interest", default=0.0)
         )
         openinterest = max(openinterest or 0.0, 0.0)
 
@@ -770,9 +1175,9 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 BarEvent(
                     timestamp=tick_ts,
                     symbol=self._dataname,
-                    exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
-                    asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
-                    local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
+                    exchange=_tick_value(tick, "exchange", "exchange_id", default=""),
+                    asset_type=_tick_value(tick, "asset_type", default="futures"),
+                    local_time=_tick_value(tick, "local_time", default=None),
                     **_causal_event_kwargs(tick),
                     open=price,
                     high=price,
@@ -807,15 +1212,31 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             current["last_ingest_seq"] = _tick_value(
                 tick, "ingest_seq", "sequence", default=current["last_ingest_seq"]
             )
+            if current.get("source_mode") in {"replay", "synthetic"}:
+                current["last_replay_sequence"] = _tick_value(
+                    tick, "replay_sequence", default=current["last_replay_sequence"]
+                )
             current["trade_count"] += 1
             for field, aliases, mismatch_flag in (
                 ("rules_hash", ("rules_hash",), "RULES_HASH_CHANGED"),
                 ("session_segment", ("session_segment",), "SESSION_SEGMENT_CHANGED"),
-                ("trading_day", ("trading_day", "TradingDay"), "TRADING_DAY_CHANGED"),
+                ("trading_day", ("trading_day", "trading_date"), "TRADING_DAY_CHANGED"),
             ):
                 value = _tick_value(tick, *aliases, default=current[field])
                 if value != current[field]:
                     current["quality_flags"].add(mismatch_flag)
+            resolved_event_session_date = _tick_value(
+                tick, "market_factor_event_session_date", default=None
+            )
+            if (
+                current["event_session_date"] is not None
+                and resolved_event_session_date != current["event_session_date"]
+            ):
+                # A bar spanning distinct or unresolved event dates has no
+                # single resolver-backed session date.
+                current["event_session_date"] = None
+                current["market_factor_event_session_date"] = None
+                current["quality_flags"].add("EVENT_SESSION_DATE_NOT_UNIFORM")
             current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
             self._capture_quote(current, tick)
             self._note_service_recovery_quote_from_tick(tick, tick_ts)
@@ -824,7 +1245,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
     def _new_bar_builder(self, bucket_start, tick, price, volume, openinterest):
         """Create the mutable state for an in-progress aggregated bar."""
         ingest_seq = _tick_value(tick, "ingest_seq", "sequence", default=0)
-        return {
+        replay_mode = _tick_value(tick, "source_mode", default=None)
+        replay_sequence = _tick_value(tick, "replay_sequence", default=None)
+        replay = replay_mode in {"replay", "synthetic"}
+        builder = {
             "bucket_start": bucket_start,
             "bucket_end": self._get_bucket_end(bucket_start),
             "open": price,
@@ -835,15 +1259,40 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             "openinterest": openinterest,
             "last_timestamp": _tick_timestamp(tick),
             "causal": _causal_event_kwargs(tick),
-            "exchange": _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
-            "asset_type": _tick_value(tick, "asset_type", "assetType", default="futures"),
-            "trading_day": _tick_value(tick, "trading_day", "TradingDay", default=""),
+            "exchange": _tick_value(tick, "exchange", "exchange_id", default=""),
+            "asset_type": _tick_value(tick, "asset_type", default="futures"),
+            "trading_day": _tick_value(tick, "trading_day", "trading_date", default=""),
             "quote_events": [],
-            "action_day": _tick_value(tick, "action_day", "ActionDay", default=""),
-            "rules_hash": _tick_value(tick, "rules_hash", default=None),
+            "action_day": _tick_value(tick, "action_day", "event_session_date", default=""),
+            # This is populated only by the exact-event SDK session resolver
+            # projection above; provider event-date claims alone are not enough.
+            "event_session_date": _tick_value(
+                tick, "market_factor_event_session_date", default=None
+            ),
+            "rules_hash": _tick_value(tick, "quality_contract_ref", default=None),
             "session_segment": _tick_value(tick, "session_segment", default=None),
+            "clock_domain_id": _tick_value(tick, "clock_domain_id", default=None),
+            "market_factor_calendar_digest": _tick_value(
+                tick, "market_factor_calendar_digest", default=None
+            ),
+            "market_factor_target_id": _tick_value(
+                tick, "market_factor_target_id", default=None
+            ),
+            "market_factor_product": _tick_value(
+                tick, "market_factor_product", default=None
+            ),
+            "market_factor_trading_date": _tick_value(
+                tick, "market_factor_trading_date", default=None
+            ),
+            "market_factor_session_date": _tick_value(
+                tick, "market_factor_session_date", default=None
+            ),
+            "market_factor_event_session_date": _tick_value(
+                tick, "market_factor_event_session_date", default=None
+            ),
+            "exchange_id_source": _tick_value(tick, "exchange_id_source", default=None),
             "connection_generation": _tick_value(
-                tick, "connection_generation", "stream_generation", default=None
+                tick, "connection_generation", default=None
             ),
             "first_ingest_seq": ingest_seq,
             "last_ingest_seq": ingest_seq,
@@ -851,6 +1300,22 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
             "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
         }
+        if replay:
+            # Replay-local identity is intentionally disjoint from live stream
+            # generation and provider ingress sequence fields.
+            builder.update(
+                {
+                    "source_mode": replay_mode,
+                    "replay_source_ref": _tick_value(tick, "replay_source_ref", default=""),
+                    "replay_epoch": _tick_value(tick, "replay_epoch", default=""),
+                    "first_replay_sequence": replay_sequence,
+                    "last_replay_sequence": replay_sequence,
+                    "connection_generation": None,
+                    "first_ingest_seq": None,
+                    "last_ingest_seq": None,
+                }
+            )
+        return builder
 
     def _note_service_recovery_quote_from_tick(self, tick, tick_ts):
         """Ingest one accepted tick as a trusted recovery quote observation.
@@ -872,7 +1337,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         return self.try_note_service_recovery_quote(
             source_ref=self.p.service_recovery_quote_source_ref,
             generation=_tick_value(
-                tick, "connection_generation", "stream_generation", default=None
+                tick, "connection_generation", default=None
             ),
             cursor=_tick_value(tick, "ingest_seq", "sequence", default=None),
             instrument=self._dataname,
@@ -896,85 +1361,26 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         events.append(mapping)
 
     def _evidence_symbol(self):
-        """Return the public feed identity used by downstream evidence.
+        """Return the display identity used by legacy bars and quote evidence.
 
         ``dataname`` remains the provider subscription key.  Cerebro's
-        explicit feed name is the identity shared with strategy contracts and
-        is therefore used for sealed bars and their quote window when present.
+        explicit feed name is preserved for ordinary display and quote-window
+        records when present.  Cohort bars use the exact source route instead.
         """
         name = getattr(self, "_name", None)
         return name if isinstance(name, str) and name else self._dataname
 
-    def _quote_capture_mapping(self, tick):
-        """Freeze a prepared tick as a live bar-bound quote record.
+    def _completed_bar_symbol(self):
+        """Use the exact provider route for cohort bars, display name otherwise."""
+        if self._live_bar_cohort is not None:
+            return self._dataname
+        return self._evidence_symbol()
 
-        Tick provenance supplies the event fields; the explicit Cerebro feed
-        name supplies the shared contract identity.  The caller-owned evidence
-        provider may add its candidate id on hand-off.
-        """
-        raw_event = _tick_value(tick, "event_time_utc", default=None)
-        event_time = _as_utc_datetime(
-            raw_event
-            if raw_event not in (None, "")
-            else _tick_value(tick, "timestamp", "datetime", default=None)
-        )
-        if event_time is None:
-            return None
-        raw_receive = _tick_value(tick, "recv_time_utc", default=None)
-        receive_time = _as_utc_datetime(raw_receive) if raw_receive not in (None, "") else None
-        if receive_time is None:
-            wall = _finite_market_number(
-                _tick_value(tick, "received_wall_time", "local_time", default=None)
-            )
-            if wall is not None:
-                receive_time = _dt.datetime.fromtimestamp(wall, _UTC)
-        if receive_time is None:
-            return None
-        received_mono = _tick_value(tick, "recv_monotonic_ns", default=None)
-        if received_mono in (None, ""):
-            received_mono = _tick_value(tick, "received_monotonic_ns", default=None)
-        if not isinstance(received_mono, int) or received_mono <= 0:
-            return None
-        return {
-            "symbol": self._evidence_symbol(),
-            "exchange": str(
-                _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default="") or ""
-            ),
-            "event_time": event_time,
-            "received_at": receive_time,
-            "received_monotonic_ns": received_mono,
-            "ingest_seq": _tick_value(tick, "ingest_seq", "sequence", default=None),
-            "generation": _tick_value(
-                tick, "connection_generation", "stream_generation", default=None
-            ),
-            "trading_day": str(_tick_value(tick, "trading_day", "TradingDay", default="") or ""),
-            "action_day": str(_tick_value(tick, "action_day", "ActionDay", default="") or ""),
-            "session_segment": str(_tick_value(tick, "session_segment", default="") or ""),
-            "rules_hash": str(_tick_value(tick, "rules_hash", default="") or ""),
-            "clock_domain": str(_tick_value(tick, "clock_domain_id", default="") or ""),
-            "clock_mode": "live",
-            "quality": str(_tick_value(tick, "quality", default="") or ""),
-            "volume_complete": bool(_tick_value(tick, "volume_complete", default=False)),
-            "bid": _finite_market_number(
-                _tick_value(tick, "bid_price", "bid", "BidPrice1", default=None)
-            ),
-            "ask": _finite_market_number(
-                _tick_value(tick, "ask_price", "ask", "AskPrice1", default=None)
-            ),
-            "bid_qty": _finite_market_number(
-                _tick_value(tick, "bid_volume", "bid_size", "BidVolume1", default=None)
-            ),
-            "ask_qty": _finite_market_number(
-                _tick_value(tick, "ask_volume", "ask_size", "AskVolume1", default=None)
-            ),
-            "last": _finite_market_number(
-                _tick_value(tick, "price", "last_price", "LastPrice", default=None)
-            ),
-            "source": str(_tick_value(tick, "source", default="") or ""),
-            "event_time_source": str(
-                _tick_value(tick, "event_time_source", default="") or "ctp-action-day-update-time"
-            ),
-        }
+    def _quote_capture_mapping(self, tick):
+        """Project the tick with this Feed's configured display identity."""
+        from bt_api_py.market_tick_contracts import quote_capture_mapping
+
+        return quote_capture_mapping(tick, symbol=self._evidence_symbol())
 
     def _attach_closed_bar_evidence(self, bar_event):
         """Attach only a scope-consistent caller-produced BarEvidence object.
@@ -1034,6 +1440,15 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True):
         """Queue a completed bar for both notify_bar and line delivery."""
+        if self._live_bar_cohort is not None:
+            if self._cohort_completed_lookahead is not _COHORT_MISSING:
+                self._live_bar_cohort._freeze("feed_completed_bar_queue_overflow")
+                self._cohort_delivery_failed = True
+                raise RuntimeError("BtApiFeed completed-bar lookahead is full")
+            # Preserve the provider/feed-produced event intact.  Validation,
+            # line delivery, and notify_bar are deferred to the batch barrier.
+            self._cohort_completed_lookahead = bar_event
+            return
         bar_event.datetime = bar_datetime
         if self.p.dispatch_bars:
             self._dispatch_event(
@@ -1070,6 +1485,10 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
     def _event_time_watermark(self):
         if self._max_event_timestamp is None:
             return None
+        if self._replay_tick_adapter is not None:
+            # Replay advances only from the next recorded event or the source's
+            # explicit final watermark. Host idle time must not move its clock.
+            return self._max_event_timestamp
         elapsed = 0.0
         if self._last_ingest_monotonic_ns is not None:
             elapsed = (
@@ -1087,20 +1506,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             return configured
         store = self.store
         metadata = getattr(store, "contract_metadata", {}) if store is not None else {}
-        candidates = [self._dataname]
-        text = str(self._dataname or "")
-        for separator in (".", ":", "/"):
-            candidates.extend(part for part in text.split(separator) if part)
-        for key in candidates:
-            row = metadata.get(key) if isinstance(metadata, dict) else None
-            if not isinstance(row, dict):
-                continue
-            value = _finite_market_number(
-                row.get("price_tick") or row.get("tick_size") or row.get("min_price_tick")
-            )
-            if value is not None and value > 0:
-                return value
-        return None
+        from bt_api_py.instrument_metadata_aliases import configured_metadata_price_tick
+
+        return configured_metadata_price_tick(
+            metadata, self._dataname, finite_number=_finite_market_number,
+        )
 
     @staticmethod
     def _on_price_grid(value, price_tick):
@@ -1136,106 +1546,24 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             if already_closed or (watermark is not None and deadline <= watermark):
                 self._bar_quality_overrides.pop(bucket_start, None)
 
-    def _prepare_tick(self, tick):
+    def _prepare_tick(self, tick, *, quote_only=False):
         """Normalize one tick's schema, quality, ordering and volume semantics."""
-        schema = str(_tick_value(tick, "schema_version", default="") or "").strip()
-        if not schema:
-            schema = "backtrader.tick.v1"
-            _set_tick_value(tick, "schema_version", schema)
-            semantics = "delta"
-            _set_tick_value(tick, "volume_semantics", semantics)
-            legacy = True
-        else:
-            semantics = str(_tick_value(tick, "volume_semantics", default="") or "").strip().lower()
-            legacy = False
+        from bt_api_py.market_tick_contracts import (
+            classify_market_scope,
+            prepare_market_tick_fields,
+            prepare_market_tick_timing,
+        )
 
-        strict_ctp_v2 = schema == "ctp.quote.v2"
-        raw_quality_flags = _tick_value(tick, "quality_flags", default=None)
-        valid_quality_container = isinstance(raw_quality_flags, (list, tuple, set, frozenset))
-        try:
-            quality_items = tuple(raw_quality_flags or ()) if valid_quality_container else ()
-        except TypeError:
-            # A custom collection is allowed by the broad runtime protocol,
-            # but a broken iterator must never turn into an uncaught dispatch
-            # failure or a clean quote.
-            quality_items = ()
-            valid_quality_container = False
-        valid_quality_items = all(
-            isinstance(flag, str) and bool(flag) and flag.strip() == flag for flag in quality_items
+        (
+            typed_market_tick, replay_market_tick, replay_binding_invalid, flags, delta,
+            price, bid, ask, bid_size, ask_size,
+        ) = prepare_market_tick_fields(
+            tick, replay_adapter_available=self._replay_tick_adapter is not None,
+            legacy_schema="backtrader.tick.v1",
         )
-        if strict_ctp_v2 and (not valid_quality_container or not valid_quality_items):
-            # A V2 producer must make both the evidence container and every
-            # flag explicit. Do not coerce malformed input into apparently
-            # clean evidence or let an unhashable/non-string item crash the
-            # strategy dispatch path.
-            flags = {"QUOTE_QUALITY_FLAGS_INVALID"}
-        elif not valid_quality_items:
-            flags = {"QUOTE_QUALITY_FLAGS_INVALID"}
-        else:
-            flags = set(quality_items)
-        if legacy:
-            flags.add("LEGACY_SCHEMA")
-
-        if semantics in {"delta", "incremental"}:
-            delta = _finite_market_number(
-                _tick_value(tick, "delta_volume", "volume", "Volume", default=None)
-            )
-            semantics = "delta"
-        elif semantics in {"cumulative", "cum", "total"}:
-            # Conversion is owned by the SDK/Store. Feed never differences a
-            # declared cumulative value because doing so can double-difference.
-            delta = _finite_market_number(_tick_value(tick, "delta_volume", default=None))
-            semantics = "cumulative"
-            if delta is None:
-                flags.add("DELTA_VOLUME_MISSING")
-        else:
-            delta = None
-            flags.add("VOLUME_SEMANTICS_UNKNOWN")
-        if delta is None or delta < 0:
-            flags.add("DELTA_VOLUME_INVALID")
-            delta = 0.0
-        _set_tick_value(tick, "volume_semantics", semantics)
-        _set_tick_value(tick, "delta_volume", delta)
-
-        cumulative = _finite_market_number(
-            _tick_value(tick, "cum_volume", "cumulative_volume", default=None)
-        )
-        if cumulative is not None:
-            _set_tick_value(tick, "cum_volume", cumulative)
-            _set_tick_value(tick, "cumulative_volume", cumulative)
-
-        price = _finite_market_number(
-            _tick_value(tick, "price", "last_price", "LastPrice", default=None)
-        )
-        bid = _finite_market_number(_tick_value(tick, "bid_price", "BidPrice1", default=None))
-        ask = _finite_market_number(_tick_value(tick, "ask_price", "AskPrice1", default=None))
-        bid_size = _finite_market_number(
-            _tick_value(tick, "bid_volume", "bid_size", "BidVolume1", default=None)
-        )
-        ask_size = _finite_market_number(
-            _tick_value(tick, "ask_volume", "ask_size", "AskVolume1", default=None)
-        )
-        ctp_schema = schema.startswith("ctp.")
-        if price is None or price <= 0:
-            flags.add("LAST_PRICE_INVALID")
-        if ctp_schema:
-            if bid is None or bid <= 0:
-                flags.add("BID_PRICE_INVALID")
-            if ask is None or ask <= 0:
-                flags.add("ASK_PRICE_INVALID")
-            if bid_size is None or bid_size < 0:
-                flags.add("BID_SIZE_INVALID")
-            elif bid_size == 0:
-                flags.add("BID_DEPTH_ZERO")
-            if ask_size is None or ask_size < 0:
-                flags.add("ASK_SIZE_INVALID")
-            elif ask_size == 0:
-                flags.add("ASK_DEPTH_ZERO")
-            if bid is not None and ask is not None and bid > ask:
-                flags.add("CROSSED_BOOK")
 
         price_tick = self._cached_price_tick()
-        if ctp_schema and price_tick is None:
+        if typed_market_tick and price_tick is None:
             flags.add("PRICE_TICK_UNKNOWN")
         elif price_tick is not None:
             for name, value in (("LAST", price), ("BID", bid), ("ASK", ask)):
@@ -1247,75 +1575,29 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             "execution_eligible",
             default=None,
         )
-        if strict_ctp_v2:
+        if typed_market_tick:
             # ``BtApiFeed`` is a consumer-side quality boundary, not an
             # authority that may promote a hand-built or incomplete V2 quote.
             # The SDK/Store must explicitly attest the upstream decision; this
             # Feed only keeps it false when any local gate also fails.
-            if upstream_execution_eligible is not True:
-                flags.add("UPSTREAM_EXECUTION_INELIGIBLE")
-            if _tick_value(tick, "source_clock_quality", default="") != "verified":
-                flags.add("SOURCE_CLOCK_UNVERIFIED")
-            if _tick_value(tick, "receive_clock_quality", default="") != "verified":
-                flags.add("RECEIVE_CLOCK_UNVERIFIED")
-            if _tick_value(tick, "freshness_verified", default=False) is not True:
-                flags.add("FRESHNESS_UNVERIFIED")
-            if _tick_value(tick, "stale", default=None) is not False:
-                flags.add("STREAM_UNREADY")
-            if _tick_value(tick, "stale_reason", default=None) != "":
-                flags.add("STREAM_UNREADY")
-        raw_event_time = _tick_value(tick, "event_time_utc", default=None)
-        if strict_ctp_v2 and raw_event_time in (None, ""):
-            flags.add("EVENT_TIME_MISSING")
-        event_dt = _as_utc_datetime(
-            raw_event_time
-            if raw_event_time not in (None, "")
-            else _tick_value(tick, "timestamp", "datetime", default=None)
-        )
-        if event_dt is None:
-            flags.add("EVENT_TIME_INVALID")
-        raw_recv_time = _tick_value(tick, "recv_time_utc", default=None)
-        if strict_ctp_v2 and raw_recv_time in (None, ""):
-            flags.add("RECV_TIME_MISSING")
-        received_wall = _as_utc_datetime(
-            raw_recv_time
-            if raw_recv_time not in (None, "")
-            else _tick_value(tick, "received_wall_time", "local_time", default=None)
-        )
-        if strict_ctp_v2 and received_wall is None:
-            flags.add("RECV_TIME_INVALID")
-        if received_wall is not None and event_dt is not None:
-            event_age = (received_wall - event_dt).total_seconds()
-            _set_tick_value(tick, "event_age_seconds", event_age)
-            maximum = max(float(self.p.event_time_max_age or 0.0), 0.0)
-            if ctp_schema and (event_age < -0.5 or (maximum and event_age > maximum)):
-                flags.add("EVENT_TIME_STALE")
+            from bt_api_py.market_tick_contracts import market_execution_evidence_flags
 
-        raw_recv_mono = _tick_value(tick, "recv_monotonic_ns", default=None)
-        if strict_ctp_v2 and raw_recv_mono in (None, ""):
-            flags.add("RECV_MONOTONIC_MISSING")
-        recv_mono = (
-            raw_recv_mono
-            if raw_recv_mono not in (None, "")
-            else _tick_value(tick, "received_monotonic_ns", default=None)
+            flags.update(market_execution_evidence_flags(
+                execution_eligible=upstream_execution_eligible,
+                source_clock_quality=_tick_value(tick, "source_clock_quality", default=""),
+                receive_clock_quality=_tick_value(tick, "receive_clock_quality", default=""),
+                freshness_verified=_tick_value(tick, "freshness_verified", default=False),
+                stale=_tick_value(tick, "stale", default=None),
+                stale_reason=_tick_value(tick, "stale_reason", default=None),
+            ))
+        event_dt, tick_ts, timing_flags = prepare_market_tick_timing(
+            tick,
+            typed_market_tick=typed_market_tick,
+            now_monotonic_ns=self._now_monotonic_ns,
+            event_time_max_age=lambda: self.p.event_time_max_age,
+            receive_time_max_age=lambda: self.p.receive_time_max_age,
         )
-        if isinstance(recv_mono, int) and recv_mono > 0:
-            recv_age = max(self._now_monotonic_ns() - recv_mono, 0) / 1_000_000_000.0
-            _set_tick_value(tick, "recv_age_seconds", recv_age)
-            maximum = max(float(self.p.receive_time_max_age or 0.0), 0.0)
-            if ctp_schema and maximum and recv_age > maximum:
-                flags.add("RECEIVE_TIME_STALE")
-        elif strict_ctp_v2:
-            flags.add("RECV_MONOTONIC_INVALID")
-
-        tick_ts = event_dt.timestamp() if event_dt is not None else None
-        raw_timestamp = _finite_market_number(
-            _tick_value(tick, "timestamp", "Timestamp", default=None)
-        )
-        if strict_ctp_v2 and event_dt is not None and raw_timestamp is not None:
-            raw_timestamp = _coerce_epoch_seconds(raw_timestamp)
-            if abs(raw_timestamp - tick_ts) > 1.0e-6:
-                flags.add("EVENT_TIME_CONFLICT")
+        flags.update(timing_flags)
         prior_watermark = self._event_time_watermark()
         bucket_start = (
             self._get_bucket_start(event_dt.replace(tzinfo=None)) if event_dt is not None else None
@@ -1340,82 +1622,45 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             flags.add("OUT_OF_ORDER_EVENT_TIME")
             if delta > 0:
                 flags.add("ORDERING_VOLUME_GAP")
-                if bucket_start is not None:
+                if bucket_start is not None and not quote_only:
                     self._add_bar_quality_override(bucket_start, "ORDERING_VOLUME_GAP")
                 current_start = self._get_bucket_start(
                     _dt.datetime.fromtimestamp(self._max_event_timestamp, _UTC).replace(tzinfo=None)
                 )
-                self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
+                if not quote_only:
+                    self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
 
-        generation = _tick_value(tick, "connection_generation", "stream_generation", default=None)
+        generation = _tick_value(tick, "connection_generation", default=None)
         subscription_epoch = _tick_value(tick, "subscription_epoch", default=None)
-        retired_ctp_scope = False
-        if strict_ctp_v2:
-            scope_is_valid = (
-                type(generation) is int
-                and generation > 0
-                and type(subscription_epoch) is int
-                and subscription_epoch > 0
-            )
-            if not scope_is_valid:
-                flags.add("CTP_SCOPE_INVALID")
-            else:
-                scope = (generation, subscription_epoch)
-                if self._highest_ctp_scope is not None and scope < self._highest_ctp_scope:
-                    # A delayed callback from an old connection/subscribe
-                    # scope must not reopen a retired stream after a newer
-                    # scope has been observed. In particular, `(8, 1)` is
-                    # newer than `(7, 99)` because generation dominates.
-                    flags.add("RETIRED_CONNECTION_SCOPE")
-                    retired_ctp_scope = True
-                elif self._highest_ctp_scope is not None and scope != self._highest_ctp_scope:
-                    for builder in self._bar_builders.values():
-                        builder["quality_flags"].add(
-                            (
-                                "CONNECTION_GENERATION_CHANGED"
-                                if generation != self._highest_ctp_scope[0]
-                                else "SUBSCRIPTION_EPOCH_CHANGED"
-                            )
-                        )
-                    self._flush_ready_bars(
-                        reason=(
-                            "generation"
-                            if generation != self._highest_ctp_scope[0]
-                            else "subscription_epoch"
-                        ),
-                        force_invalid=True,
-                    )
-                    self._max_event_timestamp = None
-                    flags.add(
-                        (
-                            "CONNECTION_GENERATION_CHANGED"
-                            if generation != self._highest_ctp_scope[0]
-                            else "SUBSCRIPTION_EPOCH_CHANGED"
-                        )
-                    )
-                    self._add_bar_quality_override(
-                        bucket_start,
-                        (
-                            "CONNECTION_GENERATION_CHANGED"
-                            if generation != self._highest_ctp_scope[0]
-                            else "SUBSCRIPTION_EPOCH_CHANGED"
-                        ),
-                    )
-                if not retired_ctp_scope:
-                    self._highest_ctp_scope = scope
-                    self._last_ctp_scope = scope
-                    self._last_connection_generation = generation
-        elif generation not in (None, ""):
-            if (
-                self._last_connection_generation is not None
-                and generation != self._last_connection_generation
-            ):
+        scope, retired_market_scope, scope_flag, advance_generation = classify_market_scope(
+            typed_market_tick=typed_market_tick,
+            generation=generation,
+            subscription_epoch=subscription_epoch,
+            highest_scope=self._highest_market_scope,
+            last_generation=self._last_connection_generation,
+        )
+        if scope_flag in {"MARKET_SCOPE_INVALID", "RETIRED_CONNECTION_SCOPE"}:
+            flags.add(scope_flag)
+        elif scope_flag is not None:
+            if not quote_only:
                 for builder in self._bar_builders.values():
-                    builder["quality_flags"].add("CONNECTION_GENERATION_CHANGED")
-                self._flush_ready_bars(reason="generation", force_invalid=True)
-                self._max_event_timestamp = None
-                flags.add("CONNECTION_GENERATION_CHANGED")
-                self._add_bar_quality_override(bucket_start, "CONNECTION_GENERATION_CHANGED")
+                    builder["quality_flags"].add(scope_flag)
+                self._flush_ready_bars(
+                    reason=(
+                        "generation"
+                        if scope_flag == "CONNECTION_GENERATION_CHANGED"
+                        else "subscription_epoch"
+                    ),
+                    force_invalid=True,
+                )
+            self._max_event_timestamp = None
+            flags.add(scope_flag)
+            if not quote_only:
+                self._add_bar_quality_override(bucket_start, scope_flag)
+        if advance_generation:
+            if typed_market_tick:
+                self._highest_market_scope = scope
+                self._last_market_scope = scope
             self._last_connection_generation = generation
 
         if (
@@ -1426,10 +1671,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         ):
             flags.add("BUCKET_ALREADY_CLOSED")
 
-        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags and not retired_ctp_scope:
+        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags and not retired_market_scope:
             if self._max_event_timestamp is None or tick_ts >= self._max_event_timestamp:
                 self._max_event_timestamp = tick_ts
-            self._last_ingest_monotonic_ns = self._now_monotonic_ns()
+            if not replay_market_tick:
+                self._last_ingest_monotonic_ns = self._now_monotonic_ns()
 
         blocking = {
             flag
@@ -1441,15 +1687,17 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
                 "VOLUME_BASELINE",
             }
         }
-        volume_complete = bool(_tick_value(tick, "volume_complete", default=not ctp_schema))
-        if ctp_schema and not volume_complete and delta > 0:
+        volume_complete = bool(_tick_value(tick, "volume_complete", default=not typed_market_tick))
+        if typed_market_tick and not volume_complete and delta == 0:
+            flags.add("VOLUME_BASELINE")
+        if typed_market_tick and not volume_complete and delta > 0:
             blocking.add("VOLUME_INCOMPLETE")
             flags.add("VOLUME_INCOMPLETE")
         # A rejected snapshot can still prove that an already-open bucket is
         # incomplete. Preserve that evidence before _ingest_tick declines to
         # mutate OHLCV. Otherwise a later watermark could publish the earlier
         # trades as a deceptively complete bar after a volume/order/time gap.
-        if bucket_start is not None and blocking:
+        if bucket_start is not None and blocking and not quote_only:
             already_closed = (
                 self._last_closed_bucket_end is not None
                 and bucket_end is not None
@@ -1458,16 +1706,24 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             if not already_closed:
                 self._add_bar_quality_override(bucket_start, *blocking)
         execution_eligible = (
-            (not strict_ctp_v2 or upstream_execution_eligible is True)
+            (
+                not replay_market_tick
+                and (not typed_market_tick or upstream_execution_eligible is True)
+            )
             and not blocking
             and all(value is not None and value > 0 for value in (bid, ask, bid_size, ask_size))
         )
         bar_eligible = not blocking and price is not None and price > 0 and delta > 0
         _set_tick_value(tick, "quality_flags", tuple(sorted(flags)))
-        _set_tick_value(tick, "quality", "GOOD" if not blocking else "INVALID")
+        _set_tick_value(
+            tick,
+            "quality",
+            "REPLAY_ONLY" if replay_market_tick else ("GOOD" if not blocking else "INVALID"),
+        )
         _set_tick_value(tick, "execution_eligible", execution_eligible)
-        _set_tick_value(tick, "bar_eligible", bar_eligible)
-        self._prune_bar_quality_overrides()
+        _set_tick_value(tick, "bar_eligible", bar_eligible and not replay_binding_invalid)
+        if not quote_only:
+            self._prune_bar_quality_overrides()
 
     def _flush_ready_bars(self, *, reason, force_invalid=False):
         """Close trade-backed buckets once the event-time watermark has passed."""
@@ -1494,61 +1750,120 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             first_seq = current["first_ingest_seq"]
             last_seq = current["last_ingest_seq"]
             generation = current["connection_generation"]
-            bar_id = (
-                f"{self._dataname}:{bucket_start.isoformat()}:{generation}:"
-                f"{first_seq}-{last_seq}"
-            )
-            completed = BarEvent(
-                timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
-                symbol=self._evidence_symbol(),
-                exchange=current["exchange"],
-                asset_type=current["asset_type"],
-                local_time=available_ts,
-                **current["causal"],
-                open=current["open"],
-                high=current["high"],
-                low=current["low"],
-                close=current["close"],
-                volume=current["volume"],
-                openinterest=current["openinterest"],
-            )
-            extensions = {
-                "bucket_start": bucket_start.replace(tzinfo=_UTC),
-                "bucket_end": bucket_end.replace(tzinfo=_UTC),
-                "closed_at": available_at,
-                "available_at": available_at,
-                "bar_available_at": available_at,
-                "complete": complete,
-                "quality": "GOOD" if complete else "INVALID",
-                "quality_flags": tuple(sorted(flags)),
-                "volume_complete": bool(current["volume_complete"]),
-                "first_ingest_seq": first_seq,
-                "last_ingest_seq": last_seq,
-                "quote_cutoff_seq": last_seq,
-                "trading_day": current["trading_day"],
-                "action_day": current["action_day"],
-                "rules_hash": current["rules_hash"],
-                "session_segment": current["session_segment"],
-                "connection_generation": generation,
-                "bar_id": bar_id,
-                "decision_version": bar_id,
-                "closure_reason": reason,
-                "bar_sequence": self._bar_sequence,
-                "trade_count": current["trade_count"],
-                "watermark": _dt.datetime.fromtimestamp(watermark or available_ts, _UTC),
-                "max_event_time": _dt.datetime.fromtimestamp(current["last_timestamp"], _UTC),
-            }
-            if bool(self.p.closed_bar_quote_capture):
-                extensions["quote_events"] = tuple(current.get("quote_events") or ())
-            for name, value in extensions.items():
-                setattr(completed, name, value)
-            self._attach_closed_bar_evidence(completed)
-            if getattr(completed, "closed_bar_evidence", None) is not None:
-                setattr(
-                    completed,
-                    "_closed_bar_evidence_dispatch_token",
-                    self._closed_bar_evidence_dispatch_token,
+            replay = current.get("source_mode") in {"replay", "synthetic"}
+            if replay:
+                from .replay_market_adapter import ReplayBarEvent
+
+                replay_first = current["first_replay_sequence"]
+                replay_last = current["last_replay_sequence"]
+                replay_source_ref = current["replay_source_ref"]
+                replay_epoch = current["replay_epoch"]
+                completed = ReplayBarEvent(
+                    timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
+                    symbol=self._completed_bar_symbol(),
+                    exchange=current["exchange"],
+                    venue=current["exchange"],
+                    asset_type=current["asset_type"],
+                    source_mode=current["source_mode"],
+                    replay_source_ref=replay_source_ref,
+                    replay_epoch=replay_epoch,
+                    replay_bar_sequence=self._bar_sequence,
+                    first_replay_sequence=replay_first,
+                    last_replay_sequence=replay_last,
+                    replay_bucket_start=bucket_start.replace(tzinfo=_UTC),
+                    replay_bucket_end=bucket_end.replace(tzinfo=_UTC),
+                    replay_available_at=available_at,
+                    replay_bar_status=(
+                        "fixture_projection" if complete else "incomplete_projection"
+                    ),
+                    replay_close_reason=(
+                        "event_time_watermark" if reason in {"tick", "load", "idle"} else reason
+                    ),
+                    trading_day=str(current["trading_day"] or ""),
+                    event_session_date=str(current["action_day"] or ""),
+                    open=current["open"],
+                    high=current["high"],
+                    low=current["low"],
+                    close=current["close"],
+                    volume=current["volume"],
+                    openinterest=current["openinterest"],
+                    replay_volume_complete=bool(current["volume_complete"]),
+                    replay_quality_flags=tuple(sorted(flags)),
+                    replay_bar_id=(
+                        f"{replay_source_ref}:{replay_epoch}:{self._dataname}:"
+                        f"{bucket_start.isoformat()}:{replay_first}-{replay_last}"
+                    ),
                 )
+            else:
+                bar_id = (
+                    f"{self._dataname}:{bucket_start.isoformat()}:{generation}:"
+                    f"{first_seq}-{last_seq}"
+                )
+                completed = BarEvent(
+                    timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
+                    symbol=self._completed_bar_symbol(),
+                    exchange=current["exchange"],
+                    asset_type=current["asset_type"],
+                    local_time=available_ts,
+                    **current["causal"],
+                    open=current["open"],
+                    high=current["high"],
+                    low=current["low"],
+                    close=current["close"],
+                    volume=current["volume"],
+                    openinterest=current["openinterest"],
+                )
+                extensions = {
+                    "bucket_start": bucket_start.replace(tzinfo=_UTC),
+                    "bucket_end": bucket_end.replace(tzinfo=_UTC),
+                    "closed_at": available_at,
+                    "available_at": available_at,
+                    "bar_available_at": available_at,
+                    "complete": complete,
+                    "quality": "GOOD" if complete else "INVALID",
+                    "quality_flags": tuple(sorted(flags)),
+                    "volume_complete": bool(current["volume_complete"]),
+                    "first_ingest_seq": first_seq,
+                    "last_ingest_seq": last_seq,
+                    "quote_cutoff_seq": last_seq,
+                    "trading_day": current["trading_day"],
+                    "action_day": current["action_day"],
+                    "event_session_date": current["event_session_date"],
+                    "rules_hash": current["rules_hash"],
+                    "session_segment": current["session_segment"],
+                    "connection_generation": generation,
+                    "bar_id": bar_id,
+                    "decision_version": bar_id,
+                    "closure_reason": reason,
+                    "bar_sequence": self._bar_sequence,
+                    "trade_count": current["trade_count"],
+                    "watermark": _dt.datetime.fromtimestamp(watermark or available_ts, _UTC),
+                    "max_event_time": _dt.datetime.fromtimestamp(current["last_timestamp"], _UTC),
+                }
+                if bool(self.p.closed_bar_quote_capture):
+                    extensions["quote_events"] = tuple(current.get("quote_events") or ())
+                for name in (
+                    "clock_domain_id",
+                    "market_factor_calendar_digest",
+                    "market_factor_target_id",
+                    "market_factor_product",
+                    "market_factor_trading_date",
+                    "market_factor_session_date",
+                    "market_factor_event_session_date",
+                    "exchange_id_source",
+                ):
+                    value = current.get(name)
+                    if value is not None:
+                        extensions[name] = value
+                for name, value in extensions.items():
+                    setattr(completed, name, value)
+                self._attach_closed_bar_evidence(completed)
+                if getattr(completed, "closed_bar_evidence", None) is not None:
+                    setattr(
+                        completed,
+                        "_closed_bar_evidence_dispatch_token",
+                        self._closed_bar_evidence_dispatch_token,
+                    )
             self._enqueue_bar_event(completed, bucket_start, deliver_lines=complete)
             del self._bar_builders[bucket_start]
             self._last_closed_bucket_end = bucket_end
@@ -1565,10 +1880,16 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             return False
 
         if channel_type == "tick":
-            self._attach_ctp_decision_now(event_data)
+            self._attach_market_decision_now(event_data)
 
+        event_timestamp = _tick_timestamp(event_data)
+        if (
+            getattr(event_data, "execution_eligible", None) is False
+            and getattr(event_data, "event_time_utc", None) is None
+        ):
+            event_timestamp = None
         event = Event(
-            timestamp=_tick_timestamp(event_data),
+            timestamp=event_timestamp,
             priority=priority,
             channel_type=channel_type,
             channel_name=self._dataname,
@@ -1576,7 +1897,11 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         )
         # Only feed-origin events carry this private reference. Channel queues
         # already drive the matching broker in their own event loop.
-        event._source_feed = self
+        event._source_feed = (
+            None
+            if getattr(event_data, "execution_eligible", None) is False
+            else self
+        )
         sealed_evidence = (
             getattr(event_data, "closed_bar_evidence", None) if channel_type == "bar" else None
         )
@@ -1596,8 +1921,8 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             self.store.mark_strategy_delivered(event_data)
         return True
 
-    def _attach_ctp_decision_now(self, tick):
-        """Attach caller-owned decision-boundary time to a strict CTP V2 tick.
+    def _attach_market_decision_now(self, tick):
+        """Attach caller-owned decision-boundary time to a qualified SDK tick.
 
         Parent receipt time is useful evidence but cannot measure time spent
         in the Store/Feed path.  A live caller must explicitly provide a
@@ -1606,7 +1931,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         without involving this Feed.
         """
 
-        if _tick_value(tick, "schema_version", default=None) != "ctp.quote.v2":
+        if _tick_value(tick, "schema_version", default=None) != "sdk.market.tick.v1":
             return
         decision_fields = (
             "cohort_decision_now_monotonic_ns",
@@ -1621,7 +1946,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         # decision timestamp.
         for name in decision_fields:
             _set_tick_value(tick, name, None)
-        provider = self.p.ctp_decision_now_provider
+        provider = self.p.market_decision_now_provider
         if not callable(provider):
             return
         try:
@@ -1629,7 +1954,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
         except Exception:
             _safe_log("warning", "btapifeed:1431 fallback on Exception")
             return
-        if not isinstance(now, CtpCohortNow):
+        if not isinstance(now, MarketCohortNow):
             return
         if now.clock_domain_id != _tick_value(tick, "clock_domain_id", default=None):
             return
@@ -1656,7 +1981,16 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
             _tick_value(event_data, "continuity_status", "continuity", default="unknown")
             or "unknown"
         ).lower()
-        unhealthy = stale or continuity in {
+        execution_unavailable = getattr(event_data, "execution_eligible", None) is False
+        observer_only_orderbook = execution_unavailable and (
+            getattr(event_data, "event_type", None) == "orderbook"
+            or getattr(getattr(event_data, "key", None), "channel", None) == "orderbook"
+        )
+        if observer_only_orderbook:
+            # Keep unknown book clock/freshness on this event without
+            # degrading the Feed's independent tick/bar continuity state.
+            return True
+        unhealthy = execution_unavailable or stale or continuity in {
             "gap",
             "stale",
             "disconnected",
@@ -1693,7 +2027,7 @@ class BtApiFeed(ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
 
     def _mark_live(self):
         """Emit the LIVE status exactly once when real-time traffic begins."""
-        if self._continuity_degraded:
+        if self._replay_tick_adapter is not None or self._continuity_degraded:
             return
         if not self._live_notified:
             self.put_notification(self.LIVE)

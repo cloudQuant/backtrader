@@ -1,0 +1,165 @@
+{
+  "title": "Iteration 51 fee sidecar source-fake delivery draft",
+  "status": "DRAFT_FOR_ROOT_REVIEW",
+  "repository": "D:/source_code/backtrader",
+  "branch": "dev",
+  "head_at_freeze": "650947ea74257a577b31f26e4b86d4bb6b705d45",
+  "evidence_level": "SOURCE_FAKE_COMPONENT_ONLY",
+  "scope": "Nine exact Backtrader source/test paths plus public QA records; no provider/account activity.",
+  "source_files": [
+    {
+      "path": "backtrader/stores/btapistore.py",
+      "size_bytes": 890726,
+      "sha256": "5fbd018a1730ca79d4faeec07cf922050bbab40a0376d17690960ab23eff807c"
+    },
+    {
+      "path": "backtrader/stores/factor_execution_facts.py",
+      "size_bytes": 239092,
+      "sha256": "3845eb42032b7c4601cc2c067a57184e5c88c4c53a3d261847dfcd892b38634a"
+    },
+    {
+      "path": "backtrader/stores/registered_sim.py",
+      "size_bytes": 157462,
+      "sha256": "ab7685b5cd1efe0bbcde0f3270d463f644166bf70bafab118c7ce8cb0be01fd3"
+    },
+    {
+      "path": "examples/unified/028_alpha003_simnow_minute/alpha003_strategy.py",
+      "size_bytes": 250674,
+      "sha256": "5ebce557fec45d953fc135ecd780817a2db995d550183028f51e8c723516d7fc"
+    },
+    {
+      "path": "examples/unified/028_alpha003_simnow_minute/run.py",
+      "size_bytes": 338052,
+      "sha256": "766e538abec446191df55d57ae1ad10914e287d98045fae240d5baad4783f2e7"
+    },
+    {
+      "path": "tests/unit/scripts/test_iteration51_installed_fixture.py",
+      "size_bytes": 129083,
+      "sha256": "92f694d77468b4e6c291cc4feef79633e127f790480a9d97077d0c59996c746b"
+    },
+    {
+      "path": "tests/unit/stores/test_btapistore.py",
+      "size_bytes": 158121,
+      "sha256": "c0a2911aafb5b05a61a134f14e5f35baca75b54800d0958c3d181cd58402d37a"
+    },
+    {
+      "path": "tests/unit/stores/test_factor_execution_facts.py",
+      "size_bytes": 188506,
+      "sha256": "32ce97c4e62b75d47575078ebcc872d8b7832ef5285b8b9ae712c4cc07a18019"
+    },
+    {
+      "path": "tests/unit/test_alpha003_simnow_strategy.py",
+      "size_bytes": 217747,
+      "sha256": "6da0519f6dff8f7aa555a297a70b81c55ced1b14e1a3fe74719922b03d95207d"
+    }
+  ],
+  "public_qa_files": [
+    {
+      "path": "qa/author_margin_overflow_current/iteration51_fee_margin_overflow_regression_r2_20261027.xml",
+      "size_bytes": 381,
+      "sha256": "70e6ef301104a32763c7fa9a4c80e851e9e40a1d4569b52f611824215aef7f5f"
+    },
+    {
+      "path": "qa/author_margin_overflow_current/iteration51_fee_margin_overflow_regression_r2_stdout_20261027.txt",
+      "size_bytes": 671,
+      "sha256": "659554d4cec84372069e1c8305ab7f7362e673ce23a05f2c7d5bb10000aae020"
+    },
+    {
+      "path": "qa/author_margin_overflow_fixture_failure/iteration51_fee_margin_overflow_regression_20261027.xml",
+      "size_bytes": 3336,
+      "sha256": "c3b745c6a7e974ded8b48e5f90130d54b169053c5b78d9761454f49626d861af"
+    },
+    {
+      "path": "qa/author_margin_overflow_fixture_failure/iteration51_fee_margin_overflow_regression_stdout_20261027.txt",
+      "size_bytes": 3884,
+      "sha256": "e6aa6fd15d3c4edeeb969dfee7f344c7e2cf1179f65e9c9e3175d3cae9811a77"
+    },
+    {
+      "path": "qa/historical_author_342/iteration51_fee_upstream_full_focus_20261027.xml",
+      "size_bytes": 58878,
+      "sha256": "af136a0a9bd98ed6d26c45ddb51c6691d7e54a19fd183891c887c8b932781c1c"
+    },
+    {
+      "path": "qa/historical_author_342/iteration51_fee_upstream_full_focus_stdout_20261027.txt",
+      "size_bytes": 1851,
+      "sha256": "cd88cfcafda500c510018656814c1c7b08b790e06ff82ce36a8b79ec914b880f"
+    },
+    {
+      "path": "qa/historical_root_five/junit.xml",
+      "size_bytes": 1016,
+      "sha256": "fb04b2cd007e7c8f4282c9b83d2cafb993b51a921bd8029b7628f1d64474e30b"
+    },
+    {
+      "path": "qa/historical_root_five/result.json",
+      "size_bytes": 3944,
+      "sha256": "d9272ff103b8622a71fe34723a6e4e9c4b6f5bb314c906ca04ae30066387a0fa"
+    },
+    {
+      "path": "qa/historical_root_five/spec.json",
+      "size_bytes": 2141,
+      "sha256": "04dea9c619bd42ed537a725ec8e8b0b59a4ecf269da422786122929fdfb45137"
+    },
+    {
+      "path": "qa/historical_root_five/stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/historical_root_five/stdout.txt",
+      "size_bytes": 639,
+      "sha256": "98252a8e7857302a4f08fea118768c2c0a64c6474a0a09927419012f7c77969b"
+    },
+    {
+      "path": "qa/root_margin_overflow_current/junit.xml",
+      "size_bytes": 381,
+      "sha256": "8a362f4fc09f2a33754e83a0175195064c82944625cd6c2487ff90dad368a944"
+    },
+    {
+      "path": "qa/root_margin_overflow_current/result.json",
+      "size_bytes": 3435,
+      "sha256": "8ec505add98c7b2d881e5f67b7c6da382f71737b4759e68fe5a22bbc5bec11ea"
+    },
+    {
+      "path": "qa/root_margin_overflow_current/spec.json",
+      "size_bytes": 1632,
+      "sha256": "03774ad4f03c73817b09cb82c6f7d83231c87e4490dd2ce740403ec756e295fb"
+    },
+    {
+      "path": "qa/root_margin_overflow_current/stderr.txt",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/root_margin_overflow_current/stdout.txt",
+      "size_bytes": 637,
+      "sha256": "7fe01bdbe7e4ad4d88f4f9b5d169f16c124490b996746ac61e5cb0f8f510b04d"
+    }
+  ],
+  "sdk": {
+    "bt_api_ctp_commit": "be716e7664fa5db8230ed2e502e06997853d2910",
+    "bt_api_py_parent_commit": "2eb9a15a11acebe07386155bc3ab98f1d7efd58b",
+    "client_py_sha256": "8b344d14cb059292f9a957642627cc0fdb0e9f16b61102d43c349ce31704718f",
+    "native_ctp_pyd_sha256": "c93497e653ca42ee8bddafbf2ad57675794d099e95cc5aabe54f353e76ab2fea"
+  },
+  "acceptance": {
+    "historical_author_focus": "342 passed; pre-None-guard snapshot only; not final-snapshot acceptance.",
+    "historical_root_focus": "5 passed; pre-None-guard snapshot only; not final-snapshot acceptance.",
+    "current_author_margin_overflow_node": "1 passed; current eleven source/SDK pins; source-fake.",
+    "current_root_margin_overflow_node": "1 passed; same eleven pins before/after; PUBLIC_SOURCE_SYNTHETIC_LEAVES_ONLY.",
+    "independent_review": "GO for the None-guard delta as relayed by Root; exact reviewer artifact identity not bound in this draft."
+  },
+  "limitations": [
+    "Pair fee prefetch before the durable grid decision is not accepted; do not claim live OPEN liveness or closed-loop trading acceptance.",
+    "CTP quote originates as double and is decimalized through float/Decimal(str); canonical exchange tick-decimal semantics and a rigorous quote upper-bound contract remain unproven.",
+    "No provider/account or real-order operation occurred; current evidence is source/fake only.",
+    "CLOSE/CANCEL readiness assertions in the margin overflow regression are source-fact projections, not real execution acceptance.",
+    "Same-account multiple currency rows remain blocked by the existing core account-row cardinality contract.",
+    "A synchronous native call already entered cannot be forcibly interrupted.",
+    "Dynamic fee values cannot establish a full holding-period monetary bound across trading days without a proven price/fee cap."
+  ],
+  "delivery_record": {
+    "path": "record.md",
+    "size_bytes": 7044,
+    "sha256": "c3663cd8c7b51cb406c29966c4ac4015765643b7e084d9c2e78e72700f2e38cb"
+  }
+}

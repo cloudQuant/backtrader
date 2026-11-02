@@ -1,0 +1,5 @@
+IMPORT_BT D:\temp\i51-preflight-20261029\consumer\Lib\site-packages\backtrader\__init__.py
+PROTECTED_OK set1_group1_vpn
+WAIT_READY True
+QUERY_OK elapsed_s 98.7 targets 87 products 87 routes 87 source ctp_query_snapshot_equal_weight_v1 snapshot_present True calendar_rules_present True grid_status READY grid_minutes 195
+FATAL SystemExit(0)

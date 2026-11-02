@@ -8,10 +8,48 @@ external channel scope retention and runstop publication.
 # Mixin state (``_run_scope_token`` etc.) is created by ``Cerebro.__init__``
 # on the assembled class; it cannot be seen from this partial class alone.
 import threading
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
+
+_STARTUP_OBSERVER_STOP_CAPTURE = ContextVar(
+    "backtrader_startup_observer_stop_capture", default=None
+)
+
+
+@contextmanager
+def _capture_startup_observer_stop_errors(strategy):
+    """Capture suppressed observer-stop exceptions for one startup cleanup call.
+
+    The capture is scoped to a single Strategy identity so a nested Cerebro run
+    cannot add its observer diagnostics to the outer startup failure.
+    """
+    state = {"strategy": strategy, "errors": []}
+    token = _STARTUP_OBSERVER_STOP_CAPTURE.set(state)
+    try:
+        yield state["errors"]
+    finally:
+        _STARTUP_OBSERVER_STOP_CAPTURE.reset(token)
+
+
+def _startup_observer_stop_capture_active():
+    """Return whether observer teardown runs inside any startup cleanup capture."""
+    return _STARTUP_OBSERVER_STOP_CAPTURE.get() is not None
+
+
+def _record_startup_observer_stop_error(strategy, observer_index, observer, exc):
+    """Report an observer stop error only to its active startup-cleanup caller."""
+    state = _STARTUP_OBSERVER_STOP_CAPTURE.get()
+    if state is None or state["strategy"] is not strategy:
+        return
+    try:
+        state["errors"].append((observer_index, observer, exc))
+    except BaseException:
+        # Diagnostics must not change Strategy._stop's historical suppression.
+        pass
 
 
 class RunLifecycleMixin:
@@ -23,10 +61,38 @@ class RunLifecycleMixin:
             if self._run_active:
                 raise RuntimeError("Cerebro is already running")
             self._event_stop.clear()
+            if self._live_bar_cohort_winddown_timeout_seconds > 0:
+                self._live_bar_cohort_winddown_status = "NOT_REACHED"
+                self._live_bar_cohort_winddown_reason = "final_batch_not_reached"
+            else:
+                self._live_bar_cohort_winddown_status = "DISABLED"
+                self._live_bar_cohort_winddown_reason = "disabled"
             self._run_scope_token += 1
             self._run_scope_owner = threading.get_ident()
             self._run_active = True
             return self._run_scope_token
+
+    def _record_live_bar_cohort_winddown(self, status, reason):
+        """Publish one legal live-cohort winddown transition under the run lock."""
+        allowed_previous = {
+            "ARMED": {"NOT_REACHED"},
+            "WAITING": {"ARMED", "WAITING"},
+            "STOPPED": {"ARMED", "WAITING"},
+            "TIMED_OUT": {"ARMED", "WAITING"},
+            "FAILED": {"ARMED", "WAITING", "STOPPED"},
+        }
+        with self._runstop_lock:
+            if self._live_bar_cohort_winddown_timeout_seconds <= 0:
+                return False
+            if status not in allowed_previous:
+                raise ValueError("unsupported live cohort winddown status")
+            if self._live_bar_cohort_winddown_status not in allowed_previous[status]:
+                return False
+            if status == "TIMED_OUT" and self._event_stop:
+                return False
+            self._live_bar_cohort_winddown_status = status
+            self._live_bar_cohort_winddown_reason = reason
+            return True
 
     def _open_run_scope(self):
         """Open a run scope and roll it back if an overridden start hook fails."""
@@ -130,6 +196,26 @@ class RunLifecycleMixin:
             self._end_run(token)
         return True
 
+    def wake_live_bar_cohort(self):
+        """Wake an active cohort run without requesting that it stop.
+
+        A runner may call this after publishing work that the Strategy consumes
+        from ``notify_idle``. Unlike ``runstop()``, this only interrupts the
+        current cohort wait; it leaves the run and feed state unchanged.
+
+        Returns:
+            ``True`` when an active cohort wait was signaled, otherwise
+            ``False``.
+        """
+        with self._runstop_lock:
+            if not self._run_active or getattr(self, "_live_bar_cohort", None) is None:
+                return False
+            cohort_waker = getattr(self, "_live_bar_cohort_waker", None)
+        if cohort_waker is None:
+            return False
+        cohort_waker.notify()
+        return True
+
     # When called from within a strategy or elsewhere, stops execution quickly
     def runstop(self):
         """Request prompt termination of the currently active run.
@@ -141,3 +227,7 @@ class RunLifecycleMixin:
         with self._runstop_lock:
             if self._run_active:
                 self._event_stop.set()
+                self._record_live_bar_cohort_winddown("STOPPED", "runstop_requested")
+                cohort_waker = getattr(self, "_live_bar_cohort_waker", None)
+                if cohort_waker is not None:
+                    cohort_waker.notify()

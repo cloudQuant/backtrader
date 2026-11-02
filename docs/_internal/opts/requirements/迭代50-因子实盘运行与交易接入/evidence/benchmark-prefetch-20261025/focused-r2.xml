@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.729" timestamp="2026-10-25T15:04:53.535989" hostname="yun"><testcase classname="tests.performance.test_live_factor_benchmark_smoke" name="test_synthetic_store_waits_when_next_calendar_grid_is_polled_early" time="1.684" /></testsuite></testsuites>

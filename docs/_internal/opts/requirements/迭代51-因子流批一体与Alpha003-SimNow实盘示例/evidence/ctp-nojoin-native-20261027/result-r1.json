@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "gate": "I51_CTP_NOJOIN_NATIVE_PRIMITIVE",
+  "status": "BLOCKED_PREFLIGHT_OR_GATE_EXCEPTION",
+  "phase": "blocked",
+  "front": "tcp://127.0.0.1:1",
+  "scope": "credential-free loopback native lifecycle only",
+  "join_calls": 0,
+  "login_auth_subscription_query_calls": 0,
+  "client_source_sha256": "1c7aa46dbc97f01c838820661ecf3cf1249fefd297c89a1fd24af4151540529d",
+  "cases": []
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "recorded_utc": "2026-10-26T15:29:04.8151378+00:00",
+  "artifact_kind": "R0 wrapper execution provenance",
+  "note": "Post-run provenance records actual tool-call details and unchanged wrapper bytes. The run-manifest does not itself pin the wrapper or record a start timestamp; the source header note is historical.",
+  "launch": {
+    "tool": "functions.exec -> tools.exec_command",
+    "returned_chunk_id": "b74a31",
+    "session_id": 97889,
+    "shell": "powershell",
+    "working_directory": "D:\\source_code\\backtrader",
+    "wrapper_path": "D:\\source_code\\backtrader\\.codex-tmp\\ac51_r0_sdk_build_consumer_r1_20261026.ps1",
+    "wrapper_sha256_recorded_before_launch": "41F3AA2062D259271CB11B4405C572F2189AD4C520C41F2408FA130E749FC834",
+    "wrapper_sha256_verified_after_run": "41f3aa2062d259271cb11b4405c572f2189ad4c520c41f2408fa130e749fc834",
+    "prelaunch_and_postrun_hashes_equal": true,
+    "hash_interpretation": "The prelaunch record and current file hash match; this supports unchanged wrapper bytes at the invoked path but is not an atomic hash emitted by the running process.",
+    "wrapper_arguments": {
+      "output_root": "D:\\temp\\ac51-r0-sdk-20261026-r2",
+      "backtrader_wheel": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+      "backtrader_wheel_sha256": "d342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc",
+      "backtrader_source_revision": "3eacbd197ed4812c2e0627d2f994065934d6f978"
+    },
+    "exact_outer_command": "$wrapper = 'D:\\source_code\\backtrader\\.codex-tmp\\ac51_r0_sdk_build_consumer_r1_20261026.ps1'; $wheel = 'D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\wheel\\back_trader_python-1.4.0-py3-none-any.whl'; $logRoot = 'D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep'; $out = 'D:\\temp\\ac51-r0-sdk-20261026-r2'; if (Test-Path -LiteralPath $out) { throw 'R0 OutputRoot is no longer fresh; refusing to run.' }; & powershell.exe -NoProfile -File $wrapper -OutputRoot $out -BacktraderWheel $wheel -BacktraderWheelSha256 'd342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc' -BacktraderSourceRevision '3eacbd197ed4812c2e0627d2f994065934d6f978' 1> (Join-Path $logRoot 'r0-wrapper.stdout.log') 2> (Join-Path $logRoot 'r0-wrapper.stderr.log'); $code = $LASTEXITCODE; [System.IO.File]::WriteAllText((Join-Path $logRoot 'r0-wrapper.exit-code.txt'), [string]$code); exit $code"
+  },
+  "completion": {
+    "wait_tool": "functions.exec -> tools.write_stdin",
+    "session_id": 97889,
+    "observed_terminal_exit_code": 0,
+    "persisted_exit_code_file": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.exit-code.txt",
+    "persisted_exit_code": 0,
+    "run_manifest": {
+      "path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\run-manifest.json",
+      "sha256": "7719c237dbea268403a1da7bb6bd62ea5a8e33e599deb548b4b7407945db3ee4",
+      "status": "PASS",
+      "phase": "complete",
+      "evidence_level": "LOCAL_INSTALLED_WHEEL_CONSUMER_ONLY",
+      "formal_account_acceptance_claimed": false,
+      "source_revision": "3eacbd197ed4812c2e0627d2f994065934d6f978",
+      "backtrader_wheel_sha256": "d342740a961a420f5a081e0f74563fe6e0e333f818d398c60d73a691986dc4dc"
+    },
+    "run_manifest_start_timestamp": "not present in manifest"
+  },
+  "captured_wrapper_streams": {
+    "stdout_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.stdout.log",
+    "stdout_sha256": "1589b48ca81d68bee10eb10cad08301b726e301cc90d99a0d9b28978bc374b01",
+    "stderr_path": "D:\\temp\\ac51-r0-sdk-20261026-bt-wheelprep\\r0-wrapper.stderr.log",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit_code_file_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+  },
+  "retained_ctp_wheel": {
+    "path": "D:\\temp\\ac51-r0-sdk-20261026-r2\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+    "size_bytes": 5481703,
+    "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+  }
+}

@@ -9,6 +9,8 @@ description: Trading Chinese futures live via CTP API
 
 CTP (Comprehensive Transaction Platform) is the standard API for trading Chinese futures. This guide covers connecting backtrader to CTP for live futures trading through the `ctp-python` package.
 
+**Trading-mode note:** SimNow is an external simulated-account environment and maps to target `paper` in the [shared trading-mode standard](../../../advanced/architecture/trading-modes_zh.md). Here, `live` in the title and legacy examples describes the CTP real-time connection/API style; it does not mean the target `live` production-account mode. The existing examples remain as written and do not by themselves identify or certify an account environment.
+
 ## Introduction
 
 The CTP integration provides:

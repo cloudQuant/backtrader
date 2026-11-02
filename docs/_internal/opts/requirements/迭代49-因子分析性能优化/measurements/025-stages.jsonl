@@ -1,0 +1,11 @@
+{"phase": "read_csv_panel", "start_seconds": 0.00440479998360388, "wall_seconds": 18.962885000015376, "rss_bytes": 288149504}
+{"phase": "engine_runonce", "start_seconds": 85.32593779999297, "wall_seconds": 73.15314979999675, "rss_bytes": 1228296192}
+{"phase": "sink_finalize", "start_seconds": 158.6726587000012, "wall_seconds": 2.7864354999910574, "rss_bytes": 1267265536}
+{"phase": "strategy_stop", "start_seconds": 158.48669309998513, "wall_seconds": 3.025884500006214, "rss_bytes": 1077473280}
+{"phase": "cerebro_run", "start_seconds": 44.91886649999651, "wall_seconds": 116.68089089999557, "rss_bytes": 1077473280}
+{"phase": "collection_total", "start_seconds": 18.967449799994938, "wall_seconds": 142.63247029998456, "rss_bytes": 1077473280}
+{"phase": "html_report", "start_seconds": 168.36933869999484, "wall_seconds": 59.27227610000409, "rss_bytes": 1134710784}
+{"phase": "fincore_evaluate", "start_seconds": 227.6581202999805, "wall_seconds": 376.84433280001394, "rss_bytes": 1452183552}
+{"phase": "evaluate_frames", "start_seconds": 227.64304439999978, "wall_seconds": 376.8600776999956, "rss_bytes": 1452187648}
+{"phase": "evaluation_charts", "start_seconds": 635.2894031000033, "wall_seconds": 0.584010099992156, "rss_bytes": 1457856512}
+{"phase": "evaluation_export", "start_seconds": 604.5040391999937, "wall_seconds": 31.36955339999986, "rss_bytes": 1457856512}

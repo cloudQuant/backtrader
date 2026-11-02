@@ -1,0 +1,643 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "phase": "complete",
+  "evidence_level": "LOCAL_INSTALLED_CALENDAR_CONSUMER_ONLY",
+  "formal_account_acceptance_claimed": false,
+  "repository": "D:\\source_code\\backtrader",
+  "branch": "dev",
+  "source_commit": "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+  "source_parent": "a995a23654d9f87d7ab87bba897e25b61d4896f2",
+  "output_root": "D:\\temp\\i51cal-consumer-20261027-r1",
+  "reused_ctp_wheel": true,
+  "ctp_rebuilt": false,
+  "accepted_matrix_rerun": false,
+  "commands": [
+    {
+      "phase": "git-archive",
+      "executable": "C:\\Program Files\\Git\\cmd\\git.exe",
+      "arguments": [
+        "-C",
+        "D:\\source_code\\backtrader",
+        "archive",
+        "--format=zip",
+        "--output=D:\\temp\\i51cal-consumer-20261027-r1\\source.zip",
+        "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+        "setup.py",
+        "pyproject.toml",
+        "README.md",
+        "LICENSE",
+        "backtrader",
+        "backtrader_runtime"
+      ],
+      "timeout_seconds": 120,
+      "started_utc": "2026-10-26T16:30:46.8112231+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\git-archive.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\git-archive.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 0.524,
+      "ended_utc": "2026-10-26T16:30:47.3360340+00:00"
+    },
+    {
+      "phase": "backtrader-wheel-build",
+      "executable": "C:\\anaconda3\\python.exe",
+      "arguments": [
+        "-I",
+        "-m",
+        "pip",
+        "wheel",
+        "--disable-pip-version-check",
+        "--no-cache-dir",
+        "--no-deps",
+        "--index-url",
+        "https://pypi.org/simple",
+        "--wheel-dir",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\wheel",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\source"
+      ],
+      "timeout_seconds": 900,
+      "started_utc": "2026-10-26T16:30:49.4629585+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\backtrader-wheel-build.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\backtrader-wheel-build.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 11.655,
+      "ended_utc": "2026-10-26T16:31:01.1183687+00:00"
+    },
+    {
+      "phase": "source-to-wheel-python-payload",
+      "executable": "C:\\anaconda3\\python.exe",
+      "arguments": [
+        "-I",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\verify_wheel_python_payload.py",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\source",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\wheel-python-payload-verification.json",
+        "146845c640fe904aae80c3a552de25f82c6b21c4f4aff4a5927dd8d6153f8ba3"
+      ],
+      "timeout_seconds": 120,
+      "started_utc": "2026-10-26T16:31:01.1472733+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\source-to-wheel-python-payload.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\source-to-wheel-python-payload.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 0.302,
+      "ended_utc": "2026-10-26T16:31:01.4497268+00:00"
+    },
+    {
+      "phase": "consumer-venv-create",
+      "executable": "C:\\anaconda3\\python.exe",
+      "arguments": [
+        "-I",
+        "-m",
+        "venv",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\consumer"
+      ],
+      "timeout_seconds": 180,
+      "started_utc": "2026-10-26T16:31:01.8418698+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-venv-create.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-venv-create.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 6.151,
+      "ended_utc": "2026-10-26T16:31:07.9931030+00:00"
+    },
+    {
+      "phase": "consumer-python-version",
+      "executable": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "arguments": [
+        "-I",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\check_consumer_python.py"
+      ],
+      "timeout_seconds": 30,
+      "started_utc": "2026-10-26T16:31:07.9968891+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-python-version.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-python-version.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 0.083,
+      "ended_utc": "2026-10-26T16:31:08.0800893+00:00"
+    },
+    {
+      "phase": "offline-install",
+      "executable": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "arguments": [
+        "-I",
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "--no-cache-dir",
+        "--only-binary=:all:",
+        "--no-index",
+        "--find-links",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl"
+      ],
+      "timeout_seconds": 900,
+      "started_utc": "2026-10-26T16:31:08.0830601+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-install.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-install.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 40.996,
+      "ended_utc": "2026-10-26T16:31:49.0794262+00:00"
+    },
+    {
+      "phase": "consumer-pip-check",
+      "executable": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "arguments": [
+        "-I",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "timeout_seconds": 120,
+      "started_utc": "2026-10-26T16:31:49.0816032+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-pip-check.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-pip-check.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 1.488,
+      "ended_utc": "2026-10-26T16:31:50.5700116+00:00"
+    },
+    {
+      "phase": "consumer-record-origin-native",
+      "executable": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "arguments": [
+        "-I",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\verify_consumer.py",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\consumer"
+      ],
+      "timeout_seconds": 120,
+      "started_utc": "2026-10-26T16:31:50.5727698+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-record-origin-native.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer-record-origin-native.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 2.035,
+      "ended_utc": "2026-10-26T16:31:52.6072941+00:00"
+    },
+    {
+      "phase": "installed-payload-calendar",
+      "executable": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "arguments": [
+        "-I",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\verify_installed_payload_calendar.py",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\consumer",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+        "D:\\temp\\i51cal-consumer-20261027-r1\\ctp-sdk-artifact-pins.json"
+      ],
+      "timeout_seconds": 120,
+      "started_utc": "2026-10-26T16:31:52.6123908+00:00",
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\installed-payload-calendar.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\installed-payload-calendar.stderr.log",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 1.342,
+      "ended_utc": "2026-10-26T16:31:53.9546029+00:00"
+    }
+  ],
+  "phases": {
+    "source_preflight": {
+      "status": "PASS",
+      "resolved_commit": "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+      "dev_ancestor_exit": 0,
+      "duration_seconds": 0.084,
+      "stdout": "D:\\temp\\i51cal-consumer-20261027-r1\\dev-ancestor.stdout.log",
+      "stderr": "D:\\temp\\i51cal-consumer-20261027-r1\\dev-ancestor.stderr.log"
+    },
+    "archive_extract": {
+      "status": "PASS",
+      "source_root": "D:\\temp\\i51cal-consumer-20261027-r1\\source",
+      "duration_seconds": 2.103
+    },
+    "source_to_wheel_payload": {
+      "status": "PASS",
+      "result": "D:\\temp\\i51cal-consumer-20261027-r1\\wheel-python-payload-verification.json",
+      "observation": {
+        "schema_version": 1,
+        "status": "PASS",
+        "source_commit": "ae218c04ca521aaad3ef8c6aa38f17f6c334444d",
+        "source_archive_sha256": "146845c640fe904aae80c3a552de25f82c6b21c4f4aff4a5927dd8d6153f8ba3",
+        "wheel": "D:\\temp\\i51cal-consumer-20261027-r1\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+        "wheel_sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16",
+        "source_python_count": 662,
+        "wheel_python_count": 662,
+        "missing_from_wheel": [],
+        "extra_in_wheel": [],
+        "hash_mismatches": []
+      }
+    },
+    "offline_wheelhouse": {
+      "status": "PASS",
+      "wheel_count": 52,
+      "old_backtrader_wheel_excluded": "back_trader_python-1.4.0-py3-none-any.whl",
+      "new_backtrader_wheel": {
+        "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+        "size_bytes": 2441813,
+        "sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16"
+      },
+      "base": {
+        "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+        "size_bytes": 153051,
+        "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+      },
+      "ctp": {
+        "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+        "size_bytes": 5481703,
+        "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+      },
+      "dependency_count": 49
+    },
+    "consumer_venv": {
+      "status": "PASS",
+      "root": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer",
+      "python": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Scripts\\python.exe",
+      "version": "3.11.5"
+    },
+    "install": {
+      "status": "PASS",
+      "offline": true,
+      "explicit_roots": [
+        {
+          "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+          "size_bytes": 2441813,
+          "sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16"
+        },
+        {
+          "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+          "size_bytes": 153051,
+          "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+        },
+        {
+          "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+          "size_bytes": 5481703,
+          "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+        }
+      ]
+    },
+    "record_origin_native": {
+      "status": "PASS",
+      "pip_check": "PASS",
+      "result": {
+        "ctp_native_loaded": true,
+        "origins": {
+          "backtrader": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\__init__.py",
+          "bt_api_base": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_base\\__init__.py",
+          "bt_api_ctp": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\__init__.py",
+          "bt_api_ctp.ctp._ctp": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\bt_api_ctp\\ctp\\_ctp.cp311-win_amd64.pyd"
+        },
+        "records": {
+          "back-trader-python": {
+            "hashed_entries_verified": 676,
+            "version": "1.4.0"
+          },
+          "bt-api-base": {
+            "hashed_entries_verified": 103,
+            "version": "0.15.8"
+          },
+          "bt-api-ctp": {
+            "hashed_entries_verified": 96,
+            "version": "2.0.4+iteration41.i9"
+          }
+        },
+        "status": "PASS"
+      }
+    },
+    "installed_payload_calendar": {
+      "status": "PASS",
+      "result": {
+        "calendar_module": "D:\\temp\\i51cal-consumer-20261027-r1\\consumer\\Lib\\site-packages\\backtrader\\feeds\\futures_expected_calendar.py",
+        "calendar_retrieved_at": "2026-10-26T23:23:19+08:00",
+        "calendar_rule_version": "public-rule-review-2026-10-26",
+        "rules_manifest_sha256": "4706e2a77d6cb6844706f9425c89d4b3f823b9bfb2ef363c90d36faa7173d051",
+        "sdk_artifact_pins": {
+          "bt_api_base": {
+            "distribution": "bt_api_base",
+            "module": "bt_api_base",
+            "record_sha256": "6b2aa14316c60497fb4eb7489e798fc26637be13d9a114adefd0703155b62fb3",
+            "version": "0.15.8",
+            "wheel_filename": "bt_api_base-0.15.8-py3-none-any.whl",
+            "wheel_sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+          },
+          "bt_api_ctp": {
+            "distribution": "bt_api_ctp",
+            "module": "bt_api_ctp",
+            "record_sha256": "89f9aeed267c256260969c8f69a2f30c8a68f1fb9845d7a4118f3a0717da278f",
+            "version": "2.0.4+iteration41.i9",
+            "wheel_filename": "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+            "wheel_sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+          }
+        },
+        "status": "PASS",
+        "wheel_payload_files": {
+          "back_trader_python-1.4.0-py3-none-any.whl": 667,
+          "bt_api_base-0.15.8-py3-none-any.whl": 96,
+          "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl": 89
+        }
+      }
+    }
+  },
+  "pins": {
+    "source_archive": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\source.zip",
+      "size_bytes": 2432660,
+      "sha256": "146845c640fe904aae80c3a552de25f82c6b21c4f4aff4a5927dd8d6153f8ba3"
+    },
+    "backtrader_wheel": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+      "size_bytes": 2441813,
+      "sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16"
+    },
+    "aiohappyeyeballs-2.7.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\aiohappyeyeballs-2.7.1-py3-none-any.whl",
+      "size_bytes": 15038,
+      "sha256": "9243213661e29250eb41368e5daa826fc017156c3b8a11440826b2e3ed376472"
+    },
+    "aiohttp-3.14.5-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\aiohttp-3.14.5-cp311-cp311-win_amd64.whl",
+      "size_bytes": 512575,
+      "sha256": "6f275c11d1aa6d4c458e05a68be084efe3c55a113d99e3f46a318098e52948fc"
+    },
+    "aiosignal-1.4.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\aiosignal-1.4.0-py3-none-any.whl",
+      "size_bytes": 7490,
+      "sha256": "053243f8b92b990551949e63930a839ff0cf0b0ebbe0597b0f3fb19e1a0fe82e"
+    },
+    "annotated_types-0.8.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\annotated_types-0.8.0-py3-none-any.whl",
+      "size_bytes": 13427,
+      "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"
+    },
+    "anyio-4.15.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\anyio-4.15.1-py3-none-any.whl",
+      "size_bytes": 132079,
+      "sha256": "6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101"
+    },
+    "attrs-26.1.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\attrs-26.1.0-py3-none-any.whl",
+      "size_bytes": 67548,
+      "sha256": "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"
+    },
+    "certifi-2026.10.23-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\certifi-2026.10.23-py3-none-any.whl",
+      "size_bytes": 135082,
+      "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
+    },
+    "charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl",
+      "size_bytes": 214932,
+      "sha256": "87e50a3e7cb90af586b6c5faf23e302a970415ac73bd7bd90a515a04b427ef96"
+    },
+    "contourpy-1.3.3-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\contourpy-1.3.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 225234,
+      "sha256": "3519428f6be58431c56581f1694ba8e50626f2dd550af225f82fb5f5814d2a42"
+    },
+    "cycler-0.12.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\cycler-0.12.1-py3-none-any.whl",
+      "size_bytes": 8321,
+      "sha256": "85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30"
+    },
+    "fonttools-4.67.0-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\fonttools-4.67.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 1646300,
+      "sha256": "33ae23a531795864fcdbbab91a40c824976e22642c05efca3bd8a0b00630d0e7"
+    },
+    "formulaic-1.2.2-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\formulaic-1.2.2-py3-none-any.whl",
+      "size_bytes": 118939,
+      "sha256": "0f84ff49e3fc9dc0e68ab08a0a9427874021aa6c558e66b44dc634a35739b09b"
+    },
+    "frozenlist-1.8.0-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\frozenlist-1.8.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 44064,
+      "sha256": "ac913f8403b36a2c8610bbfd25b8013488533e71e62b4b4adce9c86c8cea905b"
+    },
+    "h11-0.16.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\h11-0.16.0-py3-none-any.whl",
+      "size_bytes": 37515,
+      "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"
+    },
+    "httpcore-1.0.9-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\httpcore-1.0.9-py3-none-any.whl",
+      "size_bytes": 78784,
+      "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+    },
+    "httpx-0.28.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\httpx-0.28.1-py3-none-any.whl",
+      "size_bytes": 73517,
+      "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+    },
+    "idna-3.20-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\idna-3.20-py3-none-any.whl",
+      "size_bytes": 69583,
+      "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+    },
+    "interface_meta-2.0.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\interface_meta-2.0.1-py3-none-any.whl",
+      "size_bytes": 15330,
+      "sha256": "f38016bef9a4429b6d0792d809be7b65e9781820c674bf7f463999086b6e6323"
+    },
+    "kiwisolver-1.5.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\kiwisolver-1.5.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 70744,
+      "sha256": "1a7587dc335f2c0f5bd577fd0540bd16c66006bdb60f759a1059f025e6c4f071"
+    },
+    "matplotlib-3.11.2-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\matplotlib-3.11.2-cp311-cp311-win_amd64.whl",
+      "size_bytes": 9329982,
+      "sha256": "a24d5fd36e4f0e742c3851dcd20810e56a95633a342e4bf6cb591c678e8fe61f"
+    },
+    "multidict-7.2.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\multidict-7.2.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 94895,
+      "sha256": "a789e3d27fc5665cc0477f10a35a89383313e4c9cf8b5e6af7ea71f039cdcc0e"
+    },
+    "narwhals-2.27.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\narwhals-2.27.1-py3-none-any.whl",
+      "size_bytes": 483211,
+      "sha256": "d057df13f5852b8e157596e82eb5e955fad267425df5e420e0ee9863da483b31"
+    },
+    "numpy-1.26.4-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\numpy-1.26.4-cp311-cp311-win_amd64.whl",
+      "size_bytes": 15811913,
+      "sha256": "cd25bcecc4974d09257ffcd1f098ee778f7834c3ad767fe5db785be9a4aa9cb2"
+    },
+    "packaging-26.3-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\packaging-26.3-py3-none-any.whl",
+      "size_bytes": 129956,
+      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+    },
+    "pandas-3.0.6-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pandas-3.0.6-cp311-cp311-win_amd64.whl",
+      "size_bytes": 9859246,
+      "sha256": "2e5fa32ff162dfdbc280157d664f44d23049ae414725af9676df339c501d82cd"
+    },
+    "patsy-1.0.3-py2.py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\patsy-1.0.3-py2.py3-none-any.whl",
+      "size_bytes": 233318,
+      "sha256": "d3dbebe8fd5f46e29912d030b63c6268647b59bf788a99e2af28a30234cf357c"
+    },
+    "pillow-13.0.0-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pillow-13.0.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 7278471,
+      "sha256": "d7710eb676e9bb68965cb045be0d333b4c0d7f9dfbaa7fbf121385b1588683d3"
+    },
+    "propcache-0.5.4-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\propcache-0.5.4-cp311-cp311-win_amd64.whl",
+      "size_bytes": 46268,
+      "sha256": "e904d4d01f36bd6e197590be1533c44e06058771e0746dd073a8ebb3ef880858"
+    },
+    "pyarrow-25.0.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pyarrow-25.0.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 27857263,
+      "sha256": "62cd0d785b8aa6675ee355f9fc02252a340f4441257c42674937826fd7594325"
+    },
+    "pydantic-2.14.1-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pydantic-2.14.1-py3-none-any.whl",
+      "size_bytes": 488106,
+      "sha256": "9195d967ec791692a04438115466764fb8b9a27b31f14a760437694f40d6b454"
+    },
+    "pydantic_core-2.50.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pydantic_core-2.50.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 2176332,
+      "sha256": "0048b6dddc8ef4b64fccaad878bd143b0c3882ea9936279dc11d613f6b7dd1bc"
+    },
+    "pyparsing-3.3.3-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pyparsing-3.3.3-py3-none-any.whl",
+      "size_bytes": 126420,
+      "sha256": "ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4"
+    },
+    "python_dateutil-3.0.0-py2.py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\python_dateutil-3.0.0-py2.py3-none-any.whl",
+      "size_bytes": 94659,
+      "sha256": "3c79630202e4152c6add678446984236efe4f57e84d8e892aab0637bab82e9fd"
+    },
+    "python_dotenv-1.2.4-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\python_dotenv-1.2.4-py3-none-any.whl",
+      "size_bytes": 23266,
+      "sha256": "42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc"
+    },
+    "python_rapidjson-1.25-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\python_rapidjson-1.25-cp311-cp311-win_amd64.whl",
+      "size_bytes": 346798,
+      "sha256": "cd41d5ea2cc8c9278e92e3f7df6250db5b98a3f7b4a143a6b8fb18335813b12e"
+    },
+    "pytz-2026.5-py2.py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pytz-2026.5-py2.py3-none-any.whl",
+      "size_bytes": 506342,
+      "sha256": "e658af3757f9e26a9d25dd2aff38335acd92bc9104f890a894b2c1ba28311b03"
+    },
+    "pyyaml-6.0.3-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\pyyaml-6.0.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 158763,
+      "sha256": "9f3bfb4965eb874431221a3ff3fdcddc7e74e3b07799e0e84ca4a0f867d449bf"
+    },
+    "requests-2.34.2-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\requests-2.34.2-py3-none-any.whl",
+      "size_bytes": 73075,
+      "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+    },
+    "scipy-1.17.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\scipy-1.17.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 36607512,
+      "sha256": "d30e57c72013c2a4fe441c2fcb8e77b14e152ad48b5464858e07e2ad9fbfceff"
+    },
+    "six-1.17.0-py2.py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\six-1.17.0-py2.py3-none-any.whl",
+      "size_bytes": 11050,
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
+    },
+    "statsmodels-0.15.0-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\statsmodels-0.15.0-cp311-cp311-win_amd64.whl",
+      "size_bytes": 11361029,
+      "sha256": "5e1214312d6362cebe0b5c53b4f478d9072559709000369dfc528211cb993e8a"
+    },
+    "typing_extensions-4.16.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\typing_extensions-4.16.0-py3-none-any.whl",
+      "size_bytes": 45571,
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+    },
+    "typing_inspection-0.4.4-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\typing_inspection-0.4.4-py3-none-any.whl",
+      "size_bytes": 14750,
+      "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
+    },
+    "tzdata-2026.5-py2.py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\tzdata-2026.5-py2.py3-none-any.whl",
+      "size_bytes": 347996,
+      "sha256": "b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac"
+    },
+    "urllib3-2.8.0-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\urllib3-2.8.0-py3-none-any.whl",
+      "size_bytes": 135717,
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+    },
+    "websocket_client-1.9.2-py3-none-any.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\websocket_client-1.9.2-py3-none-any.whl",
+      "size_bytes": 95786,
+      "sha256": "e1a673830a9c7bfa47b1cd3d5e4178f4c9651d80a4eab02c9c23a1c3ec6250ce"
+    },
+    "websockets-17.3-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\websockets-17.3-cp311-cp311-win_amd64.whl",
+      "size_bytes": 219017,
+      "sha256": "d338813a440bf6d2f0df55140d3f3080284410b1ebfe9df50e3847bcdb1a17bb"
+    },
+    "wrapt-2.5.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\wrapt-2.5.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 105878,
+      "sha256": "ce3889e3815f97d46414eb574bffdd9bdb41ff70f503097e2707615a87d4e92c"
+    },
+    "yarl-1.25.1-cp311-cp311-win_amd64.whl": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\yarl-1.25.1-cp311-cp311-win_amd64.whl",
+      "size_bytes": 102894,
+      "sha256": "d7306dee25b8a0e737363f347362b875094b4dc4e367311470656ae420fdbf8e"
+    },
+    "backtrader_offline_copy": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\back_trader_python-1.4.0-py3-none-any.whl",
+      "size_bytes": 2441813,
+      "sha256": "c560ed79d34c87e0baec015ed9e3b55f8d82ee5e79f157eaf2df3a4063812f16"
+    },
+    "bt_api_base": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_base-0.15.8-py3-none-any.whl",
+      "size_bytes": 153051,
+      "sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+    },
+    "bt_api_ctp": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\offline-wheelhouse\\bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+      "size_bytes": 5481703,
+      "sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+    },
+    "sdk_artifact_pins": {
+      "bt_api_base": {
+        "distribution": "bt_api_base",
+        "module": "bt_api_base",
+        "record_sha256": "6b2aa14316c60497fb4eb7489e798fc26637be13d9a114adefd0703155b62fb3",
+        "version": "0.15.8",
+        "wheel_filename": "bt_api_base-0.15.8-py3-none-any.whl",
+        "wheel_sha256": "b579a73531281d74f6e1630d447717b9f87e38bf507d82178d9ad46745017f39"
+      },
+      "bt_api_ctp": {
+        "distribution": "bt_api_ctp",
+        "module": "bt_api_ctp",
+        "record_sha256": "89f9aeed267c256260969c8f69a2f30c8a68f1fb9845d7a4118f3a0717da278f",
+        "version": "2.0.4+iteration41.i9",
+        "wheel_filename": "bt_api_ctp-2.0.4+iteration41.i9-cp311-cp311-win_amd64.whl",
+        "wheel_sha256": "b72a48d09c80420ffdaaa7eadb51a135287ac4313caaa235d749e3b39b52796f"
+      }
+    },
+    "sdk_artifact_pins_file": {
+      "path": "D:\\temp\\i51cal-consumer-20261027-r1\\ctp-sdk-artifact-pins.json",
+      "size_bytes": 754,
+      "sha256": "f6ac95ffcbd6eb6d109da3e6e9125195de27b6a75783145487dd14befe1028ef"
+    }
+  },
+  "completed_utc": "2026-10-26T16:31:53.9599218+00:00"
+}

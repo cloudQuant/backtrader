@@ -1,0 +1,191 @@
+{
+  "level": "INSTALLED_READ_ONLY_WINDDOWN_BLOCKED",
+  "launch": {
+    "head": "e4afef1a96729c5d01ff4100126c6fa23e74638b",
+    "package_commit": "31dc70ae280d32f07f3d454c4a023974416910f7",
+    "command": [
+      "D:\\temp\\i5051c-20261025-r4\\venv\\Scripts\\python.exe",
+      "-I",
+      "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py",
+      "--wheel",
+      "D:\\temp\\i5051b-1922cf98804d\\wheel\\back_trader_python-1.4.0-py3-none-any.whl",
+      "--wheel-sha256",
+      "7c9fe1873462a1a4a9ac75e6f6d02b495fe95cbd1c6b22ae1984cbb1db5e4695",
+      "--workspace",
+      "D:\\temp\\i51-installed-final-20261025-r5\\native\\case",
+      "--synthetic-live",
+      "--factor-mode",
+      "native",
+      "--sdk-selector-source",
+      "D:\\temp\\iteration50_51_final_consumer_20261025_013224\\selector-source-fixture\\bt_api_ctp\\ctp_env_selector.py",
+      "--timeout-seconds",
+      "300"
+    ],
+    "source_pins": {
+      "D:\\source_code\\backtrader\\scripts\\iteration51_installed_fixture.py": {
+        "sha256": "9afa6755652141e62b16296988c77ced1262b5f0e801289f4dceb26c45abf816",
+        "size": 131809
+      },
+      "D:\\source_code\\backtrader\\scripts\\iteration50_installed_fixture.py": {
+        "sha256": "4f9cd4610a21f6eb5ced5dd824f89501a056f114e0b39deabe94c6da1e33285a",
+        "size": 159625
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\run.py": {
+        "sha256": "1c63d7b159a76a5a250ec6f5f7a3ce3315048649bc8102773e2ad00aae941f4f",
+        "size": 195048
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\entry_tier.py": {
+        "sha256": "230ab3ab1bb94313a186fef2bf181f1e1d80e769cd029832bab1614ea659c15e",
+        "size": 4449
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\alpha003_strategy.py": {
+        "sha256": "b7d65886d10b792af58bf8100a9e94f3da1b1405b2a6d0247315dcaaa8dfa058",
+        "size": 198547
+      },
+      "D:\\source_code\\backtrader\\examples\\unified\\028_alpha003_simnow_minute\\config.yaml": {
+        "sha256": "b9190eb06954d49a8d4402c2b71a9a11e2d6a9739e0fb9c66c76bcf81a1ad4e5",
+        "size": 3674
+      }
+    },
+    "wheel_sha256": "7c9fe1873462a1a4a9ac75e6f6d02b495fe95cbd1c6b22ae1984cbb1db5e4695",
+    "started_unix": 1792926334.3221376,
+    "evidence_level": "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+  },
+  "completion": {
+    "exit_code": 2,
+    "ended_unix": 1792926357.0760963,
+    "source_pins_unchanged": true,
+    "receipt_exists": false
+  },
+  "summary": {
+    "cleanup_complete": true,
+    "error_type": "TimeoutError",
+    "live_epoch_evidence": {
+      "cleanup_complete": true,
+      "engine_winddown_reason": "winddown_deadline_expired",
+      "engine_winddown_status": "TIMED_OUT",
+      "epoch_id": 1,
+      "reconciliation_blockers": [],
+      "refresh_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+      "refresh_error_code": "LIVE_QUERY_SET_UNAVAILABLE",
+      "refresh_status": "BLOCKED",
+      "resource_shutdown": [
+        {
+          "joined": true,
+          "resource": "query_refresh",
+          "started": true,
+          "status": "RETURNED"
+        },
+        {
+          "bytes": 303929,
+          "record_count": 64,
+          "resource": "decision_tape",
+          "sha256": "54c4f0d818866e7bbc4967bed88fdebebe8a53153481de6e35caf1ef21d938b1",
+          "status": "CLOSED"
+        },
+        {
+          "resource": "broker",
+          "status": "OBSERVATION_ONLY",
+          "store_shutdown_state": "PASS"
+        },
+        {
+          "resource": "store",
+          "shutdown_state": "PASS",
+          "status": "CLOSED_BY_BROKER"
+        },
+        {
+          "resource": "journal",
+          "status": "CLOSED"
+        }
+      ],
+      "routes": {
+        "DCE.A": "A2611",
+        "DCE.M": "M2611",
+        "DCE.Y": "Y2611"
+      },
+      "selection_path": "D:\\temp\\i51-installed-final-20261025-r5\\native\\case\\iteration51-live-case-s_6mkh71\\selection-bundle.json",
+      "selection_source": "saved_bundle_legacy",
+      "source_snapshot_id": "iteration51-synthetic-ranking-v1",
+      "strategy_order_events": {
+        "capacity": 128,
+        "events": [],
+        "reason": null,
+        "retained_count": 0,
+        "status": "AVAILABLE",
+        "truncated": false
+      },
+      "strategy_shutdown_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+      "strategy_shutdown_post_join_blocker": "SHUTDOWN_RECONCILIATION_BLOCKED:completed_query_set_receipt_unavailable",
+      "strategy_shutdown_post_join_confirmed": false,
+      "strategy_shutdown_ready": false,
+      "strategy_shutdown_requested": true
+    },
+    "resource_shutdown": [
+      {
+        "joined": true,
+        "resource": "query_refresh",
+        "started": true,
+        "status": "RETURNED"
+      },
+      {
+        "bytes": 303929,
+        "record_count": 64,
+        "resource": "decision_tape",
+        "sha256": "54c4f0d818866e7bbc4967bed88fdebebe8a53153481de6e35caf1ef21d938b1",
+        "status": "CLOSED"
+      },
+      {
+        "resource": "broker",
+        "status": "OBSERVATION_ONLY",
+        "store_shutdown_state": "PASS"
+      },
+      {
+        "resource": "store",
+        "shutdown_state": "PASS",
+        "status": "CLOSED_BY_BROKER"
+      },
+      {
+        "resource": "journal",
+        "status": "CLOSED"
+      }
+    ],
+    "status": "FAILED"
+  },
+  "raw_stdout": {
+    "size_bytes": 7568,
+    "sha256": "35d2a14fa908f50c856c0aa2ad2aa5e5d0706ef62ce2357d4418fbd88c7c22b5"
+  },
+  "query_families_attempted": [
+    "account_result",
+    "instrument_margin_rate_result",
+    "instruments_result",
+    "orders_result",
+    "positions_result",
+    "trades_result"
+  ],
+  "scheduler": {
+    "virtual_scheduler": true,
+    "virtual_scheduler_advance_count": 9357,
+    "virtual_scheduler_callback_delivery_count": 0,
+    "virtual_scheduler_clock_origin": "copied run.py run.__globals__['RunnerWallClock'] replaced in child; btapistore.time.time virtualized; monotonic_ns forwarded to host clock",
+    "virtual_scheduler_delivered_ticks": 783,
+    "virtual_scheduler_final_utc": "2026-10-25T12:11:31.937000+00:00",
+    "virtual_scheduler_late_callback_schedule_count": 0,
+    "virtual_scheduler_monotonic_is_real": true,
+    "virtual_scheduler_pending_callbacks": 0
+  },
+  "arms": 0,
+  "writes": 0,
+  "network_attempts": 0,
+  "not_run": [
+    "native write",
+    "native write-denied",
+    "native tier-escalation",
+    "build matrix"
+  ],
+  "limitations": [
+    "Family names do not establish a completed query set.",
+    "The exact rejected query provenance fields were not captured by this actual run.",
+    "No account/provider acceptance; this run uses public synthetic SDK leaves."
+  ]
+}
