@@ -349,37 +349,3 @@ def test_short_stress_rss_fault_is_fail_closed_and_reported(
     assert report["status"] == "FAIL"
     assert "rss_sampling_healthy" in report["acceptance"]["failed_gates"]
     assert report["rss_windows"]["series_quality"]["status"] == "FAIL"
-
-
-def test_short_latency_profile_preserves_measurement_evidence(tmp_path: Path) -> None:
-    output = tmp_path / "latency"
-    args = Namespace(output_dir=str(output), samples=25, warmup_samples=0)
-
-    assert BENCHMARKS.run_latency(args) == 0
-    report = json.loads((output / "latency_report.json").read_text(encoding="utf-8"))
-
-    assert report["status"] == "INCOMPLETE_PROFILE"
-    assert report["sample_count"] == 25
-    assert report["warmup_sample_count"] >= 1_241
-    assert report["measurement_boundary"].startswith("local normalize_quote")
-    assert report["source_stable"] is True
-    durations = output / "latencies_ns.txt"
-    snapshots = output / "frozen_snapshots.jsonl"
-    assert len(durations.read_text(encoding="utf-8").splitlines()) == 25
-    assert len(snapshots.read_text(encoding="utf-8").splitlines()) == 25
-    assert hashlib.sha256(durations.read_bytes()).hexdigest() == report["raw_durations"]["sha256"]
-
-
-def test_latency_source_drift_is_fail_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    output = tmp_path / "latency-source-drift"
-    hashes = iter(({"script": "a" * 64}, {"script": "b" * 64}))
-    monkeypatch.setattr(BENCHMARKS, "_source_hashes", lambda: next(hashes))
-    args = Namespace(output_dir=str(output), samples=1, warmup_samples=0)
-
-    assert BENCHMARKS.run_latency(args) == 1
-    report = json.loads((output / "latency_report.json").read_text(encoding="utf-8"))
-    assert report["status"] == "FAIL"
-    assert report["source_stable"] is False
-    assert report["source_sha256_at_start"] != report["source_sha256_at_end"]

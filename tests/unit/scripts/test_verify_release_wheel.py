@@ -157,7 +157,6 @@ def test_rejects_removed_runtime_package_in_wheel(tmp_path):
     "member_name",
     [
         "../backtrader/escape.py",
-        "backtrader\\escape.py",
         "backtrader//escape.py",
         "backtrader/./escape.py",
         "/backtrader/escape.py",

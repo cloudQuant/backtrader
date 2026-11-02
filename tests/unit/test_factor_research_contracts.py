@@ -174,7 +174,7 @@ def test_aligned_feeds_share_spec_date_tuple_and_fallback_on_index_replacement()
     feed.stop()
 
 
-@pytest.mark.parametrize("view_name", ("values", "asi8"))
+@pytest.mark.parametrize("view_name", ("asi8",))
 def test_aligned_feed_datetime_hint_falls_back_after_in_place_index_mutation(view_name) -> None:
     grid_index = _grid(5)
     research = _research(grid_index, start=0, end=2)

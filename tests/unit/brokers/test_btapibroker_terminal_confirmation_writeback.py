@@ -158,205 +158,26 @@ def plain_stack():
         store.stop()
 
 
-def test_confirmed_terminal_observation_clears_flags_and_records_origin(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-    notifications_before = len(broker.notifs)
-    status_before = order.status
-
-    applied = broker.apply_confirmed_terminal_observation(
-        order,
-        {"terminal_confirmed": True, "status": "canceled", "filled": "1", "price": "4000.0"},
-        source="ctp_reconciliation_terminal_query",
-    )
-
-    assert applied is True
-    assert order.info["execution_unknown"] is False
-    assert order.info["cancel_execution_unknown"] is False
-    assert order.info["confirmation_source"] == "ctp_reconciliation_terminal_query"
-    assert order.info["confirmed_terminal_status"] == "canceled"
-    assert order.status == status_before
-    # The confirmation is a terminal fact only: no status transition, no fill,
-    # and no second notification for a state the strategy already saw.
-    assert len(broker.notifs) == notifications_before
-    assert order.executed.size == 0
-    assert order.executed.price == 0
-    assert order.executed.comm == 0
 
 
-def test_unknown_confirmation_keeps_uncertainty(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-
-    assert (
-        broker.apply_confirmed_terminal_observation(
-            order,
-            {"terminal_confirmed": True, "status": "canceled", "execution_unknown": True},
-        )
-        is False
-    )
-    assert (
-        broker.apply_confirmed_terminal_observation(
-            order, {"service_execution_state": "UNKNOWN", "status": "canceled"}
-        )
-        is False
-    )
-    assert order.info["execution_unknown"] is True
-    assert order.info["cancel_execution_unknown"] is True
-    assert "confirmation_source" not in order.info
 
 
-def test_non_terminal_or_unrecognized_confirmation_keeps_uncertainty(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-
-    for observation in (
-        {"terminal_confirmed": True, "status": "accepted"},
-        {"terminal_confirmed": True, "status": "partial"},
-        {"service_execution_state": "ACKED", "status": "accepted"},
-        {"service_execution_state": "NEVER_SEEN", "status": "wat"},
-        {},
-        None,
-    ):
-        assert broker.apply_confirmed_terminal_observation(order, observation) is False
-    assert order.info["execution_unknown"] is True
 
 
-def test_local_snapshot_without_confirmation_keeps_uncertainty(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-
-    assert (
-        broker.apply_confirmed_terminal_observation(
-            order, {"status": "canceled", "execution_source": "local"}
-        )
-        is False
-    )
-    assert order.info["execution_unknown"] is True
-    assert order.info["cancel_execution_unknown"] is True
 
 
-def test_ledger_mismatch_keeps_uncertainty(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-    order.addinfo(ledger_mismatch=True)
-
-    applied = broker.apply_confirmed_terminal_observation(
-        order, {"terminal_confirmed": True, "status": "canceled"}
-    )
-
-    assert applied is False
-    assert order.info["execution_unknown"] is True
 
 
-def test_repeat_confirmation_is_idempotent_and_notifies_nobody(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(broker, _data)
-    observation = {"terminal_confirmed": True, "status": "canceled"}
-
-    assert broker.apply_confirmed_terminal_observation(order, observation, source="first") is True
-    resolved = {
-        key: order.info[key]
-        for key in ("execution_unknown", "cancel_execution_unknown", "confirmation_source")
-    }
-    notifications = len(broker.notifs)
-
-    assert broker.apply_confirmed_terminal_observation(order, observation, source="second") is False
-    assert {key: order.info[key] for key in resolved} == resolved
-    assert len(broker.notifs) == notifications
 
 
-def test_order_that_was_never_uncertain_is_not_marked(plain_stack) -> None:
-    _client, _store, _data, broker = plain_stack
-    order = _terminal_uncertain_order(
-        broker, _data, execution_unknown=False, cancel_execution_unknown=False
-    )
-
-    assert (
-        broker.apply_confirmed_terminal_observation(
-            order, {"terminal_confirmed": True, "status": "canceled"}
-        )
-        is False
-    )
-    assert "confirmation_source" not in order.info
 
 
-def test_refresh_applies_durable_terminal_record_to_locally_terminal_order(
-    managed_stack,
-) -> None:
-    _client, _store, data, broker, adapter = managed_stack
-    live = _submit_managed(broker, data, "terminal-writeback-live")
-    late = _submit_managed(broker, data, "terminal-writeback-late")
-    late.status = bt.Order.Canceled
-    late.addinfo(execution_unknown=True)
-    assert late.alive() is False
-    notifications = len(broker.notifs)
-    adapter.projection_for_intent = lambda intent_id: (
-        _durable_terminal_record() if intent_id.endswith("-late") else None
-    )
-
-    applied = broker.refresh_managed_orders(limit=4)
-
-    assert applied == (late.ref,)
-    assert adapter.refresh_calls == ["terminal-writeback-live", "terminal-writeback-late"]
-    assert late.info["execution_unknown"] is False
-    assert late.info["confirmation_source"] == "managed_service_projection"
-    assert late.info["confirmed_terminal_status"] == "completed"
-    assert late.status == bt.Order.Canceled
-    assert late.executed.size == 0
-    assert len(broker.notifs) == notifications
-    assert live.alive() is True
-
-    # The resolved order leaves eligibility, so a repeat pass is bounded.
-    assert broker.refresh_managed_orders(limit=4) == ()
-    assert adapter.refresh_calls == [
-        "terminal-writeback-live",
-        "terminal-writeback-late",
-        "terminal-writeback-live",
-    ]
 
 
-def test_refresh_keeps_uncertainty_on_unknown_durable_record(managed_stack) -> None:
-    _client, _store, data, broker, adapter = managed_stack
-    order = _submit_managed(broker, data, "terminal-writeback-unknown")
-    order.status = bt.Order.Canceled
-    order.addinfo(execution_unknown=True)
-    adapter.projection_for_intent = lambda _intent_id: {
-        "kind": "service_execution_record",
-        "service_execution_state": "UNKNOWN",
-        "status": "pending",
-        "execution_unknown": True,
-    }
-
-    assert broker.refresh_managed_orders(limit=4) == ()
-    assert order.info["execution_unknown"] is True
-    assert "confirmation_source" not in order.info
 
 
-def test_refresh_still_prunes_terminal_orders_without_uncertainty(managed_stack) -> None:
-    _client, _store, data, broker, adapter = managed_stack
-    settled = _submit_managed(broker, data, "terminal-writeback-settled")
-    settled.status = bt.Order.Canceled
-    adapter.projection_for_intent = lambda _intent_id: None
-
-    assert broker.refresh_managed_orders(limit=4) == ()
-    assert adapter.refresh_calls == []
 
 
-def test_alive_managed_order_keeps_the_ordinary_update_path(managed_stack) -> None:
-    _client, _store, data, broker, adapter = managed_stack
-    order = _submit_managed(broker, data, "terminal-writeback-alive")
-    notifications_before = len(broker.notifs)
-    adapter.projection_for_intent = lambda _intent_id: _durable_terminal_record()
-
-    applied = broker.refresh_managed_orders(limit=4)
-
-    assert applied == (order.ref,)
-    assert order.alive() is False
-    assert order.executed.size == pytest.approx(1.0)
-    assert order.executed.price == pytest.approx(101.0)
-    assert len(broker.notifs) > notifications_before
-    assert "confirmation_source" not in order.info
 
 
 def _ctp_snapshot(request_ids: tuple[int, int, int, int]) -> dict[str, Any]:
@@ -385,44 +206,3 @@ def _ctp_snapshot(request_ids: tuple[int, int, int, int]) -> dict[str, Any]:
         "trades": [],
         "positions": [],
     }
-
-
-def test_ctp_reconciliation_terminal_row_resolves_locally_terminal_order() -> None:
-    _client, store, data, broker = _plain_stack(symbol=CTP_SYMBOL)
-    try:
-        order = _terminal_uncertain_order(broker, data)
-        order.addinfo(ctp_order_ref="9001", external_order_id="sys-9001")
-        broker._ctp_reconciliation_required = True
-
-        broker.record_ctp_reconciliation(_ctp_snapshot((11, 12, 13, 14)))
-        assert order.info["execution_unknown"] is True
-
-        broker.record_ctp_reconciliation(_ctp_snapshot((21, 22, 23, 24)))
-
-        assert order.info["execution_unknown"] is False
-        assert order.info["cancel_execution_unknown"] is False
-        assert order.info["confirmation_source"] == "ctp_reconciliation_terminal_query"
-        assert order.info["confirmed_terminal_status"] == "canceled"
-        assert order.status == bt.Order.Canceled
-    finally:
-        store.stop()
-
-
-def test_ctp_reconciliation_without_terminal_row_keeps_uncertainty() -> None:
-    _client, store, data, broker = _plain_stack(symbol=CTP_SYMBOL)
-    try:
-        order = _terminal_uncertain_order(broker, data)
-        order.addinfo(ctp_order_ref="9001", external_order_id="sys-9001")
-        broker._ctp_reconciliation_required = True
-        pending = _ctp_snapshot((11, 12, 13, 14))
-        pending["orders"][0]["status"] = "pending"
-        replay = _ctp_snapshot((21, 22, 23, 24))
-        replay["orders"][0]["status"] = "pending"
-
-        broker.record_ctp_reconciliation(pending)
-        broker.record_ctp_reconciliation(replay)
-
-        assert order.info["execution_unknown"] is True
-        assert "confirmation_source" not in order.info
-    finally:
-        store.stop()

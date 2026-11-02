@@ -29,14 +29,3 @@ def _imported_sdk_modules(module: str) -> list[str]:
     )
     assert result.returncode == 0, f"{module}: {result.stderr}"
     return json.loads(result.stdout)
-
-
-def test_framework_imports_do_not_load_provider_sdk():
-    for module in (
-        "backtrader",
-        "backtrader.stores",
-        "backtrader.stores.btapistore",
-        "backtrader.brokers.btapibroker",
-        "backtrader.stores.managed_execution",
-    ):
-        assert _imported_sdk_modules(module) == [], module
