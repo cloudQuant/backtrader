@@ -20,10 +20,16 @@ keeping the public API compatible.
   A separate pybind11/C++ wheel ships as `back-trader-cpp`; this repo is the
   pure-Python implementation.
 
-> `AGENTS.md` (4,250 lines) is the large sibling guide. It carries current
-> iteration acceptance records, evidence links, and operational detail. This
-> file is the condensed working guide; when they disagree, verify against the
-> source tree and prefer `AGENTS.md` for iteration-specific status.
+> `AGENTS.md` is the short, Chinese-language current-iteration and
+> cross-repository ownership guide. It tracks iteration-53 Store/SDK
+> responsibility migration, acceptance status, and operational restrictions.
+> This file is the architecture and commands reference. When they disagree,
+> verify against the source tree and prefer `AGENTS.md` for iteration-specific
+> status; neither file's status claims are proof that a capability is accepted.
+
+> Current work (iteration 53) is a source-level Store/SDK responsibility
+> refactor. Finish the agreed structural changes and stop for user review
+> before functional fixes or acceptance; see `AGENTS.md` for the live status.
 
 ### Branch model
 
@@ -57,8 +63,8 @@ pip install -e .                  # editable/dev install
 ```
 
 No Cython step is required: there are no tracked `.pyx` files and no
-`ext_modules`. The only native-ish acceleration is `numba` inside
-`backtrader/utils/dateintern.py`.
+`ext_modules`. This checkout is pure Python; `numba` is only an optional,
+currently commented-out import in `backtrader/utils/dateintern.py`.
 
 ### Makefile caveat
 
@@ -72,18 +78,22 @@ make test-fast BT_CONDA_PYTHON=python
 ### Testing
 
 ```bash
-make test             # ONLY tests/original_tests/ (not the whole suite)
 make test-fast        # parallel non-slow/non-performance suite + serial
                       #   performance lane. Daily "did I break anything" loop.
 make test-slow        # only the slow-tier strategy tests
-make test-strategies  # all tests/functional/strategies (~9 min)
+make test-strategies  # all tests/functional/strategies (~4–9 min)
 make test-all         # parallel suite (no performance marker) + perf lane
 make test-performance # wall-clock microbenchmarks, no xdist, no coverage
-make test-coverage    # coverage over tests/original_tests/ only
 
 # Single test:
 pytest tests/path/to/test_file.py::test_name -v --tb=short
+pytest tests/unit/brokers/test_broker.py -v
 ```
+
+> `make test`, `make test-original`, `make test-coverage`, and `make benchmark`
+> still reference the removed `tests/original_tests/` tree and currently fail.
+> Use `make test-fast` / `make test-all`, or the CI coverage command:
+> `pytest tests --ignore=tests/functional/strategies --cov=backtrader --cov-report=term-missing --cov-fail-under=55`.
 
 Equivalent underlying commands (from `Makefile`):
 
@@ -124,12 +134,15 @@ make lint           # pylint with .pylintrc  (NOT ruff)
 make type-check     # mypy (pyproject.toml, core backtrader/ only)
 make security       # bandit + safety
 make quality-check  # all of the above
+make pre-commit     # format + quality-check; its test step currently fails
+                    #   (Makefile still points at removed tests/original_tests/)
 bash scripts/optimize_code.sh   # pyupgrade + isort + black + ruff + tests
 ```
 
 ruff is configured in `pyproject.toml` but has **no Makefile target**; it runs
-through `scripts/optimize_code.sh`. `mypy` intentionally excludes
-`backtrader_runtime/` diagnostics (see the override in `pyproject.toml`).
+through `scripts/optimize_code.sh`. `mypy` disables dynamic-pattern error codes
+per module for the line system, metabase, cerebro, and component packages (see
+`[[tool.mypy.overrides]]` in `pyproject.toml`).
 
 ### Docs
 
@@ -164,7 +177,7 @@ before checkout so they materialize.
   `super().__init__()` **before** touching `self.p`/`self.params`/lines.
 - **`bt.Strategy` direct subclasses are the exception**: `Strategy.__new__()`
   creates params and broker/analyzer state; `Strategy.__init__()`
-  (`strategy.py:328`) creates datas/aliases/`_clock`. Calling
+  (`strategy.py:346`) creates datas/aliases/`_clock`. Calling
   `super().__init__()` from a direct subclass re-enters `Strategy.__init__()`.
   Cooperative custom Strategy parents/mixins must still call `super()` when
   their own parent init is required.
@@ -198,7 +211,8 @@ Access: `data.close[0]` (current bar), `data.close[-1]` (previous).
 
 ### Data, broker, engine
 
-- `feed.py` + `feeds/` (31 files) — CSV, pandas, IB, CCXT, CTP, …
+- `feed.py` + `feeds/` (24 modules) — CSV, pandas, bt_api, CryptoHFTData,
+  vchart, Yahoo, …
 - `resamplerfilter.py` — resample/replay.
 - `broker.py` + `brokers/` — order matching and portfolio state.
 - `cerebro.py` (~990 lines, public facade) + `_cerebro/` (9 private mixin
@@ -240,10 +254,23 @@ arrays, then replays per bar.
   algorithms here.
 - `research/live.py`, `live_cohort.py`, `live_capacity.py` — live factor plans
   and snapshot/cohort publication inside an ordinary `bt.Strategy`.
-- `backtrader/live_trading/`, `backtrader/runtime/`, `backtrader/stores/` —
-  live execution surfaces, service execution sessions, durable execution
-  journals, and factor execution. Config-first launcher lives in the separate
-  top-level `backtrader_runtime/` package (`bt-runtime` console entry point).
+- `backtrader/live_trading/`, `backtrader/execution/`, `backtrader/service/`,
+  `backtrader/factor_execution/`, `backtrader/futures/`, and
+  `backtrader/stores/` — live execution surfaces, service execution sessions,
+  durable execution journals, and factor execution. There is no
+  `backtrader/runtime/` package in this checkout.
+
+### Live execution and the SDK boundary (current iteration focus)
+
+`execution/`, `service/`, `stores/btapistore.py`, `feeds/btapifeed.py`, and
+`brokers/btapibroker.py` are framework adapters, not provider clients. Provider
+facts, route selection, reconciliation contracts, and neutral DTOs belong to
+the separate `bt_api_*` SDK packages. Backtrader retains order/position/trade
+projection, Store/Feed/Broker lifecycle, and framework error mapping. Read
+`docs/source/developer-guide/repository-responsibilities_zh.md` before changing
+any `bt_api*` integration; `docs/TRADING_SYSTEM_ARCHITECTURE.md` covers the
+cross-repository topology. Existence of source code is not evidence that a
+route, account capability, or acceptance test is approved.
 
 ### Special modes
 
@@ -264,11 +291,12 @@ backtrader/            core library
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
   research/            native factors, panel/sinks, fincore adapter, live cohorts
   notifications/       dingtalk/wecom/feishu/telegram/email/slack/... delivery
-  runtime/ live_trading/ btrun/
-backtrader_runtime/    config-first CLI, preset policy, runtime registry
-                       (`bt-runtime` entry point)
-tests/                 unit/ functional/ integration/ performance/ original_tests/
-  add_tests/ strategies/ bench/ datas/ fixtures/ factories/ test_utils/
+  execution/ service/ factor_execution/ futures/
+                       execution adapters, service bridges, factor execution,
+                       futures calendar/rollover projections
+  live_trading/ btrun/  live-trading interface and legacy CLI
+tests/                 unit/ functional/ integration/ performance/ bench/
+  datas/ fixtures/ factories/ test_utils/ + root-level test_*.py
   functional/strategies/   ~1,150 self-contained regression files
 docs/                  Sphinx (EN+ZH) + design/bug notes + _internal iteration
                        requirement/evidence records
@@ -278,18 +306,27 @@ studies/               research/diagnostic scripts (branch_compare/)
 examples/              backtest/, unified/ (backtest+live), live/, _support/
 ```
 
+A config-first `bt-runtime` launcher was previously shipped from a top-level
+`backtrader_runtime/` package; that directory is not present in this checkout,
+so do not assume its imports or console entry point exist. Non-product
+top-level directories include `archive/` (frozen iteration snapshots),
+`promotion/`, `design-artifacts/`, `_bmad/`/`_bmad-output/`, and
+`test_support/`. pytest skips `archive/`, `build/`, and `.codex-tmp/` via
+`norecursedirs`.
+
 AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`) and the
 `fincore` analytics library are maintained in separate repositories.
 
 ## Tests
 
-- `tests/functional/strategies/` — ~1,150 inlined test files (~1,170 test
-  functions) across ~30 categories (trend_following, mean_reversion,
+- `tests/functional/strategies/` — ~1,150 inlined test files / ~1,270
+  collected tests across ~30 categories (trend_following, mean_reversion,
   asset_allocation, machine_learning, options, pairs_trading, …). Each is
   self-contained: inline strategy + data loader + `cerebro.run()` + assertions
   against master-baselined metrics.
-- `tests/unit/`, `tests/integration/`, `tests/performance/`,
-  `tests/original_tests/`, `tests/add_tests/` cover the framework itself.
+- `tests/unit/`, `tests/integration/`, `tests/performance/`, and the
+  root-level `tests/test_*.py` files cover the framework itself. The former
+  `tests/original_tests/` and `tests/add_tests/` trees have been removed.
 - New regression tests should pass on **both** `dev` and `master` (bake
   master's output as expected values).
 - Several `tests/unit/brokers/*_performance` tests are timing-sensitive and
@@ -343,11 +380,14 @@ AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`) and the
 
 - Line length 100 (black, ruff, isort all use 100 in `pyproject.toml`).
 - Type hints encouraged; `mypy` gate covers `backtrader/` only.
-- Bilingual (EN/ZH) comments are normal.
+- Bilingual (EN/ZH) comments are normal. New or updated Chinese Markdown
+  defaults to UTF-8 with BOM; preserve frozen evidence and existing format
+  exceptions.
 - **Never introduce new metaclasses** — use mixins with `donew()`.
 - Preserve public API compatibility.
 - Minimize `isinstance()`/`hasattr()`/`len()` in hot paths.
 - Config: `pyproject.toml` (black/ruff/isort/mypy/bandit/coverage),
   `pytest.ini` (discovery/markers/warnings), `conftest.py` (cleanup, installed
-  switch, dynamic slow marking). There is **no** `.kiro/` steering directory;
-  use this file, `AGENTS.md`, `README.md`, and the config files.
+  switch, dynamic slow marking). `.kiro/` contains installed BMAD/WDS/GDS
+  skills, not steering rules, and there is no steering directory; use this
+  file, `AGENTS.md`, `README.md`, and the config files.
