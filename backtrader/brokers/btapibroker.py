@@ -1799,6 +1799,52 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
             account_ref=account_ref,
         )
 
+    def bind_direct_strategy_account_book(self, strategy, reader):
+        """Attach a direct-mode strategy book view to its actual Strategy.
+
+        ``reader`` is an SDK direct reader (for example
+        ``bt_api_py.direct_strategy_account_book.DirectStrategyAccountBookReader``)
+        exposing ``strategy_ref``, ``account_ref`` and ``snapshot()``. The
+        Strategy's ``strategy_ref``/``account_ref`` parameters must match the
+        reader, the Strategy must use this Broker, and one Strategy can bind
+        one view only. A service session, when active, stays the sole owner of
+        strategy books, so direct binding is refused there. Ordinary Broker
+        getters keep their account-level semantics.
+        """
+
+        from backtrader.service.service_strategy_account_book import (
+            DirectStrategyAccountBookView,
+        )
+        from backtrader.strategy import Strategy
+
+        if self._service_execution_session is not None:
+            raise ValueError("strategy books are owned by the active service session")
+        if not isinstance(strategy, Strategy):
+            raise ValueError("a real Strategy instance is required")
+        if getattr(strategy, "broker", None) is not self:
+            raise ValueError("strategy does not use this broker")
+        view = DirectStrategyAccountBookView(reader)
+        params = getattr(strategy, "p", None)
+        if (
+            getattr(params, "strategy_ref", None) != view.strategy_ref
+            or getattr(params, "account_ref", None) != view.account_ref
+        ):
+            raise ValueError("strategy identity does not match the account-book reader")
+        existing = getattr(strategy, "account_book", None)
+        if existing is not None:
+            raise ValueError("strategy already has an account book")
+        bound = getattr(self, "_direct_strategy_books", None)
+        if bound is None:
+            bound = {}
+            self._direct_strategy_books = bound
+        key = (view.strategy_ref, view.account_ref)
+        owner = bound.get(key)
+        if owner is not None and owner is not strategy:
+            raise ValueError("strategy account book is already bound to another strategy")
+        strategy.account_book = view
+        bound[key] = strategy
+        return view
+
     def bind_strategy_execution_group(self, strategy):
         """Bind this real Strategy to an explicitly configured group route."""
 
@@ -2397,6 +2443,7 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
         """Return true only after Store-verified rules and economics prove a close."""
         return id(order) in self._verified_risk_reducing_orders
 
+    @staticmethod
     def _parse_approval_expiry(value):
         """Parse the signed UTC approval expiry without local-time ambiguity."""
         if value is None:
