@@ -12,8 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
-import backtrader as bt
-from backtrader.feeds.btapifeed import BtApiFeed
+# The live tick path of BtApiFeed requires the SDK.
+pytest.importorskip("bt_api_py")
+
+import backtrader as bt  # noqa: E402
+from backtrader.feeds.btapifeed import BtApiFeed  # noqa: E402
 
 _WHEN = dt.datetime(2026, 11, 2, 2, 0, tzinfo=dt.timezone.utc)
 
