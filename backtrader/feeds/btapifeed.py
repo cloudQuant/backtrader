@@ -1124,7 +1124,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         price = _finite_market_number(
             _tick_value(tick, "price", "last_price", default=None)
         )
-        if price is None or price <= 0 or not bool(_tick_value(tick, "bar_eligible", default=True)):
+        if price is None or price <= 0 or not bool(_tick_value(tick, "bar_eligible", default=False)):
             return
 
         volume = _finite_market_number(
@@ -1261,7 +1261,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             "first_ingest_seq": ingest_seq,
             "last_ingest_seq": ingest_seq,
             "trade_count": 1,
-            "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
+            "volume_complete": bool(_tick_value(tick, "volume_complete", default=False)),
             "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
         }
         if replay:
@@ -1624,7 +1624,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 "VOLUME_BASELINE",
             }
         }
-        volume_complete = bool(_tick_value(tick, "volume_complete", default=not typed_market_tick))
+        volume_complete = bool(_tick_value(tick, "volume_complete", default=False))
         if typed_market_tick and not volume_complete and delta == 0:
             flags.add("VOLUME_BASELINE")
         if typed_market_tick and not volume_complete and delta > 0:
