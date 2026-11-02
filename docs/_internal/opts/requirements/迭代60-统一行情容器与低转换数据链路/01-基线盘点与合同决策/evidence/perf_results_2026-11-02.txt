@@ -1,0 +1,23 @@
+Environment: macOS arm64, Python 3.11.8 (/Users/yunjinqi/opt/anaconda3/bin/python3), idle machine, median of 7 runs.
+
+== bench_container_access.py, bt_api_base AutoInitMixin at HEAD a1fa00e (before)
+ctp build+init plain=4728ns guarded=29021ns overhead=513.8%
+ctp get_last_price=583ns deepcopy(ctp ticker)=30624ns
+
+== bench_container_access.py, iteration-60 AutoInitMixin (after)
+ctp build+init plain=4336ns guarded=23883ns overhead=450.9%
+ctp get_last_price=344ns deepcopy(ctp ticker)=31015ns
+
+("guarded" = hypothetical __setattr__ freeze enforcement; rejected as NO-GO.)
+
+== bench_bt_tick.py (BT local checkout)
+adapt_market_tick_event            5188 ns
+deepcopy(adapted namespace)       65670 ns   (old BtApiStore copy, per tick write and per snapshot read)
+deepcopy(MarketTickEvent)         35759 ns
+_tick_value hit (object)            187 ns
+_tick_value miss->default           189 ns
+plain attribute read                 30 ns
+snapshot_tick(adapted ns)          9831 ns   (new BtApiStore copy)
+
+Thresholds (D60-18): getter not slower -> PASS (-41%); construction <= +10% -> PASS (-8%);
+Store snapshot >= 2x faster than deepcopy -> PASS (6.7x).
