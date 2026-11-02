@@ -1,13 +1,14 @@
 python 3.11.8 arm64; msgpack (1, 0, 3) (pure-Python fallback)
 message bytes: msgpack_v1=1195 json=1217
-encode  msgpack_v1               50960 ns
-encode  json(asdict+dumps)       34881 ns
-decode  msgpack_v1 -> frozen    100760 ns
-decode  json.loads only           7327 ns
-bind    receiver source           8579 ns
-adapt   BT projection             5272 ns
-e2e     decode+bind+adapt       121507 ns
-part    msgpack.unpackb (bare)       61264 ns
-part    MarketTickPayload(**)        13521 ns
-part    msgspec.msgpack.decode        2253 ns  (msgspec 0.19.0, C)
-part    msgspec.msgpack.encode        1010 ns
+encode  msgpack_v1               50523 ns
+encode  json(asdict+dumps)       34928 ns
+decode  msgpack_v1 -> frozen     98064 ns
+decode  json.loads only           7390 ns
+bind    receiver source           8869 ns
+adapt   BT projection             5270 ns
+e2e     decode+bind+adapt       117713 ns
+part    msgpack.unpackb (bare)       61541 ns
+part    MarketTickPayload(**)        13544 ns
+part    msgspec.msgpack.decode        2249 ns  (msgspec 0.19.0, C)
+part    msgspec.msgpack.encode        1013 ns
+decode  json -> frozen (fair)        30035 ns

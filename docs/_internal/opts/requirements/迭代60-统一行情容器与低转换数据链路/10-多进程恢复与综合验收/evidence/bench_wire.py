@@ -52,3 +52,19 @@ try:
     print(f"part    msgspec.msgpack.encode   {med(lambda: msgspec.msgpack.encode(raw), 20000):9.0f} ns")
 except ImportError:
     print("msgspec not installed")
+
+# Like-for-like: JSON all the way back to the same frozen container.
+from bt_api_base.market_protocol import MarketInstrumentKey
+from bt_api_base.market_tick_protocol import MarketClockQuality, MarketFreshnessStatus
+_ENUMS = {"source_clock_quality": MarketClockQuality, "receive_clock_quality": MarketClockQuality,
+          "freshness_status": MarketFreshnessStatus}
+def json_to_container():
+    data = json.loads(js)["data"]
+    data["instrument"] = MarketInstrumentKey(**data["instrument"])
+    for k, enum in _ENUMS.items():
+        data[k] = enum(data[k])
+    for k in ("freshness_reason_codes", "quality_flags"):
+        data[k] = tuple(data[k])
+    return MarketTickPayload(**data)
+assert json_to_container() == payload
+print(f"decode  json -> frozen (fair)    {med(json_to_container, 5000):9.0f} ns")
