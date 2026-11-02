@@ -33,6 +33,7 @@ from ..utils.runtime_redaction import redact_runtime_value as _runtime_redact_va
 from ..utils.runtime_redaction import replace_secret_values as _runtime_replace_secrets
 from ..utils.runtime_redaction import sanitize_exception as _runtime_sanitize_exception
 from ..utils.bar_projection import normalize_bar as _normalize_bar
+from ..utils.tick_snapshot import snapshot_tick as _snapshot_tick
 from .livestore import LiveStoreBase
 from ._btapi_errors import (
     BtApiStoreError,
@@ -1912,7 +1913,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             tick = None
         if tick is not None:
             with self._latest_tick_lock:
-                self._latest_ticks[dataname] = deepcopy(tick)
+                self._latest_ticks[dataname] = _snapshot_tick(tick)
         return tick
 
     def get_latest_tick_snapshot(self, dataname: str):
@@ -1925,7 +1926,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 self._latest_ticks, aliases,
                 alias_fn=_contract_metadata_aliases, require_truthy=False,
             )
-            return deepcopy(tick) if found else None
+            return _snapshot_tick(tick) if found else None
 
     def poll_orderbook(self, dataname: str, *, depth: Optional[int] = None):
         """Poll a single live orderbook snapshot from the API."""
