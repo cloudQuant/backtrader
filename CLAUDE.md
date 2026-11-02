@@ -21,15 +21,17 @@ keeping the public API compatible.
   pure-Python implementation.
 
 > `AGENTS.md` is the short, Chinese-language current-iteration and
-> cross-repository ownership guide. It tracks iteration-53 Store/SDK
-> responsibility migration, acceptance status, and operational restrictions.
-> This file is the architecture and commands reference. When they disagree,
-> verify against the source tree and prefer `AGENTS.md` for iteration-specific
-> status; neither file's status claims are proof that a capability is accepted.
+> cross-repository ownership guide. It tracks the current iteration,
+> acceptance status, and operational restrictions. This file is the
+> architecture and commands reference. When they disagree, verify against the
+> source tree and prefer `AGENTS.md` for iteration-specific status; neither
+> file's status claims are proof that a capability is accepted.
 
-> Current work (iteration 53) is a source-level Store/SDK responsibility
-> refactor. Finish the agreed structural changes and stop for user review
-> before functional fixes or acceptance; see `AGENTS.md` for the live status.
+> Current work is iteration 60 (opts line): unified trading-data containers
+> and direct/Gateway access paths. Plan:
+> `docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md`
+> (shared rules in `_公共约定.md` there). Iteration 53 was abandoned by the
+> user on 2026-11-02; its "stop for review" restriction no longer applies.
 
 ### Branch model
 

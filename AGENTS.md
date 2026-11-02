@@ -1,6 +1,6 @@
 ﻿# AGENTS.md
 
-迭代 53 仍处源码重构阶段，完成重构后先交用户审阅；功能修复和验收待审阅确认。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代计划为准。
+当前迭代为迭代 60（opts 线）：[统一交易数据容器与多路径接入](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)，共享规则见[公共约定](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/_公共约定.md)。迭代 53 已由用户确认废弃（2026-11-02，未成功），其“重构后停止等待审阅”的约束不再适用；其文档仅作历史参考。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代 60 计划为准。
 
 ## 先读：职责、现状与证据
 
@@ -8,8 +8,8 @@
 [仓库目录与文件职责规范](docs/source/developer-guide/repository-responsibilities_zh.md)。
 涉及跨仓库交易接入时，还需读取
 [交易系统架构与项目职责](docs/TRADING_SYSTEM_ARCHITECTURE.md)、
-[bt_api_py 的 SDK 家族职责表](D:/bt_api_py/README.md)和
-[迭代 53 计划](docs/_internal/opts/requirements/迭代53-实盘直连与Store职责重构/迭代计划.md)。
+bt_api_py 的 SDK 家族职责表（本机为 `/Users/yunjinqi/Documents/new_projects/bt_api_py/README.md`，Windows 环境为 `D:/bt_api_py/README.md`）和
+[迭代 60 计划](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)。
 跨仓工作使用各自现有 checkout，并读取目标仓适用的 AGENTS.md 与 README。
 
 按需要查阅[逐文件职责盘点索引](docs/source/developer-guide/文件职责盘点-2026-11-01/index.md)；
@@ -109,7 +109,7 @@
 - 小轮推进：实现、完成本轮约定的检查、仅暂存接受的文件或 hunks、提交相应 dev、记录范围/结果/仓库/分支/commit；SDK 子包先提交，再更新父仓 gitlink。保留所有无关 dirty 修改与用户文件。
 - 检查历史工作区中与目标相关的已验证工作；不要因成果留在其他 checkout 重复开发。验收失败继续修复，明确源码、fake、安装包及真实账户证据级别。
 - 同一适用策略跨 backtest、replay、shadow、paper、live 复用是架构目标，不表示当前模式全部可用；切换依配置与相应 Feed/Broker/Store，模式名不授予写权限。
-- 迭代 53 先按功能和职责完成结构重构、修复相关引用，然后停止并等待用户审阅；审阅确认后才进行功能缺陷修复、测试及其他验收。
+- 迭代 60 按阶段推进（阶段一 60.01–05、阶段二 60.06–07、阶段三 60.08–10）；每步交付说明记录范围、仓库/commit、检查结果和证据等级，最终接受由用户确认。迭代 53 已废弃，不再作为前置或约束。
 
 ## 私密输入与历史限制
 
@@ -119,7 +119,7 @@
 ## 子代理
 
 用户允许委派时，优先使用 `model="gpt-6.1-terra"`、
-`reasoning_effort="xhigh"`、`fork_turns="none"`，并在任务中提供明确上下文、适用职责资料与写入范围；用户另有指示时从其指示。迭代 53 遵守用户设定的子代理数量上限。主代理模型不因该偏好改变。
+`reasoning_effort="xhigh"`、`fork_turns="none"`，并在任务中提供明确上下文、适用职责资料与写入范围；用户另有指示时从其指示。遵守用户设定的子代理数量上限。主代理模型不因该偏好改变。
 
 ## 开发与验证
 
