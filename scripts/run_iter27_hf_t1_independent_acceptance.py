@@ -104,6 +104,8 @@ STATIC_DEPENDENCIES = (
     Path("backtrader/feed.py"),
     Path("backtrader/strategy.py"),
     Path("backtrader/brokers/tickbroker.py"),
+    # Preserve the historical required input; absence fails closed until an
+    # SDK-aware evidence contract has been reviewed.
     Path("backtrader/feeds/market_cohort.py"),
     Path("scripts/run_iter27_hf_t1_independent_acceptance.py"),
 )
@@ -835,12 +837,19 @@ def _cohort_gate_result(
 ) -> Any:
     """Run one actual public cohort-validator boundary with fixture identities."""
 
+    from bt_api_py.market_cohort import (
+        MarketCohortLeg,
+        MarketCohortNow,
+        MarketCohortPolicy,
+        MarketQuoteCohortValidator,
+    )
+
     config = _effective_config(runner)
     fixture, _, _ = runner.load_fixture(config)
     bundle = runner.validate_bundle(fixture, config)
     feed = config["feed"]
     expected_legs = tuple(
-        backtrader.feeds.MarketCohortLeg(
+        MarketCohortLeg(
             symbol=str(bundle[role]["symbol"]),
             exchange=str(bundle[role]["exchange_id"]),
             price_tick=float(bundle[role]["tick_size"]),
@@ -848,10 +857,10 @@ def _cohort_gate_result(
         )
         for role in ("future", "call", "put")
     )
-    validator = backtrader.feeds.MarketQuoteCohortValidator(
+    validator = MarketQuoteCohortValidator(
         expected_legs=expected_legs,
         expected_rules_hash=runner.canonical_sha256(bundle),
-        policy=backtrader.feeds.MarketCohortPolicy(
+        policy=MarketCohortPolicy(
             max_receive_age_ms=float(feed["max_quote_age_ms"]),
             max_receive_skew_ms=float(feed["max_cross_leg_skew_ms"]),
             max_source_age_ms=float(feed["max_source_age_upper_ms"]),
@@ -862,7 +871,7 @@ def _cohort_gate_result(
     )
     base_epoch = float(fixture["start_epoch"])
     base_monotonic = 1_000_000_000_000_000
-    now = backtrader.feeds.MarketCohortNow(
+    now = MarketCohortNow(
         now_monotonic_ns=base_monotonic + now_offset_ns,
         now_epoch=base_epoch + now_offset_ns / 1_000_000_000.0,
         clock_domain_id="iter25-fixture-monotonic-v1",

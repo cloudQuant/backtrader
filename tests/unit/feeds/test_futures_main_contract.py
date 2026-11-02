@@ -7,7 +7,7 @@ from decimal import Decimal, localcontext
 
 import pytest
 
-from backtrader.feeds.futures_main_contract import (
+from backtrader.futures import (
     CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
     CurrentDayQuoteRecord,
     ExchangeTradingCalendar,

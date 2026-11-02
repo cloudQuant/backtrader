@@ -14,19 +14,16 @@ from types import MappingProxyType, SimpleNamespace
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
-from ..feed import DataBase
 from ..utils.bar_projection import normalize_bar as _normalize_bar
 from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
 from .barrier import BarEvidence
-from .market_cohort import MarketCohortNow
 from .livefeed import LiveFeedBase
 from .market_tick_adapter import (
     MarketTickAdapterError,
     adapt_market_tick_event,
 )
-from .service_recovery_quotes import ServiceRecoveryQuoteBindingMixin
 from ._btapi_cohort import (
     LiveBarCohortFeedMixin,
     _COHORT_MISSING,
@@ -128,7 +125,7 @@ def _causal_event_kwargs(event):
     }
 
 
-class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBase, LiveFeedBase):
+class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
     """Data feed that backfills and streams bars through BtApiStore.
 
     ``orderbook_as_ticks=True`` exposes each depth snapshot as a zero-volume
@@ -178,15 +175,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
         # Default off; overflow drops the oldest record and flags the bucket.
         ("closed_bar_quote_capture", False),
         ("closed_bar_quote_limit", 240),
-        # Opt-in trusted quote-to-bar binding for managed-paper recovery V2.
-        # When enabled, every bar delivery freezes the latest trusted quote
-        # observation noted from this feed's own tick stream, and the recovery
-        # Broker reads it through ``service_execution_recovery_quote_binding``.
-        # ``service_recovery_quote_source_ref`` names that quote stream and is
-        # required whenever the binding is enabled.  Default off: the method
-        # then fails closed instead of exposing an unbound revision.
-        ("service_recovery_quote_binding", False),
-        ("service_recovery_quote_source_ref", None),
         # A caller-owned, calibrated provider invoked at the synchronous
         # strategy-dispatch boundary for SDK-qualified market ticks. It must
         # return MarketCohortNow in the event's exact monotonic clock domain.
@@ -227,13 +215,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
             self.p.closed_bar_evidence_provider
         ):
             raise ValueError("closed_bar_evidence_provider must be callable")
-        if bool(self.p.service_recovery_quote_binding):
-            source_ref = self.p.service_recovery_quote_source_ref
-            if type(source_ref) is not str or not source_ref:
-                raise ValueError(
-                    "service_recovery_quote_binding requires an explicit "
-                    "service_recovery_quote_source_ref"
-                )
         self.store = self.p.store
         self.provider = self.p.provider
         self._replay_tick_adapter = None
@@ -250,7 +231,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
             if (
                 self.p.cohort_source_mode is True
                 or self.p.market_factor_source_binding is not None
-                or bool(self.p.service_recovery_quote_binding)
                 or self.p.closed_bar_evidence_provider is not None
                 or self.p.market_decision_now_provider is not None
                 or bool(self.p.closed_bar_quote_capture)
@@ -712,12 +692,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
             return  # _load must establish the feed clock before the callback.
         if self._live:
             return  # _load must pair the queued callback with its line bar.
-        # The historical Tick-timeframe check path drains every currently
-        # available tick. Keep that behavior for ordinary feeds, while an
-        # explicit quote binding retains the per-bar freeze boundary.
-        stop_after_queued_bar = self._timeframe != TimeFrame.Ticks or bool(
-            self.p.service_recovery_quote_binding
-        )
+        # The historical Tick-timeframe check path drains every available tick.
+        stop_after_queued_bar = self._timeframe != TimeFrame.Ticks
         drained_ticks = self._drain_live_ticks(stop_after_queued_bar=stop_after_queued_bar)
         drained_orderbooks = self._drain_live_orderbooks()
         self._flush_ready_bars(reason="idle")
@@ -805,15 +781,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
         self.lines.openinterest[0] = bar["openinterest"]
         for name in _LIVE_COHORT_EXTRA_LINES:
             getattr(self.lines, name)[0] = math.nan
-        if bool(self.p.service_recovery_quote_binding):
-            # The trusted recovery binding is frozen at the exact delivery
-            # boundary of this bar: the bar index the strategy will observe
-            # and the datetime written into the line.  Recovery never
-            # re-derives either fact later.
-            self._record_service_recovery_quote_bar(
-                bar_index=len(self),
-                datetime_hex=float(self.lines.datetime[0]).hex(),
-            )
         return True
 
     def _drain_live_ticks(
@@ -1188,7 +1155,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
                 ),
                 tick_dt,
             )
-            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
         bucket_start = self._get_bucket_start(tick_dt)
@@ -1199,7 +1165,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
             self._bar_builders[bucket_start] = current
             self._bar_builders.move_to_end(bucket_start)
             self._bar_builder = current
-            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
         if bucket_start == current["bucket_start"]:
@@ -1239,7 +1204,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
                 current["quality_flags"].add("EVENT_SESSION_DATE_NOT_UNIFORM")
             current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
             self._capture_quote(current, tick)
-            self._note_service_recovery_quote_from_tick(tick, tick_ts)
             return
 
     def _new_bar_builder(self, bucket_start, tick, price, volume, openinterest):
@@ -1316,33 +1280,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
                 }
             )
         return builder
-
-    def _note_service_recovery_quote_from_tick(self, tick, tick_ts):
-        """Ingest one accepted tick as a trusted recovery quote observation.
-
-        The recovery quote revision of this feed *is* its own ingested tick
-        stream: the configured source reference names the stream, the tick's
-        connection generation and ingest sequence are its generation and
-        cursor, and the tick event time is its as-of time.  Malformed, stale
-        or duplicated observations are dropped here; the per-bar reader then
-        fails closed instead of inventing a revision.
-        """
-
-        if not bool(self.p.service_recovery_quote_binding):
-            return False
-        try:
-            as_of_ns = int(round(float(tick_ts) * 1_000_000_000))
-        except (TypeError, ValueError, OverflowError):
-            return False
-        return self.try_note_service_recovery_quote(
-            source_ref=self.p.service_recovery_quote_source_ref,
-            generation=_tick_value(
-                tick, "connection_generation", default=None
-            ),
-            cursor=_tick_value(tick, "ingest_seq", "sequence", default=None),
-            instrument=self._dataname,
-            as_of_ns=as_of_ns,
-        )
 
     def _capture_quote(self, builder, tick):
         """Freeze one prepared tick into the bucket's bounded quote window."""
@@ -1954,6 +1891,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, ServiceRecoveryQuoteBindingMixin, DataBa
         except Exception:
             _safe_log("warning", "btapifeed:1431 fallback on Exception")
             return
+        from bt_api_py.market_cohort import MarketCohortNow
+
         if not isinstance(now, MarketCohortNow):
             return
         if now.clock_domain_id != _tick_value(tick, "clock_domain_id", default=None):

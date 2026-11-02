@@ -23,6 +23,8 @@
 
 ## 跨项目职责
 
+当前 SDK 工作树仅保留 Base、CTP、OKX、Binance 在 `bt_api/` 活跃目录，其余子仓已整体移至 `bt_api/deperated/` 待审阅；已安装的发行包并未因此卸载。以下为家族职责及历史目标，不代表归档组件当前启用或直连已验收。
+
 以下为约定/目标边界；目标本身不证明相应能力已实现或验收：
 
 - **Backtrader**：策略与 Cerebro 生命周期、Store/Feed/Broker 框架接口、BT Order/Position/Trade、bar 聚合与数据线、回调和通知，以及中立数据到框架对象的投影。
@@ -75,7 +77,9 @@
 - SDK 余额读取工作流检查配置与实时 route 一致性及批次完整性；Store 提供实例 route 和 BT 结果投影，路由名称不证明账户权威。源码未行为验收。
 - SDK 的 account balance/position 读取工作流拥有中立端口、快照及 lease 校验；Store 直接构造 SDK 工作流，BT 保留 Feed 绑定与 Position 投影。服务观察的中立类型、配置与异常也直接从 SDK 导入。该跨仓迁移是未提交、未行为验收的 WIP。
 - `feeds/`、`feed.py`、`filters/`、`resamplerfilter.py`：Feed 生命周期、BT 数据线、数据时钟、过滤与 bar 聚合；不伪造来源时钟或交易授权。
-- SDK `service_recovery_quote` 持有中立行情游标校验与逐来源 revision 状态；BT Feed 负责当前 bar 冻结，Broker 负责 bar 绑定。此结构不证明来源可信，源码未行为验收。
+- `LiveFeedBase` 继承 `DataBase` 并定义实盘 Feed 抽象合同，`BtApiFeed` 经其继承框架 Feed；生命周期委托、MRO、参数和数据线初始化尚未行为验收。
+- `strategies.ctp_future.CtpFutureStrategy` 经 `BtApiBroker` 和 Store 查询主力、次主力；SDK `futures_contract_lookup` 组合参考行情快照与选择，`futures_selection` 持有中立选择模型和算法，BT `futures/` 保留日历网格及换月等框架投影。默认实时查询因新鲜度不可证明而不可用，显式参考模式不证明实时性。旧六个 `feeds/futures_*` 模块已移除；不自动换月或下单，跨仓导入、发行及行为未验收。
+- `BtApiFeed` 已移除内置的服务恢复报价绑定及其配置；Broker 仍要求恢复路径提供并验证 Feed/bar 报价绑定，不能以缺失绑定放宽校验。SDK 保留中立合同供现有调用方使用；源码变更未行为验收。
 - SDK 只读 bar 历史/实时衔接组件持有每个消费流的 bootstrap、去重、顺序和历史重叠状态；BT 注入 bar 恒等投影并绑定 Feed。源码未行为验收。
 - SDK 只读 bar 流 session 持有 bootstrap epoch 与序号，BT 保留 bar 投影和 Feed 绑定；跨仓源码未提交、未行为验收。
 - SDK `service_market_bindings` 拥有中立 bar/订单簿绑定类型；BT 服务桥和可选 SDK runtime 使用该类型。runtime 的旧 Store 路径已更新，旧测试仍待审阅后处理。

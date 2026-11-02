@@ -15,6 +15,20 @@ from types import MappingProxyType
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
+def history_timeframe(timeframe, compression: int) -> Optional[str]:
+    """Translate a Backtrader timeframe to the neutral history interval."""
+    from ..dataseries import TimeFrame
+
+    units = {
+        TimeFrame.Seconds: "s",
+        TimeFrame.Minutes: "m",
+        TimeFrame.Days: "d",
+        TimeFrame.Weeks: "w",
+    }
+    unit = units.get(timeframe) if type(timeframe) is int else None
+    return f"{compression}{unit}" if unit is not None else None
+
+
 class StoreBarHistoryCache:
     """Single owner for local history caches and Backtrader bar copies."""
 
@@ -68,6 +82,23 @@ class StoreBarHistoryCache:
             return [self.copy_or_normalize_bar(bar) for bar in bars]
         return deepcopy(list(bars))
 
+    def project_market_bars(self, bars: Iterable[Any]) -> List[Any]:
+        """Project typed neutral OHLCV bars to Backtrader's cached rows."""
+        projected = [
+            {
+                "timestamp": bar.open_time_utc,
+                "close_time_utc": bar.close_time_utc,
+                "open": bar.open,
+                "high": bar.high,
+                "low": bar.low,
+                "close": bar.close,
+                "volume": bar.volume,
+                "openinterest": bar.open_interest,
+            }
+            for bar in bars
+        ]
+        return [self.copy_or_normalize_bar(bar) for bar in projected]
+
     @staticmethod
     def is_default_request(timeframe, compression, since, limit) -> bool:
         return timeframe is None and int(compression or 1) == 1 and since is None and limit is None
@@ -108,6 +139,31 @@ class StoreBarHistoryCache:
                 self.copy_history_sequence(self._query_cache[request_key]),
             )
         return False, request_key, default_request, []
+
+    def fetch(self, dataname, timeframe, compression, since, limit, fetch):
+        """Use the local cache, or fetch typed bars and cache their BT projection.
+
+        The fetch callback receives the default-request flag and returns a pair
+        of rows and a flag indicating whether they are new typed bars. A
+        fallback returns already copied local rows and must not be cached again.
+        """
+        hit, key, default_request, cached = self.lookup(
+            dataname, timeframe, compression, since, limit,
+        )
+        if hit:
+            return cached
+        bars, fetched = fetch(default_request)
+        if not fetched:
+            return bars
+        normalized = self.project_market_bars(bars)
+        self.cache_result(dataname, key, default_request, normalized)
+        return self.copy_history_sequence(normalized)
+
+    def default_fallback(self, dataname, default_request):
+        """Return a copied default cache only for an eligible request."""
+        if default_request and self.has_default_history(dataname):
+            return True, self.cached_default_history(dataname)
+        return False, []
 
     def has_default_history(self, dataname: str) -> bool:
         """Check the default history cache, retaining defaultdict lookup behavior."""

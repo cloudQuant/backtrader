@@ -2905,8 +2905,8 @@ def _session_close_from_batch(
     if batch is None:
         return None, "COHORT_BATCH_UNAVAILABLE"
     try:
-        from backtrader.feeds.futures_main_contract import ProductKey as FrozenProductKey
-        from backtrader.feeds.futures_sessions import ExchangeSessionCalendar
+        from backtrader.futures import ProductKey as FrozenProductKey
+        from backtrader.futures import ExchangeSessionCalendar
     except ImportError:
         return None, "SESSION_CALENDAR_API_UNAVAILABLE"
 

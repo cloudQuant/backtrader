@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 import backtrader as bt
-from backtrader.feeds.market_cohort import MarketCohortNow
+from bt_api_py.market_cohort import MarketCohortNow
 from backtrader.stores.btapistore import BtApiStore
 
 

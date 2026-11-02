@@ -3,7 +3,7 @@
 The example owns only candidate-local screening, confirmation count, and the
 zero-write replay projection.  All CTP quote validation, generation-scoped
 cohort admission, and trusted-time rechecks are delegated to
-``backtrader.feeds.MarketQuoteCohortValidator``.  It does not call a CTP client,
+``bt_api_py.market_cohort.MarketQuoteCohortValidator``.  It does not call a CTP client,
 maintain an order journal, or claim a local replay intent is an external trade.
 """
 
@@ -13,9 +13,12 @@ import hashlib
 import json
 from collections import Counter
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 import backtrader as bt
+
+if TYPE_CHECKING:
+    from bt_api_py.market_cohort import MarketCohortNow, MarketQuoteCohort, MarketQuoteEvidence
 
 try:
     from .execution_timing import (
@@ -54,7 +57,7 @@ def canonical_sha256(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def _quote_as_dict(quote: bt.feeds.MarketQuoteEvidence) -> dict[str, Any]:
+def _quote_as_dict(quote: MarketQuoteEvidence) -> dict[str, Any]:
     """Make immutable public cohort evidence JSON-safe for the local report."""
 
     return {
@@ -85,7 +88,7 @@ def _quote_as_dict(quote: bt.feeds.MarketQuoteEvidence) -> dict[str, Any]:
     }
 
 
-def _quote_fingerprint(quote: bt.feeds.MarketQuoteEvidence) -> tuple[Any, ...]:
+def _quote_fingerprint(quote: MarketQuoteEvidence) -> tuple[Any, ...]:
     """Identify repeated raw economic evidence without revalidating a quote.
 
     ``ingest_seq`` and receipt times are intentionally excluded: a redelivery
@@ -117,7 +120,7 @@ def _quote_fingerprint(quote: bt.feeds.MarketQuoteEvidence) -> tuple[Any, ...]:
 
 
 def parity_screen(
-    cohort: Mapping[str, bt.feeds.MarketQuoteEvidence],
+    cohort: Mapping[str, MarketQuoteEvidence],
     *,
     bundle: Mapping[str, Any],
     entry_buffer_cny: Any,
@@ -200,6 +203,12 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
 
     def __init__(self) -> None:
         """Snapshot the frozen cohort bundle/tick sizes and init the observer state."""
+        from bt_api_py.market_cohort import (
+            MarketCohortLeg,
+            MarketCohortPolicy,
+            MarketQuoteCohortValidator,
+        )
+
         self._symbols = tuple(str(symbol) for symbol in self.p.symbols)
         self._bundle = dict(self.p.bundle or {})
         self._tick_sizes = dict(self.p.tick_sizes or {})
@@ -213,7 +222,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             if not exchange_id or set(role_asset_types) != set(self._symbols):
                 raise ValueError("frozen bundle identity is incomplete")
             expected_legs = tuple(
-                bt.feeds.MarketCohortLeg(
+                MarketCohortLeg(
                     symbol=symbol,
                     exchange=exchange_id,
                     price_tick=float(self._tick_sizes[symbol]),
@@ -221,7 +230,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
                 )
                 for symbol in self._symbols
             )
-            policy = bt.feeds.MarketCohortPolicy(
+            policy = MarketCohortPolicy(
                 max_receive_age_ms=float(self.p.max_quote_age_ms),
                 max_receive_skew_ms=float(self.p.max_cross_leg_skew_ms),
                 max_source_age_ms=float(self.p.max_source_age_ms),
@@ -229,7 +238,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
                 max_source_clock_error_ms=float(self.p.max_source_clock_error_ms),
                 max_receive_clock_error_ms=float(self.p.max_source_clock_error_ms),
             )
-            self._cohort_validator = bt.feeds.MarketQuoteCohortValidator(
+            self._cohort_validator = MarketQuoteCohortValidator(
                 expected_legs=expected_legs,
                 expected_rules_hash=str(self.p.bundle_hash),
                 policy=policy,
@@ -250,7 +259,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self._last_cohort: dict[str, Any] | None = None
         self._last_screen: dict[str, Any] | None = None
         self._cohort_screen_history: list[dict[str, Any]] = []
-        self._last_clock_now: bt.feeds.MarketCohortNow | None = None
+        self._last_clock_now: MarketCohortNow | None = None
         self._clock_domain_id: str | None = None
         self._clock_rejection_latched = False
         self._clock_rejection_reason = ""
@@ -452,7 +461,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self._advance_synthetic_timing("next")
 
     @staticmethod
-    def _now_from_tick(tick: Any) -> bt.feeds.MarketCohortNow:
+    def _now_from_tick(tick: Any) -> MarketCohortNow:
         """Use explicit same-domain receipt evidence supplied with this tick."""
 
         return CtpOptionsHighfreqStrategy._cohort_now_from_value(
@@ -471,10 +480,12 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         )
 
     @staticmethod
-    def _cohort_now_from_value(value: Any) -> bt.feeds.MarketCohortNow:
+    def _cohort_now_from_value(value: Any) -> MarketCohortNow:
         """Normalize explicit trusted clock evidence without a local fallback."""
 
-        if isinstance(value, bt.feeds.MarketCohortNow):
+        from bt_api_py.market_cohort import MarketCohortNow
+
+        if isinstance(value, MarketCohortNow):
             return value
         if value is None:
             raise ValueError("trusted idle clock evidence is required")
@@ -484,7 +495,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
                 return value.get(name)
             return getattr(value, name, None)
 
-        return bt.feeds.MarketCohortNow(
+        return MarketCohortNow(
             now_monotonic_ns=read("now_monotonic_ns"),
             now_epoch=read("now_epoch"),
             clock_domain_id=read("clock_domain_id"),
@@ -493,7 +504,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             freshness_verified=read("freshness_verified"),
         )
 
-    def _accept_clock_now(self, now: bt.feeds.MarketCohortNow, *, source: str) -> bool:
+    def _accept_clock_now(self, now: MarketCohortNow, *, source: str) -> bool:
         """Require one monotonic clock domain for all tick and idle checks."""
 
         if self._clock_domain_id is not None and now.clock_domain_id != self._clock_domain_id:
@@ -520,10 +531,12 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self._reject(reason, reset_confirmation=True)
 
     def _record_cohort_rejection(self, reason: str | None) -> None:
-        if reason == bt.feeds.MarketCohortReason.WAITING_FOR_LEGS:
+        from bt_api_py.market_cohort import MarketCohortReason
+
+        if reason == MarketCohortReason.WAITING_FOR_LEGS:
             self._last_rejection = "WAITING_ALL_LEGS"
             return
-        if reason == bt.feeds.MarketCohortReason.WAITING_FOR_ALL_LEGS_NEW:
+        if reason == MarketCohortReason.WAITING_FOR_ALL_LEGS_NEW:
             # A normal barrier may observe one newly updated leg before the
             # remaining legs arrive.  It is not a duplicate sequence by
             # itself; retain the prior economic streak until the next full
@@ -534,7 +547,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self._reject(str(reason or "UNKNOWN_QUOTE_REJECTION"), reset_confirmation=True)
 
     def _consider_cohort(
-        self, cohort: bt.feeds.MarketQuoteCohort, *, now: bt.feeds.MarketCohortNow
+        self, cohort: MarketQuoteCohort, *, now: MarketCohortNow
     ) -> None:
         scope = (cohort.connection_generation, cohort.subscription_epoch)
         if self._confirmation_scope is not None and scope != self._confirmation_scope:

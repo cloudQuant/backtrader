@@ -7,7 +7,7 @@ import hashlib
 
 import pytest
 
-from backtrader.feeds.futures_main_contract import (
+from backtrader.futures import (
     ExchangeTradingDay,
     FuturesContractRecord,
     MainContractPolicy,
@@ -16,12 +16,12 @@ from backtrader.feeds.futures_main_contract import (
     ProductRankingCoverage,
     select_main_contracts,
 )
-from backtrader.feeds.futures_selection_io import (
+from backtrader.futures import (
     SelectionBundleInputError,
     load_selection_bundle,
     selection_bundle_to_dict,
 )
-from backtrader.feeds.futures_sessions import (
+from backtrader.futures import (
     ExchangeSessionCalendar,
     ProductTradingDaySessions,
     PublicSourceEvidence,

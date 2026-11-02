@@ -1,5 +1,7 @@
 ﻿# 仓库目录与文件职责规范
 
+> 当前 SDK 工作树的直连范围保留 Base、CTP、OKX、Binance，其余 17 个子仓整体迁入 `bt_api/deperated/`，仍是 Git 子模块且未卸载发行包。旧路径的部分历史验收和治理基线待单独审阅；本次目录迁移不证明直连或安装行为通过。
+
 > 持仓模式写入确认码由 provider 显式声明；Base 默认不再选择原生码。Binance、CTP 和 OKX 非 SWAP 保留原有 `200`，OKX SWAP 保留 `0`，其他十家通过历史策略保留 `200`；这些旧值不证明各场所能力或实际协议。第三方仅继承 Base 时不再隐式获得确认码；动态策略、发行及行为待审阅后验收。
 
 > Binance/OKX 绑定式只读 runtime 的路由注册、精确 owner 和配置校验归各自 provider；Base 中立路由携带 SDK 注入的 API 类型，SDK 负责组合及有限错误转换。旧 SDK 专用注册模块和 `compose_binance_read_only_runtime` / `compose_okx_read_only_runtime` 已移除；按配置创建新 owner 可用中立 `compose_read_only_runtime`，它与复用已有 owner 的语义不同。跨包入口、线程、清理和行为待审阅后验收。CTP runtime 的路由、环境和合约字段校验归 `bt_api_ctp.managed_runtime_route_validation`；SDK 保留授权期限、会话与生命周期。该 CTP 专用 SDK 模块导入需要 provider，来源和行为未验收。CTP 自动结算确认的预检配置解析与禁用归 `bt_api_ctp.preflight_settings`，SDK 保留路由选择、调用时机及原错误类型；仅 CTP 路由按需加载 provider，缺失时无法完成预检，跨包与行为待审阅后验收。
@@ -94,6 +96,8 @@
 
 > `feeds/_btapi_cohort.py` 负责 Backtrader 实时 bar cohort 的 Feed 成员准备、时间槽、Cerebro 批次交付和本地数据线绑定；`BtApiFeed` 通过 mixin 保留实例状态并与其共享唯一缺失值 sentinel。行情数据和中立合同仍归 SDK/provider；源码未行为或导入验收。
 
+> `feeds/livefeed.py` 的 `LiveFeedBase` 继承框架 `DataBase` 并定义实盘 Feed 抽象合同；`BtApiFeed` 经该基类取得框架 Feed 功能。抽象生命周期方法委托 `DataBase`；MRO、初始化和行为尚未验收。
+
 > 报价窗口的中立 tick 字段及时间投影归 SDK `market_tick_contracts.quote_capture_mapping`；Feed 提供显示品种名称并保留窗口容量、bar 和投递。投影不证明行情来源或时钟真实性；跨仓源码未行为或发行验收。
 
 > `brokers/_btapi_reconciliation.py` 负责中立 SDK 对账结果到框架 Order/Position、Broker 状态和回调的投影；SDK 继续持有查询和对账事实。方法经 Broker mixin 使用同一实例状态；源码未行为或导入验收。
@@ -118,7 +122,7 @@
 
 > 受管恢复的中立 paper fill 字段、事件身份、绑定和经济字段核对，以及恢复上下文的标量编码与精确 decimal 检查由 `bt_api_py.service_recovery` 提供；Broker 保留框架 Feed/bar、佣金和本地账户簿事实的关联及框架浮点转换。此源码接线未行为验收。
 
-> 中立恢复报价修订与成交的字段关联归 `bt_api_py.service_recovery_quote`；Broker 负责报价与自身 Feed/bar 的绑定，字段相等不证明来源真实性。此源码接线未行为验收。
+> 中立恢复报价修订与成交的字段关联归 `bt_api_py.service_recovery_quote`；Broker 保留报价与 Feed/bar 的绑定校验。`BtApiFeed` 已移除内置报价绑定，因此其依赖该绑定的恢复路径不可用；字段相等不证明来源真实性。此源码变更未行为验收。
 
 > 受管服务运行时的安全状态、计数、错误码投影及多 runtime 汇总归 `bt_api_py.service_execution_assembly`；Backtrader session 保留框架生命周期、清理错误归类及报告。此源码接线未行为验收。
 
@@ -218,7 +222,8 @@
 | SDK 账户配置方法发现 | `bt_api_py.account_config_composition` 按 route 发现 provider 声明的原生读取别名；OKX/Binance 声明 `get_config`，其他 route 默认只用标准方法。跨仓源码未行为或发行验收。 |
 | `bt_api_py.market_stream_contracts` / `stores/btapistore.py` | SDK 规范化中立频道与盘口深度配置；Store 负责订阅时机、路由和生命周期。跨仓源码未提交、未行为验收。 |
 | `bt_api_py.market_tick_contracts` / `feeds/btapifeed.py` | SDK 统一中立行情数值规范化，选择事件时间字段并转换为时间戳或 UTC；BT Feed 负责日志、数据线和 bar 处理。既有数值阈值和时间 fallback 不构成来源证明，跨仓源码未行为验收。 |
-| `bt_api_py.market_cohort`、`feeds/market_cohort.py`、`feeds/market_factor_source.py` | SDK `market_cohort` 独立实现 neutral event cohort 校验；BT 路径是 lazy direct alias 并保留类型身份。`market_factor_source.py` 仍投影 SDK session-resolver 合同。二者不解析 CTP 原生字段或创建时钟证明；CTP 真实 source-clock 当前未就绪，本轮 source move 未行为验收。 |
+| `bt_api_py.market_cohort`、`feeds/market_factor_source.py` | SDK `market_cohort` 独立实现 neutral event cohort 校验，BT 调用方直接使用 SDK 类型；旧 `feeds/market_cohort.py` 门面已移除。`market_factor_source.py` 仍投影 SDK session-resolver 合同。二者不解析 CTP 原生字段或创建时钟证明；CTP 真实 source-clock 当前未就绪，本轮 source move 未行为验收。 |
+| 015 示例及迭代 27 历史来源摘要 | 历史摘要仍将已移除的 `feeds/market_cohort.py` 列为必需输入；015 工件检查和迭代 27 验收脚本因该输入缺失而不可继续。需审阅新的跨仓 SDK 来源绑定，不能只删摘要项来延用旧证据。 |
 | `bt_api_py.market_tick_contracts` / `feeds/market_tick_adapter.py` | SDK 校验中立行情既有的时钟与 freshness，处理通用 tick schema、质量标记、成交量、报价与事件/接收时间字段，并分类既有执行资格；不签发新证明。BT adapter 保留字段/时间映射，Feed 提供 legacy schema、replay 绑定状态、年龄配置和时钟回调，保留价格网格、K 线水位及框架时钟决策。tick 预处理现在包括 legacy 路径均依赖新 SDK 接口；跨仓源码未提交，缺失 SDK、行为与发行兼容性未验收。 |
 | `bt_api_base.reconciliation_protocol` / `bt_api_py.reconciliation` / `brokers/btapibroker.py` | base 统一校验中立订单状态与终态标记，SDK 对外公开并将中立费用字段校验为 `CommissionAmount`；二者不证明事实来源。BT Broker 保留本地订单关联、状态投影、通知与费用分配。该接口和调用为未提交 WIP，未行为验收。 |
 | `bt_api_py.query_composition.select_query_facade` / `stores/btapistore.py` | SDK 负责中立 query selector 检查、调用及返回类型核对；Store 保留 API 实例、route/currentness 与错误类型映射。该路径为跨仓未提交 WIP，未做导入及行为验收。 |
@@ -241,7 +246,7 @@
 | `bt_api_py.order_fee_projection` / provider normalization policy | SDK 按中立成交字段核对终态订单并汇总费用；base 默认不启用，Binance provider 显式声明旧路径。policy 不可用时不补全；跨包未提交、未行为或发行验收，不证明费用完整。 |
 | `bt_api_binance.funding_schedule` / `bt_api_py` funding facade | Binance provider 选择原生资金费率行、结合 fundingInfo 或历史结算补全周期；SDK 按 route 选择 policy，提供中立快照和错误投影。缺失周期不假设默认值；跨仓源码未提交、未行为或发行验收。 |
 | `bt_api_py.broker_event_envelope` / `brokers/btapibroker.py` | SDK 投影已验证中立提交回执的状态和错误码；Broker 标记 BT 订单。旧无调用的原始响应拆包已移除，字段标记不建立来源证明；源码未行为验收。 |
-| `bt_api_py.service_recovery_quote` / `feeds/service_recovery_quotes.py` | SDK 校验中立行情 revision 并持有消费流游标；BT Feed 冻结当前 bar 的 revision，Broker 验证框架 bar 绑定。结构校验不证明来源可信，源码未行为验收。 |
+| `bt_api_py.service_recovery_quote` / Broker 恢复桥 | SDK 保留中立行情 revision 合同和消费流游标；Broker 仍要求 Feed 提供报价与当前 bar 的绑定并验证。`BtApiFeed` 不再提供内置绑定或相关配置，依赖该绑定的恢复路径不可用；自定义 Feed 合同不证明来源可信。源码未行为验收。 |
 | `bt_api_py.service_market_bindings` / `service/service_read_proxy.py` | SDK 拥有中立 bar 和订单簿绑定类型；BT 保留其到框架 Feed 的映射。可选 `bt_api_runtime` 的旧服务代理导入已更新；源码未行为或发行验收。 |
 | `bt_api_py.service_market_bindings.validate_service_market_bindings` | SDK 校验服务账户覆盖、市场客户端实例去重与中立绑定类型；BT 保留 Feed 名称到持仓的框架映射和生命周期。检查不证明账户权威，跨仓源码未行为或发行验收。 |
 | `bt_api_py.service_market_history` / `service/service_read_proxy.py` | SDK 持有每个 bar 消费流的历史/实时衔接、去重和顺序状态；BT 保留 bar 投影和 Feed 绑定。跨仓源码未提交，未行为验收。 |
@@ -267,13 +272,13 @@
 | `bt_api_py.service_execution` / `service/service_execution_adapter.py` | SDK 统一执行服务的引用、品种格式及恢复 owner 记录外层合同校验；BT 惰性调用并校验自身数据名、交易和通知投影。跨仓 WIP，未行为验收。 |
 | `bt_api_py.managed_execution` / `bt_api_py.execution` / `bt_api_py.correlated_execution` / `bt_api_py.direct_correlated_execution` | SDK 中立 claim/授权委托从可选 journal facade 分出，旧 SDK `execution` 路径重导出相同类型；direct 由 SDK 按 base 直连订单 port 选择 provider，并与显式 managed 路径相互隔离。CTP 直连 provider、会话与订单回报链尚未闭合，不能推断 direct 可用；这些源码均为未提交 WIP，未做导入或行为验收。 |
 | `feeds/replay_market_adapter.py` | `BtApiFeed` 只通过独立 `replay_market_tick_port` 接受 local replay，要求 `store=None`，并使用专属生命周期与原子 EVENT/EOF/final event-time watermark 合同；不会调用通用 Store start/register/subscribe/history。回放 tick/bar identity 不映射成 live generation/ingest cursor、receive clock/freshness 或下单资格。当前源码未行为验收。 |
-| `feeds/futures_expected_calendar.py` | 只验证 SDK-issued `FuturesExpectedCalendarSnapshot` 并映射到 BT 通用 session/trading calendar DTO；不拥有节假日、日盘规则或 source manifest。规则与签发归 `bt_api_ctp.futures_expected_calendar_provider`，经 `bt_api_py` 中立合同暴露。2026 日盘规则 review 为 HOLD，未验收。 |
-| `feeds/futures_ranking_sources.py` | 只将 SDK 中立 EOD snapshot 投影为 BT selector 输入；HTTP、CTP 原生日报解析和 exchange-to-instrument 映射归 `bt_api_ctp` 并经 `bt_api_py` 暴露。当前报告最新/定稿性和产品目录覆盖不完整，选择保持 fail-closed。 |
+| `strategies/ctp_future.py` / `BtApiBroker` / `bt_api_py.futures_contract_lookup` | 策略经 Broker 和 Store 委托 SDK 查询主力与次主力；SDK 组合参考快照、日历和选择算法，BT `futures/` 保留框架日历、分钟网格、bundle 和换月投影。默认实时查询因新鲜度不可证明而不可用，显式参考模式不证明实时性；旧六个 `feeds/futures_*` 文件已退役，跨仓源码未做导入、发行或行为验收。 |
+| `bt_api_py.futures_snapshot_workflow` / `bt_api_py.futures_eod_projection` | SDK 持有中立快照采集工作流及 EOD 绑定、lease 检查和摘要；原生规则和日报解析归所选 provider。2026 日盘规则 review 为 HOLD，报告最新/定稿性及目录覆盖不完整；选择结果不证明当前行情或交易授权。 |
 | `broker.py`、`brokers/`、`order.py`、`position.py`、`trade.py`、`comminfo.py`、`commissions/`、`fillers.py`、`position_modes.py` | Broker 合同与实现、订单/持仓/交易、费用及成交规则；实际服务能力和授权不应由名称或模拟结果推断。 |
 | `commissions/option_premium.py` | `OptionPremiumCommInfo` 是中立单腿 premium 会计，只接收经 SDK `ExecutionRulesSnapshotPort` 验证的规则快照，不维护账户账本。CTP snapshot issuer/费用币种证明未注册，CTP fees 与卖方 pre-fee margin 保持 unavailable。 |
 | store.py、stores/ | Store 是非单例的实例级公共基类，每个实例独立持有生命周期、feed/broker 绑定和通知队列；LiveStoreBase(Store) 定义 live Store 必需接口，缺实现时显式抛 NotImplementedError。VChartFile 直接继承 Store；BtApiStore 经 LiveStoreBase 继承 Store，构造时先调用 Store.__init__，再初始化自身 API 状态、工厂和生命周期。backtrader.store.SingletonMixin 仅保留为通用 mixin 的旧导入别名，不参与任何 Store 的 MRO。普通 direct SDK client 的配置、懒工厂、执行配置移交和 client close 由 bt_api_py.direct_api_assembly.DirectApiAssembly 持有；Store→Cerebro 的 event waiter 和 SDK wake-callback 绑定状态由 backtrader.service.store_event_notifier.StoreEventNotifier 单独持有，Store 保留原引擎接口的薄委托。该结构改动尚未行为验收，见第 6 节。 |
 | `stores/_live_bar_queue.py` | 唯一持有 Backtrader completed-bar FIFO、容量、溢出计数与 sticky stale 状态；Store 只委托入队/出队/健康投影，Feed 通过 `has_pending_live_bar()` 查询。未知 symbol 的 `snapshot()`/`pop()` 会创建空队列，作为后续验收项保留；未做行为验收。 |
-| `bt_api_py.market_history_composition` / `stores/_bar_history_cache.py` | SDK 持有历史行情 facade 及中立 bar 批次合同；BT `feeds/sdk_history_adapter.py` 持有时间周期与 bar 投影及缓存接线，`stores/_bar_history_cache.py` 持有本地缓存，Store 惰性委托。跨仓源码未提交、未行为验收。 |
+| `bt_api_py.market_history_composition` / `stores/_bar_history_cache.py` | SDK 持有历史行情 facade、路由、分页及中立 bar 批次合同；BT Store 直接惰性调用 SDK 或只读服务，`stores/_bar_history_cache.py` 持有 BT 周期转换、bar 投影及本地缓存。旧 `feeds/sdk_history_adapter.py` 已移除；源码未行为验收。 |
 | `bt_api_py.market_stream_session` / `bt_api_py.market_stream_contracts` | SDK 单实例 session 持有中立订阅 token、句柄映射、深度及丢弃计数，并负责订阅、轮询、恢复和退订；失败时保留待关闭句柄。Store 注入自身 route/currentness 和生命周期、健康投影回调，provider 持有 session 与 channel queues。旧 BT 私有模块已移除；此跨仓源码未提交，锁、生命周期、安装和行为未验收。 |
 | `bt_api_py.market_stream_contracts.market_stream_consumer_contracts` | SDK 统一惰性组装中立身份、订阅及事件类型，SDK session 持有订阅句柄映射并调用注入的框架错误类型。跨仓 WIP，未行为验收。 |
 | `bt_api_py.market_stream_contracts` 行情流操作 | SDK 合同层封装端口选择、订阅、令牌绑定、身份/队列检查、轮询、恢复与退订；SDK session 单实例保留 token 与该订阅的计数，BT 处理路由生命周期与交付异常投影。绑定一致不证明 provider 权威；跨仓 WIP，未行为验收。 |
@@ -318,7 +323,7 @@
 | `bt_api_execution.factor_position_journal_port` / SDK facade / BT journal port | execution 实现中立持仓归属 journal 端口的 schema、容量及持久操作；SDK facade 转译容量异常，BT 子类仅提供 Broker 关联的本地持仓投影和框架错误类型。三仓源码为未提交 WIP，继承、事务、导入及行为尚未验收。 |
 | `bt_api_execution.factor_position_attribution.read_factor_position_snapshot_inputs` / BT factor position book | execution 准备本地 schema、检查中立快照输入并读取本地归属事实，SDK 公开入口；BT 比较 Broker 数量并构造框架快照。这些事实不证明 provider 持仓，跨仓源码未提交且未行为验收。 |
 
-迭代 53 的目标集成边界：BT Store/Broker/Feed 经 `bt_api_py` 公开 facade 调用 SDK，以 `bt_api_base` 中立合同/DTO 交换数据；所选 provider package 独占其 native/session/field/request/query/callback 真值，BT 只将中立 DTO 映射为 Order/Position/Feed/Broker。BT `execution/` 保留 Backtrader 特定的 correlated order request/BT-binding adapter 与其他通用调用端；journal/port schema、provider dispatch authority 和 durable state 归 SDK execution owner；`factor_execution/` 仅保留 BT 因子/策略事实；`service/` 不持有服务组合、factory、transport 或恢复能力。BT 不按交易所建立专属 adapter；CTP 的 BT 侧仅保留与框架强耦合的 provider-neutral 映射。`bt_api_py.market_cohort` 独立拥有 neutral event cohort 校验，`feeds/market_cohort.py` 是保留同一类型身份的 lazy alias；`feeds/market_factor_source.py` 和 `feeds/futures_ranking_sources.py` 消费 SDK 中立合同/DTO；`feeds/futures_expected_calendar.py` 验证 SDK-issued expected-calendar snapshot 并投影为 BT 通用日历 DTO。CTP 原生行情、EOD 解析、expected-calendar rules 与 source manifest 归所选 provider，经 `bt_api_py` 公开。2026 日盘 rules 的 review 状态为 HOLD，未验收。
+迭代 53 的目标集成边界：BT Store/Broker/Feed 经 `bt_api_py` 公开 facade 调用 SDK，以 `bt_api_base` 中立合同/DTO 交换数据；所选 provider package 独占其 native/session/field/request/query/callback 真值，BT 只将中立 DTO 映射为 Order/Position/Feed/Broker。BT `execution/` 保留 Backtrader 特定的 correlated order request/BT-binding adapter 与其他通用调用端；journal/port schema、provider dispatch authority 和 durable state 归 SDK execution owner；`factor_execution/` 仅保留 BT 因子/策略事实；`service/` 不持有服务组合、factory、transport 或恢复能力。BT 不按交易所建立专属 adapter；CTP 的 BT 侧仅保留与框架强耦合的 provider-neutral 映射。`bt_api_py.market_cohort` 独立拥有 neutral event cohort 校验，BT 直接使用该 SDK 模块；`feeds/market_factor_source.py` 和 `futures/` 消费 SDK 中立合同/DTO；`futures/expected_projection.py` 验证 SDK-issued expected-calendar snapshot 并投影为 BT 日历。CTP 原生行情、EOD 解析、expected-calendar rules 与 source manifest 归所选 provider，经 `bt_api_py` 公开。2026 日盘 rules 的 review 状态为 HOLD，未验收。
 旧的 SimNow weekday/session 前置选择兼容实现及 SDK 旧导入路径已移除，CTP 前置选择使用 `bt_api_ctp.ctp_env_selector`。它不读取已退役的 SDK YAML 配置；`set2` 默认前置与旧实现不同，自动选择还要求真实日历证据才会选用 set1。示例已切换到 provider 入口，该源码变更未做行为或账户验收。
 `BtApiStore` 消费 SDK 签发的 typed identity snapshot、provider assurance、SDK vector binding 和 typed account-risk snapshot；SDK 持有身份栅栏历史，BT 提供 Store generation/API 回调，不再读取 raw identity mapping 或本地序列化 digest。SDK 风险读取仍需证明账户事实来自绑定的同一 SDK route/session；该证据未闭合时必须保持 unavailable。Binance/OKX provider 模块与 `bt_api_py.execution_identity_assurance_composition` 当前均为 source WIP，不能据此声称 identity/provider 行为已验收。`bt_api_py.managed_runtime_composition.compose_read_only_runtime` 与 read-only route-owner registrations 同为 source WIP；052 非 CTP `run.py` 仅有源码接线，CTP `simnow_runner.py` 仍走旧的本地 wrapper，均未行为验收。只读组合不证明连接/账户/行情 ready，也不授予写权限。
 普通 direct Store 将收到的 `exchange_kwargs`、`execution_config`、debug、显式 transport/event-bus 选项及可注入 factory 原样交给 SDK `DirectApiAssembly`；Store 仅保留 route-name projection 和所需的 Backtrader policy reads。Route-name/config projection 不证明账户、endpoint、session 或写权限。该装配路径当前未完成行为、打包或 SDK 消费验收。
@@ -396,7 +401,7 @@ SimNow 前置对与配置校验属于 `bt_api_ctp.simnow_store_profile`，`bt_ap
 | --- | --- | --- |
 | 高 | 截至 2026-11-01，迭代 53 工作区已删除若干 `backtrader/stores/service_*.py` 及执行/CTP 文件；当前工作树存在 `backtrader/service/`、`backtrader/execution/` 和 `backtrader/factor_execution/` 候选目录。这些变化尚未通过结构、导入、发行包或行为验收；目录落点不证明职责已完成迁移，也不代表可用 API。 | 按职责逐函数核对 BT 薄桥、SDK/provider 通用能力与无用/重复代码，再完成调用点、测试、打包和文档验收；仅在相应验收后更新支持状态。 |
 | 高 | 当前 `backtrader/stores/btapistore.py` 从 `..execution.managed_execution` 导入携带 BT 订单及回调的框架执行适配合同；恢复协议与校验器由 SDK `bt_api_py.service_recovery` 提供，BT 的旧重导出模块及两个根导出已退役。`service_execution_group.py` 保留 Strategy/Broker 及线程绑定，服务组中立 route、结果与异常的旧 BT 别名已退役，调用者应直接从 `bt_api_py.service_group_rpc_client` 导入；`service_recovery_attestation.py` 等仍需逐函数核对。相关结构、导入、发行包及行为验收未完成。 | 保持恢复协议及持久化实现由 SDK owner 负责；逐函数审查其余 service 模块、调用点与打包，再分层验收。 |
-| 高 | 迭代 53 当前工作树将 neutral cohort validator 实现放在 SDK `bt_api_py.market_cohort`，BT `feeds/market_cohort.py` 为 lazy identity facade；factor-source、EOD ranking projection 和 option-premium 也已改为中立边界。路径存在不代表重构验收。CTP source-clock 尚未就绪，EOD 报告最新/定稿性和产品目录覆盖不完整，CTP execution-rules snapshot issuer 与 fee-currency proof 未注册，因此真实时钟、完整 EOD selector、CTP option fees 和卖方 margin 均不可用。 | 保持 fail-closed；待 provider source/issuer、clock/currentness、catalog 和 fee evidence 接入后再分别做结构、导入、发行包、行为及账户验收。 |
+| 高 | 迭代 53 当前工作树将 neutral cohort validator 实现放在 SDK `bt_api_py.market_cohort`，BT 直接消费 SDK，旧本地门面已移除；factor-source、EOD ranking projection 和 option-premium 也已改为中立边界。路径存在不代表重构验收。CTP source-clock 尚未就绪，EOD 报告最新/定稿性和产品目录覆盖不完整，CTP execution-rules snapshot issuer 与 fee-currency proof 未注册，因此真实时钟、完整 EOD selector、CTP option fees 和卖方 margin 均不可用。 | 保持 fail-closed；待 provider source/issuer、clock/currentness、catalog 和 fee evidence 接入后再分别做结构、导入、发行包、行为及账户验收。 |
 | 中 | `conftest.py` 的 journal port 导入已改为候选位置 `backtrader.execution._journal_ports`；该模块及 SDK facade 为未提交 WIP，尚未验证导入与 fixture 行为。`scripts/run_iteration50_live_factor_benchmark.py` 的 journal 构造已改走 BT 端口和 SDK 决策键；所选旧版 BT 根目录可能缺少新桥，原 source pins 未覆盖 SDK journal。`scripts/iteration50_installed_fixture.py` 仍引用旧 journal、factor 和 registered-sim 路径，且被迭代 51 工具复用。 | 保留历史证据；梳理基准跨版本选源及 SDK 来源固定，迁移安装夹具的活跃入口；未做导入或行为验收，不恢复已退役实现。 |
 | 高 | `examples/unified/007_ctp/run_runtime.py`、`examples/unified/028_alpha003_simnow_minute/protected_simnow.py` 与 `scripts/ci/smoke_iteration41_registered_offline.py` 当前明确声明旧 runtime 入口不可用；归档的旧 CI 脚本已删除。 | 替代的注册式离线 smoke 能力尚未建立；其他旧入口继续逐项核实，不恢复隐式兼容包。 |
 | 中 | `backtrader/feeds/btapifeed.py` 与 Store 当前通过 `backtrader.utils.bar_projection` 共用 BT bar 投影，不再从 Store 导入 CTP 时间函数；`backtrader/cerebro.py` 的 live cohort 路径仍直接依赖研究类型、精确 `BtApiFeed` 类型及其接口。该源码结构尚未行为验收。 | 结合现有时钟与数据合同审查 cohort 是否需要窄接口；保留现有语义，避免为消除引用而破坏多数据行为。 |

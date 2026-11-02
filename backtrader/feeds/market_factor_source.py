@@ -16,8 +16,8 @@ from datetime import date, datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Mapping, Optional
 
-from .futures_main_contract import ProductKey
-from .futures_sessions import (
+from ..futures import ProductKey
+from ..futures import (
     CommonMinuteGrid,
     ExchangeSessionCalendar,
     ProductTradingDaySessions,

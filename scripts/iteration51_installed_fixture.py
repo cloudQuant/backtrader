@@ -2,15 +2,17 @@
 """Run the public 028 Alpha003 CLI against an installed Backtrader wheel.
 
 The default profile copies the four public example files to a fresh directory
-outside the checkout and runs only dry, research, or local replay.  A separate
-``--synthetic-live`` profile runs the actual live CLI with in-memory CTP SDK
+outside the checkout. Research, replay, and synthetic-live are temporarily
+unsupported: their futures selection SDK dependency is not pinned or attested
+by this fixture. Dry configuration validation remains available. The historical
+``--synthetic-live`` profile ran the live CLI with in-memory CTP SDK
 native/client leaves under the installed Store, Broker, feed, and Cerebro
-path. Its official profile selector is the exact public source blob pinned at
+path. Its official profile selector was the exact public source blob pinned at
 ``48b476ea90665791c7d2f86935720ce238931520``; this is not a complete installed
 CTP wheel. The installed ``btapistore`` CTP factory and its
-``RegisteredSimWrapper`` / ``CtpClientWrapper`` composition stay intact. The
-child binds its causal virtual UTC scheduler through the copied ``run.py``
-function globals and keeps real monotonic lifecycle bounds. Offline profiles
+``RegisteredSimWrapper`` / ``CtpClientWrapper`` composition stayed intact. The
+child bound its causal virtual UTC scheduler through the copied ``run.py``
+function globals and kept real monotonic lifecycle bounds. Offline profiles
 do not require this selector. No profile enables live in the offline
 allowlist or changes the four copied example files.
 """
@@ -55,6 +57,10 @@ _SYNTHETIC_TARGET_BY_INSTRUMENT = {
     "A2611": "DCE.A",
 }
 SDK_SELECTOR_EVIDENCE_LEVEL = "INSTALLED_BT_WHEEL_PUBLIC_SDK_SOURCE_FIXTURE"
+_SDK_SELECTION_FIXTURE_UNSUPPORTED = (
+    "research, replay and synthetic-live fixtures are unsupported until the "
+    "futures selection SDK dependency is pinned and verified"
+)
 SYNTHETIC_WRITE_MAX_ORDER_INTENTS_PER_RUN = 20
 _SYNTHETIC_LIVE_CHECK_IDS = frozenset(
     {
@@ -519,7 +525,7 @@ for target_rows in bars.values():
                 Decimal(str(target_row[field_name])) * price_scale
             )
 
-from backtrader.feeds.futures_main_contract import (
+from backtrader.futures import (
     ExchangeTradingDay,
     FuturesContractRecord,
     MainContractPolicy,
@@ -528,8 +534,8 @@ from backtrader.feeds.futures_main_contract import (
     ProductRankingCoverage,
     select_main_contracts,
 )
-from backtrader.feeds.futures_selection_io import selection_bundle_to_dict
-from backtrader.feeds.futures_sessions import (
+from backtrader.futures import selection_bundle_to_dict
+from backtrader.futures import (
     ExchangeSessionCalendar,
     ExpectedRuleEvidence,
     ProductTradingDaySessions,
@@ -2922,7 +2928,8 @@ print("ITERATION51_SYNTHETIC_LIVE_CHILD=" + json.dumps({
     ],
     "installed_wrapper_origin": "backtrader.stores.btapistore._create_ctp_wrapper_class",
     "synthetic_sdk_module_origin": (
-        "pinned public selector source plus in-memory native/client leaves; no SDK wheel"
+        "pinned public CTP selector and in-memory native/client leaves; "
+        "futures selection SDK dependency is not attested"
     ),
     "sdk_selector_source": selector_source_receipt,
     "raw_cli_stdout_sha256": hashlib.sha256(raw_cli_stdout.encode("utf-8")).hexdigest(),
@@ -3052,6 +3059,8 @@ def run_cli_case(
 ) -> dict[str, Any]:
     if mode not in SAFE_MODES:
         raise InstalledFixtureError("mode is outside the safe installed-fixture set")
+    if mode in {"research", "replay"}:
+        raise InstalledFixtureError(_SDK_SELECTION_FIXTURE_UNSUPPORTED)
     if factor_mode not in {"native", "build"}:
         raise InstalledFixtureError("factor mode must be native or build")
     if not Path(example_dir, "run.py").is_file():
@@ -4124,7 +4133,9 @@ def run_synthetic_live_case(
     timeout_seconds: float = 300.0,
     python: str = sys.executable,
 ) -> dict[str, Any]:
-    """Run one explicit live profile with the installed CTP SDK leaf faked locally."""
+    """Reject the synthetic profile until its SDK dependency can be attested."""
+
+    raise InstalledFixtureError(_SDK_SELECTION_FIXTURE_UNSUPPORTED)
 
     if case not in SYNTHETIC_LIVE_CASES:
         raise InstalledFixtureError("synthetic-live case is outside the fixed local set")
@@ -4614,13 +4625,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=Path,
         help="external source file matching the fixed public bt_api_ctp selector pin",
     )
-    parser.add_argument("--mode", choices=SAFE_MODES)
+    parser.add_argument(
+        "--mode", choices=SAFE_MODES,
+        help="dry is available; research and replay are temporarily unsupported",
+    )
     parser.add_argument(
         "--synthetic-live",
         action="store_true",
         help=(
-            "run four fixed installed live CLI cases with synthetic CTP SDK leaves "
-            "and a causal virtual UTC scheduler"
+            "temporarily unsupported until the futures selection SDK is pinned "
+            "and verified"
         ),
     )
     parser.add_argument("--factor-mode", choices=("native", "build"), required=True)
@@ -4631,6 +4645,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             raise InstalledFixtureError(
                 "select one offline mode or the explicit synthetic-live matrix"
             )
+        if args.synthetic_live or args.mode in {"research", "replay"}:
+            raise InstalledFixtureError(_SDK_SELECTION_FIXTURE_UNSUPPORTED)
         if args.synthetic_live and args.config is not None:
             raise InstalledFixtureError(
                 "synthetic-live matrix uses its generated public fixture config"

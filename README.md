@@ -1024,19 +1024,11 @@ We especially welcome contributions in:
 
 ---
 
-## ⚠️ Important Disclaimer
+## ⚠️ Disclaimer and Usage Risks (Review Draft)
 
-### Risk Warning
-
-**THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
-
-- ⚠️ **Trading Risk**: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
-- 🐛 **Software Status**: This project is under active development and may contain bugs or calculation errors.
-- 💰 **Financial Liability**: **You are solely responsible for any financial losses** incurred from using this software.
-- 🔍 **Verification Required**: Always verify backtest results against known benchmarks before live trading.
-- 📊 **No Warranty**: This software is provided "AS IS" without warranty of any kind, express or implied.
-
-**By using this software, you acknowledge and accept all risks associated with algorithmic trading.**
+Algorithmic trading can cause losses; historical performance and backtest results do not predict future performance. Independently verify results and test before live trading.
+The proposed [disclaimer and usage-risk notice](DISCLAIMER.md) is a review draft and is not in effect. Its full text is in Chinese; see the [license review notes](LICENSE-REVIEW.md) for status and scope.
+This project continues under [GPLv3](LICENSE), preserving the existing GPL warranty and liability provisions and all existing copyright notices and third-party license rights. The draft adds no conditions on use.
 
 ---
 
@@ -1615,19 +1607,11 @@ cerebro.run(maxcpus=4)     # 参数优化时使用多进程
 
 ---
 
-## ⚠️ 重要声明
+## ⚠️ 免责声明与使用风险（审阅草案）
 
-### 风险警示
-
-**本软件仅供教育和研究目的使用。**
-
-- ⚠️ **交易风险**：算法交易存在重大亏损风险。历史业绩不代表未来表现。
-- 🐛 **软件状态**：本项目正在积极开发中，可能包含 bug 或计算错误。
-- 💰 **财务责任**：**使用本软件产生的任何财务损失由您自行承担**。
-- 🔍 **验证要求**：实盘交易前，务必对照已知基准验证回测结果。
-- 📊 **无担保**：本软件按"原样"提供，不提供任何明示或暗示的担保。
-
-**使用本软件即表示您承认并接受算法交易相关的所有风险。**
+算法交易可能造成损失；历史业绩及回测结果不预示未来表现，实盘前建议独立核验并测试。
+拟议的[免责声明与使用风险](DISCLAIMER.md)尚未生效；审阅状态和适用范围见[许可审阅说明](LICENSE-REVIEW.md)。
+本项目继续适用 [GPLv3](LICENSE)，原有 GPL 保证及责任条款、现存版权声明和第三方许可权利保持；草案不增加使用条件。
 
 ---
 

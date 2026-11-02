@@ -28,8 +28,9 @@ import yaml
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.channel import Event, EventPriority
 from backtrader.events import BarEvent, TickEvent
-from backtrader.feeds import ClockMapping, MarketCohortNow
+from backtrader.feeds import ClockMapping
 from backtrader.stores.btapistore import BtApiStore
+from bt_api_py.market_cohort import MarketCohortNow
 
 try:
     from .ctp_options_highfreq_strategy import CtpOptionsHighfreqStrategy, canonical_sha256
@@ -113,6 +114,8 @@ BACKTRADER_DEPENDENCY_FILES = (
     "strategy.py",
     "channel.py",
     "feeds/btapifeed.py",
+    # Historical artifact contract: its removal blocks this legacy check until
+    # an SDK-aware provenance contract has been reviewed.
     "feeds/market_cohort.py",
     "stores/btapistore.py",
 )
@@ -139,11 +142,13 @@ def runtime_artifact_evidence(*, module_path: str | None = None) -> dict[str, An
             install_kind = "external_artifact"
     loaded_root = Path(loaded_path).parent if loaded_path else BACKTRADER_ARTIFACT_TARGET
     digest = hashlib.sha256()
+    missing_dependencies = []
     for relative in BACKTRADER_DEPENDENCY_FILES:
         digest.update(relative.encode("utf-8"))
         try:
             digest.update((loaded_root / relative).read_bytes())
         except OSError:
+            missing_dependencies.append(relative)
             digest.update(b"<missing>")
     return {
         "module_path": reported_path,
@@ -152,6 +157,7 @@ def runtime_artifact_evidence(*, module_path: str | None = None) -> dict[str, An
         "install_kind": install_kind,
         "target_workspace_root": BACKTRADER_ARTIFACT_TARGET.as_posix(),
         "dependency_files": list(BACKTRADER_DEPENDENCY_FILES),
+        "missing_dependencies": missing_dependencies,
         "dependency_sha256": digest.hexdigest(),
     }
 
@@ -162,6 +168,11 @@ def require_target_backtrader_artifact(
     """Fail closed unless the loaded artifact is this workspace's source tree."""
 
     evidence = runtime_artifact_evidence(module_path=module_path)
+    if evidence["missing_dependencies"]:
+        raise RunnerConfigurationError(
+            "BACKTRADER_ARTIFACT_DEPENDENCY_MISSING: the historical artifact "
+            "contract requires an SDK-aware provenance review"
+        )
     if evidence["install_kind"] != "workspace_source" and not allow_external:
         raise RunnerConfigurationError(
             "BACKTRADER_ARTIFACT_MISMATCH: the loaded backtrader is "

@@ -17,7 +17,8 @@ import math
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from backtrader.feeds import MarketQuoteEvidence, MinuteDecisionInput
+from backtrader.feeds import MinuteDecisionInput
+from bt_api_py.market_cohort import MarketQuoteEvidence
 
 
 class FeatureReason:

@@ -65,8 +65,7 @@ def build_pytest_command(executable: Optional[str] = None) -> List[str]:
 def _retired_runtime_paths_present(root: Optional[Path] = None) -> List[str]:
     """Find retired runtime package and module paths in a source layout.
 
-    The historical implementation remains under ``archive/iteration53`` for
-    provenance.  Only the active package and facade locations are forbidden.
+    Only the active package and facade locations are checked.
     """
 
     source_root = _source_root() if root is None else root

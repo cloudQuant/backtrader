@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from backtrader.feeds.futures_main_contract import ProductKey
+from backtrader.futures import ProductKey
 from backtrader.feeds.futures_eod_cffex import (
     CffexCatalogJoinReport,
     CffexDailyContractRow,
@@ -19,7 +19,7 @@ from backtrader.feeds.futures_eod_shfe import (
     ShfeDailyReport,
     ShfeJoinedRankingRow,
 )
-from backtrader.feeds.futures_ranking_sources import (
+from backtrader.futures import (
     CatalogInstrument,
     CtpCatalogSnapshot,
     DailyRankingRow,

@@ -5,7 +5,7 @@ import hashlib
 
 import pytest
 
-from backtrader.feeds.futures_expected_calendar import (
+from backtrader.futures import (
     EXCHANGE_ANNUAL_NOTICE_METADATA,
     EXCHANGE_RULE_SOURCE_URLS,
     EXPECTED_RULE_EVIDENCE_MODE,
@@ -18,7 +18,7 @@ from backtrader.feeds.futures_expected_calendar import (
     build_expected_daytime_calendars,
     expected_2026_trading_days,
 )
-from backtrader.feeds.futures_main_contract import (
+from backtrader.futures import (
     CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
     CurrentDayQuoteRecord,
     ExchangeTradingDay,
@@ -31,7 +31,7 @@ from backtrader.feeds.futures_main_contract import (
     QuerySnapshotSourceEvidence,
     select_main_contracts,
 )
-from backtrader.feeds.futures_sessions import (
+from backtrader.futures import (
     ExpectedRuleEvidence,
     ExchangeSessionCalendar,
     ProductTradingDaySessions,

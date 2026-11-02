@@ -11,8 +11,10 @@ Classes:
 
 from abc import ABC, abstractmethod
 
+from ..feed import DataBase
 
-class LiveFeedBase(ABC):
+
+class LiveFeedBase(DataBase, ABC):
     """Abstract base class for live-trading data feeds.
 
     A *live feed* streams real-time market data (ticks or bars) from a
@@ -33,10 +35,12 @@ class LiveFeedBase(ABC):
     @abstractmethod
     def start(self):
         """Connect to the store and begin receiving data."""
+        super().start()
 
     @abstractmethod
     def stop(self):
         """Disconnect and release resources."""
+        super().stop()
 
     @abstractmethod
     def islive(self) -> bool:

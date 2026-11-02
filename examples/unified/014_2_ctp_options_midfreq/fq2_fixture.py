@@ -12,7 +12,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, Mapping, Optional
 
-from backtrader.feeds import BarEvidence, ClockMapping, MarketQuoteEvidence
+from backtrader.feeds import BarEvidence, ClockMapping
+from bt_api_py.market_cohort import MarketQuoteEvidence
 
 UTC = timezone.utc
 REPLAY_BASE = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)

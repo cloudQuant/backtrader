@@ -426,7 +426,7 @@ def _target_id(product: Any) -> str:
 
 
 def _session_documents(bundle: Mapping[str, Any]):
-    from backtrader.feeds.futures_sessions import load_exchange_session_calendar
+    from backtrader.futures import load_exchange_session_calendar
 
     docs = bundle.get("calendars")
     if type(docs) is not list or not docs:
@@ -447,8 +447,8 @@ def load_market_plan(
     config: Mapping[str, Any], config_path: Path, *, bundle_path: Optional[Path] = None
 ):
     """Recompute contract selection and all-member UTC minute slots."""
-    from backtrader.feeds.futures_selection_io import load_selection_bundle
-    from backtrader.feeds.futures_sessions import build_common_minute_grid
+    from backtrader.futures import load_selection_bundle
+    from backtrader.futures import build_common_minute_grid
 
     selection_path = (
         _resolve_path(config_path, config["selection"]["bundle"], "selection.bundle")
@@ -509,18 +509,18 @@ def load_market_plan(
 def build_futures_market_plan(store, config, *, clock, environment):
     """Build a complete futures plan through one explicitly selected SDK route."""
 
-    from backtrader.feeds.futures_expected_calendar import (
+    from bt_api_py.futures_selection import select_main_contracts
+    from backtrader.futures import (
         ExpectedCalendarError,
         build_expected_daytime_calendars,
     )
-    from backtrader.feeds.futures_main_contract import (
+    from backtrader.futures import (
         FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY,
         ExchangeTradingDay,
         ProductKey,
-        select_main_contracts,
     )
-    from backtrader.feeds.futures_sessions import build_common_minute_grid
-    from backtrader.feeds.futures_snapshot import (
+    from backtrader.futures import build_common_minute_grid
+    from bt_api_py.futures_snapshot_workflow import (
         FuturesSnapshotError,
         LeasedFuturesSnapshot,
         collect_futures_snapshot,
@@ -965,7 +965,7 @@ def _project_futures_snapshot_query_diagnostics(error):
 
     unavailable = lambda category: {"status": "UNAVAILABLE", "category": category}
     try:
-        from backtrader.feeds.futures_snapshot import (
+        from bt_api_py.futures_snapshot_workflow import (
             FuturesSnapshotError,
             FuturesSnapshotQueryObservation,
         )
@@ -1080,7 +1080,7 @@ def _apply_golden_target_subset(plan, requested_targets):
     if not active_products:
         raise RunnerError("GOLDEN_TARGETS_EMPTY")
     try:
-        from backtrader.feeds.futures_sessions import build_common_minute_grid
+        from backtrader.futures import build_common_minute_grid
 
         product_days = dict(full_grid.product_trading_days)
         if set(product_days) != set(full_products):
@@ -1138,7 +1138,7 @@ def _apply_golden_target_subset(plan, requested_targets):
 
 
 def _minute_slot_index(grid: Any):
-    from backtrader.feeds.futures_sessions import PlannedCommonMinute
+    from backtrader.futures import PlannedCommonMinute
 
     index = {}
     for minute in grid.minutes:
@@ -1478,7 +1478,7 @@ def _calendar_slots(
 def _remaining_live_grid_minutes(grid: Any, begin_at: Optional[datetime]):
     """Return planned minutes whose bucket start is not before live startup."""
 
-    from backtrader.feeds.futures_sessions import PlannedCommonMinute
+    from backtrader.futures import PlannedCommonMinute
 
     remaining = []
     for minute in grid.minutes:

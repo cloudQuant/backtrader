@@ -61,6 +61,31 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerBase):
     """Broker implementation that routes live orders through BtApiStore."""
 
+    def get_futures_contracts(self, route, exchange_id, product_id, *, environment,
+                              allow_reference=False, **limits):
+        """Refresh both ranks once through Store; no automatic bar refresh.
+
+        ``route`` is the SDK route. ``exchange_id`` and ``product_id`` must
+        match the provider's venue and product identifiers. The default fails
+        closed because market freshness is unavailable. Reference-only use
+        requires explicit opt-in and does not establish real-time data or
+        trading authority.
+        """
+        if self.store is None:
+            raise RuntimeError("futures contract lookup requires a configured Store")
+        return self.store.get_futures_contracts(
+            route, exchange_id, product_id, environment=environment,
+            allow_reference=allow_reference, **limits,
+        )
+
+    def get_main_contract(self, *args, **kwargs):
+        """Refresh and return rank one; use the combined result for both ranks."""
+        return self.get_futures_contracts(*args, **kwargs).main
+
+    def get_secondary_contract(self, *args, **kwargs):
+        """Refresh and return rank two, or None when no second rank exists."""
+        return self.get_futures_contracts(*args, **kwargs).secondary
+
     # Remote order updates do not depend on the arrival of a market-data bar.
     next_without_bar = True
 

@@ -668,8 +668,6 @@ class Cerebro(
                 raise ValueError("live bar cohort does not support feed filters")
             if bool(data.p.orderbook_as_ticks):
                 raise ValueError("live bar cohort does not support orderbook_as_ticks")
-            if bool(data.p.service_recovery_quote_binding):
-                raise ValueError("live bar cohort cannot share the service recovery quote binding")
 
     def _activate_live_bar_cohort(self):
         cohort = self._live_bar_cohort

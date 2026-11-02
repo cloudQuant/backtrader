@@ -220,3 +220,11 @@ examples/live/000_live_certification/hongyuan_penetration/reports/
 examples/live/000_live_certification/*_penetration/config.yaml
 examples/live/000_live_certification/*_penetration/secrets.yaml
 examples/live/000_live_certification/*_penetration/reports/
+
+# Pre-Iteration-43 example roots survive on disk only as local leftovers holding
+# private .env / config.yaml and run output after the backtest|live|unified move.
+/examples/007_ctp/
+/examples/012_1_midfreq_cross_exchange/
+/examples/012_2_event_driven_cross_exchange/
+/examples/013_3_sa_midfreq_simnow/
+/examples/016_self_similarity/

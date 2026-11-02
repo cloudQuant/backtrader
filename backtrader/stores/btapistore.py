@@ -101,7 +101,7 @@ from ..execution.reconciliation_projection import (
     verify_reconciliation_snapshot as _verify_reconciliation_snapshot,
 )
 from ._live_bar_queue import StoreLiveBarQueue
-from ._bar_history_cache import StoreBarHistoryCache
+from ._bar_history_cache import StoreBarHistoryCache, history_timeframe
 from ._market_delivery_state import StoreMarketDeliveryState
 
 logger = get_logger(__name__)
@@ -1768,23 +1768,74 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         limit: Optional[int] = None,
     ) -> List[Any]:
         """Fetch historical bars through the configured route and local BT cache."""
-        from ..feeds.sdk_history_adapter import fetch_store_history
+        if self._service_read_only:
+            return self._fetch_service_history(dataname, timeframe, compression, since, limit)
 
-        return fetch_store_history(
-            dataname,
-            timeframe=timeframe,
-            compression=compression,
-            since=since,
-            limit=limit,
-            service_read_only=self._service_read_only,
-            history_cache=self._history_cache,
-            ensure_api_ready=self._ensure_api_ready,
-            copy_or_normalize_bar=self._copy_or_normalize_bar,
-            sdk_exchange=self._sdk_exchange,
-            get_market_instrument_key=self.get_market_instrument_key,
-            error_type=BtApiStoreError,
-            missing_dependency_error_type=BtApiMissingDependencyError,
+        if compression is None:
+            history_compression = 1
+        elif type(compression) is int and compression > 0:
+            history_compression = compression
+        else:
+            raise BtApiStoreError("history compression must be a positive integer")
+        return self._history_cache.fetch(
+            dataname, timeframe, history_compression, since, limit,
+            lambda default_request: self._fetch_sdk_history(
+                dataname, timeframe, history_compression, since, limit, default_request,
+            ),
         )
+
+    def _fetch_service_history(self, dataname, timeframe, compression, since, limit):
+        api = self._ensure_api_ready()
+        bars = api.fetch_bars(
+            dataname, timeframe=timeframe, compression=compression,
+            since=since, limit=limit,
+        )
+        if type(bars) is not list:
+            raise BtApiStoreError("read-only service history is incomplete")
+        return [self._copy_or_normalize_bar(bar) for bar in bars]
+
+    def _fetch_sdk_history(self, dataname, timeframe, compression, since, limit, default_request):
+        cache = self._history_cache
+        api = self._ensure_api_ready()
+        try:
+            from bt_api_py.facade_protocol import is_market_history_facade
+            from bt_api_py.market_history_composition import (
+                MarketHistoryCompositionError,
+                market_history_collection_invalid,
+            )
+        except ImportError as exc:
+            raise BtApiMissingDependencyError(
+                "bt_api_py market-history facade contracts are required"
+            ) from exc
+
+        if not is_market_history_facade(api):
+            fallback, bars = cache.default_fallback(dataname, default_request)
+            if fallback:
+                return bars, False
+            raise BtApiStoreError("SDK facade does not expose typed market history")
+
+        neutral_timeframe = history_timeframe(timeframe, compression)
+        exchange_name = self._sdk_exchange(dataname)
+        instrument = self.get_market_instrument_key(dataname)
+        try:
+            bars = api.fetch_market_history(
+                exchange_name, instrument, neutral_timeframe, since=since,
+                limit=limit, preserve_raw_bars=cache.preserve_raw_bars,
+            )
+        except MarketHistoryCompositionError as exc:
+            if exc.code == "MARKET_HISTORY_PROVIDER_CAPABILITY_UNAVAILABLE":
+                fallback, bars = cache.default_fallback(dataname, default_request)
+                if fallback:
+                    return bars, False
+            raise
+
+        if market_history_collection_invalid(bars):
+            raise BtApiStoreError("SDK market history returned an invalid typed bar collection")
+        if cache.preserve_raw_bars:
+            # Typed MarketBar rows do not retain provider-specific fields.
+            raise BtApiStoreError("SDK market history does not preserve raw source fields")
+
+        return bars, True
 
     def fetch_open_orders(
         self,
@@ -3296,6 +3347,38 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             missing_dependency_error_type=BtApiMissingDependencyError,
             safe_exception_code=self._safe_exception_code,
         )
+
+    def get_futures_contracts(self, route, exchange_id, product_id, *, environment,
+                              allow_reference=False, **limits):
+        """Delegate a bounded reference lookup to the configured SDK route.
+
+        Each call refreshes; use the combined result for both ranks. The
+        Store's existing SDK is reused without creating an account connection.
+        """
+        try:
+            from bt_api_py.futures_contract_lookup import (
+                FuturesContractLookupUnavailable, lookup_futures_contracts,
+            )
+        except ImportError as exc:
+            raise BtApiMissingDependencyError(
+                "bt_api_py futures contract lookup is required"
+            ) from exc
+        if type(allow_reference) is not bool:
+            raise TypeError("allow_reference must be bool")
+        if not allow_reference:
+            raise FuturesContractLookupUnavailable("FUTURES_MARKET_FRESHNESS_UNAVAILABLE")
+        api = self._ensure_api_ready()
+        selected = self._resolve_sdk_route_name(api, route)
+        query = self.query_facade(selected)
+        self._assert_write_route_identity(require_live_route=True, expected_api=api)
+        calendar_port = api.futures_expected_calendar(selected)
+        result = lookup_futures_contracts(
+            query, calendar_port, route=selected, exchange_id=exchange_id,
+            product_id=product_id, environment=environment,
+            allow_reference=allow_reference, **limits,
+        )
+        self._assert_write_route_identity(require_live_route=True, expected_api=api)
+        return result
 
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.

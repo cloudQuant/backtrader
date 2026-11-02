@@ -7,9 +7,9 @@ from itertools import zip_longest
 
 import pytest
 
-import backtrader.feeds.futures_sessions as futures_sessions
-from backtrader.feeds.futures_main_contract import ProductKey
-from backtrader.feeds.futures_sessions import (
+import backtrader.futures.grid as futures_sessions
+from backtrader.futures import ProductKey
+from backtrader.futures import (
     ExchangeSessionCalendar,
     ProductTradingDaySessions,
     PublicSourceEvidence,

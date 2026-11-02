@@ -39,13 +39,12 @@ def test_cpython38_harness_targets_current_core_contracts_only() -> None:
     assert all("bt_api" not in target for target in command[6:])
 
 
-def test_retired_runtime_is_absent_from_active_source_but_kept_in_archive() -> None:
+def test_retired_runtime_is_absent_from_active_source() -> None:
     harness = _load_harness()
 
     assert harness._retired_runtime_paths_present() == []
     assert not (ROOT / "backtrader_runtime").exists()
     assert not (ROOT / "backtrader" / "runtime").exists()
-    assert (ROOT / "archive" / "iteration53" / "backtrader_runtime").is_dir()
 
 
 @pytest.mark.parametrize(

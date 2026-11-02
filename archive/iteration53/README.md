@@ -1,15 +1,9 @@
 # Iteration 53 archive: retired `backtrader_runtime`
 
-This directory preserves, read-only, the source that Iteration 53 removed from
-the installable Backtrader distribution and from active import paths.
+The retired `backtrader_runtime` package and compatibility facade are no longer
+in the active source tree or this archive. Historical source remains available
+in Git; commit `d35c754d4` contains the former archive snapshot. It is not an
+installable or runnable fallback.
 
-- `backtrader_runtime/package/` — the retired top-level runtime package.
-
-Nothing here is packaged, installed, imported by `backtrader`, or collected by
-the repository test run (`pytest.ini` excludes `archive`). The former CTP store
-bridge and contract are no longer present in the active Backtrader source.
-
-The remaining runtime files are a migration reference, not an importable
-fallback. The SDK's CTP credential binding still needs a direct trust source;
-these archived files do not provide a runnable verifier. Retired compatibility
-facades, tests, store, example and CI archives have been removed.
+The SDK's CTP credential binding still needs a direct trust source and a new
+scope contract. Removing the archive does not implement or validate that path.
