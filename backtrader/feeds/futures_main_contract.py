@@ -1,15 +1,13 @@
 """Point-in-time futures main-contract selection and rollover contracts.
 
-This module contains only deterministic policy and evidence types.  It does
-not query a broker, choose a data provider, or send orders.  A source adapter
-must supply a complete candidate inventory and complete, finalized rankings
-from the previous trading day for the legacy policy.  The explicit CTP query
-policy consumes current-day catalog and depth-query evidence and never labels
-that snapshot as finalized EOD.
+This module contains deterministic futures selection policies and their
+evidence projections.  The provider-neutral policy consumes the SDK's
+normalized futures catalog, per-venue session, and quote snapshot DTOs.  The
+legacy ranking input remains available for prior-day finalized OI sources.
 
 The default policy ranks actual monthly futures by prior-day open interest,
-then volume, then expiry date, then the provider's exact InstrumentID.  The
-InstrumentID is retained verbatim for routing; only exchange/product keys are
+then volume, then expiry date, then the exact instrument identifier. Instrument
+identifiers are retained verbatim for routing; only exchange/product keys are
 canonicalized for comparisons.
 """
 
@@ -21,7 +19,7 @@ import re
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Mapping, Optional, Sequence, Tuple
 
 
 _SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -30,43 +28,19 @@ _KNOWN_NON_FUTURES = frozenset(
     {
         "option",
         "options",
+        "non_future",
+        "non_futures",
         "combination",
         "spot",
-        "efp",
         "spot_option",
-        "tas",
-        "mi",
         "index",
     }
 )
-_CTP_PRODUCT_CLASS_ASSET_TYPE = {
-    "1": "future",
-    "2": "option",
-    "3": "combination",
-    "4": "spot",
-    "5": "efp",
-    "6": "spot_option",
-    "7": "tas",
-    "I": "mi",
-}
-_ASSET_TYPE_ALIASES = {"futures": "future", "options": "option"}
 LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_V1 = "legacy_previous_complete_day_eod_oi_v1"
-CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_V1 = "ctp_query_snapshot_equal_weight_v1"
 RANKING_MODE_LEGACY_PRIOR_DAY_OI = "legacy_previous_complete_day_eod_oi_v1"
-RANKING_MODE_CTP_QUERY_SNAPSHOT = "ctp_query_snapshot_equal_weight_v1"
-_QUERY_METRIC_MAX_DIGITS = 512
-_QUERY_METRIC_MAX_ABS_EXPONENT = 256
-MAX_VISIBLE_CTP_PRODUCTS = 256
-MAX_VISIBLE_FUTURE_PRODUCTS = MAX_VISIBLE_CTP_PRODUCTS
-MAX_PRODUCT_INSTRUMENT_ROWS = 20_000
-MAX_VISIBLE_DEPTH_ROWS = 20_000
-MAX_SINGLE_DEPTH_QUERY_REQUESTS = MAX_VISIBLE_FUTURE_PRODUCTS + 2
-MAX_STAGED_QUERY_REQUESTS = 2 * MAX_VISIBLE_FUTURE_PRODUCTS + 1
-QUERY_SET_LAYOUT_SINGLE_DEPTH = "single_depth"
-QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH = "per_product_depth"
-QUERY_SET_REQUEST_LAYOUTS = frozenset(
-    {QUERY_SET_LAYOUT_SINGLE_DEPTH, QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH}
-)
+RANKING_MODE_FUTURES_MARKET_SNAPSHOT = "futures_market_snapshot_equal_weight_v1"
+_RANKING_METRIC_MAX_DIGITS = 512
+_RANKING_METRIC_MAX_ABS_EXPONENT = 256
 EXCLUSION_REASON_NO_LISTED_CONTRACTS = "NO_LISTED_CONTRACTS"
 
 
@@ -140,7 +114,7 @@ def _decimal_text(value: Optional[Decimal]) -> Optional[str]:
 
 
 def _is_actual_month_contract(instrument_id: str, product_id: str) -> bool:
-    """Accept CTP-style month contracts and reject continuous/index aliases."""
+    """Accept standard year-month contracts and reject continuous aliases."""
 
     match = _MONTH_CONTRACT.fullmatch(instrument_id)
     if match is None:
@@ -149,8 +123,7 @@ def _is_actual_month_contract(instrument_id: str, product_id: str) -> bool:
     product_prefix = instrument_id[: -len(digits)]
     if product_prefix.casefold() != product_id.casefold():
         return False
-    # CTP products use a three- or four-digit year/month suffix.  Requiring a
-    # real month rejects synthetic 888/999/8888/9999 continuous aliases.
+    # A real month suffix rejects common 888/999/8888/9999 continuous aliases.
     month = int(digits[-2:])
     return 1 <= month <= 12
 
@@ -171,7 +144,7 @@ class ProductKey:
 
 @dataclass(frozen=True)
 class ExchangeTradingDay:
-    """The CTP/session TradingDay being considered for one exchange."""
+    """Provider session trading day being considered for one exchange."""
 
     exchange_id: str
     trading_day: date
@@ -425,363 +398,6 @@ class MainContractRankingSnapshot:
 
 
 @dataclass(frozen=True)
-class QuerySnapshotSourceEvidence:
-    """Public provenance for one completed CTP query-result snapshot.
-
-    ``available_at`` is deliberately represented by ``completed_at``.  It is
-    the time the complete query result became available, not a per-row market
-    receive time.  Query rows retain their native event-time fields separately
-    for audit and are never made fresh by this completion time.
-    """
-
-    source_id: Any
-    source_kind: Any
-    snapshot_id: Any
-    source_sha256: Any
-    request_id: Any
-    connection_generation: Any
-    trading_day: Any
-    started_at: Any
-    completed_at: Any
-    retrieved_at: Any
-    complete: Any
-    is_last_seen: Any
-    record_count: Any
-    request_filters: Any = None
-    record_limit: Any = None
-    record_limit_exceeded: Any = None
-
-
-@dataclass(frozen=True)
-class QuerySnapshotProductEvidence:
-    """A ProductKey bound to its exact native CTP product filters."""
-
-    product: ProductKey
-    native_exchange_id: str
-    native_product_id: str
-    product_class: str = "1"
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("product must be a ProductKey")
-        for name in ("native_exchange_id", "native_product_id", "product_class"):
-            value = getattr(self, name)
-            if type(value) is not str or not value or value != value.strip():
-                raise ValueError("{} must be non-empty trimmed text".format(name))
-        if self.product.exchange_id != self.native_exchange_id.upper():
-            raise ValueError("native exchange does not match canonical product")
-        if self.product.product_id != self.native_product_id.upper():
-            raise ValueError("native product does not match canonical product")
-        if self.product_class != "1":
-            raise ValueError("query-set products must be CTP futures")
-
-
-@dataclass(frozen=True)
-class QuerySnapshotExcludedProductEvidence:
-    """One known non-futures product from the complete visible product query."""
-
-    product: ProductKey
-    native_exchange_id: str
-    native_product_id: str
-    product_class: str
-    asset_type: str
-    exclusion_reason: str = "NON_FUTURE_CTP_PRODUCT_CLASS"
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("product must be a ProductKey")
-        for name in ("native_exchange_id", "native_product_id", "product_class", "asset_type"):
-            value = getattr(self, name)
-            if type(value) is not str or not value or value != value.strip():
-                raise ValueError("{} must be non-empty trimmed text".format(name))
-        if self.product.exchange_id != self.native_exchange_id.upper():
-            raise ValueError("native exchange does not match canonical product")
-        if self.product.product_id != self.native_product_id.upper():
-            raise ValueError("native product does not match canonical product")
-        expected_asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(self.product_class)
-        if expected_asset_type is None or self.product_class == "1":
-            raise ValueError("excluded products must have a known non-futures CTP class")
-        if self.asset_type != expected_asset_type:
-            raise ValueError("excluded product class and asset type disagree")
-        if self.exclusion_reason != "NON_FUTURE_CTP_PRODUCT_CLASS":
-            raise ValueError("excluded product reason is invalid")
-
-
-@dataclass(frozen=True)
-class QuerySnapshotSetEvidence:
-    """One typed product query, exact per-product instrument queries, and depth.
-
-    ``request_layout`` names how the depth receipts are arranged:
-
-    - ``single_depth`` (default, legacy) is one product query, N instrument
-      queries, then one all-instrument depth query.
-    - ``per_product_depth`` is one product query, N instrument queries, then N
-      product-scoped depth queries in the same product order.
-
-    The explicit marker keeps readers from inferring the layout from the
-    request count alone and leaves legacy evidence readable.
-    """
-
-    source_id: Any
-    snapshot_id: Any
-    source_sha256: Any
-    products: Tuple[QuerySnapshotProductEvidence, ...]
-    requests: Tuple[QuerySnapshotSourceEvidence, ...]
-    excluded_products: Tuple[QuerySnapshotExcludedProductEvidence, ...] = ()
-    request_layout: Any = QUERY_SET_LAYOUT_SINGLE_DEPTH
-
-    def __post_init__(self) -> None:
-        products = tuple(self.products)
-        requests = tuple(self.requests)
-        excluded_products = tuple(self.excluded_products)
-        if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
-            raise ValueError("query-set products must be non-empty and bounded")
-        if len(products) + len(excluded_products) > MAX_VISIBLE_CTP_PRODUCTS:
-            raise ValueError("query-set classified products exceed the visible product cap")
-        if any(not isinstance(item, QuerySnapshotProductEvidence) for item in products):
-            raise ValueError("query-set products must contain QuerySnapshotProductEvidence")
-        if any(
-            not isinstance(item, QuerySnapshotExcludedProductEvidence)
-            for item in excluded_products
-        ):
-            raise ValueError(
-                "query-set exclusions must contain QuerySnapshotExcludedProductEvidence"
-            )
-        if any(not isinstance(item, QuerySnapshotSourceEvidence) for item in requests):
-            raise ValueError("query-set requests must contain QuerySnapshotSourceEvidence")
-        if (
-            type(self.request_layout) is not str
-            or self.request_layout not in QUERY_SET_REQUEST_LAYOUTS
-        ):
-            raise ValueError("query-set request layout is invalid")
-        if self.request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
-            expected_requests = 2 * len(products) + 1
-            request_cap = MAX_STAGED_QUERY_REQUESTS
-        else:
-            expected_requests = len(products) + 2
-            request_cap = MAX_SINGLE_DEPTH_QUERY_REQUESTS
-        if len(requests) != expected_requests or len(requests) > request_cap:
-            raise ValueError("query-set request count does not match its products")
-        product_keys = tuple(item.product for item in products)
-        excluded_keys = tuple(item.product for item in excluded_products)
-        all_product_keys = product_keys + excluded_keys
-        if len(set(all_product_keys)) != len(all_product_keys):
-            raise ValueError("query-set products contain canonical collisions")
-        object.__setattr__(self, "products", products)
-        object.__setattr__(self, "requests", requests)
-        object.__setattr__(self, "excluded_products", excluded_products)
-
-    @property
-    def product_keys(self) -> Tuple[ProductKey, ...]:
-        return tuple(item.product for item in self.products)
-
-
-def query_snapshot_set_digest(
-    products: Sequence[QuerySnapshotProductEvidence],
-    requests: Sequence[QuerySnapshotSourceEvidence],
-    excluded_products: Sequence[QuerySnapshotExcludedProductEvidence] = (),
-    *,
-    request_layout: str = QUERY_SET_LAYOUT_SINGLE_DEPTH,
-) -> str:
-    """Digest classified product rows and request receipts without retaining raw rows.
-
-    The empty-exclusion, single-depth form retains the exact v1 encoding so
-    existing class-1 query-set evidence remains readable.  A non-empty
-    exclusion set is added to the v2 payload and is therefore bound to the
-    query-set digest.  A non-default ``request_layout`` (per-product depth)
-    is also added to the payload, so the layout is digest-bound while the
-    legacy single-depth digest bytes stay unchanged.
-    """
-
-    def time_value(value: Any) -> Optional[str]:
-        if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
-            return None
-        return value.astimezone(timezone.utc).isoformat()
-
-    def scalar(value: Any) -> Any:
-        if value is None or type(value) in (str, int, bool):
-            return value
-        if type(value) is date:
-            return value.isoformat()
-        return "<{}>".format(type(value).__name__)
-
-    def filter_values(value: Any) -> Any:
-        if type(value) is not tuple or any(
-            type(pair) is not tuple
-            or len(pair) != 2
-            or type(pair[0]) is not str
-            or type(pair[1]) is not str
-            for pair in value
-        ):
-            return "<invalid-request-filters>"
-        return [list(pair) for pair in value]
-
-    payload = {
-        "schema": (
-            "backtrader.ctp_query_snapshot_set.v2"
-            if excluded_products
-            else "backtrader.ctp_query_snapshot_set.v1"
-        ),
-        "products": [
-            {
-                "exchange_id": item.product.exchange_id,
-                "product_id": item.product.product_id,
-                "native_exchange_id": item.native_exchange_id,
-                "native_product_id": item.native_product_id,
-                "product_class": item.product_class,
-            }
-            for item in products
-        ],
-        "requests": [
-            {
-                "source_id": scalar(item.source_id),
-                "source_kind": scalar(item.source_kind),
-                "snapshot_id": scalar(item.snapshot_id),
-                "source_sha256": scalar(item.source_sha256),
-                "request_id": scalar(item.request_id),
-                "connection_generation": scalar(item.connection_generation),
-                "trading_day": scalar(item.trading_day),
-                "started_at": time_value(item.started_at),
-                "completed_at": time_value(item.completed_at),
-                "retrieved_at": time_value(item.retrieved_at),
-                "complete": scalar(item.complete),
-                "is_last_seen": scalar(item.is_last_seen),
-                "record_count": scalar(item.record_count),
-                "request_filters": filter_values(item.request_filters),
-                "record_limit": scalar(item.record_limit),
-                "record_limit_exceeded": scalar(item.record_limit_exceeded),
-            }
-            for item in requests
-        ],
-    }
-    if excluded_products:
-        payload["excluded_products"] = [
-            {
-                "exchange_id": item.product.exchange_id,
-                "product_id": item.product.product_id,
-                "native_exchange_id": item.native_exchange_id,
-                "native_product_id": item.native_product_id,
-                "product_class": item.product_class,
-                "asset_type": item.asset_type,
-                "exclusion_reason": item.exclusion_reason,
-            }
-            for item in excluded_products
-        ]
-    if request_layout != QUERY_SET_LAYOUT_SINGLE_DEPTH:
-        payload["request_layout"] = scalar(request_layout)
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-@dataclass(frozen=True)
-class FuturesContractCatalogRecord:
-    """A catalog row with exact provider InstrumentID and exclusion facts."""
-
-    product: ProductKey
-    instrument_id: str
-    asset_type: Optional[str]
-    is_trading: Optional[bool]
-    expiry_date: Optional[date]
-    product_class: Optional[str] = None
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("catalog product must be a ProductKey")
-        if type(self.instrument_id) is not str:
-            raise ValueError("catalog instrument_id must be text")
-        if self.asset_type is not None and type(self.asset_type) is not str:
-            raise ValueError("catalog asset_type must be text or None")
-        if self.is_trading is not None and type(self.is_trading) is not bool:
-            raise ValueError("catalog is_trading must be bool or None")
-        if self.expiry_date is not None and type(self.expiry_date) is not date:
-            raise ValueError("catalog expiry_date must be date or None")
-        if self.product_class is not None and type(self.product_class) is not str:
-            raise ValueError("catalog product_class must be text or None")
-
-
-@dataclass(frozen=True)
-class CurrentDayQuoteRecord:
-    """One raw row returned by the all-visible current-day depth query."""
-
-    exchange_id: str
-    instrument_id: str
-    trading_day: Any
-    open_interest: Any
-    volume: Any
-    action_day: Optional[str] = None
-    update_time: Optional[str] = None
-    update_millisec: Optional[int] = None
-
-    def __post_init__(self) -> None:
-        if type(self.exchange_id) is not str:
-            raise ValueError("quote exchange_id must be text")
-        if type(self.instrument_id) is not str:
-            raise ValueError("quote instrument_id must be text")
-        if self.trading_day is not None and type(self.trading_day) is not date:
-            raise ValueError("quote trading_day must be date or None")
-        if self.action_day is not None and type(self.action_day) is not str:
-            raise ValueError("quote action_day must be text or None")
-        if self.update_time is not None and type(self.update_time) is not str:
-            raise ValueError("quote update_time must be text or None")
-        if self.update_millisec is not None and (
-            type(self.update_millisec) is not int or self.update_millisec < 0
-        ):
-            raise ValueError("quote update_millisec must be a non-negative int or None")
-
-
-@dataclass(frozen=True)
-class MainContractQuerySnapshot:
-    """Real completed CTP query results plus the surrounding session facts.
-
-    Catalog and quote records are retained verbatim as tuples so duplicate or
-    unexpected IDs remain visible to the selector.  The adapter must not
-    deduplicate or pre-filter either collection.
-    """
-
-    catalog_source: Optional[QuerySnapshotSourceEvidence]
-    quote_source: Optional[QuerySnapshotSourceEvidence]
-    catalog_records: Tuple[FuturesContractCatalogRecord, ...]
-    quote_records: Tuple[CurrentDayQuoteRecord, ...]
-    session_trading_day_before: Any
-    session_trading_day_after: Any
-    session_generation_before: Any
-    session_generation_after: Any
-    query_set: Optional[QuerySnapshotSetEvidence] = None
-
-    def __post_init__(self) -> None:
-        catalog = tuple(self.catalog_records)
-        quotes = tuple(self.quote_records)
-        if any(not isinstance(item, FuturesContractCatalogRecord) for item in catalog):
-            raise ValueError("catalog_records must contain FuturesContractCatalogRecord records")
-        if any(not isinstance(item, CurrentDayQuoteRecord) for item in quotes):
-            raise ValueError("quote_records must contain CurrentDayQuoteRecord records")
-        if self.catalog_source is not None and not isinstance(
-            self.catalog_source, QuerySnapshotSourceEvidence
-        ):
-            raise ValueError("catalog_source must be QuerySnapshotSourceEvidence or None")
-        if self.quote_source is not None and not isinstance(
-            self.quote_source, QuerySnapshotSourceEvidence
-        ):
-            raise ValueError("quote_source must be QuerySnapshotSourceEvidence or None")
-        if self.query_set is not None and not isinstance(
-            self.query_set, QuerySnapshotSetEvidence
-        ):
-            raise ValueError("query_set must be QuerySnapshotSetEvidence or None")
-        if self.query_set is not None and (
-            self.catalog_source is not None or self.quote_source is not None
-        ):
-            raise ValueError("query-set snapshots cannot also claim legacy source pair")
-        object.__setattr__(self, "catalog_records", catalog)
-        object.__setattr__(self, "quote_records", quotes)
-
-
-@dataclass(frozen=True)
 class MainContractPolicy:
     """Frozen main-contract ranking and expiry-safety policy."""
 
@@ -800,7 +416,7 @@ class MainContractPolicy:
             raise ValueError("minimum_trading_days_to_expiry must be a non-negative int")
         if self.ranking_mode not in (
             RANKING_MODE_LEGACY_PRIOR_DAY_OI,
-            RANKING_MODE_CTP_QUERY_SNAPSHOT,
+            RANKING_MODE_FUTURES_MARKET_SNAPSHOT,
         ):
             raise ValueError("unsupported main-contract ranking_mode")
         for name in ("max_snapshot_age_seconds", "max_collection_span_seconds"):
@@ -814,9 +430,9 @@ LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_POLICY = MainContractPolicy(
     policy_id=LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_V1,
     ranking_mode=RANKING_MODE_LEGACY_PRIOR_DAY_OI,
 )
-CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY = MainContractPolicy(
-    policy_id=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_V1,
-    ranking_mode=RANKING_MODE_CTP_QUERY_SNAPSHOT,
+FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY = MainContractPolicy(
+    policy_id=RANKING_MODE_FUTURES_MARKET_SNAPSHOT,
+    ranking_mode=RANKING_MODE_FUTURES_MARKET_SNAPSHOT,
 )
 
 
@@ -859,36 +475,12 @@ class ContractAssessment:
     ranking_score: Optional[str] = None
     asset_type: Optional[str] = None
     is_trading: Optional[bool] = None
-    product_class: Optional[str] = None
     quote_trading_day: Optional[date] = None
-    action_day: Optional[str] = None
-    update_time: Optional[str] = None
-    update_millisec: Optional[int] = None
-
-
-@dataclass(frozen=True)
-class MainContractQueryCoverage:
-    """Catalog and current-query row coverage for one target product."""
-
-    product: ProductKey
-    catalog_instrument_ids: Tuple[str, ...]
-    expected_quote_instrument_ids: Tuple[str, ...]
-    observed_quote_instrument_ids: Tuple[str, ...]
-    metric_unit: str = "contracts"
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("query coverage product must be a ProductKey")
-        for name in (
-            "catalog_instrument_ids",
-            "expected_quote_instrument_ids",
-            "observed_quote_instrument_ids",
-        ):
-            values = tuple(getattr(self, name))
-            if any(type(value) is not str for value in values):
-                raise ValueError("{} must contain exact instrument ID text".format(name))
-            object.__setattr__(self, name, values)
-        _identity_text(self.metric_unit, "metric_unit")
+    contract_kind: Optional[str] = None
+    provider_event_date: Optional[date] = None
+    provider_event_time: Optional[str] = None
+    provider_event_millisecond: Optional[int] = None
+    volume_semantics: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -915,6 +507,33 @@ class ProductSelection:
 
 
 @dataclass(frozen=True)
+class MainContractMarketCoverage:
+    """Neutral catalog/quote identity coverage for one selected product."""
+
+    product: ProductKey
+    catalog_instrument_ids: Tuple[str, ...]
+    expected_quote_instrument_ids: Tuple[str, ...]
+    observed_quote_instrument_ids: Tuple[str, ...]
+    metric_unit: str = "contracts"
+    volume_semantics: str = "cumulative_trading_day"
+
+    def __post_init__(self) -> None:
+        if type(self.product) is not ProductKey:
+            raise ValueError("market coverage product must be a ProductKey")
+        for name in (
+            "catalog_instrument_ids",
+            "expected_quote_instrument_ids",
+            "observed_quote_instrument_ids",
+        ):
+            values = tuple(getattr(self, name))
+            if any(type(value) is not str for value in values):
+                raise ValueError("{} must contain neutral instrument IDs".format(name))
+            object.__setattr__(self, name, values)
+        _identity_text(self.metric_unit, "metric_unit")
+        _identity_text(self.volume_semantics, "volume_semantics")
+
+
+@dataclass(frozen=True)
 class MainContractManifest:
     """Immutable selection outcome and enough public evidence to reproduce it."""
 
@@ -938,8 +557,8 @@ class MainContractManifest:
     products: Tuple[ProductSelection, ...]
     candidates: Tuple[ContractAssessment, ...]
     blockers: Tuple[str, ...]
-    query_snapshot: Optional[MainContractQuerySnapshot] = None
-    query_coverage: Tuple[MainContractQueryCoverage, ...] = ()
+    market_coverage: Tuple[MainContractMarketCoverage, ...] = ()
+    market_snapshot_evidence_json: Optional[str] = None
 
     def __post_init__(self) -> None:
         _aware_datetime(self.decision_at, "decision_at")
@@ -951,9 +570,18 @@ class MainContractManifest:
             "products",
             "candidates",
             "blockers",
-            "query_coverage",
+            "market_coverage",
         ):
             object.__setattr__(self, name, tuple(getattr(self, name)))
+        if self.market_snapshot_evidence_json is not None:
+            if type(self.market_snapshot_evidence_json) is not str:
+                raise ValueError("market_snapshot_evidence_json must be text or None")
+            try:
+                snapshot_evidence = json.loads(self.market_snapshot_evidence_json)
+            except (TypeError, ValueError):
+                raise ValueError("market snapshot evidence must be valid JSON") from None
+            if type(snapshot_evidence) is not dict:
+                raise ValueError("market snapshot evidence must be a JSON object")
 
     def selected_mapping(self) -> Tuple[Tuple[ProductKey, str], ...]:
         """Return the executable mapping only when every target product is ready."""
@@ -987,11 +615,13 @@ class MainContractManifest:
     def to_dict(self) -> dict[str, Any]:
         """Create a fresh JSON-safe audit representation."""
 
-        query_mode = self.policy.ranking_mode == RANKING_MODE_CTP_QUERY_SNAPSHOT
+        market_snapshot_mode = (
+            self.policy.ranking_mode == RANKING_MODE_FUTURES_MARKET_SNAPSHOT
+        )
         projection = {
             "schema": (
-                "backtrader.futures_main_contract_manifest.v2"
-                if query_mode
+                "backtrader.futures_main_contract_manifest.v3"
+                if market_snapshot_mode
                 else "backtrader.futures_main_contract_manifest.v1"
             ),
             "status": self.status,
@@ -1094,7 +724,7 @@ class MainContractManifest:
                     "ranked_instrument_ids": list(item.ranked_instrument_ids),
                     "excluded_instrument_ids": list(item.excluded_instrument_ids),
                     "blockers": list(item.blockers),
-                    **({"selected_score": item.selected_score} if query_mode else {}),
+                    **({"selected_score": item.selected_score} if market_snapshot_mode else {}),
                     **(
                         {"exclusion_reason": item.exclusion_reason}
                         if item.exclusion_reason
@@ -1122,16 +752,19 @@ class MainContractManifest:
                         {
                             "ranking_score": item.ranking_score,
                             "asset_type": item.asset_type,
+                            "contract_kind": item.contract_kind,
                             "is_trading": item.is_trading,
-                            "product_class": item.product_class,
                             "quote_trading_day": item.quote_trading_day.isoformat()
                             if item.quote_trading_day is not None
                             else None,
-                            "action_day": item.action_day,
-                            "update_time": item.update_time,
-                            "update_millisec": item.update_millisec,
+                            "provider_event_date": item.provider_event_date.isoformat()
+                            if item.provider_event_date is not None
+                            else None,
+                            "provider_event_time": item.provider_event_time,
+                            "provider_event_millisecond": item.provider_event_millisecond,
+                            "volume_semantics": item.volume_semantics,
                         }
-                        if query_mode
+                        if market_snapshot_mode
                         else {}
                     ),
                 }
@@ -1139,41 +772,40 @@ class MainContractManifest:
             ],
             "blockers": list(self.blockers),
         }
-        if query_mode:
+        if market_snapshot_mode:
             projection["policy"].update(
                 {
                     "ranking_mode": self.policy.ranking_mode,
                     "score_formula": "0.5 * open_interest + 0.5 * volume",
                     "weights": {"open_interest": "0.5", "volume": "0.5"},
                     "metric_unit": "contracts",
+                    "volume_semantics": "cumulative_trading_day",
                     "ranking": [
                         "equal_weight_score_desc",
                         "open_interest_desc",
                         "volume_desc",
                         "expiry_date_asc",
-                        "exact_instrument_id_asc",
-                    ],
-                    "tie_break_order": [
-                        "score_desc",
-                        "open_interest_desc",
-                        "volume_desc",
-                        "expiry_date_asc",
-                        "exact_instrument_id_asc",
+                        "instrument_id_asc",
                     ],
                     "max_snapshot_age_seconds": self.policy.max_snapshot_age_seconds,
                     "max_collection_span_seconds": self.policy.max_collection_span_seconds,
                 }
             )
-            projection["query_snapshot"] = _query_snapshot_dict(self.query_snapshot)
-            projection["query_coverage"] = [
+            projection["market_snapshot"] = (
+                json.loads(self.market_snapshot_evidence_json)
+                if self.market_snapshot_evidence_json is not None
+                else None
+            )
+            projection["market_coverage"] = [
                 {
                     "product": _product_dict(item.product),
                     "catalog_instrument_ids": list(item.catalog_instrument_ids),
                     "expected_quote_instrument_ids": list(item.expected_quote_instrument_ids),
                     "observed_quote_instrument_ids": list(item.observed_quote_instrument_ids),
                     "metric_unit": item.metric_unit,
+                    "volume_semantics": item.volume_semantics,
                 }
-                for item in self.query_coverage
+                for item in self.market_coverage
             ]
         return projection
 
@@ -1340,7 +972,7 @@ def _source_timestamp(value: Any) -> Optional[datetime]:
 def _exact_equal_weight_score(open_interest: Decimal, volume: Decimal) -> Optional[Decimal]:
     """Return the exact Decimal mean without using the active Decimal context.
 
-    Query metrics are normally small CTP integer counts.  A finite bound keeps
+    Ranking metrics are normally bounded count values. A finite bound keeps
     hostile or malformed exponents from allocating enormous powers of ten;
     values outside that bound fail closed rather than silently rounding.
     """
@@ -1352,11 +984,14 @@ def _exact_equal_weight_score(open_interest: Decimal, volume: Decimal) -> Option
     if (
         not isinstance(left_exponent, int)
         or not isinstance(right_exponent, int)
-        or abs(left_exponent) > _QUERY_METRIC_MAX_ABS_EXPONENT
-        or abs(right_exponent) > _QUERY_METRIC_MAX_ABS_EXPONENT
+        or abs(left_exponent) > _RANKING_METRIC_MAX_ABS_EXPONENT
+        or abs(right_exponent) > _RANKING_METRIC_MAX_ABS_EXPONENT
     ):
         return None
-    if len(left.digits) > _QUERY_METRIC_MAX_DIGITS or len(right.digits) > _QUERY_METRIC_MAX_DIGITS:
+    if (
+        len(left.digits) > _RANKING_METRIC_MAX_DIGITS
+        or len(right.digits) > _RANKING_METRIC_MAX_DIGITS
+    ):
         return None
     left_digits = "".join(str(digit) for digit in left.digits) or "0"
     right_digits = "".join(str(digit) for digit in right.digits) or "0"
@@ -1364,9 +999,9 @@ def _exact_equal_weight_score(open_interest: Decimal, volume: Decimal) -> Option
     left_shift = left_exponent - common_exponent
     right_shift = right_exponent - common_exponent
     if (
-        len(left_digits) + left_shift > _QUERY_METRIC_MAX_DIGITS
-        or len(right_digits) + right_shift > _QUERY_METRIC_MAX_DIGITS
-        or abs(common_exponent - 1) > _QUERY_METRIC_MAX_ABS_EXPONENT + 1
+        len(left_digits) + left_shift > _RANKING_METRIC_MAX_DIGITS
+        or len(right_digits) + right_shift > _RANKING_METRIC_MAX_DIGITS
+        or abs(common_exponent - 1) > _RANKING_METRIC_MAX_ABS_EXPONENT + 1
     ):
         return None
     left_coefficient = int(left_digits) * (10**left_shift)
@@ -1378,727 +1013,6 @@ def _exact_equal_weight_score(open_interest: Decimal, volume: Decimal) -> Option
     score_coefficient = (left_coefficient + right_coefficient) * 5
     digits = tuple(int(char) for char in str(abs(score_coefficient)))
     return Decimal((1 if score_coefficient < 0 else 0, digits, common_exponent - 1))
-
-
-def _query_generation_valid(value: Any) -> bool:
-    if type(value) is int:
-        return value >= 0
-    return type(value) is str and bool(value) and value == value.strip()
-
-
-def _query_request_id_valid(value: Any) -> bool:
-    if type(value) is int:
-        return value >= 0
-    return type(value) is str and bool(value) and value == value.strip()
-
-
-def _query_source_blockers(
-    snapshot: Optional[MainContractQuerySnapshot],
-    *,
-    decision_at: datetime,
-    policy: MainContractPolicy,
-    target_products: Sequence[ProductKey],
-    current_days: Mapping[str, date],
-) -> Tuple[str, ...]:
-    if snapshot is None:
-        return ("QUERY_SNAPSHOT_UNAVAILABLE",)
-    if snapshot.query_set is not None:
-        return _query_set_source_blockers(
-            snapshot,
-            decision_at=decision_at,
-            policy=policy,
-            target_products=target_products,
-            current_days=current_days,
-        )
-    blockers = []
-    catalog = snapshot.catalog_source
-    quote = snapshot.quote_source
-    if catalog is None:
-        blockers.append("CATALOG_QUERY_UNAVAILABLE")
-    if quote is None:
-        blockers.append("QUOTE_QUERY_UNAVAILABLE")
-    sources = (("CATALOG_QUERY", catalog), ("QUOTE_QUERY", quote))
-    for name, source in sources:
-        if source is None:
-            continue
-        blockers.extend(
-            _named_source_blockers(
-                name,
-                source_id=source.source_id,
-                snapshot_id=source.snapshot_id,
-                source_sha256=source.source_sha256,
-                available_at=source.completed_at,
-                retrieved_at=source.retrieved_at,
-                decision_at=decision_at,
-            )
-        )
-        if type(source.source_kind) is not str or not source.source_kind.strip():
-            blockers.append("{}_SOURCE_KIND_UNAVAILABLE".format(name))
-        elif name == "CATALOG_QUERY" and source.source_kind != "instruments":
-            blockers.append("CATALOG_QUERY_SOURCE_KIND_MISMATCH")
-        elif name == "QUOTE_QUERY" and source.source_kind != "depth_market_data":
-            blockers.append("QUOTE_QUERY_SOURCE_KIND_MISMATCH")
-        if not _query_request_id_valid(source.request_id):
-            blockers.append("{}_REQUEST_ID_UNAVAILABLE".format(name))
-        if not _query_generation_valid(source.connection_generation):
-            blockers.append("{}_CONNECTION_GENERATION_UNAVAILABLE".format(name))
-        if type(source.trading_day) is not date:
-            blockers.append("{}_TRADING_DAY_UNAVAILABLE".format(name))
-        for field_name, value in (
-            ("started_at", source.started_at),
-            ("completed_at", source.completed_at),
-            ("retrieved_at", source.retrieved_at),
-        ):
-            if _source_timestamp(value) is None:
-                blockers.append("{}_{}_INVALID".format(name, field_name.upper()))
-        started = _source_timestamp(source.started_at)
-        completed = _source_timestamp(source.completed_at)
-        retrieved = _source_timestamp(source.retrieved_at)
-        if started is not None and completed is not None:
-            started_utc = started.astimezone(timezone.utc)
-            completed_utc = completed.astimezone(timezone.utc)
-            if started_utc > completed_utc:
-                blockers.append("{}_START_AFTER_COMPLETION".format(name))
-            if (decision_at.astimezone(timezone.utc) - completed_utc).total_seconds() > (
-                policy.max_snapshot_age_seconds
-            ):
-                blockers.append("{}_SNAPSHOT_STALE".format(name))
-        if completed is not None and retrieved is not None:
-            if retrieved.astimezone(timezone.utc) < completed.astimezone(timezone.utc):
-                blockers.append("{}_RETRIEVED_BEFORE_COMPLETION".format(name))
-        if source.complete is not True:
-            blockers.append("{}_QUERY_INCOMPLETE".format(name))
-        if source.is_last_seen is not True:
-            blockers.append("{}_QUERY_TERMINAL_NOT_SEEN".format(name))
-        if type(source.record_count) is not int or source.record_count < 0:
-            blockers.append("{}_RECORD_COUNT_UNAVAILABLE".format(name))
-        elif snapshot is not None:
-            actual_count = (
-                len(snapshot.catalog_records)
-                if name == "CATALOG_QUERY"
-                else len(snapshot.quote_records)
-            )
-            if source.record_count != actual_count:
-                blockers.append("{}_RECORD_COUNT_MISMATCH".format(name))
-
-    if catalog is not None and quote is not None:
-        if (
-            _query_generation_valid(catalog.connection_generation)
-            and _query_generation_valid(quote.connection_generation)
-            and catalog.connection_generation != quote.connection_generation
-        ):
-            blockers.append("CATALOG_QUOTE_GENERATION_MISMATCH")
-        if type(catalog.trading_day) is date and type(quote.trading_day) is date:
-            if catalog.trading_day != quote.trading_day:
-                blockers.append("CATALOG_QUOTE_TRADING_DAY_MISMATCH")
-        timestamps = tuple(
-            _source_timestamp(value)
-            for value in (
-                catalog.started_at,
-                catalog.completed_at,
-                quote.started_at,
-                quote.completed_at,
-            )
-        )
-        if all(value is not None for value in timestamps):
-            utc_timestamps = tuple(value.astimezone(timezone.utc) for value in timestamps)
-            span = (max(utc_timestamps) - min(utc_timestamps)).total_seconds()
-            if span < 0 or span > policy.max_collection_span_seconds:
-                blockers.append("QUERY_COLLECTION_SPAN_EXCEEDED")
-
-    generations = (snapshot.session_generation_before, snapshot.session_generation_after)
-    if any(not _query_generation_valid(value) for value in generations):
-        blockers.append("SESSION_GENERATION_UNAVAILABLE")
-    elif generations[0] != generations[1]:
-        blockers.append("QUERY_SESSION_CHANGED_DURING_COLLECTION")
-    for source in (catalog, quote):
-        if source is not None and _query_generation_valid(source.connection_generation):
-            if any(generation != source.connection_generation for generation in generations):
-                blockers.append("QUERY_SESSION_GENERATION_MISMATCH")
-
-    session_days = (snapshot.session_trading_day_before, snapshot.session_trading_day_after)
-    if any(type(value) is not date for value in session_days):
-        blockers.append("SESSION_TRADING_DAY_UNAVAILABLE")
-    elif session_days[0] != session_days[1]:
-        blockers.append("QUERY_SESSION_TRADING_DAY_CHANGED_DURING_COLLECTION")
-    elif catalog is not None and type(catalog.trading_day) is date:
-        if session_days[0] != catalog.trading_day:
-            blockers.append("QUERY_SESSION_TRADING_DAY_MISMATCH")
-    for product in target_products:
-        expected_day = current_days.get(product.exchange_id)
-        if expected_day is None:
-            blockers.append("CURRENT_TRADING_DAY_UNAVAILABLE")
-            continue
-        if type(snapshot.session_trading_day_before) is date:
-            if expected_day != snapshot.session_trading_day_before:
-                blockers.append("CURRENT_TRADING_DAY_MISMATCH")
-    return tuple(dict.fromkeys(blockers))
-
-
-def _query_set_source_blockers(
-    snapshot: MainContractQuerySnapshot,
-    *,
-    decision_at: datetime,
-    policy: MainContractPolicy,
-    target_products: Sequence[ProductKey],
-    current_days: Mapping[str, date],
-) -> Tuple[str, ...]:
-    query_set = snapshot.query_set
-    if query_set is None:
-        return ("QUERY_SET_UNAVAILABLE",)
-    blockers = []
-    products = query_set.products
-    excluded_products = query_set.excluded_products
-    requests = query_set.requests
-    if snapshot.catalog_source is not None or snapshot.quote_source is not None:
-        blockers.append("QUERY_SET_LEGACY_SOURCE_PAIR_MIXED")
-    if not products or len(products) > MAX_VISIBLE_FUTURE_PRODUCTS:
-        blockers.append("QUERY_SET_PRODUCT_COUNT_INVALID")
-    product_keys = tuple(item.product for item in products)
-    excluded_keys = tuple(item.product for item in excluded_products)
-    all_product_keys = product_keys + excluded_keys
-    if len(products) + len(excluded_products) > MAX_VISIBLE_CTP_PRODUCTS:
-        blockers.append("QUERY_SET_VISIBLE_PRODUCT_COUNT_INVALID")
-    if len(set(all_product_keys)) != len(all_product_keys):
-        blockers.append("QUERY_SET_PRODUCT_CANONICAL_COLLISION")
-    if tuple(sorted(product_keys, key=_key_order)) != product_keys:
-        blockers.append("QUERY_SET_PRODUCT_ORDER_INVALID")
-    if tuple(sorted(excluded_keys, key=_key_order)) != excluded_keys:
-        blockers.append("QUERY_SET_EXCLUDED_PRODUCT_ORDER_INVALID")
-    if any(item.product_class != "1" for item in products):
-        blockers.append("QUERY_SET_FUTURE_PRODUCT_CLASS_INVALID")
-    for item in excluded_products:
-        expected_asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(item.product_class)
-        if (
-            expected_asset_type is None
-            or item.product_class == "1"
-            or item.asset_type != expected_asset_type
-            or item.exclusion_reason != "NON_FUTURE_CTP_PRODUCT_CLASS"
-        ):
-            blockers.append("QUERY_SET_EXCLUDED_PRODUCT_CLASS_INVALID")
-    expected_keys = tuple(sorted(target_products, key=_key_order))
-    if product_keys != expected_keys:
-        blockers.append("QUERY_SET_PRODUCT_POOL_MISMATCH")
-    request_layout = getattr(query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH)
-    if type(request_layout) is not str or request_layout not in QUERY_SET_REQUEST_LAYOUTS:
-        blockers.append("QUERY_SET_REQUEST_LAYOUT_INVALID")
-        return tuple(dict.fromkeys(blockers))
-    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
-        expected_query_count = 2 * len(products) + 1
-        query_count_cap = MAX_STAGED_QUERY_REQUESTS
-    else:
-        expected_query_count = len(products) + 2
-        query_count_cap = MAX_SINGLE_DEPTH_QUERY_REQUESTS
-    if len(requests) != expected_query_count or len(requests) > query_count_cap:
-        blockers.append("QUERY_SET_REQUEST_COUNT_INVALID")
-        return tuple(dict.fromkeys(blockers))
-
-    # Cross-bind the retained catalog projection to the exact futures products
-    # and their per-product instrument-query receipts. The request digests are
-    # opaque summaries here; this check does not independently prove each raw
-    # callback row. It relies on the trusted collector to faithfully project
-    # those rows into catalog_records.
-    product_by_key = {item.product: item for item in products}
-    catalog_counts = {}
-    catalog_product_by_instrument = {}
-    for record in snapshot.catalog_records:
-        expected_product = product_by_key.get(record.product)
-        if expected_product is None:
-            blockers.append("QUERY_SET_CATALOG_PRODUCT_OUT_OF_SCOPE")
-        elif (
-            record.product_class != expected_product.product_class
-            or record.product_class != "1"
-        ):
-            blockers.append("QUERY_SET_CATALOG_PRODUCT_CLASS_MISMATCH")
-        catalog_counts[record.product] = catalog_counts.get(record.product, 0) + 1
-        catalog_product_by_instrument[
-            (record.product.exchange_id, record.instrument_id)
-        ] = record.product
-    for product, source in zip(products, requests[1:-1]):
-        if (
-            type(source.record_count) is int
-            and source.record_count >= 0
-            and catalog_counts.get(product.product, 0) != source.record_count
-        ):
-            blockers.append("QUERY_SET_PRODUCT_INSTRUMENT_RECORD_COUNT_MISMATCH")
-
-    if type(query_set.source_id) is not str or not query_set.source_id.strip():
-        blockers.append("QUERY_SET_SOURCE_ID_MISSING")
-    if type(query_set.snapshot_id) is not str or not query_set.snapshot_id.strip():
-        blockers.append("QUERY_SET_SNAPSHOT_ID_MISSING")
-    if type(query_set.source_sha256) is not str or not _SOURCE_SHA256.fullmatch(
-        query_set.source_sha256
-    ):
-        blockers.append("QUERY_SET_SOURCE_DIGEST_INVALID")
-    elif (
-        query_snapshot_set_digest(
-            products,
-            requests,
-            excluded_products,
-            request_layout=request_layout,
-        )
-        != query_set.source_sha256
-    ):
-        blockers.append("QUERY_SET_SOURCE_DIGEST_MISMATCH")
-
-    product_source_suffix = ".query_products_result"
-    first_source_id = requests[0].source_id
-    source_prefix = None
-    if type(first_source_id) is str and first_source_id.endswith(product_source_suffix):
-        source_prefix = first_source_id[: -len(product_source_suffix)]
-        if not source_prefix or source_prefix != source_prefix.strip():
-            source_prefix = None
-            blockers.append("QUERY_SET_PRODUCT_SOURCE_ID_MISMATCH")
-    else:
-        blockers.append("QUERY_SET_PRODUCT_SOURCE_ID_MISMATCH")
-    if source_prefix is not None:
-        expected_query_set_source_id = "{}.staged_futures_query_set".format(source_prefix)
-        if query_set.source_id != expected_query_set_source_id:
-            blockers.append("QUERY_SET_SOURCE_ID_MISMATCH")
-        if (
-            type(query_set.source_sha256) is str
-            and _SOURCE_SHA256.fullmatch(query_set.source_sha256)
-            and type(snapshot.session_generation_before) is int
-            and snapshot.session_generation_before > 0
-            and type(snapshot.session_trading_day_before) is date
-        ):
-            expected_query_set_snapshot_id = "ctp-visible-futures-set:{}:{}:{}".format(
-                snapshot.session_generation_before,
-                snapshot.session_trading_day_before.strftime("%Y%m%d"),
-                query_set.source_sha256[:16],
-            )
-            if query_set.snapshot_id != expected_query_set_snapshot_id:
-                blockers.append("QUERY_SET_SNAPSHOT_ID_MISMATCH")
-
-    product_request_class = None
-    if requests:
-        request_filters = requests[0].request_filters
-        if type(request_filters) is tuple and all(
-            type(pair) is tuple
-            and len(pair) == 2
-            and type(pair[0]) is str
-            and type(pair[1]) is str
-            for pair in request_filters
-        ):
-            product_class_filters = tuple(
-                value
-                for name, value in request_filters
-                if name == "ProductClass"
-            )
-            if len(product_class_filters) == 1:
-                product_request_class = product_class_filters[0]
-    if product_request_class == "":
-        product_query_record_count = len(products) + len(excluded_products)
-    elif product_request_class == "1" and not excluded_products:
-        # v1 evidence queried futures only and used that row count directly.
-        product_query_record_count = len(products)
-    else:
-        product_query_record_count = None
-        blockers.append("QUERY_SET_PRODUCT_FILTER_MODE_INVALID")
-
-    product_filters = (
-        ("ExchangeID", ""),
-        ("ProductClass", product_request_class if product_request_class is not None else ""),
-        ("ProductID", ""),
-    )
-    instrument_filters = tuple(
-        (
-            ("ExchangeID", item.native_exchange_id),
-            ("InstrumentID", ""),
-            ("ProductID", item.native_product_id),
-        )
-        for item in products
-    )
-    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
-        depth_filters = tuple(
-            (
-                ("ExchangeID", item.native_exchange_id),
-                ("InstrumentID", item.native_product_id),
-                ("ProductClass", "1"),
-            )
-            for item in products
-        )
-        expected_kinds = (
-            ("products",)
-            + ("instruments",) * len(products)
-            + ("depth_market_data",) * len(products)
-        )
-        expected_methods = (
-            ("query_products_result",)
-            + ("query_instruments_result",) * len(products)
-            + ("query_depth_market_data_result",) * len(products)
-        )
-        expected_filters = (product_filters,) + instrument_filters + depth_filters
-    else:
-        depth_filters = (
-            ("ExchangeID", ""),
-            ("InstrumentID", ""),
-            ("ProductClass", "1"),
-        )
-        expected_kinds = ("products",) + ("instruments",) * len(products) + (
-            "depth_market_data",
-        )
-        expected_methods = ("query_products_result",) + (
-            "query_instruments_result",
-        ) * len(products) + ("query_depth_market_data_result",)
-        expected_filters = (product_filters,) + instrument_filters + (depth_filters,)
-    quote_counts_by_product = {}
-    for quote in snapshot.quote_records:
-        quote_product = catalog_product_by_instrument.get(
-            (quote.exchange_id.upper(), quote.instrument_id)
-        )
-        if quote_product is not None:
-            quote_counts_by_product[quote_product] = (
-                quote_counts_by_product.get(quote_product, 0) + 1
-            )
-    request_ids = []
-    span_timestamps = []
-    instrument_count = 0
-    depth_count = 0
-    for index, (source, expected_kind, expected_method, filters) in enumerate(
-        zip(requests, expected_kinds, expected_methods, expected_filters)
-    ):
-        name = "QUERY_SET_REQUEST_{}".format(index + 1)
-        blockers.extend(
-            _named_source_blockers(
-                name,
-                source_id=source.source_id,
-                snapshot_id=source.snapshot_id,
-                source_sha256=source.source_sha256,
-                available_at=source.completed_at,
-                retrieved_at=source.retrieved_at,
-                decision_at=decision_at,
-            )
-        )
-        if source.source_kind != expected_kind:
-            blockers.append("{}_SOURCE_KIND_MISMATCH".format(name))
-        if source_prefix is not None and source.source_id != "{}.{}".format(
-            source_prefix, expected_method
-        ):
-            blockers.append("{}_SOURCE_ID_MISMATCH".format(name))
-        if source.request_filters != filters:
-            blockers.append("{}_FILTERS_MISMATCH".format(name))
-        if type(source.request_id) is not int or source.request_id <= 0:
-            blockers.append("{}_REQUEST_ID_UNAVAILABLE".format(name))
-        else:
-            request_ids.append(source.request_id)
-        if type(source.connection_generation) is not int or source.connection_generation <= 0:
-            blockers.append("{}_CONNECTION_GENERATION_UNAVAILABLE".format(name))
-        if type(source.trading_day) is not date:
-            blockers.append("{}_TRADING_DAY_UNAVAILABLE".format(name))
-        if (
-            type(source.connection_generation) is int
-            and source.connection_generation > 0
-            and type(source.trading_day) is date
-            and type(source.request_id) is int
-            and source.request_id > 0
-            and type(source.source_sha256) is str
-            and _SOURCE_SHA256.fullmatch(source.source_sha256)
-        ):
-            expected_request_snapshot_id = "ctp-visible-{}:{}:{}:{}:{}".format(
-                expected_kind,
-                source.connection_generation,
-                source.trading_day.strftime("%Y%m%d"),
-                source.request_id,
-                source.source_sha256[:16],
-            )
-            if source.snapshot_id != expected_request_snapshot_id:
-                blockers.append("{}_SNAPSHOT_ID_MISMATCH".format(name))
-        for field_name, value in (
-            ("started_at", source.started_at),
-            ("completed_at", source.completed_at),
-            ("retrieved_at", source.retrieved_at),
-        ):
-            normalized = _source_timestamp(value)
-            if normalized is None:
-                blockers.append("{}_{}_INVALID".format(name, field_name.upper()))
-            elif field_name != "retrieved_at":
-                span_timestamps.append(normalized.astimezone(timezone.utc))
-        started = _source_timestamp(source.started_at)
-        completed = _source_timestamp(source.completed_at)
-        retrieved = _source_timestamp(source.retrieved_at)
-        if started is not None and completed is not None:
-            if started.astimezone(timezone.utc) > completed.astimezone(timezone.utc):
-                blockers.append("{}_START_AFTER_COMPLETION".format(name))
-            age_seconds = (
-                decision_at.astimezone(timezone.utc)
-                - completed.astimezone(timezone.utc)
-            ).total_seconds()
-            if age_seconds > policy.max_snapshot_age_seconds:
-                blockers.append("{}_SNAPSHOT_STALE".format(name))
-        if completed is not None and retrieved is not None:
-            if retrieved.astimezone(timezone.utc) < completed.astimezone(timezone.utc):
-                blockers.append("{}_RETRIEVED_BEFORE_COMPLETION".format(name))
-        if source.complete is not True:
-            blockers.append("{}_QUERY_INCOMPLETE".format(name))
-        if source.is_last_seen is not True:
-            blockers.append("{}_QUERY_TERMINAL_NOT_SEEN".format(name))
-        if type(source.record_count) is not int or source.record_count < 0:
-            blockers.append("{}_RECORD_COUNT_UNAVAILABLE".format(name))
-        if index == 0:
-            expected_record_limit = MAX_VISIBLE_CTP_PRODUCTS
-        elif expected_kind == "instruments":
-            expected_record_limit = MAX_PRODUCT_INSTRUMENT_ROWS - instrument_count
-        else:
-            expected_record_limit = MAX_VISIBLE_DEPTH_ROWS - depth_count
-        if type(source.record_limit) is not int or source.record_limit != expected_record_limit:
-            blockers.append("{}_RECORD_LIMIT_MISMATCH".format(name))
-        if source.record_limit_exceeded is not False:
-            blockers.append("{}_RECORD_LIMIT_EXCEEDED".format(name))
-        if (
-            type(source.record_count) is int
-            and type(source.record_limit) is int
-            and source.record_count > source.record_limit
-        ):
-            blockers.append("{}_RECORD_LIMIT_EXCEEDED".format(name))
-        if index == 0 and (
-            product_query_record_count is None
-            or source.record_count != product_query_record_count
-        ):
-            blockers.append("QUERY_SET_PRODUCT_RECORD_COUNT_MISMATCH")
-        elif expected_kind == "instruments":
-            if type(source.record_count) is int and source.record_count >= 0:
-                instrument_count += source.record_count
-        elif expected_kind == "depth_market_data":
-            if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
-                depth_index = index - 1 - len(products)
-                depth_product = products[depth_index].product
-                if source.record_count != quote_counts_by_product.get(depth_product, 0):
-                    blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
-                if type(source.record_count) is int and source.record_count >= 0:
-                    depth_count += source.record_count
-            elif source.record_count != len(snapshot.quote_records):
-                blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
-
-    if len(request_ids) != len(set(request_ids)):
-        blockers.append("QUERY_SET_REQUEST_ID_COLLISION")
-    if instrument_count > MAX_PRODUCT_INSTRUMENT_ROWS:
-        blockers.append("QUERY_SET_INSTRUMENT_RECORD_CAP_EXCEEDED")
-    if instrument_count != len(snapshot.catalog_records):
-        blockers.append("QUERY_SET_INSTRUMENT_RECORD_COUNT_MISMATCH")
-    if request_layout == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH:
-        if depth_count > MAX_VISIBLE_DEPTH_ROWS:
-            blockers.append("QUERY_SET_DEPTH_RECORD_CAP_EXCEEDED")
-        if depth_count != len(snapshot.quote_records):
-            blockers.append("QUERY_SET_DEPTH_RECORD_COUNT_MISMATCH")
-    if span_timestamps:
-        span = (max(span_timestamps) - min(span_timestamps)).total_seconds()
-        if span < 0 or span > policy.max_collection_span_seconds:
-            blockers.append("QUERY_COLLECTION_SPAN_EXCEEDED")
-
-    generations = (snapshot.session_generation_before, snapshot.session_generation_after)
-    if any(not _query_generation_valid(value) for value in generations):
-        blockers.append("SESSION_GENERATION_UNAVAILABLE")
-    elif generations[0] != generations[1]:
-        blockers.append("QUERY_SESSION_CHANGED_DURING_COLLECTION")
-    session_days = (snapshot.session_trading_day_before, snapshot.session_trading_day_after)
-    if any(type(value) is not date for value in session_days):
-        blockers.append("SESSION_TRADING_DAY_UNAVAILABLE")
-    elif session_days[0] != session_days[1]:
-        blockers.append("QUERY_SESSION_TRADING_DAY_CHANGED_DURING_COLLECTION")
-
-    for source in requests:
-        if _query_generation_valid(source.connection_generation) and all(
-            _query_generation_valid(generation) for generation in generations
-        ):
-            if any(generation != source.connection_generation for generation in generations):
-                blockers.append("QUERY_SESSION_GENERATION_MISMATCH")
-        if type(source.trading_day) is date and all(
-            type(day) is date for day in session_days
-        ):
-            if any(day != source.trading_day for day in session_days):
-                blockers.append("QUERY_SESSION_TRADING_DAY_MISMATCH")
-        if type(source.trading_day) is date:
-            for product in product_keys:
-                expected_day = current_days.get(product.exchange_id)
-                if expected_day is None:
-                    blockers.append("CURRENT_TRADING_DAY_UNAVAILABLE")
-                elif expected_day != source.trading_day:
-                    blockers.append("CURRENT_TRADING_DAY_MISMATCH")
-
-    return tuple(dict.fromkeys(blockers))
-
-
-def _safe_query_value(value: Any) -> dict[str, Any]:
-    number = _number_as_decimal(value)
-    if number is not None:
-        parts = number.as_tuple()
-        if (
-            isinstance(parts.exponent, int)
-            and abs(parts.exponent) <= _QUERY_METRIC_MAX_ABS_EXPONENT
-            and len(parts.digits) <= _QUERY_METRIC_MAX_DIGITS
-        ):
-            return {"value": _decimal_text(number), "valid_nonnegative_finite": True}
-        return {"value": "<decimal-out-of-supported-range>", "valid_nonnegative_finite": False}
-    if isinstance(value, Decimal):
-        parts = value.as_tuple()
-        if value.is_finite() and len(parts.digits) > 128:
-            raw = "<decimal-out-of-supported-range>"
-        else:
-            raw = str(value)
-    elif type(value) is float and not Decimal(str(value)).is_finite():
-        raw = repr(value)
-    elif type(value) is int and value.bit_length() > _QUERY_METRIC_MAX_DIGITS * 4:
-        raw = "<integer-out-of-supported-range>"
-    elif value is None or type(value) in (bool, int, float, str):
-        raw = value
-    else:
-        raw = "<{}>".format(type(value).__name__)
-    if isinstance(raw, str) and len(raw) > 128:
-        raw = raw[:128]
-    return {"value": raw, "valid_nonnegative_finite": False}
-
-
-def _query_source_dict(source: Optional[QuerySnapshotSourceEvidence]) -> Optional[dict[str, Any]]:
-    if source is None:
-        return None
-
-    def time_text(value: Any) -> Optional[str]:
-        normalized = _source_timestamp(value)
-        return _utc_text(normalized) if normalized is not None else None
-
-    def scalar(value: Any) -> Any:
-        if value is None or type(value) in (str, int, bool):
-            return value
-        return "<{}>".format(type(value).__name__)
-
-    filters = None
-    if type(source.request_filters) is tuple and all(
-        type(pair) is tuple
-        and len(pair) == 2
-        and type(pair[0]) is str
-        and type(pair[1]) is str
-        for pair in source.request_filters
-    ):
-        filters = [[name, value] for name, value in source.request_filters]
-
-    projection = {
-        "source_id": _source_text(source.source_id),
-        "source_kind": _source_text(source.source_kind),
-        "snapshot_id": _source_text(source.snapshot_id),
-        "sha256": _source_digest(source.source_sha256),
-        "request_id": scalar(source.request_id),
-        "connection_generation": scalar(source.connection_generation),
-        "trading_day": source.trading_day.isoformat() if type(source.trading_day) is date else None,
-        "started_at": time_text(source.started_at),
-        "completed_at": time_text(source.completed_at),
-        "available_at": time_text(source.completed_at),
-        "retrieved_at": time_text(source.retrieved_at),
-        "complete": source.complete if type(source.complete) is bool else None,
-        "is_last_seen": source.is_last_seen if type(source.is_last_seen) is bool else None,
-        "record_count": source.record_count
-        if type(source.record_count) is int and source.record_count >= 0
-        else None,
-    }
-    if source.request_filters is not None or source.record_limit is not None or (
-        source.record_limit_exceeded is not None
-    ):
-        projection.update(
-            {
-                "request_filters": filters,
-                "record_limit": source.record_limit
-                if type(source.record_limit) is int and source.record_limit > 0
-                else None,
-                "record_limit_exceeded": source.record_limit_exceeded
-                if type(source.record_limit_exceeded) is bool
-                else None,
-            }
-        )
-    return projection
-
-
-def _query_snapshot_dict(
-    snapshot: Optional[MainContractQuerySnapshot],
-) -> Optional[dict[str, Any]]:
-    if snapshot is None:
-        return None
-    catalog = [
-        {
-            "product": _product_dict(row.product),
-            "instrument_id": row.instrument_id,
-            "asset_type": row.asset_type,
-            "is_trading": row.is_trading,
-            "expiry_date": row.expiry_date.isoformat() if row.expiry_date is not None else None,
-            "product_class": row.product_class,
-        }
-        for row in snapshot.catalog_records
-    ]
-    quotes = [
-        {
-            "exchange_id": row.exchange_id,
-            "instrument_id": row.instrument_id,
-            "trading_day": row.trading_day.isoformat() if type(row.trading_day) is date else None,
-            "open_interest": _safe_query_value(row.open_interest),
-            "volume": _safe_query_value(row.volume),
-            "action_day": row.action_day,
-            "update_time": row.update_time,
-            "update_millisec": row.update_millisec,
-        }
-        for row in snapshot.quote_records
-    ]
-
-    query_set = None
-    if snapshot.query_set is not None:
-        query_set = {
-            "source_id": _source_text(snapshot.query_set.source_id),
-            "snapshot_id": _source_text(snapshot.query_set.snapshot_id),
-            "sha256": _source_digest(snapshot.query_set.source_sha256),
-            "digest_schema": "v2" if snapshot.query_set.excluded_products else "v1",
-            "request_layout": (
-                snapshot.query_set.request_layout
-                if type(snapshot.query_set.request_layout) is str
-                else "<invalid>"
-            ),
-            "products": [
-                {
-                    "product": _product_dict(item.product),
-                    "native_exchange_id": item.native_exchange_id,
-                    "native_product_id": item.native_product_id,
-                    "product_class": item.product_class,
-                }
-                for item in snapshot.query_set.products
-            ],
-            "excluded_products": [
-                {
-                    "product": _product_dict(item.product),
-                    "native_exchange_id": item.native_exchange_id,
-                    "native_product_id": item.native_product_id,
-                    "product_class": item.product_class,
-                    "asset_type": item.asset_type,
-                    "exclusion_reason": item.exclusion_reason,
-                }
-                for item in snapshot.query_set.excluded_products
-            ],
-            "requests": [
-                _query_source_dict(source) for source in snapshot.query_set.requests
-            ],
-        }
-
-    def scalar(value: Any) -> Any:
-        if value is None or type(value) in (str, int, bool):
-            return value
-        return "<{}>".format(type(value).__name__)
-
-    projection = {
-        "kind": "CTP_CURRENT_DAY_QUERY_SNAPSHOT_NOT_FINALIZED_EOD",
-        "catalog_source": _query_source_dict(snapshot.catalog_source),
-        "quote_source": _query_source_dict(snapshot.quote_source),
-        "session": {
-            "trading_day_before": snapshot.session_trading_day_before.isoformat()
-            if type(snapshot.session_trading_day_before) is date
-            else None,
-            "trading_day_after": snapshot.session_trading_day_after.isoformat()
-            if type(snapshot.session_trading_day_after) is date
-            else None,
-            "generation_before": scalar(snapshot.session_generation_before),
-            "generation_after": scalar(snapshot.session_generation_after),
-        },
-        "catalog_records": catalog,
-        "quote_records": quotes,
-    }
-    if query_set is not None:
-        projection["query_set"] = query_set
-    return projection
 
 
 def _calendar_for(
@@ -2126,6 +1040,7 @@ def _candidate_assessment(
     policy: MainContractPolicy,
     suppress_source_values: bool,
     exact_metric_limit: bool = False,
+    require_month_contract: bool = True,
 ) -> Tuple[ContractAssessment, bool]:
     """Return the assessment and whether it is rank-eligible."""
 
@@ -2206,7 +1121,9 @@ def _candidate_assessment(
             ),
             False,
         )
-    if not _is_actual_month_contract(record.instrument_id, record.product.product_id):
+    if require_month_contract and not _is_actual_month_contract(
+        record.instrument_id, record.product.product_id
+    ):
         return (
             ContractAssessment(
                 record.product,
@@ -2382,358 +1299,626 @@ def _candidate_assessment(
     )
 
 
-def _catalog_requires_ranking_quote(
-    record: FuturesContractCatalogRecord,
-    *,
-    current_trading_day: Optional[date],
-    calendar: Optional[ExchangeTradingCalendar],
-    policy: MainContractPolicy,
-) -> bool:
-    catalog_asset_type, _classification_issue = _query_catalog_classification(record)
-    if not (
-        catalog_asset_type == "future"
-        and record.is_trading is True
-        and _is_actual_month_contract(record.instrument_id, record.product.product_id)
-        and record.expiry_date is not None
-        and current_trading_day is not None
-        and calendar is not None
-    ):
-        return False
-    if record.expiry_date <= current_trading_day:
-        return False
-    if record.expiry_date > calendar.coverage_through:
-        return (
-            sum(
-                current_trading_day < day <= calendar.coverage_through
-                for day in calendar.trading_days
-            )
-            >= policy.minimum_trading_days_to_expiry
-        )
+def _futures_market_sdk_types() -> Optional[dict[str, Any]]:
+    """Load exact SDK contracts only for the provider-neutral selector."""
+
     try:
-        remaining = calendar.trading_days_to_expiry(current_trading_day, record.expiry_date)
-    except TradingCalendarContractError:
-        return False
-    return remaining >= policy.minimum_trading_days_to_expiry
-
-
-def _query_catalog_classification(
-    record: FuturesContractCatalogRecord,
-) -> Tuple[Optional[str], Optional[str]]:
-    """Resolve CTP ProductClass and reject missing or contradictory metadata."""
-
-    product_class = record.product_class
-    asset_type = _CTP_PRODUCT_CLASS_ASSET_TYPE.get(product_class)
-    if asset_type is None:
-        return None, "CATALOG_PRODUCT_CLASS_UNKNOWN"
-
-    source_type = record.asset_type
-    if source_type is None or source_type.strip().casefold() in ("", "unknown"):
-        return asset_type, None
-    normalized = source_type.strip().casefold()
-    normalized = _ASSET_TYPE_ALIASES.get(normalized, normalized)
-    if normalized != asset_type:
-        return asset_type, "CATALOG_PRODUCT_CLASS_ASSET_TYPE_MISMATCH"
-    return asset_type, None
-
-
-def _query_contract_assessment(
-    catalog: FuturesContractCatalogRecord,
-    quote: Optional[CurrentDayQuoteRecord],
-    *,
-    current_trading_day: Optional[date],
-    calendar: Optional[ExchangeTradingCalendar],
-    policy: MainContractPolicy,
-    quote_missing: bool,
-) -> Tuple[ContractAssessment, bool, Optional[Decimal]]:
-    catalog_asset_type, classification_issue = _query_catalog_classification(catalog)
-    if classification_issue is not None:
-        return (
-            ContractAssessment(
-                product=catalog.product,
-                instrument_id=catalog.instrument_id,
-                status="BLOCKED",
-                reason=classification_issue,
-                expiry_date=catalog.expiry_date,
-                trading_days_to_expiry=None,
-                open_interest=None,
-                volume=None,
-                rank=None,
-                asset_type=catalog.asset_type,
-                is_trading=catalog.is_trading,
-                product_class=catalog.product_class,
-            ),
-            False,
-            None,
+        from bt_api_py.futures_contracts import (
+            FuturesAssetType,
+            FuturesCatalogDisposition,
+            FuturesCatalogRecord,
+            FuturesContractKind,
+            FuturesFamilyCoverage,
+            FuturesMarketSnapshotCoverage,
+            FuturesMarketSnapshotRequest,
+            FuturesProductKey,
+            FuturesQuantityUnit,
+            FuturesQuoteRecord,
+            FuturesSessionRecord,
+            FuturesSessionStatus,
+            FuturesVolumeSemantics,
+            MarketInstrumentKey,
+            QuerySnapshotLease,
         )
-    ranking = FuturesContractRecord(
-        product=catalog.product,
-        instrument_id=catalog.instrument_id,
-        asset_type=catalog_asset_type,
-        is_trading=catalog.is_trading,
-        expiry_date=catalog.expiry_date,
-        open_interest=quote.open_interest if quote is not None else None,
-        volume=quote.volume if quote is not None else None,
-    )
-    assessment, eligible = _candidate_assessment(
-        ranking,
-        current_trading_day=current_trading_day,
-        calendar=calendar,
-        policy=policy,
-        suppress_source_values=False,
-        exact_metric_limit=True,
-    )
-    score = None
-    if quote_missing and assessment.status not in ("EXCLUDED", "OUT_OF_SCOPE"):
-        assessment = replace(
-            assessment,
-            status="BLOCKED",
-            reason="QUOTE_ROW_MISSING_FOR_CANDIDATE",
-            open_interest=None,
-            volume=None,
-            rank=None,
+        from bt_api_py.futures_market_facade import (
+            FuturesMarketSnapshot,
+            FuturesMarketSnapshotFacade,
         )
-        eligible = False
-    elif eligible:
-        open_interest = _number_as_decimal(quote.open_interest if quote is not None else None)
-        volume = _number_as_decimal(quote.volume if quote is not None else None)
-        if open_interest is None or volume is None:
-            assessment = replace(
-                assessment,
-                status="BLOCKED",
-                reason="RANKING_VALUE_MISSING_OR_INVALID",
-                rank=None,
-            )
-            eligible = False
-        else:
-            score = _exact_equal_weight_score(open_interest, volume)
-            if score is None:
-                assessment = replace(
-                    assessment,
-                    status="BLOCKED",
-                    reason="RANKING_VALUE_RANGE_UNSUPPORTED",
-                    rank=None,
-                )
-                eligible = False
-    assessment = replace(
-        assessment,
-        ranking_score=_decimal_text(score),
-        asset_type=catalog.asset_type,
-        is_trading=catalog.is_trading,
-        product_class=catalog.product_class,
-        quote_trading_day=quote.trading_day if quote is not None else None,
-        action_day=quote.action_day if quote is not None else None,
-        update_time=quote.update_time if quote is not None else None,
-        update_millisec=quote.update_millisec if quote is not None else None,
-    )
-    return assessment, eligible, score
+    except ImportError:
+        return None
+    return {
+        "FuturesAssetType": FuturesAssetType,
+        "FuturesCatalogDisposition": FuturesCatalogDisposition,
+        "FuturesCatalogRecord": FuturesCatalogRecord,
+        "FuturesContractKind": FuturesContractKind,
+        "FuturesFamilyCoverage": FuturesFamilyCoverage,
+        "FuturesMarketSnapshotCoverage": FuturesMarketSnapshotCoverage,
+        "FuturesMarketSnapshotRequest": FuturesMarketSnapshotRequest,
+        "FuturesMarketSnapshot": FuturesMarketSnapshot,
+        "FuturesMarketSnapshotFacade": FuturesMarketSnapshotFacade,
+        "FuturesProductKey": FuturesProductKey,
+        "FuturesQuantityUnit": FuturesQuantityUnit,
+        "FuturesQuoteRecord": FuturesQuoteRecord,
+        "FuturesSessionRecord": FuturesSessionRecord,
+        "FuturesSessionStatus": FuturesSessionStatus,
+        "FuturesVolumeSemantics": FuturesVolumeSemantics,
+        "MarketInstrumentKey": MarketInstrumentKey,
+        "QuerySnapshotLease": QuerySnapshotLease,
+    }
 
 
-def _no_listed_contracts_products(
-    snapshot: Optional[MainContractQuerySnapshot],
-    *,
-    target_ids: Sequence[Tuple[str, str]],
-    catalog_by_product: Mapping[Tuple[str, str], Sequence[Any]],
-) -> frozenset:
-    """Return target products whose own complete instrument query returned no rows.
+def _market_snapshot_json(snapshot: Any, sdk: Mapping[str, Any]) -> Optional[str]:
+    """Project finite neutral receipt facts without retaining SDK rows."""
 
-    AC51-18 permits a listed but non-trading product to leave the rankable pool
-    only when the catalog holds no row for it at all *and* its per-product
-    instrument query was complete with exactly zero records.  Anything weaker
-    (an incomplete query, an unusable count, a catalog row) keeps the existing
-    catalog-coverage/pool blockers unchanged.  The query set itself is never
-    rewritten; this only narrows the selector's rankable target set.
-    """
+    if type(snapshot) is not sdk["FuturesMarketSnapshot"]:
+        return None
+    coverage = getattr(snapshot, "coverage", None)
+    if type(coverage) is not sdk["FuturesMarketSnapshotCoverage"]:
+        return None
 
-    if snapshot is None or snapshot.query_set is None:
-        return frozenset()
-    query_set = snapshot.query_set
-    products = query_set.products
-    requests = query_set.requests
-    if getattr(query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH) == (
-        QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH
-    ):
-        if len(requests) != 2 * len(products) + 1:
-            return frozenset()
-        instrument_requests = requests[1 : 1 + len(products)]
-    else:
-        if len(requests) != len(products) + 2:
-            return frozenset()
-        instrument_requests = requests[1:-1]
-    target_set = set(target_ids)
-    excluded = set()
-    for product_evidence, request in zip(products, instrument_requests):
-        key = _key_order(product_evidence.product)
-        if key not in target_set or key in catalog_by_product:
+    def time_text(value: Any) -> Optional[str]:
+        normalized = _source_timestamp(value)
+        return _utc_text(normalized) if normalized is not None else None
+
+    def family_projection(value: Any) -> Optional[dict[str, Any]]:
+        if type(value) is not sdk["FuturesFamilyCoverage"]:
+            return None
+        completeness = getattr(value.completeness, "value", None)
+        return {
+            "family": _source_text(value.family),
+            "request_ref": _source_text(value.request_ref),
+            "source_ref": _source_text(value.source_ref),
+            "generation": _source_text(value.generation),
+            "snapshot_ref": _source_text(value.snapshot_ref),
+            "completeness": _source_text(completeness),
+            "scope_complete": value.scope_complete if type(value.scope_complete) is bool else None,
+            "complete": value.complete if type(value.complete) is bool else None,
+            "started_at": time_text(value.started_at),
+            "completed_at": time_text(value.completed_at),
+            "observed_at": time_text(value.observed_at),
+            "records_digest": _source_digest(value.records_digest),
+            "record_count": value.record_count
+            if type(value.record_count) is int and value.record_count >= 0
+            else None,
+            "blockers": [item for item in value.blockers if type(item) is str],
+            "continuation_present": value.continuation_ref is not None,
+        }
+
+    sessions = []
+    for row in getattr(snapshot, "sessions", ()):
+        if type(row) is not sdk["FuturesSessionRecord"]:
             continue
-        if request.complete is not True:
-            continue
-        if type(request.record_count) is not int or request.record_count != 0:
-            continue
-        excluded.add(key)
-    return frozenset(excluded)
+        sessions.append(
+            {
+                "venue": _source_text(row.venue),
+                "environment": _source_text(row.environment),
+                "trading_day": row.trading_day.isoformat()
+                if type(row.trading_day) is date
+                else None,
+                "session_status": _source_text(getattr(row.session_status, "value", None)),
+            }
+        )
+    projection = {
+        "source_ref": _source_text(snapshot.source_ref),
+        "generation": _source_text(snapshot.generation),
+        "records_digest": _source_digest(snapshot.records_digest),
+        "request_refs": [
+            item for item in snapshot.request_refs if type(item) is str and item
+        ],
+        "requested_at": time_text(snapshot.requested_at),
+        "completed_at": time_text(snapshot.completed_at),
+        "observed_at": time_text(snapshot.observed_at),
+        "complete": snapshot.complete if type(snapshot.complete) is bool else None,
+        "freshness_status": _source_text(
+            getattr(snapshot.freshness_status, "value", snapshot.freshness_status)
+        ),
+        "freshness_blockers": [
+            item for item in snapshot.freshness_blockers if type(item) is str
+        ],
+        "coverage": {
+            name: family_projection(getattr(coverage, name, None))
+            for name in ("session", "catalog", "quotes", "depth")
+        },
+        "coverage_scope_complete": coverage.scope_complete
+        if type(coverage.scope_complete) is bool
+        else None,
+        "coverage_complete": coverage.complete if type(coverage.complete) is bool else None,
+        "expected_instrument_count": len(coverage.expected_instruments),
+        "missing_quote_instrument_count": len(coverage.missing_quote_instruments),
+        "missing_depth_instrument_count": len(coverage.missing_depth_instruments),
+        "missing_quote_field_row_count": len(coverage.missing_quote_fields),
+        "unclassified_instrument_count": len(coverage.unclassified_instruments),
+        "quote_unit_mismatch_count": len(getattr(coverage, "quote_unit_mismatches", ())),
+        "quote_semantic_mismatch_count": len(
+            getattr(coverage, "quote_semantic_mismatches", ())
+        ),
+        "depth_unit_mismatch_count": len(
+            getattr(coverage, "depth_unit_mismatches", ())
+        ),
+        "sessions": sessions,
+        "blockers": [item for item in coverage.blockers if type(item) is str],
+    }
+    return json.dumps(projection, sort_keys=True, separators=(",", ":"))
 
 
-def _select_query_snapshot(
-    snapshot: Optional[MainContractQuerySnapshot],
+def _market_snapshot_source_fields(snapshot: Any, sdk: Mapping[str, Any]) -> dict[str, Any]:
+    if type(snapshot) is not sdk["FuturesMarketSnapshot"]:
+        return {
+            "source_id": None,
+            "source_snapshot_id": None,
+            "source_sha256": None,
+            "source_available_at": None,
+            "source_retrieved_at": None,
+            "catalog_source_id": None,
+            "catalog_snapshot_id": None,
+            "catalog_sha256": None,
+            "catalog_available_at": None,
+            "catalog_retrieved_at": None,
+        }
+    coverage = snapshot.coverage
+    catalog = getattr(coverage, "catalog", None)
+    quotes = getattr(coverage, "quotes", None)
+    return {
+        "source_id": _source_text(snapshot.source_ref),
+        "source_snapshot_id": _source_text(getattr(quotes, "snapshot_ref", None)),
+        "source_sha256": _source_digest(snapshot.records_digest),
+        "source_available_at": _source_timestamp(snapshot.completed_at),
+        "source_retrieved_at": _source_timestamp(snapshot.observed_at),
+        "catalog_source_id": _source_text(getattr(catalog, "source_ref", None)),
+        "catalog_snapshot_id": _source_text(getattr(catalog, "snapshot_ref", None)),
+        "catalog_sha256": _source_digest(getattr(catalog, "records_digest", None)),
+        "catalog_available_at": _source_timestamp(getattr(catalog, "completed_at", None)),
+        "catalog_retrieved_at": _source_timestamp(getattr(catalog, "observed_at", None)),
+    }
+
+
+def _neutral_partial_manifest(
+    snapshot: Any,
     expected_products: Sequence[ProductKey],
-    current_trading_days: Sequence[ExchangeTradingDay],
+    *,
+    decision_at: datetime,
+    policy: MainContractPolicy,
+    blockers: Sequence[str],
+    sdk: Optional[Mapping[str, Any]],
+) -> MainContractManifest:
+    targets = tuple(sorted(expected_products, key=_key_order))
+    blocker_rows = tuple(dict.fromkeys(blockers or ("MARKET_SNAPSHOT_COVERAGE_UNAVAILABLE",)))
+    trading_days = {}
+    if sdk is not None and type(snapshot) is sdk["FuturesMarketSnapshot"]:
+        raw_days = getattr(snapshot, "trading_days", {})
+        if isinstance(raw_days, Mapping):
+            trading_days = {
+                venue.upper(): day
+                for venue, day in raw_days.items()
+                if type(venue) is str and type(day) is date
+            }
+    source_fields = (
+        _market_snapshot_source_fields(snapshot, sdk)
+        if sdk is not None
+        else {
+            "source_id": None,
+            "source_snapshot_id": None,
+            "source_sha256": None,
+            "source_available_at": None,
+            "source_retrieved_at": None,
+            "catalog_source_id": None,
+            "catalog_snapshot_id": None,
+            "catalog_sha256": None,
+            "catalog_available_at": None,
+            "catalog_retrieved_at": None,
+        }
+    )
+    return MainContractManifest(
+        status="PARTIAL",
+        decision_at=decision_at,
+        policy=policy,
+        target_products=targets,
+        **source_fields,
+        trading_days=tuple(
+            TradingDayReference(venue, day, None) for venue, day in sorted(trading_days.items())
+        ),
+        calendars=(),
+        coverage=(),
+        products=tuple(
+            ProductSelection(
+                product=product,
+                in_target_pool=True,
+                status="PARTIAL",
+                expected_prior_trading_day=None,
+                ranking_trading_day=trading_days.get(product.exchange_id),
+                selected_instrument_id=None,
+                ranked_instrument_ids=(),
+                excluded_instrument_ids=(),
+                blockers=blocker_rows,
+            )
+            for product in targets
+        ),
+        candidates=(),
+        blockers=blocker_rows,
+        market_snapshot_evidence_json=(
+            _market_snapshot_json(snapshot, sdk) if sdk is not None else None
+        ),
+    )
+
+
+def _sdk_family_complete(family: Any, sdk: Mapping[str, Any]) -> bool:
+    return (
+        type(family) is sdk["FuturesFamilyCoverage"]
+        and family.complete is True
+        and family.scope_complete is True
+    )
+
+
+def _neutral_snapshot_blockers(
+    snapshot: Any,
+    *,
+    decision_at: datetime,
+    policy: MainContractPolicy,
+    sdk: Mapping[str, Any],
+) -> Tuple[str, ...]:
+    coverage = getattr(snapshot, "coverage", None)
+    if type(coverage) is not sdk["FuturesMarketSnapshotCoverage"]:
+        return ("MARKET_SNAPSHOT_COVERAGE_TYPE_INVALID",)
+    blockers = []
+    request = getattr(snapshot, "request", None)
+    request_is_exact = type(request) is sdk["FuturesMarketSnapshotRequest"]
+    if not request_is_exact:
+        blockers.append("MARKET_SNAPSHOT_REQUEST_TYPE_INVALID")
+    include_depth = getattr(request, "include_depth", False)
+    if type(include_depth) is not bool:
+        blockers.append("MARKET_SNAPSHOT_DEPTH_REQUIREMENT_INVALID")
+        include_depth = True
+    elif not include_depth and coverage.depth is not None:
+        blockers.append("UNREQUESTED_DEPTH_FAMILY_PRESENT")
+    if snapshot.complete is not True or coverage.complete is not True:
+        blockers.append("MARKET_SNAPSHOT_COVERAGE_INCOMPLETE")
+    if coverage.scope_complete is not True:
+        blockers.append("MARKET_SNAPSHOT_SCOPE_INCOMPLETE")
+    family_names = ("session", "catalog", "quotes") + (("depth",) if include_depth else ())
+    for name in family_names:
+        if not _sdk_family_complete(getattr(coverage, name, None), sdk):
+            blockers.append("{}_FAMILY_COVERAGE_INCOMPLETE".format(name.upper()))
+    blockers.extend(item for item in coverage.blockers if type(item) is str and item)
+    if coverage.missing_quote_instruments:
+        blockers.append("QUOTE_COVERAGE_MISSING_INSTRUMENTS")
+    if coverage.missing_quote_fields:
+        blockers.append("QUOTE_COVERAGE_MISSING_REQUIRED_FIELDS")
+    if coverage.unclassified_instruments:
+        blockers.append("CATALOG_COVERAGE_HAS_UNCLASSIFIED_INSTRUMENTS")
+    if getattr(coverage, "quote_unit_mismatches", ()):
+        blockers.append("QUOTE_COVERAGE_UNIT_MISMATCH")
+    if getattr(coverage, "quote_semantic_mismatches", ()):
+        blockers.append("QUOTE_COVERAGE_SEMANTICS_MISMATCH")
+    if include_depth and getattr(coverage, "depth_unit_mismatches", ()):
+        blockers.append("DEPTH_COVERAGE_UNIT_MISMATCH")
+
+    environment = getattr(request, "environment", None)
+    if type(environment) is not str or environment.casefold() == "unknown":
+        blockers.append("MARKET_SNAPSHOT_ENVIRONMENT_UNAVAILABLE")
+    quantity_unit = sdk["FuturesQuantityUnit"]
+    if request is None or (
+        getattr(request, "required_open_interest_unit", None) is not quantity_unit.CONTRACTS
+        or getattr(request, "required_volume_unit", None) is not quantity_unit.CONTRACTS
+    ):
+        blockers.append("RANKING_QUANTITY_UNIT_REQUIREMENT_UNAVAILABLE")
+    volume_semantics = sdk["FuturesVolumeSemantics"]
+    if getattr(request, "required_volume_semantics", None) is not (
+        volume_semantics.CUMULATIVE_TRADING_DAY
+    ):
+        blockers.append("RANKING_VOLUME_SEMANTICS_REQUIREMENT_UNAVAILABLE")
+    if include_depth and getattr(request, "required_depth_volume_unit", None) is not (
+        quantity_unit.CONTRACTS
+    ):
+        blockers.append("DEPTH_QUANTITY_UNIT_REQUIREMENT_UNAVAILABLE")
+
+    source_ref = _source_text(getattr(snapshot, "source_ref", None))
+    generation = _source_text(getattr(snapshot, "generation", None))
+    if source_ref is None or generation is None:
+        blockers.append("MARKET_SNAPSHOT_SOURCE_BINDING_UNAVAILABLE")
+    for name in family_names:
+        family = getattr(coverage, name, None)
+        if type(family) is not sdk["FuturesFamilyCoverage"]:
+            continue
+        if family.source_ref != source_ref or family.generation != generation:
+            blockers.append("MARKET_SNAPSHOT_FAMILY_SOURCE_MISMATCH")
+
+    requested_at = _source_timestamp(getattr(snapshot, "requested_at", None))
+    completed_at = _source_timestamp(getattr(snapshot, "completed_at", None))
+    observed_at = _source_timestamp(getattr(snapshot, "observed_at", None))
+    decision_utc = decision_at.astimezone(timezone.utc)
+    if requested_at is None or completed_at is None or observed_at is None:
+        blockers.append("MARKET_SNAPSHOT_TIME_UNAVAILABLE")
+    else:
+        requested_utc = requested_at.astimezone(timezone.utc)
+        completed_utc = completed_at.astimezone(timezone.utc)
+        observed_utc = observed_at.astimezone(timezone.utc)
+        if requested_utc > completed_utc or completed_utc > observed_utc:
+            blockers.append("MARKET_SNAPSHOT_TIME_ORDER_INVALID")
+        if completed_utc > decision_utc or observed_utc > decision_utc:
+            blockers.append("MARKET_SNAPSHOT_NOT_AVAILABLE_AT_DECISION")
+        if (decision_utc - completed_utc).total_seconds() > policy.max_snapshot_age_seconds:
+            blockers.append("MARKET_SNAPSHOT_TOO_OLD")
+        if (completed_utc - requested_utc).total_seconds() > policy.max_collection_span_seconds:
+            blockers.append("MARKET_SNAPSHOT_COLLECTION_SPAN_EXCEEDED")
+    return tuple(dict.fromkeys(blockers))
+
+
+def _neutral_classification(record: Any, sdk: Mapping[str, Any]) -> Tuple[str, Optional[str]]:
+    """Classify through neutral SDK enums without inspecting native provider rows."""
+
+    if type(record) is not sdk["FuturesCatalogRecord"]:
+        return "unknown", "CATALOG_ROW_TYPE_INVALID"
+    if (
+        type(record.contract_kind) is not sdk["FuturesContractKind"]
+        or type(record.asset_type) is not sdk["FuturesAssetType"]
+        or type(record.disposition) is not sdk["FuturesCatalogDisposition"]
+    ):
+        return "unknown", "CATALOG_CLASSIFICATION_TYPE_INVALID"
+    if record.disposition is sdk["FuturesCatalogDisposition"].EXCLUDED:
+        return "non_future", record.disposition_reason or "CATALOG_DISPOSITION_EXCLUDED"
+    if (
+        record.disposition is sdk["FuturesCatalogDisposition"].UNKNOWN
+        or record.contract_kind is sdk["FuturesContractKind"].UNKNOWN
+    ):
+        return "unknown", "CATALOG_CLASSIFICATION_UNAVAILABLE"
+    if record.contract_kind is not sdk["FuturesContractKind"].FUTURE:
+        return "non_future", record.disposition_reason or "NOT_ORDINARY_FUTURE"
+    if record.asset_type is sdk["FuturesAssetType"].UNKNOWN:
+        return "unknown", "CATALOG_CLASSIFICATION_UNAVAILABLE"
+    return "future", None
+
+
+def _select_futures_market_snapshot_rows(
+    snapshot: Any,
+    expected_products: Sequence[ProductKey],
     calendars: Sequence[ExchangeTradingCalendar],
     *,
     decision_at: datetime,
     policy: MainContractPolicy,
+    sdk: Mapping[str, Any],
 ) -> MainContractManifest:
-    """Select from complete, same-session CTP instrument and depth queries."""
-
-    _aware_datetime(decision_at, "decision_at")
     targets = tuple(expected_products)
-    if any(not isinstance(item, ProductKey) for item in targets):
+    if any(type(item) is not ProductKey for item in targets):
         raise ValueError("expected_products must contain ProductKey records")
     targets = tuple(sorted(targets, key=_key_order))
-    if len({_key_order(item) for item in targets}) != len(targets):
+    target_by_id = {_key_order(item): item for item in targets}
+    if len(target_by_id) != len(targets):
         raise ValueError("expected_products contains duplicate product keys")
-    day_rows = tuple(current_trading_days)
-    if any(not isinstance(item, ExchangeTradingDay) for item in day_rows):
-        raise ValueError("current_trading_days must contain ExchangeTradingDay records")
-    day_index = {}
-    for item in day_rows:
-        if item.exchange_id in day_index:
-            raise ValueError("current_trading_days contains duplicate exchanges")
-        day_index[item.exchange_id] = item.trading_day
-    calendar_rows = tuple(calendars)
-    if any(not isinstance(item, ExchangeTradingCalendar) for item in calendar_rows):
-        raise ValueError("calendars must contain ExchangeTradingCalendar records")
-    calendar_index = {}
-    for item in calendar_rows:
-        if item.exchange_id in calendar_index:
-            raise ValueError("calendars contains duplicate exchanges")
-        calendar_index[item.exchange_id] = item
 
-    global_blockers = list(
-        _query_source_blockers(
+    session_blockers = []
+    session_by_venue = {}
+    route_session = None
+    request = getattr(snapshot, "request", None)
+    requested_environment = getattr(request, "environment", None)
+    require_active_session = getattr(request, "require_active_session", False)
+    if type(require_active_session) is not bool:
+        session_blockers.append("SESSION_ACTIVE_REQUIREMENT_INVALID")
+    for row in tuple(getattr(snapshot, "sessions", ())):
+        if type(row) is not sdk["FuturesSessionRecord"]:
+            session_blockers.append("SESSION_ROW_TYPE_INVALID")
+            continue
+        if type(row.session_status) is not sdk["FuturesSessionStatus"]:
+            session_blockers.append("SESSION_STATUS_UNKNOWN")
+            continue
+        if type(requested_environment) is not str or row.environment != requested_environment:
+            session_blockers.append("SESSION_ENVIRONMENT_MISMATCH")
+        if require_active_session and row.session_status is not sdk["FuturesSessionStatus"].ACTIVE:
+            session_blockers.append("SESSION_NOT_ACTIVE")
+        if row.venue is None:
+            if route_session is not None or session_by_venue:
+                session_blockers.append("SESSION_ROUTE_VENUE_SCOPE_MIXED_OR_DUPLICATE")
+                continue
+            route_session = row
+        else:
+            venue = row.venue.upper()
+            if route_session is not None:
+                session_blockers.append("SESSION_ROUTE_VENUE_SCOPE_MIXED_OR_DUPLICATE")
+                continue
+            if venue in session_by_venue:
+                session_blockers.append("SESSION_ROW_DUPLICATE_VENUE")
+                continue
+            session_by_venue[venue] = row
+    raw_days = getattr(snapshot, "trading_days", None)
+    day_by_venue = {}
+    if isinstance(raw_days, Mapping):
+        for venue, trading_day in raw_days.items():
+            if type(venue) is not str or type(trading_day) is not date:
+                session_blockers.append("SESSION_TRADING_DAY_INVALID")
+                continue
+            venue_key = venue.upper()
+            if venue_key in day_by_venue:
+                session_blockers.append("SESSION_TRADING_DAY_DUPLICATE_VENUE")
+                continue
+            day_by_venue[venue_key] = trading_day
+    else:
+        session_blockers.append("SESSION_TRADING_DAYS_UNAVAILABLE")
+    for venue, row in session_by_venue.items():
+        if day_by_venue.get(venue) != row.trading_day:
+            session_blockers.append("SESSION_TRADING_DAY_MISMATCH")
+    if route_session is not None:
+        for venue, trading_day in day_by_venue.items():
+            if trading_day != route_session.trading_day:
+                session_blockers.append("SESSION_ROUTE_TRADING_DAY_MISMATCH")
+    for product in targets:
+        has_session = product.exchange_id in session_by_venue or route_session is not None
+        if not has_session or product.exchange_id not in day_by_venue:
+            session_blockers.append("TARGET_SESSION_COVERAGE_MISSING")
+        requested_day = getattr(request, "trading_day", None)
+        if requested_day is not None and day_by_venue.get(product.exchange_id) != requested_day:
+            session_blockers.append("SESSION_REQUESTED_TRADING_DAY_MISMATCH")
+    session_blockers = list(dict.fromkeys(session_blockers))
+
+    instrument_type = sdk["MarketInstrumentKey"]
+    product_type = sdk["FuturesProductKey"]
+    catalog_by_identity = {}
+    catalog_by_product = {}
+    classification_by_identity = {}
+    row_blockers = []
+    for row in tuple(getattr(snapshot, "catalog", ())):
+        if type(row) is not sdk["FuturesCatalogRecord"]:
+            row_blockers.append("CATALOG_ROW_TYPE_INVALID")
+            continue
+        if (
+            type(row.instrument) is not instrument_type
+            or type(row.product) is not product_type
+            or row.instrument.venue != row.product.venue
+            or type(requested_environment) is not str
+            or row.instrument.environment != requested_environment
+        ):
+            row_blockers.append("CATALOG_ROW_IDENTITY_INVALID")
+            continue
+        catalog_by_identity.setdefault(row.instrument, []).append(row)
+        product = ProductKey(row.product.venue, row.product.product_id)
+        catalog_by_product.setdefault(_key_order(product), []).append(row)
+        classification_by_identity[row.instrument] = _neutral_classification(row, sdk)
+    if any(len(rows) > 1 for rows in catalog_by_identity.values()):
+        row_blockers.append("DUPLICATE_CATALOG_INSTRUMENT_IDENTITY")
+
+    quote_by_identity = {}
+    quote_rows = tuple(getattr(snapshot, "quotes", ()))
+    for quote in quote_rows:
+        if type(quote) is not sdk["FuturesQuoteRecord"]:
+            row_blockers.append("QUOTE_ROW_TYPE_INVALID")
+            continue
+        if (
+            type(quote.instrument) is not instrument_type
+            or type(requested_environment) is not str
+            or quote.instrument.environment != requested_environment
+        ):
+            row_blockers.append("QUOTE_ROW_IDENTITY_INVALID")
+            continue
+        if quote.instrument not in catalog_by_identity:
+            row_blockers.append("QUOTE_IDENTITY_NOT_IN_CATALOG")
+            continue
+        quote_by_identity.setdefault(quote.instrument, []).append(quote)
+        if day_by_venue.get(quote.instrument.venue.upper()) != quote.trading_day:
+            row_blockers.append("QUOTE_TRADING_DAY_MISMATCH")
+    if any(len(rows) > 1 for rows in quote_by_identity.values()):
+        row_blockers.append("DUPLICATE_QUOTE_INSTRUMENT_IDENTITY")
+    row_blockers = list(dict.fromkeys(row_blockers))
+
+    source_blockers = list(
+        _neutral_snapshot_blockers(
             snapshot,
             decision_at=decision_at,
             policy=policy,
-            target_products=targets,
-            current_days=day_index,
+            sdk=sdk,
         )
     )
-    target_by_id = {_key_order(item): item for item in targets}
-    catalog_by_key = {}
-    catalog_by_product = {}
-    expected_quotes_by_product = {}
-    quote_rows_by_key = {}
-    no_listed_ids = frozenset()
-    query_quote_trading_day = None
-    if snapshot is not None:
-        if snapshot.quote_source is not None:
-            query_quote_trading_day = snapshot.quote_source.trading_day
-        elif snapshot.query_set is not None and snapshot.query_set.requests:
-            query_requests = snapshot.query_set.requests
-            query_products_count = len(snapshot.query_set.products)
-            if (
-                getattr(
-                    snapshot.query_set, "request_layout", QUERY_SET_LAYOUT_SINGLE_DEPTH
-                )
-                == QUERY_SET_LAYOUT_PER_PRODUCT_DEPTH
-                and len(query_requests) == 2 * query_products_count + 1
-            ):
-                # Every per-product depth receipt shares the same session day;
-                # bind the check to the first depth receipt in the layout.
-                depth_receipt = query_requests[query_products_count + 1]
-            else:
-                depth_receipt = query_requests[-1]
-            query_quote_trading_day = depth_receipt.trading_day
+    source_blockers.extend(session_blockers)
+    source_blockers.extend(row_blockers)
+    source_blockers = list(dict.fromkeys(source_blockers))
 
-    if snapshot is not None:
-        for record in snapshot.catalog_records:
-            join_key = (record.product.exchange_id, record.instrument_id)
-            catalog_by_key.setdefault(join_key, []).append(record)
-            catalog_by_product.setdefault(_key_order(record.product), []).append(record)
-            exchange_calendar, _calendar_issue = _calendar_for(
-                record.product, calendar_index, decision_at
-            )
-            if _catalog_requires_ranking_quote(
-                record,
-                current_trading_day=day_index.get(record.product.exchange_id),
-                calendar=exchange_calendar,
-                policy=policy,
-            ):
-                expected_quotes_by_product.setdefault(_key_order(record.product), []).append(
-                    record.instrument_id
-                )
-        for join_key, rows in catalog_by_key.items():
-            if len(rows) > 1:
-                global_blockers.append("DUPLICATE_CATALOG_INSTRUMENT_ID")
-        for quote in snapshot.quote_records:
-            join_key = (quote.exchange_id.upper(), quote.instrument_id)
-            matches = catalog_by_key.get(join_key)
-            if not matches:
-                global_blockers.append("QUOTE_ID_NOT_IN_CATALOG")
-                continue
-            quote_rows_by_key.setdefault(join_key, []).append(quote)
-            if len(matches) != 1:
-                continue
-            product = matches[0].product
-            expected_day = day_index.get(product.exchange_id)
-            if type(quote.trading_day) is not date:
-                global_blockers.append("QUOTE_TRADING_DAY_UNAVAILABLE")
-            elif expected_day is not None and quote.trading_day != expected_day:
-                global_blockers.append("QUOTE_TRADING_DAY_MISMATCH")
-            if (
-                type(query_quote_trading_day) is date
-                and type(quote.trading_day) is date
-                and quote.trading_day != query_quote_trading_day
-            ):
-                global_blockers.append("QUOTE_QUERY_ROW_CROSS_DAY")
-        if any(len(rows) > 1 for rows in quote_rows_by_key.values()):
-            global_blockers.append("DUPLICATE_QUOTE_ROW")
+    calendar_rows = tuple(calendars)
+    if any(type(item) is not ExchangeTradingCalendar for item in calendar_rows):
+        raise ValueError("calendars must contain ExchangeTradingCalendar records")
+    calendar_index = {}
+    for calendar in calendar_rows:
+        if calendar.exchange_id in calendar_index:
+            raise ValueError("calendars contains duplicate exchanges")
+        calendar_index[calendar.exchange_id] = calendar
 
-        # A listed product with no contracts at all is excluded only when its
-        # own complete instrument query proves zero records (AC51-18).
-        no_listed_ids = _no_listed_contracts_products(
-            snapshot,
-            target_ids=tuple(target_by_id),
-            catalog_by_product=catalog_by_product,
+    expected_by_product = {}
+    for identity in snapshot.coverage.expected_instruments:
+        if type(identity) is not instrument_type:
+            source_blockers.append("EXPECTED_QUOTE_IDENTITY_INVALID")
+            continue
+        rows = catalog_by_identity.get(identity, ())
+        if len(rows) == 1:
+            product = rows[0].product
+            product_id = _key_order(ProductKey(product.venue, product.product_id))
+            expected_by_product.setdefault(product_id, []).append(identity.instrument_id)
+    source_blockers = list(dict.fromkeys(source_blockers))
+
+    request = getattr(snapshot, "request", None)
+    requested_products = getattr(request, "products", None)
+    requested_venues = getattr(request, "venues", None)
+    requested_instruments = getattr(request, "instruments", None)
+    requested_contract_kinds = getattr(request, "contract_kinds", ())
+    requested_quote_fields = getattr(request, "required_quote_fields", ())
+    if requested_instruments is not None:
+        source_blockers.append("MARKET_SNAPSHOT_INSTRUMENT_FILTER_INCOMPLETE")
+    if sdk["FuturesContractKind"].FUTURE not in requested_contract_kinds:
+        source_blockers.append("MARKET_SNAPSHOT_FUTURE_SCOPE_MISSING")
+    if not {"open_interest", "volume"}.issubset(set(requested_quote_fields)):
+        source_blockers.append("MARKET_SNAPSHOT_RANKING_FIELDS_MISSING")
+    source_blockers = list(dict.fromkeys(source_blockers))
+    requested_product_ids = None
+    if requested_products is not None:
+        requested_product_ids = {
+            _key_order(ProductKey(row.venue, row.product_id))
+            for row in requested_products
+            if type(row) is product_type
+        }
+    requested_venue_ids = (
+        {item.upper() for item in requested_venues if type(item) is str}
+        if requested_venues is not None
+        else None
+    )
+    no_listed_ids = set()
+    product_scope_blockers = {}
+    for product_id, product in target_by_id.items():
+        in_request_scope = (
+            product_id in requested_product_ids
+            if requested_product_ids is not None
+            else product.exchange_id in requested_venue_ids
+            if requested_venue_ids is not None
+            else True
         )
-        rankable_target_ids = set(target_by_id).difference(no_listed_ids)
-        catalog_future_products = set()
-        for record in snapshot.catalog_records:
-            catalog_asset_type, classification_issue = _query_catalog_classification(record)
-            if classification_issue is not None:
-                global_blockers.append(classification_issue)
-            if catalog_asset_type == "future":
-                catalog_future_products.add(_key_order(record.product))
-        if catalog_future_products != rankable_target_ids:
-            global_blockers.append("CATALOG_PRODUCT_POOL_MISMATCH")
-        if not catalog_future_products:
-            global_blockers.append("CATALOG_FUTURE_UNIVERSE_EMPTY")
+        if not in_request_scope:
+            product_scope_blockers[product_id] = "TARGET_PRODUCT_OUTSIDE_REQUEST_SCOPE"
+        if (
+            in_request_scope
+            and requested_instruments is None
+            and not catalog_by_product.get(product_id)
+            and not source_blockers
+        ):
+            no_listed_ids.add(product_id)
 
-        for product_id, expected_ids in expected_quotes_by_product.items():
-            expected_keys = {(product_id[0], instrument_id) for instrument_id in expected_ids}
-            observed_keys = expected_keys.intersection(quote_rows_by_key)
-            if expected_keys != observed_keys:
-                global_blockers.append("QUOTE_ROW_MISSING_FOR_CANDIDATE")
-
-    global_blockers = list(dict.fromkeys(global_blockers))
     selections = []
     assessments = []
-    query_coverage = []
+    market_coverage = []
     day_references = {}
     used_calendars = {}
-
     for product_id in sorted(set(target_by_id).union(catalog_by_product)):
-        product = target_by_id.get(product_id, ProductKey(*product_id))
+        product = target_by_id.get(product_id)
+        if product is None:
+            first = catalog_by_product[product_id][0].product
+            product = ProductKey(first.venue, first.product_id)
         records = catalog_by_product.get(product_id, ())
         in_target = product_id in target_by_id
+        if not in_target:
+            for row in records:
+                classification, issue = classification_by_identity.get(
+                    row.instrument, ("unknown", "CATALOG_CLASSIFICATION_UNAVAILABLE")
+                )
+                assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=row.instrument.instrument_id,
+                        status="OUT_OF_SCOPE" if classification == "future" else (
+                            "PARTIAL" if classification == "unknown" else "EXCLUDED"
+                        ),
+                        reason=issue,
+                        expiry_date=row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=row.asset_type.value,
+                        is_trading=row.is_trading,
+                        contract_kind=row.contract_kind.value,
+                    )
+                )
+            continue
         if product_id in no_listed_ids:
-            # Out of the rankable pool, but kept visible with explicit evidence.
             selections.append(
                 ProductSelection(
                     product=product,
                     in_target_pool=False,
                     status="EXCLUDED",
                     expected_prior_trading_day=None,
-                    ranking_trading_day=day_index.get(product.exchange_id),
+                    ranking_trading_day=day_by_venue.get(product.exchange_id),
                     selected_instrument_id=None,
                     ranked_instrument_ids=(),
                     excluded_instrument_ids=(),
@@ -2741,8 +1926,8 @@ def _select_query_snapshot(
                     exclusion_reason=EXCLUSION_REASON_NO_LISTED_CONTRACTS,
                 )
             )
-            query_coverage.append(
-                MainContractQueryCoverage(
+            market_coverage.append(
+                MainContractMarketCoverage(
                     product=product,
                     catalog_instrument_ids=(),
                     expected_quote_instrument_ids=(),
@@ -2750,110 +1935,291 @@ def _select_query_snapshot(
                 )
             )
             continue
-        if not in_target:
-            for record in records:
-                catalog_asset_type, classification_issue = _query_catalog_classification(record)
-                if classification_issue is not None:
-                    status, reason = "BLOCKED", classification_issue
-                elif catalog_asset_type != "future":
-                    status, reason = "EXCLUDED", "NOT_ORDINARY_FUTURE"
-                elif record.is_trading is False:
-                    status, reason = "EXCLUDED", "NOT_TRADING"
-                elif record.is_trading is not True:
-                    status, reason = "BLOCKED", "TRADING_STATUS_UNKNOWN"
-                else:
-                    status, reason = "OUT_OF_SCOPE", "OUTSIDE_TARGET_POOL"
-                assessments.append(
-                    ContractAssessment(
-                        product=record.product,
-                        instrument_id=record.instrument_id,
-                        status=status,
-                        reason=reason,
-                        expiry_date=record.expiry_date,
-                        trading_days_to_expiry=None,
-                        open_interest=None,
-                        volume=None,
-                        rank=None,
-                        asset_type=record.asset_type,
-                        is_trading=record.is_trading,
-                        product_class=record.product_class,
-                    )
-                )
-            continue
 
-        product_blockers = list(global_blockers)
-        current_day = day_index.get(product.exchange_id)
-        if current_day is None:
-            product_blockers.append("CURRENT_TRADING_DAY_UNAVAILABLE")
+        current_day = day_by_venue.get(product.exchange_id)
         if current_day is not None:
             day_references[product.exchange_id] = TradingDayReference(
                 product.exchange_id, current_day, None
             )
         calendar, calendar_blockers = _calendar_for(product, calendar_index, decision_at)
-        product_blockers.extend(calendar_blockers)
         if calendar is not None and not calendar_blockers:
             used_calendars[product.exchange_id] = _calendar_evidence(calendar)
+        product_blockers = list(source_blockers)
+        if product_id in product_scope_blockers:
+            product_blockers.append(product_scope_blockers[product_id])
+        product_blockers.extend(calendar_blockers)
+        if current_day is None:
+            product_blockers.append("CURRENT_TRADING_DAY_UNAVAILABLE")
         if not records:
             product_blockers.append("PRODUCT_CATALOG_COVERAGE_UNAVAILABLE")
 
-        catalog_ids = tuple(record.instrument_id for record in records)
-        expected_quote_ids = tuple(sorted(expected_quotes_by_product.get(product_id, ())))
-        expected_quote_set = set(expected_quote_ids)
-        observed_quote_ids = (
-            tuple(
-                quote.instrument_id
-                for quote in snapshot.quote_records
-                if snapshot is not None
-                and (quote.exchange_id.upper(), quote.instrument_id) in quote_rows_by_key
-                and (quote.exchange_id.upper(), quote.instrument_id)[0] == product.exchange_id
-                and quote.instrument_id in expected_quote_set
+        catalog_ids = tuple(sorted(row.instrument.instrument_id for row in records))
+        expected_quote_ids = tuple(sorted(set(expected_by_product.get(product_id, ()))))
+        observed_quote_ids = tuple(
+            sorted(
+                quote.instrument.instrument_id
+                for quote in quote_rows
+                if type(quote) is sdk["FuturesQuoteRecord"]
+                and quote.instrument in catalog_by_identity
+                and _key_order(
+                    ProductKey(
+                        catalog_by_identity[quote.instrument][0].product.venue,
+                        catalog_by_identity[quote.instrument][0].product.product_id,
+                    )
+                )
+                == product_id
             )
-            if snapshot is not None
-            else ()
         )
-        query_coverage.append(
-            MainContractQueryCoverage(
+        market_coverage.append(
+            MainContractMarketCoverage(
                 product=product,
-                catalog_instrument_ids=tuple(sorted(catalog_ids)),
+                catalog_instrument_ids=catalog_ids,
                 expected_quote_instrument_ids=expected_quote_ids,
-                observed_quote_instrument_ids=tuple(sorted(observed_quote_ids)),
+                observed_quote_instrument_ids=observed_quote_ids,
             )
         )
 
-        group_assessments = []
         eligible = []
-        for record in records:
-            join_key = (record.product.exchange_id, record.instrument_id)
-            matching_quotes = quote_rows_by_key.get(join_key, ())
-            quote = matching_quotes[0] if matching_quotes else None
-            quote_missing = (
-                _catalog_requires_ranking_quote(
-                    record,
-                    current_trading_day=current_day,
-                    calendar=calendar if not calendar_blockers else None,
-                    policy=policy,
-                )
-                and quote is None
+        group_assessments = []
+        for catalog_row in records:
+            classification, issue = classification_by_identity.get(
+                catalog_row.instrument, ("unknown", "CATALOG_CLASSIFICATION_UNAVAILABLE")
             )
-            assessment, is_eligible, score = _query_contract_assessment(
-                record,
-                quote,
+            if classification == "unknown":
+                product_blockers.append(issue or "CATALOG_CLASSIFICATION_UNAVAILABLE")
+                group_assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=catalog_row.instrument.instrument_id,
+                        status="PARTIAL",
+                        reason=issue,
+                        expiry_date=catalog_row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=catalog_row.asset_type.value,
+                        is_trading=catalog_row.is_trading,
+                        contract_kind=catalog_row.contract_kind.value,
+                    )
+                )
+                continue
+            if classification != "future":
+                group_assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=catalog_row.instrument.instrument_id,
+                        status="EXCLUDED",
+                        reason=issue or "NOT_ORDINARY_FUTURE",
+                        expiry_date=catalog_row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=catalog_row.asset_type.value,
+                        is_trading=catalog_row.is_trading,
+                        contract_kind=catalog_row.contract_kind.value,
+                    )
+                )
+                continue
+            matching = quote_by_identity.get(catalog_row.instrument, ())
+            quote = matching[0] if len(matching) == 1 else None
+            if quote is None:
+                product_blockers.append("QUOTE_ROW_MISSING_FOR_CANDIDATE")
+                group_assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=catalog_row.instrument.instrument_id,
+                        status="PARTIAL",
+                        reason="QUOTE_ROW_MISSING_FOR_CANDIDATE",
+                        expiry_date=catalog_row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=catalog_row.asset_type.value,
+                        is_trading=catalog_row.is_trading,
+                        contract_kind=catalog_row.contract_kind.value,
+                    )
+                )
+                continue
+            quantity_unit = sdk["FuturesQuantityUnit"]
+            if (
+                type(quote.open_interest_unit) is not quantity_unit
+                or type(quote.volume_unit) is not quantity_unit
+                or quote.open_interest_unit is not quantity_unit.CONTRACTS
+                or quote.volume_unit is not quantity_unit.CONTRACTS
+            ):
+                product_blockers.append("RANKING_QUANTITY_UNIT_UNAVAILABLE")
+                group_assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=catalog_row.instrument.instrument_id,
+                        status="PARTIAL",
+                        reason="RANKING_QUANTITY_UNIT_UNAVAILABLE",
+                        expiry_date=catalog_row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=catalog_row.asset_type.value,
+                        is_trading=catalog_row.is_trading,
+                        contract_kind=catalog_row.contract_kind.value,
+                        quote_trading_day=quote.trading_day,
+                        provider_event_date=quote.provider_event_date,
+                        provider_event_time=quote.provider_event_time,
+                        provider_event_millisecond=quote.provider_event_millisecond,
+                    )
+                )
+                continue
+            volume_semantics = sdk["FuturesVolumeSemantics"]
+            if (
+                type(quote.volume_semantics) is not volume_semantics
+                or quote.volume_semantics is not volume_semantics.CUMULATIVE_TRADING_DAY
+            ):
+                product_blockers.append("RANKING_VOLUME_SEMANTICS_UNAVAILABLE")
+                group_assessments.append(
+                    ContractAssessment(
+                        product=product,
+                        instrument_id=catalog_row.instrument.instrument_id,
+                        status="PARTIAL",
+                        reason="RANKING_VOLUME_SEMANTICS_UNAVAILABLE",
+                        expiry_date=catalog_row.expiry_date,
+                        trading_days_to_expiry=None,
+                        open_interest=None,
+                        volume=None,
+                        rank=None,
+                        asset_type=catalog_row.asset_type.value,
+                        is_trading=catalog_row.is_trading,
+                        contract_kind=catalog_row.contract_kind.value,
+                        quote_trading_day=quote.trading_day,
+                        provider_event_date=quote.provider_event_date,
+                        provider_event_time=quote.provider_event_time,
+                        provider_event_millisecond=quote.provider_event_millisecond,
+                        volume_semantics=getattr(quote.volume_semantics, "value", None),
+                    )
+                )
+                continue
+            ranking_record = FuturesContractRecord(
+                product=product,
+                instrument_id=catalog_row.instrument.instrument_id,
+                asset_type="future",
+                is_trading=catalog_row.is_trading,
+                expiry_date=catalog_row.expiry_date,
+                open_interest=quote.open_interest,
+                volume=quote.volume,
+            )
+            assessment, is_eligible = _candidate_assessment(
+                ranking_record,
                 current_trading_day=current_day,
                 calendar=calendar if not calendar_blockers else None,
                 policy=policy,
-                quote_missing=quote_missing,
+                suppress_source_values=False,
+                exact_metric_limit=True,
+                require_month_contract=False,
             )
+            assessment = replace(
+                assessment,
+                asset_type=catalog_row.asset_type.value,
+                is_trading=catalog_row.is_trading,
+                contract_kind=catalog_row.contract_kind.value,
+                quote_trading_day=quote.trading_day,
+                provider_event_date=quote.provider_event_date,
+                provider_event_time=quote.provider_event_time,
+                provider_event_millisecond=quote.provider_event_millisecond,
+                volume_semantics=quote.volume_semantics.value,
+            )
+            score = None
+            if is_eligible:
+                oi = _number_as_decimal(quote.open_interest)
+                volume = _number_as_decimal(quote.volume)
+                score = (
+                    _exact_equal_weight_score(oi, volume)
+                    if oi is not None and volume is not None
+                    else None
+                )
+                if score is None:
+                    is_eligible = False
+                    assessment = replace(
+                        assessment,
+                        status="BLOCKED",
+                        reason="RANKING_VALUE_RANGE_UNSUPPORTED",
+                        open_interest=None,
+                        volume=None,
+                    )
+                else:
+                    assessment = replace(assessment, ranking_score=_decimal_text(score))
             if assessment.status == "BLOCKED" and assessment.reason:
                 product_blockers.append(assessment.reason)
             if is_eligible:
-                eligible.append((record, assessment, score))
+                eligible.append((catalog_row, assessment, score))
             group_assessments.append(assessment)
 
         product_blockers = list(dict.fromkeys(product_blockers))
-        if not product_blockers and not eligible:
-            product_blockers.append("NO_ELIGIBLE_MONTH_FUTURES")
-
-        if product_blockers:
+        partial_reasons = {
+            "CATALOG_CLASSIFICATION_UNAVAILABLE",
+            "CATALOG_CLASSIFICATION_TYPE_INVALID",
+            "CATALOG_FUTURES_CLASSIFICATION_CONFLICT",
+            "QUOTE_ROW_MISSING_FOR_CANDIDATE",
+            "RANKING_QUANTITY_UNIT_UNAVAILABLE",
+            "RANKING_VOLUME_SEMANTICS_UNAVAILABLE",
+            "CATALOG_TRADING_STATUS_UNAVAILABLE",
+            "PRODUCT_CATALOG_COVERAGE_UNAVAILABLE",
+            "TARGET_PRODUCT_OUTSIDE_REQUEST_SCOPE",
+            "ASSET_TYPE_UNKNOWN",
+            "TRADING_STATUS_UNKNOWN",
+            "EXPIRY_UNAVAILABLE",
+            "EXPIRY_CALENDAR_UNAVAILABLE",
+            "EXPIRY_SAFETY_UNPROVEN",
+            "RANKING_VALUE_MISSING_OR_INVALID",
+            "RANKING_VALUE_RANGE_UNSUPPORTED",
+            "EXCHANGE_CALENDAR_UNAVAILABLE",
+            "EXCHANGE_CALENDAR_INCOMPLETE",
+            "CALENDAR_NOT_AVAILABLE_AT_DECISION",
+            "CALENDAR_RETRIEVED_AFTER_DECISION",
+        }
+        is_partial = bool(source_blockers) or any(
+            item in partial_reasons
+            or item.startswith(
+                (
+                    "SESSION_",
+                    "MARKET_SNAPSHOT_",
+                    "CATALOG_COVERAGE_",
+                    "QUOTE_COVERAGE_",
+                    "CALENDAR_",
+                    "EXCHANGE_CALENDAR_",
+                )
+            )
+            for item in product_blockers
+        )
+        if is_partial:
+            assessments.extend(
+                replace(item, status="PARTIAL", rank=None)
+                if item.status == "ELIGIBLE"
+                else item
+                for item in group_assessments
+            )
+            selections.append(
+                ProductSelection(
+                    product=product,
+                    in_target_pool=True,
+                    status="PARTIAL",
+                    expected_prior_trading_day=None,
+                    ranking_trading_day=current_day,
+                    selected_instrument_id=None,
+                    ranked_instrument_ids=tuple(
+                        row.instrument.instrument_id for row, _assessment, _score in eligible
+                    ),
+                    excluded_instrument_ids=tuple(
+                        item.instrument_id for item in group_assessments if item.status == "EXCLUDED"
+                    ),
+                    blockers=tuple(product_blockers or ("MARKET_SNAPSHOT_COVERAGE_INCOMPLETE",)),
+                )
+            )
+            continue
+        if product_blockers or not eligible:
+            if not product_blockers:
+                product_blockers.append("NO_ELIGIBLE_FUTURES_CONTRACTS")
             assessments.extend(
                 replace(item, status="BLOCKED", reason=product_blockers[0], rank=None)
                 if item.status == "ELIGIBLE"
@@ -2870,15 +2236,12 @@ def _select_query_snapshot(
                     selected_instrument_id=None,
                     ranked_instrument_ids=(),
                     excluded_instrument_ids=tuple(
-                        item.instrument_id
-                        for item in group_assessments
-                        if item.status == "EXCLUDED"
+                        item.instrument_id for item in group_assessments if item.status == "EXCLUDED"
                     ),
                     blockers=tuple(product_blockers),
                 )
             )
             continue
-
         ranked = sorted(
             eligible,
             key=lambda item: (
@@ -2886,18 +2249,22 @@ def _select_query_snapshot(
                 Decimal(item[1].open_interest).copy_negate(),
                 Decimal(item[1].volume).copy_negate(),
                 item[1].expiry_date,
-                item[0].instrument_id,
+                item[0].instrument.instrument_id,
             ),
         )
-        rank_by_id = {item[0].instrument_id: index for index, item in enumerate(ranked, 1)}
-        rank_score_by_id = {item[0].instrument_id: _decimal_text(item[2]) for item in ranked}
+        rank_by_id = {
+            item[0].instrument.instrument_id: index for index, item in enumerate(ranked, 1)
+        }
+        score_by_id = {
+            item[0].instrument.instrument_id: _decimal_text(item[2]) for item in ranked
+        }
         assessments.extend(
             replace(
                 assessment,
                 status="RANKED",
                 reason=None,
                 rank=rank_by_id[assessment.instrument_id],
-                ranking_score=rank_score_by_id[assessment.instrument_id],
+                ranking_score=score_by_id[assessment.instrument_id],
             )
             if assessment.instrument_id in rank_by_id
             else assessment
@@ -2910,8 +2277,10 @@ def _select_query_snapshot(
                 status="READY",
                 expected_prior_trading_day=None,
                 ranking_trading_day=current_day,
-                selected_instrument_id=ranked[0][0].instrument_id,
-                ranked_instrument_ids=tuple(item[0].instrument_id for item in ranked),
+                selected_instrument_id=ranked[0][0].instrument.instrument_id,
+                ranked_instrument_ids=tuple(
+                    item[0].instrument.instrument_id for item in ranked
+                ),
                 excluded_instrument_ids=tuple(
                     item.instrument_id for item in group_assessments if item.status == "EXCLUDED"
                 ),
@@ -2924,51 +2293,25 @@ def _select_query_snapshot(
         item for item in targets if _key_order(item) not in no_listed_ids
     )
     target_selections = [item for item in selections if item.in_target_pool]
-    manifest_blockers = list(global_blockers)
+    manifest_blockers = list(source_blockers)
     manifest_blockers.extend(reason for item in target_selections for reason in item.blockers)
     if not narrowed_targets:
         manifest_blockers.append("TARGET_PRODUCT_POOL_EMPTY")
     manifest_blockers = list(dict.fromkeys(manifest_blockers))
+    has_partial = bool(source_blockers) or any(item.status == "PARTIAL" for item in target_selections)
     status = (
-        "READY"
+        "PARTIAL"
+        if has_partial
+        else "READY"
         if narrowed_targets and all(item.status == "READY" for item in target_selections)
         else "BLOCKED"
     )
-    quote_source = snapshot.quote_source if snapshot is not None else None
-    catalog_source = snapshot.catalog_source if snapshot is not None else None
     return MainContractManifest(
         status=status,
         decision_at=decision_at,
         policy=policy,
         target_products=narrowed_targets,
-        source_id=_source_text(quote_source.source_id) if quote_source is not None else None,
-        source_snapshot_id=_source_text(quote_source.snapshot_id)
-        if quote_source is not None
-        else None,
-        source_sha256=_source_digest(quote_source.source_sha256)
-        if quote_source is not None
-        else None,
-        source_available_at=_source_timestamp(quote_source.completed_at)
-        if quote_source is not None
-        else None,
-        source_retrieved_at=_source_timestamp(quote_source.retrieved_at)
-        if quote_source is not None
-        else None,
-        catalog_source_id=_source_text(catalog_source.source_id)
-        if catalog_source is not None
-        else None,
-        catalog_snapshot_id=_source_text(catalog_source.snapshot_id)
-        if catalog_source is not None
-        else None,
-        catalog_sha256=_source_digest(catalog_source.source_sha256)
-        if catalog_source is not None
-        else None,
-        catalog_available_at=_source_timestamp(catalog_source.completed_at)
-        if catalog_source is not None
-        else None,
-        catalog_retrieved_at=_source_timestamp(catalog_source.retrieved_at)
-        if catalog_source is not None
-        else None,
+        **_market_snapshot_source_fields(snapshot, sdk),
         trading_days=tuple(day_references[key] for key in sorted(day_references)),
         calendars=tuple(used_calendars[key] for key in sorted(used_calendars)),
         coverage=(),
@@ -2984,49 +2327,150 @@ def _select_query_snapshot(
             )
         ),
         blockers=tuple(manifest_blockers),
-        query_snapshot=snapshot,
-        query_coverage=tuple(sorted(query_coverage, key=lambda item: _key_order(item.product))),
+        market_coverage=tuple(
+            sorted(market_coverage, key=lambda item: _key_order(item.product))
+        ),
+        market_snapshot_evidence_json=_market_snapshot_json(snapshot, sdk),
     )
 
 
+def _select_futures_market_snapshot(
+    snapshot: Any,
+    expected_products: Sequence[ProductKey],
+    calendars: Sequence[ExchangeTradingCalendar],
+    *,
+    decision_at: datetime,
+    policy: MainContractPolicy,
+    snapshot_lease: Any,
+    snapshot_facade: Any,
+) -> MainContractManifest:
+    sdk = _futures_market_sdk_types()
+    if sdk is None:
+        return _neutral_partial_manifest(
+            None,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("FUTURES_MARKET_SDK_CONTRACT_UNAVAILABLE",),
+            sdk=None,
+        )
+    if snapshot is None:
+        return _neutral_partial_manifest(
+            None,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_UNAVAILABLE",),
+            sdk=sdk,
+        )
+    if type(snapshot) is not sdk["FuturesMarketSnapshot"]:
+        return _neutral_partial_manifest(
+            None,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_TYPE_INVALID",),
+            sdk=sdk,
+        )
+    if (
+        type(snapshot_lease) is not sdk["QuerySnapshotLease"]
+        or type(snapshot_facade) is not sdk["FuturesMarketSnapshotFacade"]
+    ):
+        return _neutral_partial_manifest(
+            snapshot,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_LEASE_UNAVAILABLE",),
+            sdk=sdk,
+        )
+    try:
+        lease_before = snapshot_facade.validate_lease(
+            snapshot, snapshot_lease, now=datetime.now(timezone.utc)
+        )
+    except Exception:
+        lease_before = False
+    if lease_before is not True:
+        return _neutral_partial_manifest(
+            snapshot,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_LEASE_INVALID_BEFORE_SELECTION",),
+            sdk=sdk,
+        )
+    try:
+        manifest = _select_futures_market_snapshot_rows(
+            snapshot,
+            expected_products,
+            calendars,
+            decision_at=decision_at,
+            policy=policy,
+            sdk=sdk,
+        )
+    except Exception:
+        manifest = _neutral_partial_manifest(
+            snapshot,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_PROJECTION_INVALID",),
+            sdk=sdk,
+        )
+    try:
+        lease_after = snapshot_facade.validate_lease(
+            snapshot, snapshot_lease, now=datetime.now(timezone.utc)
+        )
+    except Exception:
+        lease_after = False
+    if lease_after is not True:
+        return _neutral_partial_manifest(
+            snapshot,
+            expected_products,
+            decision_at=decision_at,
+            policy=policy,
+            blockers=("MARKET_SNAPSHOT_LEASE_INVALID_AFTER_SELECTION",),
+            sdk=sdk,
+        )
+    return manifest
+
+
 def select_main_contracts(
-    snapshot: Optional[Union[MainContractRankingSnapshot, MainContractQuerySnapshot]],
+    snapshot: Optional[Any],
     expected_products: Sequence[ProductKey],
     current_trading_days: Sequence[ExchangeTradingDay],
     calendars: Sequence[ExchangeTradingCalendar],
     *,
     decision_at: datetime,
     policy: MainContractPolicy = DEFAULT_MAIN_CONTRACT_POLICY,
+    snapshot_lease: Any = None,
+    snapshot_facade: Any = None,
 ) -> MainContractManifest:
-    """Select one actual monthly future per target product, fail-closed.
+    """Select one future per target product, fail-closed.
 
     The input pool is product identities only, never contract IDs.  The
     legacy policy requires finalized latest prior-day rankings.  The explicit
-    CTP query policy requires complete, same-session catalog and current-day
-    depth results; it ranks by exact equal-weight OI and volume and does not
-    label those values as finalized EOD.  Both require a proved exchange
-    calendar and keep the complete manifest non-executable if any target is
-    blocked.
+    provider-neutral market snapshot policy consumes only exact SDK catalog,
+    session, and quote DTOs. It uses each venue's own session trading day and
+    requires the exact snapshot lease to validate before and after selection.
+    Quote event timestamps are audit fields; they do not establish freshness.
     """
 
     _aware_datetime(decision_at, "decision_at")
     if not isinstance(policy, MainContractPolicy):
         raise ValueError("policy must be a MainContractPolicy")
-    if policy.ranking_mode == RANKING_MODE_CTP_QUERY_SNAPSHOT:
-        if snapshot is not None and not isinstance(snapshot, MainContractQuerySnapshot):
-            raise ValueError("query-snapshot policy requires MainContractQuerySnapshot")
-        return _select_query_snapshot(
+    if policy.ranking_mode == RANKING_MODE_FUTURES_MARKET_SNAPSHOT:
+        return _select_futures_market_snapshot(
             snapshot,
             expected_products,
-            current_trading_days,
             calendars,
             decision_at=decision_at,
             policy=policy,
+            snapshot_lease=snapshot_lease,
+            snapshot_facade=snapshot_facade,
         )
-    if isinstance(snapshot, MainContractQuerySnapshot):
-        raise ValueError("CTP query snapshot requires the explicit query-snapshot policy")
     if snapshot is not None and not isinstance(snapshot, MainContractRankingSnapshot):
-        raise ValueError("snapshot must be MainContractRankingSnapshot, query snapshot, or None")
+        raise ValueError("snapshot must be MainContractRankingSnapshot or None")
     targets = tuple(expected_products)
     if any(not isinstance(item, ProductKey) for item in targets):
         raise ValueError("expected_products must contain ProductKey records")
@@ -3589,35 +3033,27 @@ def authorize_main_contract_rollover(
 
 
 __all__ = [
-    "CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY",
-    "CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_V1",
     "EXCLUSION_REASON_NO_LISTED_CONTRACTS",
     "CalendarEvidence",
     "ContractAssessment",
     "DEFAULT_MAIN_CONTRACT_POLICY",
     "ExchangeTradingCalendar",
     "ExchangeTradingDay",
-    "FuturesContractCatalogRecord",
     "FuturesContractRecord",
-    "CurrentDayQuoteRecord",
+    "FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY",
     "LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_POLICY",
     "LEGACY_PREVIOUS_COMPLETE_DAY_EOD_OI_V1",
     "MainContractBinding",
     "MainContractManifest",
+    "MainContractMarketCoverage",
     "MainContractPolicy",
-    "MainContractQueryCoverage",
-    "MainContractQuerySnapshot",
     "MainContractRankingSnapshot",
     "MainContractRolloverPlan",
     "MainContractSelectionBlocked",
     "ProductKey",
     "ProductRankingCoverage",
     "ProductSelection",
-    "QuerySnapshotExcludedProductEvidence",
-    "QuerySnapshotProductEvidence",
-    "QuerySnapshotSetEvidence",
-    "QuerySnapshotSourceEvidence",
-    "RANKING_MODE_CTP_QUERY_SNAPSHOT",
+    "RANKING_MODE_FUTURES_MARKET_SNAPSHOT",
     "RANKING_MODE_LEGACY_PRIOR_DAY_OI",
     "RolloverBoundaryEvidence",
     "RolloverAuthorization",
@@ -3626,6 +3062,5 @@ __all__ = [
     "TradingDayReference",
     "authorize_main_contract_rollover",
     "plan_main_contract_rollover",
-    "query_snapshot_set_digest",
     "select_main_contracts",
 ]

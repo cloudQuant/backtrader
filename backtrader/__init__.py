@@ -170,7 +170,13 @@ else:
     from .profiles import LiveProfile, build_cerebro
 
     # Iteration 138: Tick-level backtesting and live trading
-    from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent
+    from .events import (
+        BarEvent,
+        FundingEvent,
+        MarketOrderBookEnvelope,
+        OrderBookSnapshot,
+        TickEvent,
+    )
     from .channel import Event, EventPriority, StreamingEventQueue
 
     # import backtrader.studies.contrib

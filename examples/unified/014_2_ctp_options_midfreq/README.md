@@ -1,4 +1,4 @@
-# 014_2 — CTP 期权/期货中频 C/P/F 套利（迭代42 标准四件套）
+﻿# 014_2 — CTP 期权/期货中频 C/P/F 套利（迭代42 标准四件套）
 
 本目录按迭代42 标准形态交付：**README.md + config.yaml + ctp_options_midfreq_strategy.py
 + run.py**（唯一运行入口），另含运行必需的内部模块（下表）。当前合约映射仍为本地
@@ -9,31 +9,23 @@
 ```text
 python run.py                          # 干跑自检：配置校验 + live 就绪度报告（不联网）
 python run.py --replay [--scenario S]  # 离线一分钟 FQ2 fixture 回放（零网络零写入）
-python run.py --live                   # live 观察层（零写；需 Python 3.11，见下）
+python run.py --live                   # BLOCKED: SDK 宿主注入与行情合同未提供
 python run.py --live --allow-write     # 显式 BLOCKED：本策略无下单路径
 ```
 
-- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；回放/观察证据写入 `evidence/<run_id>/`（git-ignored）。
+- 退出码：0 PASS / 1 FAIL / 2 BLOCKED / 3 UNKNOWN；离线回放证据写入 `evidence/<run_id>/`（git-ignored）。
 - 迭代41 登记回放路由（`runtime/`、`run_runtime.py`）已于 2026-10-11 精简轮退役；
   `run.py` 是唯一入口。
 
-## live 层（观察，零写）
+## live 层（当前状态）
 
-本策略按合同为**决策专用**（token 结果 `ENGINEERING_WRITE_DISABLED` / `REPLAY_WRITE_DISABLED`，
-不存在下单路径），因此 live 层采用 R7/R8 计划修正案的**观察层**：真实直连
-registered-sim（SimNow）链——front 选择 → Store 登录与账户/持仓/合约元数据只读查询 →
-3 × `BtApiFeed` 分钟桶（`closed_bar_quote_capture`）→ 策略在 feed 密封的
-`BarEvidence`（live 时钟域、非 synthetic `ClockMapping`）上计算 FQ2 特征与决策。
-零写：不 arm、不下单；`--allow-write` 明确 BLOCKED
-（`write_tier_not_implemented_for_decision_only_strategy`）。
+`run.py --live` 只接受宿主显式注入的 SDK-owned provider configuration 和 `ManagedRuntimeBinding`，并交给 `bt_api_py.managed_runtime_composition`。命令行没有受信宿主注入来源，因此返回 `BLOCKED / managed_runtime_host_injection_required`，不创建本地 CTP client，也不启动 Backtrader 策略。当前还缺多腿 Store/Feed adapter、SDK 签发的期权规则与费用合同、合格行情时钟；这些能力补齐并验收前不会运行策略。
 
-- 环境要求：Python 3.11（`C:/anaconda3/python.exe`）+ dev SDK `D:/bt_api_py`；其他解释器
-  fail-closed `live_tier_requires_python_3_11`（dry/replay 不受限）。
-- PASS = 观察窗内 ≥1 个完成分钟特征窗（`WARMUP`/`ORDINARY_DECISION`）且
-  `feed_evidence_fault=null`、`order_write=0`；证据 `evidence/live-*/run.json`。
-- 已知环境事实：7x24 前置报价事件钟可能陈旧（曾观测 ~47.9h），无法满足 live 时钟域时
-  以 `BLOCKED / live_event_clock_outside_run_mapping`（含可用年龄秒数）知会；标准前置
-  交易时段内正常；不会降级为伪造证据。
+本策略是决策专用，`--allow-write` 明确返回 `BLOCKED / write_tier_not_implemented_for_decision_only_strategy`。离线 FQ2 fixture replay 独立保留。
+
+## 历史 SimNow/Service live 记录（已退役）
+
+下方旧文档曾描述直连 SimNow 与低层 Service 只读后端；它们不再是 `run.py` 的 live 路径。旧 `simnow_direct.py` 已从本例移除，`live_adapter.backend` 不再选择 provider。
 
 ## 内部模块（运行必需，非第二入口）
 
@@ -93,8 +85,7 @@ oracle 只用于测试输入与边界对照，策略没有用产品函数倒算 
 
 Iter24 的注入式 fail-closed `simnow_adapter.py` 装配层（三腿 Store/Feed/Broker/
 Cerebro 链、ACK/fill 记录、append-only JSONL）只被回归测试引用、无运行入口，已随
-2026-10-11 精简轮退役。策略的 `engineering_observation` 模式语义保留（live 观察层
-使用），由 `run.py` 的严格直连链驱动。
+2026-10-11 精简轮退役。策略的 `engineering_observation` 模式语义仍保留，但当前 `run.py` 不会通过历史 adapter 启动 live；live 只接受显式 SDK 托管组合，CLI 无宿主注入而 `BLOCKED`。
 
 ## 策略逻辑与参数
 
@@ -156,15 +147,7 @@ entry:
   tier: replay   # dry | replay | live（backtest 为 replay 别名）
 ```
 
-本目录的 live 通道按契约**只观察不下单**：`--allow-write` 在 `run_live` 的第一条语句就被拒绝（`write_tier_not_implemented_for_decision_only_strategy`），因此可用它来证明确实分发到了 live 通道而不产生任何 provider 副作用。
-本目录的 live 通道按契约**只观察不下单**，其 summary 自迭代 43 R5b 起在**所有出口路径**都带 `entry_tier`（通道决策）与 `write_grant_result`（写授权结果）两个字段，与既有的结果层级标签 `tier` 分列。严格回放校验器把 `entry` 段投影掉（沿用既有 `live_adapter` 先例），所以新的入口字段不会放宽冻结回放契约的键集合，其他未知字段仍全面拒绝。
+当前 live 通道只通过 SDK 托管组合边界运行，需要宿主显式注入 provider configuration 与 runtime binding。命令行没有注入来源，因此明确返回 `BLOCKED`；`--allow-write` 始终在任何组合前拒绝。策略 summary 不代表 provider 连接、行情到达或策略运行。
+## 已退役的 SDK Service 只读后端（014_2）
 
-## 可选 SDK Service 只读后端（014_2）
-
-`live_adapter.backend` 未设置时，`run.py --live` 保持现有直连 SimNow 路径。仅当本地受信配置明确设为 `service`，入口才会选择 SDK `ServiceClientRuntime`；配置缺失、mount 不符或后端不支持时会 BLOCKED，不会回退到直连 provider。`--allow-write` 仍在任何 provider 连接之前拒绝。
-
-Service 配置由操作者在 `live_adapter.service` 中提供：正常 SDK `client_config`、策略身份引用、两个服务 principal、`curve_key_envs`、account binding 和 market binding。Curve 项只保存进程环境变量名；服务路径只从当前进程环境取密钥，不读取仓库 `.env`。account binding 必须显式给出固定 `AccountKey`、完整 `required_coverage`、future/call/put 各自的 `AccountResourceKey`、估值币种、持仓模式和数量单位；market binding 必须固定 mount、source 与 entitlement。每个三腿资源都必须落在账户明确覆盖集合内。
-
-入口先执行 `account.snapshot`，再通过同一账户 session 的 `account.instrument_metadata` 读取各合约元数据。市场订阅的 `MarketInstrumentKey` 使用 provider 返回的交易所、`asset_type` 和 CTP 原生裸 instrument ID；`EXCHANGE.ID` 完整合约身份仍保留在 BT strategy/feed 名称层，不作为 CTP 订阅原生 symbol。该字段不会被拿来推断账户的 `product_type` 或 `margin_pool` 覆盖。元数据当前明确报告 CTP instrument query 没有提供涨跌停价，不能以配置值或行情深度伪造该事实。
-
-Service feed 订阅原生 `ctp.quote.v2` tick，并要求 `market.subscribe` 返回当前活动订阅的 typed source descriptor。BT 将它的完整 key、Hub stream/epoch、provider/source、CTP connection generation 与 clock domain/session/implementation 逐项绑定到事件；账户元数据里的行情时钟字段不会用于这条独立 MarketHub 来源链。subscription epoch、Hub event sequence 与 provider ingest sequence 仍分别校验；不把行情转换成 K 线接口，也不调用历史 bars 路由。descriptor 只证明来源身份，不提供跨进程时钟映射或 freshness qualification，因此该路径会将运行结果标为 `BLOCKED` / `NOT_QUALIFIED`，不构成观察 PASS。CTP futures/options 的完整账户资源覆盖也必须由可信账户 snapshot 证明；无法证明时 fail-closed。合成 ServiceHost/HTTP/CTP leaves 只用于本机链路验证，不能替代真实 provider 或账户验收。
+旧 `live_adapter.backend` 直连/Service 选择、Service 账户/行情绑定与 CTP tick 说明均为历史材料，不是当前运行入口。当前 `run.py --live` 只接受宿主显式注入的 SDK 托管组合，命令行没有这类注入来源，因此明确返回 `BLOCKED`。策略 adapter、期权规则与费用、合格行情时钟尚未作为完整合同提供。

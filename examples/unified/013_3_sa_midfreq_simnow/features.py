@@ -1,8 +1,8 @@
 """Causal level-one quote features for the SA v0 candidate.
 
-The CTP feed supplies snapshots rather than an order-by-order book.  OFI in
-this module therefore measures quoted level-one changes only; it says nothing
-about cancellations, aggressor side, queue position, or execution priority.
+Provider ticks and replay fixture ticks use separate SDK schemas and sequence
+namespaces. Replay event time supports deterministic feature calculation, but
+does not provide a receive clock, freshness, or execution eligibility.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from collections import deque
 from dataclasses import asdict, dataclass
 from typing import Any, Deque, Iterable, Optional
 
-CTP_INVALID_ABS = 1.0e30
+MAX_MARKET_VALUE_ABS = 1.0e30
 
 
 def _value(source: Any, *names: str, default: Any = None) -> Any:
@@ -32,9 +32,8 @@ def _value(source: Any, *names: str, default: Any = None) -> Any:
 def _present(source: Any, *names: str) -> bool:
     """Return whether at least one named field is explicitly present.
 
-    ``_value`` is deliberately permissive for the legacy quote adapter.  The
-    typed CTP v2 contract is different: required fields must be carried by the
-    SDK event and may not be synthesized from a zero/default value here.
+    ``_value`` is deliberately permissive for optional provider fields. Each
+    SDK schema checks its own required set before accepting a quote.
     """
 
     if isinstance(source, dict):
@@ -48,7 +47,7 @@ def _finite(value: Any) -> bool:
         number = float(value)
     except (TypeError, ValueError):
         return False
-    return math.isfinite(number) and abs(number) < CTP_INVALID_ABS
+    return math.isfinite(number) and abs(number) < MAX_MARKET_VALUE_ABS
 
 
 def _epoch(value: Any) -> Optional[float]:
@@ -81,31 +80,40 @@ def _on_tick_grid(value: float, tick_size: float, tolerance: float = 1.0e-8) -> 
 
 @dataclass(frozen=True)
 class QuoteSnapshot:
-    """Normalized, quality-checked best bid/ask snapshot."""
+    """Normalized provider quote or explicitly lineage-bound replay quote."""
 
     event_time: float
-    recv_monotonic: float
-    ingest_seq: int
+    recv_monotonic: Optional[float]
+    ingest_seq: Optional[int]
     bid: float
     ask: float
     bid_size: float
     ask_size: float
     last: float
-    cum_volume: float
-    delta_volume: float
+    cum_volume: Optional[float]
+    delta_volume: Optional[float]
     open_interest: float
     lower_limit: float
     upper_limit: float
     trading_day: str
-    action_day: str
-    connection_generation: int
+    event_session_date: str
+    generation: Optional[int]
     source: str
     schema_version: str = ""
-    recv_time_utc: float = 0.0
+    recv_time_utc: Optional[float] = None
     volume_quality: str = ""
     event_time_source: str = ""
     continuity_status: str = ""
     volume_complete: bool = False
+    source_mode: str = "provider"
+    replay_source_ref: str = ""
+    replay_epoch: str = ""
+    replay_sequence: Optional[int] = None
+
+    @property
+    def sequence(self) -> Optional[int]:
+        """Return the sequence in its own provider or replay namespace."""
+        return self.replay_sequence if self.source_mode in {"replay", "synthetic"} else self.ingest_seq
 
     @property
     def mid(self) -> float:
@@ -133,6 +141,16 @@ class QuoteValidation:
     quote: Optional[QuoteSnapshot] = None
 
 
+def _day_text(value: Any) -> str:
+    """Normalize a provider-neutral date without interpreting provider fields."""
+    if hasattr(value, "isoformat") and not isinstance(value, str):
+        value = value.isoformat()
+    text = str(value or "").strip()
+    if len(text) == 10 and text[4] == "-" and text[7] == "-":
+        return text.replace("-", "")
+    return text
+
+
 def normalize_quote(
     raw: Any,
     *,
@@ -142,121 +160,142 @@ def normalize_quote(
     max_receive_age: float = 2.0,
     max_event_age: float = 2.0,
 ) -> QuoteValidation:
-    """Normalize one SDK/Store event without falling back to last or bar close."""
+    """Normalize only the SDK provider tick and SDK replay tick contracts.
 
+    Replay has event-time lineage but no receive clock, freshness claim,
+    provider generation, or ingest sequence. Its sequence stays in the separate
+    replay namespace and never participates in live clock validation.
+    """
     if not _finite(tick_size) or float(tick_size) <= 0:
         return QuoteValidation(False, "invalid_tick_size")
     schema_version = str(_value(raw, "schema_version", default="") or "")
-    if schema_version not in {"ctp.quote.v2", "backtrader.tick.v1"}:
+    live_schema = schema_version == "sdk.market.tick.v1"
+    replay_schema = schema_version == "sdk.replay.market.tick.v1"
+    if not (live_schema or replay_schema):
         return QuoteValidation(False, "unsupported_or_missing_quote_schema")
-    volume_semantics = str(_value(raw, "volume_semantics", default="") or "")
-    if volume_semantics != "delta":
-        return QuoteValidation(False, "volume_semantics_not_delta")
-    strict_ctp_v2 = schema_version == "ctp.quote.v2"
-    if strict_ctp_v2:
-        required_groups = {
-            "event_time_utc": ("event_time_utc",),
-            "recv_time_utc": ("recv_time_utc",),
-            "recv_monotonic_ns": ("recv_monotonic_ns",),
-            "cum_volume": ("cum_volume", "cumulative_volume"),
-            "delta_volume": ("delta_volume",),
-            "volume": ("volume",),
-            "open_interest": ("open_interest", "openinterest", "OpenInterest"),
-            "volume_complete": ("volume_complete",),
-            "volume_quality": ("volume_quality",),
-            "trading_day": ("trading_day",),
-            "action_day": ("action_day",),
-            "connection_generation": ("connection_generation",),
-            "ingest_seq": ("ingest_seq",),
-            "quality_flags": ("quality_flags",),
-            "event_time_source": ("event_time_source",),
-            "continuity_status": ("continuity_status",),
-            "source": ("source",),
-        }
-        missing = sorted(
-            name for name, aliases in required_groups.items() if not _present(raw, *aliases)
-        )
-        if missing:
-            return QuoteValidation(False, "ctp_required_field_missing:" + ",".join(missing))
 
-    raw_event_time = (
-        _value(raw, "event_time_utc")
-        if strict_ctp_v2
-        else _value(raw, "event_time_utc", "timestamp", "exchange_time")
-    )
+    source_mode = "provider"
+    replay_source_ref = ""
+    replay_epoch = ""
+    replay_sequence = None
+    if live_schema:
+        required = (
+            "event_time_utc",
+            "recv_time_utc",
+            "recv_monotonic_ns",
+            "delta_volume",
+            "volume",
+            "open_interest",
+            "volume_complete",
+            "volume_quality",
+            "trading_date",
+            "event_session_date",
+            "connection_generation",
+            "ingest_seq",
+            "quality_flags",
+            "event_time_provenance",
+            "continuity_status",
+            "provider_source",
+            "source_clock_quality",
+            "receive_clock_quality",
+            "freshness_status",
+            "freshness_verified",
+            "data_clock_qualified",
+        )
+        missing = [name for name in required if not _present(raw, name)]
+        if missing:
+            return QuoteValidation(False, "sdk_required_field_missing:" + ",".join(missing))
+        if (
+            _value(raw, "source_clock_quality") != "verified"
+            or _value(raw, "receive_clock_quality") != "verified"
+            or _value(raw, "freshness_status") != "fresh"
+            or _value(raw, "freshness_verified") is not True
+            or _value(raw, "data_clock_qualified") is not True
+        ):
+            return QuoteValidation(False, "provider_tick_clock_unqualified")
+        if str(_value(raw, "volume_semantics", default="") or "").lower() != "delta":
+            return QuoteValidation(False, "volume_semantics_not_delta")
+    else:
+        source_mode = str(_value(raw, "source_mode", default="") or "").lower()
+        replay_source_ref = str(_value(raw, "replay_source_ref", default="") or "")
+        replay_epoch = str(_value(raw, "replay_epoch", default="") or "")
+        raw_replay_sequence = _value(raw, "replay_sequence", default=None)
+        if source_mode not in {"replay", "synthetic"} or not replay_source_ref or not replay_epoch:
+            return QuoteValidation(False, "replay_lineage_unavailable")
+        if type(raw_replay_sequence) is not int or raw_replay_sequence <= 0:
+            return QuoteValidation(False, "replay_sequence_invalid")
+        replay_sequence = raw_replay_sequence
+        if (
+            _value(raw, "source_clock_quality") != "unknown"
+            or _value(raw, "receive_clock_quality") != "unknown"
+            or _value(raw, "freshness_status") != "unavailable"
+            or _value(raw, "freshness_verified") is not False
+            or _value(raw, "execution_eligible") is not False
+            or _value(raw, "data_clock_qualified") is not False
+        ):
+            return QuoteValidation(False, "replay_live_eligibility_claim_invalid")
+        live_identity_fields = (
+            "received_at_utc",
+            "recv_time_utc",
+            "received_wall_time",
+            "recv_monotonic_ns",
+            "received_monotonic_ns",
+            "connection_generation",
+            "subscription_epoch",
+            "ingest_seq",
+            "provider_sequence",
+            "clock_domain_id",
+        )
+        if any(_value(raw, name, default=None) is not None for name in live_identity_fields):
+            return QuoteValidation(False, "replay_live_clock_field_present")
+        if str(_value(raw, "volume_semantics", default="") or "").lower() != "delta":
+            return QuoteValidation(False, "replay_volume_semantics_unavailable")
+
+    raw_event_time = _value(raw, "event_time_utc", default=None)
     event_time = _epoch(raw_event_time)
     if event_time is None:
         return QuoteValidation(False, "invalid_event_time")
-    raw_recv_time = _value(raw, "recv_time_utc", default=None)
-    recv_time_utc = _epoch(raw_recv_time) if raw_recv_time is not None else None
-    if strict_ctp_v2 and recv_time_utc is None:
-        return QuoteValidation(False, "invalid_recv_time_utc")
-    recv_ns = (
-        _value(raw, "recv_monotonic_ns", default=None)
-        if strict_ctp_v2
-        else _value(raw, "recv_monotonic_ns", "received_monotonic_ns", default=None)
-    )
-    recv_seconds = (
-        None if strict_ctp_v2 else _value(raw, "recv_monotonic", "received_monotonic", default=None)
-    )
-    if recv_ns is not None:
-        if (
-            not _finite(recv_ns)
-            or float(recv_ns) <= 0
-            or (strict_ctp_v2 and not float(recv_ns).is_integer())
-        ):
+    recv_time_utc = None
+    recv_monotonic = None
+    ingest_seq = None
+    generation = None
+    if live_schema:
+        recv_time_utc = _epoch(_value(raw, "recv_time_utc", default=None))
+        if recv_time_utc is None:
+            return QuoteValidation(False, "invalid_recv_time_utc")
+        recv_ns = _value(raw, "recv_monotonic_ns", default=None)
+        if type(recv_ns) is not int or recv_ns <= 0:
             return QuoteValidation(False, "invalid_recv_monotonic_ns")
         recv_monotonic = float(recv_ns) / 1_000_000_000.0
-    elif recv_seconds is not None and _finite(recv_seconds):
-        recv_monotonic = float(recv_seconds)
-    else:
-        return QuoteValidation(False, "missing_recv_monotonic")
-    cum_volume = (
-        _value(raw, "cum_volume", "cumulative_volume", default=None)
-        if strict_ctp_v2
-        else _value(raw, "cum_volume", "cumulative_volume", "Volume", default=0)
-    )
-    delta_volume = (
-        _value(raw, "delta_volume", default=None)
-        if strict_ctp_v2
-        else _value(raw, "delta_volume", "volume", default=0)
-    )
+        try:
+            ingest_seq = int(_value(raw, "ingest_seq"))
+            generation = int(_value(raw, "connection_generation"))
+        except (TypeError, ValueError, OverflowError):
+            return QuoteValidation(False, "invalid_provider_causal_identity")
+        if ingest_seq <= 0 or generation <= 0:
+            return QuoteValidation(False, "invalid_provider_causal_identity")
+
     fields = {
-        "bid": _value(raw, "bid", "bid_price", "bid_price1", "BidPrice1"),
-        "ask": _value(raw, "ask", "ask_price", "ask_price1", "AskPrice1"),
-        "bid_size": _value(raw, "bid_size", "bid_volume", "bid_size1", "BidVolume1"),
-        "ask_size": _value(raw, "ask_size", "ask_volume", "ask_size1", "AskVolume1"),
-        "last": _value(raw, "last", "last_price", "price", "LastPrice"),
-        "cum_volume": cum_volume,
-        "delta_volume": delta_volume,
-        "open_interest": _value(
-            raw,
-            "open_interest",
-            "openinterest",
-            "OpenInterest",
-            default=None if strict_ctp_v2 else 0,
-        ),
-        "lower_limit": _value(raw, "lower_limit", "lower_limit_price", "LowerLimitPrice"),
-        "upper_limit": _value(raw, "upper_limit", "upper_limit_price", "UpperLimitPrice"),
+        "bid": _value(raw, "bid_price", default=None),
+        "ask": _value(raw, "ask_price", default=None),
+        "bid_size": _value(raw, "bid_size", "bid_volume", default=None),
+        "ask_size": _value(raw, "ask_size", "ask_volume", default=None),
+        "last": _value(raw, "last_price", "price", default=None),
+        "cum_volume": _value(raw, "cumulative_volume", "cum_volume", default=None),
+        "delta_volume": _value(raw, "delta_volume", "volume", default=None),
+        "open_interest": _value(raw, "open_interest", default=None),
+        "lower_limit": _value(raw, "lower_limit", "lower_limit_price", default=None),
+        "upper_limit": _value(raw, "upper_limit", "upper_limit_price", default=None),
     }
     for name, value in fields.items():
+        if value is None and replay_schema and name == "cum_volume":
+            continue
         if not _finite(value):
             return QuoteValidation(False, f"invalid_{name}")
-    if strict_ctp_v2:
-        volume_alias = _value(raw, "volume", default=None)
-        if not _finite(volume_alias):
-            return QuoteValidation(False, "invalid_volume")
-        if not math.isclose(
-            float(volume_alias), float(fields["delta_volume"]), rel_tol=0.0, abs_tol=1.0e-12
-        ):
-            return QuoteValidation(False, "delta_volume_alias_mismatch")
-        if _present(raw, "cum_volume") and _present(raw, "cumulative_volume"):
-            first = _value(raw, "cum_volume", default=None)
-            second = _value(raw, "cumulative_volume", default=None)
-            if not (_finite(first) and _finite(second)) or not math.isclose(
-                float(first), float(second), rel_tol=0.0, abs_tol=1.0e-12
-            ):
-                return QuoteValidation(False, "cumulative_volume_alias_mismatch")
+    if live_schema and not math.isclose(
+        float(_value(raw, "volume")), float(fields["delta_volume"]), rel_tol=0.0, abs_tol=1.0e-12
+    ):
+        return QuoteValidation(False, "delta_volume_alias_mismatch")
     bid = float(fields["bid"])
     ask = float(fields["ask"])
     bid_size = float(fields["bid_size"])
@@ -266,10 +305,8 @@ def normalize_quote(
         return QuoteValidation(False, "nonpositive_price")
     if ask < bid:
         return QuoteValidation(False, "crossed_book")
-    if bid_size < 0 or ask_size < 0:
-        return QuoteValidation(False, "negative_depth")
-    if bid_size + ask_size <= 0:
-        return QuoteValidation(False, "zero_depth")
+    if bid_size < 0 or ask_size < 0 or bid_size + ask_size <= 0:
+        return QuoteValidation(False, "invalid_depth")
     if not all(_on_tick_grid(price, float(tick_size)) for price in (bid, ask, last)):
         return QuoteValidation(False, "off_tick_grid")
     lower_limit = float(fields["lower_limit"])
@@ -278,71 +315,56 @@ def normalize_quote(
         return QuoteValidation(False, "invalid_daily_price_limits")
     if not all(_on_tick_grid(price, float(tick_size)) for price in (lower_limit, upper_limit)):
         return QuoteValidation(False, "daily_price_limits_off_tick_grid")
-    if bid < lower_limit or ask > upper_limit or last < lower_limit or last > upper_limit:
+    if bid < lower_limit or ask > upper_limit or not lower_limit <= last <= upper_limit:
         return QuoteValidation(False, "quote_outside_daily_price_limits")
-    if now_monotonic is not None:
-        receive_age = float(now_monotonic) - recv_monotonic
+
+    if live_schema and now_monotonic is not None:
+        receive_age = float(now_monotonic) - float(recv_monotonic)
         if receive_age < -1.0e-9 or receive_age > max_receive_age:
             return QuoteValidation(False, "stale_receive_time")
-    if now_wall_utc is not None:
+    if live_schema and now_wall_utc is not None:
         event_age = float(now_wall_utc) - event_time
         if event_age < -1.0e-9 or event_age > max_event_age:
             return QuoteValidation(False, "stale_event_time")
-    continuity = str(_value(raw, "continuity_status", "continuity", default="") or "").lower()
-    raw_quality_flags = _value(raw, "quality_flags", default=None)
-    if raw_quality_flags is None:
-        if strict_ctp_v2:
-            return QuoteValidation(False, "invalid_quality_flags")
-        quality_flags = ()
-    elif isinstance(raw_quality_flags, (tuple, list, set, frozenset)):
-        quality_flags = tuple(raw_quality_flags)
-    else:
-        return QuoteValidation(False, "invalid_quality_flags")
-    if strict_ctp_v2 and continuity != "continuous":
-        return QuoteValidation(False, f"ctp_continuity_not_continuous:{continuity or 'missing'}")
-    if bool(_value(raw, "stale", default=False)) or continuity in {
-        "gap",
-        "stale",
-        "disconnected",
-        "out_of_order",
-        "checksum_failed",
-    }:
-        return QuoteValidation(False, f"unhealthy_continuity:{continuity or 'unknown'}")
-    if quality_flags:
-        return QuoteValidation(False, "quality_flags:" + ",".join(map(str, quality_flags)))
-    if float(fields["delta_volume"]) < 0 or float(fields["cum_volume"]) < 0:
-        return QuoteValidation(False, "negative_volume")
 
-    if strict_ctp_v2:
-        trading_day = str(_value(raw, "trading_day", default="") or "")
-        action_day = str(_value(raw, "action_day", default="") or "")
-        raw_ingest_seq = _value(raw, "ingest_seq", default=0)
-    else:
-        trading_day = str(_value(raw, "trading_day", "TradingDay", default="") or "")
-        action_day = str(_value(raw, "action_day", "ActionDay", default="") or "")
-        raw_ingest_seq = _value(raw, "ingest_seq", "sequence", default=0)
-    try:
-        ingest_seq = int(raw_ingest_seq or 0)
-        connection_generation = int(_value(raw, "connection_generation", default=0) or 0)
-    except (TypeError, ValueError, OverflowError):
-        return QuoteValidation(False, "invalid_causal_identity")
-    source = str(_value(raw, "source", default="") or "")
+    continuity = str(_value(raw, "continuity_status", default="") or "").lower()
+    if continuity != "continuous":
+        return QuoteValidation(False, "market_sequence_not_continuous")
+    raw_quality_flags = _value(raw, "quality_flags", default=())
+    if not isinstance(raw_quality_flags, (tuple, list, set, frozenset)):
+        return QuoteValidation(False, "quality_flags_invalid")
+    if raw_quality_flags:
+        return QuoteValidation(False, "quality_flags_present")
+    volume_complete = _value(raw, "volume_complete", default=False) is True
+    if live_schema and not volume_complete:
+        return QuoteValidation(False, "provider_volume_incomplete")
+    if replay_schema and _value(raw, "volume_complete", default=False) is not True:
+        return QuoteValidation(False, "replay_volume_incomplete")
+    if float(fields["delta_volume"]) < 0:
+        return QuoteValidation(False, "negative_delta_volume")
+    cum_volume = fields["cum_volume"]
+    if cum_volume is not None and float(cum_volume) < 0:
+        return QuoteValidation(False, "negative_cumulative_volume")
+
+    trading_day = _day_text(
+        _value(raw, "trading_day" if replay_schema else "trading_date", default=None)
+    )
+    event_session_date = _day_text(_value(raw, "event_session_date", default=None))
+    if not trading_day or not event_session_date:
+        return QuoteValidation(False, "market_calendar_identity_missing")
+    source = str(
+        _value(raw, "provider_source", "source", default="") if live_schema
+        else replay_source_ref
+    )
     volume_quality = str(_value(raw, "volume_quality", default="") or "")
-    event_time_source = str(_value(raw, "event_time_source", default="") or "")
-    if strict_ctp_v2:
-        if not trading_day or not action_day:
-            return QuoteValidation(False, "ctp_calendar_identity_missing")
-        if ingest_seq <= 0 or connection_generation <= 0 or not source:
-            return QuoteValidation(False, "ctp_causal_identity_missing")
-        if _value(raw, "volume_complete", default=None) is not True:
-            return QuoteValidation(False, "ctp_volume_incomplete")
-        if volume_quality.lower() != "continuous":
-            return QuoteValidation(
-                False, f"ctp_volume_quality_not_continuous:{volume_quality or 'missing'}"
-            )
-        if not event_time_source:
-            return QuoteValidation(False, "ctp_event_time_source_missing")
-
+    event_time_source = str(
+        _value(raw, "event_time_provenance", default="") if live_schema
+        else "replay_event_time"
+    )
+    if live_schema and not source:
+        return QuoteValidation(False, "provider_source_missing")
+    if live_schema and not event_time_source:
+        return QuoteValidation(False, "provider_event_time_provenance_missing")
     return QuoteValidation(
         True,
         "ok",
@@ -355,21 +377,25 @@ def normalize_quote(
             bid_size=bid_size,
             ask_size=ask_size,
             last=last,
-            cum_volume=float(fields["cum_volume"]),
+            cum_volume=float(cum_volume) if cum_volume is not None else None,
             delta_volume=float(fields["delta_volume"]),
             open_interest=float(fields["open_interest"]),
             lower_limit=lower_limit,
             upper_limit=upper_limit,
             trading_day=trading_day,
-            action_day=action_day,
-            connection_generation=connection_generation,
-            source=source or "backtrader",
+            event_session_date=event_session_date,
+            generation=generation,
+            source=source,
             schema_version=schema_version,
-            recv_time_utc=float(recv_time_utc or 0.0),
+            recv_time_utc=recv_time_utc,
             volume_quality=volume_quality,
             event_time_source=event_time_source,
             continuity_status=continuity,
-            volume_complete=True,
+            volume_complete=volume_complete,
+            source_mode=source_mode,
+            replay_source_ref=replay_source_ref,
+            replay_epoch=replay_epoch,
+            replay_sequence=replay_sequence,
         ),
     )
 
@@ -408,6 +434,8 @@ class QuoteFeatureWindow:
         self.retention_seconds = max(float(retention_seconds), 62.0)
         self._quotes: Deque[QuoteSnapshot] = deque()
         self._last_ingest_seq = 0
+        self._last_replay_sequence = 0
+        self._sequence_scope = None
         self.invalid_count = 0
         self.last_invalid_reason = ""
 
@@ -417,18 +445,29 @@ class QuoteFeatureWindow:
         return tuple(self._quotes)
 
     def clear(self) -> None:
-        """Drop all retained quotes while keeping the ingest-sequence watermark."""
+        """Drop retained quotes while preserving the active causal watermark."""
         self._quotes.clear()
 
     def add(self, quote: QuoteSnapshot) -> bool:
-        """Append one quote if causally ordered, then trim past the retention.
-
-        Returns ``False`` and records the reason when ``ingest_seq`` does
-        not strictly increase or ``event_time`` goes backwards.
-        """
-        if quote.ingest_seq <= self._last_ingest_seq:
+        """Append one ordered provider or replay quote without sharing cursors."""
+        replay = quote.schema_version == "sdk.replay.market.tick.v1"
+        scope = (
+            ("replay", quote.source_mode, quote.replay_source_ref, quote.replay_epoch)
+            if replay
+            else ("provider",)
+        )
+        if self._sequence_scope is not None and scope != self._sequence_scope:
             self.invalid_count += 1
-            self.last_invalid_reason = "nonincreasing_global_ingest_seq"
+            self.last_invalid_reason = "quote_sequence_scope_changed"
+            return False
+        if replay:
+            if quote.replay_sequence is None or quote.replay_sequence <= self._last_replay_sequence:
+                self.invalid_count += 1
+                self.last_invalid_reason = "nonincreasing_replay_sequence"
+                return False
+        elif quote.ingest_seq is None or quote.ingest_seq <= self._last_ingest_seq:
+            self.invalid_count += 1
+            self.last_invalid_reason = "nonincreasing_provider_ingest_seq"
             return False
         if self._quotes:
             previous = self._quotes[-1]
@@ -436,8 +475,12 @@ class QuoteFeatureWindow:
                 self.invalid_count += 1
                 self.last_invalid_reason = "out_of_order_event_time"
                 return False
+        self._sequence_scope = scope
         self._quotes.append(quote)
-        self._last_ingest_seq = quote.ingest_seq
+        if replay:
+            self._last_replay_sequence = int(quote.replay_sequence)
+        else:
+            self._last_ingest_seq = int(quote.ingest_seq)
         cutoff = quote.event_time - self.retention_seconds
         while len(self._quotes) > 1 and self._quotes[1].event_time < cutoff:
             self._quotes.popleft()

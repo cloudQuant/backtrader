@@ -43,20 +43,12 @@ METADATA_SCHEMA = "backtrader.alpha003.replay_instrument_metadata.v1"
 LEGACY_DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v1"
 DECISION_TAPE_SCHEMA = "backtrader.alpha003.decision_tape.v2"
 SOURCE_ORIGIN_PARTITION_SCHEMA = "backtrader.execution_source_origin_partition.v1"
-# The opt-in SOURCE_ONLY fee-pair helper applies tighter read limits than the
-# general decision-tape reader.  The tape cap is aligned with the Journal's
-# default decision-byte budget; a single line may be larger only when a future
-# explicitly reviewed contract raises this fixed bound.
-_FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES = 512 * 1024 * 1024
-_FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES = 8 * 1024 * 1024
 # The 87-target GRID receipt and its production execution evidence exceed the
 # journal's general 64 KiB default. Keep this run-local cap bounded and leave
 # the journal-wide default unchanged.
 _LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES = 131_072
-_LIVE_COMMISSION_QUERY_BUDGET_SECONDS = 3.0
-_LIVE_COMMISSION_CACHE_REFRESH_SECONDS = 30.0
-_CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION = 3
-_CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS = 256
+
+
 UTC = timezone.utc
 OHLCV_FIELDS = ("open", "high", "low", "close", "volume", "openinterest")
 RISK_FIELDS = (
@@ -85,109 +77,6 @@ class RunnerError(ValueError):
         self.code = code
         self.detail = detail
         super().__init__(code if detail is None else f"{code}: {detail}")
-
-
-_CTP_FUTURES_SNAPSHOT_ERROR_CODES = frozenset(
-    {
-        "CATALOG_EXCHANGE_ID_MISSING",
-        "CATALOG_EXPIRY_INVALID",
-        "CATALOG_FIELD_CONFLICT",
-        "CATALOG_IDENTITY_INVALID",
-        "CATALOG_INSTRUMENT_ID_MISSING",
-        "CATALOG_NORMALIZATION_FAILED",
-        "CATALOG_PRODUCT_CLASS_INVALID",
-        "CATALOG_PRODUCT_CLASS_MISSING",
-        "CATALOG_PRODUCT_CLASS_MISMATCH",
-        "CATALOG_PRODUCT_ID_MISSING",
-        "CATALOG_QUERY_CALL_FAILED",
-        "CATALOG_ROW_INVALID",
-        "COLLECTION_LIMIT_INVALID",
-        "COLLECTION_SPAN_EXCEEDED",
-        "COLLECTION_TIMEOUT",
-        "COLLECTOR_CLOCK_INVALID",
-        "CTP_SDK_UNAVAILABLE",
-        "PUBLIC_QUERY_METHOD_MISSING",
-        "QUERY_BOOLEAN_STATE_INVALID",
-        "QUERY_COMPLETION_TIME_INVALID",
-        "QUERY_COMPLETION_TIME_MISSING",
-        "QUERY_ERROR",
-        "QUERY_ERROR_MESSAGE",
-        "QUERY_ERROR_STATE_INVALID",
-        "QUERY_GENERATION_INVALID",
-        "QUERY_GENERATION_MISMATCH",
-        "QUERY_INCOMPLETE",
-        "QUERY_LATE_CALLBACKS",
-        "QUERY_RECORDS_NOT_IMMUTABLE",
-        "QUERY_REQUEST_ID_COLLISION",
-        "QUERY_REQUEST_ID_INVALID",
-        "QUERY_REQUEST_TYPE_INVALID",
-        "QUERY_REQUEST_TYPE_MISMATCH",
-        "QUERY_REQUEST_FILTERS_MISMATCH",
-        "QUERY_RECORD_LIMIT_INVALID",
-        "QUERY_RECORD_LIMIT_UNAVAILABLE",
-        "QUERY_RECORD_LIMIT_MISMATCH",
-        "QUERY_RECORD_LIMIT_STATE_INVALID",
-        "QUERY_RECORD_LIMIT_EXCEEDED",
-        "QUERY_RESULT_TYPE_INVALID",
-        "QUERY_ROW_KEY_UNSUPPORTED",
-        "QUERY_ROW_VALUE_UNSUPPORTED",
-        "QUERY_START_TIME_INVALID",
-        "QUERY_SUBMISSION_FAILED",
-        "QUERY_TERMINAL_PACKET_MISSING",
-        "QUERY_TIME_IN_FUTURE",
-        "QUERY_TIME_REVERSED",
-        "QUERY_TIMED_OUT",
-        "QUERY_UNSUPPORTED",
-        "PRODUCT_QUERY_EMPTY",
-        "PRODUCT_QUERY_RECORD_CAP_EXCEEDED",
-        "PRODUCT_FIELD_CONFLICT",
-        "PRODUCT_CLASS_CONFLICT",
-        "PRODUCT_CLASS_UNKNOWN",
-        "PRODUCT_FUTURE_SET_EMPTY",
-        "PRODUCT_CANONICAL_COLLISION",
-        "PRODUCT_DUPLICATE",
-        "PRODUCT_CLASS_MISMATCH",
-        "PRODUCT_CLASS_MISSING",
-        "PRODUCT_CLASS_INVALID",
-        "PRODUCT_EXCHANGE_ID_MISSING",
-        "PRODUCT_EXCHANGE_ID_INVALID",
-        "PRODUCT_ID_MISSING",
-        "PRODUCT_ID_INVALID",
-        "PRODUCTS_QUERY_CALL_FAILED",
-        "INSTRUMENT_RECORD_CAP_EXHAUSTED",
-        "INSTRUMENT_RECORD_CAP_EXCEEDED",
-        "INSTRUMENT_QUERY_ROW_SCOPE_MISMATCH",
-        "INSTRUMENT_PRODUCT_CLASS_MISMATCH",
-        "CATALOG_PRODUCT_CLASS_UNKNOWN",
-        "DEPTH_QUERY_CALL_FAILED",
-        "DEPTH_MODE_INVALID",
-        "DEPTH_PRODUCT_ROW_SCOPE_MISMATCH",
-        "DEPTH_RECORD_CAP_EXHAUSTED",
-        "QUOTE_ROW_DUPLICATE",
-        "QUOTE_ACTION_DAY_INVALID",
-        "QUOTE_EXCHANGE_ID_MISSING",
-        "QUOTE_IDENTITY_INVALID",
-        "QUOTE_INSTRUMENT_ID_MISSING",
-        "QUOTE_OPEN_INTEREST_MISSING",
-        "QUOTE_QUERY_CALL_FAILED",
-        "QUOTE_ROW_INVALID",
-        "QUOTE_TRADING_DAY_INVALID",
-        "QUOTE_TRADING_DAY_MISSING",
-        "QUOTE_UPDATE_MILLISEC_INVALID",
-        "QUOTE_UPDATE_TIME_INVALID",
-        "QUOTE_VOLUME_MISSING",
-        "ROW_FIELD_CONFLICT",
-        "SESSION_CHANGED_DURING_COLLECTION",
-        "SESSION_GENERATION_UNAVAILABLE",
-        "SESSION_NOT_READ_ONLY_READY",
-        "SESSION_STATE_METHOD_MISSING",
-        "SESSION_STATE_UNAVAILABLE",
-        "SESSION_TRADING_DAY_UNAVAILABLE",
-        "SNAPSHOT_AGE_LIMIT_INVALID",
-        "SNAPSHOT_TOO_OLD",
-        "SOURCE_PREFIX_INVALID",
-    }
-)
 
 
 def _mapping(value: Any, label: str) -> Mapping[str, Any]:
@@ -241,12 +130,7 @@ def _iso_date(value: Any, label: str) -> date:
 
 
 def _tape_trading_day(value: Any, label: str) -> str:
-    """Serialize a canonical cohort day as ISO, accepting the CTP wire form."""
-    if type(value) is str and len(value) == 8 and value.isascii() and value.isdecimal():
-        try:
-            return datetime.strptime(value, "%Y%m%d").date().isoformat()
-        except ValueError:
-            raise RunnerError("INPUT_DATE_INVALID", label) from None
+    """Serialize a neutral ISO trading date without parsing provider wire forms."""
     return _iso_date(value, label).isoformat()
 
 
@@ -358,7 +242,6 @@ _SECTION_KEYS = {
         "loss_guard_max_observation_age_seconds",
         "shutdown_grace_seconds",
         "golden_targets",
-        "commission_identity_by_target",
     },
     "output": {
         "directory",
@@ -410,9 +293,6 @@ def load_config(config_path: Path) -> dict[str, Any]:
             # write-enabled live run validates these explicitly before setup.
             row.setdefault("loss_guard_net_loss_threshold", None)
             row.setdefault("loss_guard_max_observation_age_seconds", None)
-            # Optional fee-query identity never becomes a startup requirement;
-            # an invalid or absent row simply leaves OPEN fee evidence blocked.
-            row.setdefault("commission_identity_by_target", None)
         extra = set(row).difference(expected)
         missing_section = expected.difference(row)
         if extra or missing_section:
@@ -431,12 +311,16 @@ def load_config(config_path: Path) -> dict[str, Any]:
         raise RunnerError("SELECTION_SOURCE_INVALID")
     if type(selection["query_mode"]) is not str or selection["query_mode"] not in {
         "legacy_two_query",
-        "staged_product_set",
-        "staged_product_depth",
+        "futures_market_snapshot",
     }:
         raise RunnerError("SELECTION_QUERY_MODE_INVALID")
+    if (
+        selection["source"] == "ctp_query"
+        and selection["query_mode"] != "futures_market_snapshot"
+    ):
+        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_MARKET_SNAPSHOT")
     if selection["source"] != "ctp_query" and selection["query_mode"] != "legacy_two_query":
-        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_CTP_QUERY")
+        raise RunnerError("SELECTION_QUERY_MODE_REQUIRES_MARKET_SNAPSHOT")
     max_epochs = selection["max_epochs"]
     if type(max_epochs) is not int or not 1 <= max_epochs <= 100:
         raise RunnerError("SELECTION_MAX_EPOCHS_INVALID")
@@ -622,167 +506,313 @@ def load_market_plan(
     }
 
 
-def build_ctp_query_market_plan(store, config, *, clock):
-    """Select and calendarize the complete CTP futures universe on this Store.
-
-    The snapshot bridge is deliberately called only after the caller has made
-    this exact Store ready. It reads the existing client; it does not construct
-    or connect another provider session. No catalog row is removed before the
-    shared selector has checked classification and complete depth coverage.
-    """
+def build_futures_market_plan(store, config, *, clock, environment):
+    """Build a complete futures plan through one explicitly selected SDK route."""
 
     from backtrader.feeds.futures_expected_calendar import (
-        RULE_REVIEW_RETRIEVED_AT_UTC,
+        ExpectedCalendarError,
         build_expected_daytime_calendars,
     )
     from backtrader.feeds.futures_main_contract import (
-        CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+        FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY,
         ExchangeTradingDay,
         ProductKey,
         select_main_contracts,
     )
     from backtrader.feeds.futures_sessions import build_common_minute_grid
+    from backtrader.feeds.futures_snapshot import (
+        FuturesSnapshotError,
+        LeasedFuturesSnapshot,
+        collect_futures_snapshot,
+    )
 
-    collector = getattr(store, "registered_sim_collect_futures_snapshot", None)
-    if not callable(collector):
-        raise RunnerError("CTP_FUTURES_SNAPSHOT_BRIDGE_UNAVAILABLE")
+    if type(environment) is not str or environment != "simnow":
+        raise RunnerError("SIMNOW_PROFILE_REQUIRED")
     selection = config.get("selection")
-    query_mode = "legacy_two_query"
-    if isinstance(selection, Mapping):
-        query_mode = selection.get("query_mode", query_mode)
-    if type(query_mode) is not str or query_mode not in {
-        "legacy_two_query",
-        "staged_product_set",
-        "staged_product_depth",
-    }:
-        raise RunnerError("SELECTION_QUERY_MODE_INVALID")
-    if query_mode in {"staged_product_set", "staged_product_depth"}:
-        collector_kwargs = {
-            "max_collection_seconds": 300.0,
-            "max_snapshot_age_seconds": 300.0,
-            "query_mode": query_mode,
-        }
-    else:
-        collector_kwargs = {
-            "max_collection_seconds": 300.0,
-            "max_snapshot_age_seconds": 300.0,
-        }
-    try:
-        snapshot = collector(**collector_kwargs)
-    except Exception as error:
-        # Do not expose SDK exception text, provider payloads, or account data.
-        from backtrader.feeds.futures_ctp_snapshot import CtpFuturesSnapshotError
+    query_mode = selection.get("query_mode", "legacy_two_query") if isinstance(
+        selection, Mapping
+    ) else "legacy_two_query"
+    if type(query_mode) is not str or query_mode != "futures_market_snapshot":
+        raise RunnerError("FUTURES_MARKET_QUERY_MODE_UNSUPPORTED")
 
-        detail = "UNEXPECTED_COLLECTION_FAILURE"
-        if type(error) is CtpFuturesSnapshotError:
-            code = getattr(error, "code", None)
-            if type(code) is str:
-                numbered_instrument_failure = False
-                suffix = "_QUERY_CALL_FAILED"
-                for prefix in ("INSTRUMENTS_", "DEPTH_"):
-                    if code.startswith(prefix) and code.endswith(suffix):
-                        request_ordinal = code[len(prefix) : -len(suffix)]
-                        if (
-                            len(request_ordinal) == 3
-                            and request_ordinal.isascii()
-                            and request_ordinal.isdigit()
-                            and 1 <= int(request_ordinal) <= 256
-                        ):
-                            numbered_instrument_failure = True
-                            break
-                if code in _CTP_FUTURES_SNAPSHOT_ERROR_CODES or numbered_instrument_failure:
-                    detail = code
-        runner_error = RunnerError("CTP_FUTURES_SNAPSHOT_COLLECTION_FAILED", detail)
-        runner_error.query_diagnostics = _project_ctp_snapshot_query_diagnostics(error)
+    try:
+        from bt_api_py.futures_contracts import (
+            FuturesCatalogRecord,
+            FuturesContractKind,
+            FuturesMarketSnapshotRequest,
+            FuturesProductKey,
+            FuturesQuantityUnit,
+            FuturesVolumeSemantics,
+        )
+        from bt_api_py.facade_protocol import MarketInstrumentKey
+        from bt_api_py.futures_contracts import QuerySnapshotLease
+        from bt_api_py.facade_protocol import (
+            FuturesExpectedCalendarCompositionError,
+            FuturesExpectedCalendarPort,
+            FuturesExpectedCalendarSelector,
+        )
+        from bt_api_py.futures_expected_calendar_contracts import (
+            FuturesExpectedCalendarError,
+            FuturesExpectedCalendarRequest,
+            FuturesExpectedCalendarSnapshot,
+            FuturesExpectedTradingDay,
+            FuturesProductLastTradingDay,
+        )
+        from bt_api_py.futures_market_facade import (
+            FuturesMarketSnapshot,
+            FuturesMarketSnapshotFacade,
+        )
+        from bt_api_py.query_composition import QueryCompositionError
+        from bt_api_py.query_facade import QueryFacade
+    except ImportError:
+        raise RunnerError("FUTURES_MARKET_SDK_CONTRACT_UNAVAILABLE") from None
+
+    get_query_facade = getattr(store, "query_facade", None)
+    if not callable(get_query_facade):
+        raise RunnerError("SDK_STORE_QUERY_FACADE_UNAVAILABLE")
+    try:
+        query_facade = get_query_facade(_FUTURES_SDK_ROUTE)
+    except QueryCompositionError as error:
+        code = getattr(error, "code", None)
+        if type(code) is not str or not code.isascii() or not code.startswith("QUERY_"):
+            code = "QUERY_PROVIDER_SELECTION_FAILED"
+        raise RunnerError("FUTURES_QUERY_ROUTE_UNAVAILABLE", code) from None
+    except Exception:
+        raise RunnerError("FUTURES_QUERY_ROUTE_UNAVAILABLE") from None
+    if type(query_facade) is not QueryFacade:
+        raise RunnerError("FUTURES_QUERY_FACADE_TYPE_INVALID")
+    sdk_api = getattr(store, "sdk_api", None)
+    if sdk_api is None or not isinstance(sdk_api, FuturesExpectedCalendarSelector):
+        raise RunnerError("SDK_EXPECTED_CALENDAR_SELECTOR_UNAVAILABLE")
+    try:
+        calendar_port = sdk_api.futures_expected_calendar(_FUTURES_SDK_ROUTE)
+    except FuturesExpectedCalendarCompositionError as error:
+        code = error.code if type(error.code) is str and error.code.isascii() else (
+            "FUTURES_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE"
+        )
+        raise RunnerError("SDK_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE", code) from None
+    except Exception:
+        raise RunnerError("SDK_EXPECTED_CALENDAR_ROUTE_UNAVAILABLE") from None
+    if not isinstance(calendar_port, FuturesExpectedCalendarPort):
+        raise RunnerError("SDK_EXPECTED_CALENDAR_PORT_INVALID")
+    try:
+        snapshot_facade = FuturesMarketSnapshotFacade(query_facade)
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_FACADE_UNAVAILABLE") from None
+
+    request_ref = "bt028-" + uuid.uuid4().hex
+    try:
+        request = FuturesMarketSnapshotRequest(
+            request_ref=request_ref,
+            environment=environment,
+            trading_day=None,
+            venues=None,
+            products=None,
+            instruments=None,
+            contract_kinds=(FuturesContractKind.FUTURE,),
+            require_active_session=False,
+            require_product_universe=True,
+            include_depth=False,
+            required_quote_fields=("open_interest", "volume"),
+            required_open_interest_unit=FuturesQuantityUnit.CONTRACTS,
+            required_volume_unit=FuturesQuantityUnit.CONTRACTS,
+            required_volume_semantics=FuturesVolumeSemantics.CUMULATIVE_TRADING_DAY,
+        )
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_REQUEST_INVALID") from None
+
+    try:
+        leased = collect_futures_snapshot(
+            snapshot_facade,
+            request,
+            max_collection_seconds=300.0,
+            max_snapshot_age_seconds=300.0,
+            lease_seconds=30.0,
+        )
+    except FuturesSnapshotError as error:
+        detail = error.code if type(error.code) is str and error.code.isascii() else (
+            "FUTURES_SNAPSHOT_UNAVAILABLE"
+        )
+        runner_error = RunnerError("FUTURES_MARKET_SNAPSHOT_COLLECTION_FAILED", detail)
+        runner_error.query_diagnostics = _project_futures_snapshot_query_diagnostics(error)
         raise runner_error from None
+    except Exception:
+        runner_error = RunnerError("FUTURES_MARKET_SNAPSHOT_COLLECTION_FAILED")
+        runner_error.query_diagnostics = {
+            "status": "UNAVAILABLE",
+            "category": "UNEXPECTED_COLLECTION_FAILURE",
+        }
+        raise runner_error from None
+    if type(leased) is not LeasedFuturesSnapshot:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_RESULT_INVALID")
+    snapshot = leased.snapshot
+    snapshot_lease = leased.lease
+    if type(snapshot) is not FuturesMarketSnapshot or type(snapshot_lease) is not QuerySnapshotLease:
+        raise RunnerError("FUTURES_MARKET_SNAPSHOT_RESULT_INVALID")
 
-    from backtrader.feeds.futures_main_contract import MainContractQuerySnapshot
+    coverage = snapshot.coverage
+    product_coverage = getattr(coverage, "product_universe", None)
+    if (
+        snapshot.request.require_product_universe is not True
+        or snapshot.product_universe_snapshot is None
+        or snapshot.product_universe_complete is not True
+        or coverage.scope_complete is not True
+        or coverage.complete is not True
+        or product_coverage is None
+        or product_coverage.complete is not True
+        or coverage.product_keys != snapshot.products
+        or coverage.missing_products
+        or coverage.unexpected_products
+        or not snapshot.products
+        or any(type(item) is not FuturesProductKey for item in snapshot.products)
+    ):
+        raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
+    expected_products = tuple(
+        ProductKey(item.venue, item.product_id)
+        for item in sorted(snapshot.products, key=lambda product: (product.venue, product.product_id))
+    )
+    if not expected_products:
+        raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
 
-    if not isinstance(snapshot, MainContractQuerySnapshot):
-        raise RunnerError("CTP_FUTURES_SNAPSHOT_TYPE_INVALID")
-    if query_mode in {"staged_product_set", "staged_product_depth"}:
-        query_set = snapshot.query_set
-        if query_set is None:
-            raise RunnerError("CTP_FUTURES_QUERY_SET_UNAVAILABLE")
-        products = tuple(item.product for item in query_set.products)
-    else:
-        if snapshot.query_set is not None:
-            raise RunnerError("CTP_FUTURES_QUERY_MODE_MISMATCH")
-        products = tuple(
-            sorted(
-                {row.product for row in snapshot.catalog_records if row.product_class == "1"},
-                key=lambda product: (product.exchange_id, product.product_id),
+    current_days = {}
+    for product in expected_products:
+        trading_day = snapshot.trading_days.get(product.exchange_id)
+        if type(trading_day) is not date:
+            raise RunnerError("FUTURES_TRADING_DAY_UNAVAILABLE")
+        current_days[product.exchange_id] = trading_day
+    day_rows = tuple(
+        ExchangeTradingDay(exchange_id, trading_day)
+        for exchange_id, trading_day in sorted(current_days.items())
+    )
+    decision_at = _aware_datetime(clock.utc_now(), "futures selection decision time")
+
+    def _calendar_build(overlays=()):
+        try:
+            calendar_request = FuturesExpectedCalendarRequest(
+                products=tuple(snapshot.products),
+                current_trading_days=tuple(
+                    FuturesExpectedTradingDay(venue, trading_day)
+                    for venue, trading_day in sorted(current_days.items())
+                ),
+                as_of_utc=decision_at,
+                selected_contract_last_trading_days=tuple(overlays),
             )
-        )
-    if not products or any(not isinstance(product, ProductKey) for product in products):
-        raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
-    # The selector still validates every requested product and its request
-    # receipts.  Only the executable plan pool narrows to the manifest targets
-    # after a READY selection (a listed product may have no contracts at all).
-    expected_products = products
-    trading_day = snapshot.session_trading_day_after
-    if type(trading_day) is not date:
-        raise RunnerError("CTP_FUTURES_TRADING_DAY_UNAVAILABLE")
-    exchanges = tuple(sorted({product.exchange_id for product in products}))
-    current_days = dict.fromkeys(exchanges, trading_day)
-    day_rows = tuple(ExchangeTradingDay(exchange, trading_day) for exchange in exchanges)
-    decision_at = _aware_datetime(clock.utc_now(), "CTP selection decision time")
+            calendar_snapshot = calendar_port.build(calendar_request)
+        except FuturesExpectedCalendarError as error:
+            code = error.code if type(error.code) is str and error.code.isascii() else (
+                "FUTURES_EXPECTED_CALENDAR_UNAVAILABLE"
+            )
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE") from None
+        if type(calendar_snapshot) is not FuturesExpectedCalendarSnapshot:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_RESULT_INVALID")
+        try:
+            return build_expected_daytime_calendars(
+                calendar_snapshot,
+                calendar_port=calendar_port,
+            )
+        except ExpectedCalendarError as error:
+            code = error.code if type(error.code) is str and error.code.isascii() else (
+                "FUTURES_EXPECTED_CALENDAR_RESULT_INVALID"
+            )
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("FUTURES_EXPECTED_CALENDAR_RESULT_INVALID") from None
 
     try:
-        calendar_build = build_expected_daytime_calendars(
-            expected_products,
-            current_days,
-            as_of=decision_at,
-            retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
-        )
+        calendar_build = _calendar_build()
+        policy = FUTURES_MARKET_SNAPSHOT_EQUAL_WEIGHT_POLICY
         manifest = select_main_contracts(
             snapshot,
             expected_products,
             day_rows,
             calendar_build.trading_calendars,
             decision_at=decision_at,
-            policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+            policy=policy,
+            snapshot_lease=snapshot_lease,
+            snapshot_facade=snapshot_facade,
         )
         if manifest.status != "READY":
             raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
         routes = dict(manifest.selected_mapping())
-        selected_last_days = {}
-        selected = dict(routes)
-        for assessment in manifest.candidates:
-            product = assessment.product
+        selected_assessments = {
+            (item.product, item.instrument_id): item for item in manifest.candidates
+        }
+        catalog_by_selection = {}
+        for record in snapshot.catalog:
             if (
-                product in selected
-                and selected[product] == assessment.instrument_id
-                and product.exchange_id == "CFFEX"
-                and product.product_id in {"TF", "T", "TS", "TL"}
-                and assessment.expiry_date is not None
+                type(record) is not FuturesCatalogRecord
+                or type(record.product) is not FuturesProductKey
+                or type(record.instrument) is not MarketInstrumentKey
             ):
-                selected_last_days[product] = (assessment.expiry_date,)
-        if selected_last_days:
-            calendar_build = build_expected_daytime_calendars(
-                expected_products,
-                current_days,
-                as_of=decision_at,
-                retrieved_at=RULE_REVIEW_RETRIEVED_AT_UTC,
-                selected_contract_last_trading_days=selected_last_days,
+                raise RunnerError("FUTURES_CATALOG_RESULT_INVALID")
+            key = (
+                ProductKey(record.product.venue, record.product.product_id),
+                record.instrument.instrument_id,
             )
+            if key in catalog_by_selection:
+                raise RunnerError("FUTURES_CATALOG_IDENTITY_AMBIGUOUS")
+            catalog_by_selection[key] = record
+        selected_calendar_overlays = []
+        for product, instrument_id in sorted(
+            routes.items(), key=lambda item: (item[0].exchange_id, item[0].product_id)
+        ):
+            if (
+                product.exchange_id != "CFFEX"
+                or product.product_id not in {"TF", "T", "TS", "TL"}
+            ):
+                continue
+            record = catalog_by_selection.get((product, instrument_id))
+            assessment = selected_assessments.get((product, instrument_id))
+            if (
+                record is None
+                or assessment is None
+                or assessment.expiry_date != record.expiry_date
+            ):
+                raise RunnerError("FUTURES_SELECTED_CATALOG_BINDING_INVALID")
+            # Preserve a missing selected expiry so the SDK reports PARTIAL.
+            selected_calendar_overlays.append(
+                FuturesProductLastTradingDay(
+                    instrument=record.instrument,
+                    product=record.product,
+                    last_trading_day=record.expiry_date,
+                )
+            )
+        if selected_calendar_overlays:
+            selected_calendar_overlays = tuple(
+                sorted(
+                    selected_calendar_overlays,
+                    key=lambda item: (
+                        item.product.venue,
+                        item.product.product_id,
+                        item.instrument.instrument_id,
+                    ),
+                )
+            )
+            calendar_build = _calendar_build(selected_calendar_overlays)
             manifest = select_main_contracts(
                 snapshot,
                 expected_products,
                 day_rows,
                 calendar_build.trading_calendars,
                 decision_at=decision_at,
-                policy=CTP_QUERY_SNAPSHOT_EQUAL_WEIGHT_POLICY,
+                policy=policy,
+                snapshot_lease=snapshot_lease,
+                snapshot_facade=snapshot_facade,
             )
             if manifest.status != "READY":
                 raise RunnerError("POINT_IN_TIME_SELECTION_BLOCKED", ",".join(manifest.blockers))
-            routes = dict(manifest.selected_mapping())
-        # The manifest may narrow a listed-but-contractless product out of the
-        # rankable pool; the executable plan and grid follow that same pool.
+            updated_routes = dict(manifest.selected_mapping())
+            if updated_routes != routes:
+                raise RunnerError("FUTURES_EXPECTED_CALENDAR_SELECTION_CHANGED")
+            routes = updated_routes
         products = tuple(manifest.target_products)
         if not products:
-            raise RunnerError("CTP_FUTURES_PRODUCT_POOL_UNAVAILABLE")
-        product_days = dict.fromkeys(products, (trading_day,))
+            raise RunnerError("FUTURES_PRODUCT_UNIVERSE_UNAVAILABLE")
+        product_days = {
+            product: (current_days[product.exchange_id],) for product in products
+        }
         grid = build_common_minute_grid(
             products,
             calendar_build.session_calendars,
@@ -791,14 +821,35 @@ def build_ctp_query_market_plan(store, config, *, clock):
         )
     except RunnerError:
         raise
-    except Exception as error:
-        code = getattr(error, "code", None)
-        safe_code = code if type(code) is str and code.isascii() else type(error).__name__
-        raise RunnerError("CTP_QUERY_PLAN_BUILD_FAILED", safe_code) from None
+    except Exception:
+        raise RunnerError("FUTURES_MARKET_PLAN_BUILD_FAILED") from None
     if grid.status != "READY" or not grid.minutes:
         raise RunnerError("PLANNED_MINUTE_GRID_BLOCKED", grid.status)
     if set(routes) != set(products):
         raise RunnerError("POINT_IN_TIME_ROUTE_SET_MISMATCH")
+    catalog_instruments = {}
+    for record in snapshot.catalog:
+        if (
+            type(record) is not FuturesCatalogRecord
+            or type(record.instrument) is not MarketInstrumentKey
+        ):
+            raise RunnerError("FUTURES_CATALOG_INSTRUMENT_IDENTITY_INVALID")
+        identity = (record.product.venue, record.instrument.instrument_id)
+        if identity in catalog_instruments:
+            raise RunnerError("FUTURES_CATALOG_INSTRUMENT_IDENTITY_AMBIGUOUS")
+        catalog_instruments[identity] = record.instrument
+    market_instrument_by_target = {}
+    for product in products:
+        instrument_id = routes[product]
+        instrument = catalog_instruments.get((product.exchange_id, instrument_id))
+        target = _target_id(product)
+        if (
+            type(instrument) is not MarketInstrumentKey
+            or instrument.venue != product.exchange_id
+            or instrument.environment != environment
+        ):
+            raise RunnerError("FUTURES_SELECTED_INSTRUMENT_KEY_UNAVAILABLE")
+        market_instrument_by_target[target] = instrument
 
     authorized_values = config["selection"]["authorized_products"]
     if authorized_values is None:
@@ -811,18 +862,9 @@ def build_ctp_query_market_plan(store, config, *, clock):
         if len(set(authorized)) != len(authorized) or not set(authorized).issubset(target_names):
             raise RunnerError("AUTHORIZED_PRODUCTS_OUTSIDE_POOL")
 
-    if query_mode in {"staged_product_set", "staged_product_depth"}:
-        source_snapshot_id = snapshot.query_set.snapshot_id
-        if type(source_snapshot_id) is not str or not source_snapshot_id:
-            raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
-        selection_path = f"ctp-query://{source_snapshot_id}"
-    else:
-        catalog_id = snapshot.catalog_source.snapshot_id
-        quote_id = snapshot.quote_source.snapshot_id
-        if type(catalog_id) is not str or type(quote_id) is not str:
-            raise RunnerError("CTP_FUTURES_SNAPSHOT_ID_UNAVAILABLE")
-        source_snapshot_id = f"{catalog_id}|{quote_id}"
-        selection_path = f"ctp-query://{catalog_id}|{quote_id}"
+    source_snapshot_id = snapshot.receipt.receipt_digest
+    if type(source_snapshot_id) is not str or not source_snapshot_id:
+        raise RunnerError("FUTURES_SNAPSHOT_ID_UNAVAILABLE")
     return {
         "bundle": None,
         "manifest": manifest,
@@ -831,606 +873,162 @@ def build_ctp_query_market_plan(store, config, *, clock):
         "targets": tuple(_target_id(product) for product in products),
         "product_by_target": {_target_id(product): product for product in products},
         "target_by_product": {product: _target_id(product) for product in products},
+        "market_instrument_by_target": market_instrument_by_target,
         "authorized_targets": authorized,
         "session_calendars": calendar_build.session_calendar_by_exchange,
         "grid": grid,
-        "selection_path": selection_path,
-        "selection_source": "ctp_query_snapshot_equal_weight_v1",
+        "selection_path": f"futures-market://{source_snapshot_id}",
+        "selection_source": "futures_market_snapshot_equal_weight_v1",
         "source_snapshot_id": source_snapshot_id,
         "calendar_evidence_mode": calendar_build.evidence_mode,
         "calendar_rules_sha256": calendar_build.rules_manifest_sha256,
     }
 
-
-_CTP_QUERY_DIAGNOSTIC_CATEGORIES = frozenset(
-    {
-        "unavailable",
-        "none",
-        "timeout",
-        "unsupported",
-        "incomplete",
-        "late_callbacks",
-        "record_limit",
-        "scope_mismatch",
-        "submission_error",
-        "query_error",
-        "invalid",
-    }
+_FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES = frozenset(
+    {"refresh", "lease_acquire", "lease_pre_consume", "lease_post_consume"}
 )
-_CTP_QUERY_COMPLETION_ORIGINS = frozenset(
-    {
-        "unknown",
-        "query_response",
-        "response_error",
-        "front_disconnected",
-        "client_stop",
-        "local_cancel",
-        "submit_exception",
-        "submit_rejected",
-        "timeout",
-        "deadline",
-        "success",
-        "record_limit",
-        "local_preflight",
-    }
+_FUTURES_SNAPSHOT_DIAGNOSTIC_CODE = re.compile(
+    r"(?:FUTURES|QUERY)_[A-Z0-9_]{1,96}\Z", re.ASCII
 )
-_CTP_QUERY_SUBMIT_CATEGORIES = frozenset(
-    {"unavailable", "not_observed", "accepted", "rejected", "invalid"}
-)
-_CTP_QUERY_DIAGNOSTIC_MAX_RECORDS = 20_000
-_CTP_QUERY_UNAVAILABLE_CATEGORIES = frozenset(
+_FUTURES_SNAPSHOT_UNAVAILABLE_CATEGORIES = frozenset(
     {
         "DIAGNOSTIC_CONTRACT_UNAVAILABLE",
         "ERROR_TYPE_UNTRUSTED",
         "NO_QUERY_OBSERVATION",
         "INVALID_DIAGNOSTICS",
+        "UNEXPECTED_COLLECTION_FAILURE",
     }
 )
-_CTP_QUERY_STAGE_FIELD_NAMES = (
-    "stage",
-    "entered",
-    "returned",
-    "elapsed_seconds",
-    "prior_stage_complete",
-    "result_type_matches",
-    "request_type_matches",
-    "generation_matches",
-    "request_id_positive",
-    "timed_out",
-    "complete",
-    "is_last_seen",
-    "unsupported",
-    "late_callbacks_reported",
-    "late_callback_count_valid",
-    "record_count",
-    "record_count_capped",
-    "submit_category",
-    "error_code_present",
-    "error_code_valid",
-    "error_code_nonzero",
-    "error_message_present",
-    "error_message_valid",
-    "error_category",
-    "first_completion_origin",
-    "completion_origin",
-)
-_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 = _CTP_QUERY_STAGE_FIELD_NAMES + (
-    "requested_record_limit",
-    "record_limit_observed",
-    "record_limit_matches",
-    "record_limit_exceeded",
-    "request_filters_match",
-)
-_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2 = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1 + (
-    "classified_future_product_count",
-    "classified_excluded_product_count",
-)
-_CTP_QUERY_STAGED_STAGE_FIELD_NAMES = _CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2 + (
-    "products_retry_count",
-)
-_CTP_QUERY_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGE_FIELD_NAMES)
-_CTP_QUERY_STAGED_STAGE_FIELDS_V1 = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V1)
-_CTP_QUERY_STAGED_STAGE_FIELDS_V2 = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES_V2)
-_CTP_QUERY_STAGED_STAGE_FIELDS = frozenset(_CTP_QUERY_STAGED_STAGE_FIELD_NAMES)
 
 
-def _sanitize_ctp_query_diagnostics(value):
-    """Copy only the exact finite diagnostics schema into public output."""
+def _sanitize_futures_snapshot_query_diagnostics(value):
+    """Sanitize only exact neutral futures-snapshot observation DTO projections."""
 
     unavailable = {"status": "UNAVAILABLE", "category": "INVALID_DIAGNOSTICS"}
-    if type(value) is not dict:
+    if not isinstance(value, Mapping):
         return unavailable
-    if value.get("status") == "UNAVAILABLE":
-        if (
-            set(value) == {"status", "category"}
-            and type(value.get("category")) is str
-            and value["category"] in _CTP_QUERY_UNAVAILABLE_CATEGORIES
-        ):
-            return dict(value)
-        return unavailable
-    if value.get("status") != "AVAILABLE":
-        return unavailable
-    had_version_marker = False
-    if set(value) == {"status", "stages"}:
-        # Unversioned available payloads are the historical v1 form. If both
-        # a v2 marker and its new fields are removed, the remaining payload is
-        # indistinguishable from v1; compatibility requires accepting that form.
-        schema_version = 1
-    elif (
-        set(value) == {"schema_version", "status", "stages"}
-        and type(value.get("schema_version")) is int
-        and value["schema_version"]
-        in (2, _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION)
-    ):
-        schema_version = value["schema_version"]
-        had_version_marker = True
-    else:
+    status = value.get("status")
+    if status == "UNAVAILABLE":
+        category = value.get("category")
+        if category not in _FUTURES_SNAPSHOT_UNAVAILABLE_CATEGORIES:
+            return unavailable
+        return {"status": "UNAVAILABLE", "category": category}
+    if status != "AVAILABLE" or value.get("schema_version") != 1:
         return unavailable
     stages = value.get("stages")
-    if type(stages) is not list or not 1 <= len(stages) <= 515:
+    if type(stages) is not list or not stages or len(stages) > 8:
         return unavailable
-    if type(stages[0]) is not dict or type(stages[0].get("stage")) is not str:
-        return unavailable
-    staged_query_set = stages[0]["stage"] == "products"
-    if not staged_query_set and len(stages) > 2:
-        return unavailable
-    staged_product_count_facts = False
-    if staged_query_set:
-        first_fields = set(stages[0])
-        if (
-            schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION
-            and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS
-        ):
-            staged_product_count_facts = True
-            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS
-        elif schema_version == 2 and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS_V2:
-            staged_product_count_facts = True
-            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS_V2
-        elif schema_version == 1 and first_fields == _CTP_QUERY_STAGED_STAGE_FIELDS_V1:
-            staged_stage_fields = _CTP_QUERY_STAGED_STAGE_FIELDS_V1
-        else:
-            return unavailable
-        if any(
-            type(stage) is not dict or set(stage) != staged_stage_fields
-            for stage in stages
-        ):
-            return unavailable
-        if schema_version == _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION:
-            retry_count = stages[0].get("products_retry_count")
-            if retry_count is not None and (
-                type(retry_count) is not int or not 0 <= retry_count <= 2
-            ):
-                return unavailable
-            if any(
-                stage.get("products_retry_count") is not None
-                for stage in stages[1:]
-            ):
-                return unavailable
-    else:
-        staged_stage_fields = None
-    product_count = stages[0].get("record_count") if staged_query_set else None
-    if product_count is not None and (
-        type(product_count) is not int
-        or not 0 <= product_count <= _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
-    ):
-        return unavailable
-    classified_future_count = None
-    classified_excluded_count = None
-    if staged_query_set and staged_product_count_facts:
-        classified_future_count = stages[0]["classified_future_product_count"]
-        classified_excluded_count = stages[0]["classified_excluded_product_count"]
-        if (classified_future_count is None) != (classified_excluded_count is None):
-            return unavailable
-        if classified_future_count is None:
-            # The collector only publishes the partition after every product
-            # row has a known class. With no partition, only the product query
-            # itself is safe to report; later request counts cannot be inferred.
-            if len(stages) > 1:
-                return unavailable
-        elif (
-            type(classified_future_count) is not int
-            or type(classified_excluded_count) is not int
-            or classified_future_count < 0
-            or classified_excluded_count < 0
-            or classified_future_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
-            or classified_excluded_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
-            or classified_future_count + classified_excluded_count
-            > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
-            or product_count is None
-            or classified_future_count + classified_excluded_count != product_count
-        ):
-            return unavailable
-        elif classified_future_count == 0 and len(stages) > 1:
-            return unavailable
-    elif staged_query_set:
-        # Historical v1 diagnostics only queried ProductClass=1, so their
-        # product row count remains the exact number of instrument requests.
-        if (
-            product_count is not None
-            and product_count > _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
-            and len(stages) > 1
-        ):
-            return unavailable
-        if product_count is None and len(stages) > 1:
-            return unavailable
-        if product_count == 0 and len(stages) > 1:
-            return unavailable
-
+    expected = {
+        "stage",
+        "entered",
+        "returned",
+        "elapsed_seconds",
+        "code",
+        "complete",
+        "scope_complete",
+    }
     sanitized = []
-    for index, stage in enumerate(stages):
-        stage_fields = staged_stage_fields if staged_query_set else _CTP_QUERY_STAGE_FIELDS
-        if type(stage) is not dict or set(stage) != stage_fields:
+    for row in stages:
+        if type(row) is not dict or set(row) != expected:
             return unavailable
-        if staged_query_set:
-            if index == 0:
-                expected_name = "products"
-            elif staged_product_count_facts:
-                if classified_future_count is None:
-                    return unavailable
-                if index <= classified_future_count:
-                    expected_name = "instruments_{:03d}".format(index)
-                elif (
-                    classified_future_count > 0
-                    and index == classified_future_count + 1
-                ):
-                    expected_name = "depth"
-                else:
-                    return unavailable
-            elif index <= product_count:
-                expected_name = "instruments_{:03d}".format(index)
-            elif index == product_count + 1:
-                expected_name = "depth"
-            else:
-                return unavailable
-        else:
-            expected_name = "catalog" if index == 0 else "depth"
-        if staged_query_set:
-            requested_limit = stage.get("requested_record_limit")
-            if expected_name == "products":
-                valid_limit = (
-                    type(requested_limit) is int
-                    and requested_limit == _CTP_QUERY_DIAGNOSTIC_MAX_PRODUCTS
-                )
-            elif expected_name == "depth":
-                valid_limit = type(requested_limit) is int and requested_limit == 20_000
-            else:
-                valid_limit = (
-                    type(requested_limit) is int and 1 <= requested_limit <= 20_000
-                )
-            if not valid_limit:
-                return unavailable
+        stage = row["stage"]
+        entered = row["entered"]
+        returned = row["returned"]
+        elapsed = row["elapsed_seconds"]
+        code = row["code"]
+        complete = row["complete"]
+        scope_complete = row["scope_complete"]
         if (
-            type(stage["stage"]) is not str
-            or stage["stage"] != expected_name
-            or stage["entered"] is not True
-            or type(stage["returned"]) is not bool
-            or type(stage["submit_category"]) is not str
-            or stage["submit_category"] not in _CTP_QUERY_SUBMIT_CATEGORIES
-            or type(stage["error_category"]) is not str
-            or stage["error_category"] not in _CTP_QUERY_DIAGNOSTIC_CATEGORIES
-            or type(stage["first_completion_origin"]) is not str
-            or stage["first_completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
-            or type(stage["completion_origin"]) is not str
-            or stage["completion_origin"] not in _CTP_QUERY_COMPLETION_ORIGINS
+            type(stage) is not str
+            or stage not in _FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES
+            or type(entered) is not bool
+            or type(returned) is not bool
+            or (elapsed is not None and (
+                type(elapsed) not in (int, float)
+                or not math.isfinite(float(elapsed))
+                or float(elapsed) < 0
+            ))
+            or (code is not None and (
+                type(code) is not str
+                or _FUTURES_SNAPSHOT_DIAGNOSTIC_CODE.fullmatch(code) is None
+            ))
+            or (complete is not None and type(complete) is not bool)
+            or (scope_complete is not None and type(scope_complete) is not bool)
         ):
             return unavailable
-        if not staged_query_set and (
-            stage["error_category"] in {"record_limit", "scope_mismatch"}
-            or stage["first_completion_origin"] == "record_limit"
-            or stage["completion_origin"] == "record_limit"
-        ):
-            return unavailable
-        prior = stage["prior_stage_complete"]
-        if index == 0:
-            if prior is not None:
-                return unavailable
-        elif prior is not True:
-            return unavailable
-        elapsed = stage["elapsed_seconds"]
-        if elapsed is not None and (
-            type(elapsed) is not float or not math.isfinite(elapsed) or elapsed < 0
-        ):
-            return unavailable
-
-        optional_booleans = (
-            "result_type_matches",
-            "request_type_matches",
-            "generation_matches",
-            "request_id_positive",
-            "timed_out",
-            "complete",
-            "is_last_seen",
-            "unsupported",
-            "late_callbacks_reported",
-            "late_callback_count_valid",
-            "record_count_capped",
-            "error_code_present",
-            "error_code_valid",
-            "error_code_nonzero",
-            "error_message_present",
-            "error_message_valid",
-        )
-        if staged_query_set:
-            optional_booleans += (
-                "record_limit_matches",
-                "record_limit_exceeded",
-                "request_filters_match",
-            )
-            if staged_product_count_facts:
-                if index == 0:
-                    if (
-                        stage["classified_future_product_count"]
-                        != classified_future_count
-                        or stage["classified_excluded_product_count"]
-                        != classified_excluded_count
-                    ):
-                        return unavailable
-                elif (
-                    stage["classified_future_product_count"] is not None
-                    or stage["classified_excluded_product_count"] is not None
-                ):
-                    return unavailable
-        if any(
-            stage[name] is not None and type(stage[name]) is not bool
-            for name in optional_booleans
-        ):
-            return unavailable
-        if stage["returned"] is True:
-            if type(stage["result_type_matches"]) is not bool:
-                return unavailable
-        elif stage["result_type_matches"] is not None:
-            return unavailable
-        if stage["result_type_matches"] is not True and (
-            stage["first_completion_origin"] != "unknown"
-            or stage["completion_origin"] != "unknown"
-        ):
-            return unavailable
-
-        record_count = stage["record_count"]
-        if record_count is not None and (
-            type(record_count) is not int
-            or not 0 <= record_count <= _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
-        ):
-            return unavailable
-        if (record_count is None) != (stage["record_count_capped"] is None):
-            return unavailable
-        if stage["record_count_capped"] is True and record_count != (
-            _CTP_QUERY_DIAGNOSTIC_MAX_RECORDS
-        ):
-            return unavailable
-
-        requested_limit = stage.get("requested_record_limit")
-        observed_limit = stage.get("record_limit_observed")
-        if staged_query_set and requested_limit is None:
-            return unavailable
-        if requested_limit is None:
-            if any(
-                stage.get(name) is not None
-                for name in (
-                    "record_limit_observed",
-                    "record_limit_matches",
-                    "record_limit_exceeded",
-                    "request_filters_match",
-                )
-            ):
-                return unavailable
-        elif type(requested_limit) is not int or not 1 <= requested_limit <= 100_000:
-            return unavailable
-        if observed_limit is not None and (
-            type(observed_limit) is not int or not 1 <= observed_limit <= 100_000
-        ):
-            return unavailable
-
-        if stage["result_type_matches"] is True:
-            required_boolean_facts = (
-                "request_type_matches",
-                "generation_matches",
-                "request_id_positive",
-                "timed_out",
-                "complete",
-                "is_last_seen",
-                "unsupported",
-                "late_callbacks_reported",
-                "late_callback_count_valid",
-                "error_code_present",
-                "error_code_valid",
-                "error_code_nonzero",
-                "error_message_present",
-                "error_message_valid",
-            )
-            if (
-                any(stage[name] is None for name in required_boolean_facts)
-                or record_count is None
-                or stage["submit_category"] in {"unavailable", "invalid"}
-                or stage["error_category"] == "unavailable"
-            ):
-                return unavailable
-            if requested_limit is not None:
-                if (
-                    type(observed_limit) is not int
-                    or type(stage.get("record_limit_matches")) is not bool
-                    or type(stage.get("record_limit_exceeded")) is not bool
-                    or type(stage.get("request_filters_match")) is not bool
-                    or stage.get("record_limit_matches")
-                    is not (observed_limit == requested_limit)
-                ):
-                    return unavailable
-                if stage["record_count_capped"] is True and stage.get(
-                    "record_limit_exceeded"
-                ) is not True:
-                    return unavailable
-                if record_count > requested_limit and stage.get(
-                    "record_limit_exceeded"
-                ) is not True:
-                    return unavailable
-            elif any(
-                stage.get(name) is not None
-                for name in (
-                    "record_limit_observed",
-                    "record_limit_matches",
-                    "record_limit_exceeded",
-                    "request_filters_match",
-                )
-            ):
-                return unavailable
-            if stage["error_code_valid"] is True:
-                if type(stage["error_code_nonzero"]) is not bool:
-                    return unavailable
-            elif stage["error_code_nonzero"] is not None:
-                return unavailable
-            if (
-                stage["error_code_present"] is False
-                and stage["error_code_valid"] is False
-            ) or (
-                stage["error_code_nonzero"] is True
-                and stage["error_code_present"] is not True
-            ):
-                return unavailable
-            if stage["error_message_valid"] is True:
-                if type(stage["error_message_present"]) is not bool:
-                    return unavailable
-            elif stage["error_message_present"] is not None:
-                return unavailable
-
-            invalid_facts = (
-                stage["request_id_positive"] is False
-                or stage["late_callback_count_valid"] is False
-                or stage["error_code_valid"] is False
-                or stage["error_message_valid"] is False
-            )
-            if invalid_facts:
-                expected_error_category = "invalid"
-            elif stage["timed_out"] is True:
-                expected_error_category = "timeout"
-            elif stage.get("record_limit_exceeded") is True or stage["completion_origin"] == (
-                "record_limit"
-            ):
-                expected_error_category = "record_limit"
-            elif stage.get("record_limit_matches") is False or stage.get(
-                "request_filters_match"
-            ) is False:
-                expected_error_category = "scope_mismatch"
-            elif stage["unsupported"] is True:
-                expected_error_category = "unsupported"
-            elif stage["error_code_nonzero"] is True:
-                expected_error_category = "query_error"
-            elif stage["submit_category"] == "rejected":
-                expected_error_category = "submission_error"
-            elif stage["error_message_present"] is True:
-                expected_error_category = "query_error"
-            elif stage["complete"] is False or stage["is_last_seen"] is False:
-                expected_error_category = "incomplete"
-            elif stage["late_callbacks_reported"] is True:
-                expected_error_category = "late_callbacks"
-            else:
-                expected_error_category = "none"
-            if stage["error_category"] != expected_error_category:
-                return unavailable
-        else:
-            if (
-                any(stage[name] is not None for name in optional_booleans)
-                or record_count is not None
-                or stage["submit_category"] != "unavailable"
-                or stage["error_category"] != "unavailable"
-            ):
-                return unavailable
-
-        sanitized.append(dict(stage))
-
-    if staged_product_count_facts and classified_future_count is not None:
-        product_stage = sanitized[0]
-        if (
-            product_count == 0
-            or product_stage["result_type_matches"] is not True
-            or product_stage["error_category"] != "none"
-            or product_stage["record_count_capped"] is not False
-        ):
-            return unavailable
-
-    if len(sanitized) > 1:
-        for prior_stage in sanitized[:-1]:
-            if not (
-                prior_stage["returned"] is True
-                and prior_stage["result_type_matches"] is True
-                and prior_stage["request_type_matches"] is True
-                and prior_stage["generation_matches"] is True
-                and prior_stage["request_id_positive"] is True
-                and prior_stage["timed_out"] is False
-                and prior_stage["unsupported"] is False
-                and prior_stage["complete"] is True
-                and prior_stage["is_last_seen"] is True
-                and prior_stage["late_callbacks_reported"] is False
-                and prior_stage["late_callback_count_valid"] is True
-                and prior_stage["record_count"] is not None
-                and prior_stage["submit_category"] in {"accepted", "not_observed"}
-                and prior_stage["error_category"] == "none"
-                and prior_stage["error_code_valid"] is True
-                and prior_stage["error_message_valid"] is True
-                and prior_stage["error_message_present"] is False
-            ):
-                return unavailable
-    output = {"status": "AVAILABLE", "stages": sanitized}
-    if had_version_marker:
-        output["schema_version"] = schema_version
-    return output
+        sanitized.append(dict(row))
+    return {"schema_version": 1, "status": "AVAILABLE", "stages": sanitized}
 
 
-def _project_ctp_snapshot_query_diagnostics(error):
-    """Whitelist exact collector DTOs, then apply the shared strict sanitizer."""
+def _project_futures_snapshot_query_diagnostics(error):
+    """Project finite neutral query/lease observations without provider details."""
 
-    def unavailable(category):
-        return {"status": "UNAVAILABLE", "category": category}
-
+    unavailable = lambda category: {"status": "UNAVAILABLE", "category": category}
     try:
-        from backtrader.feeds.futures_ctp_snapshot import (
-            CtpFuturesSnapshotError,
-            CtpFuturesSnapshotQueryObservation,
+        from backtrader.feeds.futures_snapshot import (
+            FuturesSnapshotError,
+            FuturesSnapshotQueryObservation,
         )
     except ImportError:
         return unavailable("DIAGNOSTIC_CONTRACT_UNAVAILABLE")
-    if type(error) is not CtpFuturesSnapshotError:
+    if type(error) is not FuturesSnapshotError:
         return unavailable("ERROR_TYPE_UNTRUSTED")
     observations = getattr(error, "query_observations", None)
     if type(observations) is not tuple or not observations:
         return unavailable("NO_QUERY_OBSERVATION")
-    staged_query_set = (
-        type(observations[0]) is CtpFuturesSnapshotQueryObservation
-        and getattr(observations[0], "stage", None) == "products"
-    )
-    max_observations = 515 if staged_query_set else 2
-    if len(observations) > max_observations or any(
-        type(item) is not CtpFuturesSnapshotQueryObservation for item in observations
+    if len(observations) > 8 or any(
+        type(item) is not FuturesSnapshotQueryObservation for item in observations
     ):
         return unavailable("INVALID_DIAGNOSTICS")
-    field_names = (
-        _CTP_QUERY_STAGED_STAGE_FIELD_NAMES
-        if staged_query_set
-        else _CTP_QUERY_STAGE_FIELD_NAMES
+    stages = []
+    for item in observations:
+        elapsed = item.elapsed_seconds
+        code = item.code
+        if (
+            type(item.stage) is not str
+            or item.stage not in _FUTURES_SNAPSHOT_DIAGNOSTIC_STAGES
+            or type(item.entered) is not bool
+            or type(item.returned) is not bool
+            or (elapsed is not None and (
+                type(elapsed) not in (int, float)
+                or not math.isfinite(float(elapsed))
+                or float(elapsed) < 0
+            ))
+            or (code is not None and (
+                type(code) is not str
+                or _FUTURES_SNAPSHOT_DIAGNOSTIC_CODE.fullmatch(code) is None
+            ))
+            or (item.complete is not None and type(item.complete) is not bool)
+            or (item.scope_complete is not None and type(item.scope_complete) is not bool)
+        ):
+            return unavailable("INVALID_DIAGNOSTICS")
+        stages.append(
+            {
+                "stage": item.stage,
+                "entered": item.entered,
+                "returned": item.returned,
+                "elapsed_seconds": elapsed,
+                "code": code,
+                "complete": item.complete,
+                "scope_complete": item.scope_complete,
+            }
+        )
+    return _sanitize_futures_snapshot_query_diagnostics(
+        {"schema_version": 1, "status": "AVAILABLE", "stages": stages}
     )
-    try:
-        stages = [
-            {name: getattr(observation, name) for name in field_names}
-            for observation in observations
-        ]
-    except Exception:
-        return unavailable("INVALID_DIAGNOSTICS")
-    return _sanitize_ctp_query_diagnostics(
-        {
-            "schema_version": _CTP_QUERY_DIAGNOSTIC_SCHEMA_VERSION,
-            "status": "AVAILABLE",
-            "stages": stages,
-        }
-    )
-
 
 def _apply_golden_target_subset(plan, requested_targets):
     """Project a read-only subset only after the complete CTP plan is READY."""
 
     if requested_targets is None:
         return plan
+    try:
+        from bt_api_py.facade_protocol import MarketInstrumentKey
+    except ImportError:
+        raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
     manifest = plan.get("manifest") if isinstance(plan, Mapping) else None
     if (
-        plan.get("selection_source") != "ctp_query_snapshot_equal_weight_v1"
+        plan.get("selection_source") != "futures_market_snapshot_equal_weight_v1"
         or getattr(manifest, "status", None) != "READY"
     ):
         raise RunnerError("GOLDEN_TARGETS_FULL_SELECTION_NOT_READY")
@@ -1440,6 +1038,7 @@ def _apply_golden_target_subset(plan, requested_targets):
         full_targets = tuple(plan["targets"])
         product_by_target = dict(plan["product_by_target"])
         target_by_product = dict(plan["target_by_product"])
+        full_market_instrument_by_target = dict(plan["market_instrument_by_target"])
         full_authorized_targets = tuple(plan["authorized_targets"])
         full_grid = plan["grid"]
         route_rows = dict(manifest.selected_mapping())
@@ -1451,6 +1050,11 @@ def _apply_golden_target_subset(plan, requested_targets):
         or len(set(full_products)) != len(full_products)
         or full_targets != expected_targets
         or set(product_by_target) != set(full_targets)
+        or set(full_market_instrument_by_target) != set(full_targets)
+        or any(
+            type(instrument) is not MarketInstrumentKey
+            for instrument in full_market_instrument_by_target.values()
+        )
         or any(
             product_by_target[target] != product
             for target, product in zip(full_targets, full_products)
@@ -1519,6 +1123,10 @@ def _apply_golden_target_subset(plan, requested_targets):
             "routes": active_routes,
             "targets": active_targets,
             "product_by_target": active_product_by_target,
+            "market_instrument_by_target": {
+                target: full_market_instrument_by_target[target]
+                for target in active_targets
+            },
             "target_by_product": {
                 product: target for target, product in active_product_by_target.items()
             },
@@ -1818,15 +1426,11 @@ def _calendar_slots(
     grid: Any,
     *,
     begin_at: Optional[datetime] = None,
-    ctp_trading_days: bool = False,
 ):
-    if type(ctp_trading_days) is not bool:
-        raise RunnerError("COHORT_CTP_TRADING_DAY_OPTION_INVALID")
-
     def calendar_day(value):
         if type(value) is not date:
             raise RunnerError("COHORT_TRADING_DAY_INVALID")
-        return value.strftime("%Y%m%d") if ctp_trading_days else value.isoformat()
+        return value.isoformat()
 
     cohort_module, slot_parameters, member_session_cls = _member_session_api()
     slots = []
@@ -1892,7 +1496,6 @@ def _make_live_calendar(
     grid: Any,
     *,
     begin_at: Optional[datetime] = None,
-    ctp_trading_days: bool = False,
 ):
     from backtrader.research.live_cohort import LiveCohortCalendar
 
@@ -1908,7 +1511,7 @@ def _make_live_calendar(
         timezone_id=_text(cohort_cfg["timezone_id"], "timezone_id"),
         clock_domain_id=_text(cohort_cfg["clock_domain_id"], "clock_domain_id"),
         session_semantics=_text(cohort_cfg["session_semantics"], "session_semantics"),
-        slots=_calendar_slots(grid, begin_at=begin_at, ctp_trading_days=ctp_trading_days),
+        slots=_calendar_slots(grid, begin_at=begin_at),
     )
 
 
@@ -1917,7 +1520,6 @@ def _make_cohort(
     grid: Any,
     *,
     begin_at: Optional[datetime] = None,
-    ctp_trading_days: bool = False,
     calendar_override: Any = None,
 ):
     from backtrader.research.live_cohort import LiveBarCohort, LiveCohortCalendar
@@ -1928,7 +1530,7 @@ def _make_cohort(
     )
     if calendar_override is None:
         calendar = _make_live_calendar(
-            config, grid, begin_at=begin_at, ctp_trading_days=ctp_trading_days
+            config, grid, begin_at=begin_at
         )
     elif type(calendar_override) is not LiveCohortCalendar:
         raise RunnerError("COHORT_CALENDAR_OVERRIDE_INVALID")
@@ -1989,44 +1591,6 @@ def _risk_policy(config: Mapping[str, Any]):
         return Alpha003RiskPolicy(**values)
     except (TypeError, ValueError):
         raise RunnerError("RISK_POLICY_INVALID") from None
-
-
-def _commission_identity_by_target(
-    config: Mapping[str, Any], authorized_target_ids: Tuple[str, ...]
-) -> dict[str, dict[str, str]]:
-    """Return only exact non-credential account/unit mappings for live targets.
-
-    Invalid optional entries are omitted and therefore block OPEN through the
-    fee projection.  They must not make refresh startup or safe reductions
-    fail.  In particular, an empty investment-unit value is an explicit
-    operator mapping consumed only by the fee sidecar.
-    """
-
-    raw = config.get("live", {}).get("commission_identity_by_target")
-    if not isinstance(raw, Mapping):
-        return {}
-    allowed = set(authorized_target_ids)
-    result = {}
-    for target_id, identity in raw.items():
-        if type(target_id) is not str or target_id not in allowed or not isinstance(identity, Mapping):
-            continue
-        if set(identity) != {"account_id", "invest_unit_id"}:
-            continue
-        account_id = identity.get("account_id")
-        invest_unit_id = identity.get("invest_unit_id")
-        if (
-            type(account_id) is not str
-            or not account_id
-            or account_id != account_id.strip()
-            or type(invest_unit_id) is not str
-            or invest_unit_id != invest_unit_id.strip()
-        ):
-            continue
-        result[target_id] = {
-            "account_id": account_id,
-            "invest_unit_id": invest_unit_id,
-        }
-    return result
 
 
 def _run_loss_guard_policy(config: Mapping[str, Any], *, write_enabled: bool):
@@ -2346,8 +1910,11 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "replay_instruments",
         "session_calendars",
         "routes",
+        "market_instrument_keys",
         "account_scope",
+        "account_route",
         "logical_run_id",
+        "market_environment",
         "source_kind",
         "max_live_bar_age_seconds",
         "max_future_skew_seconds",
@@ -2389,6 +1956,8 @@ def _make_strategy_kwargs(config, plan, factor_mode, direction, risk_policy, *, 
         "routes": route_by_target,
         "session_calendars": plan["session_calendars"],
         "account_scope": extra.pop("account_scope", None),
+        "account_route": extra.pop("account_route", None),
+        "market_environment": extra.pop("market_environment", "simnow"),
         "logical_run_id": extra.pop("logical_run_id", None),
         "replay_quotes": extra.pop("replay_quotes", ()),
         "replay_instruments": extra.pop("replay_instruments", {}),
@@ -3266,8 +2835,6 @@ class DecisionTapeWriter:
         self._last_record_offset = None
         self._last_record_raw = None
         self._header_record_id = None
-        self._fee_pair_source_scope = None
-        self._fee_pair_grid_append_observations = {}
         if calendar_fingerprint is not None and (
             type(calendar_fingerprint) is not str
             or len(calendar_fingerprint) != 64
@@ -3485,7 +3052,7 @@ class DecisionTapeWriter:
     ):
         """Verify this live writer's latest no-intent row before anchoring it."""
 
-        from backtrader.stores import execution_decision_journal as journal_api
+        import bt_api_py.execution_journal as journal_api
 
         with self._lock:
             try:
@@ -3505,22 +3072,9 @@ class DecisionTapeWriter:
         self,
         source_receipt,
         journal_api,
-        *,
-        purpose="PREWARM",
-        expected_grid_cursor=None,
     ):
-        from alpha003_strategy import TARGET_FREE_SELECTION_REASONS
-
         receipt_is_valid = type(source_receipt) is journal_api.ExecutionSourceReceipt
-        readiness_allowed = (
-            purpose == "PREWARM"
-            and receipt_is_valid
-            and source_receipt.readiness in ("WARMUP", "CATCHING_UP")
-        ) or (
-            purpose == "NO_LEGAL_FEE_PAIR"
-            and receipt_is_valid
-            and source_receipt.readiness == "LIVE_READY"
-        )
+        readiness_allowed = receipt_is_valid and source_receipt.readiness in ("WARMUP", "CATCHING_UP")
         if (
             self.mode != "live"
             or self._closed
@@ -3578,56 +3132,12 @@ class DecisionTapeWriter:
             ).hexdigest()
             reference = self._last_record_reference
             plan = row.get("order_plan")
-            if purpose == "PREWARM":
-                plan_matches = (
-                    isinstance(plan, Mapping)
-                    and plan.get("status") == "NO_ACTION"
-                    and plan.get("actions") == []
-                )
-                decision_matches = True
-            elif purpose == "NO_LEGAL_FEE_PAIR":
-                target_decision = row.get("target_decision")
-                factor_rows = row.get("factors", {}).get("factors") if isinstance(
-                    row.get("factors"), Mapping
-                ) else None
-                alpha003 = factor_rows.get("alpha003") if isinstance(factor_rows, Mapping) else None
-                factor_values = alpha003.get("values") if isinstance(alpha003, Mapping) else None
-                plan_matches = (
-                    isinstance(plan, Mapping)
-                    and plan.get("status") == "SOURCE_ONLY"
-                    and plan.get("reason") == "NO_LEGAL_FEE_PAIR"
-                    and plan.get("decision_batch_id") == row.get("batch_id")
-                    and plan.get("decision_available_at") == row.get("available_at")
-                    and plan.get("actions") == []
-                )
-                decision_matches = (
-                    isinstance(target_decision, Mapping)
-                    and target_decision.get("status") == "BLOCKED"
-                    and target_decision.get("reason") in TARGET_FREE_SELECTION_REASONS
-                    and target_decision.get("execution_mode") == "LIVE"
-                    and target_decision.get("factor_name") == "alpha003"
-                    and target_decision.get("mode") == self.factor_mode
-                    and target_decision.get("direction") == self.direction
-                    and target_decision.get("batch_id") == row.get("batch_id")
-                    and target_decision.get("cohort_id") == row.get("cohort_id")
-                    and target_decision.get("targets") == []
-                    and isinstance(factor_values, Mapping)
-                    and tuple(sorted(factor_values)) == self.targets
-                    and all(
-                        isinstance(factor_values.get(target), Mapping)
-                        and factor_values[target].get("present") is True
-                        and factor_values[target].get("complete") is True
-                        and factor_values[target].get("quality") == "GOOD"
-                        and factor_values[target].get("source_role") == "live"
-                        and factor_values[target].get("member_id") == target
-                        for target in self.targets
-                    )
-                    and isinstance(alpha003, Mapping)
-                    and target_decision.get("source_sha256")
-                    == alpha003.get("source_sha256")
-                )
-            else:
-                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_UNAVAILABLE")
+            plan_matches = (
+                isinstance(plan, Mapping)
+                and plan.get("status") == "NO_ACTION"
+                and plan.get("actions") == []
+            )
+            decision_matches = True
             if (
                 row.get("schema") != DECISION_TAPE_SCHEMA
                 or row.get("record_type") != "DECISION"
@@ -3649,17 +3159,7 @@ class DecisionTapeWriter:
             ):
                 raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
 
-            members = _fee_pair_source_members_from_tape_row(row, journal_api)
-            if purpose == "NO_LEGAL_FEE_PAIR" and any(
-                member.source_role != "live"
-                or member.complete is not True
-                or member.quality != "GOOD"
-                or member.present is not True
-                or member.missing_fields
-                or not set(member.quality_flags).issubset({"LEGACY_SCHEMA"})
-                for member in members
-            ):
-                raise RunnerError("DECISION_TAPE_SOURCE_READBACK_MISMATCH")
+            members = _source_members_from_tape_row(row, journal_api)
             receipt = journal_api.ExecutionSourceReceipt(
                 source_kind=source_receipt.source_kind,
                 cohort_id=row["cohort_id"],
@@ -3692,2174 +3192,12 @@ class DecisionTapeWriter:
                 prefix_sha256=self._hash.hexdigest(),
                 writer_instance_id=id(self),
                 generation_lock_identity=self._generation_lease._identity,
-                purpose=purpose,
-                expected_grid_cursor=expected_grid_cursor,
+                purpose="PREWARM",
             )
         except RunnerError:
             raise
         except BaseException:
             raise RunnerError("DECISION_TAPE_SOURCE_READBACK_FAILED") from None
-
-    def record_fee_pair_source_only(
-        self,
-        candidate,
-        batch,
-        snapshot,
-        target_decision,
-        journal,
-        *,
-        owner_token: str,
-        ttl_seconds: float = 10.0,
-    ):
-        """Append and verify one v17 candidate as a no-intent SOURCE_ONLY row.
-
-        This is an opt-in, same-process source-only helper. It does not query
-        fees, authorize OPEN, recover a writer after restart, or establish
-        cross-process exclusion. The ordinary ``record_decision`` row format
-        remains unchanged. Candidate signal/factor/quote hashes are opaque
-        commitments: this helper binds their v17 candidate digest into the
-        row, but does not claim to recompute their underlying content.
-        """
-        from backtrader.stores import execution_decision_journal as journal_api
-
-        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
-            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
-        if type(journal) is not journal_api.ExecutionDecisionJournal:
-            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
-
-        with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            if self.calendar_fingerprint is None:
-                raise RunnerError("FEE_PAIR_TAPE_CALENDAR_FINGERPRINT_REQUIRED")
-            if self._selection_evidence is None:
-                raise RunnerError("FEE_PAIR_TAPE_SELECTION_EVIDENCE_REQUIRED")
-            self._verify_fee_pair_writer_prefix(journal)
-            self._verify_fee_pair_candidate_writer_binding(candidate)
-
-            expected_index = self._record_count + 1
-            source_scope = (
-                candidate.key.account_scope,
-                candidate.key.strategy_scope,
-                candidate.key.logical_run_id,
-                candidate.source_kind,
-                candidate.cohort_id,
-                candidate.epoch_id,
-                candidate.calendar_id,
-                candidate.calendar_version,
-                candidate.calendar_fingerprint,
-            )
-            if (
-                self._fee_pair_source_scope is not None
-                and self._fee_pair_source_scope != source_scope
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_SOURCE_SCOPE_MISMATCH")
-            highwater = journal.source_highwater(
-                candidate.key.account_scope,
-                candidate.key.strategy_scope,
-                candidate.key.logical_run_id,
-                candidate.source_kind,
-            )
-            if highwater is not None and (
-                candidate.epoch_id < highwater.receipt.epoch_id
-                or (
-                    candidate.epoch_id == highwater.receipt.epoch_id
-                    and candidate.slot_index <= highwater.receipt.slot_index
-                )
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_SLOT_ALREADY_CONSUMED")
-            if (
-                candidate.expected_tape_file_id != self.file_id
-                or candidate.expected_tape_record_index != expected_index
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
-
-            row = _decision_tape_record(
-                batch,
-                snapshot,
-                target_decision,
-                None,
-                file_id=self.file_id,
-                index=expected_index,
-                targets=self.targets,
-                calendar_fingerprint=self.calendar_fingerprint,
-            )
-            _validate_fee_pair_candidate_projection(candidate, row, journal_api)
-            row["order_plan"] = {
-                "status": "SOURCE_ONLY",
-                "reason": "FEE_PAIR_NOT_AUTHORIZED",
-                "decision_batch_id": row["batch_id"],
-                "decision_available_at": row["available_at"],
-                "actions": [],
-            }
-            if self._selection_evidence_sha256 is not None:
-                row["selection_evidence_sha256"] = self._selection_evidence_sha256
-            row["header_record_id"] = self._header_record_id
-
-            # Both hashes have fixed-width SHA-256 encodings.  Check the exact
-            # line and file limits before the durable claim so a local capacity
-            # rejection cannot strand an APPEND_CLAIMED workflow.
-            size_probe = dict(row)
-            size_probe["fee_pair_workflow"] = {
-                "candidate_id": "0" * 64,
-                "candidate_sha256": "0" * 64,
-            }
-            size_probe["record_id"] = "0" * 64
-            size_probe_raw = _canonical_json_bytes(size_probe)
-            if len(size_probe_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES:
-                raise RunnerError("FEE_PAIR_TAPE_RECORD_BYTE_LIMIT_EXCEEDED")
-            if self._bytes + len(size_probe_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES:
-                raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
-            if self._bytes + len(size_probe_raw) > self.max_bytes:
-                raise RunnerError("DECISION_TAPE_BYTE_BUDGET_EXCEEDED")
-
-            try:
-                # The Journal is the durable duplicate/cursor authority.  This
-                # scalar binds this same-process writer to one source scope;
-                # failures after this point leave the writer latched unusable.
-                self._fee_pair_source_scope = source_scope
-                reserved = journal.reserve_fee_pair_workflow_candidate(
-                    candidate,
-                    owner_token=owner_token,
-                    ttl_seconds=ttl_seconds,
-                )
-                candidate_id = reserved.candidate_id
-                candidate_sha256 = reserved.candidate_sha256
-                if (
-                    reserved.state != "RESERVED"
-                    or type(candidate_id) is not str
-                    or not _is_lower_sha256(candidate_id)
-                    or not _is_lower_sha256(candidate_sha256)
-                ):
-                    raise RunnerError("FEE_PAIR_CANDIDATE_RESERVATION_INVALID")
-
-                claimed = journal.record_fee_pair_workflow_append_claim(
-                    candidate_id, owner_token=owner_token
-                )
-                if claimed.state != "APPEND_CLAIMED":
-                    raise RunnerError("FEE_PAIR_APPEND_CLAIM_INVALID")
-
-                row["fee_pair_workflow"] = {
-                    "candidate_id": candidate_id,
-                    "candidate_sha256": candidate_sha256,
-                }
-                digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
-                row["record_id"] = digest
-                raw = _canonical_json_bytes(row)
-                if len(raw) != len(size_probe_raw):
-                    raise RunnerError("FEE_PAIR_TAPE_RECORD_SIZE_PROJECTION_MISMATCH")
-                self._append(raw, count_record=True)
-                self._last_record_reference = MappingProxyType(
-                    {
-                        "file_id": self.file_id,
-                        "record_id": digest,
-                        "record_index": expected_index,
-                        "batch_id": row["batch_id"],
-                    }
-                )
-
-                verified_row = self._verify_fee_pair_candidate_tape_rows(
-                    journal,
-                    candidate,
-                    candidate_id=candidate_id,
-                    candidate_sha256=candidate_sha256,
-                    expected_index=expected_index,
-                )
-                receipt = _fee_pair_source_receipt_from_tape_row(
-                    verified_row, candidate, journal_api
-                )
-                attached = journal.attach_verified_fee_pair_source_receipt(
-                    candidate_id, receipt, owner_token=owner_token
-                )
-                if attached.state != "RECEIPT_VERIFIED":
-                    raise RunnerError("FEE_PAIR_SOURCE_RECEIPT_NOT_ATTACHED")
-                decision = journal.finalize_fee_pair_source_only_from_attached_receipt(
-                    candidate_id, owner_token=owner_token
-                )
-                if (
-                    decision.key != candidate.key
-                    or decision.intent_keys
-                    or decision.economic_payload.get("_execution_source_anchor_only") is not True
-                    or decision.economic_payload.get("_execution_fee_pair_workflow")
-                    != {
-                        "candidate_id": candidate_id,
-                        "candidate_sha256": candidate_sha256,
-                    }
-                ):
-                    raise RunnerError("FEE_PAIR_SOURCE_ONLY_DECISION_INVALID")
-                workflow = journal.fee_pair_workflow_candidate(candidate_id)
-                highwater = journal.source_highwater(
-                    candidate.key.account_scope,
-                    candidate.key.strategy_scope,
-                    candidate.key.logical_run_id,
-                    candidate.source_kind,
-                )
-                if (
-                    workflow is None
-                    or workflow.state != "SOURCE_ONLY"
-                    or workflow.source_only_decision_id != decision.decision_id
-                    or highwater is None
-                    or highwater.anchor_kind != "SOURCE_ONLY"
-                    or highwater.receipt != receipt
-                ):
-                    raise RunnerError("FEE_PAIR_SOURCE_ONLY_HIGHWATER_INVALID")
-                return MappingProxyType(
-                    {
-                        "candidate_id": candidate_id,
-                        "candidate_sha256": candidate_sha256,
-                        "tape_reference": dict(self._last_record_reference),
-                        "source_receipt": receipt,
-                        "decision": decision,
-                    }
-                )
-            except BaseException:
-                # A post-reservation failure leaves the Journal claim unresolved
-                # and the tape unusable for further writes in this process.
-                self._failed = True
-                raise
-
-    def record_fee_pair_source_only_from_live(
-        self,
-        batch,
-        snapshot,
-        target_decision,
-        facts,
-        journal,
-        *,
-        account_scope: str,
-        strategy_scope: str,
-        logical_run_id: str,
-        source_kind: str,
-        source_restart_marker=None,
-        ttl_seconds: float = 10.0,
-        settlement: Optional[Mapping[str, Any]] = None,
-        source_lease: Any = None,
-    ):
-        """Append a selected live pair as SOURCE_ONLY or an admitted GRID.
-
-        This adapter derives the fee-independent candidate from the current
-        Strategy/Store projections while holding the same writer lock used by
-        the append path. The default remains SOURCE_ONLY. A GRID caller must
-        supply the complete settlement plan; the Journal validates fees and
-        the amount hold before this writer returns an OPEN context.
-        """
-        import secrets
-
-        from backtrader.stores import execution_decision_journal as journal_api
-        from backtrader.stores.factor_execution_facts import FactorExecutionFacts
-
-        if type(journal) is not journal_api.ExecutionDecisionJournal:
-            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
-        if type(facts) is not FactorExecutionFacts:
-            raise RunnerError("FEE_PAIR_FACTS_INVALID")
-        for name, value in (
-            ("account_scope", account_scope),
-            ("strategy_scope", strategy_scope),
-            ("logical_run_id", logical_run_id),
-            ("source_kind", source_kind),
-        ):
-            if type(value) is not str or not value or value != value.strip():
-                raise RunnerError("FEE_PAIR_SOURCE_SCOPE_INVALID")
-
-        with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            if self.mode != "live":
-                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
-            if self.calendar_fingerprint is None or self._selection_evidence is None:
-                raise RunnerError("FEE_PAIR_TAPE_SELECTION_BINDING_REQUIRED")
-
-            if (
-                facts.account_scope != account_scope
-                or facts.strategy_scope != strategy_scope
-                or getattr(snapshot, "readiness", None) != "LIVE_READY"
-                or getattr(snapshot, "batch_complete", None) is not True
-                or getattr(target_decision, "status", None) != "TARGETS_READY"
-                or getattr(target_decision, "batch_id", None)
-                != getattr(batch, "batch_id", None)
-                or getattr(target_decision, "cohort_id", None)
-                != getattr(batch, "cohort_id", None)
-            ):
-                raise RunnerError("FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE")
-
-            expected_index = self._record_count + 1
-            row = _decision_tape_record(
-                batch,
-                snapshot,
-                target_decision,
-                None,
-                file_id=self.file_id,
-                index=expected_index,
-                targets=self.targets,
-                calendar_fingerprint=self.calendar_fingerprint,
-            )
-            target_decision_row = row.get("target_decision")
-            target_rows = (
-                target_decision_row.get("targets")
-                if isinstance(target_decision_row, Mapping)
-                else None
-            )
-            if (
-                not isinstance(target_rows, list)
-                or len(target_rows) != 2
-                or any(not isinstance(item, Mapping) for item in target_rows)
-            ):
-                raise RunnerError("FEE_PAIR_SELECTED_PAIR_REQUIRED")
-            target_positions = {}
-            for item in target_rows:
-                target_id = item.get("target_id")
-                position = item.get("target_position")
-                if (
-                    type(target_id) is not str
-                    or target_id in target_positions
-                    or type(position) is not int
-                    or position not in (-1, 1)
-                ):
-                    raise RunnerError("FEE_PAIR_SELECTED_PAIR_INVALID")
-                target_positions[target_id] = position
-            target_ids = tuple(sorted(target_positions))
-            if (
-                len(set(target_ids)) != 2
-                or not set(target_ids).issubset(set(self.targets))
-                or not set(target_ids).issubset(set(facts._authorized_target_id_set))
-                or not set(target_ids).issubset(set(facts._full_target_ids))
-            ):
-                raise RunnerError("FEE_PAIR_SELECTED_PAIR_NOT_AUTHORIZED")
-            directions = tuple(target_positions[target] for target in target_ids)
-
-            account = facts.account
-            if (
-                account is None
-                or type(account.account_fingerprint) is not str
-                or not account.account_fingerprint
-                or type(account.connection_generation) is not int
-                or account.connection_generation <= 0
-                or type(account.trading_day) is not str
-                or not account.trading_day
-                or account.account_scope != account_scope
-            ):
-                raise RunnerError("FEE_PAIR_ACCOUNT_SESSION_UNAVAILABLE")
-
-            route_by_target = {}
-            for route in facts.route_eligibilities:
-                if route.target_id in route_by_target:
-                    raise RunnerError("FEE_PAIR_ROUTE_AMBIGUOUS")
-                route_by_target[route.target_id] = route
-            quote_by_route = {}
-            for quote in facts.quotes:
-                identity = (quote.instrument, quote.exchange)
-                if identity in quote_by_route:
-                    raise RunnerError("FEE_PAIR_QUOTE_AMBIGUOUS")
-                quote_by_route[identity] = quote
-
-            routes = []
-            quote_hashes = []
-            session_pairs = set()
-            for target_id in target_ids:
-                route = route_by_target.get(target_id)
-                if (
-                    route is None
-                    or type(route.instrument) is not str
-                    or not route.instrument
-                    or type(route.exchange) is not str
-                    or not route.exchange
-                    or route.connection_generation != account.connection_generation
-                    or route.trading_day != account.trading_day
-                    or route.current_session_account_fingerprint
-                    != account.account_fingerprint
-                    or route.current_session_connection_generation
-                    != account.connection_generation
-                    or route.current_session_trading_day != account.trading_day
-                    or type(route.current_session_front_id) is not int
-                    or route.current_session_front_id <= 0
-                    or type(route.current_session_id) is not int
-                    or route.current_session_id <= 0
-                ):
-                    raise RunnerError("FEE_PAIR_ROUTE_SESSION_UNAVAILABLE")
-                session_pairs.add((route.current_session_front_id, route.current_session_id))
-                routes.append(
-                    journal_api.ExecutionFeePairTargetRoute(
-                        target_id=target_id,
-                        instrument=route.instrument,
-                        exchange=route.exchange,
-                    )
-                )
-                quote = quote_by_route.get((route.instrument, route.exchange))
-                if quote is None:
-                    raise RunnerError("FEE_PAIR_QUOTE_MISSING")
-                try:
-                    quote_hashes.append(
-                        journal_api._fee_pair_quote_identity_sha256(quote)
-                    )
-                except journal_api.ExecutionDecisionJournalError as error:
-                    raise RunnerError(error.code) from None
-            if len(session_pairs) != 1:
-                raise RunnerError("FEE_PAIR_SESSION_MISMATCH")
-            front_id, session_id = next(iter(session_pairs))
-            account_session_id = "ctp-front-session:{}:{}".format(front_id, session_id)
-            account_session_generation = "ctp-connection-generation:{}".format(
-                account.connection_generation
-            )
-
-            source_members = _fee_pair_source_members_from_tape_row(row, journal_api)
-            close_time = row.get("close_time")
-            if type(close_time) is not str or not close_time:
-                raise RunnerError("FEE_PAIR_SOURCE_CLOSE_TIME_INVALID")
-            key = journal_api.ExecutionDecisionKey(
-                account_scope=account_scope,
-                strategy_scope=strategy_scope,
-                logical_run_id=logical_run_id,
-                cohort_id=row["cohort_id"],
-                close_time=close_time,
-                decision_kind=source_kind,
-            )
-            highwater = journal.source_highwater(
-                account_scope,
-                strategy_scope,
-                logical_run_id,
-                source_kind,
-            )
-            predecessor = None if highwater is None else highwater.reference
-            predecessor_sha256 = (
-                None if highwater is None else highwater.receipt_sha256
-            )
-            factor_source = row["factors"]["factors"]["alpha003"]["source_sha256"]
-            if (
-                type(factor_source) is not str
-                or factor_source != target_decision_row.get("source_sha256")
-            ):
-                raise RunnerError("FEE_PAIR_FACTOR_SOURCE_MISMATCH")
-            signal_sha256 = hashlib.sha256(
-                _canonical_json_bytes(target_decision_row).rstrip(b"\n")
-            ).hexdigest()
-            candidate_projection = {
-                "schema": "backtrader.alpha003.fee_pair_source_candidate.v1",
-                "decision_key": journal_api._decision_key_values(key),
-                "source_kind": source_kind,
-                "calendar_id": row["calendar_id"],
-                "calendar_version": row["calendar_version"],
-                "calendar_fingerprint": row["calendar_fingerprint"],
-                "epoch_id": row["epoch_id"],
-                "slot_index": row["slot_index"],
-                "slot_id": row["slot_id"],
-                "batch_id": row["batch_id"],
-                "expected_tape_file_id": self.file_id,
-                "expected_tape_record_index": expected_index,
-                "source_predecessor_sha256": predecessor_sha256,
-                "source_members": [
-                    journal_api._source_member_values(member)
-                    for member in source_members
-                ],
-                "signal_sha256": signal_sha256,
-                "factor_snapshot_sha256": factor_source,
-                "target_ids": list(target_ids),
-                "directions": list(directions),
-                "quote_identity_sha256s": list(quote_hashes),
-                "account_session_id": account_session_id,
-                "account_session_generation": account_session_generation,
-                "target_routes": [
-                    journal_api._fee_pair_target_route_values(route) for route in routes
-                ],
-                "account_fingerprint": account.account_fingerprint,
-                "connection_generation": account.connection_generation,
-                "trading_day": account.trading_day,
-            }
-            source_candidate_sha256 = hashlib.sha256(
-                journal_api._canonical_json(candidate_projection).encode("utf-8")
-            ).hexdigest()
-            candidate = journal_api.ExecutionFeePairCandidate(
-                key=key,
-                source_kind=source_kind,
-                calendar_id=row["calendar_id"],
-                calendar_version=row["calendar_version"],
-                calendar_fingerprint=row["calendar_fingerprint"],
-                epoch_id=row["epoch_id"],
-                slot_index=row["slot_index"],
-                slot_id=row["slot_id"],
-                batch_id=row["batch_id"],
-                readiness=row["readiness"],
-                expected_tape_file_id=self.file_id,
-                expected_tape_record_index=expected_index,
-                source_candidate_sha256=source_candidate_sha256,
-                source_predecessor_sha256=predecessor_sha256,
-                source_predecessor=predecessor,
-                source_restart_marker=source_restart_marker,
-                source_members=source_members,
-                signal_sha256=signal_sha256,
-                factor_snapshot_sha256=factor_source,
-                target_ids=target_ids,
-                directions=directions,
-                quote_identity_sha256s=tuple(quote_hashes),
-                account_session_id=account_session_id,
-                account_session_generation=account_session_generation,
-                target_routes=tuple(routes),
-                account_fingerprint=account.account_fingerprint,
-                connection_generation=account.connection_generation,
-                trading_day=account.trading_day,
-            )
-            if (
-                candidate.source_restart_marker is not None
-                and candidate.source_restart_marker.prior_highwater != predecessor
-            ):
-                raise RunnerError("FEE_PAIR_SOURCE_RESTART_MARKER_MISMATCH")
-            if settlement is not None:
-                required = {
-                    "order_plan",
-                    "owner_token",
-                    "economic_payload",
-                    "current_account_session_id",
-                    "current_account_session_generation",
-                    "max_query_age_seconds",
-                    "max_quote_age_seconds",
-                    "max_order_intents_per_run",
-                    "expected_run_order_intents_used",
-                    "remaining_exit_intent_reserve",
-                    "loss_guard_context",
-                }
-                if (
-                    set(settlement) != required
-                    or not isinstance(settlement["order_plan"], Mapping)
-                    or not isinstance(settlement["economic_payload"], Mapping)
-                    or type(settlement["owner_token"]) is not str
-                    or not settlement["owner_token"]
-                ):
-                    raise RunnerError("FEE_PAIR_GRID_SETTLEMENT_INVALID")
-                if source_lease is None:
-                    raise RunnerError("FEE_PAIR_OPEN_SOURCE_LEASE_REQUIRED")
-                return self.settle_fee_pair_grid_single_row(
-                    candidate,
-                    batch,
-                    snapshot,
-                    target_decision,
-                    settlement["order_plan"],
-                    journal,
-                    owner_token=settlement["owner_token"],
-                    facts=facts,
-                    economic_payload=settlement["economic_payload"],
-                    current_account_session_id=settlement[
-                        "current_account_session_id"
-                    ],
-                    current_account_session_generation=settlement[
-                        "current_account_session_generation"
-                    ],
-                    max_query_age_seconds=settlement["max_query_age_seconds"],
-                    max_quote_age_seconds=settlement["max_quote_age_seconds"],
-                    max_order_intents_per_run=settlement[
-                        "max_order_intents_per_run"
-                    ],
-                    expected_run_order_intents_used=settlement[
-                        "expected_run_order_intents_used"
-                    ],
-                    remaining_exit_intent_reserve=settlement[
-                        "remaining_exit_intent_reserve"
-                    ],
-                    loss_guard_context=settlement["loss_guard_context"],
-                    reserve_for_open=True,
-                    source_lease=source_lease,
-                    ttl_seconds=ttl_seconds,
-                )
-            return self.record_fee_pair_source_only(
-                candidate,
-                batch,
-                snapshot,
-                target_decision,
-                journal,
-                owner_token=secrets.token_hex(32),
-                ttl_seconds=ttl_seconds,
-            )
-
-    def record_fee_pair_no_pair_source_only_from_live(
-        self,
-        batch,
-        snapshot,
-        target_decision,
-        journal,
-        *,
-        account_scope: str,
-        strategy_scope: str,
-        logical_run_id: str,
-        source_kind: str,
-        source_restart_marker=None,
-        eligible_grid_index: Optional[int] = None,
-    ):
-        """Append one target-free LIVE_READY slot without a candidate.
-
-        Any target-free ``BLOCKED`` LIVE selector result that the live
-        preselection gate admits is source evidence, not a grid decision or an
-        order authorization.  ``eligible_grid_index`` is the caller's cadence
-        counter; the selector is still recomputed from the bound live snapshot
-        and the row is rejected unless that exact decision is reproduced.
-        """
-
-        from backtrader.stores import execution_decision_journal as journal_api
-        from alpha003_strategy import Alpha003TargetDecision, TARGET_FREE_SELECTION_REASONS
-
-        if type(journal) is not journal_api.ExecutionDecisionJournal:
-            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
-        if type(target_decision) is not Alpha003TargetDecision:
-            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_INVALID")
-        for name, value in (
-            ("account_scope", account_scope),
-            ("strategy_scope", strategy_scope),
-            ("logical_run_id", logical_run_id),
-            ("source_kind", source_kind),
-        ):
-            if type(value) is not str or not value or value != value.strip():
-                raise RunnerError("FEE_PAIR_SOURCE_SCOPE_INVALID")
-        if source_restart_marker is not None and type(
-            source_restart_marker
-        ) is not journal_api.ExecutionSourceRestartMarker:
-            raise RunnerError("FEE_PAIR_SOURCE_RESTART_MARKER_INVALID")
-
-        with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            if self.mode != "live":
-                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
-            if self.calendar_fingerprint is None or self._selection_evidence is None:
-                raise RunnerError("FEE_PAIR_TAPE_SELECTION_BINDING_REQUIRED")
-            if (
-                getattr(batch, "status", None) != "COMPLETE"
-                or getattr(snapshot, "readiness", None) != "LIVE_READY"
-                or getattr(snapshot, "batch_complete", None) is not True
-                or getattr(snapshot, "batch_id", None) != getattr(batch, "batch_id", None)
-                or getattr(snapshot, "cohort_id", None) != getattr(batch, "cohort_id", None)
-                or getattr(snapshot, "close_time", None) != getattr(batch, "close_time", None)
-                or getattr(target_decision, "status", None) != "BLOCKED"
-                or getattr(target_decision, "reason", None)
-                not in TARGET_FREE_SELECTION_REASONS
-                or getattr(target_decision, "execution_mode", None) != "LIVE"
-                or getattr(target_decision, "batch_id", None) != getattr(batch, "batch_id", None)
-                or getattr(target_decision, "cohort_id", None) != getattr(batch, "cohort_id", None)
-                or tuple(getattr(target_decision, "targets", ()))
-            ):
-                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
-
-            expected_index = self._record_count + 1
-            row = _decision_tape_record(
-                batch,
-                snapshot,
-                target_decision,
-                None,
-                file_id=self.file_id,
-                index=expected_index,
-                targets=self.targets,
-                calendar_fingerprint=self.calendar_fingerprint,
-            )
-            decision_row = row.get("target_decision")
-            factor_rows = row.get("factors", {}).get("factors")
-            alpha003 = factor_rows.get("alpha003") if isinstance(factor_rows, Mapping) else None
-            factor_values = alpha003.get("values") if isinstance(alpha003, Mapping) else None
-            if (
-                not isinstance(decision_row, Mapping)
-                or decision_row.get("status") != "BLOCKED"
-                or decision_row.get("reason") not in TARGET_FREE_SELECTION_REASONS
-                or decision_row.get("execution_mode") != "LIVE"
-                or decision_row.get("factor_name") != "alpha003"
-                or decision_row.get("mode") != self.factor_mode
-                or decision_row.get("direction") != self.direction
-                or decision_row.get("source_sha256")
-                != (alpha003.get("source_sha256") if isinstance(alpha003, Mapping) else None)
-                or decision_row.get("targets") != []
-                or not isinstance(factor_values, Mapping)
-                or tuple(sorted(factor_values)) != self.targets
-                or any(
-                    not isinstance(factor_values.get(target), Mapping)
-                    or factor_values[target].get("present") is not True
-                    or factor_values[target].get("complete") is not True
-                    or factor_values[target].get("quality") != "GOOD"
-                    or factor_values[target].get("source_role") != "live"
-                    or factor_values[target].get("member_id") != target
-                    for target in self.targets
-                )
-            ):
-                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
-            row["order_plan"] = {
-                "status": "SOURCE_ONLY",
-                "reason": "NO_LEGAL_FEE_PAIR",
-                "decision_batch_id": row["batch_id"],
-                "decision_available_at": row["available_at"],
-                "actions": [],
-            }
-
-            member_rows = row.get("members")
-            if (
-                not isinstance(member_rows, Mapping)
-                or tuple(sorted(member_rows)) != self.targets
-                or any(
-                    not isinstance(member_rows.get(target), Mapping)
-                    or member_rows[target].get("source_role") != "live"
-                    or member_rows[target].get("complete") is not True
-                    or member_rows[target].get("quality") != "GOOD"
-                    or member_rows[target].get("present") is not True
-                    or member_rows[target].get("missing_fields")
-                    or not set(member_rows[target].get("quality_flags", ())).issubset(
-                        {"LEGACY_SCHEMA"}
-                    )
-                    for target in self.targets
-                )
-            ):
-                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE")
-            try:
-                source_members = _fee_pair_source_members_from_tape_row(row, journal_api)
-            except RunnerError:
-                raise RunnerError("FEE_PAIR_NO_PAIR_SOURCE_UNAVAILABLE") from None
-
-            key = journal_api.ExecutionDecisionKey(
-                account_scope=account_scope,
-                strategy_scope=strategy_scope,
-                logical_run_id=logical_run_id,
-                cohort_id=row["cohort_id"],
-                close_time=row["close_time"],
-                decision_kind=source_kind,
-            )
-            self._verify_fee_pair_writer_prefix(journal)
-            expected_grid_cursor = self._verify_fee_pair_no_pair_selector_projection(
-                batch,
-                snapshot,
-                target_decision,
-                journal,
-                key,
-                eligible_grid_index=eligible_grid_index,
-            )
-            highwater = journal.validate_fee_pair_no_pair_source_only_preflight(key)
-            expected_scope = (
-                account_scope,
-                strategy_scope,
-                logical_run_id,
-                source_kind,
-                row["cohort_id"],
-                row["epoch_id"],
-                row["calendar_id"],
-                row["calendar_version"],
-                row["calendar_fingerprint"],
-            )
-            if self._fee_pair_source_scope is not None and self._fee_pair_source_scope != expected_scope:
-                raise RunnerError("FEE_PAIR_TAPE_SOURCE_SCOPE_MISMATCH")
-            if highwater is not None and (
-                row["epoch_id"] < highwater.receipt.epoch_id
-                or (
-                    row["epoch_id"] == highwater.receipt.epoch_id
-                    and row["slot_index"] <= highwater.receipt.slot_index
-                )
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_SLOT_ALREADY_CONSUMED")
-            if expected_index != row["record_index"]:
-                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
-
-            if self._selection_evidence_sha256 is not None:
-                row["selection_evidence_sha256"] = self._selection_evidence_sha256
-            row["header_record_id"] = self._header_record_id
-            record_id = hashlib.sha256(
-                _canonical_json_bytes(row).rstrip(b"\n")
-            ).hexdigest()
-            row["record_id"] = record_id
-            raw = _canonical_json_bytes(row)
-            receipt = journal_api.ExecutionSourceReceipt(
-                source_kind=source_kind,
-                cohort_id=row["cohort_id"],
-                calendar_id=row["calendar_id"],
-                calendar_version=row["calendar_version"],
-                calendar_fingerprint=row["calendar_fingerprint"],
-                epoch_id=row["epoch_id"],
-                slot_index=row["slot_index"],
-                slot_id=row["slot_id"],
-                close_time=row["close_time"],
-                batch_id=row["batch_id"],
-                readiness=row["readiness"],
-                tape_file_id=row["file_id"],
-                tape_record_id=record_id,
-                tape_record_index=row["record_index"],
-                members=source_members,
-                predecessor=None if highwater is None else highwater.reference,
-                restart_marker=source_restart_marker,
-            )
-            try:
-                journal_api.ExecutionDecisionJournal._validate_source_append(
-                    receipt=receipt,
-                    highwater=highwater,
-                    scope=(account_scope, strategy_scope, logical_run_id, source_kind),
-                )
-            except journal_api.ExecutionDecisionJournalError as error:
-                raise RunnerError(error.code) from None
-
-            offset = self._bytes
-            try:
-                self._append(raw, count_record=True)
-                self._last_record_reference = MappingProxyType(
-                    {
-                        "file_id": self.file_id,
-                        "record_id": record_id,
-                        "record_index": expected_index,
-                        "batch_id": row["batch_id"],
-                    }
-                )
-                readback = self._verified_source_tape_readback_locked(
-                    receipt,
-                    journal_api,
-                    purpose="NO_LEGAL_FEE_PAIR",
-                    expected_grid_cursor=expected_grid_cursor,
-                )
-                anchored = journal.record_verified_fee_pair_no_pair_source_only(
-                    key, readback
-                )
-                decision = anchored.source_anchor
-                highwater_after = journal.source_highwater(
-                    account_scope,
-                    strategy_scope,
-                    logical_run_id,
-                    source_kind,
-                )
-                if (
-                    decision is None
-                    or decision.key != key
-                    or decision.intent_keys
-                    or decision.economic_payload.get("_execution_source_anchor_only") is not True
-                    or decision.economic_payload.get(
-                        "_execution_fee_pair_no_pair_source_only"
-                    )
-                    != {
-                        "reason_code": "NO_LEGAL_FEE_PAIR",
-                        "selection_reason": "NO_VALID_SIGNAL",
-                    }
-                    or decision.economic_payload.get("_execution_fee_pair_workflow") is not None
-                    or highwater_after is None
-                    or highwater_after.anchor_kind != "SOURCE_ONLY"
-                    or highwater_after.receipt != receipt
-                ):
-                    raise RunnerError("FEE_PAIR_NO_PAIR_HIGHWATER_INVALID")
-                self._fee_pair_source_scope = expected_scope
-                return MappingProxyType(
-                    {
-                        "tape_reference": dict(self._last_record_reference),
-                        "source_receipt": receipt,
-                        "decision": decision,
-                    }
-                )
-            except BaseException:
-                # Once bytes may be durable, never retry this source identity.
-                self._failed = True
-                raise
-
-    def record_fee_pair_grid_tape_append_observation(
-        self,
-        candidate_id,
-        candidate,
-        batch,
-        snapshot,
-        target_decision,
-        order_plan,
-        journal,
-        *,
-        owner_token: str,
-    ):
-        """Append one v20 fee-pair GRID row and return a writer-local observation.
-
-        This method binds the Journal's intent and one-way append claim to this
-        newly-created writer, its complete durable prefix, and a full strict
-        reread after fsync.  The Journal's report remains a caller statement:
-        this method neither verifies a restart nor settles GRID, creates OPEN
-        intents, nor submits an order.  An unresolved intent/claim is left
-        fail-closed for a later, separately implemented recovery protocol.
-        """
-        from backtrader.stores import execution_decision_journal as journal_api
-
-        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
-            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
-        if type(journal) is not journal_api.ExecutionDecisionJournal:
-            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
-        if type(candidate_id) is not str or not _is_lower_sha256(candidate_id):
-            raise RunnerError("FEE_PAIR_CANDIDATE_ID_INVALID")
-        if type(owner_token) is not str or not owner_token:
-            raise RunnerError("FEE_PAIR_OWNER_TOKEN_INVALID")
-
-        with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            if self.mode != "live":
-                raise RunnerError("FEE_PAIR_TAPE_LIVE_MODE_REQUIRED")
-            if self.calendar_fingerprint is None:
-                raise RunnerError("FEE_PAIR_TAPE_CALENDAR_FINGERPRINT_REQUIRED")
-            if self._selection_evidence is None:
-                raise RunnerError("FEE_PAIR_TAPE_SELECTION_EVIDENCE_REQUIRED")
-
-            candidate_sha256 = hashlib.sha256(
-                journal_api._canonical_json(
-                    journal_api._fee_pair_candidate_values(candidate)
-                ).encode("utf-8")
-            ).hexdigest()
-            cached = self._fee_pair_grid_append_observations.get(candidate_id)
-            if cached is not None:
-                try:
-                    row = self._fee_pair_grid_row(
-                        candidate,
-                        batch,
-                        snapshot,
-                        target_decision,
-                        order_plan,
-                        candidate_id=candidate_id,
-                        candidate_sha256=candidate_sha256,
-                        index=cached["record_index"],
-                    )
-                    raw = _canonical_json_bytes(row)
-                    record_id = row["record_id"]
-                    record_sha256 = hashlib.sha256(raw).hexdigest()
-                    if (
-                        candidate_sha256 != cached["candidate_sha256"]
-                        or record_id != cached["record_id"]
-                        or record_sha256 != cached["record_sha256"]
-                        or len(raw) != cached["record_size_bytes"]
-                    ):
-                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CONFLICT")
-                    self._verify_fee_pair_grid_append_row(
-                        journal,
-                        candidate,
-                        candidate_id=candidate_id,
-                        candidate_sha256=candidate_sha256,
-                        expected_index=cached["record_index"],
-                        expected_row=row,
-                    )
-                    workflow = journal.fee_pair_workflow_candidate(candidate_id)
-                    if (
-                        workflow is None
-                        or workflow.tape_append_state != "REPORTED"
-                        or workflow.tape_file_id != self.file_id
-                        or workflow.tape_record_index != cached["record_index"]
-                        or workflow.grid_settled_decision_id is not None
-                    ):
-                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CONFLICT")
-                    return cached["observation"]
-                except BaseException:
-                    self._failed = True
-                    raise
-
-            try:
-                try:
-                    self._assert_fee_pair_tape_file_identity()
-                    self._verify_fee_pair_writer_prefix(journal)
-                except BaseException:
-                    self._failed = True
-                    raise
-                self._verify_fee_pair_candidate_writer_binding(candidate)
-                expected_index = self._record_count + 1
-                if (
-                    candidate.readiness != "LIVE_READY"
-                    or candidate.expected_tape_file_id != self.file_id
-                    or candidate.expected_tape_record_index >= expected_index
-                ):
-                    raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
-
-                workflow = journal.fee_pair_workflow_candidate(candidate_id)
-                if (
-                    workflow is None
-                    or workflow.candidate_sha256 != candidate_sha256
-                    or workflow.state != "RECEIPT_VERIFIED"
-                    or workflow.tape_append_state is not None
-                    or workflow.tape_file_id is not None
-                    or workflow.tape_record_index is not None
-                    or workflow.grid_settled_decision_id is not None
-                    or workflow.source_only_decision_id is not None
-                ):
-                    raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_NOT_READY")
-
-                row = self._fee_pair_grid_row(
-                    candidate,
-                    batch,
-                    snapshot,
-                    target_decision,
-                    order_plan,
-                    candidate_id=candidate_id,
-                    candidate_sha256=candidate_sha256,
-                    index=expected_index,
-                )
-                _validate_fee_pair_candidate_projection(
-                    candidate,
-                    row,
-                    journal_api,
-                    expected_tape_record_index=expected_index,
-                )
-                record_json = _canonical_json_bytes(row).decode("utf-8").rstrip("\n")
-                raw = (record_json + "\n").encode("utf-8")
-                if (
-                    len(raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES
-                    or self._bytes + len(raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
-                    or self._bytes + len(raw) > self.max_bytes
-                ):
-                    raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
-
-                prefix_sha256 = self._hash.hexdigest()
-                record_id = row["record_id"]
-                record_sha256 = hashlib.sha256(raw).hexdigest()
-                intent_started = False
-                try:
-                    intent_started = True
-                    reserved = journal.reserve_fee_pair_grid_tape_append_intent(
-                        candidate_id,
-                        owner_token=owner_token,
-                        tape_file_id=self.file_id,
-                        header_record_id=self._header_record_id,
-                        record_index=expected_index,
-                        prefix_sha256=prefix_sha256,
-                        record_json=record_json,
-                    )
-                    if (
-                        reserved.state != "RECEIPT_VERIFIED"
-                        or reserved.tape_append_state != "INTENT"
-                        or reserved.tape_file_id != self.file_id
-                        or reserved.tape_record_index != expected_index
-                        or reserved.candidate_sha256 != candidate_sha256
-                    ):
-                        raise RunnerError("FEE_PAIR_GRID_TAPE_INTENT_INVALID")
-
-                    claimed = journal.claim_fee_pair_grid_tape_append(
-                        candidate_id, owner_token=owner_token
-                    )
-                    if (
-                        claimed.state != "RECEIPT_VERIFIED"
-                        or claimed.tape_append_state != "CLAIMED"
-                        or claimed.tape_file_id != self.file_id
-                        or claimed.tape_record_index != expected_index
-                        or claimed.candidate_sha256 != candidate_sha256
-                    ):
-                        raise RunnerError("FEE_PAIR_GRID_TAPE_APPEND_CLAIM_INVALID")
-
-                    self._assert_fee_pair_tape_file_identity()
-                    self._append(raw, count_record=True)
-                    self._last_record_reference = MappingProxyType(
-                        {
-                            "file_id": self.file_id,
-                            "record_id": record_id,
-                            "record_index": expected_index,
-                            "batch_id": row["batch_id"],
-                        }
-                    )
-                    self._verify_fee_pair_grid_append_row(
-                        journal,
-                        candidate,
-                        candidate_id=candidate_id,
-                        candidate_sha256=candidate_sha256,
-                        expected_index=expected_index,
-                        expected_row=row,
-                    )
-                    self._assert_fee_pair_tape_file_identity()
-
-                    reported = journal.report_fee_pair_grid_tape_append(
-                        candidate_id,
-                        owner_token=owner_token,
-                        disposition="APPENDED",
-                        observed_file_id=self.file_id,
-                        observed_header_record_id=self._header_record_id,
-                        observed_record_index=expected_index,
-                        observed_prefix_sha256=prefix_sha256,
-                        observed_record_id=record_id,
-                        observed_record_sha256=record_sha256,
-                    )
-                    if (
-                        reported.state != "RECEIPT_VERIFIED"
-                        or reported.tape_append_state != "REPORTED"
-                        or reported.tape_file_id != self.file_id
-                        or reported.tape_record_index != expected_index
-                        or reported.candidate_sha256 != candidate_sha256
-                        or reported.grid_settled_decision_id is not None
-                    ):
-                        raise RunnerError("FEE_PAIR_GRID_TAPE_REPORT_NOT_VERIFIED")
-
-                    observation = MappingProxyType(
-                        {
-                            "schema": "backtrader.alpha003.grid_tape_append_observation.v1",
-                            "evidence_level": "WRITER_LOCAL_FSYNC_AND_READBACK",
-                            "status": "APPENDED",
-                            "candidate_id": candidate_id,
-                            "candidate_sha256": candidate_sha256,
-                            "file_id": self.file_id,
-                            "header_record_id": self._header_record_id,
-                            "record_index": expected_index,
-                            "prefix_sha256": prefix_sha256,
-                            "record_id": record_id,
-                            "record_sha256": record_sha256,
-                            "record_size_bytes": len(raw),
-                            "journal_tape_append_state": "REPORTED",
-                            "grid_settled": False,
-                            "open_authorized": False,
-                        }
-                    )
-                    self._fee_pair_grid_append_observations[candidate_id] = {
-                        "candidate_sha256": candidate_sha256,
-                        "file_id": self.file_id,
-                        "header_record_id": self._header_record_id,
-                        "record_index": expected_index,
-                        "prefix_sha256": prefix_sha256,
-                        "record_id": record_id,
-                        "record_sha256": record_sha256,
-                        "record_size_bytes": len(raw),
-                        "observation": observation,
-                    }
-                    return observation
-                except BaseException:
-                    if intent_started:
-                        self._failed = True
-                    raise
-            except BaseException:
-                raise
-
-    def settle_fee_pair_grid_single_row(
-        self,
-        candidate,
-        batch,
-        snapshot,
-        target_decision,
-        order_plan,
-        journal,
-        *,
-        owner_token,
-        facts,
-        economic_payload,
-        current_account_session_id,
-        current_account_session_generation,
-        max_query_age_seconds,
-        max_quote_age_seconds,
-        max_order_intents_per_run,
-        expected_run_order_intents_used,
-        remaining_exit_intent_reserve,
-        loss_guard_context=None,
-        reserve_for_open=False,
-        source_lease=None,
-        ttl_seconds=10.0,
-    ):
-        """Append one v23 LIVE_READY GRID row, then settle that same row.
-
-        This narrow path owns one physical append and hands Journal a private
-        capability backed by this live writer's generation lease and handle.
-        It does not create a separate SOURCE_ONLY anchor or dispatch either
-        OPEN leg. A failed post-claim operation latches the writer and leaves
-        the durable workflow unresolved for explicit reconciliation.
-        """
-
-        from backtrader.stores import execution_decision_journal as journal_api
-
-        if type(candidate) is not journal_api.ExecutionFeePairCandidate:
-            raise RunnerError("FEE_PAIR_CANDIDATE_TYPE_INVALID")
-        if type(journal) is not journal_api.ExecutionDecisionJournal:
-            raise RunnerError("FEE_PAIR_JOURNAL_TYPE_INVALID")
-        if type(owner_token) is not str or not owner_token:
-            raise RunnerError("FEE_PAIR_OWNER_TOKEN_INVALID")
-        if not isinstance(economic_payload, Mapping):
-            raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
-        if reserve_for_open and source_lease is None:
-            raise RunnerError("FEE_PAIR_OPEN_SOURCE_LEASE_REQUIRED")
-
-        with self._lock:
-            if self._closed or self._failed:
-                raise RunnerError("DECISION_TAPE_UNAVAILABLE")
-            lease = self._generation_lease
-            if (
-                self.mode != "live"
-                or lease is None
-                or not lease.held
-                or getattr(lease, "_writer", None) is not self
-                or getattr(lease, "_tape_handle", None) is not self._handle
-            ):
-                raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_LEASE_REQUIRED")
-            if self.calendar_fingerprint is None or self._selection_evidence is None:
-                raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
-            self._verify_fee_pair_candidate_writer_binding(candidate)
-
-            expected_index = self._record_count + 1
-            if (
-                candidate.expected_tape_file_id != self.file_id
-                or candidate.expected_tape_record_index != expected_index
-                or candidate.readiness != "LIVE_READY"
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_POSITION_MISMATCH")
-
-            try:
-                # O(1) append-boundary checks only: full historic re-read is a
-                # final EOF verification, not a per-grid operation.
-                lease.validate(self._handle)
-                self._assert_fee_pair_tape_file_identity()
-                handle_metadata = os.fstat(self._handle.fileno())
-                path_metadata = os.lstat(self.path)
-                if (
-                    int(handle_metadata.st_size) != self._bytes
-                    or int(path_metadata.st_size) != self._bytes
-                    or self._handle.tell() != self._bytes
-                    or self._record_count + 1 != expected_index
-                ):
-                    raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
-            except BaseException:
-                self._failed = True
-                raise
-
-            payload_template = dict(economic_payload)
-            tape_bindings = {
-                "decision_tape_status": "DURABLE",
-                "decision_tape_file_id": self.file_id,
-                "decision_tape_record_index": expected_index,
-                "decision_tape_batch_id": candidate.batch_id,
-            }
-            for name, expected in tape_bindings.items():
-                if name in payload_template and payload_template[name] != expected:
-                    raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
-                payload_template[name] = expected
-            if (
-                payload_template.get("decision_tape_record_id") is not None
-                or payload_template.get("decision_tape_error") not in (None,)
-            ):
-                raise RunnerError("FEE_PAIR_GRID_PLAN_INVALID")
-            payload_template["decision_tape_record_id"] = None
-            economic_binding_sha256 = (
-                journal_api._fee_pair_single_row_economic_payload_sha256(payload_template)
-            )
-
-            # Candidate identifiers are fixed-width hashes, so this exact-size
-            # probe validates line/file bounds before creating a durable claim.
-            size_row = self._fee_pair_grid_row(
-                candidate,
-                batch,
-                snapshot,
-                target_decision,
-                order_plan,
-                candidate_id="0" * 64,
-                candidate_sha256="0" * 64,
-                index=expected_index,
-                economic_payload_sha256=economic_binding_sha256,
-            )
-            if not journal_api._fee_pair_single_row_tape_plan_matches_economics(
-                size_row, payload_template
-            ):
-                raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID")
-            _validate_fee_pair_candidate_projection(
-                candidate,
-                size_row,
-                journal_api,
-                expected_tape_record_index=expected_index,
-            )
-            size_raw = _canonical_json_bytes(size_row)
-            if (
-                len(size_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES
-                or self._bytes + len(size_raw) > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
-                or self._bytes + len(size_raw) > self.max_bytes
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_BYTE_LIMIT_EXCEEDED")
-
-            journal_started = True
-            try:
-                reserved = journal.reserve_fee_pair_workflow_candidate(
-                    candidate,
-                    owner_token=owner_token,
-                    ttl_seconds=ttl_seconds,
-                    facts=facts if reserve_for_open else None,
-                    source_lease=source_lease if reserve_for_open else None,
-                )
-                candidate_id = reserved.candidate_id
-                candidate_sha256 = reserved.candidate_sha256
-                if (
-                    reserved.state != "RESERVED"
-                    or type(candidate_id) is not str
-                    or not _is_lower_sha256(candidate_id)
-                    or not _is_lower_sha256(candidate_sha256)
-                ):
-                    raise RunnerError("FEE_PAIR_CANDIDATE_RESERVATION_INVALID")
-
-                row = self._fee_pair_grid_row(
-                    candidate,
-                    batch,
-                    snapshot,
-                    target_decision,
-                    order_plan,
-                    candidate_id=candidate_id,
-                    candidate_sha256=candidate_sha256,
-                    index=expected_index,
-                    economic_payload_sha256=economic_binding_sha256,
-                )
-                if len(_canonical_json_bytes(row)) != len(size_raw):
-                    raise RunnerError("FEE_PAIR_TAPE_RECORD_SIZE_PROJECTION_MISMATCH")
-                if not journal_api._fee_pair_single_row_tape_plan_matches_economics(
-                    row, payload_template
-                ):
-                    raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_PLAN_BINDING_INVALID")
-                record_json = _canonical_json_bytes(row).decode("utf-8").rstrip("\n")
-                raw = (record_json + "\n").encode("utf-8")
-                prefix_sha256 = self._hash.hexdigest()
-
-                claimed = journal.record_fee_pair_grid_single_row_append_claim(
-                    candidate_id,
-                    owner_token=owner_token,
-                    tape_file_id=self.file_id,
-                    header_record_id=self._header_record_id,
-                    record_index=expected_index,
-                    prefix_sha256=prefix_sha256,
-                    record_json=record_json,
-                    facts=facts if reserve_for_open else None,
-                    source_lease=source_lease if reserve_for_open else None,
-                )
-                if (
-                    claimed.state != "APPEND_CLAIMED"
-                    or claimed.candidate_sha256 != candidate_sha256
-                ):
-                    raise RunnerError("FEE_PAIR_SINGLE_ROW_APPEND_CLAIM_INVALID")
-
-                intent = journal.reserve_fee_pair_grid_single_row_tape_intent(
-                    candidate_id,
-                    owner_token=owner_token,
-                    tape_file_id=self.file_id,
-                    header_record_id=self._header_record_id,
-                    record_index=expected_index,
-                    prefix_sha256=prefix_sha256,
-                    record_json=record_json,
-                    facts=facts if reserve_for_open else None,
-                    source_lease=source_lease if reserve_for_open else None,
-                )
-                if (
-                    intent.get("candidate_id") != candidate_id
-                    or intent.get("record_id") != row["record_id"]
-                    or intent.get("record_index") != expected_index
-                ):
-                    raise RunnerError("FEE_PAIR_SINGLE_ROW_TAPE_INTENT_INVALID")
-
-                # The one and only physical append for this candidate.
-                lease.validate(self._handle)
-                self._assert_fee_pair_tape_file_identity()
-                if (
-                    os.fstat(self._handle.fileno()).st_size != self._bytes
-                    or self.path.stat().st_size != self._bytes
-                    or self._handle.tell() != self._bytes
-                ):
-                    raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
-                record_offset = self._bytes
-                self._append(raw, count_record=True)
-                self._last_record_reference = MappingProxyType(
-                    {
-                        "file_id": self.file_id,
-                        "record_id": row["record_id"],
-                        "record_index": expected_index,
-                        "batch_id": row["batch_id"],
-                    }
-                )
-                lease.validate(self._handle)
-                self._assert_fee_pair_tape_file_identity()
-                metadata = os.fstat(self._handle.fileno())
-                if (
-                    int(metadata.st_size) != self._bytes
-                    or self.path.stat().st_size != self._bytes
-                    or self._record_count != expected_index
-                    or self._last_record_offset != record_offset
-                    or self._last_record_raw != raw
-                ):
-                    raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_MISMATCH")
-
-                file_identity = _generation_file_identity(metadata)
-                final_payload = dict(payload_template)
-                final_payload["decision_tape_record_id"] = row["record_id"]
-                readback = journal_api._make_verified_fee_pair_single_row_tape_readback(
-                    candidate_id=candidate_id,
-                    candidate_sha256=candidate_sha256,
-                    tape_path=str(self.path),
-                    tape_file_identity=file_identity,
-                    tape_size=self._bytes,
-                    record_offset=record_offset,
-                    record_size=len(raw),
-                    record_index=expected_index,
-                    file_id=self.file_id,
-                    header_record_id=self._header_record_id,
-                    prefix_sha256=prefix_sha256,
-                    record_id=row["record_id"],
-                    record_sha256=hashlib.sha256(raw).hexdigest(),
-                    writer_instance_id=id(self),
-                    generation_lock_identity=tuple(lease._identity),
-                    writer_handle=self._handle,
-                    generation_lease=lease,
-                )
-                settled = journal.settle_fee_pair_grid_decision(
-                    candidate_id,
-                    owner_token=owner_token,
-                    facts=facts,
-                    current_account_session_id=current_account_session_id,
-                    current_account_session_generation=current_account_session_generation,
-                    max_query_age_seconds=max_query_age_seconds,
-                    max_quote_age_seconds=max_quote_age_seconds,
-                    economic_payload=final_payload,
-                    max_order_intents_per_run=max_order_intents_per_run,
-                    expected_run_order_intents_used=expected_run_order_intents_used,
-                    remaining_exit_intent_reserve=remaining_exit_intent_reserve,
-                    loss_guard_context=loss_guard_context,
-                    verified_tape_readback=readback,
-                    reserve_for_open=reserve_for_open,
-                    source_lease=source_lease if reserve_for_open else None,
-                )
-                receipt = journal_api._fee_pair_receipt_from_candidate(
-                    candidate, row["record_id"]
-                )
-                workflow = journal.fee_pair_workflow_candidate(candidate_id)
-                highwater = journal.source_highwater(
-                    candidate.key.account_scope,
-                    candidate.key.strategy_scope,
-                    candidate.key.logical_run_id,
-                    candidate.source_kind,
-                )
-                if (
-                    not settled.is_new_grid
-                    or settled.decision.key != candidate.key
-                    or workflow is None
-                    # The Journal keeps the workflow's source state at
-                    # RECEIPT_VERIFIED and records GRID settlement through
-                    # its immutable grid_decision_id. Preserve that v20 state
-                    # transition contract while verifying the terminal link.
-                    or workflow.state != "RECEIPT_VERIFIED"
-                    or workflow.grid_settled_decision_id != settled.decision.decision_id
-                    or highwater is None
-                    or highwater.anchor_kind != "GRID"
-                    or highwater.receipt != receipt
-                ):
-                    raise RunnerError("FEE_PAIR_SINGLE_ROW_GRID_SETTLEMENT_INVALID")
-                # The settled GRID row is this writer's immutable source
-                # anchor. Every later SOURCE_ONLY/NO_LEGAL_FEE_PAIR append
-                # re-streams and re-verifies the prefix, and that verification
-                # requires the same source scope the ordinary source-only path
-                # records. Publish it here so a GRID anchor is not invisible to
-                # the next slot's binding check.
-                self._fee_pair_source_scope = (
-                    candidate.key.account_scope,
-                    candidate.key.strategy_scope,
-                    candidate.key.logical_run_id,
-                    candidate.source_kind,
-                    candidate.cohort_id,
-                    candidate.epoch_id,
-                    candidate.calendar_id,
-                    candidate.calendar_version,
-                    candidate.calendar_fingerprint,
-                )
-                amount_reservation = settled.amount_reservation
-                open_context = None
-                if reserve_for_open:
-                    if (
-                        not isinstance(amount_reservation, Mapping)
-                        or amount_reservation.get("status") != "ACTIVE"
-                        or amount_reservation.get("candidate_id") != candidate_id
-                        or not _is_lower_sha256(
-                            amount_reservation.get("reservation_sha256")
-                        )
-                    ):
-                        raise RunnerError("FEE_PAIR_AMOUNT_RESERVATION_INVALID")
-                    open_context = journal_api.ExecutionFeePairOpenContext(
-                        facts=facts,
-                        account_session_id=current_account_session_id,
-                        account_session_generation=current_account_session_generation,
-                        owner_token=owner_token,
-                        max_query_age_seconds=max_query_age_seconds,
-                        max_quote_age_seconds=max_quote_age_seconds,
-                        candidate_id=candidate_id,
-                        reservation_sha256=amount_reservation["reservation_sha256"],
-                    )
-                return MappingProxyType(
-                    {
-                        "schema": "backtrader.alpha003.single_row_grid_settlement.v1",
-                        "evidence_level": "WRITER_LEASED_PHYSICAL_READBACK_AND_JOURNAL_SETTLEMENT",
-                        "candidate_id": candidate_id,
-                        "candidate_sha256": candidate_sha256,
-                        "tape_reference": dict(self._last_record_reference),
-                        "source_receipt": receipt,
-                        "decision": settled.decision,
-                        "cursor": settled.cursor,
-                        "is_new_grid": settled.is_new_grid,
-                        "amount_reservation": amount_reservation,
-                        "fee_pair_open_context": open_context,
-                        "open_dispatch_authorized": open_context is not None,
-                    }
-                )
-            except BaseException:
-                # Once reservation is attempted, preserve uncertainty and do
-                # not append another row on this writer after any failure.
-                if journal_started:
-                    self._failed = True
-                raise
-
-    def _fee_pair_grid_row(
-        self,
-        candidate,
-        batch,
-        snapshot,
-        target_decision,
-        order_plan,
-        *,
-        candidate_id,
-        candidate_sha256,
-        index,
-        economic_payload_sha256=None,
-    ):
-        row = _decision_tape_record(
-            batch,
-            snapshot,
-            target_decision,
-            order_plan,
-            file_id=self.file_id,
-            index=index,
-            targets=self.targets,
-            calendar_fingerprint=self.calendar_fingerprint,
-        )
-        row["fee_pair_workflow"] = {
-            "candidate_id": candidate_id,
-            "candidate_sha256": candidate_sha256,
-        }
-        if self._selection_evidence_sha256 is not None:
-            row["selection_evidence_sha256"] = self._selection_evidence_sha256
-        row["header_record_id"] = self._header_record_id
-        if economic_payload_sha256 is not None:
-            row["fee_pair_economic_payload_sha256"] = economic_payload_sha256
-        digest = hashlib.sha256(_canonical_json_bytes(row).rstrip(b"\n")).hexdigest()
-        row["record_id"] = digest
-        return row
-
-    def _assert_fee_pair_tape_file_identity(self) -> None:
-        try:
-            handle_metadata = os.fstat(self._handle.fileno())
-            path_metadata = os.lstat(self.path)
-            handle_identity = _generation_file_identity(handle_metadata)
-            path_identity = _generation_file_identity(path_metadata)
-        except (OSError, RunnerError):
-            raise RunnerError("FEE_PAIR_TAPE_FILE_IDENTITY_MISMATCH") from None
-        if (
-            os.name == "nt"
-            and getattr(path_metadata, "st_file_attributes", 0) & 0x00000400
-        ) or handle_identity != path_identity:
-            raise RunnerError("FEE_PAIR_TAPE_FILE_IDENTITY_MISMATCH")
-
-    def _verify_fee_pair_grid_append_row(
-        self,
-        journal,
-        candidate,
-        *,
-        candidate_id,
-        candidate_sha256,
-        expected_index,
-        expected_row,
-    ):
-        self._assert_fee_pair_tape_file_identity()
-        try:
-            handle_size = os.fstat(self._handle.fileno()).st_size
-            path_size = self.path.stat().st_size
-        except OSError:
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_UNAVAILABLE") from None
-        if handle_size != self._bytes or path_size != self._bytes:
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
-
-        summary = self._stream_fee_pair_tape(
-            journal,
-            candidate=candidate,
-            candidate_id=candidate_id,
-            candidate_sha256=candidate_sha256,
-            expected_index=expected_index,
-        )
-        header = summary["header"]
-        matched = summary["matched"]
-        last = summary["last"]
-        actual_last = None
-        if last is not None:
-            actual_last = {
-                "file_id": last["file_id"],
-                "record_id": last["record_id"],
-                "record_index": last["record_index"],
-                "batch_id": last["batch_id"],
-            }
-        if (
-            header is None
-            or header.get("file_id") != self.file_id
-            or header.get("record_id") != self._header_record_id
-            or header.get("mode") != "live"
-            or header.get("factor_mode") != self.factor_mode
-            or header.get("direction") != self.direction
-            or tuple(header.get("targets", ())) != self.targets
-            or header.get("calendar_id") != self.calendar_id
-            or header.get("grid_sha256") != self.grid_sha256
-            or header.get("source_snapshot_id") != self.source_snapshot_id
-            or header.get("calendar_fingerprint") != self.calendar_fingerprint
-            or header.get("restart_identity") != self._restart_identity
-            or header.get("selection_evidence") != self._selection_evidence
-            or summary["row_count"] < 1
-            or summary["row_count"] - 1 != self._record_count
-            or summary["raw_sha256"] != self._hash.hexdigest()
-            or actual_last != self.last_record_reference
-            or matched is None
-            or dict(matched) != expected_row
-            or matched.get("file_id") != self.file_id
-            or matched.get("record_index") != expected_index
-            or matched.get("record_id") != expected_row.get("record_id")
-            or matched.get("header_record_id") != self._header_record_id
-        ):
-            raise RunnerError("FEE_PAIR_GRID_TAPE_READBACK_MISMATCH")
-        self._assert_fee_pair_tape_file_identity()
-        return matched
-
-    def _verify_fee_pair_candidate_writer_binding(self, candidate) -> None:
-        identity = self._restart_identity
-        evidence = self._selection_evidence
-        scope_hashes = identity.get("scope_sha256") if isinstance(identity, Mapping) else None
-        calendar = identity.get("calendar") if isinstance(identity, Mapping) else None
-        identity_targets = identity.get("targets") if isinstance(identity, Mapping) else None
-        routes = identity.get("routes") if isinstance(identity, Mapping) else None
-        key = candidate.key
-        expected_scope_hashes = {
-            "account_scope": hashlib.sha256(key.account_scope.encode("utf-8")).hexdigest(),
-            "strategy_scope": hashlib.sha256(key.strategy_scope.encode("utf-8")).hexdigest(),
-            "logical_run_id": hashlib.sha256(key.logical_run_id.encode("utf-8")).hexdigest(),
-        }
-        if (
-            not isinstance(identity, Mapping)
-            or not isinstance(evidence, Mapping)
-            or not isinstance(scope_hashes, Mapping)
-            or not isinstance(calendar, Mapping)
-            or type(identity_targets) is not list
-            or not isinstance(routes, Mapping)
-            or identity.get("schema") != "backtrader.alpha003.live_restart_identity.v1"
-            or identity.get("mode") != self.mode
-            or identity.get("factor_mode") != self.factor_mode
-            or identity.get("direction") != self.direction
-            or identity.get("epoch_id") != candidate.epoch_id
-            or identity.get("scope_sha256") != expected_scope_hashes
-            or tuple(identity_targets) != self.targets
-            or set(routes) != set(self.targets)
-            or identity.get("selection_source") != evidence.get("selection_source")
-            or identity.get("source_snapshot_id") != self.source_snapshot_id
-            or not _selection_evidence_matches_identity(evidence, identity)
-            or calendar.get("calendar_id") != self.calendar_id
-            or calendar.get("grid_sha256") != self.grid_sha256
-            or candidate.calendar_id != self.calendar_id
-            or candidate.calendar_fingerprint != self.calendar_fingerprint
-            or len(candidate.target_ids) != 2
-            or len(set(candidate.target_ids)) != 2
-            or not set(candidate.target_ids).issubset(set(self.targets))
-            or type(candidate.source_kind) is not str
-            or not candidate.source_kind
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_PLAN_BINDING_MISMATCH")
-
-    def _verify_fee_pair_no_pair_selector_projection(
-        self, batch, snapshot, target_decision, journal, key, *, eligible_grid_index=None
-    ):
-        """Recompute the LIVE selector from this writer's bound plan and source.
-
-        A caller-supplied ``BLOCKED`` object is not authority.  The selected
-        policy is bound into the validated run identity and tape header; the
-        selector below is recomputed from the same immutable batch and factor
-        snapshot that will be serialized.  ``eligible_grid_index`` is only the
-        caller's cadence counter: it is accepted when it agrees with the
-        durable cursor floor, and the recomputed decision must still equal the
-        caller's decision exactly.
-        """
-
-        from alpha003_strategy import (
-            TARGET_FREE_SELECTION_REASONS,
-            _preselection_block_reason,
-            policy_input_from_shared_snapshot,
-            select_alpha003_targets,
-        )
-
-        identity = self._restart_identity
-        evidence = self._selection_evidence
-        scope_hashes = identity.get("scope_sha256") if isinstance(identity, Mapping) else None
-        calendar = identity.get("calendar") if isinstance(identity, Mapping) else None
-        identity_targets = identity.get("targets") if isinstance(identity, Mapping) else None
-        routes = identity.get("routes") if isinstance(identity, Mapping) else None
-        policy = identity.get("selector_policy") if isinstance(identity, Mapping) else None
-        expected_scope_hashes = {
-            "account_scope": hashlib.sha256(key.account_scope.encode("utf-8")).hexdigest(),
-            "strategy_scope": hashlib.sha256(key.strategy_scope.encode("utf-8")).hexdigest(),
-            "logical_run_id": hashlib.sha256(key.logical_run_id.encode("utf-8")).hexdigest(),
-        }
-        evidence_routes = evidence.get("active_routes", evidence.get("routes")) if isinstance(
-            evidence, Mapping
-        ) else None
-        authorized_targets = (
-            evidence.get("active_authorized_targets", evidence.get("authorized_targets"))
-            if isinstance(evidence, Mapping)
-            else None
-        )
-        product_keys = policy.get("product_keys") if isinstance(policy, Mapping) else None
-        if (
-            not isinstance(identity, Mapping)
-            or not isinstance(evidence, Mapping)
-            or not isinstance(scope_hashes, Mapping)
-            or not isinstance(calendar, Mapping)
-            or type(identity_targets) is not list
-            or not isinstance(routes, Mapping)
-            or not isinstance(evidence_routes, Mapping)
-            or not isinstance(policy, Mapping)
-            or not isinstance(product_keys, Mapping)
-            or identity.get("schema") != "backtrader.alpha003.live_restart_identity.v1"
-            or identity.get("mode") != "live"
-            or identity.get("factor_mode") != self.factor_mode
-            or identity.get("direction") != self.direction
-            or identity.get("epoch_id") != getattr(batch, "epoch_id", None)
-            or identity.get("scope_sha256") != expected_scope_hashes
-            or tuple(identity_targets) != self.targets
-            or set(routes) != set(self.targets)
-            or set(evidence_routes) != set(self.targets)
-            or evidence.get("selection_source") != identity.get("selection_source")
-            or evidence.get("source_snapshot_id") != self.source_snapshot_id
-            or not _selection_evidence_matches_identity(evidence, identity)
-            or identity.get("selector_policy") != evidence.get("selector_policy")
-            or calendar.get("calendar_id") != self.calendar_id
-            or calendar.get("grid_sha256") != self.grid_sha256
-            or policy.get("rebalance_every") is None
-            or type(policy.get("rebalance_every")) is not int
-            or policy["rebalance_every"] < 1
-            or set(product_keys) != set(self.targets)
-            or type(authorized_targets) is not list
-            or not authorized_targets
-            or len(authorized_targets) != len(set(authorized_targets))
-            or not set(authorized_targets).issubset(self.targets)
-            or sorted(authorized_targets) != identity.get("authorized_targets")
-            or key.cohort_id != getattr(batch, "cohort_id", None)
-        ):
-            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_BINDING_MISMATCH")
-
-        canonical_product_keys = {}
-        try:
-            for target in self.targets:
-                product = product_keys[target]
-                if not isinstance(product, Mapping):
-                    raise TypeError("product key projection is invalid")
-                _exact_keys(
-                    product,
-                    {"exchange_id", "product_id"},
-                    "selection product key",
-                )
-                exchange_id = product.get("exchange_id")
-                product_id = product.get("product_id")
-                if any(
-                    type(value) is not str or not value or value != value.strip()
-                    for value in (exchange_id, product_id)
-                ):
-                    raise TypeError("product key projection is invalid")
-                canonical_product_keys[target] = (exchange_id, product_id)
-            cursor = journal.grid_cursor(
-                key.account_scope,
-                key.strategy_scope,
-                key.cohort_id,
-            )
-            # Registered LIVE strategies keep an in-memory cadence counter
-            # because a SOURCE_ONLY anchor deliberately does not advance the
-            # durable Journal cursor.  The durable cursor is still the
-            # monotonic floor: a new slot may count further ahead, never
-            # behind an ordinal a prior GRID already consumed.
-            batch_id = getattr(batch, "batch_id", None)
-            if cursor is None:
-                durable_ordinal = 1
-            elif cursor.batch_id == batch_id:
-                durable_ordinal = cursor.ordinal
-            else:
-                durable_ordinal = cursor.ordinal + 1
-            if eligible_grid_index is None:
-                requested_ordinal = durable_ordinal
-            else:
-                if type(eligible_grid_index) is not int or eligible_grid_index < 1:
-                    raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
-                if cursor is not None and cursor.batch_id == batch_id:
-                    if eligible_grid_index != cursor.ordinal:
-                        raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
-                elif eligible_grid_index < durable_ordinal:
-                    raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
-                requested_ordinal = eligible_grid_index
-            policy_input = policy_input_from_shared_snapshot(
-                batch,
-                snapshot,
-                required_targets=self.targets,
-                authorized_targets=authorized_targets,
-                product_keys=canonical_product_keys,
-                factor_name="alpha003",
-                execution_mode="LIVE",
-                eligible_grid_index=requested_ordinal,
-                rebalance_every=policy["rebalance_every"],
-            )
-            recomputed = select_alpha003_targets(policy_input)
-        except RunnerError:
-            raise
-        except Exception:
-            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_UNAVAILABLE") from None
-        if (
-            _preselection_block_reason(policy_input) is not None
-            or recomputed.status != "BLOCKED"
-            or recomputed.reason not in TARGET_FREE_SELECTION_REASONS
-            or recomputed.targets
-            or recomputed != target_decision
-        ):
-            raise RunnerError("FEE_PAIR_NO_PAIR_SELECTION_MISMATCH")
-        return cursor
-
-    def _verify_fee_pair_writer_prefix(self, journal) -> None:
-        try:
-            handle_size = os.fstat(self._handle.fileno()).st_size
-            path_size = self.path.stat().st_size
-        except OSError:
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_STATE_UNAVAILABLE") from None
-        if (
-            handle_size != self._bytes
-            or path_size != self._bytes
-            or self._bytes > _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_SIZE_MISMATCH")
-        summary = self._stream_fee_pair_tape(journal)
-        header = summary["header"]
-        last = summary["last"]
-        if (
-            header is None
-            or header.get("file_id") != self.file_id
-            or header.get("record_id") != self._header_record_id
-            or header.get("mode") != "live"
-            or header.get("factor_mode") != self.factor_mode
-            or header.get("direction") != self.direction
-            or tuple(header.get("targets", ())) != self.targets
-            or header.get("calendar_id") != self.calendar_id
-            or header.get("grid_sha256") != self.grid_sha256
-            or header.get("source_snapshot_id") != self.source_snapshot_id
-            or header.get("calendar_fingerprint") != self.calendar_fingerprint
-            or header.get("restart_identity") != self._restart_identity
-            or header.get("selection_evidence") != self._selection_evidence
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_HEADER_MISMATCH")
-        if (
-            summary["row_count"] < 1
-            or summary["row_count"] - 1 != self._record_count
-            or summary["raw_sha256"] != self._hash.hexdigest()
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_CONTENT_MISMATCH")
-        actual_last = None
-        if last is not None:
-            actual_last = {
-                "file_id": last["file_id"],
-                "record_id": last["record_id"],
-                "record_index": last["record_index"],
-                "batch_id": last["batch_id"],
-            }
-        if actual_last != self.last_record_reference:
-            raise RunnerError("FEE_PAIR_TAPE_WRITER_TAIL_MISMATCH")
-
-    def _stream_fee_pair_tape(
-        self,
-        journal,
-        *,
-        candidate=None,
-        candidate_id=None,
-        candidate_sha256=None,
-        expected_index=None,
-    ):
-        raw_hasher = hashlib.sha256()
-        header = None
-        last = None
-        matched = None
-        row_count = 0
-        max_bytes = min(self.max_bytes, _FEE_PAIR_SOURCE_ONLY_MAX_TAPE_BYTES)
-        for row in iter_decision_tape(
-            self.path,
-            max_bytes=max_bytes,
-            max_record_bytes=_FEE_PAIR_SOURCE_ONLY_MAX_RECORD_BYTES,
-            _raw_hasher=raw_hasher,
-        ):
-            if row_count == 0:
-                header = row
-            else:
-                if "fee_pair_workflow" in row:
-                    extension_row = self._validate_fee_pair_tape_extension(
-                        row,
-                        journal,
-                        candidate=candidate,
-                        candidate_id=candidate_id,
-                        candidate_sha256=candidate_sha256,
-                        expected_index=expected_index,
-                    )
-                    if extension_row is not None:
-                        if matched is not None:
-                            raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_ROW_MISMATCH")
-                        matched = extension_row
-                last = row
-            row_count += 1
-        return {
-            "header": header,
-            "last": last,
-            "matched": matched,
-            "row_count": row_count,
-            "raw_sha256": raw_hasher.hexdigest(),
-        }
-
-    def _validate_fee_pair_tape_extension(
-        self,
-        row,
-        journal,
-        *,
-        candidate=None,
-        candidate_id=None,
-        candidate_sha256=None,
-        expected_index=None,
-    ):
-        from backtrader.stores import execution_decision_journal as journal_api
-
-        extension = row["fee_pair_workflow"]
-        if (
-            not isinstance(extension, Mapping)
-            or set(extension) != {"candidate_id", "candidate_sha256"}
-            or not _is_lower_sha256(extension.get("candidate_id"))
-            or not _is_lower_sha256(extension.get("candidate_sha256"))
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_INVALID")
-        current_id = extension["candidate_id"]
-        current_sha256 = extension["candidate_sha256"]
-        workflow = journal.fee_pair_workflow_candidate(current_id)
-        if (
-            workflow is None
-            or workflow.candidate_id != current_id
-            or workflow.candidate_sha256 != current_sha256
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        if candidate_id is not None and current_id == candidate_id:
-            legacy_claimed = (
-                workflow.state == "APPEND_CLAIMED"
-                and workflow.tape_append_state is None
-                and workflow.source_only_decision_id is None
-            )
-            grid_append_pending_or_reported = (
-                workflow.state == "RECEIPT_VERIFIED"
-                and workflow.tape_append_state in {"CLAIMED", "REPORTED"}
-                and workflow.tape_file_id == row.get("file_id")
-                and workflow.tape_record_index == row.get("record_index")
-                and workflow.grid_settled_decision_id is None
-                and workflow.source_only_decision_id is None
-            )
-            if (
-                candidate is None
-                or current_sha256 != candidate_sha256
-                or row.get("record_index") != expected_index
-                or not (legacy_claimed or grid_append_pending_or_reported)
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-            _validate_fee_pair_candidate_projection(
-                candidate,
-                row,
-                journal_api,
-                expected_tape_record_index=(
-                    expected_index if grid_append_pending_or_reported else None
-                ),
-            )
-            return row
-        grid_settled = (
-            workflow.state == "RECEIPT_VERIFIED"
-            and type(workflow.grid_settled_decision_id) is str
-        )
-        cached_grid_append = self._fee_pair_grid_append_observations.get(current_id)
-        if grid_settled:
-            # A single-row v23 GRID keeps the workflow state at
-            # RECEIPT_VERIFIED and records settlement through
-            # grid_settled_decision_id. Later SOURCE_ONLY/NO_LEGAL_FEE_PAIR
-            # prefix verification must accept that terminal state without
-            # mistaking it for an ordinary source-only anchor.
-            return self._validate_settled_fee_pair_grid_extension_row(
-                row, journal, workflow, extension, journal_api
-            )
-        if cached_grid_append is not None:
-            grid_workflow_state = (
-                workflow.state == "RECEIPT_VERIFIED"
-                or (
-                    workflow.state == "SOURCE_ONLY"
-                    and type(workflow.source_only_decision_id) is str
-                )
-            )
-            row_raw = _canonical_json_bytes(dict(row))
-            if (
-                not grid_workflow_state
-                or workflow.tape_append_state != "REPORTED"
-                or workflow.tape_file_id != row.get("file_id")
-                or workflow.tape_record_index != row.get("record_index")
-                or workflow.grid_settled_decision_id is not None
-                or current_sha256 != cached_grid_append["candidate_sha256"]
-                or row.get("file_id") != cached_grid_append["file_id"]
-                or row.get("header_record_id") != cached_grid_append["header_record_id"]
-                or row.get("record_index") != cached_grid_append["record_index"]
-                or row.get("record_id") != cached_grid_append["record_id"]
-                or len(row_raw) != cached_grid_append["record_size_bytes"]
-                or hashlib.sha256(row_raw).hexdigest()
-                != cached_grid_append["record_sha256"]
-            ):
-                raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-            return None
-        if workflow.state != "SOURCE_ONLY" or type(workflow.source_only_decision_id) is not str:
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_STATE_INVALID")
-        decision = journal.decision(workflow.source_only_decision_id)
-        source_scope = self._fee_pair_source_scope
-        if (
-            decision is None
-            or decision.decision_id != workflow.source_only_decision_id
-            or source_scope is None
-            or decision.key.account_scope != source_scope[0]
-            or decision.key.strategy_scope != source_scope[1]
-            or decision.key.logical_run_id != source_scope[2]
-            or decision.key.decision_kind != source_scope[3]
-            or decision.key.cohort_id != row.get("cohort_id")
-            or decision.key.close_time != row.get("close_time")
-            or decision.intent_keys
-            or decision.economic_payload.get("_execution_source_anchor_only") is not True
-            or decision.economic_payload.get("_execution_fee_pair_workflow") != dict(extension)
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        receipt_values = decision.economic_payload.get("_execution_source_receipt")
-        if not isinstance(receipt_values, Mapping):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        self._validate_fee_pair_extension_receipt(
-            row, receipt_values, source_scope[3], journal_api
-        )
-        return None
-
-    def _validate_settled_fee_pair_grid_extension_row(
-        self, row, journal, workflow, extension, journal_api
-    ) -> None:
-        """Bind a physically appended v23 GRID row to its settled decision.
-
-        A settled GRID row is not a source-only anchor: its decision carries
-        the two OPEN intents plus the fee-pair workflow/settlement markers.
-        Validate that terminal identity against the same receipt fields the
-        source-only branch uses, so later prefix scans keep the durable source
-        chain contiguous without accepting an unbound extension row.
-        """
-
-        decision = journal.decision(workflow.grid_settled_decision_id)
-        source_scope = self._fee_pair_source_scope
-        if (
-            decision is None
-            or decision.decision_id != workflow.grid_settled_decision_id
-            or source_scope is None
-            or decision.key.account_scope != source_scope[0]
-            or decision.key.strategy_scope != source_scope[1]
-            or decision.key.logical_run_id != source_scope[2]
-            or decision.key.decision_kind != source_scope[3]
-            or decision.key.cohort_id != row.get("cohort_id")
-            or decision.key.close_time != row.get("close_time")
-            or not decision.intent_keys
-            or decision.economic_payload.get("_execution_source_anchor_only") is True
-            or decision.economic_payload.get("_execution_fee_pair_workflow")
-            != dict(extension)
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        settlement = decision.economic_payload.get("_execution_fee_pair_settlement")
-        if (
-            not isinstance(settlement, Mapping)
-            or settlement.get("candidate_id") != workflow.candidate_id
-            or settlement.get("candidate_sha256") != workflow.candidate_sha256
-            or not _is_lower_sha256(settlement.get("settlement_sha256"))
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        receipt_values = decision.economic_payload.get("_execution_source_receipt")
-        if not isinstance(receipt_values, Mapping):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        self._validate_fee_pair_extension_receipt(
-            row, receipt_values, source_scope[3], journal_api
-        )
-        return None
-
-    def _validate_fee_pair_extension_receipt(
-        self, row, receipt_values, source_kind, journal_api
-    ) -> None:
-        row_receipt_fields = (
-            ("cohort_id", "cohort_id"),
-            ("calendar_id", "calendar_id"),
-            ("calendar_version", "calendar_version"),
-            ("calendar_fingerprint", "calendar_fingerprint"),
-            ("epoch_id", "epoch_id"),
-            ("slot_index", "slot_index"),
-            ("slot_id", "slot_id"),
-            ("close_time", "close_time"),
-            ("batch_id", "batch_id"),
-            ("readiness", "readiness"),
-            ("file_id", "tape_file_id"),
-            ("record_id", "tape_record_id"),
-            ("record_index", "tape_record_index"),
-        )
-        if (
-            receipt_values.get("source_kind") != source_kind
-            or any(
-                receipt_values.get(receipt_name) != row.get(row_name)
-                for row_name, receipt_name in row_receipt_fields
-            )
-            or not self._fee_pair_receipt_members_match(row, receipt_values, journal_api)
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_EXTENSION_BINDING_MISMATCH")
-        return None
-
-    @staticmethod
-    def _fee_pair_receipt_members_match(row, receipt_values, journal_api):
-        receipt_members = receipt_values.get("members")
-        if type(receipt_members) not in (list, tuple):
-            return False
-        try:
-            journal_members = []
-            for value in receipt_members:
-                if not isinstance(value, Mapping):
-                    return False
-                member_values = dict(value)
-                member_values["missing_fields"] = tuple(member_values["missing_fields"])
-                member_values["quality_flags"] = tuple(member_values["quality_flags"])
-                journal_members.append(journal_api.ExecutionSourceMemberReceipt(**member_values))
-            tape_members = _fee_pair_source_members_from_tape_row(row, journal_api)
-        except (
-            KeyError,
-            TypeError,
-            ValueError,
-            journal_api.ExecutionDecisionJournalError,
-            RunnerError,
-        ):
-            return False
-        return tuple(journal_members) == tape_members
-
-    def _verify_fee_pair_candidate_tape_rows(
-        self,
-        journal,
-        candidate,
-        *,
-        candidate_id,
-        candidate_sha256,
-        expected_index,
-    ):
-        from backtrader.stores import execution_decision_journal as journal_api
-
-        summary = self._stream_fee_pair_tape(
-            journal,
-            candidate=candidate,
-            candidate_id=candidate_id,
-            candidate_sha256=candidate_sha256,
-            expected_index=expected_index,
-        )
-        rows_seen = summary["row_count"]
-        verified_row = summary["matched"]
-        if (
-            summary["header"] is None
-            or summary["header"].get("file_id") != self.file_id
-            or rows_seen - 1 != self._record_count
-            or self._record_count != expected_index
-            or summary["raw_sha256"] != self._hash.hexdigest()
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_READBACK_INDEX_MISMATCH")
-        reference = self._last_record_reference
-        if (
-            verified_row is None
-            or verified_row is not summary["last"]
-            or reference is None
-            or verified_row.get("file_id") != reference.get("file_id")
-            or verified_row.get("record_id") != reference.get("record_id")
-            or verified_row.get("record_index") != reference.get("record_index")
-            or verified_row.get("batch_id") != reference.get("batch_id")
-            or verified_row.get("order_plan")
-            != {
-                "status": "SOURCE_ONLY",
-                "reason": "FEE_PAIR_NOT_AUTHORIZED",
-                "decision_batch_id": verified_row.get("batch_id"),
-                "decision_available_at": verified_row.get("available_at"),
-                "actions": [],
-            }
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_ROW_MISMATCH")
-        _validate_fee_pair_candidate_projection(
-            candidate,
-            verified_row,
-            journal_api,
-        )
-        return verified_row
 
     def latch_failure(self):
         with self._lock:
@@ -5947,16 +3285,16 @@ def _is_lower_sha256(value: Any) -> bool:
     )
 
 
-def _fee_pair_source_members_from_tape_row(row, journal_api):
+def _source_members_from_tape_row(row, journal_api):
     member_rows = row.get("members")
     if not isinstance(member_rows, Mapping) or not member_rows:
-        raise RunnerError("FEE_PAIR_TAPE_SOURCE_MEMBERS_INVALID")
+        raise RunnerError("SOURCE_TAPE_MEMBERS_INVALID")
     result = []
     try:
         for member_id in sorted(member_rows):
             member = member_rows[member_id]
             if not isinstance(member, Mapping):
-                raise RunnerError("FEE_PAIR_TAPE_SOURCE_MEMBER_INVALID")
+                raise RunnerError("SOURCE_TAPE_MEMBER_INVALID")
             result.append(
                 journal_api.ExecutionSourceMemberReceipt(
                     member_id=member_id,
@@ -5993,162 +3331,9 @@ def _fee_pair_source_members_from_tape_row(row, journal_api):
     ) as error:
         code = getattr(error, "code", None)
         raise RunnerError(
-            "FEE_PAIR_TAPE_SOURCE_MEMBER_INVALID",
-            code if type(code) is str else None,
+            "SOURCE_TAPE_MEMBER_INVALID", code if type(code) is str else None
         ) from None
     return tuple(result)
-
-
-def _validate_fee_pair_candidate_projection(
-    candidate,
-    row,
-    journal_api,
-    *,
-    allow_missing_candidate=False,
-    expected_tape_record_index=None,
-):
-    if candidate is None and allow_missing_candidate:
-        candidate = None
-    elif candidate is None:
-        raise RunnerError("FEE_PAIR_CANDIDATE_REQUIRED")
-    if (
-        row.get("schema") != DECISION_TAPE_SCHEMA
-        or row.get("record_type") != "DECISION"
-        or not _is_lower_sha256(row.get("calendar_fingerprint"))
-        or type(row.get("slot_id")) is not str
-        or not row["slot_id"]
-    ):
-        raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
-
-    members = _fee_pair_source_members_from_tape_row(row, journal_api)
-    member_rows = row["members"]
-    member_ids = tuple(member.member_id for member in members)
-    slot_ids = {member_rows[member_id].get("slot_id") for member_id in member_ids}
-    for member_id in member_ids:
-        member_row = member_rows[member_id]
-        if (
-            member_row.get("cohort_id") != row.get("cohort_id")
-            or member_row.get("calendar_id") != row.get("calendar_id")
-            or member_row.get("epoch_id") != row.get("epoch_id")
-            or member_row.get("slot_index") != row.get("slot_index")
-            or member_row.get("close_time") != row.get("close_time")
-        ):
-            raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
-    if slot_ids != {row.get("slot_id")}:
-        raise RunnerError("FEE_PAIR_TAPE_SOURCE_PROJECTION_INVALID")
-
-    target_decision = row.get("target_decision")
-    if not isinstance(target_decision, Mapping):
-        raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-    target_rows = target_decision.get("targets")
-    if not isinstance(target_rows, list):
-        raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-    target_positions = {}
-    for item in target_rows:
-        if not isinstance(item, Mapping):
-            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-        target_id = item.get("target_id")
-        position = item.get("target_position")
-        if type(target_id) is not str or target_id in target_positions:
-            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-        if type(position) is not int or position not in (-1, 1):
-            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-        target_positions[target_id] = position
-
-    if candidate is None:
-        if len(target_positions) != 2 or not set(target_positions).issubset(set(member_ids)):
-            raise RunnerError("FEE_PAIR_TAPE_TARGET_PROJECTION_INVALID")
-        return members
-
-    expected_record_index = (
-        candidate.expected_tape_record_index
-        if expected_tape_record_index is None
-        else expected_tape_record_index
-    )
-
-    if (
-        candidate.expected_tape_file_id != row.get("file_id")
-        or expected_record_index != row.get("record_index")
-        or candidate.batch_id != row.get("batch_id")
-        or candidate.cohort_id != row.get("cohort_id")
-        or candidate.calendar_id != row.get("calendar_id")
-        or candidate.calendar_version != row.get("calendar_version")
-        or candidate.calendar_fingerprint != row.get("calendar_fingerprint")
-        or candidate.epoch_id != row.get("epoch_id")
-        or candidate.slot_index != row.get("slot_index")
-        or candidate.slot_id != row.get("slot_id")
-        or candidate.readiness != row.get("readiness")
-        or candidate.key.close_time != row.get("close_time")
-        or candidate.source_members != members
-        or len(candidate.target_ids) != 2
-        or len(set(candidate.target_ids)) != 2
-        or not set(candidate.target_ids).issubset(set(member_ids))
-        or set(target_positions) != set(candidate.target_ids)
-        or tuple(target_positions.get(target) for target in candidate.target_ids)
-        != candidate.directions
-    ):
-        raise RunnerError("FEE_PAIR_TAPE_CANDIDATE_PROJECTION_MISMATCH")
-    return members
-
-
-def _fee_pair_source_receipt_from_tape_row(row, candidate, journal_api):
-    members = _validate_fee_pair_candidate_projection(candidate, row, journal_api)
-    try:
-        # The row carries the physical source projection and strict-reader IDs.
-        # The v17 predecessor/restart objects are not columns in the v2 tape
-        # schema; copy those candidate-bound values and let Journal's public
-        # attach API verify the complete typed receipt against its reserved row.
-        receipt = journal_api.ExecutionSourceReceipt(
-            source_kind=candidate.source_kind,
-            cohort_id=row["cohort_id"],
-            calendar_id=row["calendar_id"],
-            calendar_version=row["calendar_version"],
-            calendar_fingerprint=row["calendar_fingerprint"],
-            epoch_id=row["epoch_id"],
-            slot_index=row["slot_index"],
-            slot_id=row["slot_id"],
-            close_time=row["close_time"],
-            batch_id=row["batch_id"],
-            readiness=row["readiness"],
-            tape_file_id=row["file_id"],
-            tape_record_id=row["record_id"],
-            tape_record_index=row["record_index"],
-            members=members,
-            predecessor=candidate.source_predecessor,
-            restart_marker=candidate.source_restart_marker,
-        )
-    except (
-        KeyError,
-        TypeError,
-        ValueError,
-        journal_api.ExecutionDecisionJournalError,
-    ) as error:
-        code = getattr(error, "code", None)
-        raise RunnerError(
-            "FEE_PAIR_TAPE_SOURCE_RECEIPT_INVALID",
-            code if type(code) is str else None,
-        ) from None
-    if (
-        receipt.source_kind != candidate.source_kind
-        or receipt.cohort_id != row.get("cohort_id")
-        or receipt.calendar_id != row.get("calendar_id")
-        or receipt.calendar_version != row.get("calendar_version")
-        or receipt.calendar_fingerprint != row.get("calendar_fingerprint")
-        or receipt.epoch_id != row.get("epoch_id")
-        or receipt.slot_index != row.get("slot_index")
-        or receipt.slot_id != row.get("slot_id")
-        or receipt.close_time != row.get("close_time")
-        or receipt.batch_id != row.get("batch_id")
-        or receipt.readiness != row.get("readiness")
-        or receipt.tape_file_id != row.get("file_id")
-        or receipt.tape_record_id != row.get("record_id")
-        or receipt.tape_record_index != row.get("record_index")
-        or receipt.members != members
-        or receipt.predecessor != candidate.source_predecessor
-        or receipt.restart_marker != candidate.source_restart_marker
-    ):
-        raise RunnerError("FEE_PAIR_TAPE_SOURCE_RECEIPT_MISMATCH")
-    return receipt
 
 
 def iter_decision_tape(
@@ -6239,7 +3424,7 @@ def iter_decision_tape(
                     selection_evidence_sha256 = selection_evidence["binding_sha256"]
                     require_header_binding = (
                         selection_evidence["selection_source"]
-                        == "ctp_query_snapshot_equal_weight_v1"
+                        == "futures_market_snapshot_equal_weight_v1"
                     )
                 header_seen = True
             else:
@@ -6401,6 +3586,7 @@ def _load_saved_live_history(
     config_path,
     plan,
     *,
+    source_refs_by_target,
     restart_identity,
     selection_evidence=None,
     now,
@@ -6421,7 +3607,8 @@ def _load_saved_live_history(
             raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
         selection_evidence = _validate_selection_evidence(selection_evidence)
         if (
-            selection_evidence["selection_source"] != "ctp_query_snapshot_equal_weight_v1"
+            selection_evidence["selection_source"]
+            != "futures_market_snapshot_equal_weight_v1"
             or not _selection_evidence_matches_identity(selection_evidence, restart_identity)
         ):
             raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
@@ -6443,6 +3630,15 @@ def _load_saved_live_history(
     future_slots = _remaining_live_grid_minutes(plan["grid"], now)
     if not future_slots:
         raise RunnerError("LIVE_HISTORY_GRID_WINDOW_UNAVAILABLE")
+    if (
+        not isinstance(source_refs_by_target, Mapping)
+        or set(source_refs_by_target) != set(plan["targets"])
+        or any(
+            type(source_ref) is not str or not source_ref or source_ref != source_ref.strip()
+            for source_ref in source_refs_by_target.values()
+        )
+    ):
+        raise RunnerError("LIVE_HISTORY_SOURCE_IDENTITY_UNAVAILABLE")
     if journal is None or not isinstance(scopes, Mapping):
         raise RunnerError("LIVE_HISTORY_SOURCE_JOURNAL_REQUIRED")
     source_highwater = journal.source_highwater(
@@ -6512,7 +3708,7 @@ def _load_saved_live_history(
                 if query_selection:
                     if (
                         old_selection_evidence["selection_source"]
-                        != "ctp_query_snapshot_equal_weight_v1"
+                        != "futures_market_snapshot_equal_weight_v1"
                     ):
                         raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
                     if _query_history_selection_projection(
@@ -6531,9 +3727,10 @@ def _load_saved_live_history(
                 raise RunnerError("LIVE_HISTORY_HEADER_MISMATCH")
             same_query_source = (
                 query_selection
-                and identity.get("selection_source") == "ctp_query_snapshot_equal_weight_v1"
+                and identity.get("selection_source")
+                == "futures_market_snapshot_equal_weight_v1"
                 and restart_identity.get("selection_source")
-                == "ctp_query_snapshot_equal_weight_v1"
+                == "futures_market_snapshot_equal_weight_v1"
             )
             for name, expected in restart_identity.items():
                 if name == "epoch_id" or (name == "source_snapshot_id" and same_query_source):
@@ -6630,7 +3827,7 @@ def _load_saved_live_history(
             except RunnerError:
                 raise RunnerError("LIVE_HISTORY_MEMBER_INVALID") from None
             instrument = plan["routes"][plan["product_by_target"][target]]
-            source_ref = "ctp-live:{}:{}".format(target, instrument)
+            source_ref = source_refs_by_target[target]
             product = plan["product_by_target"][target]
             planned_member = next(item for item in minute.members if item.product == product)
             bucket_start = _aware_datetime(member["bucket_start"], "saved history bucket_start")
@@ -6948,7 +4145,7 @@ def _load_saved_live_history(
 
 def _verify_saved_history_decision_anchors(journal, scopes, saved_history):
     """Bind every restored source row to its atomic GRID or SOURCE_ONLY record."""
-    from backtrader.stores.execution_decision_journal import (
+    from bt_api_py.execution_journal import (
         ExecutionDecisionKey,
         ExecutionDecisionJournalError,
         ExecutionDecisionRecord,
@@ -7559,7 +4756,7 @@ def _replay_order_summary(broker, data_by_target, tape):
 
 
 class QueryRefreshLoop:
-    """One serialized bounded Store-query caller for live fact freshness."""
+    """One serialized live refresher over the selected SDK QueryFacade."""
 
     def __init__(
         self,
@@ -7568,8 +4765,6 @@ class QueryRefreshLoop:
         targets,
         *,
         execution_target_ids=None,
-        commission_identity_by_target=None,
-        commission_required_for_open=None,
         coordinator,
         account_scope,
         strategy_scope,
@@ -7582,14 +4777,25 @@ class QueryRefreshLoop:
         cerebro,
         shutdown_grace_seconds,
     ):
+        try:
+            from bt_api_py.query_facade import QueryFacade
+        except ImportError:
+            raise RunnerError("SDK_QUERY_FACADE_UNAVAILABLE") from None
+        query_facade = getattr(coordinator, "query_facade", None)
+        if type(query_facade) is not QueryFacade:
+            raise RunnerError("LIVE_QUERY_FACADE_UNAVAILABLE")
         self.store = store
         self.broker = broker
         self.targets = tuple(targets)
         full_target_ids = tuple(getattr(target, "target_id", None) for target in self.targets)
-        if any(
-            type(target_id) is not str or not target_id or target_id != target_id.strip()
-            for target_id in full_target_ids
-        ) or len(set(full_target_ids)) != len(full_target_ids):
+        if (
+            not full_target_ids
+            or any(
+                type(target_id) is not str or not target_id or target_id != target_id.strip()
+                for target_id in full_target_ids
+            )
+            or len(set(full_target_ids)) != len(full_target_ids)
+        ):
             raise RunnerError("LIVE_REFRESH_TARGETS_INVALID")
         if execution_target_ids is None:
             self.execution_target_ids = full_target_ids
@@ -7605,85 +4811,52 @@ class QueryRefreshLoop:
         ):
             raise RunnerError("LIVE_EXECUTION_TARGETS_INVALID")
         else:
-            requested_execution_targets = set(execution_target_ids)
+            selected = set(execution_target_ids)
             self.execution_target_ids = tuple(
-                target_id
-                for target_id in full_target_ids
-                if target_id in requested_execution_targets
+                target_id for target_id in full_target_ids if target_id in selected
             )
-        execution_target_set = set(self.execution_target_ids)
-        self._margin_targets = tuple(
-            target for target in self.targets if target.target_id in execution_target_set
-        )
-        self.commission_identity_by_target = {
-            target_id: dict(identity)
-            for target_id, identity in (
-                commission_identity_by_target.items()
-                if isinstance(commission_identity_by_target, Mapping)
-                else ()
-            )
-            if target_id in execution_target_set and isinstance(identity, Mapping)
+        if type(account_scope) is not str or not account_scope or account_scope != account_scope.strip():
+            raise RunnerError("LIVE_ACCOUNT_SCOPE_INVALID")
+        if type(strategy_scope) is not str or not strategy_scope or strategy_scope != strategy_scope.strip():
+            raise RunnerError("LIVE_STRATEGY_SCOPE_INVALID")
+        if not callable(getattr(clock, "utc_now", None)):
+            raise RunnerError("LIVE_REFRESH_CLOCK_UNAVAILABLE")
+        if type(quote_max_age) is not timedelta or quote_max_age.total_seconds() <= 0:
+            raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", "quote_max_age")
+        if type(max_query_age) is not timedelta or max_query_age.total_seconds() <= 0:
+            raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", "max_query_age")
+        durations = {
+            "timeout": timeout,
+            "overall_timeout": overall_timeout,
+            "interval": interval,
+            "shutdown_grace_seconds": shutdown_grace_seconds,
         }
-        if commission_required_for_open is None:
-            self.commission_required_for_open = commission_identity_by_target is not None
-        elif type(commission_required_for_open) is bool:
-            self.commission_required_for_open = commission_required_for_open
-        else:
-            raise RunnerError("LIVE_COMMISSION_REQUIREMENT_INVALID")
-        self._commission_targets = tuple(
-            target
-            for target in self.targets
-            if target.target_id in self.commission_identity_by_target
-            and type(self.commission_identity_by_target[target.target_id].get("account_id")) is str
-            and bool(self.commission_identity_by_target[target.target_id].get("account_id"))
-            and self.commission_identity_by_target[target.target_id].get("account_id")
-            == self.commission_identity_by_target[target.target_id].get("account_id").strip()
-            and self.commission_identity_by_target[target.target_id].get("invest_unit_id") == ""
-        )
+        for name, value in durations.items():
+            if (
+                type(value) not in (int, float)
+                or not math.isfinite(float(value))
+                or float(value) <= 0
+            ):
+                raise RunnerError("LIVE_REFRESH_CONFIGURATION_INVALID", name)
         self.coordinator = coordinator
+        self.query_facade = query_facade
         self.account_scope = account_scope
         self.strategy_scope = strategy_scope
         self.clock = clock
         self.quote_max_age = quote_max_age
         self.max_query_age = max_query_age
-        self.timeout = timeout
-        self.overall_timeout = overall_timeout
-        from backtrader.stores.factor_execution_facts import _target_instrument_products
-
-        # Exact native product coverage for the per-product instrument query
-        # refresh.  Deriving from the bound target routes keeps it identical to
-        # the projection's coverage check without a second product registry.
-        # Lightweight fixture targets without full route fields defer the
-        # derivation to the real refresh/projection boundary.
-        try:
-            self.instrument_products = _target_instrument_products(self.targets)
-        except (AttributeError, TypeError, ValueError):
-            self.instrument_products = None
-        self.interval = interval
+        self.timeout = float(timeout)
+        self.overall_timeout = float(overall_timeout)
+        self.interval = float(interval)
         self.cerebro = cerebro
-        self.shutdown_grace_seconds = shutdown_grace_seconds
+        self.shutdown_grace_seconds = float(shutdown_grace_seconds)
         self._stop = threading.Event()
         self._refresh_wakeup = threading.Event()
         self._shutdown_event = threading.Event()
         self._interrupt_refresh = threading.Event()
         self._refresh_start_lock = threading.Lock()
         self._strategy_lock = threading.RLock()
-        self._commission_target_lock = threading.Lock()
-        self._commission_target_decision = None
-        self._commission_priority_refresh_pending = False
-        self._commission_idle_revision = 0
-        self._commission_idle_consumed_revision = 0
-        self._commission_idle_priority_changed = False
-        self._commission_idle_fee_snapshot_changed = False
-        self._commission_idle_batch_id = None
-        self._commission_idle_wake_error = None
-        # Store query snapshots and Strategy projections share one
-        # non-reentrant consistency boundary.  Strategy only probes it
-        # nonblocking so an engine turn never waits for provider I/O.
         self._fact_snapshot_lock = threading.Lock()
-        # Refreshers remain serialized while the projection lock is released
-        # around the optional native fee query.  Strategy never takes this
-        # lock, so a stalled sidecar cannot hide the last complete core view.
         self._refresh_serialization_lock = threading.Lock()
         self._fact_projection_waiting = threading.Event()
         self._projection_wake_error = None
@@ -7698,20 +4871,14 @@ class QueryRefreshLoop:
             target=self._run, name="alpha003-query-refresh", daemon=False
         )
         self.last_receipt = None
+        self.last_lease = None
         self.last_facts = None
         self.last_error_code = None
         self.last_reconciliation_blockers = ()
         self._reconciliation_blockers_work = []
         self.joined = False
         self.started = False
-        self._margin_index = 0
-        self._commission_index = 0
-        self._commission_priority_index = 0
-        self._startup_recovery_scope_timeout = None
         self._startup_refresh_deadline = None
-        # A scoped pass that does not complete must be retried under the same
-        # durable dispatch fence.  This is only a bounded in-process hint;
-        # durable DISPATCHING rows remain the source of truth after restart.
         self._dispatching_recovery_retry_pending = False
 
     def bind_strategy(self, strategy):
@@ -7719,295 +4886,6 @@ class QueryRefreshLoop:
             if self._strategy is not None and self._strategy is not strategy:
                 raise RunnerError("LIVE_STRATEGY_BINDING_CONFLICT")
             self._strategy = strategy
-
-    def publish_commission_target_decision(self, decision):
-        """Publish only the latest immutable live pair for fee-query priority."""
-
-        snapshot = None
-        try:
-            targets = tuple(getattr(item, "target_id", None) for item in decision.targets)
-            authorized = tuple(decision.authorized_targets)
-            available_at = _aware_datetime(
-                decision.available_at, "commission target decision time"
-            )
-            if (
-                decision.status == "TARGETS_READY"
-                and decision.execution_mode == "LIVE"
-                and type(decision.batch_id) is str
-                and bool(decision.batch_id)
-                and len(targets) == 2
-                and all(type(value) is str and value for value in targets)
-                and len(set(targets)) == 2
-                and len(authorized) == len(set(authorized))
-                and all(type(value) is str and value for value in authorized)
-            ):
-                snapshot = (
-                    self.execution_target_ids,
-                    authorized,
-                    targets,
-                    available_at,
-                    time.monotonic(),
-                    decision.batch_id,
-                )
-        except (AttributeError, TypeError, ValueError, OverflowError):
-            snapshot = None
-        with self._commission_target_lock:
-            previous = self._commission_target_decision
-            priority_key = None if snapshot is None else snapshot[:3]
-            previous_priority_key = None if previous is None else previous[:3]
-            priority_changed = priority_key != previous_priority_key
-            reset_priority_index = snapshot is None or previous is None or priority_changed
-            if reset_priority_index:
-                self._commission_priority_index = 0
-            if priority_changed:
-                self._commission_priority_refresh_pending = True
-                self._queue_commission_idle_notice_locked(
-                    priority_changed=True,
-                    batch_id=None if snapshot is None else snapshot[5],
-                    set_batch_id=True,
-                )
-            self._commission_target_decision = snapshot
-        if priority_changed:
-            # A newly selected pair must not wait for the next periodic pass.
-            # The flag is the durable-in-this-thread signal; the Event only
-            # shortens the refresh loop's current wait.
-            self._refresh_wakeup.set()
-            self._wake_commission_idle_strategy()
-
-    def _queue_commission_idle_notice_locked(
-        self,
-        *,
-        priority_changed=False,
-        fee_snapshot_changed=False,
-        batch_id=None,
-        set_batch_id=False,
-    ):
-        """Coalesce immutable fee refresh changes until Strategy consumes them."""
-
-        self._commission_idle_revision += 1
-        self._commission_idle_priority_changed = (
-            self._commission_idle_priority_changed or priority_changed
-        )
-        self._commission_idle_fee_snapshot_changed = (
-            self._commission_idle_fee_snapshot_changed or fee_snapshot_changed
-        )
-        if set_batch_id:
-            self._commission_idle_batch_id = batch_id
-
-    def _queue_commission_fee_snapshot_notice(self):
-        with self._commission_target_lock:
-            self._queue_commission_idle_notice_locked(fee_snapshot_changed=True)
-        self._wake_commission_idle_strategy()
-
-    def consume_commission_idle_notice(self):
-        """Return one coalesced fee-priority/projection update to engine idle."""
-
-        with self._commission_target_lock:
-            if self._commission_idle_revision == self._commission_idle_consumed_revision:
-                return None
-            notice = MappingProxyType(
-                {
-                    "revision": self._commission_idle_revision,
-                    "priority_changed": self._commission_idle_priority_changed,
-                    "fee_snapshot_changed": self._commission_idle_fee_snapshot_changed,
-                    "batch_id": self._commission_idle_batch_id,
-                }
-            )
-            self._commission_idle_consumed_revision = self._commission_idle_revision
-            self._commission_idle_priority_changed = False
-            self._commission_idle_fee_snapshot_changed = False
-            self._commission_idle_batch_id = None
-        return notice
-
-    def _wake_commission_idle_strategy(self):
-        """Signal Cerebro's thread-safe cohort waker after publishing a change."""
-
-        with self._strategy_lock:
-            strategy = self._strategy
-        if strategy is None:
-            return False
-        wake = getattr(self.cerebro, "wake_live_bar_cohort", None)
-        if not callable(wake):
-            with self._commission_target_lock:
-                self._commission_idle_wake_error = "LIVE_COHORT_WAKE_API_UNAVAILABLE"
-            return False
-        try:
-            wake_result = wake()
-        except Exception as error:
-            with self._commission_target_lock:
-                self._commission_idle_wake_error = "LIVE_COHORT_WAKE_FAILED:" + type(error).__name__
-            return False
-        if type(wake_result) is not bool or not wake_result:
-            with self._commission_target_lock:
-                self._commission_idle_wake_error = (
-                    "LIVE_COHORT_WAKE_DECLINED"
-                    if wake_result is False
-                    else "LIVE_COHORT_WAKE_RESULT_INVALID"
-                )
-            return False
-        with self._commission_target_lock:
-            self._commission_idle_wake_error = None
-        return True
-
-    def _take_commission_priority_refresh_request(self):
-        with self._commission_target_lock:
-            pending = self._commission_priority_refresh_pending
-            self._commission_priority_refresh_pending = False
-        return pending
-
-    @staticmethod
-    def _commission_projection_signature(facts):
-        """Compare only immutable commission status, values, and provenance."""
-
-        if facts is None:
-            return None
-        instruments = tuple(
-            sorted(
-                [
-                    (
-                        getattr(item, "target_id", None),
-                        getattr(item, "commission_fee_required", None),
-                        getattr(item, "commission_fee_status", None),
-                        getattr(item, "round_trip_fee_upper_bound_per_contract", None),
-                    )
-                    for item in getattr(facts, "instruments", ())
-                ],
-                key=lambda row: str(row[0]),
-            )
-        )
-        commission_provenance = tuple(
-            sorted(
-                [
-                    (
-                        getattr(item, "target_id", None),
-                        getattr(item, "request_id", None),
-                        getattr(item, "connection_generation", None),
-                        getattr(item, "account_fingerprint", None),
-                        getattr(item, "trading_day", None),
-                        getattr(item, "started_at", None),
-                        getattr(item, "completed_at", None),
-                        getattr(item, "source_owned", None),
-                        getattr(item, "query_complete", None),
-                    )
-                    for item in getattr(facts, "query_provenance", ())
-                    if getattr(item, "family", None)
-                    == "instrument_commission_rate_result"
-                ],
-                key=lambda row: (str(row[0]), str(row[1]), str(row[2])),
-            )
-        )
-        return instruments, commission_provenance
-
-    def _commission_priority_target_ids(self):
-        """Read a fresh, same-grant selected pair without sharing mutable state."""
-
-        with self._commission_target_lock:
-            snapshot = self._commission_target_decision
-        if snapshot is None:
-            return ()
-        captured_execution_ids, authorized, target_ids, available_at, published_at, _batch_id = (
-            snapshot
-        )
-        execution_ids = self.execution_target_ids
-        if (
-            captured_execution_ids != execution_ids
-            or frozenset(authorized) != frozenset(execution_ids)
-            or not set(target_ids).issubset(set(execution_ids))
-        ):
-            return ()
-        try:
-            now = _aware_datetime(self.clock.utc_now(), "commission priority time")
-            age = now - available_at
-            monotonic_age = time.monotonic() - published_at
-            max_age = float(self.quote_max_age.total_seconds())
-        except (AttributeError, TypeError, ValueError, OverflowError):
-            return ()
-        if (
-            age.total_seconds() < 0
-            or age.total_seconds() > max_age
-            or monotonic_age < 0
-            or monotonic_age > max_age
-        ):
-            return ()
-        return target_ids
-
-    def _commission_query_is_fresh(self, target_id):
-        facts = self.last_facts
-        account = getattr(facts, "account", None) if facts is not None else None
-        if account is None:
-            return False
-        matches = tuple(
-            fact
-            for fact in getattr(facts, "query_provenance", ())
-            if getattr(fact, "family", None) == "instrument_commission_rate_result"
-            and getattr(fact, "target_id", None) == target_id
-        )
-        if len(matches) != 1:
-            return False
-        fact = matches[0]
-        completed_at = getattr(fact, "completed_at", None)
-        if (
-            getattr(fact, "source_owned", None) is not True
-            or getattr(fact, "query_complete", None) is not True
-            or type(getattr(fact, "request_id", None)) is not int
-            or getattr(fact, "request_id", 0) <= 0
-            or getattr(fact, "connection_generation", None)
-            != getattr(account, "connection_generation", None)
-            or getattr(fact, "trading_day", None) != getattr(account, "trading_day", None)
-            or getattr(fact, "account_fingerprint", None)
-            != getattr(account, "account_fingerprint", None)
-            or completed_at is None
-        ):
-            return False
-        try:
-            now = _aware_datetime(self.clock.utc_now(), "commission freshness time")
-            completed_at = _aware_datetime(completed_at, "commission completion time")
-            max_age = min(
-                float(self.max_query_age.total_seconds()),
-                _LIVE_COMMISSION_CACHE_REFRESH_SECONDS,
-            )
-            age = (now - completed_at).total_seconds()
-        except (AttributeError, TypeError, ValueError, OverflowError):
-            return False
-        return 0 <= age <= max_age
-
-    def _select_commission_target(self):
-        """Prioritize stale selected/held fees, then preserve full-pool RR."""
-
-        if not self._commission_targets:
-            return None
-        by_id = {target.target_id: target for target in self._commission_targets}
-        priority_ids = list(self._commission_priority_target_ids())
-        facts = self.last_facts
-        held_ids = tuple(
-            position.target_id
-            for position in getattr(facts, "positions", ())
-            if getattr(position, "target_id", None) in by_id
-            and getattr(position, "quantity", None) not in (None, 0)
-        )
-        priority_ids.extend(value for value in held_ids if value not in priority_ids)
-        if priority_ids:
-            start = self._commission_priority_index % len(priority_ids)
-            rotated = priority_ids[start:] + priority_ids[:start]
-            for target_id in rotated:
-                if target_id in by_id and not self._commission_query_is_fresh(target_id):
-                    self._commission_priority_index = (
-                        priority_ids.index(target_id) + 1
-                    ) % len(priority_ids)
-                    target = by_id[target_id]
-                    self._commission_index = (
-                        self._commission_targets.index(target) + 1
-                    ) % len(self._commission_targets)
-                    return target
-        count = len(self._commission_targets)
-        start = self._commission_index % count
-        for offset in range(count):
-            index = (start + offset) % count
-            target = self._commission_targets[index]
-            if not self._commission_query_is_fresh(target.target_id):
-                self._commission_index = (index + 1) % count
-                return target
-        return None
 
     @contextmanager
     def strategy_fact_projection_scope(self):
@@ -8137,114 +5015,33 @@ class QueryRefreshLoop:
             # normal runstop from this control path.
         return False
 
-    @staticmethod
-    def _reconcile_all(
-        method,
-        facts,
-        allowed_statuses,
-        label,
-        *,
-        refresh_receipt=None,
-        diagnostic_sink=None,
-    ):
-        offset = 0
-        total = 0
-        while True:
-            page_kwargs = {"limit": 128, "offset": offset}
-            if refresh_receipt is not None:
-                # Terminal UNKNOWN recovery must validate the very query batch
-                # from which ``facts`` was projected.  The caller passes this
-                # receipt from its current refresh_snapshot invocation; never
-                # reuse the loop's previously published receipt here.
-                page_kwargs["refresh_receipt"] = refresh_receipt
-            page = method(facts, **page_kwargs)
-            if page.offset != offset or page.observation_count > 512:
-                raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
-            blocked_items = tuple(
-                item for item in page.items if getattr(item, "status", None) not in allowed_statuses
-            )
-            if blocked_items:
-                QueryRefreshLoop._record_reconciliation_blockers(
-                    diagnostic_sink, label, offset, blocked_items
-                )
-                raise RunnerError("LIVE_RECONCILIATION_BLOCKED", label)
-            total += len(page.items)
-            if total > 512:
-                raise RunnerError("LIVE_RECONCILIATION_LIMIT_EXCEEDED", label)
-            if not page.truncated:
-                if page.next_offset is not None or total != page.observation_count:
-                    raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
-                return
-            if (
-                type(page.next_offset) is not int
-                or page.next_offset <= offset
-                or page.next_offset != offset + len(page.items)
-            ):
-                raise RunnerError("LIVE_RECONCILIATION_PAGE_INVALID", label)
-            offset = page.next_offset
-
-    @staticmethod
-    def _append_reconciliation_blocker(diagnostic_sink, label, offset, status, blocker_code):
-        """Append one bounded, identifier-only reconciliation diagnostic."""
-
-        if type(diagnostic_sink) is not list or len(diagnostic_sink) >= 16:
-            return
-        if (
-            type(status) is not str
-            or not status
-            or len(status) > 64
-            or any(not (char.isalnum() or char in "_:-.") for char in status)
-        ):
-            status = "UNOBSERVED"
-        if (
-            type(blocker_code) is not str
-            or not blocker_code
-            or len(blocker_code) > 128
-            or any(not (char.isalnum() or char in "_:-.") for char in blocker_code)
-        ):
-            blocker_code = None
-        diagnostic_sink.append((label, offset, status, blocker_code))
-
-    @staticmethod
-    def _record_reconciliation_blockers(diagnostic_sink, label, offset, items):
-        if type(diagnostic_sink) is not list:
-            return
-        for item in items:
-            if len(diagnostic_sink) >= 16:
-                break
-            QueryRefreshLoop._append_reconciliation_blocker(
-                diagnostic_sink,
-                label,
-                offset,
-                getattr(item, "status", None),
-                getattr(item, "blocker_code", None),
-            )
-
-    @staticmethod
     def _receipt_complete(receipt):
-        if (
-            receipt.blockers
-            or receipt.pending_families
-            or receipt.cancelled
-            or receipt.deadline_reached
-            or tuple(receipt.attempted_families) != tuple(receipt.requested_families)
-        ):
+        try:
+            from bt_api_py.query_contracts import QueryBatchReceipt, QueryRequest
+        except ImportError:
             return False
-        provenance = {(fact.family, fact.target_id): fact for fact in receipt.query_provenance}
-        if len(provenance) != len(receipt.requested_families):
+        if type(receipt) is not QueryBatchReceipt or receipt.complete is not True:
             return False
-        for label in receipt.requested_families:
-            if ":" in label:
-                family, target_id = label.split(":", 1)
-            else:
-                family, target_id = label, None
-            fact = provenance.get((family, target_id))
-            if fact is None or not fact.source_owned or not fact.query_complete:
-                return False
-            if target_id is None and fact.scope_complete is not True:
-                return False
-        return True
-
+        required = {"account", "positions", "open_orders", "instruments"}
+        requests = tuple(receipt.requests)
+        refs = tuple(getattr(request, "request_ref", None) for request in requests)
+        return (
+            len(requests) == len(required)
+            and all(type(request) is QueryRequest for request in requests)
+            and {request.family for request in requests} == required
+            and len(set(refs)) == len(refs)
+            and all(
+                type(ref) is str and ref and ref == ref.strip()
+                for ref in refs
+            )
+            and all(
+                request.filters == {}
+                and request.required is True
+                and request.require_complete_scope is True
+                for request in requests
+            )
+        )
+    
     @staticmethod
     def _execution_error_code(error):
         code = getattr(error, "code", None)
@@ -8306,6 +5103,7 @@ class QueryRefreshLoop:
             page = self.coordinator.dispatching_cancel_store_absence_candidates(limit=128)
         except Exception as error:
             self.last_receipt = None
+            self.last_lease = None
             self.last_facts = None
             self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
             self._dispatching_recovery_retry_pending = True
@@ -8317,6 +5115,7 @@ class QueryRefreshLoop:
         truncated = getattr(page, "truncated", None)
         if type(items) is not tuple or type(truncated) is not bool or items or truncated:
             self.last_receipt = None
+            self.last_lease = None
             self.last_facts = None
             self.last_error_code = "LIVE_CANCEL_DISPATCHING_STORE_ABSENCE_PENDING"
             self._dispatching_recovery_retry_pending = True
@@ -8359,20 +5158,15 @@ class QueryRefreshLoop:
             self._startup_refresh_deadline = None
 
     def refresh_once(self):
-        # Clear, refresh, reconcile and republish as one unit with respect to
-        # Strategy fact projection. Readers fail fast while this lock is held.
-        # The outer lock serializes refreshers but is not used by Strategy.
-        # Optional sidecar I/O can release only the inner projection lock while
-        # preventing a second core refresh from overlapping.
-        commission_snapshot_changed = False
+        """Refresh one neutral query batch and publish its exact lease-bound facts."""
+
         with self._refresh_serialization_lock:
-            previous_commission_signature = self._commission_projection_signature(self.last_facts)
             try:
                 with self._fact_snapshot_lock:
                     self._reconciliation_blockers_work = []
                     self.last_reconciliation_blockers = ()
                     try:
-                        receipt = self._refresh_once_locked()
+                        return self._refresh_once_locked()
                     except Exception:
                         self.last_reconciliation_blockers = tuple(
                             self._reconciliation_blockers_work[:16]
@@ -8380,380 +5174,100 @@ class QueryRefreshLoop:
                         raise
             finally:
                 self._wake_waiting_strategy_projection()
-            current_commission_signature = self._commission_projection_signature(self.last_facts)
-            commission_snapshot_changed = (
-                current_commission_signature is not None
-                and previous_commission_signature is not None
-                and current_commission_signature != previous_commission_signature
-            )
-        if commission_snapshot_changed:
-            # Publish only after both refresh locks are released. Strategy's
-            # idle callback then sees a coherent, completed projection.
-            self._queue_commission_fee_snapshot_notice()
-        return receipt
-
-    def _refresh_optional_commission_without_projection_lock(self):
-        """Query one optional fee target without hiding complete core facts."""
-
-        if not self._fact_snapshot_lock.locked():
-            raise RunnerError("LIVE_FACT_PROJECTION_LOCK_REQUIRED")
-        self._fact_snapshot_lock.release()
-        try:
-            self._refresh_commission_sidecar()
-        finally:
-            # Projection is in-memory and Strategy probes nonblocking. Reacquire
-            # before the refresh thread mutates any published state.
-            self._fact_snapshot_lock.acquire()
 
     def _refresh_once_locked(self):
-        # Clear the previously published proof before inspecting durable
-        # intents.  No reader may use an older query set if recovery admission
-        # is busy, unsupported, or the bounded journal projection is invalid.
         self.last_receipt = None
+        self.last_lease = None
         self.last_facts = None
         self.last_error_code = None
-        needs_recovery_scope = self._dispatching_recovery_candidate()
-        if not needs_recovery_scope:
-            return self._refresh_once_body()
-
-        journal = getattr(self.coordinator, "journal", None)
-        serialization_path = getattr(journal, "dispatch_serialization_path", None)
-        if serialization_path is None:
-            self.last_error_code = "DISPATCHING_RECOVERY_REQUIRES_CROSS_PROCESS_GATE"
-            self._dispatching_recovery_retry_pending = True
-            raise RunnerError(self.last_error_code)
-
-        self._dispatching_recovery_retry_pending = True
-        timeout = min(5.0, self.overall_timeout)
-        startup_timeout = self._startup_recovery_scope_timeout
-        if startup_timeout is not None:
-            timeout = min(timeout, startup_timeout)
-        if timeout <= 0:
-            self.last_error_code = "DISPATCH_SERIALIZATION_BUSY"
-            raise RunnerError(self.last_error_code)
-        try:
-            with self.coordinator.terminal_recovery_scope(timeout_seconds=timeout):
-                try:
-                    receipt = self._refresh_once_body()
-                except Exception:
-                    self._require_dispatching_cancel_absence_ack()
-                    raise
-                # This runs under both the cross-process terminal lease and
-                # the fact-snapshot lock, including the body's early returns.
-                # Strategy projection cannot observe a successful refresh until
-                # the durable local-absence acknowledgement is present.
-                self._require_dispatching_cancel_absence_ack()
-        except Exception as error:
-            self.last_error_code = self._execution_error_code(error)
-            raise
-        if self.last_error_code is None:
-            self._dispatching_recovery_retry_pending = False
-        return receipt
-
+        self.last_reconciliation_blockers = ()
+        return self._refresh_once_body()
+    
     def _refresh_once_body(self):
-        from backtrader.stores.factor_execution_facts import (
-            project_factor_execution_facts,
-            refresh_factor_execution_queries,
-        )
+        from bt_api_py.query_contracts import QueryBatchReceipt, QueryRequest, QuerySnapshotLease
 
         if not self.targets:
-            raise RunnerError("LIVE_REFRESH_TARGETS_REQUIRED")
-        margin_target = self._margin_targets[self._margin_index % len(self._margin_targets)]
-        self._margin_index = (self._margin_index + 1) % len(self._margin_targets)
+            self.last_error_code = "LIVE_REFRESH_TARGETS_REQUIRED"
+            return None
+        if self.coordinator is None or getattr(self.coordinator, "query_facade", None) is None:
+            self.last_error_code = "QUERY_FACADE_UNAVAILABLE"
+            return None
 
-        def refresh_snapshot():
-            refresh_timeout = self.timeout
-            refresh_overall_timeout = self.overall_timeout
-            startup_deadline = self._startup_refresh_deadline
-            if startup_deadline is not None:
-                remaining = startup_deadline - time.monotonic()
-                if remaining <= 0:
-                    self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
-                    return None, None, None
-                refresh_overall_timeout = min(refresh_overall_timeout, remaining)
-                refresh_timeout = min(refresh_timeout, refresh_overall_timeout)
-            receipt = refresh_factor_execution_queries(
-                self.store,
-                targets=self.targets,
-                timeout=refresh_timeout,
-                overall_timeout=refresh_overall_timeout,
-                include_core=True,
-                margin_target_ids=(margin_target.target_id,),
-                max_queries=6,
-                cancel_event=self._interrupt_refresh,
-                utc_now=self.clock.utc_now,
-                instrument_products=self.instrument_products,
-            )
-            if not self._receipt_complete(receipt):
-                self.last_error_code = "LIVE_QUERY_REFRESH_INCOMPLETE"
-                return receipt, None, None
-            query_set = getattr(receipt, "query_set", None)
-            if query_set is None:
-                self.last_error_code = "LIVE_QUERY_SET_UNAVAILABLE"
-                return receipt, None, None
-            now = _aware_datetime(self.clock.utc_now(), "live refresh decision time")
-            facts = project_factor_execution_facts(
-                self.store,
-                self.broker,
-                targets=self.targets,
-                account_scope=self.account_scope,
-                strategy_scope=self.strategy_scope,
-                now=now,
-                quote_max_age=self.quote_max_age,
-                max_query_age=self.max_query_age,
-                query_set=query_set,
-                execution_target_ids=self.execution_target_ids,
-                commission_identity_by_target=self.commission_identity_by_target,
-                commission_required_for_open=self.commission_required_for_open,
-                instrument_products=self.instrument_products,
-            )
-            return receipt, query_set, facts
+        started_at = _aware_datetime(self.clock.utc_now(), "live refresh start time")
+        refresh_timeout = min(self.timeout, self.overall_timeout)
+        startup_deadline = self._startup_refresh_deadline
+        if startup_deadline is not None:
+            remaining = startup_deadline - time.monotonic()
+            if remaining <= 0:
+                self.last_error_code = "LIVE_INITIAL_QUERY_READY_TIMEOUT"
+                return None
+            refresh_timeout = min(refresh_timeout, remaining)
+        if refresh_timeout <= 0:
+            self.last_error_code = "LIVE_QUERY_DEADLINE_INVALID"
+            return None
 
-        receipt, query_set, facts = refresh_snapshot()
-        if facts is None:
-            self.last_receipt = receipt
-            return receipt
-
-        if self.coordinator is not None:
-            self._reconcile_dated_trades(
-                facts,
-                refresh_receipt=receipt,
-                diagnostic_sink=self._reconciliation_blockers_work,
+        deadline = started_at + timedelta(seconds=refresh_timeout)
+        request_prefix = "bt028-live-" + uuid.uuid4().hex
+        requests = tuple(
+            QueryRequest(
+                request_ref=request_prefix + "-" + family,
+                family=family,
+                filters={},
+                required=True,
+                require_complete_scope=True,
             )
-            self._reconcile_all(
-                self.coordinator.trade_reconciliation_snapshot,
-                facts,
-                {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"},
-                "trade_proof",
-                diagnostic_sink=self._reconciliation_blockers_work,
-            )
-            # Trade receipts and dated position-book rows are committed after
-            # the first position query. A fresh complete account query-set is
-            # required before terminal-order reconciliation can release the
-            # old order/position ownership.
-            receipt, query_set, facts = refresh_snapshot()
-            if facts is None:
-                self.last_receipt = receipt
-                return receipt
-            self._reconcile_all(
-                self.coordinator.reconcile_terminal_order_observations,
-                facts,
-                {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
-                "terminal_orders",
-                refresh_receipt=receipt,
-                diagnostic_sink=self._reconciliation_blockers_work,
-            )
-            # Strategy and the proof reads both consume the exact second query
-            # set, which postdates the durable trade/dated-book writes.
-            now = _aware_datetime(self.clock.utc_now(), "live refresh decision time")
-            facts = project_factor_execution_facts(
-                self.store,
-                self.broker,
-                targets=self.targets,
-                account_scope=self.account_scope,
-                strategy_scope=self.strategy_scope,
-                now=now,
-                quote_max_age=self.quote_max_age,
-                max_query_age=self.max_query_age,
-                query_set=query_set,
-                execution_target_ids=self.execution_target_ids,
-                commission_identity_by_target=self.commission_identity_by_target,
-                commission_required_for_open=self.commission_required_for_open,
-                instrument_products=self.instrument_products,
-            )
-            self._reconcile_all(
-                self.coordinator.trade_reconciliation_snapshot,
-                facts,
-                {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"},
-                "trade_proof",
-                diagnostic_sink=self._reconciliation_blockers_work,
-            )
-            self._reconcile_all(
-                self.coordinator.terminal_order_reconciliation_snapshot,
-                facts,
-                {"RESOLVED", "DUPLICATE", "EXTERNAL_TERMINAL_FLAT"},
-                "terminal_order_proof",
-                diagnostic_sink=self._reconciliation_blockers_work,
-            )
-            # Dated rows are part of the strategy's source-backed risk facts.
-            # A fill that cannot be bound to the position book remains a hard
-            # refresh blocker; it is never inferred from net Broker quantity.
-            # EXTERNAL_FLAT is allowed through the shared proof snapshot, but
-            # the dated writer above must preserve that external classification
-            # and must never turn it into an owned lot.
-            self.last_reconciliation_blockers = ()
-
-        self.last_receipt = receipt
-        self.last_facts = facts
-        self.last_error_code = None
-        # Initial readiness is based on the five sealed core queries only.
-        # Once the live refresh thread is running, issue the optional fee query
-        # outside the projection lock; a native delay must leave safe strategy
-        # actions able to read this complete core receipt.
-        if self._startup_refresh_deadline is None and self._commission_targets:
-            self._refresh_optional_commission_without_projection_lock()
-            try:
-                facts = project_factor_execution_facts(
-                    self.store,
-                    self.broker,
-                    targets=self.targets,
-                    account_scope=self.account_scope,
-                    strategy_scope=self.strategy_scope,
-                    now=_aware_datetime(self.clock.utc_now(), "live refresh decision time"),
-                    quote_max_age=self.quote_max_age,
-                    max_query_age=self.max_query_age,
-                    query_set=query_set,
-                    execution_target_ids=self.execution_target_ids,
-                    commission_identity_by_target=self.commission_identity_by_target,
-                    commission_required_for_open=self.commission_required_for_open,
-                    instrument_products=self.instrument_products,
-                )
-            except Exception:
-                # A malformed/expired optional row cannot revoke the core seal.
-                return receipt
-            self.last_facts = facts
-        return receipt
-
-    def _refresh_commission_sidecar(self):
-        """Attempt one bounded optional fee query without touching core status."""
-
-        if not self._commission_targets:
-            return
-        target = self._select_commission_target()
-        if target is None:
-            return
-        identity = self.commission_identity_by_target.get(target.target_id)
-        route_getter = getattr(
-            self.store, "registered_sim_write_route_invest_unit_id", None
+            for family in ("account", "positions", "open_orders", "instruments")
         )
         try:
-            source_route_unit_id = (
-                route_getter(target.instrument, target.exchange)
-                if callable(route_getter)
-                else None
+            receipt = self.coordinator.query(requests, deadline=deadline)
+            if type(receipt) is not QueryBatchReceipt or not self._receipt_complete(receipt):
+                raise RunnerError("LIVE_QUERY_REFRESH_INCOMPLETE")
+            refreshed_at = _aware_datetime(self.clock.utc_now(), "live refresh validation time")
+            if refreshed_at >= deadline:
+                raise RunnerError("LIVE_QUERY_REFRESH_DEADLINE_EXCEEDED")
+            lease = self.coordinator.acquire_snapshot_lease(
+                receipt,
+                purpose="backtrader.factor_execution.facts",
+                expires_at=refreshed_at + timedelta(seconds=30),
             )
-        except Exception:
-            source_route_unit_id = None
-        if (
-            not isinstance(identity, Mapping)
-            or type(source_route_unit_id) is not str
-            or identity.get("invest_unit_id") != source_route_unit_id
-        ):
-            # The sidecar is optional and the native query may hold SDK state.
-            # A configuration value alone cannot authorize it: first bind the
-            # exact target to the source-owned CTP write route.
-            return
-        # This result remains outside the five-family receipt.  A sidecar
-        # failure cannot change the core deadline or status.  SDK versions
-        # without a source-bound issue deadline are rejected before dispatch.
-        try:
-            deadline = time.monotonic() + _LIVE_COMMISSION_QUERY_BUDGET_SECONDS
-            self.store.registered_sim_query(
-                "instrument_commission_rate_result",
-                timeout=_LIVE_COMMISSION_QUERY_BUDGET_SECONDS,
-                attempts=1,
-                deadline_monotonic=deadline,
-                instrument_id=target.instrument,
-                exchange_id=target.exchange,
-            )
-        except Exception:
-            return
-
-    def _reconcile_dated_trades(self, facts, *, refresh_receipt, diagnostic_sink=None):
-        """Apply complete trade pages to the durable execution and dated books."""
-
-        offset = 0
-        total = 0
-        while True:
-            trade_page = self.coordinator.reconcile_trade_observations(
-                facts, limit=128, offset=offset, refresh_receipt=refresh_receipt
-            )
-            if trade_page.offset != offset or trade_page.observation_count > 512:
-                self._append_reconciliation_blocker(
-                    diagnostic_sink, "trade_page", offset, "PAGE_INVALID", "TRADE_PAGE_SHAPE"
-                )
-                raise RunnerError("LIVE_TRADE_RECONCILIATION_BLOCKED")
-            blocked_trade_items = tuple(
-                item
-                for item in trade_page.items
-                if getattr(item, "status", None) not in {"APPLIED", "DUPLICATE", "EXTERNAL_FLAT"}
-            )
-            if blocked_trade_items:
-                self._record_reconciliation_blockers(
-                    diagnostic_sink, "trade_page", offset, blocked_trade_items
-                )
-                raise RunnerError("LIVE_TRADE_RECONCILIATION_BLOCKED")
-            dated_page = self.coordinator.position_book.reconcile_dated_trade_observations(
-                facts,
-                reconciliation_page=trade_page,
-                limit=128,
-                offset=offset,
-            )
-            if (
-                dated_page.offset != offset
-                or dated_page.observation_count != trade_page.observation_count
-                or tuple(item.observation_id for item in dated_page.items)
-                != tuple(item.observation_id for item in trade_page.items)
+            if type(lease) is not QuerySnapshotLease:
+                raise RunnerError("QUERY_SNAPSHOT_LEASE_INVALID")
+            if not self.coordinator.validate_snapshot_lease(
+                lease, receipt, now=refreshed_at
             ):
-                self._append_reconciliation_blocker(
-                    diagnostic_sink, "dated_page", offset, "PAGE_INVALID", "DATED_PAGE_SHAPE"
+                raise RunnerError("QUERY_SNAPSHOT_LEASE_INVALID")
+            self.last_receipt = receipt
+            self.last_lease = lease
+            with self._strategy_lock:
+                strategy = self._strategy
+            if strategy is not None:
+                session = _account_session_snapshot(self.store, write_enabled=False)
+                facts = self.coordinator.collect_facts(
+                    strategy=strategy,
+                    receipt=receipt,
+                    lease=lease,
+                    account_session_snapshot=session,
+                    now=refreshed_at,
                 )
-                raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
-            for trade_item, dated_item in zip(trade_page.items, dated_page.items):
-                if trade_item.status in {"APPLIED", "DUPLICATE"}:
-                    if dated_item.status not in {"APPLIED", "DUPLICATE"}:
-                        self._record_reconciliation_blockers(
-                            diagnostic_sink, "dated_page", offset, (dated_item,)
-                        )
-                        raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_BLOCKED")
-                elif dated_item.status != "EXTERNAL_FLAT":
-                    self._record_reconciliation_blockers(
-                        diagnostic_sink, "dated_page", offset, (dated_item,)
-                    )
-                    raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_BLOCKED")
-            total += len(trade_page.items)
-            if total > 512:
-                self._append_reconciliation_blocker(
-                    diagnostic_sink,
-                    "trade_page",
-                    offset,
-                    "LIMIT_EXCEEDED",
-                    "TRADE_OBSERVATION_LIMIT",
-                )
-                raise RunnerError("LIVE_RECONCILIATION_LIMIT_EXCEEDED", "dated_trades")
-            if not trade_page.truncated:
                 if (
-                    trade_page.next_offset is not None
-                    or dated_page.truncated
-                    or dated_page.next_offset is not None
-                    or total != trade_page.observation_count
+                    getattr(facts, "account_session_snapshot", None) is not session
+                    or getattr(facts, "source_ref", None) != receipt.source_ref
+                    or getattr(facts, "generation", None) != receipt.generation
+                    or getattr(facts, "session_ref", None) != session.session_ref
+                    or getattr(facts, "fee_receipt", object()) is not None
+                    or getattr(facts, "fee_status", None) != "UNAVAILABLE"
                 ):
-                    self._append_reconciliation_blocker(
-                        diagnostic_sink,
-                        "dated_page",
-                        offset,
-                        "PAGE_INVALID",
-                        "DATED_PAGE_SHAPE",
-                    )
-                    raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
-                return
-            if (
-                type(trade_page.next_offset) is not int
-                or trade_page.next_offset <= offset
-                or trade_page.next_offset != offset + len(trade_page.items)
-                or not dated_page.truncated
-                or dated_page.next_offset != trade_page.next_offset
-            ):
-                self._append_reconciliation_blocker(
-                    diagnostic_sink,
-                    "dated_page",
-                    offset,
-                    "PAGE_INVALID",
-                    "DATED_PAGE_SHAPE",
-                )
-                raise RunnerError("LIVE_DATED_TRADE_RECONCILIATION_PAGE_INVALID")
-            offset = trade_page.next_offset
-
+                    raise RunnerError("NEUTRAL_FACTOR_FACTS_BINDING_INVALID")
+                self.last_facts = facts
+            self.last_error_code = None
+            return receipt
+        except Exception as error:
+            self.last_receipt = None
+            self.last_lease = None
+            self.last_facts = None
+            self.last_error_code = self._execution_error_code(error)
+            return None
+    
     def start(self):
         self._thread.start()
         self.started = True
@@ -8772,8 +5286,6 @@ class QueryRefreshLoop:
         while not self._stop.is_set():
             observed_request = self._observe_strategy_shutdown_request()
             if observed_request:
-                next_refresh_at = min(next_refresh_at, time.monotonic())
-            if self._take_commission_priority_refresh_request():
                 next_refresh_at = min(next_refresh_at, time.monotonic())
             if self._shutdown_event.is_set():
                 self._advance_shutdown()
@@ -8869,133 +5381,19 @@ def _cleanup_live_resource(cleanup, name, operation, *, project=None):
     return row
 
 
-def _store_stop_evidence(result, *, ctp_factor_source_required=False):
+def _store_stop_evidence(result):
     state = result.get("shutdown_state") if isinstance(result, Mapping) else None
     if type(state) is not str or state not in {"PASS", "FAIL", "INCOMPLETE", "NOT_STARTED"}:
         state = "UNPROVEN"
-    evidence = {"shutdown_state": state}
-    if isinstance(result, Mapping) and "ctp_factor_source_shutdown" in result:
-        evidence["ctp_factor_source_shutdown"] = _ctp_factor_source_shutdown_evidence(
-            result.get("ctp_factor_source_shutdown")
-        )
-    elif ctp_factor_source_required:
-        evidence["ctp_factor_source_shutdown"] = {
-            "required": True,
-            "status": "UNPROVEN",
-        }
-    if ctp_factor_source_required and evidence.get("ctp_factor_source_shutdown", {}).get(
-        "required"
-    ) is not True:
-        evidence["ctp_factor_source_shutdown"] = {
-            "required": True,
-            "status": "UNPROVEN",
-        }
-    return evidence
-
-
-def _ctp_factor_source_shutdown_evidence(value):
-    """Allowlist the opted-in CTP lifecycle receipts used by cleanup gates."""
-    if not isinstance(value, Mapping):
-        return {"required": None, "status": "UNPROVEN"}
-    required = value.get("required")
-    if required is False and value.get("status") == "NOT_REQUIRED":
-        return {"required": False, "status": "NOT_REQUIRED"}
-    if required is not True:
-        return {"required": required if type(required) is bool else None, "status": "UNPROVEN"}
-
-    expected_md = value.get("expected_md_generation")
-    expected_trader = value.get("expected_trader_generation")
-    join_required = value.get("join_required")
-    reasons = value.get("reason_codes")
-    if isinstance(reasons, (tuple, list)) and all(type(reason) is str for reason in reasons):
-        reason_codes = tuple(reasons)
-    else:
-        reason_codes = ("reason_codes_unproven",)
-    projected = {
-        "required": True,
-        "status": "INCOMPLETE",
-        "expected_md_generation": expected_md if type(expected_md) is int else None,
-        "expected_trader_generation": expected_trader if type(expected_trader) is int else None,
-        "join_required": join_required if type(join_required) is bool else None,
-        "md_receipt": None,
-        "trader_receipt": None,
-        "reason_codes": reason_codes,
+    close_failures = result.get("market_tick_projector_close_failures", 0) if isinstance(
+        result, Mapping
+    ) else None
+    if type(close_failures) is not int or close_failures < 0:
+        close_failures = None
+    return {
+        "shutdown_state": state,
+        "market_tick_projector_close_failures": close_failures,
     }
-
-    def project_receipt(receipt, generation):
-        if not isinstance(receipt, Mapping):
-            return None
-        fields = (
-            "connection_generation",
-            "join_required",
-            "join_completed",
-            "native_released",
-            "thread_alive",
-            "timed_out",
-            "complete",
-        )
-        row = {name: receipt.get(name) for name in fields}
-        if (
-            type(row["connection_generation"]) is not int
-            or type(generation) is not int
-            or row["connection_generation"] != generation
-            or type(row["join_required"]) is not bool
-            or type(row["join_completed"]) is not bool
-            or type(row["native_released"]) is not bool
-            or type(row["thread_alive"]) is not bool
-            or type(row["timed_out"]) is not bool
-            or type(row["complete"]) is not bool
-        ):
-            return None
-        return row
-
-    md_receipt = project_receipt(value.get("md_receipt"), expected_md)
-    trader_receipt = project_receipt(value.get("trader_receipt"), expected_trader)
-    projected["md_receipt"] = md_receipt
-    projected["trader_receipt"] = trader_receipt
-    md_complete = (
-        md_receipt is not None
-        and md_receipt["join_required"] is join_required
-        and md_receipt["native_released"] is True
-        and md_receipt["thread_alive"] is False
-        and md_receipt["timed_out"] is False
-        and md_receipt["complete"] is True
-        and (join_required is False or md_receipt["join_completed"] is True)
-    )
-    trader_complete = (
-        trader_receipt is not None
-        and trader_receipt["join_required"] is join_required
-        and trader_receipt["native_released"] is True
-        and trader_receipt["thread_alive"] is False
-        and trader_receipt["timed_out"] is False
-        and trader_receipt["complete"] is True
-        and (join_required is False or trader_receipt["join_completed"] is True)
-    )
-    if (
-        type(expected_md) is int
-        and expected_md > 0
-        and type(expected_trader) is int
-        and expected_trader > 0
-        and type(join_required) is bool
-        and md_complete
-        and trader_complete
-        and value.get("status") == "PASS"
-        and projected["reason_codes"] == ()
-    ):
-        projected["status"] = "PASS"
-    elif not projected["reason_codes"]:
-        projected["reason_codes"] = ("native_shutdown_receipt_incomplete",)
-    return projected
-
-
-def _ctp_factor_source_shutdown_complete(value):
-    """Require exact generation-bound native receipts only after source opt-in."""
-    if value is None:
-        return True
-    if isinstance(value, Mapping) and value.get("required") is False:
-        return value.get("status") == "NOT_REQUIRED"
-    projected = _ctp_factor_source_shutdown_evidence(value)
-    return projected.get("required") is True and projected.get("status") == "PASS"
 
 
 def _broker_shutdown_evidence(broker):
@@ -9273,9 +5671,8 @@ def _cleanup_complete(cleanup):
     store_ok = (store.get("status") == "NOT_CREATED" and store_state == "NOT_CREATED") or (
         store.get("status") in {"RETURNED", "CLOSED_BY_BROKER"} and store_state == "PASS"
     )
-    store_ok = store_ok and _ctp_factor_source_shutdown_complete(
-        store.get("ctp_factor_source_shutdown")
-    )
+    if store.get("status") not in {"NOT_CREATED"}:
+        store_ok = store_ok and store.get("market_tick_projector_close_failures") == 0
     broker_status = broker.get("status")
     if broker_status in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}:
         broker_ok = broker.get("store_shutdown_state") == "PASS"
@@ -9327,43 +5724,138 @@ def _live_env_config(config, *, override=None):
     return _validated_live_store_config(row)
 
 
-class SimNowProfileValidationError(ValueError):
-    """A safe, value-free reason that the live CTP profile was not admitted."""
+_SDK_STORE_CONFIGURATION_KEYS = frozenset(
+    {
+        "debug",
+        "transport_mode",
+        "forwarding_config",
+        "event_bus",
+        "execution_config",
+        "symbol_routes",
+        "require_account_risk",
+    }
+)
+_FUTURES_SDK_ROUTE = "CTP___FUTURE"
 
-    def __init__(self, reason: str) -> None:
-        self.reason = reason
-        super().__init__(reason)
+
+def _live_sdk_store_options(config_values, api_values):
+    """Place the protected route payload behind one explicit SDK route key."""
+
+    route_options = {}
+    generic_config = {}
+    generic_kwargs = {}
+    for source, generic_target in (
+        (config_values, generic_config),
+        (api_values, generic_kwargs),
+    ):
+        if not isinstance(source, Mapping):
+            raise RunnerError("LIVE_STORE_CONFIG_FIELDS_INVALID")
+        explicit_routes = source.get("exchange_kwargs")
+        if explicit_routes is not None:
+            if not isinstance(explicit_routes, Mapping) or set(explicit_routes) != {
+                _FUTURES_SDK_ROUTE
+            }:
+                raise RunnerError("LIVE_SDK_ROUTE_SCOPE_INVALID")
+            selected = explicit_routes[_FUTURES_SDK_ROUTE]
+            if not isinstance(selected, Mapping):
+                raise RunnerError("LIVE_SDK_ROUTE_CONFIGURATION_INVALID")
+            route_options.update(selected)
+        for key, value in source.items():
+            if key == "exchange_kwargs":
+                continue
+            if key in _SDK_STORE_CONFIGURATION_KEYS:
+                generic_target[key] = value
+            elif key not in {"api", "api_cls", "provider", "backend"}:
+                # The example treats route-specific configuration as opaque.
+                # The SDK route owner validates its own provider options.
+                route_options[key] = value
+    if not route_options:
+        raise RunnerError("LIVE_SDK_ROUTE_CONFIGURATION_REQUIRED")
+    generic_config["exchange_kwargs"] = {_FUTURES_SDK_ROUTE: route_options}
+    return generic_config, generic_kwargs
 
 
-def _sdk_profile_contract() -> (
-    Tuple[Callable[..., Any], Optional[Callable[..., Any]], Callable[..., Any]]
-):
+def _account_session_snapshot(store, *, write_enabled=False):
+    """Read one exact SDK session DTO for the explicit futures route."""
+
     try:
-        import bt_api_ctp.ctp_env_selector as selector
+        from bt_api_py.facade_protocol import AccountSessionSnapshot
     except ImportError:
-        raise SimNowProfileValidationError("SDK_PROFILE_SELECTOR_UNAVAILABLE") from None
-    official_simnow_fronts = getattr(selector, "official_simnow_fronts", None)
-    verify_official_simnow_profile = getattr(selector, "verify_official_simnow_profile", None)
-    official_simnow_profile_for_td_front = getattr(
-        selector, "official_simnow_profile_for_td_front", None
-    )
-    if not callable(official_simnow_fronts) or not callable(verify_official_simnow_profile):
-        raise SimNowProfileValidationError("SDK_PROFILE_SELECTOR_UNAVAILABLE")
-    return (
-        official_simnow_fronts,
-        official_simnow_profile_for_td_front,
-        verify_official_simnow_profile,
+        raise RunnerError("SDK_ACCOUNT_SESSION_CONTRACT_UNAVAILABLE") from None
+    reader = getattr(store, "account_session_snapshot", None)
+    if not callable(reader):
+        raise RunnerError("SDK_STORE_ACCOUNT_SESSION_CAPABILITY_UNAVAILABLE")
+    try:
+        snapshot = reader(_FUTURES_SDK_ROUTE)
+    except Exception:
+        raise RunnerError("SDK_ACCOUNT_SESSION_SNAPSHOT_UNAVAILABLE") from None
+    if type(snapshot) is not AccountSessionSnapshot or snapshot.exchange_name != _FUTURES_SDK_ROUTE:
+        raise RunnerError("SDK_ACCOUNT_SESSION_SNAPSHOT_INVALID")
+    if (
+        snapshot.available is not True
+        or snapshot.connected is not True
+        or snapshot.authenticated is not True
+    ):
+        raise RunnerError("SDK_ACCOUNT_SESSION_NOT_READY")
+    if write_enabled and snapshot.trading_enabled is not True:
+        raise RunnerError("SDK_ACCOUNT_SESSION_TRADING_DISABLED")
+    return snapshot
+
+
+def _account_preflight(store, *, route, symbol, deadline):
+    """Require request-bound SDK readiness without treating it as write authority."""
+
+    try:
+        from bt_api_py.facade_protocol import (
+            AccountPreflightRequest,
+            AccountPreflightSnapshot,
+        )
+    except ImportError:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_CONTRACT_UNAVAILABLE") from None
+    reader = getattr(store, "account_preflight", None)
+    if not callable(reader):
+        raise RunnerError("SDK_STORE_ACCOUNT_PREFLIGHT_CAPABILITY_UNAVAILABLE")
+    try:
+        request = AccountPreflightRequest(
+            exchange_name=route,
+            symbol=symbol,
+            operation="submit",
+            deadline=deadline,
+        )
+        snapshot = reader(request)
+    except Exception:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_UNAVAILABLE") from None
+    if type(snapshot) is not AccountPreflightSnapshot or snapshot.request != request:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_INVALID")
+    if snapshot.available is not True or snapshot.ready is not True:
+        raise RunnerError("SDK_ACCOUNT_PREFLIGHT_NOT_READY")
+    return snapshot
+
+
+def _same_sdk_session(left, right):
+    return all(
+        getattr(left, name, None) == getattr(right, name, None)
+        for name in ("exchange_name", "source_ref", "generation", "session_ref", "business_day")
     )
 
 
-def _resolve_ctp_front(options: Mapping[str, Any], address_key: str, front_key: str) -> str:
-    # Match the CTP wrapper: a truthy address takes precedence over its legacy alias.
-    value = options.get(address_key) or options.get(front_key)
-    if value is None or value == "":
-        raise SimNowProfileValidationError("CTP_FRONT_MISSING")
-    if type(value) is not str:
-        raise SimNowProfileValidationError("CTP_FRONT_INVALID")
-    return value
+def validate_official_simnow_store_profile(
+    config: Mapping[str, Any], api_kwargs: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Delegate provider-owned SimNow config checks to the unified SDK."""
+
+    try:
+        from bt_api_py.ctp_profiles import (
+            SimNowProfileError,
+            validate_official_simnow_store_profile as validate_profile,
+        )
+    except ImportError:
+        raise RunnerError("SDK_SIMNOW_PROFILE_CAPABILITY_UNAVAILABLE") from None
+    try:
+        return validate_profile(config, api_kwargs)
+    except SimNowProfileError as error:
+        code = error.code if type(error.code) is str else "CTP_PROFILE_NOT_OFFICIAL_SIMNOW"
+        raise RunnerError("SIMNOW_PROFILE_REJECTED", code) from None
 
 
 def _tape_origin_partition(value: Any, member_id: str) -> dict[str, Any]:
@@ -9421,66 +5913,6 @@ def _origin_partition_follows(previous: Mapping[str, Any], current: Mapping[str,
     )
 
 
-def _claimed_ctp_profile(options: Mapping[str, Any]) -> str:
-    claims = []
-    for key in ("ctp_env_profile", "environment_profile"):
-        if key not in options:
-            continue
-        value = options[key]
-        if type(value) is not str or not value.strip():
-            raise SimNowProfileValidationError("CTP_PROFILE_INVALID")
-        claims.append(value.strip().lower())
-    if len(set(claims)) > 1:
-        raise SimNowProfileValidationError("CTP_PROFILE_CLAIMS_CONFLICT")
-    return claims[0] if claims else ""
-
-
-def validate_official_simnow_store_profile(
-    config: Mapping[str, Any], api_kwargs: Mapping[str, Any]
-) -> Mapping[str, Any]:
-    """Validate the Store's effective fronts using the SDK's registered profile."""
-
-    if not isinstance(config, Mapping) or not isinstance(api_kwargs, Mapping):
-        raise SimNowProfileValidationError("CTP_CONFIG_MAPPINGS_REQUIRED")
-
-    # BtApiStore applies api_kwargs after config. The CTP wrapper then selects
-    # address before front aliases; resolve only that effective pair.
-    options = dict(config)
-    options.update(api_kwargs)
-    td_front = _resolve_ctp_front(options, "td_address", "td_front")
-    md_front = _resolve_ctp_front(options, "md_address", "md_front")
-    profile = _claimed_ctp_profile(options)
-    for key in ("environment", "ctp_environment"):
-        if key in options:
-            value = options[key]
-            if type(value) is not str or value.strip().lower() != "simnow":
-                raise SimNowProfileValidationError("CTP_ENVIRONMENT_NOT_SIMNOW")
-
-    (
-        official_simnow_fronts,
-        official_simnow_profile_for_td_front,
-        verify_official_simnow_profile,
-    ) = _sdk_profile_contract()
-    if not profile:
-        if not callable(official_simnow_profile_for_td_front):
-            raise SimNowProfileValidationError("CTP_PROFILE_LOOKUP_UNAVAILABLE")
-        profile = official_simnow_profile_for_td_front(td_front)
-    if not profile:
-        raise SimNowProfileValidationError("CTP_PROFILE_NOT_OFFICIAL_SIMNOW")
-
-    try:
-        expected_td, expected_md = official_simnow_fronts(profile)
-    except (KeyError, ValueError):
-        raise SimNowProfileValidationError("CTP_PROFILE_NOT_OFFICIAL_SIMNOW") from None
-    if (
-        td_front != expected_td
-        or md_front != expected_md
-        or not verify_official_simnow_profile(td_front, md_front, profile)
-    ):
-        raise SimNowProfileValidationError("CTP_PROFILE_FRONT_MISMATCH")
-    return {"verified": True, "environment": "simnow", "profile": profile}
-
-
 def _write_requested(config, allow_write_flag, decision):
     write_cfg = config["live"]["allow_writes"]
     if type(write_cfg) is not bool:
@@ -9490,40 +5922,6 @@ def _write_requested(config, allow_write_flag, decision):
     if allow_write_flag and decision.effective_tier != "live":
         raise RunnerError("LIVE_WRITE_TIER_REQUIRED")
     return bool(allow_write_flag and write_cfg and decision.effective_tier == "live")
-
-
-def _arm_templates(config, plan):
-    raw = config["live"]["arm_templates"]
-    if type(raw) is not list:
-        raise RunnerError("LIVE_ARM_TEMPLATES_INVALID")
-    target_routes = {
-        target: (plan["routes"][product], product.exchange_id)
-        for target, product in plan["product_by_target"].items()
-    }
-    templates = {}
-    fields = {
-        "target",
-        "md_front",
-        "strategy_identity_sha256",
-        "execution_cycle_id",
-        "preflight_sha256",
-    }
-    for item in raw:
-        row = _mapping(item, "live arm template")
-        if set(row) != fields:
-            raise RunnerError("LIVE_ARM_TEMPLATE_FIELDS_INVALID")
-        target = _text(row["target"], "arm template target")
-        if target not in plan["authorized_targets"]:
-            raise RunnerError("LIVE_ARM_TEMPLATE_TARGET_NOT_AUTHORIZED")
-        route = target_routes[target]
-        if route in templates:
-            raise RunnerError("LIVE_ARM_TEMPLATE_DUPLICATE")
-        template = {key: _text(row[key], key) for key in fields.difference({"target"})}
-        templates[route] = template
-    expected = {target_routes[target] for target in plan["authorized_targets"]}
-    if set(templates) != expected:
-        raise RunnerError("LIVE_ARM_TEMPLATE_ROUTE_SET_MISMATCH")
-    return templates
 
 
 def _install_shutdown_signal_handlers(refresh_loop):
@@ -9619,36 +6017,6 @@ def _live_source_lineage_kind(plan):
             raise RunnerError("LIVE_SOURCE_TRADING_DAYS_INVALID")
         trading_days[exchange_id] = trading_day
     return _live_source_lineage_kind_from_days(trading_days)
-
-
-def _register_live_fee_pair_required_scope(journal, scopes):
-    """Persist and read back the live write-mode fee-pair scope fence."""
-
-    from backtrader.stores.execution_decision_journal import (
-        ExecutionFeePairScopeRegistration,
-    )
-
-    account_scope = scopes["account_scope"]
-    strategy_scope = scopes["strategy_scope"]
-    try:
-        registered = journal.register_fee_pair_required_scope(account_scope, strategy_scope)
-        observed = journal.fee_pair_required_scope(account_scope, strategy_scope)
-    except Exception:
-        raise RunnerError("LIVE_FEE_PAIR_SCOPE_REGISTRATION_FAILED") from None
-
-    if (
-        type(registered) is not ExecutionFeePairScopeRegistration
-        or type(observed) is not ExecutionFeePairScopeRegistration
-        or registered != observed
-        or registered.account_scope != account_scope
-        or registered.strategy_scope != strategy_scope
-        or type(registered.policy_id) is not str
-        or not registered.policy_id
-        or registered.state != "REQUIRE_PAIR_FAIL_CLOSED"
-        or type(registered.registered_at_ns) is not int
-        or registered.registered_at_ns <= 0
-    ):
-        raise RunnerError("LIVE_FEE_PAIR_SCOPE_REGISTRATION_UNPROVEN")
 
 
 def _reject_legacy_live_source_highwater(journal, scopes):
@@ -9757,7 +6125,7 @@ def _selection_evidence(plan, epoch_id, *, max_bytes, rebalance_every=None):
             binding["selector_policy"] = _selector_policy_projection(
                 plan, rebalance_every
             )
-        if binding["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
+        if binding["selection_source"] == "futures_market_snapshot_equal_weight_v1":
             evidence_grid = plan.get("full_grid") if golden_subset else plan.get("grid")
             binding["grid_semantics_sha256"] = _grid_semantics_sha256(evidence_grid)
         if golden_subset:
@@ -9815,7 +6183,7 @@ def _validate_selection_evidence(value):
             expected_keys.update(golden_keys)
         if "selector_policy" in value:
             expected_keys.add("selector_policy")
-        if value.get("selection_source") == "ctp_query_snapshot_equal_weight_v1":
+        if value.get("selection_source") == "futures_market_snapshot_equal_weight_v1":
             expected_keys.add("grid_semantics_sha256")
         _exact_keys(value, expected_keys, "selection evidence")
         if (
@@ -9833,7 +6201,7 @@ def _validate_selection_evidence(value):
             or not isinstance(value.get("routes"), dict)
             or type(value.get("authorized_targets")) is not list
             or (
-                value["selection_source"] == "ctp_query_snapshot_equal_weight_v1"
+                value["selection_source"] == "futures_market_snapshot_equal_weight_v1"
                 and (
                     type(value.get("grid_semantics_sha256")) is not str
                     or len(value["grid_semantics_sha256"]) != 64
@@ -9847,10 +6215,10 @@ def _validate_selection_evidence(value):
             raise TypeError("selection evidence fields are invalid")
         if value["selection_source"] not in {
             "saved_bundle_legacy",
-            "ctp_query_snapshot_equal_weight_v1",
+            "futures_market_snapshot_equal_weight_v1",
         }:
             raise TypeError("selection evidence source is unsupported")
-        if value["selection_source"] == "ctp_query_snapshot_equal_weight_v1":
+        if value["selection_source"] == "futures_market_snapshot_equal_weight_v1":
             if type(value["source_snapshot_id"]) is not str or not value["source_snapshot_id"]:
                 raise TypeError("query selection snapshot is missing")
         selector_policy = value.get("selector_policy")
@@ -9937,7 +6305,7 @@ def _validate_selection_evidence(value):
                     character not in "0123456789abcdef"
                     for character in value["active_grid_semantics_sha256"]
                 )
-                or value["selection_source"] != "ctp_query_snapshot_equal_weight_v1"
+                or value["selection_source"] != "futures_market_snapshot_equal_weight_v1"
             ):
                 raise TypeError("golden selection evidence is invalid")
         manifest_digest = hashlib.sha256(
@@ -9972,12 +6340,14 @@ def _validate_selection_evidence(value):
 
 
 def _query_history_selection_projection(evidence):
-    """Project stable query scope while excluding per-collection observations."""
+    """Project neutral futures scope without per-collection observations."""
 
     manifest = evidence["manifest"]
-    query_snapshot = manifest.get("query_snapshot")
+    market_snapshot = manifest.get("market_snapshot")
+    market_coverage = manifest.get("market_coverage")
+    source = manifest.get("source")
     if (
-        manifest.get("schema") != "backtrader.futures_main_contract_manifest.v2"
+        manifest.get("schema") != "backtrader.futures_main_contract_manifest.v3"
         or manifest.get("status") != "READY"
         or type(manifest.get("policy")) is not dict
         or type(manifest.get("target_products")) is not list
@@ -9985,13 +6355,12 @@ def _query_history_selection_projection(evidence):
         or type(manifest.get("calendars")) is not list
         or type(manifest.get("coverage")) is not list
         or type(manifest.get("products")) is not list
-        or type(manifest.get("query_coverage")) is not list
-        or type(manifest.get("source")) is not dict
-        or type(query_snapshot) is not dict
-        or type(query_snapshot.get("catalog_records")) is not list
+        or type(manifest.get("candidates")) is not list
+        or type(market_coverage) is not list
+        or type(market_snapshot) is not dict
+        or type(source) is not dict
     ):
         raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
-    source = manifest["source"]
     catalog = source.get("catalog")
     if (
         type(catalog) is not dict
@@ -10007,14 +6376,7 @@ def _query_history_selection_projection(evidence):
 
     if any(
         type(row) is not dict
-        for name in (
-            "target_products",
-            "trading_days",
-            "calendars",
-            "coverage",
-            "products",
-            "query_coverage",
-        )
+        for name in ("target_products", "trading_days", "calendars", "coverage", "products")
         for row in manifest[name]
     ):
         raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
@@ -10037,43 +6399,32 @@ def _query_history_selection_projection(evidence):
     }
     if any(not calendar_keys.issubset(row) for row in stable_calendars):
         raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+
     stable_catalog_records = []
     seen_catalog_instruments = set()
-    catalog_record_keys = {
-        "product",
-        "instrument_id",
-        "asset_type",
-        "is_trading",
-        "expiry_date",
-        "product_class",
-    }
-    for row in query_snapshot["catalog_records"]:
-        if (
-            type(row) is not dict
-            or set(row) != catalog_record_keys
-            or type(row.get("product")) is not dict
-            or set(row["product"]) != {"exchange_id", "product_id"}
-            or type(row.get("instrument_id")) is not str
-            or not row["instrument_id"]
-        ):
+    for row in manifest["candidates"]:
+        if type(row) is not dict:
             raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
-        product = row["product"]
+        product = row.get("product")
+        instrument_id = row.get("instrument_id")
         if (
-            type(product.get("exchange_id")) is not str
+            type(product) is not dict
+            or set(product) != {"exchange_id", "product_id"}
+            or type(product.get("exchange_id")) is not str
             or not product["exchange_id"]
             or type(product.get("product_id")) is not str
             or not product["product_id"]
-            or row.get("asset_type") is not None
-            and type(row["asset_type"]) is not str
+            or type(instrument_id) is not str
+            or not instrument_id
+            or type(row.get("asset_type")) is not str
+            or type(row.get("contract_kind")) is not str
             or row.get("is_trading") is not None
             and type(row["is_trading"]) is not bool
             or row.get("expiry_date") is not None
             and type(row["expiry_date"]) is not str
-            or row.get("product_class") is not None
-            and type(row["product_class"]) is not str
         ):
             raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
-        key = (product["exchange_id"], product["product_id"], row["instrument_id"])
+        key = (product["exchange_id"], product["product_id"], instrument_id)
         if key in seen_catalog_instruments:
             raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
         seen_catalog_instruments.add(key)
@@ -10081,16 +6432,134 @@ def _query_history_selection_projection(evidence):
             {
                 "exchange_id": product["exchange_id"],
                 "product_id": product["product_id"],
-                "instrument_id": row["instrument_id"],
+                "instrument_id": instrument_id,
                 "asset_type": row["asset_type"],
+                "contract_kind": row["contract_kind"],
                 "is_trading": row["is_trading"],
                 "expiry_date": row["expiry_date"],
-                "product_class": row["product_class"],
             }
         )
     stable_catalog_records.sort(
         key=lambda row: (row["exchange_id"], row["product_id"], row["instrument_id"])
     )
+
+    snapshot_keys = {
+        "source_ref",
+        "generation",
+        "records_digest",
+        "request_refs",
+        "requested_at",
+        "completed_at",
+        "observed_at",
+        "complete",
+        "freshness_status",
+        "freshness_blockers",
+        "coverage",
+        "coverage_scope_complete",
+        "coverage_complete",
+        "expected_instrument_count",
+        "missing_quote_instrument_count",
+        "missing_depth_instrument_count",
+        "missing_quote_field_row_count",
+        "unclassified_instrument_count",
+        "quote_unit_mismatch_count",
+        "quote_semantic_mismatch_count",
+        "depth_unit_mismatch_count",
+        "sessions",
+        "blockers",
+    }
+    if set(market_snapshot) != snapshot_keys:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    family_keys = {"session", "catalog", "quotes", "depth"}
+    if type(market_snapshot.get("coverage")) is not dict or set(
+        market_snapshot["coverage"]
+    ) != family_keys:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_family_coverage = {}
+    family_stable_keys = (
+        "family",
+        "completeness",
+        "scope_complete",
+        "complete",
+        "record_count",
+        "blockers",
+        "continuation_present",
+    )
+    family_exact_keys = {
+        *family_stable_keys,
+        "request_ref",
+        "source_ref",
+        "generation",
+        "snapshot_ref",
+        "started_at",
+        "completed_at",
+        "observed_at",
+        "records_digest",
+    }
+    for family, row in market_snapshot["coverage"].items():
+        if row is None:
+            stable_family_coverage[family] = None
+            continue
+        if type(row) is not dict or set(row) != family_exact_keys:
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        stable_family_coverage[family] = {key: row[key] for key in family_stable_keys}
+    session_rows = market_snapshot.get("sessions")
+    if type(session_rows) is not list:
+        raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+    stable_sessions = select_rows(
+        session_rows, ("venue", "environment", "trading_day", "session_status")
+    )
+    stable_market_snapshot = {
+        key: market_snapshot[key]
+        for key in (
+            "complete",
+            "freshness_status",
+            "freshness_blockers",
+            "coverage_scope_complete",
+            "coverage_complete",
+            "expected_instrument_count",
+            "missing_quote_instrument_count",
+            "missing_depth_instrument_count",
+            "missing_quote_field_row_count",
+            "unclassified_instrument_count",
+            "quote_unit_mismatch_count",
+            "quote_semantic_mismatch_count",
+            "depth_unit_mismatch_count",
+            "blockers",
+        )
+    }
+    stable_market_snapshot.update(
+        {"coverage": stable_family_coverage, "sessions": stable_sessions}
+    )
+    market_coverage_keys = {
+        "product",
+        "catalog_instrument_ids",
+        "expected_quote_instrument_ids",
+        "observed_quote_instrument_ids",
+        "metric_unit",
+        "volume_semantics",
+    }
+    stable_market_coverage = []
+    for row in market_coverage:
+        if (
+            type(row) is not dict
+            or set(row) != market_coverage_keys
+            or type(row.get("product")) is not dict
+            or set(row["product"]) != {"exchange_id", "product_id"}
+            or row.get("metric_unit") != "contracts"
+            or row.get("volume_semantics") != "cumulative_trading_day"
+        ):
+            raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        for name in (
+            "catalog_instrument_ids",
+            "expected_quote_instrument_ids",
+            "observed_quote_instrument_ids",
+        ):
+            values = row[name]
+            if type(values) is not list or any(type(item) is not str or not item for item in values):
+                raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
+        stable_market_coverage.append(dict(row))
+
     grid_semantics_sha256 = evidence.get("grid_semantics_sha256")
     if type(grid_semantics_sha256) is not str:
         raise RunnerError("LIVE_HISTORY_SELECTION_EVIDENCE_INVALID")
@@ -10135,15 +6604,8 @@ def _query_history_selection_projection(evidence):
                     "selected_instrument_id",
                 ),
             ),
-            "query_coverage": select_rows(
-                manifest["query_coverage"],
-                (
-                    "product",
-                    "catalog_instrument_ids",
-                    "expected_quote_instrument_ids",
-                    "metric_unit",
-                ),
-            ),
+            "market_snapshot": stable_market_snapshot,
+            "market_coverage": stable_market_coverage,
         },
     }
     if "active_shadow_targets" in evidence:
@@ -10288,6 +6750,7 @@ def run_live(
     *,
     decision,
     allow_write_flag,
+    execution_authorization=None,
     _live_store_config_override: Optional[Mapping[str, Any]] = None,
     _live_ready_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
     _live_next_callback: Optional[Callable[[Mapping[str, Any]], Any]] = None,
@@ -10295,6 +6758,8 @@ def run_live(
     previous_plan=None,
     _include_plan=False,
 ):
+    """Run through an explicit SDK route and provider-neutral contracts."""
+
     if _live_ready_callback is not None and not callable(_live_ready_callback):
         raise RunnerError("LIVE_READY_CALLBACK_INVALID")
     if _live_next_callback is not None and not callable(_live_next_callback):
@@ -10311,10 +6776,10 @@ def run_live(
         raise RunnerError("GOLDEN_TARGETS_QUERY_PLAN_REQUIRED")
     import backtrader as bt
     from backtrader.brokers.btapibroker import BtApiBroker
-    from backtrader.stores.registered_sim import RegisteredSimStore
     from alpha003_strategy import Alpha003TargetStrategy
 
-    from backtrader.stores.factor_execution_facts import FactorExecutionTarget
+    from backtrader.factor_execution.factor_execution_facts import FactorExecutionTarget
+    from bt_api_py.facade_protocol import MarketInstrumentKey
 
     if _live_store_config_override is not None and decision.effective_tier != "live":
         raise RunnerError("LIVE_STORE_CONFIG_OVERRIDE_REQUIRES_LIVE_MODE")
@@ -10326,6 +6791,15 @@ def run_live(
     if plan is not None and len(plan["targets"]) > max_targets:
         raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
     write_enabled = _write_requested(config, allow_write_flag, decision)
+    if not write_enabled and execution_authorization is not None:
+        raise RunnerError("LIVE_EXECUTION_AUTHORIZATION_UNEXPECTED")
+    if write_enabled and execution_authorization is None:
+        raise RunnerError("SDK_EXECUTION_AUTHORIZATION_UNAVAILABLE")
+    if write_enabled:
+        # The sample has no SDK-issued managed execution facade to bind to the
+        # authorization. A session snapshot or injected authorization object
+        # alone cannot authorize Broker submissions.
+        raise RunnerError("SDK_MANAGED_EXECUTION_FACADE_UNAVAILABLE")
     loss_guard_threshold, loss_guard_max_age = _run_loss_guard_policy(
         config, write_enabled=write_enabled
     )
@@ -10376,18 +6850,6 @@ def run_live(
         store_config, api_kwargs = _live_env_config(config)
     else:
         store_config, api_kwargs = _live_env_config(config, override=_live_store_config_override)
-    # BtApiStore applies api_kwargs over config, then its CTP wrapper coerces
-    # allow_zero_login_response with bool().  That SDK option permits an
-    # empty MD login identity for quote-only use, so it cannot back a
-    # write-enabled runner session.
-    allow_zero_login_response = bool(
-        api_kwargs.get(
-            "allow_zero_login_response",
-            store_config.get("allow_zero_login_response", False),
-        )
-    )
-    if write_enabled and allow_zero_login_response:
-        raise RunnerError("LIVE_ZERO_LOGIN_RESPONSE_READ_ONLY")
     simnow_profile = validate_official_simnow_store_profile(store_config, api_kwargs)
     store = None
     broker = None
@@ -10405,32 +6867,34 @@ def run_live(
     engine_ran = False
     broker_evidence = None
     clock = None
-    query_session_ready = False
+    session_before_selection = None
     selection_snapshot_id = None
-    ctp_factor_source_shutdown_required = False
     capacity_capture = None
 
     def create_store():
         nonlocal store
         if store is not None:
             return store
-        wrapper_api_kwargs = dict(api_kwargs)
-        wrapper_api_kwargs["ctp_join_observer"] = False
-        store = RegisteredSimStore(
-            provider="ctp",
-            backend="direct",
-            allow_writes=write_enabled,
-            preserve_raw_bars=True,
-            config=store_config,
-            api_kwargs=wrapper_api_kwargs,
-        )
-        if store.registered_sim_route_id != "simnow-registered-v1" or store.sdk_api is not None:
-            raise RunnerError("REGISTERED_SIM_STORE_CONTRACT_INVALID")
+        try:
+            from backtrader.stores.btapistore import BtApiStore
+        except ImportError:
+            raise RunnerError("UNIFIED_STORE_UNAVAILABLE") from None
+        sdk_config, sdk_kwargs = _live_sdk_store_options(store_config, api_kwargs)
+        try:
+            store = BtApiStore(
+                provider="ctp",
+                config=sdk_config,
+                api_kwargs=sdk_kwargs,
+                execution_authorization=execution_authorization,
+                autostart=False,
+            )
+        except Exception:
+            raise RunnerError("UNIFIED_STORE_CONFIGURATION_UNAVAILABLE") from None
         return store
 
     try:
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
-        from backtrader.stores.factor_execution import FactorExecutionCoordinator
+        from bt_api_py.execution_journal import ExecutionDecisionJournal
+        from backtrader.factor_execution.factor_execution import FactorExecutionCoordinator
 
         if not callable(getattr(bt.Cerebro, "wake_live_bar_cohort", None)):
             raise RunnerError("LIVE_COHORT_WAKE_API_UNAVAILABLE")
@@ -10445,8 +6909,6 @@ def run_live(
             journal_path,
             max_payload_bytes=_LIVE_DECISION_JOURNAL_MAX_PAYLOAD_BYTES,
         )
-        if write_enabled:
-            _register_live_fee_pair_required_scope(journal, scopes)
         _reject_legacy_live_source_highwater(journal, scopes)
 
         history_input = config["inputs"].get("history_decision_tape")
@@ -10458,33 +6920,182 @@ def run_live(
             raise RunnerError("LIVE_HISTORY_FRESH_SELECTION_REQUIRED")
         if history_input is not None and config["selection"]["daily_bundles"]:
             raise RunnerError("LIVE_HISTORY_SELECTION_UNSUPPORTED")
+        create_store()
+        session_before_selection = _account_session_snapshot(
+            store, write_enabled=write_enabled
+        )
         if query_selection:
-            create_store()
-            if not store.registered_sim_wait_ready(ready_timeout):
-                raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
-            login_before_selection = store.registered_sim_login_facts()
-            if login_before_selection.get("read_only_ready") is not True:
-                raise RunnerError("LIVE_CTP_READ_ONLY_STATE_UNAVAILABLE")
-            if write_enabled and login_before_selection.get("trading_ready") is not True:
-                raise RunnerError("LIVE_CTP_TRADING_STATE_UNAVAILABLE")
-            plan = build_ctp_query_market_plan(store, config, clock=clock)
+            plan = build_futures_market_plan(
+                store,
+                config,
+                clock=clock,
+                environment=simnow_profile["environment"],
+            )
             if len(plan["targets"]) > max_targets:
                 raise RunnerError("LIVE_TARGET_CAPACITY_EXCEEDED")
             if previous_plan is not None:
                 _assert_daily_plan_transition(previous_plan, plan)
-            login_after_selection = store.registered_sim_login_facts()
-            if any(
-                login_after_selection.get(key) != login_before_selection.get(key)
-                for key in ("trading_day", "connection_generation")
-            ):
+            session_after_selection = _account_session_snapshot(
+                store, write_enabled=write_enabled
+            )
+            if not _same_sdk_session(session_before_selection, session_after_selection):
                 raise RunnerError("LIVE_SESSION_CHANGED_DURING_SELECTION")
             plan = _apply_golden_target_subset(plan, golden_targets)
-            query_session_ready = True
             selection_snapshot_id = plan["source_snapshot_id"]
         elif plan is None:
             raise RunnerError("LIVE_SELECTION_PLAN_REQUIRED")
-        elif history_input is None:
-            create_store()
+        try:
+            market_instrument_by_target = plan.get("market_instrument_by_target")
+            if market_instrument_by_target is None:
+                market_instrument_by_target = {}
+            if not isinstance(market_instrument_by_target, Mapping) or (
+                market_instrument_by_target
+                and set(market_instrument_by_target) != set(plan["targets"])
+            ) or any(
+                type(value) is not MarketInstrumentKey
+                for value in market_instrument_by_target.values()
+            ):
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE")
+        except RunnerError:
+            raise
+        except Exception:
+            raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
+        try:
+            from backtrader.feeds.market_factor_source import (
+                MarketFactorSourceBinding,
+                MarketFactorSourceCalendar,
+                MarketFactorSourceError,
+            )
+            from bt_api_py.service_contracts import MarketSourceDescriptor, MarketSubscriptionKey
+            from bt_api_py.service_market_tick_projection import (
+                MarketTickIdentityStatus,
+                MarketTickStreamIdentity,
+            )
+        except ImportError:
+            raise RunnerError("SDK_MARKET_SOURCE_CONTRACT_UNAVAILABLE") from None
+
+        try:
+            market_source_calendar = MarketFactorSourceCalendar.from_grid(
+                plan["grid"], plan["session_calendars"]
+            )
+        except MarketFactorSourceError as error:
+            raise RunnerError(
+                "MARKET_FACTOR_SOURCE_CALENDAR_UNAVAILABLE", error.code
+            ) from None
+        except Exception:
+            raise RunnerError("MARKET_FACTOR_SOURCE_CALENDAR_UNAVAILABLE") from None
+
+        configured_market_instrument_by_target = {}
+        market_session_resolver_by_target = {}
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            instrument = plan["routes"][product]
+            try:
+                configured_key = store.get_market_instrument_key(instrument)
+            except Exception:
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_UNAVAILABLE") from None
+            if (
+                type(configured_key) is not MarketInstrumentKey
+                or configured_key.provider != "ctp"
+                or configured_key.environment != simnow_profile["environment"]
+                or configured_key.venue != product.exchange_id
+                or configured_key.product_type != "future"
+                or (
+                    target in market_instrument_by_target
+                    and configured_key != market_instrument_by_target[target]
+                )
+            ):
+                raise RunnerError("SDK_MARKET_INSTRUMENT_KEY_MISMATCH")
+            configured_market_instrument_by_target[target] = configured_key
+            try:
+                market_session_resolver_by_target[target] = store.market_session_resolver(
+                    instrument
+                )
+            except Exception:
+                raise RunnerError("SDK_MARKET_SESSION_RESOLVER_UNAVAILABLE") from None
+
+        broker = BtApiBroker(
+            store=store,
+            provider="ctp",
+            market_data_only=True,
+            force_refresh_queries=False,
+            flatten_on_stop=False,
+            contract_metadata={
+                target: {
+                    "instrument_id": plan["routes"][plan["product_by_target"][target]],
+                    "exchange_id": plan["product_by_target"][target].exchange_id,
+                    "instrument_key": configured_market_instrument_by_target[target],
+                }
+                for target in plan["targets"]
+            },
+        )
+        try:
+            store.start(broker=broker)
+        except Exception:
+            raise RunnerError("SDK_MARKET_STORE_START_UNAVAILABLE") from None
+
+        market_source_binding_by_target = {}
+        market_source_ref_by_target = {}
+        product_days = dict(plan["grid"].product_trading_days)
+        for target in plan["targets"]:
+            product = plan["product_by_target"][target]
+            instrument = plan["routes"][product]
+            trading_days = product_days.get(product)
+            if (
+                type(trading_days) is not tuple
+                or len(trading_days) != 1
+                or type(trading_days[0]) is not date
+            ):
+                raise RunnerError("MARKET_FACTOR_SOURCE_TRADING_DAY_UNAVAILABLE")
+            try:
+                store.subscribe(instrument)
+                identity = store.market_stream_identity(instrument)
+            except Exception:
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_UNAVAILABLE") from None
+            if type(identity) is not MarketTickStreamIdentity:
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_TYPE_INVALID")
+            if identity.status is not MarketTickIdentityStatus.AVAILABLE:
+                code = identity.unavailable_code
+                if (
+                    type(code) is not str
+                    or not code
+                    or not code.isascii()
+                    or any(not (char.isupper() or char.isdigit() or char == "_") for char in code)
+                ):
+                    code = "IDENTITY_UNAVAILABLE"
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_UNAVAILABLE", code)
+            descriptor = identity.source_descriptor
+            instrument_key = configured_market_instrument_by_target[target]
+            if (
+                type(descriptor) is not MarketSourceDescriptor
+                or type(descriptor.key) is not MarketSubscriptionKey
+                or descriptor.key.instrument != instrument_key
+                or descriptor.key.channel != "tick"
+                or descriptor.provider != instrument_key.provider
+                or type(identity.source_ref) is not str
+                or not identity.source_ref
+                or identity.source_ref != identity.source_ref.strip()
+                or type(identity.connection_generation) is not int
+                or identity.connection_generation <= 0
+                or descriptor.connection_generation != identity.connection_generation
+            ):
+                raise RunnerError("SDK_MARKET_STREAM_IDENTITY_INVALID")
+            try:
+                market_source_binding_by_target[target] = MarketFactorSourceBinding(
+                    calendar=market_source_calendar,
+                    target_id=target,
+                    product=product,
+                    instrument=instrument_key,
+                    trading_date=trading_days[0],
+                    expected_connection_generation=identity.connection_generation,
+                    session_resolver=market_session_resolver_by_target[target],
+                )
+            except MarketFactorSourceError as error:
+                raise RunnerError("MARKET_FACTOR_SOURCE_BINDING_UNAVAILABLE", error.code) from None
+            except Exception:
+                raise RunnerError("MARKET_FACTOR_SOURCE_BINDING_UNAVAILABLE") from None
+            market_source_ref_by_target[target] = identity.source_ref
+
         source_kind = _live_source_lineage_kind(plan)
         startup_time_utc = _aware_datetime(clock.utc_now(), "live startup time")
         if not _remaining_live_grid_minutes(plan["grid"], startup_time_utc):
@@ -10507,6 +7118,7 @@ def run_live(
             config,
             config_path,
             plan,
+            source_refs_by_target=market_source_ref_by_target,
             restart_identity=restart_identity,
             selection_evidence=selection_evidence,
             now=startup_time_utc,
@@ -10514,7 +7126,6 @@ def run_live(
             scopes=scopes,
             source_kind=source_kind,
         )
-        arm_templates = _arm_templates(config, plan) if write_enabled else None
         if saved_history is not None:
             history_cursor = journal.grid_cursor(
                 scopes["account_scope"],
@@ -10551,29 +7162,11 @@ def run_live(
             raise RunnerError("LIVE_HISTORY_TAPE_REQUIRED_FOR_SOURCE_HIGHWATER")
         if store is None:
             create_store()
-        if not query_session_ready and not store.registered_sim_wait_ready(ready_timeout):
-            raise RunnerError("LIVE_CTP_SESSION_NOT_READY")
-        from backtrader.feeds.ctp_factor_source import (
-            CtpFactorSourceBinding,
-            CtpFactorSourceCalendar,
-            parse_ctp_trading_day,
+        session_before_market_feed = _account_session_snapshot(
+            store, write_enabled=write_enabled
         )
-
-        if store is None:
-            raise RunnerError("LIVE_CTP_STORE_UNAVAILABLE_FOR_FACTOR_SOURCE")
-        ctp_factor_source_shutdown_required = True
-        expected_md_generation = store.enable_ctp_factor_tick_source()
-        source_login = store.registered_sim_login_facts()
-        source_trading_day_text = source_login.get("trading_day")
-        try:
-            source_trading_day = parse_ctp_trading_day(source_trading_day_text)
-        except ValueError as exc:
-            raise RunnerError("LIVE_CTP_TRADING_DAY_UNAVAILABLE_FOR_FACTOR_SOURCE") from exc
-        source_calendar = CtpFactorSourceCalendar.from_grid(
-            plan["grid"],
-            config["cohort"]["clock_domain_id"],
-            plan["session_calendars"],
-        )
+        if not _same_sdk_session(session_before_selection, session_before_market_feed):
+            raise RunnerError("LIVE_SESSION_CHANGED_BEFORE_MARKET_FEED")
         cutover_time_utc = _aware_datetime(clock.utc_now(), "live cohort cutover time")
         full_calendar = _make_live_calendar(
             config,
@@ -10583,7 +7176,6 @@ def run_live(
                 if saved_history is not None
                 else cutover_time_utc
             ),
-            ctp_trading_days=True,
         )
         calendar = full_calendar
         source_restart_marker = None
@@ -10592,7 +7184,7 @@ def run_live(
                 LiveCohortError,
                 LiveCohortCalendar,
             )
-            from backtrader.stores.execution_decision_journal import (
+            from bt_api_py.execution_journal import (
                 ExecutionSourceRestartMarker,
             )
 
@@ -10634,7 +7226,6 @@ def run_live(
             config,
             plan["grid"],
             calendar_override=calendar,
-            ctp_trading_days=True,
         )
         if _capture_live_capacity:
             capacity_capture = _new_live_capacity_run_capture(
@@ -10652,46 +7243,22 @@ def run_live(
             selection_evidence=selection_evidence,
             calendar_fingerprint=cohort.calendar_fingerprint,
         )
-        broker = BtApiBroker(
-            store=store,
-            provider="ctp",
-            market_data_only=not write_enabled,
-            force_refresh_queries=False,
-            require_complete_ctp_evidence=True,
-            flatten_on_stop=False,
-            contract_metadata={
-                target: {
-                    "instrument_id": plan["routes"][plan["product_by_target"][target]],
-                    "exchange_id": plan["product_by_target"][target].exchange_id,
-                }
-                for target in plan["targets"]
-            },
-        )
-        grid_budget = risk_policy.max_order_intents_per_grid if risk_policy is not None else 0
-        run_budget = risk_policy.max_order_intents_per_run if risk_policy is not None else 0
-        coordinator = FactorExecutionCoordinator(
-            broker,
-            journal,
-            account_scope=scopes["account_scope"],
-            strategy_scope=scopes["strategy_scope"],
-            logical_run_id=scopes["logical_run_id"],
-            max_order_intents_per_grid=grid_budget,
-            max_order_intents_per_run=run_budget,
-        )
         cerebro = bt.Cerebro(stdstats=False, exactbars=1, runonce=False, preload=False)
         cerebro.setbroker(broker)
         query_targets = []
         for target in plan["targets"]:
             product = plan["product_by_target"][target]
             instrument = plan["routes"][product]
+            source_ref = market_source_ref_by_target[target]
             history_origin = None
-            feed_options = {}
+            feed_options = {
+                "market_factor_source_binding": market_source_binding_by_target[target],
+            }
             if saved_history is not None:
                 from backtrader.research.live_cohort import LiveSourceOrigin
 
                 history_bars = saved_history["bars_by_target"][target]
                 first_history = history_bars[0]
-                source_ref = f"ctp-live:{target}:{instrument}"
                 history_origin = LiveSourceOrigin(
                     member_id=target,
                     epoch_id=config["cohort"]["epoch_id"],
@@ -10706,16 +7273,8 @@ def run_live(
                 feed_options = {
                     "historical_bars": history_bars,
                     "cohort_source_origin": history_origin,
+                    "market_factor_source_binding": market_source_binding_by_target[target],
                 }
-            feed_options["ctp_factor_source_binding"] = CtpFactorSourceBinding(
-                calendar=source_calendar,
-                target_id=target,
-                product=product,
-                instrument_id=instrument,
-                exchange_id=product.exchange_id,
-                trader_trading_day=source_trading_day,
-                expected_md_generation=expected_md_generation,
-            )
             data = store.getdata(
                 dataname=instrument,
                 backfill_start=False,
@@ -10731,7 +7290,7 @@ def run_live(
                 target,
                 data,
                 instrument=instrument,
-                source_ref=f"ctp-live:{target}:{instrument}",
+                source_ref=source_ref,
                 line_fields=OHLCV_FIELDS,
                 raw_fields=OHLCV_FIELDS,
                 clock_domain_id=config["cohort"]["clock_domain_id"],
@@ -10743,11 +7302,30 @@ def run_live(
             query_targets.append(
                 FactorExecutionTarget(
                     target_id=target,
-                    instrument=instrument,
-                    exchange=product.exchange_id,
                     data=data,
+                    instrument=configured_market_instrument_by_target[target],
                 )
             )
+        try:
+            from bt_api_py.query_composition import QueryCompositionError
+            from bt_api_py.query_facade import QueryFacade
+
+            query_facade = store.query_facade(_FUTURES_SDK_ROUTE)
+        except QueryCompositionError as error:
+            code = getattr(error, "code", None)
+            if type(code) is not str or not code.isascii() or not code.startswith("QUERY_"):
+                code = "QUERY_PROVIDER_SELECTION_FAILED"
+            raise RunnerError("LIVE_QUERY_ROUTE_UNAVAILABLE", code) from None
+        except Exception:
+            raise RunnerError("LIVE_QUERY_ROUTE_UNAVAILABLE") from None
+        if type(query_facade) is not QueryFacade:
+            raise RunnerError("LIVE_QUERY_FACADE_TYPE_INVALID")
+        coordinator = FactorExecutionCoordinator(
+            broker,
+            query_facade=query_facade,
+            managed_execution_facade=None,
+            targets=tuple(query_targets),
+        )
         if saved_history is not None:
             from backtrader.research.live_cohort import (
                 LiveCohortError,
@@ -10789,30 +7367,17 @@ def run_live(
             winddown_timeout_seconds=shutdown_grace,
         )
 
-        login = store.registered_sim_login_facts()
-        if login.get("trading_day") != source_trading_day_text:
-            raise RunnerError("LIVE_SESSION_CHANGED_DURING_FACTOR_SOURCE_BINDING")
-        if login.get("read_only_ready") is not True:
-            raise RunnerError("LIVE_CTP_READ_ONLY_STATE_UNAVAILABLE")
-        if write_enabled and login.get("trading_ready") is not True:
-            raise RunnerError("LIVE_CTP_TRADING_STATE_UNAVAILABLE")
-        if write_enabled:
-            # Make the full validated route plan visible to the first sealed
-            # Facts refresh.  Template registration is not native arming and
-            # does not acquire or switch an execution capability.
-            store.registered_sim_configure_arm_templates(arm_templates)
+        session_after_market_feed = _account_session_snapshot(
+            store, write_enabled=write_enabled
+        )
+        if not _same_sdk_session(session_before_market_feed, session_after_market_feed):
+            raise RunnerError("LIVE_SESSION_CHANGED_DURING_MARKET_FEED_BINDING")
 
         refresh_loop = QueryRefreshLoop(
             store,
             broker,
             tuple(query_targets),
             execution_target_ids=tuple(plan["authorized_targets"]),
-            commission_identity_by_target=(
-                _commission_identity_by_target(config, tuple(plan["authorized_targets"]))
-                if write_enabled
-                else None
-            ),
-            commission_required_for_open=write_enabled,
             coordinator=coordinator,
             account_scope=scopes["account_scope"],
             strategy_scope=scopes["strategy_scope"],
@@ -10841,6 +7406,8 @@ def run_live(
             direction,
             risk_policy,
             replay=False,
+            account_route=_FUTURES_SDK_ROUTE,
+            market_environment=simnow_profile["environment"],
             cohort=cohort,
             account_scope=scopes["account_scope"],
             logical_run_id=scopes["logical_run_id"],
@@ -10865,6 +7432,7 @@ def run_live(
                     strategy, event, store=store
                 )
             ),
+            market_instrument_keys=configured_market_instrument_by_target,
         )
         strategy_kwargs["control_refresh_loop"] = refresh_loop
         cerebro.addstrategy(Alpha003TargetStrategy, **strategy_kwargs)
@@ -10963,17 +7531,11 @@ def run_live(
         elif engine_ran:
             try:
                 store_health = store.get_command_health()
-                store_projection = _store_stop_evidence(
-                    store_health,
-                    ctp_factor_source_required=ctp_factor_source_shutdown_required,
-                )
+                store_projection = _store_stop_evidence(store_health)
             except BaseException:
                 store_projection = {
                     "shutdown_state": "UNPROVEN",
-                    "ctp_factor_source_shutdown": {
-                        "required": True,
-                        "status": "UNPROVEN",
-                    },
+                    "market_tick_projector_close_failures": None,
                 }
             broker_closed = (
                 broker_evidence is not None
@@ -10981,13 +7543,10 @@ def run_live(
                 in {"PASS", "OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}
                 and broker_evidence.get("store_shutdown_state") == "PASS"
             )
-            source_closed = _ctp_factor_source_shutdown_complete(
-                store_projection.get("ctp_factor_source_shutdown")
-            )
             if (
                 broker_closed
                 and store_projection.get("shutdown_state") == "PASS"
-                and source_closed
+                and store_projection.get("market_tick_projector_close_failures") == 0
             ):
                 # Cerebro has already stopped the Broker, which owns this
                 # Store's lifecycle. Do not make a second stop call.
@@ -11007,10 +7566,7 @@ def run_live(
                 cleanup,
                 "store",
                 store.stop,
-                project=lambda summary: _store_stop_evidence(
-                    summary,
-                    ctp_factor_source_required=ctp_factor_source_shutdown_required,
-                ),
+                project=_store_stop_evidence,
             )
 
         if result is not None and decision_tape is not None:
@@ -11544,7 +8100,7 @@ def _run_ctp_query_live_epochs(
         "tier": decision.effective_tier,
         "write_mode": bool(allow_write_flag),
         "factor_mode": factor_mode,
-        "selection_source": "ctp_query_snapshot_equal_weight_v1",
+        "selection_source": "futures_market_snapshot_equal_weight_v1",
         "epoch_count": len(summaries),
         "epochs": summaries,
         "query_epoch_attempts": query_attempts,
@@ -11909,7 +8465,7 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
             if hasattr(error, name):
                 value = getattr(error, name)
                 if name == "query_diagnostics":
-                    value = _sanitize_ctp_query_diagnostics(value)
+                    value = _sanitize_futures_snapshot_query_diagnostics(value)
                 payload[name] = value
         print(json.dumps(payload, sort_keys=True, default=str))
         return 2
@@ -11938,7 +8494,7 @@ def run(args=None, *, _live_store_config_override: Optional[Mapping[str, Any]] =
             if hasattr(error, name):
                 value = getattr(error, name)
                 if name == "query_diagnostics":
-                    value = _sanitize_ctp_query_diagnostics(value)
+                    value = _sanitize_futures_snapshot_query_diagnostics(value)
                 payload[name] = value
         print(json.dumps(payload, sort_keys=True, default=str))
         return 1

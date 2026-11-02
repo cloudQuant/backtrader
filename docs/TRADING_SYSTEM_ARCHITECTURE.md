@@ -91,11 +91,11 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 
 ## 7. 当前迁移边界
 
-按用户最新要求，先实施[迭代 53：实盘直连与 Store 职责重构](_internal/opts/requirements/迭代53-实盘直连与Store职责重构/迭代计划.md)，再继续迭代 52。目标是：只安装并选择 Backtrader、bt_api_py 与所需交易所适配时，可走受支持的 direct 下单/撤单路径；Gateway、Risk、Execution、Monitor 和 Runtime 是显式选用的增强组件。所选插件失败时不得静默退回 direct。当前 CTP 普通 Store 仍有直接写入拒绝分支，因此该目标尚未由现有源码证明。
+按用户最新要求，先实施[迭代 53：实盘直连与 Store 职责重构](_internal/opts/requirements/迭代53-实盘直连与Store职责重构/迭代计划.md)，完成结构重构后暂停供用户审查，再处理功能修复与验收。目标是：只安装并选择 Backtrader、bt_api_py 与所需交易所适配时，可走受支持的 direct 下单/撤单路径；Gateway、Risk、Execution、Monitor 和 Runtime 是显式选用的增强组件。所选插件失败时不得静默退回 direct。当前源码中，Store 保留 BT Order、状态机和通知，SDK 定义中立关联订单合同；各 provider 的 direct 订单实现及注册仍待完成，尚不能宣称 CTP 或其他场所的 direct 下单/撤单路径已恢复。真实账户证据另需验收。
 
 各项目统一采用四种交易模式：`replay`、`shadow`、`paper`（外部模拟账户）和 `live`（生产账户）。定义、权限边界及迭代 52 范围见[交易运行模式标准](source/advanced/architecture/trading-modes_zh.md)；模式名称本身不授予账户写权限。
 
-Backtrader 当前仍随包提供 `backtrader_runtime`；新 `bt_api_runtime` 并未替代它。计划按职责梳理旧 runtime 的全部功能：通用控制与编排归新 runtime；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。迭代 52 实现和验收模拟账户 `paper` 与生产账户 `live`；`replay`、`shadow` 和本地模拟先盘点并研究归属，不在本轮使用或验收。延后能力须保留来源及处置记录；迭代 53 内先完成所需能力承接、活跃调用方切换及验证，再删除旧 runtime 和旧门面，不保留旧 API shim；迭代 52 随后基于新边界继续。删除前必须处理未迁移能力的活跃依赖，不能声称延后功能已完成迁移。
+迭代 53 已将旧 `backtrader_runtime` 包与 `backtrader.runtime` 门面从源码树、发行包、`bt-runtime` 入口和 mypy 覆盖中移除，并归档到 `archive/iteration53/`（不安装、不被默认测试收集、不是回退入口）。原 `backtrader/stores/ctp_managed_order_contract.py` 和 `ctp_managed_projection_bridge` 不在当前源码树；CTP 原生合同归 provider，经 SDK 提供，BT 保留框架对象投影。旧能力尚未全部迁完，其中 SDK 的 CTP 凭据审核适配器仍引用已退役 runtime，依赖处置见迭代计划。其余能力按职责分属：通用控制与编排归新 `bt_api_runtime`；Backtrader 对象桥接和框架投影归 Backtrader；CTP 协议归 CTP 项目；共享合同和服务分别归对应 SDK 子项目；认证专用证据与 fixture 留在认证/测试工具。`examples/` 与运维 `scripts/` 中仍引用旧包的入口须逐项迁移或退役，不能据此声称旧入口仍可用。迭代 52 实现和验收模拟账户 `paper` 与生产账户 `live`；`replay`、`shadow` 和本地模拟先盘点并研究归属，不在该迭代使用或验收。
 
 Backtrader `examples/live` 和 `examples/unified` 中涉及模拟和实盘交易的示例都在重构范围，旧示例行为不作为兼容目标。各组件的生产功能、现存证据及未完成验收必须分别保留，历史记录不因重构改写；迁移方案本身不授权新的账户写入。实现、安装、真实行情和真实账户接受需要各自证据。
 

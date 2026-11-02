@@ -1,34 +1,19 @@
 #!/usr/bin/env python
-"""013_2 standard entry — dry self-check / offline replay / SimNow live run.
+"""Unified entry for offline replay and SDK-composed SimNow operation.
 
-Usage (any interpreter; the live CTP path requires CPython 3.11, e.g.
-``C:/anaconda3/python.exe``):
-
-    python run.py                       # dry: config + credential env NAMES only
-    python run.py --replay [--scenario S]  # offline frozen-fixture replay (0 network, 0 writes)
-    python run.py --live --allow-write  # real SimNow simulation account, bounded pair round trip
-    python run.py --live --allow-write --drill --drill-side long   # engineering drill window
-
-Exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
-
-Live execution goes through the SDK narrow registered-sim admission
-(``simnow_direct``): one admission authorizes one instrument, so the two legs
-(rb dominant vs next-dominant) switch the arm strictly between writes; the
-stock Store/managed/production write routes remain closed.  Evidence is
-written under ``evidence/<run_id>/`` (git-ignored).
+The direct CTP helper has been removed. Live observation requires an explicit
+host-owned ManagedRuntimeBinding and routes configuration through bt_api_py.
+The strategy Feed remains unavailable until the SDK provides a qualified
+market clock. --allow-write alone grants no write permission.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
-import hashlib
 import json
 import os
-import signal
 import sys
-import threading
-import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -70,205 +55,15 @@ class LiveRejected(RuntimeError):
         self.exit_code = int(exit_code)
 
 
-_OBSERVATION_CLEANUP_KEEPALIVE: List[Any] = []
-
-
-def _observation_cleanup_error(exc: BaseException, *, phase: str) -> Dict[str, str]:
-    exception_type = type(exc).__name__
-    if exception_type not in {
-        "AttributeError",
-        "AssertionError",
-        "FileNotFoundError",
-        "ImportError",
-        "KeyError",
-        "LiveRejected",
-        "OSError",
-        "RuntimeError",
-        "SimNowDirectError",
-        "TimeoutError",
-        "TypeError",
-        "ValueError",
-    }:
-        exception_type = "OtherException"
-    return {"phase": phase, "exception_type": exception_type}
-
-
-def _observation_close_health_error(health: Any, *, phase: str) -> Optional[Dict[str, str]]:
-    if not isinstance(health, Mapping):
-        return {"phase": phase, "reason": "health_not_mapping"}
-    false_fields = (
-        "worker_alive",
-        "close_thread_alive",
-        "funding_worker_alive",
-        "restart_blocked_by_worker",
-        "restart_blocked_by_close",
-        "funding_restart_blocked_by_worker",
-        "read_only_metadata_probe_active",
-        "funding_inflight",
-    )
-    zero_fields = (
-        "queue_depth",
-        "inflight",
-        "publications_pending",
-        "broker_update_queue_depth",
-        "funding_queue_depth",
-        "funding_pending",
-    )
-    try:
-        if "shutdown_state" not in health:
-            return {"phase": phase, "reason": "health_field_missing", "field": "shutdown_state"}
-        if health.get("shutdown_state") != "PASS":
-            return {"phase": phase, "reason": "shutdown_state_not_pass"}
-        for field in false_fields:
-            if field not in health:
-                return {"phase": phase, "reason": "health_field_missing", "field": field}
-            if type(health[field]) is not bool or health[field] is not False:
-                return {"phase": phase, "reason": "health_flag_not_false", "field": field}
-        for field in zero_fields:
-            if field not in health:
-                return {"phase": phase, "reason": "health_field_missing", "field": field}
-            if type(health[field]) is not int or health[field] != 0:
-                return {"phase": phase, "reason": "health_count_not_zero", "field": field}
-    except Exception:
-        return {"phase": phase, "reason": "health_unreadable"}
-    return None
-
-
-
-def _close_registered_live_store(
-    store: Any, *, timeout: float, action: Optional[str], reason: str
-) -> Optional[Dict[str, Any]]:
-    """Run each selected cleanup operation once and require Store.stop health."""
-    failures: List[Dict[str, str]] = []
-    if action == "freeze":
-        try:
-            store.registered_sim_freeze(reason)
-        except Exception as exc:
-            failures.append(_observation_cleanup_error(exc, phase="registered_sim_freeze"))
-    elif action == "disarm":
-        try:
-            store.registered_sim_disarm(reason)
-        except Exception as exc:
-            failures.append(_observation_cleanup_error(exc, phase="registered_sim_disarm"))
-    try:
-        close_health = store.stop(timeout=timeout)
-    except Exception as exc:
-        failures.append(_observation_cleanup_error(exc, phase="store_stop"))
-    else:
-        close_error = _observation_close_health_error(close_health, phase="store_stop")
-        if close_error is not None:
-            failures.append(close_error)
-    if not failures:
-        return None
-    if not any(item is store for item in _OBSERVATION_CLEANUP_KEEPALIVE):
-        _OBSERVATION_CLEANUP_KEEPALIVE.append(store)
-    return {"phase": "store_cleanup", "failures": failures}
-
-def _observation_write_health_projection(
-    health: Any,
-) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
-    """Validate Store-local write health and project only known fields.
-
-    These values describe this Store's registered gate state. They do not
-    establish native-wide or process-wide absence of writes.
-    """
-    if not isinstance(health, Mapping):
-        return None, {"reason": "health_not_mapping"}
-
-    projection: Dict[str, Any] = {}
-    try:
-        for field in ("armed", "frozen"):
-            if field not in health:
-                return None, {"reason": "health_field_missing", "field": field}
-            value = health[field]
-            if type(value) is not bool or value is not False:
-                return None, {"reason": "health_flag_not_false", "field": field}
-            projection[field] = False
-
-        if "active_orders" not in health:
-            return None, {"reason": "health_field_missing", "field": "active_orders"}
-        active_orders = health["active_orders"]
-        if type(active_orders) is not int or active_orders != 0:
-            return None, {"reason": "health_count_not_zero", "field": "active_orders"}
-        projection["active_orders"] = 0
-
-        optional_counters = ("arm_calls", "submit_calls", "cancel_calls", "native_send_calls")
-        for field in optional_counters:
-            if field not in health:
-                continue
-            value = health[field]
-            if type(value) is not int or value != 0:
-                return None, {"reason": "health_count_not_zero", "field": field}
-            projection[field] = 0
-    except Exception:
-        return None, {"reason": "health_unreadable"}
-
-    return projection, None
-
 def _json_print(payload: Mapping[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
 
 
-def _utc_iso(epoch: float) -> str:
-    return datetime.datetime.fromtimestamp(float(epoch), datetime.timezone.utc).isoformat()
-
-
-def _resolve_ref(value: Any, env: Mapping[str, str], *, field: str) -> str:
-    """Resolve a literal or ``{env: NAME}`` reference; never print values."""
-    if isinstance(value, Mapping):
-        name = str(value.get("env") or "").strip()
-        if not name:
-            raise LiveRejected("credential_ref_missing_name", {"field": field})
-        resolved = str(env.get(name, "") or "").strip()
-        if not resolved:
-            raise LiveRejected("credential_env_missing", {"field": field, "env_name": name})
-        return resolved
-    text = str(value or "").strip()
-    if not text:
-        raise LiveRejected("config_value_missing", {"field": field})
-    return text
-
-
-def _load_env() -> Dict[str, str]:
-    """Merge the checkout-root .env into a name->value view (never injected).
-
-    Values are read by name only; nothing is written back into ``os.environ``
-    so the process keeps its own proxy/network settings (injecting .env proxy
-    hints once broke an SDK HTTP client through a dead local proxy).
-    """
-    values = dict(os.environ)
-    env_path = CHECKOUT_ROOT / ".env"
-    if env_path.is_file():
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            if key and key not in values:
-                values[key] = value.strip().strip('"').strip("'")
-    return values
-
-
 def _ensure_dev_sdk_path(*, strict: bool = False) -> None:
-    """Prefer the dev bt_api_py source tree over any installed copy.
-
-    Mirrors the certification-suite provenance rule: the native CTP path is
-    exercised against the reviewed dev source (``BT_API_PY_ROOT``, default
-    ``D:/bt_api_py``), never a stale site-packages copy.  In ``strict`` mode a
-    resolved-but-wrong origin fails closed before any session exists.
-    """
-    import importlib.util
+    """Prefer the selected bt_api_py source checkout without importing a provider."""
 
     root = Path(os.environ.get("BT_API_PY_ROOT") or "D:/bt_api_py").expanduser()
-    # Only the base and CTP source trees are added: the facade package
-    # directory also ships a ``backtrader`` integration shim and must never
-    # shadow the real framework package.
-    candidates = (
-        root / "bt_api" / "bt_api_base" / "src",
-        root / "bt_api" / "bt_api_ctp" / "src",
-    )
-    for extra in reversed(candidates):
+    for extra in reversed((root, root / "bt_api" / "bt_api_base" / "src")):
         if not extra.is_dir():
             continue
         text = str(extra)
@@ -277,17 +72,26 @@ def _ensure_dev_sdk_path(*, strict: bool = False) -> None:
         sys.path.insert(0, text)
     if not strict:
         return
-    root_text = str(root).replace("\\", "/").lower()
-    loaded = sys.modules.get("bt_api_ctp")
-    if loaded is not None:
-        origin = getattr(loaded, "__file__", "") or ""
-        if root_text not in str(origin).replace("\\", "/").lower():
-            raise LiveRejected("sdk_origin_not_dev_source", {"module": "bt_api_ctp"})
-        return
-    found = importlib.util.find_spec("bt_api_ctp")
-    origin = getattr(found, "origin", None)
-    if origin is None or root_text not in str(origin).replace("\\", "/").lower():
-        raise LiveRejected("sdk_origin_not_dev_source", {"module": "bt_api_ctp", "found": origin is not None})
+
+    import importlib.util
+
+    root = root.resolve()
+    for module_name in ("bt_api_py", "bt_api_base"):
+        loaded = sys.modules.get(module_name)
+        origin = getattr(loaded, "__file__", None) if loaded is not None else None
+        if origin is None:
+            try:
+                spec = importlib.util.find_spec(module_name)
+            except (ImportError, ValueError):
+                spec = None
+            origin = getattr(spec, "origin", None)
+        try:
+            Path(str(origin)).resolve().relative_to(root)
+        except (TypeError, ValueError, OSError):
+            raise LiveRejected(
+                "managed_runtime_sdk_source_unavailable",
+                {"module": module_name},
+            ) from None
 
 
 def _load_config() -> Tuple[Dict[str, Any], Path]:
@@ -483,226 +287,83 @@ def _safe_config() -> Dict[str, Any]:
 
 
 # -------------------------------------------------------------------------- live
-def _rows(result: Any) -> list:
-    if isinstance(result, Mapping):
-        values = result.get("rows")
-        if values is None:
-            values = result.get("records")
-        return [dict(row) if isinstance(row, Mapping) else row for row in (values or [])]
-    for attr in ("records", "rows", "data"):
-        values = getattr(result, attr, None)
-        if isinstance(values, (list, tuple)):
-            return [dict(row) if isinstance(row, Mapping) else row for row in values]
-    return []
+
+def _run_service_observation(args, config=None, tier_evidence=None) -> int:
+    """Reject the removed Iteration 53 service runtime before config or I/O."""
+    _json_print(
+        {
+            "status": "BLOCKED",
+            "mode": "live",
+            "backend": "service",
+            "reason": "BACKTRADER_RUNTIME_CAPABILITY_UNAVAILABLE",
+            "provider_configuration": "not_read",
+            "provider_runtime": "not_started",
+        }
+    )
+    return EXIT_BLOCKED
 
 
-def _row_get(row: Any, *names: str, default: Any = None) -> Any:
-    if isinstance(row, Mapping):
-        for name in names:
-            if row.get(name) is not None:
-                return row[name]
-        return default
-    for name in names:
-        value = getattr(row, name, None)
-        if value is not None:
-            return value
-    return default
 
+# ------------------------------------------------------------------ live observe
+def _provider_runtime_module():
+    """Load this example's small bt_api_py adapter."""
 
-def _order_is_active(row: Any) -> bool:
-    status = str(_row_get(row, "OrderStatus", "order_status", default="") or "")
-    if status in {"0", "4", "5", "a"}:
-        return False
-    remaining = _row_get(row, "VolumeTotal", "volume_total")
-    traded = _row_get(row, "VolumeTraded", "volume_traded", default=0)
+    import importlib.util
+
+    module_name = "_bt_013_2_highfreq_calendar_arbitrage_provider_runtime"
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        return existing
     try:
-        if remaining is not None and float(remaining) - float(traded or 0) <= 0:
-            return False
-    except (TypeError, ValueError):
-        pass
-    return bool(status)
-
-
-def _position_is_open(row: Any) -> bool:
-    for name in ("Position", "position", "YdPosition", "TodayPosition"):
-        value = _row_get(row, name)
-        try:
-            if value is not None and float(value) > 0:
-                return True
-        except (TypeError, ValueError):
-            continue
-    return False
-
-
-def _instrument_metadata(
-    store, symbol: str, exchange: str, config: Mapping[str, Any], timeout: float
-) -> Dict[str, Any]:
-    """Read and validate one instrument's metadata against the frozen expectation."""
-    rows = _rows(
-        store.registered_sim_query(
-            "instruments_result", timeout=timeout, instrument_id=symbol, exchange_id=exchange
+        spec = importlib.util.spec_from_file_location(
+            module_name, HERE / "provider_runtime.py"
         )
-    )
-    row = None
-    for item in rows:
-        if str(_row_get(item, "InstrumentID", "instrument_id", default="")).upper() == symbol.upper():
-            row = item
-            break
-    if row is None:
-        raise LiveRejected("instrument_not_found", {"instrument": symbol, "exchange": exchange})
-    price_tick = _row_get(row, "PriceTick", "price_tick")
-    volume_multiple = _row_get(row, "VolumeMultiple", "volume_multiple")
-    product = "".join(ch for ch in symbol if ch.isalpha()).lower()
-    expectation = dict((config.get("instrument_metadata") or {}).get(product) or {})
-    metadata = {
-        "instrument": symbol,
-        "exchange": exchange,
-        "price_tick": float(price_tick) if price_tick not in (None, "") else None,
-        "volume_multiple": float(volume_multiple) if volume_multiple not in (None, "") else None,
-    }
-    expected_tick = float(expectation.get("price_tick") or 0)
-    expected_multiple = float(expectation.get("volume_multiple") or 0)
-    if (
-        metadata["price_tick"] is None
-        or metadata["volume_multiple"] is None
-        or abs(metadata["price_tick"] - expected_tick) > 1e-9
-        or abs(metadata["volume_multiple"] - expected_multiple) > 1e-9
-    ):
-        raise LiveRejected(
-            "instrument_metadata_mismatch",
-            {
-                "instrument": symbol,
-                "exchange": exchange,
-                "price_tick": metadata["price_tick"],
-                "volume_multiple": metadata["volume_multiple"],
-                "expected_price_tick": expected_tick,
-                "expected_volume_multiple": expected_multiple,
-            },
-        )
-    return metadata
+        if spec is None or spec.loader is None:
+            raise ImportError
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise LiveRejected("managed_runtime_sdk_unavailable") from None
 
 
-def _live_preflight(
-    store,
-    contracts: List[Tuple[str, str]],
-    config: Mapping[str, Any],
-    timeout: float,
-) -> Dict[str, Any]:
-    """Bounded read-only preflight covering both legs and the shared account."""
-    login = store.registered_sim_login_facts()
-    if not (login.get("read_only_ready") or login.get("trading_ready")):
-        raise LiveRejected("login_not_read_ready", {"login": login})
-    trading_day = str(login.get("trading_day") or "")
-    if len(trading_day) != 8 or int(login.get("connection_generation") or 0) <= 0:
-        raise LiveRejected("login_facts_invalid", {"trading_day_shape": len(trading_day)})
-    account = _rows(store.registered_sim_query("account_result", timeout=timeout))
-    positions = _rows(store.registered_sim_query("positions_result", timeout=timeout))
-    orders = _rows(store.registered_sim_query("orders_result", timeout=timeout))
-    metadata = [
-        _instrument_metadata(store, symbol, exchange, config, timeout)
-        for symbol, exchange in contracts
-    ]
-    open_rows = [row for row in positions if _position_is_open(row)]
-    active_orders = [row for row in orders if _order_is_active(row)]
-    starting_equity = 0.0
-    if account:
-        try:
-            starting_equity = float(_row_get(account[0], "Balance", "balance", default=0.0) or 0.0)
-        except (TypeError, ValueError):
-            starting_equity = 0.0
-    if open_rows or active_orders:
-        raise LiveRejected(
-            "account_not_clean_for_pilot",
-            {
-                "positions_open_rows": len(open_rows),
-                "orders_active_rows": len(active_orders),
-                "pilot_requires_flat_and_no_active_orders": True,
-            },
-        )
-    return {
-        "login": login,
-        "trading_day": trading_day,
-        "account_rows": len(account),
-        "positions_open_rows": len(open_rows),
-        "orders_active_rows": len(active_orders),
-        "starting_equity": starting_equity,
-        "metadata": metadata,
-    }
-
-
-def _account_fingerprint(broker_id: str, user_id: str) -> str:
-    payload = json.dumps(
-        {"broker_id": str(broker_id), "user_id": str(user_id)},
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()[:16]
-
-
-def _attach_trade_logger(cerebro, output_directory: Path) -> None:
-    """Attach the named report owner with console streaming disabled."""
-    import backtrader as bt
-
-    cerebro.addobserver(
-        bt.observers.TradeLogger,
-        obsname="trade_logger",
-        log_dir=str(output_directory),
-        log_format="json",
-        log_to_console=False,
-        log_positions=False,
-        log_indicators=False,
-        log_ticks=False,
-        log_bars=False,
-        log_value=False,
-        log_position_snapshot=False,
-    )
-
-
-# ------------------------------------------------------------------ service observe
-def _run_service_observation(args, config: Mapping[str, Any], tier_evidence: Mapping[str, Any]) -> int:
-    from backtrader_runtime.service_observation import ServiceObservationError, observe_service_contracts
-
-    run_id = (
-        f"service-observe-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-        f"-{uuid.uuid4().hex[:8]}"
-    )
-    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
-    summary: Dict[str, Any] = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "example_id": "013_2_highfreq_calendar_arbitrage",
-        "mode": "live",
-        "channel": "observe",
-        "backend": "service",
-        "status": "BLOCKED",
-        "entry_tier": dict(tier_evidence),
-        "write_grant_result": "not_requested_read_only",
-        "trade_execution": "not_run",
-        "evidence_directory": str(output_directory),
-    }
+def _managed_runtime_preflight_reason(
+    *,
+    runtime_binding: object,
+    access_mode: str,
+    authorization_source: object | None,
+    operator_grant: object | None,
+) -> Optional[str]:
+    if runtime_binding is None:
+        return "MANAGED_RUNTIME_BINDING_UNAVAILABLE"
     try:
-        report = observe_service_contracts(
-            getattr(args, "service_config", None),
-            _resolve_live_contracts(config),
-            timeout_ms=getattr(args, "service_timeout_ms", 2000),
-            environ=os.environ,
+        _ensure_dev_sdk_path(strict=True)
+        runtime_adapter = _provider_runtime_module()
+        runtime_adapter.validate_runtime_inputs(
+            runtime_binding=runtime_binding,
+            access_mode=access_mode,
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
         )
-        summary["observation"] = dict(report)
-        summary["status"] = report["status"]
-        result_code = EXIT_PASS if report["status"] == "OBSERVED" else EXIT_BLOCKED
-    except ServiceObservationError as exc:
-        summary["reason"] = exc.code
-        if exc.code == "SERVICE_CLEANUP_UNCONFIRMED":
-            summary["status"] = "UNKNOWN"
-            result_code = EXIT_UNKNOWN
-        else:
-            result_code = EXIT_BLOCKED
     except LiveRejected as exc:
-        summary["reason"] = exc.reason
-        result_code = EXIT_BLOCKED
+        return exc.reason
     except Exception as exc:
-        summary["reason"] = _observation_cleanup_error(exc, phase="service_observation")["exception_type"]
-        result_code = EXIT_BLOCKED
+        adapter = locals().get("runtime_adapter")
+        if adapter is not None and isinstance(exc, adapter.SimNowRuntimeError):
+            return exc.code
+        return "MANAGED_RUNTIME_INPUT_UNAVAILABLE"
+    return None
+
+
+def _persist_live_summary(args, summary: Dict[str, Any], result_code: int) -> int:
+    output_directory = (
+        Path(args.evidence_dir)
+        if getattr(args, "evidence_dir", None)
+        else HERE / "evidence" / str(summary["run_id"])
+    )
+    summary["evidence_directory"] = str(output_directory)
     try:
         output_directory.mkdir(parents=True, exist_ok=True)
         (output_directory / "run.json").write_text(
@@ -711,30 +372,40 @@ def _run_service_observation(args, config: Mapping[str, Any], tier_evidence: Map
         )
     except OSError:
         summary["evidence_write"] = "failed"
-        if summary["status"] == "OBSERVED":
-            summary["status"] = "UNKNOWN"
+        if result_code == EXIT_PASS:
             result_code = EXIT_UNKNOWN
     _json_print(summary)
     return result_code
 
 
-# ------------------------------------------------------------------ live observe
-def run_live_observe(args) -> int:
-    """Open a real SimNow session, read it, and close it. Writes stay unreachable.
+def run_live_observe(
+    args,
+    *,
+    runtime_binding=None,
+    authorization_source=None,
+    operator_grant=None,
+) -> int:
+    """Read neutral account-session state through the SDK; do not start Strategy.
 
-    The live tier used to demand ``--allow-write`` before it would even start, so
-    an operator who only wanted to look at the account had no channel at all.
-    This path resolves the same preconditions, selects a reachable whole front
-    pair, logs in, and reads the account, positions, orders, trades and each
-    leg's instrument metadata, then closes the session.
-
-    It never constructs a Broker or Cerebro, never calls ``registered_sim_arm``,
-    and never submits or cancels an order; the store's own write counters are
-    reported in the summary so the absence of writes is evidenced rather than
-    asserted. A dirty account is *reported*, not refused: the clean-account gate
-    belongs to the write drill, not to observation.
+    This example has no verified Backtrader Feed clock binding for the selected
+    provider stream, so it reports that strategy capability as unavailable.
     """
 
+    if getattr(args, "backend", "direct") == "service":
+        return _run_service_observation(args)
+
+    if runtime_binding is None:
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": "MANAGED_RUNTIME_BINDING_UNAVAILABLE",
+                "provider_configuration": "not_read",
+                "provider_runtime": "not_started",
+                "strategy": "NOT_RUN",
+            }
+        )
+        return EXIT_BLOCKED
     if sys.version_info[:2] != (3, 11):
         _json_print(
             {
@@ -742,933 +413,163 @@ def run_live_observe(args) -> int:
                 "mode": "live",
                 "reason": "live_tier_requires_python_3_11",
                 "current": f"{sys.version_info.major}.{sys.version_info.minor}",
-                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
+                "provider_configuration": "not_read",
             }
         )
         return EXIT_BLOCKED
-    try:
-        config, _config_path = _load_config()
-    except Exception as exc:
-        _json_print({"status": "REJECTED", "mode": "live", "error": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
-        return EXIT_BLOCKED
+
     decision = getattr(args, "tier_decision", None)
-    tier_evidence = decision.as_evidence() if decision is not None else {}
-    if getattr(args, "backend", "direct") == "service":
-        return _run_service_observation(args, config, tier_evidence)
-    errors = _new_section_errors(config)
-    if errors:
-        _json_print({"status": "REJECTED", "mode": "live", "errors": errors})
-        return EXIT_BLOCKED
-    try:
-        env = _load_env()
-        _ensure_dev_sdk_path(strict=True)
-        contracts = _resolve_live_contracts(config)
-    except LiveRejected as exc:
-        _json_print({"status": "BLOCKED", "mode": "live", "reason": exc.reason, "details": exc.details})
-        return exc.exit_code
-    except Exception as exc:
-        _json_print({"status": "BLOCKED", "mode": "live", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
-        return EXIT_BLOCKED
-
-    import simnow_direct
-
-    timeouts = dict(config.get("timeouts") or {})
-    query_timeout = float(timeouts.get("query_seconds") or 8.0)
     run_id = (
         f"observe-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         f"-{uuid.uuid4().hex[:8]}"
     )
-    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
-    output_directory.mkdir(parents=True, exist_ok=True)
     summary: Dict[str, Any] = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "example_id": '013_2_highfreq_calendar_arbitrage',
-        "mode": "live",
-        "channel": "observe",
-        "status": "STARTING",
-        "entry_tier": dict(tier_evidence),
-        "write_grant_result": "not_required_observation_only",
-        "evidence_directory": str(output_directory),
-    }
-
-    def _write_summary() -> None:
-        try:
-            (output_directory / "run.json").write_text(
-                json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
-
-    store = None
-    observation_ready_to_pass = False
-    result_code = EXIT_BLOCKED
-    try:
-        credentials = {
-            "broker_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("broker_id_env"))), {}, field="broker_id"
-            ),
-            "user_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("user_id_env"))), {}, field="user_id"
-            ),
-            "password": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("password_env"))), {}, field="password"
-            ),
-            "app_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("app_id_env"))), {}, field="app_id"
-            ),
-            "auth_code": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("auth_code_env"))), {}, field="auth_code"
-            ),
-        }
-        selection = simnow_direct.select_front_pair(
-            ((config.get("fronts") or {}) or {}).get("pairs") or [],
-            env,
-            samples=3,
-            connect_timeout=3.0,
-        )
-        attempts: List[Dict[str, Any]] = []
-        for candidate in selection["ordered_pairs"]:
-            record: Dict[str, Any] = {
-                "index": candidate["index"],
-                "kind": candidate["kind"],
-                "whitelisted": candidate["whitelisted"],
-                "score_ms": candidate["score_ms"],
-            }
-            attempt_store = simnow_direct.RegisteredSimStore(
-                provider="ctp",
-                backend="direct",
-                config={
-                    "md_front": candidate["md_front"],
-                    "td_front": candidate["td_front"],
-                    "broker_id": credentials["broker_id"],
-                    "investor_id": credentials["user_id"],
-                    "password": credentials["password"],
-                    "app_id": credentials["app_id"],
-                    "auth_code": credentials["auth_code"],
-                    "auto_settlement_confirm": False,
-                    "allow_zero_login_response": bool(
-                        ((config.get("live_market_data") or {}) or {}).get("allow_zero_login_response", False)
-                    ),
-                    "supports_dual_side": True,
-                },
-            )
-            try:
-                attempt_store.start()
-                try:
-                    ready = attempt_store.registered_sim_wait_ready(
-                        timeout=float(timeouts.get("login_seconds") or 30.0)
-                    )
-                except Exception:
-                    ready = False
-                try:
-                    login = attempt_store.registered_sim_login_facts()
-                except Exception:
-                    login = {}
-                if not ready or not (login.get("read_only_ready") or login.get("trading_ready")):
-                    raise LiveRejected("login_not_ready", {"login": login, "wait_ready": ready})
-                record["login"] = login
-                record["readings"] = {
-                    "account_rows": len(_rows(attempt_store.registered_sim_query("account_result", timeout=query_timeout))),
-                    "position_rows": len(
-                        _rows(attempt_store.registered_sim_query("positions_result", timeout=query_timeout))
-                    ),
-                    "order_rows": len(_rows(attempt_store.registered_sim_query("orders_result", timeout=query_timeout))),
-                    "trade_rows": len(_rows(attempt_store.registered_sim_query("trades_result", timeout=query_timeout))),
-                    "instruments": [
-                        _instrument_metadata(attempt_store, symbol, exchange, config, query_timeout)
-                        for symbol, exchange in contracts
-                    ],
-                }
-                record["result"] = "observed"
-            except simnow_direct.SimNowDirectError as exc:
-                record.update({"result": "blocked", "reason": exc.reason, "details": dict(exc.details)})
-            except LiveRejected as exc:
-                record.update({"result": "blocked", "reason": exc.reason, "details": dict(exc.details)})
-            except Exception as exc:
-                record.update({"result": "error", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
-            attempts.append(record)
-            if record["result"] == "observed":
-                store = attempt_store
-                break
-            try:
-                close_health = attempt_store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
-            except Exception as exc:
-                cleanup_error = _observation_cleanup_error(exc, phase="front_attempt_stop")
-            else:
-                cleanup_error = _observation_close_health_error(close_health, phase="front_attempt_stop")
-            if cleanup_error is not None:
-                record.update({"cleanup_status": "uncertain", "cleanup_error": cleanup_error})
-                _OBSERVATION_CLEANUP_KEEPALIVE.append(attempt_store)
-                summary["admission_attempts"] = attempts
-                raise LiveRejected(
-                    "cleanup_uncertain",
-                    {"front_index": record["index"], "cleanup_error": cleanup_error},
-                )
-            else:
-                record["cleanup_status"] = "closed"
-        summary["admission_attempts"] = attempts
-        if store is None:
-            raise LiveRejected("no_observable_front_pair", {"attempts": attempts})
-        observed = next(record for record in attempts if record["result"] == "observed")
-        summary["selected_pair_index"] = observed["index"]
-        summary["selected_pair_kind"] = observed["kind"]
-        summary["login"] = observed["login"]
-        summary["readings"] = observed["readings"]
-        try:
-            raw_write_health = store.registered_sim_write_health()
-        except Exception:
-            write_health, write_health_error = None, {"reason": "health_unreadable"}
-        else:
-            write_health, write_health_error = _observation_write_health_projection(
-                raw_write_health
-            )
-        if write_health_error is not None:
-            summary["write_health_error"] = write_health_error
-            summary.update(
-                {
-                    "status": "BLOCKED",
-                    "reason": "write_health_unconfirmed",
-                    "details": dict(write_health_error),
-                }
-            )
-            result_code = EXIT_BLOCKED
-        else:
-            summary["write_health"] = write_health
-            observation_ready_to_pass = True
-    except simnow_direct.SimNowDirectError as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
-        result_code = EXIT_BLOCKED
-    except LiveRejected as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": dict(exc.details)})
-        if exc.reason == "cleanup_uncertain":
-            summary["cleanup_status"] = "uncertain"
-            summary["cleanup_error"] = dict(exc.details.get("cleanup_error") or {})
-        result_code = exc.exit_code
-    except Exception as exc:
-        summary.update({"status": "BLOCKED", "reason": _observation_cleanup_error(exc, phase="observation_handler")["exception_type"]})
-        result_code = EXIT_BLOCKED
-    finally:
-        if store is not None:
-            try:
-                close_health = store.stop(timeout=float(timeouts.get("stop_seconds") or 12.0))
-            except Exception as exc:
-                cleanup_error = _observation_cleanup_error(exc, phase="selected_store_stop")
-            else:
-                cleanup_error = _observation_close_health_error(close_health, phase="selected_store_stop")
-            if cleanup_error is not None:
-                _OBSERVATION_CLEANUP_KEEPALIVE.append(store)
-                summary.update(
-                    {
-                        "status": "BLOCKED",
-                        "reason": "cleanup_uncertain",
-                        "cleanup_status": "uncertain",
-                        "cleanup_error": cleanup_error,
-                    }
-                )
-                for record in summary.get("admission_attempts", []):
-                    if record.get("result") == "observed":
-                        record.update({"cleanup_status": "uncertain", "cleanup_error": cleanup_error})
-                        break
-                observation_ready_to_pass = False
-                result_code = EXIT_BLOCKED
-            else:
-                summary["cleanup_status"] = "closed"
-                for record in summary.get("admission_attempts", []):
-                    if record.get("result") == "observed":
-                        record["cleanup_status"] = "closed"
-                        break
-                if observation_ready_to_pass:
-                    summary["status"] = "LIVE_OBSERVE_PASS"
-                    summary["boundary"] = "SESSION_AND_QUERY_OBSERVATION_ONLY_NOT_MARKET_OR_PROFITABILITY_EVIDENCE"
-                    result_code = EXIT_PASS
-        _write_summary()
-        _json_print(summary)
-    return result_code
-
-
-def run_live(args) -> int:
-    tier_decision = getattr(args, "tier_decision", None)
-    tier_evidence = tier_decision.as_evidence() if tier_decision is not None else {}
-    write_grant_result = (
-        "requested_not_yet_admitted"
-        if getattr(args, "allow_write", False)
-        else "not_requested"
-    )
-    if getattr(args, "backend", "direct") == "service":
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": "rejected_service_write_request",
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": "service_write_backend_unsupported",
-            }
-        )
-        return EXIT_BLOCKED
-    if not args.allow_write:
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "REJECTED",
-                "mode": "live",
-                "error": "write_consent_missing",
-                "hint": "live SimNow acceptance requires an explicit --allow-write grant",
-            }
-        )
-        return EXIT_BLOCKED
-    if sys.version_info[:2] != (3, 11):
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": "live_tier_requires_python_3_11",
-                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
-                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
-            }
-        )
-        return EXIT_BLOCKED
-    try:
-        config, config_path = _load_config()
-    except Exception as exc:
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "REJECTED",
-                "mode": "live",
-                "error": f"{type(exc).__name__}: {exc}",
-            }
-        )
-        return EXIT_BLOCKED
-    errors = _new_section_errors(config)
-    if errors:
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "REJECTED",
-                "mode": "live",
-                "errors": errors,
-            }
-        )
-        return EXIT_BLOCKED
-    try:
-        env = _load_env()
-        _ensure_dev_sdk_path(strict=True)
-        contracts = _resolve_live_contracts(config)
-    except LiveRejected as exc:
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": exc.reason,
-                "details": exc.details,
-            }
-        )
-        return exc.exit_code
-    except Exception as exc:
-        _json_print(
-            {
-                "entry_tier": dict(tier_evidence or {}),
-                "write_grant_result": write_grant_result,
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": f"{type(exc).__name__}: {exc}",
-            }
-        )
-        return EXIT_BLOCKED
-
-    import backtrader as bt
-
-    import legacy_runner
-    import simnow_direct
-    from backtrader.brokers.btapibroker import BtApiBroker
-
-    timeouts = dict(config.get("timeouts") or {})
-    policy = dict(config.get("policy") or {})
-    strategy_params = dict(config.get("strategy_params") or {})
-    run_seconds = float(args.run_seconds or timeouts.get("run_seconds") or 600.0)
-    if run_seconds > 3600.0:
-        run_seconds = 3600.0
-    run_id = (
-        f"live-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-        f"-{uuid.uuid4().hex[:8]}"
-    )
-    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
-    output_directory.mkdir(parents=True, exist_ok=True)
-    summary: Dict[str, Any] = {
-        "entry_tier": dict(tier_evidence or {}),
-        "write_grant_result": write_grant_result,
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "example_id": "013_2_highfreq_calendar_arbitrage",
         "mode": "live",
-        "status": "STARTING",
-        "trigger": "drill" if args.drill else "natural",
-        "evidence_directory": str(output_directory),
+        "channel": "observe",
+        "status": "BLOCKED",
+        "entry_tier": decision.as_evidence() if decision is not None else {},
+        "write_grant_result": "not_requested_read_only",
+        "provider_route": "CTP___FUTURE",
+        "provider_configuration": "pending",
+        "provider_runtime": "not_started",
+        "strategy": "NOT_RUN",
+        "market_feed": "UNAVAILABLE",
+        "reason": "MANAGED_RUNTIME_OBSERVATION_UNAVAILABLE",
     }
-    started_mono = time.monotonic()
-    started_wall = time.time()
-
-    def _write_summary() -> None:
-        try:
-            (output_directory / "run.json").write_text(
-                json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
-
-    store = None
-    frozen = False
+    composition = None
     result_code = EXIT_BLOCKED
+    adapter = None
     try:
-        credentials = {
-            "broker_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("broker_id_env"))),
-                {},
-                field="broker_id",
-            ),
-            "user_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("user_id_env"))),
-                {},
-                field="user_id",
-            ),
-            "password": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("password_env"))),
-                {},
-                field="password",
-            ),
-            "app_id": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("app_id_env"))),
-                {},
-                field="app_id",
-            ),
-            "auth_code": _resolve_ref(
-                env.get(str((config.get("credentials") or {}).get("auth_code_env"))),
-                {},
-                field="auth_code",
-            ),
+        input_reason = _managed_runtime_preflight_reason(
+            runtime_binding=runtime_binding,
+            access_mode="read_only",
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+        )
+        if input_reason is not None:
+            summary["reason"] = input_reason
+            summary["provider_configuration"] = "not_read"
+            return _persist_live_summary(args, summary, EXIT_BLOCKED)
+
+        adapter = _provider_runtime_module()
+        configuration, composition = adapter.compose_provider_runtime(
+            config_path=HERE / "config.yaml",
+            credential_env_file=CHECKOUT_ROOT / ".env",
+            runtime_binding=runtime_binding,
+            access_mode="read_only",
+        )
+        del configuration
+        summary["provider_configuration"] = "selected"
+        summary["provider_runtime"] = "composed_read_only"
+
+        from backtrader.stores import BtApiStore
+        from bt_api_py.facade_protocol import AccountSessionSnapshot
+
+        store = BtApiStore(api=composition.api, provider="btapi", autostart=False)
+        snapshot = store.account_session_snapshot("CTP___FUTURE")
+        if type(snapshot) is not AccountSessionSnapshot:
+            raise LiveRejected("account_session_projection_invalid")
+        summary["account_session"] = {
+            "available": snapshot.available,
+            "connected": snapshot.connected,
+            "authenticated": snapshot.authenticated,
+            "trading_enabled": snapshot.trading_enabled,
+            "settlement_status": snapshot.settlement_status,
+            "blocker_count": len(snapshot.blockers),
         }
-        account_fingerprint = _account_fingerprint(credentials["broker_id"], credentials["user_id"])
-        selection = simnow_direct.select_front_pair(
-            ((config.get("fronts") or {}) or {}).get("pairs") or [],
-            env,
-            samples=3,
-            connect_timeout=3.0,
-        )
-        strategy_path = HERE / "calendar_arbitrage_strategy.py"
-        config_digest = simnow_direct.canonical_sha256(
-            {"config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest()}
-        )
-        identity_sha = simnow_direct.strategy_identity_sha256(
-            strategy_path,
-            {
-                "strategy_id": "example.013_2.highfreq_calendar_arbitrage",
-                "instrument": "+".join(symbol for symbol, _exchange in contracts),
-                "exchange": "+".join(exchange for _symbol, exchange in contracts),
-            },
-        )
-        # Whole pairs are attempted in ranked order (fresh session per
-        # attempt) strictly before any write; the first pair armable for BOTH
-        # legs wins and every attempt is recorded.
-        attempts: List[Dict[str, Any]] = []
-        store = None
-        armed: Optional[Dict[str, Any]] = None
-        for candidate in selection["ordered_pairs"]:
-            attempt_record: Dict[str, Any] = {
-                "index": candidate["index"],
-                "kind": candidate["kind"],
-                "whitelisted": candidate["whitelisted"],
-                "score_ms": candidate["score_ms"],
-            }
-            attempt_store = simnow_direct.RegisteredSimStore(
-                provider="ctp",
-                backend="direct",
-                config={
-                    "md_front": candidate["md_front"],
-                    "td_front": candidate["td_front"],
-                    "broker_id": credentials["broker_id"],
-                    "investor_id": credentials["user_id"],
-                    "password": credentials["password"],
-                    "app_id": credentials["app_id"],
-                    "auth_code": credentials["auth_code"],
-                    "auto_settlement_confirm": False,
-                    "allow_zero_login_response": bool(
-                        ((config.get("live_market_data") or {}) or {}).get(
-                            "allow_zero_login_response", False
-                        )
-                    ),
-                    # CTP positions are directionally separate; declare the
-                    # dual-side ledger capability for this wrapper route.
-                    "supports_dual_side": True,
-                },
-            )
-            try:
-                attempt_store.start()
-                try:
-                    ready = attempt_store.registered_sim_wait_ready(
-                        timeout=float(timeouts.get("login_seconds") or 30.0)
-                    )
-                except Exception:
-                    ready = False
-                login_facts: Dict[str, Any] = {}
-                try:
-                    login_facts = attempt_store.registered_sim_login_facts()
-                except Exception:
-                    login_facts = {}
-                if not ready or not (
-                    login_facts.get("read_only_ready") or login_facts.get("trading_ready")
-                ):
-                    raise LiveRejected("login_not_ready", {"login": login_facts, "wait_ready": ready})
-                preflight = _live_preflight(
-                    attempt_store,
-                    contracts,
-                    config,
-                    float(timeouts.get("query_seconds") or 8.0),
-                )
-                # Verify the pair is armable for BOTH legs before any run:
-                # arm the first leg, revoke, then arm the second leg and keep
-                # it armed (the wrapper re-arms per write during the run).
-                arm_states: List[Dict[str, Any]] = []
-                for index, (symbol, exchange) in enumerate(contracts):
-                    if index > 0:
-                        attempt_store.registered_sim_disarm("admission_verify_next_leg")
-                    arm_result = attempt_store.registered_sim_arm(
-                        instrument=symbol,
-                        exchange=exchange,
-                        md_front=candidate["md_front"],
-                        strategy_identity_sha256=identity_sha,
-                        execution_cycle_id=run_id,
-                        preflight_sha256=simnow_direct.canonical_sha256(
-                            {
-                                "config_digest": config_digest,
-                                "login": preflight["login"],
-                                "metadata": preflight["metadata"][index],
-                                "account_rows": preflight["account_rows"],
-                                "positions_open_rows": preflight["positions_open_rows"],
-                                "orders_active_rows": preflight["orders_active_rows"],
-                                "started_utc": _utc_iso(started_wall),
-                            }
-                        ),
-                    )
-                    arm_states.append(
-                        {
-                            "instrument": symbol,
-                            "exchange": exchange,
-                            "armed": bool(arm_result.get("armed")),
-                            "gate_state": arm_result.get("state"),
-                        }
-                    )
-                attempt_record["admission"] = "armed"
-                attempt_record["legs"] = arm_states
-                attempts.append(attempt_record)
-                store = attempt_store
-                armed = {
-                    "candidate": candidate,
-                    "preflight": preflight,
-                    "account_fingerprint": account_fingerprint,
-                    "arm_states": arm_states,
-                }
-                break
-            except Exception as exc:
-                attempt_record["error_type"] = _observation_cleanup_error(
-                    exc, phase="front_admission"
-                )["exception_type"]
-                if isinstance(exc, LiveRejected):
-                    attempt_record["error"] = exc.reason
-                    attempt_record["error_details"] = dict(exc.details)
-                elif isinstance(exc, simnow_direct.SimNowDirectError):
-                    attempt_record["error"] = exc.reason
-                    attempt_record["error_details"] = dict(exc.details)
-                cleanup_error = _close_registered_live_store(
-                    attempt_store,
-                    timeout=float(timeouts.get("stop_seconds") or 12.0),
-                    action="disarm",
-                    reason="pair_attempt_failed",
-                )
-                if cleanup_error is not None:
-                    attempt_record["cleanup_status"] = "uncertain"
-                    attempt_record["cleanup_error"] = cleanup_error
-                    summary["cleanup_status"] = "uncertain"
-                    summary["cleanup_error"] = cleanup_error
-                    attempts.append(attempt_record)
-                    store = None
-                    summary["admission_attempts"] = attempts
-                    summary["cleanup_prior_outcome"] = {"business_error_type": attempt_record.get("error_type")}
-                    if attempt_record.get("error") is not None:
-                        summary["cleanup_prior_outcome"]["reason"] = attempt_record["error"]
-                    if attempt_record.get("error_details") is not None:
-                        summary["cleanup_prior_outcome"]["details"] = attempt_record["error_details"]
-                    raise LiveRejected("cleanup_uncertain", {"cleanup_error": cleanup_error})
-                attempt_record["cleanup_status"] = "closed"
-                attempts.append(attempt_record)
-                store = None
-        summary["admission_attempts"] = attempts
-        if armed is None:
-            raise LiveRejected("no_admissible_front_pair", {"attempts": attempts})
-        armed_candidate = armed["candidate"]
-        preflight = armed["preflight"]
-        account_fingerprint = armed["account_fingerprint"]
-        arm_states = armed["arm_states"]
-        summary["environment"] = {
-            "venue": "simnow",
-            "front_selection": selection["receipt"],
-            "selected_index": armed_candidate["index"],
-            "selected_whitelisted": armed_candidate["whitelisted"],
-            "contracts": [
-                {"instrument": symbol, "exchange": exchange} for symbol, exchange in contracts
-            ],
-            "environment_switched_after_write": False,
-        }
-        summary["preflight"] = {
-            "trading_day": preflight["trading_day"],
-            "connection_generation": preflight["login"].get("connection_generation"),
-            "account_rows": preflight["account_rows"],
-            "starting_equity": preflight["starting_equity"],
-            "metadata": preflight["metadata"],
-            "pilot_account_flat_and_clean": True,
-        }
-        summary["admission"] = {
-            "admitted": all(item["armed"] for item in arm_states),
-            "legs": arm_states,
-            "execution_cycle_id": run_id,
-            "strategy_identity_sha256": identity_sha,
-            "gate_state": arm_states[-1].get("gate_state"),
-        }
-        if summary["admission"].get("admitted") is True:
-            summary["write_grant_result"] = "admitted"
-
-        # Install the per-leg arm templates so every native write switches
-        # (disarm+arm) to the exact outbound instrument strictly between
-        # writes, then anchor the armed state for the second leg.
-        arm_templates = {}
-        for index, (symbol, exchange) in enumerate(contracts):
-            arm_templates[(symbol, exchange)] = {
-                "md_front": armed_candidate["md_front"],
-                "strategy_identity_sha256": identity_sha,
-                "execution_cycle_id": run_id,
-                "preflight_sha256": simnow_direct.canonical_sha256(
-                    {
-                        "config_digest": config_digest,
-                        "login": preflight["login"],
-                        "metadata": preflight["metadata"][index],
-                        "account_rows": preflight["account_rows"],
-                        "positions_open_rows": preflight["positions_open_rows"],
-                        "orders_active_rows": preflight["orders_active_rows"],
-                        "started_utc": _utc_iso(started_wall),
-                    }
-                ),
-            }
-        store.registered_sim_configure_arm_templates(arm_templates)
-        anchor_symbol, anchor_exchange = contracts[-1]
-        store.registered_sim_ensure_arm(anchor_symbol, anchor_exchange)
-
-        trigger = None
-        if args.drill:
-            delay = float(args.drill_delay_seconds if args.drill_delay_seconds is not None else 30.0)
-            window = float(args.drill_window_seconds if args.drill_window_seconds is not None else 600.0)
-            now_wall = time.time()
-            trigger = {
-                "trigger_id": f"drill-{uuid.uuid4().hex[:8]}",
-                "instrument": "+".join(symbol for symbol, _exchange in contracts),
-                "trading_day": preflight["trading_day"],
-                "not_before_utc": _utc_iso(now_wall + delay),
-                "not_after_utc": _utc_iso(now_wall + delay + window),
-                "not_before_epoch": now_wall + delay,
-                "not_after_epoch": now_wall + delay + window,
-                "side": str(args.drill_side or "long"),
-            }
-            summary["drill"] = dict(trigger)
-
-        params = dict(strategy_params)
-        params["close_offsets"] = {
-            symbol: legacy_runner.close_offset_for_exchange(exchange)
-            for symbol, exchange in contracts
-        }
-        params["deadline_clock"] = time.monotonic
-        params["broker_position_mode"] = "dual_side"
-        # The direct CTP first-version lane accepts GFD only; IOC stays the
-        # offline replay default and never leaves the process there.
-        params["time_in_force"] = "GFD"
-        if args.drill:
-            drill_config = dict(config.get("drill") or {})
-            params["max_pairs"] = 1
-            params["max_holding_seconds"] = float(drill_config.get("hold_seconds") or 240.0)
-            params["period"] = max(3, int(args.drill_warmup_bars if args.drill_warmup_bars is not None else 8))
-            params["engineering_trigger"] = trigger
-        broker = BtApiBroker(
-            store=store,
-            provider="btapi",
-            position_mode="dual_side",
-            max_order_size=int(strategy_params.get("order_lots") or 1),
-            cash_check_enabled=True,
-            sdk_preflight=False,
-            require_complete_ctp_evidence=True,
-            market_data_only=False,
-            startup_account_state={
-                "nonzero_position_record_count": int(preflight["positions_open_rows"]),
-                "gross_position_lots": 0,
-                "active_orders_count": int(preflight["orders_active_rows"]),
-            },
-            force_refresh_queries=False,
-            position_sync_policy="startup",
-            account_refresh_interval=3600.0,
-            open_orders_refresh_interval=3600.0,
-            flatten_on_stop=False,
-            shutdown_timeout=float(timeouts.get("drain_seconds") or 120.0),
-        )
-        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-        cerebro.setbroker(broker)
-        feed_config = dict(config.get("feed") or {})
-        feed_config.pop("timeframe", None)
-        for symbol, _exchange in contracts:
-            feed = store.getdata(
-                dataname=symbol,
-                timeframe=bt.TimeFrame.Minutes,
-                **feed_config,
-            )
-            cerebro.adddata(feed, name=symbol)
-        _attach_trade_logger(cerebro, output_directory)
-        strategy_cls = __import__("calendar_arbitrage_strategy").PairArbitrageStrategy
-        cerebro.addstrategy(strategy_cls, **params)
-
-        previous_sigint = signal.getsignal(signal.SIGINT)
-        previous_sigterm = signal.getsignal(signal.SIGTERM)
-
-        stop_requested = {"flag": False}
-
-        def _request_stop(_reason: str) -> None:
-            stop_requested["flag"] = True
-
-        signal.signal(signal.SIGINT, lambda *_a: _request_stop("operator_sigint"))
-        signal.signal(signal.SIGTERM, lambda *_a: _request_stop("operator_sigterm"))
-
-        deadline_mono = started_mono + run_seconds
-
-        def _watchdog() -> None:
-            while True:
-                if stop_requested["flag"] or time.monotonic() >= deadline_mono:
-                    break
-                time.sleep(0.5)
-            # Hard-stop fallback: bounded drain plus stop-grace, then stop the
-            # loop even if the strategy is still working.
-            hard_deadline = (
-                time.monotonic()
-                + float(timeouts.get("drain_seconds") or 120.0)
-                + 2.0 * float(timeouts.get("stop_seconds") or 12.0)
-            )
-            while time.monotonic() < hard_deadline:
-                if getattr(getattr(cerebro, "_event_stop", None), "is_set", lambda: False)():
-                    return
-                time.sleep(1.0)
-            try:
-                cerebro.runstop()
-            except Exception:
-                pass
-
-        watchdog = threading.Thread(target=_watchdog, name="pair-run-watchdog", daemon=True)
-        watchdog.start()
-        summary["status"] = "RUNNING"
-        _write_summary()
-        run_error = None
-        try:
-            cerebro.run()
-        except Exception as exc:  # keep bounded evidence even on loop failure
-            run_error = f"{type(exc).__name__}: {exc}"
-        finally:
-            stop_requested["flag"] = True
-            watchdog.join(timeout=2.0)
-            signal.signal(signal.SIGINT, previous_sigint)
-            signal.signal(signal.SIGTERM, previous_sigterm)
-
-        runstrats = getattr(cerebro, "runstrats", None) or []
-        strategy_instance = runstrats[0][0] if runstrats and runstrats[0] else None
-        strategy_diagnostics: Dict[str, Any] = {}
-        if strategy_instance is not None:
-            builder = getattr(strategy_instance, "_report_context", None)
-            if callable(builder):
-                try:
-                    context = builder() or {}
-                    strategy_diagnostics = {
-                        key: context.get(key)
-                        for key in (
-                            "halted",
-                            "halt_reason",
-                            "pair_actions",
-                            "open_attempts",
-                            "ticks_seen",
-                            "engineering_trigger_fired",
-                            "positions",
-                            "net_pnl",
-                            "execution_state",
-                        )
-                    }
-                except Exception as exc:
-                    strategy_diagnostics = {"error": f"{type(exc).__name__}: {exc}"}
-        orders_ledger = (
-            getattr(strategy_instance, "orders", None) if strategy_instance is not None else None
-        )
-        if isinstance(orders_ledger, dict) and orders_ledger:
-            # Persist the strategy's own order transitions (status, error code
-            # and message) so a pre-native broker rejection is diagnosable
-            # from the evidence alone.
-            summary["strategy_order_ledger"] = {
-                str(ref): dict(entry)
-                for ref, entry in list(orders_ledger.items())[-40:]
-            }
-        # Session-scoped trade accounting: only orders submitted by THIS run
-        # may count as the acceptance round trip (the shared simulation
-        # account carries unrelated order/trade history).
-        our_order_refs = set()
-        try:
-            order_state = getattr(store._api, "_order_state", None)
-            if isinstance(order_state, dict):
-                our_order_refs = set(order_state)
-        except Exception:
-            our_order_refs = set()
-        try:
-            final_positions = _rows(store.registered_sim_query("positions_result", timeout=8.0))
-            final_orders = _rows(store.registered_sim_query("orders_result", timeout=8.0))
-            final_trades = _rows(store.registered_sim_query("trades_result", timeout=8.0))
-            final_account = _rows(store.registered_sim_query("account_result", timeout=8.0))
-        except Exception as exc:
-            final_positions, final_orders, final_trades, final_account = [], [], [], []
-            summary["post_run_query_error"] = f"{type(exc).__name__}: {exc}"
-        residual_open = [row for row in final_positions if _position_is_open(row)]
-        residual_active = [row for row in final_orders if _order_is_active(row)]
-        entry_by_symbol = {symbol: 0.0 for symbol, _exchange in contracts}
-        close_by_symbol = {symbol: 0.0 for symbol, _exchange in contracts}
-        symbol_lookup = {symbol.upper(): symbol for symbol, _exchange in contracts}
-        scoped_trade_rows = 0
-        for row in final_trades:
-            ref = str(_row_get(row, "OrderRef", "order_ref", default="") or "").strip()
-            if ref not in our_order_refs:
-                continue
-            scoped_trade_rows += 1
-            native_symbol = str(
-                _row_get(row, "InstrumentID", "instrument_id", default="") or ""
-            ).upper()
-            symbol = symbol_lookup.get(native_symbol)
-            if symbol is None:
-                continue
-            offset = str(_row_get(row, "OffsetFlag", "offset_flag", default="") or "")
-            volume = float(_row_get(row, "Volume", "volume", default=0) or 0)
-            if offset == "0":
-                entry_by_symbol[symbol] += volume
-            else:
-                close_by_symbol[symbol] += volume
-        gate = store.registered_sim_status()
-        arm_history = store.registered_sim_arm_history()
-        summary.update(
-            {
-                "run": {
-                    "started_utc": _utc_iso(started_wall),
-                    "finished_utc": _utc_iso(time.time()),
-                    "seconds": round(time.monotonic() - started_mono, 3),
-                    "run_error": run_error,
-                },
-                "orders": {
-                    "trade_rows": scoped_trade_rows,
-                    "entry_by_symbol": entry_by_symbol,
-                    "close_by_symbol": close_by_symbol,
-                    "active_orders": len(residual_active),
-                    "scoped_to_session": True,
-                    "session_order_refs": len(our_order_refs),
-                    "account_trade_rows": len(final_trades),
-                },
-                "strategy_diagnostics": strategy_diagnostics,
-                "arm_history": arm_history,
-                "reconciliation": {
-                    "open_position_rows": len(residual_open),
-                    "account_rows": len(final_account),
-                    "gate_state": gate,
-                },
-            }
-        )
-        entry_complete = all(entry_by_symbol[symbol] > 0 for symbol, _exchange in contracts)
-        close_complete = all(
-            close_by_symbol[symbol] >= entry_by_symbol[symbol] for symbol, _exchange in contracts
-        )
-        if run_error is not None:
-            summary["status"] = "UNKNOWN"
-            code = EXIT_UNKNOWN
-        elif residual_open or residual_active:
-            summary["status"] = "UNKNOWN"
-            summary["reason"] = "residual_exposure_after_run"
-            code = EXIT_UNKNOWN
-            frozen = True
-        elif entry_complete and close_complete:
-            summary["status"] = "PASS"
-            code = EXIT_PASS
-        elif not any(entry_by_symbol.values()) and not any(close_by_symbol.values()):
-            summary["status"] = "FAIL"
-            summary["reason"] = "no_fill_round_trip"
-            code = EXIT_FAIL
-        else:
-            summary["status"] = "UNKNOWN"
-            summary["reason"] = "partial_round_trip"
-            code = EXIT_UNKNOWN
-        summary["tier"] = "fill_round_trip" if summary["status"] == "PASS" else "lifecycle_only"
-        summary["writes_policy"] = {"max_actions": policy.get("max_actions"), "allow_write": True}
-        result_code = code
-    except simnow_direct.SimNowDirectError as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        result_code = EXIT_BLOCKED
+        summary["reason"] = "MARKET_TICK_CLOCK_UNAVAILABLE"
     except LiveRejected as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        result_code = exc.exit_code
+        summary["reason"] = exc.reason
     except Exception as exc:
-        failure = _observation_cleanup_error(exc, phase="live_handler")
-        summary.update({"status": "BLOCKED", "reason": "handler_exception", "business_error_type": failure["exception_type"]})
-        result_code = EXIT_BLOCKED
+        if adapter is not None and isinstance(exc, adapter.SimNowRuntimeError):
+            summary["reason"] = exc.code
+        else:
+            summary["reason"] = "MANAGED_RUNTIME_OBSERVATION_FAILED"
     finally:
-        if store is not None:
-            cleanup_error = _close_registered_live_store(
-                store,
-                timeout=float((config.get('timeouts') or {}).get("stop_seconds") or 12.0),
-                action="freeze" if frozen else "disarm",
-                reason="residual_exposure_after_run" if frozen else "run_finished",
-            )
-            if cleanup_error is None:
-                summary["cleanup_status"] = "closed"
-            else:
-                prior_outcome = {"status": summary.get("status")}
-                for field in ("reason", "business_error_type", "details"):
-                    if summary.get(field) is not None:
-                        prior_outcome[field] = summary.get(field)
-                summary["cleanup_prior_outcome"] = prior_outcome
-                summary.update(
-                    {
-                        "status": "BLOCKED",
-                        "reason": "cleanup_uncertain",
-                        "cleanup_status": "uncertain",
-                        "cleanup_error": cleanup_error,
-                    }
-                )
-                result_code = EXIT_BLOCKED
-        _write_summary()
-        _json_print(summary)
-    return result_code
+        if composition is not None:
+            try:
+                composition.close()
+                summary["runtime_close"] = "closed"
+            except Exception:
+                summary["runtime_close"] = "uncertain"
+                summary["status"] = "UNKNOWN"
+                summary["reason"] = "MANAGED_RUNTIME_CLOSE_FAILED"
+                result_code = EXIT_UNKNOWN
+    return _persist_live_summary(args, summary, result_code)
+
+
+def run_live(
+    args,
+    *,
+    runtime_binding=None,
+    authorization_source=None,
+    operator_grant=None,
+) -> int:
+    """Keep writing unavailable until this example has a qualified SDK Feed."""
+
+    if getattr(args, "backend", "direct") == "service":
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "reason": "service_write_backend_unsupported",
+                "write_grant_result": "rejected_before_provider_io",
+            }
+        )
+        return EXIT_BLOCKED
+    input_reason = _managed_runtime_preflight_reason(
+        runtime_binding=runtime_binding,
+        access_mode="managed_execution",
+        authorization_source=authorization_source,
+        operator_grant=operator_grant,
+    )
+    if input_reason is not None:
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "mode": "live",
+                "reason": input_reason,
+                "provider_configuration": "not_read",
+                "provider_runtime": "not_started",
+                "write_grant_result": "not_verified",
+                "strategy": "NOT_RUN",
+            }
+        )
+        return EXIT_BLOCKED
+    _json_print(
+        {
+            "status": "BLOCKED",
+            "mode": "live",
+            "reason": "MARKET_TICK_CLOCK_UNAVAILABLE",
+            "provider_configuration": "not_read",
+            "provider_runtime": "not_started",
+            "write_grant_result": "not_verified",
+            "execution_authorization": "not_consumed",
+            "strategy": "NOT_RUN",
+            "market_feed": "UNAVAILABLE",
+        }
+    )
+    return EXIT_BLOCKED
 
 # -------------------------------------------------------------------------- main
-def main(argv=None) -> int:
+def main(
+    argv=None,
+    *,
+    runtime_binding=None,
+    authorization_source=None,
+    operator_grant=None,
+) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--replay", action="store_true", help="offline frozen-fixture replay")
     mode.add_argument("--dry", action="store_true", help="force the offline config self-check")
-    mode.add_argument("--live", action="store_true", help="run against the SimNow simulation account")
+    mode.add_argument("--live", action="store_true", help="use the explicitly bound SDK-managed SimNow runtime")
     parser.add_argument("--backend", choices=("direct", "service"), default="direct")
     parser.add_argument("--service-config", default=None, help="service-only client config for read-only observation")
     parser.add_argument("--service-timeout-ms", type=int, default=2000)
-    parser.add_argument("--allow-write", action="store_true", help="grant bounded real write actions")
+    parser.add_argument("--allow-write", action="store_true", help="request managed writes; requires separate SDK authorization and operator grant")
     parser.add_argument("--allow-dangerous", action="store_true", help="reserved; no dangerous action exists")
     parser.add_argument("--scenario", default=None, help="replay scenario name")
     parser.add_argument("--run-seconds", type=float, default=None, help="live run window override (bounded)")
@@ -1706,6 +607,18 @@ def main(argv=None) -> int:
     if args.service_config and args.backend != "service":
         _json_print({"status": "REJECTED", "reason": "service_config_requires_service_backend"})
         return EXIT_BLOCKED
+    if args.backend == "service":
+        _json_print(
+            {
+                "status": "BLOCKED",
+                "backend": "service",
+                "reason": "BACKTRADER_RUNTIME_CAPABILITY_UNAVAILABLE",
+                "provider_configuration": "not_read",
+                "provider_runtime": "not_started",
+            }
+        )
+        return EXIT_BLOCKED
+
     if args.allow_dangerous:
         print(
             json.dumps(
@@ -1718,6 +631,31 @@ def main(argv=None) -> int:
             )
         )
         return EXIT_BLOCKED
+
+    # A direct run may inspect its entry tier only after the host supplied an
+    # exact SDK binding. Explicit offline commands remain independent of it.
+    if args.backend == "direct" and not (args.dry or args.replay):
+        access_mode = "managed_execution" if args.allow_write else "read_only"
+        input_reason = _managed_runtime_preflight_reason(
+            runtime_binding=runtime_binding,
+            access_mode=access_mode,
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+        )
+        if input_reason is not None:
+            _json_print(
+                {
+                    "status": "BLOCKED",
+                    "reason": input_reason,
+                    "provider_configuration": "not_read",
+                    "provider_runtime": "not_started",
+                    "write_grant_result": (
+                        "not_verified" if args.allow_write else "not_requested_read_only"
+                    ),
+                }
+            )
+            return EXIT_BLOCKED
+
     # ``config.entry.tier`` selects the channel; a mode flag may only keep or
     # lower it, and a malformed declaration is rejected before any provider side
     # effect instead of falling back toward live.
@@ -1749,7 +687,17 @@ def main(argv=None) -> int:
     if decision.effective_tier == "live":
         # The write drill keeps its explicit grant; without a grant the live tier
         # becomes this zero-write observation session instead of refusing to start.
-        return run_live(args) if args.allow_write else run_live_observe(args)
+        return run_live(
+            args,
+            runtime_binding=runtime_binding,
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+        ) if args.allow_write else run_live_observe(
+            args,
+            runtime_binding=runtime_binding,
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+        )
     if decision.effective_tier == "replay":
         return run_replay(
             args.scenario,

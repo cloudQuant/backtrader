@@ -27,7 +27,7 @@ admission rules around it:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Mapping
 
 __all__ = [
     "ServiceRecoveryQuoteBindingError",
@@ -47,58 +47,14 @@ class ServiceRecoveryQuoteBindingMixin:
     :meth:`_record_service_recovery_quote_bar` once per delivered bar.
     """
 
-    _SERVICE_RECOVERY_QUOTE_FIELDS: Tuple[str, ...] = (
-        "source_ref",
-        "generation",
-        "cursor",
-        "instrument",
-        "as_of_ns",
-    )
-
-    # -- trusted ingestion --------------------------------------------------
-
-    @classmethod
-    def _service_recovery_quote_normalized(
-        cls,
-        *,
-        source_ref: Any,
-        generation: Any,
-        cursor: Any,
-        instrument: Any,
-        as_of_ns: Any,
-    ) -> Optional[Dict[str, Any]]:
-        """Validate one raw observation; return None when it is not usable."""
-
-        if (
-            type(source_ref) is not str
-            or not source_ref
-            or type(generation) is not str
-            or not generation
-            or type(instrument) is not str
-            or not instrument
-            or type(cursor) is not int
-            or isinstance(cursor, bool)
-            or cursor < 0
-            or type(as_of_ns) is not int
-            or isinstance(as_of_ns, bool)
-            or as_of_ns <= 0
-        ):
-            return None
-        return {
-            "source_ref": source_ref,
-            "generation": generation,
-            "cursor": cursor,
-            "instrument": instrument,
-            "as_of_ns": as_of_ns,
-        }
-
     def _service_recovery_quote_state(self) -> Dict[str, Any]:
         state = getattr(self, "_service_recovery_quote_binding_state", None)
         if state is None:
+            from bt_api_py.service_recovery_quote import ServiceRecoveryQuoteCursor
+
             state = {
-                "latest": None,
+                "cursor_state": ServiceRecoveryQuoteCursor(),
                 "bar_record": None,
-                "streams": {},
             }
             self._service_recovery_quote_binding_state = state
         return state
@@ -121,7 +77,9 @@ class ServiceRecoveryQuoteBindingMixin:
         violation and raises instead of degrading the binding.
         """
 
-        normalized = self._service_recovery_quote_normalized(
+        from bt_api_py.service_recovery_quote import normalize_recovery_quote
+
+        normalized = normalize_recovery_quote(
             source_ref=source_ref,
             generation=generation,
             cursor=cursor,
@@ -133,16 +91,11 @@ class ServiceRecoveryQuoteBindingMixin:
                 "trusted recovery quote observation is invalid"
             )
         state = self._service_recovery_quote_state()
-        stream_key = (source_ref, generation, instrument)
-        previous = state["streams"].get(stream_key)
-        if previous is not None and (
-            cursor <= previous[0] or as_of_ns < previous[1]
-        ):
+        error, normalized = state["cursor_state"].note(**normalized)
+        if error is not None:
             raise ServiceRecoveryQuoteBindingError(
                 "trusted recovery quote observation is not strictly newer"
             )
-        state["streams"][stream_key] = (cursor, as_of_ns)
-        state["latest"] = normalized
         return dict(normalized)
 
     def try_note_service_recovery_quote(
@@ -162,7 +115,9 @@ class ServiceRecoveryQuoteBindingMixin:
         usable observation covered the bar.
         """
 
-        normalized = self._service_recovery_quote_normalized(
+        from bt_api_py.service_recovery_quote import normalize_recovery_quote
+
+        normalized = normalize_recovery_quote(
             source_ref=source_ref,
             generation=generation,
             cursor=cursor,
@@ -172,15 +127,8 @@ class ServiceRecoveryQuoteBindingMixin:
         if normalized is None:
             return False
         state = self._service_recovery_quote_state()
-        stream_key = (source_ref, generation, instrument)
-        previous = state["streams"].get(stream_key)
-        if previous is not None and (
-            cursor <= previous[0] or as_of_ns < previous[1]
-        ):
-            return False
-        state["streams"][stream_key] = (cursor, as_of_ns)
-        state["latest"] = normalized
-        return True
+        error, _normalized = state["cursor_state"].note(**normalized)
+        return error is None
 
     # -- per-bar freezing ---------------------------------------------------
 
@@ -204,7 +152,7 @@ class ServiceRecoveryQuoteBindingMixin:
                 "recovery quote binding bar datetime is invalid"
             )
         state = self._service_recovery_quote_state()
-        latest = state["latest"]
+        latest = state["cursor_state"].latest()
         state["bar_record"] = {
             "bar_index": bar_index,
             "datetime_hex": datetime_hex,

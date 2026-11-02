@@ -31,7 +31,7 @@ def test_cpython38_harness_targets_current_core_contracts_only() -> None:
     assert command[:6] == ["python3.8", "-m", "pytest", "-q", "-p", "no:asyncio"]
     assert command[6:] == [
         "tests/unit/core/test_errors.py",
-        "tests/unit/stores/test_ctp_managed_order_contract.py",
+        "tests/unit/core/test_store.py",
         "tests/unit/scripts/test_run_iteration41_cpython38_core_runtime.py",
     ]
     assert all((ROOT / target).is_file() for target in command[6:])

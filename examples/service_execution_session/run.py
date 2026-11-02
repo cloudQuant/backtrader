@@ -17,8 +17,12 @@ from pathlib import Path
 from typing import Any
 
 import backtrader as bt
-from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
-from bt_api_execution import ExecutionScope, SqliteExecutionStore
+from bt_api_py.service_contracts  import WireIdentity, WireRole, WireScope
+from bt_api_py.execution import (
+    CancelDispatchClaimReceiptV1,
+    ExecutionScope,
+    SqliteExecutionStore,
+)
 from bt_api_py.service_components import ComponentResources
 from bt_api_py.service_config import parse_client_config, parse_service_config
 from bt_api_py.service_host import ServiceHost, TrustedServiceAuthority
@@ -30,7 +34,7 @@ from bt_api_py.service_runtime import (
 )
 
 from backtrader.stores.btapistore import BtApiStore
-from backtrader.stores.service_execution_session import run_configured_cerebro
+from backtrader.service.service_execution_session import run_configured_cerebro
 
 
 _DOMAIN = "paper:backtrader-local-synthetic"
@@ -108,8 +112,6 @@ class _SyntheticAdmissionGate:
         return SimpleNamespace(permit_id=permit_id)
 
     def claim_before_dispatch(self, permit_id: str, intent: Any) -> Any:
-        from bt_api_execution import CancelDispatchClaimReceiptV1
-
         return CancelDispatchClaimReceiptV1(
             permit_reference=permit_id,
             scope_key=intent.scope.key,

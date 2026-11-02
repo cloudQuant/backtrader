@@ -1,61 +1,21 @@
-"""Shared helpers for the iteration-52 direct paper entry.
+"""Shared neutral helpers for the iteration-52 provider paper entry.
 
 ``run.py`` (Binance/OKX) and ``simnow_runner.py`` (SimNow) both use these
-venue-agnostic helpers.  Nothing here reads a credential, a private config or
-the network by itself: callers pass explicit paths and variable names.
+venue-agnostic strategy/evidence helpers. Credential parsing and provider
+configuration belong to the SDK; this module reads no credentials or private
+configuration and opens no provider connection.
 """
 
 from __future__ import annotations
 
 import json
 import math
-import os
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
-
-
-def load_credentials(path: Path, names: tuple[str, ...]) -> dict[str, str]:
-    """Read the named variables from ``path``/the environment; require all of them."""
-    values: dict[str, str] = {}
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, _, value = stripped.partition("=")
-            key = key.strip()
-            if key in names:
-                values[key] = value.strip().strip("'\"")
-    for name in names:
-        if not values.get(name):
-            values[name] = os.environ.get(name, "")
-    missing = [name for name in names if not values.get(name)]
-    if missing:
-        raise RuntimeError("missing credential variables: " + ", ".join(missing))
-    return {name: values[name] for name in names}
-
-
-def build_grant(plan, profile, params: dict, run_id: str, seconds: int):
-    """One bounded, one-shot write grant for the selected provider profile."""
-    from bt_api_runtime.direct_backtrader import DirectWriteGrant
-
-    expires = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-    return DirectWriteGrant(
-        run_id=run_id,
-        mode=plan.mode.value,
-        provider_ref=profile.provider_ref,
-        environment=profile.environment,
-        symbols=profile.symbols,
-        expires_at_utc=expires.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        max_order_count=int(params["max_orders"]),
-        max_order_notional=float(params["max_notional_usdt"]),
-        allow_live_write=False,
-    )
 
 
 def strategy_params(params: dict) -> dict:

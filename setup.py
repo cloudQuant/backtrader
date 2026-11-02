@@ -99,10 +99,13 @@ setup(
             "pyecharts",
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
-        "live": ["cryptography>=3.4"],
+        # BtApiStore/Feed/Broker use the unified SDK facade. Its current
+        # minimum interpreter is Python 3.11; core Backtrader remains usable
+        # without this optional extra on the other supported interpreters.
+        "live": ["cryptography>=3.4", "bt-api-py>=0.15.5"],
         # Optional durable execution primitives used by the strategy-aware
         # journal.  Direct CTP does not need this extra.
-        "execution": ["bt-api-execution>=0.2.0"],
+        "execution": ["bt-api-py>=0.15.5", "bt-api-execution>=0.2.0"],
     },  # List of project dependencies
     python_requires=">=3.8",
     classifiers=[

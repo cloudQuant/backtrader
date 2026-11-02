@@ -1,30 +1,21 @@
-"""Combine exchange EOD rankings without hiding market-coverage gaps.
+"""Project neutral SDK EOD ranking snapshots into Backtrader selector inputs.
 
-This module is the source-neutral bridge between exchange-specific parsers and
-the main-contract selector.  The caller supplies the full target product set,
-the observed CTP catalog snapshot, and exchange ranking rows already joined to
-the exact catalog ``InstrumentID`` values.  Missing exchange feeds and
-catalog/source mismatches remain explicit; no product list is inferred from
-whichever reports happened to load.
-
-The combined ranking digest identifies a canonical manifest of constituent
-report identities and digests.  It is not the digest of a single exchange
-payload, nor does it authenticate any constituent source.  The earliest
-defensible availability for the combined set is the latest constituent
-``available_at``; source adapters should use observed retrieval completion
-when the exchange publication time is unknown.
+The SDK owns exchange HTTP access, native report parsing, and exchange-to-
+instrument mapping. This module consumes only the public neutral SDK DTOs and
+keeps the framework's generic coverage diagnostics and ranking projection.
+Importing it performs no provider selection or network activity.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Iterable, Optional, Sequence, Tuple
+from types import SimpleNamespace
+from typing import Any, Iterable, Optional, Tuple
 
 from .futures_main_contract import (
     FuturesContractRecord,
@@ -33,210 +24,33 @@ from .futures_main_contract import (
     ProductRankingCoverage,
 )
 
-
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_COMPOSITE_SOURCE_ID = "backtrader.exchange-eod-ranking-composite.v1"
+_COMPOSITE_SOURCE_ID = "backtrader.neutral-futures-eod-ranking.v1"
 
 
 class RankingAggregationError(ValueError):
-    """Stable input-contract error from ranking-source aggregation."""
+    """Stable input-contract error from the neutral ranking projection."""
+
+    _CODES = frozenset(
+        {
+            "MARKET_SNAPSHOT_INVALID",
+            "EOD_SNAPSHOT_INVALID",
+            "TARGET_PRODUCTS_INVALID",
+            "TARGET_PRODUCTS_SCOPE_MISMATCH",
+            "MARKET_CATALOG_BINDING_MISMATCH",
+            "MARKET_CATALOG_LEASE_INVALID",
+            "MARKET_CATALOG_LEASE_EXPIRED",
+            "SNAPSHOT_TIME_INVALID",
+        }
+    )
 
     def __init__(self, code: str) -> None:
-        self.code = code
-        super().__init__(code)
-
-
-def _text(value: Any, field: str) -> str:
-    if type(value) is not str or not value or value != value.strip():
-        raise ValueError("{} must be non-empty trimmed text".format(field))
-    return value
-
-
-def _instrument_id(value: Any) -> str:
-    # Keep the identifier byte-for-byte at the string level.  In particular,
-    # do not case-fold or reconstruct a provider InstrumentID.
-    if type(value) is not str or not value:
-        raise ValueError("instrument_id must be non-empty text")
-    return value
-
-
-def _aware(value: Any, field: str) -> datetime:
-    if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("{} must be timezone-aware".format(field))
-    return value
-
-
-def _iso(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def _sha256(value: Any, field: str) -> str:
-    if type(value) is not str or not _SHA256.fullmatch(value):
-        raise ValueError("{} must be lowercase SHA-256 hex".format(field))
-    return value
-
-
-def _valid_nonnegative_number(value: Any) -> bool:
-    if value is None or isinstance(value, bool):
-        return False
-    if not isinstance(value, (int, float, Decimal)):
-        return False
-    try:
-        number = value if isinstance(value, Decimal) else Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        return False
-    return number.is_finite() and number >= 0
-
-
-def _digest_number(value: Any) -> dict:
-    """Return a type-tagged stable representation for a ranking source value."""
-
-    if value is None:
-        return {"type": "none"}
-    if type(value) is bool:
-        return {"type": "bool", "value": value}
-    if type(value) is int:
-        return {"type": "int", "value": str(value)}
-    if type(value) is float:
-        return {"type": "float", "value": value.hex()}
-    if isinstance(value, Decimal):
-        return {"type": "decimal", "value": str(value)}
-    if type(value) is str:
-        return {"type": "str", "value": value}
-    raise RankingAggregationError("RANKING_VALUE_UNSUPPORTED_TYPE")
-
-
-@dataclass(frozen=True)
-class CatalogInstrument:
-    """One exact CTP catalog row, including non-futures for explicit exclusion."""
-
-    product: ProductKey
-    instrument_id: str
-    asset_type: Optional[str]
-    is_trading: Optional[bool]
-    expiry_date: Optional[date]
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("catalog product must be ProductKey")
-        _instrument_id(self.instrument_id)
-        if self.asset_type is not None and type(self.asset_type) is not str:
-            raise ValueError("asset_type must be text or None")
-        if self.is_trading is not None and type(self.is_trading) is not bool:
-            raise ValueError("is_trading must be bool or None")
-        if self.expiry_date is not None and type(self.expiry_date) is not date:
-            raise ValueError("expiry_date must be date or None")
-
-
-@dataclass(frozen=True)
-class CtpCatalogSnapshot:
-    """Observed catalog identity and rows for the selected SimNow scope."""
-
-    source_id: str
-    snapshot_id: str
-    source_sha256: str
-    available_at: datetime
-    retrieved_at: datetime
-    complete: bool
-    instruments: Tuple[CatalogInstrument, ...]
-
-    def __post_init__(self) -> None:
-        for field in ("source_id", "snapshot_id"):
-            _text(getattr(self, field), "catalog " + field)
-        _sha256(self.source_sha256, "catalog source_sha256")
-        available = _aware(self.available_at, "catalog available_at")
-        retrieved = _aware(self.retrieved_at, "catalog retrieved_at")
-        if retrieved.astimezone(timezone.utc) < available.astimezone(timezone.utc):
-            raise ValueError("catalog retrieved_at precedes available_at")
-        if type(self.complete) is not bool:
-            raise ValueError("catalog complete must be bool")
-        instruments = tuple(self.instruments)
-        if any(not isinstance(item, CatalogInstrument) for item in instruments):
-            raise ValueError("catalog instruments must contain CatalogInstrument records")
-        object.__setattr__(self, "instruments", instruments)
-
-
-@dataclass(frozen=True)
-class DailyRankingRow:
-    """One exchange daily ranking row already matched to a real CTP ID."""
-
-    product: ProductKey
-    instrument_id: str
-    open_interest: Any
-    volume: Any
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.product, ProductKey):
-            raise ValueError("ranking row product must be ProductKey")
-        _instrument_id(self.instrument_id)
-
-
-@dataclass(frozen=True)
-class ExchangeEodRankingSource:
-    """One parsed daily report and its explicit source-join status.
-
-    ``finalized`` and ``latest_available`` are caller-supplied observations,
-    not defaults asserted by this helper.  ``unscoped_join_issue_count`` is
-    used when an exchange adapter found source-row problems that cannot be
-    assigned to one catalog product without guessing.
-    """
-
-    source_id: str
-    snapshot_id: str
-    source_sha256: str
-    source_url: str
-    available_at: datetime
-    retrieved_at: datetime
-    exchange_ids: Tuple[str, ...]
-    trading_day: date
-    open_interest_unit: str
-    volume_unit: str
-    finalized: bool
-    latest_available: bool
-    rows: Tuple[DailyRankingRow, ...]
-    unscoped_join_issue_count: int = 0
-
-    def __post_init__(self) -> None:
-        _text(self.source_id, "ranking source_id")
-        _text(self.snapshot_id, "ranking snapshot_id")
-        _text(self.source_url, "ranking source_url")
-        _sha256(self.source_sha256, "ranking source_sha256")
-        available = _aware(self.available_at, "ranking available_at")
-        retrieved = _aware(self.retrieved_at, "ranking retrieved_at")
-        if retrieved.astimezone(timezone.utc) < available.astimezone(timezone.utc):
-            raise ValueError("ranking retrieved_at precedes available_at")
-        if type(self.trading_day) is not date:
-            raise ValueError("ranking trading_day must be a date")
-        if (
-            not self.open_interest_unit
-            or self.open_interest_unit != self.open_interest_unit.strip()
-        ):
-            raise ValueError("open_interest_unit must be non-empty trimmed text")
-        if not self.volume_unit or self.volume_unit != self.volume_unit.strip():
-            raise ValueError("volume_unit must be non-empty trimmed text")
-        if type(self.finalized) is not bool or type(self.latest_available) is not bool:
-            raise ValueError("finalized and latest_available must be bool")
-        if any(type(value) is not str for value in self.exchange_ids):
-            raise ValueError("exchange_ids must contain text values")
-        exchanges = tuple(value.upper() for value in self.exchange_ids)
-        if not exchanges or any(not value or value != value.strip() for value in exchanges):
-            raise ValueError("exchange_ids must contain non-empty exchange IDs")
-        if len(set(exchanges)) != len(exchanges):
-            raise ValueError("exchange_ids contains duplicates")
-        rows = tuple(self.rows)
-        if any(not isinstance(item, DailyRankingRow) for item in rows):
-            raise ValueError("rows must contain DailyRankingRow records")
-        if any(item.product.exchange_id not in exchanges for item in rows):
-            raise ValueError("ranking row exchange is outside the source declaration")
-        if type(self.unscoped_join_issue_count) is not int or self.unscoped_join_issue_count < 0:
-            raise ValueError("unscoped_join_issue_count must be a non-negative int")
-        object.__setattr__(self, "exchange_ids", tuple(sorted(exchanges)))
-        object.__setattr__(self, "rows", rows)
+        self.code = code if type(code) is str and code in self._CODES else "EOD_SNAPSHOT_INVALID"
+        super().__init__(self.code)
 
 
 @dataclass(frozen=True)
 class RankingProductCoverage:
-    """Product-level diagnostics returned alongside the selector snapshot."""
+    """Generic diagnostics for one exchange/product ranking projection."""
 
     product: ProductKey
     source_ids: Tuple[str, ...]
@@ -256,464 +70,702 @@ class RankingProductCoverage:
 
 @dataclass(frozen=True)
 class RankingAggregationResult:
-    """Combined selector input and the explicit coverage state."""
+    """Selector input plus the exact neutral EOD snapshot and diagnostics."""
 
     snapshot: Optional[MainContractRankingSnapshot]
     target_products: Tuple[ProductKey, ...]
-    ranking_sources: Tuple[ExchangeEodRankingSource, ...]
-    coverage: Tuple[ProductRankingCoverage, ...]
+    eod_snapshot: Any
+    coverage: Tuple[RankingProductCoverage, ...]
     catalog_instrument_ids_outside_target: Tuple[str, ...]
     catalog_future_products_outside_target: Tuple[ProductKey, ...]
-    ranking_rows_outside_target: Tuple[DailyRankingRow, ...]
+    ranking_rows_outside_target: Tuple[Any, ...]
 
     @property
     def source_coverage_complete(self) -> bool:
-        """Whether the declared target products all have internally complete EOD inputs.
+        """Whether all requested products have internally complete facts.
 
-        This does not validate the prior TradingDay against a calendar or
-        produce an executable mapping; callers must still run the selector.
+        Selector readiness additionally requires report finality/latest-version
+        evidence and an exact current market-catalog lease. A provider that
+        cannot publish either claim leaves this property false until the
+        required evidence is available.
         """
 
         return (
             self.snapshot is not None
+            and self.eod_snapshot.complete is True
             and not self.catalog_future_products_outside_target
             and all(item.complete for item in self.coverage)
         )
 
 
-def ranking_source_from_shfe(
-    report: Any,
-    join_report: Any,
-    *,
-    finalized: bool,
-    latest_available: bool,
-) -> ExchangeEodRankingSource:
-    """Adapt the committed SHFE/INE parser and exact catalog join result."""
+def _neutral_decimal(value: Any) -> Optional[Decimal]:
+    if type(value) is not str or not value or len(value) > 512:
+        return None
+    try:
+        number = Decimal(value)
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if not number.is_finite() or number < 0:
+        return None
+    return number
 
-    from .futures_eod_shfe import (
-        SHFE_INE_EXCHANGE_IDS,
-        ShfeCatalogJoinReport,
-        ShfeDailyReport,
-        shfe_eod_url,
+
+def _aware_utc(value: Any) -> bool:
+    return (
+        type(value) is datetime
+        and value.tzinfo is not None
+        and value.utcoffset() is not None
+        and value.utcoffset().total_seconds() == 0
     )
 
-    if not isinstance(report, ShfeDailyReport) or not isinstance(
-        join_report, ShfeCatalogJoinReport
-    ):
-        raise TypeError("report/join_report must be SHFE daily report and catalog join")
-    rows = tuple(
-        DailyRankingRow(
-            ProductKey(item.exchange_id, item.product_id),
-            item.instrument_id,
-            item.source_row.open_interest,
-            item.source_row.volume,
+
+def _instrument_identity(instrument: Any) -> Tuple[str, ...]:
+    return (
+        instrument.provider,
+        instrument.venue,
+        instrument.environment,
+        instrument.product_type,
+        instrument.instrument_id,
+        instrument.native_symbol,
+    )
+
+
+def _instrument_order(item: Any) -> Tuple[str, ...]:
+    return _instrument_identity(item.instrument)
+
+
+def _contract_kind(record: Any, sdk: Any) -> Optional[str]:
+    if record.disposition is sdk.FuturesCatalogDisposition.EXCLUDED:
+        return "non_future"
+    if record.contract_kind is sdk.FuturesContractKind.FUTURE:
+        return "future"
+    if record.contract_kind is sdk.FuturesContractKind.OPTION:
+        return "option"
+    if record.contract_kind is sdk.FuturesContractKind.NON_FUTURES:
+        return "non_future"
+    return None
+
+
+def _classification_blockers(records: Iterable[Any], sdk: Any) -> Tuple[str, ...]:
+    blockers = set()
+    for record in records:
+        if record.disposition is sdk.FuturesCatalogDisposition.EXCLUDED:
+            continue
+        if record.contract_kind is sdk.FuturesContractKind.UNKNOWN:
+            blockers.add("CATALOG_CONTRACT_KIND_UNKNOWN")
+        if record.asset_type is sdk.FuturesAssetType.UNKNOWN:
+            blockers.add("CATALOG_ASSET_TYPE_UNKNOWN")
+        if record.disposition is sdk.FuturesCatalogDisposition.UNKNOWN:
+            blockers.add("CATALOG_DISPOSITION_UNKNOWN")
+        if record.expiry_date is None and record.contract_kind is sdk.FuturesContractKind.FUTURE:
+            blockers.add("CATALOG_EXPIRY_UNKNOWN")
+        if record.is_trading is None and record.contract_kind is sdk.FuturesContractKind.FUTURE:
+            blockers.add("CATALOG_TRADING_STATUS_UNKNOWN")
+    return tuple(sorted(blockers))
+
+
+def _eod_manifest_digest(snapshot: Any) -> str:
+    payload = {
+        "request_ref": snapshot.request.request_ref,
+        "trading_day": snapshot.request.trading_day.isoformat(),
+        "requested_at": snapshot.requested_at.isoformat(),
+        "completed_at": snapshot.completed_at.isoformat(),
+        "observed_at": snapshot.observed_at.isoformat(),
+        "products": [item.to_dict() for item in snapshot.request.products],
+        "catalog": {
+            "market_snapshot_ref": snapshot.catalog.market_snapshot_ref,
+            "market_source_ref": snapshot.catalog.market_source_ref,
+            "market_generation": snapshot.catalog.market_generation,
+            "market_records_digest": snapshot.catalog.market_records_digest,
+            "environment": snapshot.catalog.environment,
+            "catalog_request_ref": snapshot.catalog.catalog_request_ref,
+            "catalog_snapshot_ref": snapshot.catalog.catalog_snapshot_ref,
+            "catalog_records_digest": snapshot.catalog.catalog_records_digest,
+            "catalog_completeness": snapshot.catalog.catalog_completeness.value,
+            "catalog_scope_complete": snapshot.catalog.catalog_scope_complete,
+            "venues": snapshot.catalog.venues,
+            "catalog_products": (
+                None
+                if snapshot.catalog.catalog_products is None
+                else [item.to_dict() for item in snapshot.catalog.catalog_products]
+            ),
+            "product_universe_request_ref": snapshot.catalog.product_universe_request_ref,
+            "product_universe_snapshot_ref": snapshot.catalog.product_universe_snapshot_ref,
+            "product_universe_records_digest": (
+                snapshot.catalog.product_universe_records_digest
+            ),
+            "product_universe_complete": snapshot.catalog.product_universe_complete,
+            "product_universe": (
+                None
+                if snapshot.catalog.product_universe is None
+                else [item.to_dict() for item in snapshot.catalog.product_universe]
+            ),
+        },
+        "records_digest": snapshot.records_digest,
+        "sources": [
+            {
+                "source_ref": item.source_ref,
+                "venues": list(item.venues),
+                "snapshot_ref": item.snapshot_ref,
+                "source_digest": item.source_digest,
+                "observed_at": item.observed_at.isoformat(),
+                "trading_day": item.trading_day.isoformat(),
+                "reported_update_at": (
+                    None if item.reported_update_at is None else item.reported_update_at.isoformat()
+                ),
+                "retrieved_at": None if item.retrieved_at is None else item.retrieved_at.isoformat(),
+                "source_row_count": item.source_row_count,
+                "ranking_row_count": item.ranking_row_count,
+                "excluded_row_count": item.excluded_row_count,
+                "unmatched_row_count": item.unmatched_row_count,
+                "ambiguous_row_count": item.ambiguous_row_count,
+                "duplicate_row_count": item.duplicate_row_count,
+                "completeness": item.completeness.value,
+                "report_finalized": item.report_finalized,
+                "latest_snapshot": item.latest_snapshot,
+                "blockers": list(item.blockers),
+            }
+            for item in snapshot.sources
+        ],
+        "product_coverage": [
+            {
+                "product": item.product.to_dict(),
+                "expected_instruments": [
+                    _instrument_identity(value)
+                    for value in item.expected_instruments
+                ],
+                "ranking_instruments": [
+                    _instrument_identity(value)
+                    for value in item.ranking_instruments
+                ],
+                "missing_instruments": [
+                    _instrument_identity(value)
+                    for value in item.missing_instruments
+                ],
+                "candidate_set_complete": item.candidate_set_complete,
+                "ranking_values_complete": item.ranking_values_complete,
+                "unmatched_source_row_count": item.unmatched_source_row_count,
+                "duplicate_source_row_count": item.duplicate_source_row_count,
+                "source_refs": list(item.source_refs),
+                "blockers": list(item.blockers),
+            }
+            for item in snapshot.product_coverage
+        ],
+        "completeness": snapshot.completeness.value,
+        "blockers": list(snapshot.blockers),
+    }
+    encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _validate_market_binding(market: Any, eod: Any, sdk: Any) -> None:
+    if market.request.instruments is not None:
+        raise RankingAggregationError("MARKET_CATALOG_BINDING_MISMATCH")
+    catalog = eod.catalog
+    market_venues = (
+        None
+        if market.request.venues is None
+        else tuple(sorted(item.upper() for item in market.request.venues))
+    )
+    market_products = (
+        None
+        if market.request.products is None
+        else tuple(
+            sorted(
+                market.request.products,
+                key=lambda item: (item.venue, item.product_id),
+            )
         )
-        for item in join_report.matched_rows
     )
-    unscoped = (
-        len(join_report.unmatched_source_rows)
-        + len(join_report.ambiguous_source_matches)
-        + len(join_report.duplicate_source_keys)
-    )
-    return ExchangeEodRankingSource(
-        source_id=report.source_id,
-        snapshot_id=report.snapshot_id,
-        source_sha256=report.source_sha256,
-        source_url=shfe_eod_url(report.report_date),
-        available_at=report.available_at,
-        retrieved_at=report.retrieved_at,
-        exchange_ids=SHFE_INE_EXCHANGE_IDS,
-        trading_day=report.report_date,
-        open_interest_unit=report.open_interest_unit,
-        volume_unit=report.volume_unit,
-        finalized=finalized,
-        latest_available=latest_available,
-        rows=rows,
-        unscoped_join_issue_count=unscoped,
-    )
-
-
-def ranking_source_from_cffex(
-    report: Any,
-    join_report: Any,
-    *,
-    finalized: bool,
-    latest_available: bool,
-) -> ExchangeEodRankingSource:
-    """Adapt the committed CFFEX parser and exact catalog join result."""
-
-    from .futures_eod_cffex import (
-        CffexCatalogJoinReport,
-        CffexDailyReport,
-        cffex_eod_url,
-    )
-
-    if not isinstance(report, CffexDailyReport) or not isinstance(
-        join_report, CffexCatalogJoinReport
+    if (
+        catalog.market_snapshot_ref != market.receipt.batch_ref
+        or catalog.market_source_ref != market.source_ref
+        or catalog.market_generation != market.generation
+        or catalog.market_records_digest != market.records_digest
+        or catalog.environment != market.request.environment
+        or catalog.venues != market_venues
+        or catalog.catalog_records != market.catalog
     ):
-        raise TypeError("report/join_report must be CFFEX daily report and catalog join")
-    rows = tuple(
-        DailyRankingRow(
-            ProductKey(item.exchange_id, item.product_id),
-            item.instrument_id,
-            item.source_row.open_interest,
-            item.source_row.volume,
+        raise RankingAggregationError("MARKET_CATALOG_BINDING_MISMATCH")
+    family = market.coverage.catalog
+    if (
+        catalog.catalog_request_ref != family.request_ref
+        or catalog.catalog_snapshot_ref != family.snapshot_ref
+        or catalog.catalog_records_digest != family.records_digest
+        or catalog.catalog_completeness is not family.completeness
+        or catalog.catalog_scope_complete != family.scope_complete
+    ):
+        raise RankingAggregationError("MARKET_CATALOG_BINDING_MISMATCH")
+    if catalog.catalog_products != market_products:
+        raise RankingAggregationError("MARKET_CATALOG_BINDING_MISMATCH")
+    product_universe = market.coverage.product_universe
+    if (
+        catalog.product_universe_request_ref
+        != (None if product_universe is None else product_universe.request_ref)
+        or catalog.product_universe_snapshot_ref
+        != (None if product_universe is None else product_universe.snapshot_ref)
+        or catalog.product_universe_records_digest
+        != (None if product_universe is None else product_universe.records_digest)
+        or catalog.product_universe_complete != market.coverage.product_universe_complete
+        or catalog.product_universe
+        != (
+            market.products
+            if market.coverage.product_universe_complete is True
+            else None
         )
-        for item in join_report.matched_rows
-    )
-    unscoped = (
-        len(join_report.unmatched_source_rows)
-        + len(join_report.ambiguous_source_matches)
-        + len(join_report.duplicate_source_instrument_ids)
-    )
-    return ExchangeEodRankingSource(
-        source_id=report.source_id,
-        snapshot_id=report.snapshot_id,
-        source_sha256=report.source_sha256,
-        source_url=cffex_eod_url(report.trading_day),
-        available_at=report.available_at,
-        retrieved_at=report.retrieved_at,
-        exchange_ids=("CFFEX",),
-        trading_day=report.trading_day,
-        open_interest_unit=report.open_interest_unit,
-        volume_unit=report.volume_unit,
-        finalized=finalized,
-        latest_available=latest_available,
-        rows=rows,
-        unscoped_join_issue_count=unscoped,
-    )
+    ):
+        raise RankingAggregationError("MARKET_CATALOG_BINDING_MISMATCH")
 
 
-def _composite_source_digest(sources: Sequence[ExchangeEodRankingSource]) -> str:
-    source_facts = [
-        {
-            "source_id": item.source_id,
-            "snapshot_id": item.snapshot_id,
-            "source_sha256": item.source_sha256,
-            "source_url": item.source_url,
-            "available_at": _iso(item.available_at),
-            "retrieved_at": _iso(item.retrieved_at),
-            "exchange_ids": list(item.exchange_ids),
-            "trading_day": item.trading_day.isoformat(),
-            "open_interest_unit": item.open_interest_unit,
-            "volume_unit": item.volume_unit,
-            "finalized": item.finalized,
-            "latest_available": item.latest_available,
-            "unscoped_join_issue_count": item.unscoped_join_issue_count,
-            "rows": [
-                {
-                    "exchange_id": row.product.exchange_id,
-                    "product_id": row.product.product_id,
-                    "instrument_id": row.instrument_id,
-                    "open_interest": _digest_number(row.open_interest),
-                    "volume": _digest_number(row.volume),
-                }
-                for row in sorted(
-                    item.rows,
-                    key=lambda row: (
-                        row.product.exchange_id,
-                        row.product.product_id,
-                        row.instrument_id,
-                    ),
-                )
-            ],
-        }
-        for item in sorted(sources, key=lambda value: (value.source_id, value.snapshot_id))
-    ]
-    payload = json.dumps(
-        source_facts,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+def _validate_lease(facade: Any, market: Any, lease: Any) -> bool:
+    if facade is None or lease is None:
+        return False
+    try:
+        return facade.validate_lease(market, lease, now=datetime.now(timezone.utc)) is True
+    except Exception:
+        return False
 
 
-def aggregate_eod_ranking_sources(
-    catalog: CtpCatalogSnapshot,
+def aggregate_eod_ranking_snapshot(
+    market_snapshot: Any,
+    eod_snapshot: Any,
     target_products: Iterable[ProductKey],
-    ranking_sources: Iterable[ExchangeEodRankingSource],
+    *,
+    market_snapshot_facade: Any = None,
+    market_snapshot_lease: Any = None,
 ) -> RankingAggregationResult:
-    """Build a selector snapshot while preserving absent and conflicting feeds.
+    """Build the generic selector snapshot from neutral SDK ranking facts.
 
-    ``target_products`` must be the complete target set derived by the caller
-    from its selected SimNow catalog scope.  This function never chooses a
-    smaller set because some exchange reports are missing.
+    ``target_products`` must match the explicit product set in the SDK EOD
+    request. Exchange report parsing and catalog joins are deliberately absent
+    here. When the current market snapshot has no SDK lease, candidate and
+    ranking coverage is downgraded and the selector cannot return READY.
     """
 
-    if not isinstance(catalog, CtpCatalogSnapshot):
-        raise TypeError("catalog must be CtpCatalogSnapshot")
+    try:
+        from bt_api_py.futures_contracts import (
+            FuturesAssetType,
+            FuturesCatalogDisposition,
+            FuturesContractKind,
+            FuturesEodRankingSnapshot,
+            FuturesQuantityUnit,
+            FuturesVolumeSemantics,
+            QuerySnapshotLease,
+        )
+        from bt_api_py.futures_market_facade import (
+            FuturesMarketSnapshot,
+            FuturesMarketSnapshotFacade,
+        )
+    except ImportError:
+        raise RankingAggregationError("EOD_SNAPSHOT_INVALID") from None
+
+    sdk = SimpleNamespace(
+        FuturesAssetType=FuturesAssetType,
+        FuturesCatalogDisposition=FuturesCatalogDisposition,
+        FuturesContractKind=FuturesContractKind,
+        FuturesQuantityUnit=FuturesQuantityUnit,
+        FuturesVolumeSemantics=FuturesVolumeSemantics,
+    )
+
+    if type(market_snapshot) is not FuturesMarketSnapshot:
+        raise RankingAggregationError("MARKET_SNAPSHOT_INVALID")
+    if type(eod_snapshot) is not FuturesEodRankingSnapshot:
+        raise RankingAggregationError("EOD_SNAPSHOT_INVALID")
+    if (market_snapshot_facade is None) != (market_snapshot_lease is None):
+        raise RankingAggregationError("MARKET_CATALOG_LEASE_INVALID")
+    if market_snapshot_facade is not None and (
+        type(market_snapshot_facade) is not FuturesMarketSnapshotFacade
+        or type(market_snapshot_lease) is not QuerySnapshotLease
+    ):
+        raise RankingAggregationError("MARKET_CATALOG_LEASE_INVALID")
+
     products = tuple(target_products)
-    if not products or any(not isinstance(item, ProductKey) for item in products):
-        raise ValueError("target_products must be a non-empty ProductKey collection")
-    product_keys = tuple(sorted(products, key=lambda item: (item.exchange_id, item.product_id)))
-    product_pairs = [(item.exchange_id, item.product_id) for item in product_keys]
-    if len(set(product_pairs)) != len(product_pairs):
-        raise ValueError("target_products contains duplicates")
-    sources = tuple(ranking_sources)
-    if any(not isinstance(item, ExchangeEodRankingSource) for item in sources):
-        raise TypeError("ranking_sources must contain ExchangeEodRankingSource records")
-    sources = tuple(sorted(sources, key=lambda item: (item.source_id, item.snapshot_id)))
+    if not products or any(type(item) is not ProductKey for item in products):
+        raise RankingAggregationError("TARGET_PRODUCTS_INVALID")
+    products = tuple(sorted(products, key=lambda item: (item.exchange_id, item.product_id)))
+    product_keys = tuple((item.exchange_id, item.product_id) for item in products)
+    if len(set(product_keys)) != len(product_keys):
+        raise RankingAggregationError("TARGET_PRODUCTS_INVALID")
+    request_products = tuple(
+        (item.venue, item.product_id) for item in eod_snapshot.request.products
+    )
+    if request_products != product_keys:
+        raise RankingAggregationError("TARGET_PRODUCTS_SCOPE_MISMATCH")
 
-    sources_by_exchange = defaultdict(list)
-    for source in sources:
-        for exchange_id in source.exchange_ids:
-            sources_by_exchange[exchange_id].append(source)
+    if not all(
+        _aware_utc(getattr(market_snapshot, name, None))
+        for name in ("requested_at", "completed_at", "observed_at")
+    ) or not all(
+        _aware_utc(getattr(eod_snapshot, name, None))
+        for name in ("requested_at", "completed_at", "observed_at")
+    ):
+        raise RankingAggregationError("SNAPSHOT_TIME_INVALID")
+    _validate_market_binding(market_snapshot, eod_snapshot, sdk)
 
-    catalog_by_product = defaultdict(list)
-    all_target_ids = set(product_pairs)
+    lease_present = market_snapshot_facade is not None
+    if lease_present and not _validate_lease(
+        market_snapshot_facade, market_snapshot, market_snapshot_lease
+    ):
+        raise RankingAggregationError("MARKET_CATALOG_LEASE_INVALID")
+    lease_verified = lease_present
+
+    target_set = set(product_keys)
+    catalog_rows_by_product = defaultdict(list)
     outside_catalog_ids = []
     outside_future_products = set()
     catalog_identity_counts = Counter(
-        (item.product.exchange_id, item.instrument_id) for item in catalog.instruments
+        (item.instrument.venue, item.instrument.instrument_id.casefold())
+        for item in eod_snapshot.catalog.catalog_records
     )
-    for instrument in catalog.instruments:
-        pair = (instrument.product.exchange_id, instrument.product.product_id)
-        if pair in all_target_ids:
-            catalog_by_product[pair].append(instrument)
+    for row in eod_snapshot.catalog.catalog_records:
+        product_key = (row.product.venue, row.product.product_id)
+        if product_key in target_set:
+            catalog_rows_by_product[product_key].append(row)
         else:
-            outside_catalog_ids.append(instrument.instrument_id)
-            if instrument.asset_type is not None and instrument.asset_type.casefold() == "future":
-                outside_future_products.add(instrument.product)
+            outside_catalog_ids.append(row.instrument.instrument_id)
+            if row.contract_kind in (FuturesContractKind.FUTURE, FuturesContractKind.UNKNOWN):
+                outside_future_products.add(ProductKey(*product_key))
 
-    source_rows_by_product = defaultdict(list)
-    outside_rows = []
-    source_identity_counts = Counter(
-        (source.source_id, source.snapshot_id, row.product.exchange_id, row.instrument_id)
-        for source in sources
-        for row in source.rows
+    eod_rows_by_product = defaultdict(list)
+    rows_outside_target = []
+    eod_identity_counts = Counter(
+        (item.product.venue, item.instrument.instrument_id.casefold())
+        for item in eod_snapshot.records
     )
-    duplicate_source_identity_keys = {
-        key for key, count in source_identity_counts.items() if count > 1
-    }
-    for source in sources:
-        for row in source.rows:
-            pair = (row.product.exchange_id, row.product.product_id)
-            if pair in all_target_ids:
-                source_rows_by_product[pair].append((source, row))
-            else:
-                outside_rows.append(row)
+    for row in eod_snapshot.records:
+        product_key = (row.product.venue, row.product.product_id)
+        if product_key in target_set:
+            eod_rows_by_product[product_key].append(row)
+        else:
+            rows_outside_target.append(row)
 
+    source_by_ref = {item.source_ref: item for item in eod_snapshot.sources}
+    product_coverage_by_key = {
+        (item.product.venue, item.product.product_id): item
+        for item in eod_snapshot.product_coverage
+    }
     candidates = []
-    coverage_rows = []
+    selector_coverage = []
     diagnostics = []
-    for product in product_keys:
-        pair = (product.exchange_id, product.product_id)
-        catalog_rows = tuple(catalog_by_product.get(pair, ()))
-        catalog_counts = Counter(row.instrument_id for row in catalog_rows)
+    observed_sources = tuple(
+        item
+        for item in eod_snapshot.sources
+        if item.snapshot_ref is not None
+        and item.source_digest is not None
+        and item.retrieved_at is not None
+    )
+
+    for product in products:
+        product_key = (product.exchange_id, product.product_id)
+        catalog_rows = tuple(catalog_rows_by_product.get(product_key, ()))
+        ranking_rows = tuple(eod_rows_by_product.get(product_key, ()))
+        product_coverage = product_coverage_by_key.get(product_key)
+        catalog_counts = Counter(row.instrument.instrument_id.casefold() for row in catalog_rows)
         duplicate_catalog = tuple(
             sorted(
-                instrument_id
-                for instrument_id, count in catalog_counts.items()
-                if count > 1 or catalog_identity_counts[(product.exchange_id, instrument_id)] > 1
-            )
-        )
-        expected_ids = tuple(sorted(row.instrument_id for row in catalog_rows))
-        expected_id_set = set(expected_ids)
-
-        exchange_sources = tuple(sources_by_exchange.get(product.exchange_id, ()))
-        chosen_source = exchange_sources[0] if len(exchange_sources) == 1 else None
-        product_source_rows = tuple(source_rows_by_product.get(pair, ()))
-        row_counts = Counter(row.instrument_id for _source, row in product_source_rows)
-        duplicate_source = tuple(
-            sorted(
-                row.instrument_id
-                for source, row in product_source_rows
-                if row_counts[row.instrument_id] > 1
-                or (
-                    source.source_id,
-                    source.snapshot_id,
-                    row.product.exchange_id,
-                    row.instrument_id,
-                )
-                in duplicate_source_identity_keys
-            )
-        )
-        duplicate_source = tuple(dict.fromkeys(duplicate_source))
-        source_ids = tuple(sorted({source.source_id for source in exchange_sources}))
-        unmatched_rows = tuple(
-            sorted(
-                row.instrument_id
-                for _source, row in product_source_rows
-                if row.instrument_id not in expected_id_set
-            )
-        )
-
-        unique_source_rows = {
-            row.instrument_id: (source, row)
-            for source, row in product_source_rows
-            if row_counts[row.instrument_id] == 1
-            and (
-                source.source_id,
-                source.snapshot_id,
-                row.product.exchange_id,
-                row.instrument_id,
-            )
-            not in duplicate_source_identity_keys
-        }
-        catalog_unique = {
-            row.instrument_id: row
-            for row in catalog_rows
-            if catalog_counts[row.instrument_id] == 1
-            and catalog_identity_counts[(product.exchange_id, row.instrument_id)] == 1
-        }
-        joined_values = {}
-        ranking_ids = []
-        invalid_values = []
-        for instrument_id, (source, row) in unique_source_rows.items():
-            if chosen_source is None:
-                continue
-            if instrument_id not in catalog_unique:
-                continue
-            ranking_ids.append(instrument_id)
-            joined_values[instrument_id] = (row.open_interest, row.volume)
-            if not _valid_nonnegative_number(row.open_interest) or not _valid_nonnegative_number(
-                row.volume
-            ):
-                invalid_values.append(instrument_id)
-
-        missing_ranking_ids = tuple(
-            sorted(
-                row.instrument_id
+                row.instrument.instrument_id
                 for row in catalog_rows
-                if row.asset_type is not None
-                and row.asset_type.casefold() == "future"
-                and row.instrument_id not in joined_values
+                if catalog_counts[row.instrument.instrument_id.casefold()] > 1
+                or catalog_identity_counts[
+                    (row.instrument.venue, row.instrument.instrument_id.casefold())
+                ] > 1
             )
         )
-
-        blockers = []
-        if len(catalog_rows) == 0:
-            blockers.append("CATALOG_PRODUCT_MISSING")
-        if not catalog.complete:
-            blockers.append("CATALOG_SNAPSHOT_INCOMPLETE")
+        exact_catalog = {
+            row.instrument: row
+            for row in catalog_rows
+            if catalog_counts[row.instrument.instrument_id.casefold()] == 1
+            and catalog_identity_counts[
+                (row.instrument.venue, row.instrument.instrument_id.casefold())
+            ] == 1
+        }
+        ranking_counts = Counter(row.instrument.instrument_id.casefold() for row in ranking_rows)
+        duplicate_ranking = tuple(
+            sorted(
+                row.instrument.instrument_id
+                for row in ranking_rows
+                if ranking_counts[row.instrument.instrument_id.casefold()] > 1
+                or eod_identity_counts[
+                    (row.product.venue, row.instrument.instrument_id.casefold())
+                ] > 1
+            )
+        )
+        exact_ranking = {
+            row.instrument: row
+            for row in ranking_rows
+            if ranking_counts[row.instrument.instrument_id.casefold()] == 1
+            and eod_identity_counts[
+                (row.product.venue, row.instrument.instrument_id.casefold())
+            ] == 1
+        }
+        unmatched_source_rows = tuple(
+            sorted(
+                row.instrument.instrument_id
+                for row in ranking_rows
+                if row.instrument not in exact_catalog
+            )
+        )
+        joined = {
+            instrument: ranking
+            for instrument, ranking in exact_ranking.items()
+            if instrument in exact_catalog
+        }
+        expected_future = {
+            row.instrument
+            for row in catalog_rows
+            if row.contract_kind is FuturesContractKind.FUTURE
+            and row.disposition is not FuturesCatalogDisposition.EXCLUDED
+        }
+        missing_ranking = tuple(
+            sorted(
+                (
+                    instrument.instrument_id
+                    for instrument in expected_future - set(joined)
+                ),
+                key=str.casefold,
+            )
+        )
+        classification_blockers = _classification_blockers(catalog_rows, sdk)
+        market_catalog_complete = (
+            market_snapshot.coverage.catalog.completeness.value == "complete"
+            and market_snapshot.coverage.catalog.scope_complete is True
+        )
+        candidate_set_complete = (
+            market_catalog_complete
+            and lease_verified
+            and product_coverage is not None
+            and product_coverage.candidate_set_complete
+            and not product_coverage.blockers
+            and not classification_blockers
+            and not duplicate_catalog
+        )
+        source_refs = () if product_coverage is None else product_coverage.source_refs
+        sources_for_product = tuple(
+            source_by_ref[item]
+            for item in source_refs
+            if item in source_by_ref and product.exchange_id in source_by_ref[item].venues
+        )
+        source_coverage_complete = (
+            bool(sources_for_product)
+            and all(item.complete for item in sources_for_product)
+        )
+        value_units_ok = bool(joined) and all(
+            item.open_interest_unit is FuturesQuantityUnit.CONTRACTS
+            and item.volume_unit is FuturesQuantityUnit.CONTRACTS
+            and item.volume_semantics is FuturesVolumeSemantics.CUMULATIVE_TRADING_DAY
+            and _neutral_decimal(item.open_interest) is not None
+            and _neutral_decimal(item.volume) is not None
+            for item in joined.values()
+        )
+        ranking_values_complete = (
+            product_coverage is not None
+            and product_coverage.ranking_values_complete
+            and not product_coverage.blockers
+            and source_coverage_complete
+            and not missing_ranking
+            and not unmatched_source_rows
+            and not duplicate_ranking
+            and value_units_ok
+        )
+        blockers = list(classification_blockers)
+        if not catalog_rows and not candidate_set_complete:
+            blockers.append("PRODUCT_CATALOG_UNAVAILABLE")
+        if not market_catalog_complete:
+            blockers.append("MARKET_CATALOG_SCOPE_INCOMPLETE")
+        if not lease_present:
+            blockers.append("MARKET_CATALOG_LEASE_UNAVAILABLE")
         if duplicate_catalog:
             blockers.append("DUPLICATE_CATALOG_INSTRUMENT_ID")
-        if len(exchange_sources) == 0:
-            blockers.append("EXCHANGE_RANKING_SOURCE_MISSING")
-        elif len(exchange_sources) > 1:
-            blockers.append("EXCHANGE_RANKING_SOURCE_AMBIGUOUS")
-        if chosen_source is not None:
-            if not chosen_source.finalized:
-                blockers.append("RANKING_NOT_FINALIZED")
-            if not chosen_source.latest_available:
-                blockers.append("RANKING_SNAPSHOT_NOT_LATEST")
-            if chosen_source.unscoped_join_issue_count:
-                blockers.append("SOURCE_JOIN_HAS_UNSCOPED_ISSUES")
-        if unmatched_rows:
+        if product_coverage is None:
+            blockers.append("PRODUCT_COVERAGE_UNAVAILABLE")
+        else:
+            blockers.extend(product_coverage.blockers)
+        if not sources_for_product:
+            blockers.append("EOD_SOURCE_COVERAGE_UNAVAILABLE")
+        elif not source_coverage_complete:
+            blockers.append("EOD_SOURCE_COVERAGE_INCOMPLETE")
+        if unmatched_source_rows:
             blockers.append("UNMATCHED_SOURCE_INSTRUMENT_ID")
-        if duplicate_source:
+        if duplicate_ranking:
             blockers.append("DUPLICATE_SOURCE_INSTRUMENT_ID")
-        if missing_ranking_ids:
+        if missing_ranking:
             blockers.append("RANKING_ROWS_MISSING_FOR_CATALOG_FUTURES")
-        if invalid_values:
-            blockers.append("RANKING_VALUE_INVALID")
+        if joined and not value_units_ok:
+            blockers.append("RANKING_UNIT_OR_SEMANTICS_UNSUPPORTED")
+        if not ranking_values_complete:
+            blockers.append("RANKING_VALUES_INCOMPLETE")
+        finalized = bool(sources_for_product) and all(
+            item.report_finalized is True for item in sources_for_product
+        )
+        latest_available = bool(sources_for_product) and all(
+            item.latest_snapshot is True for item in sources_for_product
+        )
+        if not finalized:
+            blockers.append(
+                "RANKING_NOT_FINALIZED"
+                if any(item.report_finalized is False for item in sources_for_product)
+                else "RANKING_FINALITY_UNAVAILABLE"
+            )
+        if not latest_available:
+            blockers.append(
+                "RANKING_SNAPSHOT_NOT_LATEST"
+                if any(item.latest_snapshot is False for item in sources_for_product)
+                else "RANKING_LATEST_VERSION_UNAVAILABLE"
+            )
 
-        for instrument in catalog_rows:
-            open_interest, volume = joined_values.get(instrument.instrument_id, (None, None))
+        for catalog_row in catalog_rows:
+            ranking = joined.get(catalog_row.instrument)
             candidates.append(
                 FuturesContractRecord(
-                    product=instrument.product,
-                    instrument_id=instrument.instrument_id,
-                    asset_type=instrument.asset_type,
-                    is_trading=instrument.is_trading,
-                    expiry_date=instrument.expiry_date,
-                    open_interest=open_interest,
-                    volume=volume,
+                    product=product,
+                    instrument_id=catalog_row.instrument.instrument_id,
+                    asset_type=_contract_kind(catalog_row, sdk),
+                    is_trading=catalog_row.is_trading,
+                    expiry_date=catalog_row.expiry_date,
+                    open_interest=(
+                        None if ranking is None else _neutral_decimal(ranking.open_interest)
+                    ),
+                    volume=None if ranking is None else _neutral_decimal(ranking.volume),
                 )
             )
 
-        coverage_rows.append(
+        valid_source = bool(sources_for_product) and all(
+            item.snapshot_ref is not None
+            and item.source_digest is not None
+            and item.retrieved_at is not None
+            for item in sources_for_product
+        )
+        source_day = (
+            eod_snapshot.request.trading_day
+            if valid_source and all(
+                item.trading_day == eod_snapshot.request.trading_day
+                for item in sources_for_product
+            )
+            else None
+        )
+        selected_metrics = tuple(joined.values())
+        units_known = bool(selected_metrics) and all(
+            item.open_interest_unit is FuturesQuantityUnit.CONTRACTS
+            and item.volume_unit is FuturesQuantityUnit.CONTRACTS
+            and item.volume_semantics is FuturesVolumeSemantics.CUMULATIVE_TRADING_DAY
+            for item in selected_metrics
+        )
+        ranking_ids = tuple(
+            sorted(item.instrument_id for item in joined)
+        )
+        expected_ids = tuple(sorted(row.instrument.instrument_id for row in catalog_rows))
+        selector_coverage.append(
             ProductRankingCoverage(
                 product=product,
                 candidate_count=len(catalog_rows),
                 expected_instrument_ids=expected_ids,
-                ranking_instrument_ids=tuple(sorted(ranking_ids)),
-                candidate_set_complete=(
-                    catalog.complete and bool(catalog_rows) and not duplicate_catalog
-                ),
-                ranking_values_complete=(
-                    chosen_source is not None
-                    and chosen_source.unscoped_join_issue_count == 0
-                    and not unmatched_rows
-                    and not duplicate_source
-                    and not missing_ranking_ids
-                    and not invalid_values
-                ),
-                finalized=chosen_source.finalized if chosen_source is not None else False,
-                latest_available=(
-                    chosen_source.latest_available if chosen_source is not None else False
-                ),
-                ranking_trading_day=chosen_source.trading_day
-                if chosen_source is not None
-                else None,
-                open_interest_unit=(
-                    chosen_source.open_interest_unit if chosen_source is not None else None
-                ),
-                volume_unit=chosen_source.volume_unit if chosen_source is not None else None,
+                ranking_instrument_ids=ranking_ids,
+                candidate_set_complete=candidate_set_complete,
+                ranking_values_complete=ranking_values_complete,
+                finalized=finalized,
+                latest_available=latest_available,
+                ranking_trading_day=source_day,
+                open_interest_unit="contracts" if units_known else None,
+                volume_unit="contracts" if units_known else None,
             )
         )
         diagnostics.append(
             RankingProductCoverage(
                 product=product,
-                source_ids=source_ids,
+                source_ids=tuple(sorted({item.source_ref for item in sources_for_product})),
                 catalog_candidate_count=len(catalog_rows),
-                ranking_row_count=len(product_source_rows),
-                ranking_instrument_ids=tuple(sorted(ranking_ids)),
-                missing_ranking_instrument_ids=missing_ranking_ids,
-                unmatched_source_instrument_ids=unmatched_rows,
-                duplicate_catalog_instrument_ids=duplicate_catalog,
-                duplicate_source_instrument_ids=duplicate_source,
+                ranking_row_count=len(ranking_rows),
+                ranking_instrument_ids=ranking_ids,
+                missing_ranking_instrument_ids=missing_ranking,
+                unmatched_source_instrument_ids=unmatched_source_rows,
+                duplicate_catalog_instrument_ids=tuple(dict.fromkeys(duplicate_catalog)),
+                duplicate_source_instrument_ids=tuple(dict.fromkeys(duplicate_ranking)),
                 blockers=tuple(dict.fromkeys(blockers)),
             )
         )
 
-    snapshot = None
-    if sources and not outside_future_products:
-        composite_digest = _composite_source_digest(sources)
+    sources_with_times = tuple(
+        item
+        for item in observed_sources
+        if _aware_utc(item.retrieved_at)
+        and (item.reported_update_at is None or _aware_utc(item.reported_update_at))
+        and (item.reported_update_at is None or item.reported_update_at <= item.retrieved_at)
+    )
+    if sources_with_times:
         available_at = max(
-            (item.available_at for item in sources),
-            key=lambda value: value.astimezone(timezone.utc),
+            (
+                item.reported_update_at or item.retrieved_at
+                for item in sources_with_times
+            ),
+            key=lambda item: item.astimezone(timezone.utc),
         )
         retrieved_at = max(
-            (item.retrieved_at for item in sources),
-            key=lambda value: value.astimezone(timezone.utc),
+            (item.retrieved_at for item in sources_with_times),
+            key=lambda item: item.astimezone(timezone.utc),
         )
-        snapshot = MainContractRankingSnapshot(
-            source_id=_COMPOSITE_SOURCE_ID,
-            snapshot_id="composite:" + composite_digest,
-            source_sha256=composite_digest,
-            available_at=available_at,
-            retrieved_at=retrieved_at,
-            catalog_source_id=catalog.source_id,
-            catalog_snapshot_id=catalog.snapshot_id,
-            catalog_sha256=catalog.source_sha256,
-            catalog_available_at=catalog.available_at,
-            catalog_retrieved_at=catalog.retrieved_at,
-            coverage=tuple(coverage_rows),
-            candidates=tuple(candidates),
-        )
+        ranking_digest = _eod_manifest_digest(eod_snapshot)
+        ranking_source_id = _COMPOSITE_SOURCE_ID
+        ranking_snapshot_id = "eod:" + ranking_digest[:24]
+    else:
+        available_at = eod_snapshot.completed_at
+        retrieved_at = eod_snapshot.observed_at
+        ranking_source_id = ""
+        ranking_snapshot_id = ""
+        ranking_digest = ""
+
+    catalog_family = market_snapshot.coverage.catalog
+    catalog_available_at = catalog_family.completed_at or market_snapshot.completed_at
+    catalog_retrieved_at = catalog_family.observed_at or market_snapshot.observed_at
+    catalog_source_id = (
+        "sdk-query:" + market_snapshot.source_ref if market_snapshot.source_ref else ""
+    )
+    main_snapshot = MainContractRankingSnapshot(
+        source_id=ranking_source_id,
+        snapshot_id=ranking_snapshot_id,
+        source_sha256=ranking_digest,
+        available_at=available_at,
+        retrieved_at=retrieved_at,
+        catalog_source_id=catalog_source_id,
+        catalog_snapshot_id=catalog_family.snapshot_ref or "",
+        catalog_sha256=(
+            catalog_family.records_digest
+            if catalog_family.records_digest
+            else ""
+        ),
+        catalog_available_at=catalog_available_at,
+        catalog_retrieved_at=catalog_retrieved_at,
+        coverage=tuple(selector_coverage),
+        candidates=tuple(candidates),
+    )
+
+    if lease_present and not _validate_lease(market_snapshot_facade, market_snapshot, market_snapshot_lease):
+        raise RankingAggregationError("MARKET_CATALOG_LEASE_EXPIRED")
 
     return RankingAggregationResult(
-        snapshot=snapshot,
-        target_products=product_keys,
-        ranking_sources=sources,
+        snapshot=main_snapshot,
+        target_products=products,
+        eod_snapshot=eod_snapshot,
         coverage=tuple(diagnostics),
         catalog_instrument_ids_outside_target=tuple(sorted(outside_catalog_ids)),
         catalog_future_products_outside_target=tuple(
-            sorted(
-                outside_future_products,
-                key=lambda item: (item.exchange_id, item.product_id),
-            )
+            sorted(outside_future_products, key=lambda item: (item.exchange_id, item.product_id))
         ),
         ranking_rows_outside_target=tuple(
             sorted(
-                outside_rows,
+                rows_outside_target,
                 key=lambda row: (
-                    row.product.exchange_id,
+                    row.product.venue,
                     row.product.product_id,
-                    row.instrument_id,
+                    row.instrument.instrument_id,
                 ),
             )
         ),
     )
+
+
+__all__ = [
+    "RankingAggregationError",
+    "RankingAggregationResult",
+    "RankingProductCoverage",
+    "aggregate_eod_ranking_snapshot",
+]

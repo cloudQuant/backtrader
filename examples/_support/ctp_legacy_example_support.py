@@ -14,17 +14,12 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
-import os
-import threading
 from pathlib import Path
 
 import backtrader as bt
 import yaml
 
-from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.channel import DataChannel
-from backtrader.feeds.btapifeed import BtApiFeed
-from backtrader.stores.btapistore import BtApiStore
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EXAMPLES_ROOT = Path(__file__).resolve().parent
@@ -65,18 +60,26 @@ DEFAULT_APP_ID = "simnow_client_test"
 DEFAULT_AUTH_CODE = "0000000000000000"
 
 
+class RetiredCtpExecution(RuntimeError):
+    """Finite failure for historical direct CTP entrypoints."""
+
+    code = "CTP_LEGACY_RUNTIME_RETIRED"
+
+    def __init__(self, source: str) -> None:
+        super().__init__("{}:{}".format(self.code, source))
+
+
+def legacy_direct_execution_error(source: str) -> RetiredCtpExecution:
+    """Return the local fail-closed error without importing a retired runtime."""
+
+    return RetiredCtpExecution(source)
+
+
 def load_dotenv_if_available():
-    """Load environment variables from .env file if dotenv is available."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:load_dotenv_if_available"
     )
-    try:
-        from dotenv import load_dotenv
-
-        load_dotenv(REPO_ROOT / ".env")
-    except ImportError:
-        pass
 
 
 
@@ -636,25 +639,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
 
 
 def get_simnow_credentials():
-    """Get SimNow credentials from environment variables.
-
-    Returns:
-        Tuple of (investor_id, password).
-
-    Raises:
-        RuntimeError: If credentials are not set.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:get_simnow_credentials"
     )
-    investor_id = os.getenv("SIMNOW_USER_ID") or os.getenv("simnow_user_id")  # noqa: SIM112
-    password = os.getenv("SIMNOW_PASSWORD") or os.getenv("simnow_password")  # noqa: SIM112
-    if not investor_id or not password:
-        raise RuntimeError(
-            "Missing SimNow credentials. Set SIMNOW_USER_ID and SIMNOW_PASSWORD in the environment or .env."
-        )
-    return investor_id, password
 
 
 def _normalize_simnow_env_key(raw_value):
@@ -670,208 +658,42 @@ def _normalize_simnow_env_key(raw_value):
 
 
 def iter_simnow_env_candidates(env_key=None, strict=False):
-    """Iterate over SimNow environment candidates in priority order.
-
-    Args:
-        env_key: Specific environment key to use.
-        strict: If True, return only the specified environment.
-
-    Yields:
-        Environment keys in priority order.
-
-    Raises:
-        ValueError: If environment key is not supported.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:iter_simnow_env_candidates"
     )
-    selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
-    if not selected_env:
-        selected_env = DEFAULT_SIMNOW_ENV
-
-    if selected_env != AUTO_SIMNOW_ENV and selected_env not in SIMNOW_ENVIRONMENTS:
-        raise ValueError(
-            f"Unsupported SimNow environment {selected_env!r}. "
-            f"Choose from: {AUTO_SIMNOW_ENV}, {', '.join(sorted(SIMNOW_ENVIRONMENTS))}."
-        )
-
-    if strict and selected_env != AUTO_SIMNOW_ENV:
-        return [selected_env]
-
-    candidates = []
-    if selected_env != AUTO_SIMNOW_ENV:
-        candidates.append(selected_env)
-
-    for candidate in SIMNOW_ENV_PRIORITY:
-        if candidate in SIMNOW_ENVIRONMENTS and candidate not in candidates:
-            candidates.append(candidate)
-
-    for candidate in SIMNOW_ENVIRONMENTS:
-        if candidate not in candidates:
-            candidates.append(candidate)
-
-    return candidates
 
 
 def create_simnow_connection(env_key=None):
-    """Create SimNow connection parameters.
-
-    Args:
-        env_key: Specific environment key to use.
-
-    Returns:
-        Dictionary with connection parameters.
-
-    Raises:
-        ValueError: If environment is not supported.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:create_simnow_connection"
     )
-    selected_env = _normalize_simnow_env_key(env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
-    if selected_env not in SIMNOW_ENVIRONMENTS:
-        raise ValueError(
-            f"Unsupported SimNow environment {selected_env!r}. "
-            f"Choose from: {', '.join(sorted(SIMNOW_ENVIRONMENTS))}."
-        )
-
-    investor_id, password = get_simnow_credentials()
-    env_config = SIMNOW_ENVIRONMENTS[selected_env]
-    return {
-        "td_address": env_config["td_address"],
-        "md_address": env_config["md_address"],
-        "broker_id": DEFAULT_BROKER_ID,
-        "investor_id": investor_id,
-        "password": password,
-        "app_id": DEFAULT_APP_ID,
-        "auth_code": DEFAULT_AUTH_CODE,
-        "simnow_env": selected_env,
-        "simnow_name": env_config["name"],
-    }
 
 
 def create_live_store(config):
-    """Create live BtApi store from configuration.
-
-    Args:
-        config: Configuration dictionary with simnow_env, store_kwargs, etc.
-
-    Returns:
-        Tuple of (BtApiStore, connection_info).
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:create_live_store"
     )
-    config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
-    env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
-    requested_env = config_env or DEFAULT_SIMNOW_ENV
-    if requested_env in {"", AUTO_SIMNOW_ENV} and env_override:
-        requested_env = env_override
-    strict_env = bool(config.get("simnow_strict_env", False))
-    candidates = tuple(iter_simnow_env_candidates(requested_env, strict=strict_env))
-    store_kwargs = dict(config.get("store_kwargs") or {})
-    if not candidates:
-        raise RuntimeError("Unable to resolve any SimNow environment candidates")
-
-    candidate_env = candidates[0]
-    connection = create_simnow_connection(candidate_env)
-    store_config = dict(
-        provider="ctp",
-        td_address=connection["td_address"],
-        md_address=connection["md_address"],
-        broker_id=connection["broker_id"],
-        investor_id=connection["investor_id"],
-        password=connection["password"],
-        app_id=connection["app_id"],
-        auth_code=connection["auth_code"],
-        **store_kwargs,
-    )
-
-    # Do not eager-start the live store here. BtApiFeed/BtApiBroker must own
-    # the startup sequence inside Cerebro; starting the CTP clients before the
-    # feed is attached causes live runs to exit immediately with 0 ticks/0
-    # events, and the process may later crash while the native md/trader
-    # threads are still shutting down.
-    connection["requested_simnow_env"] = requested_env
-    connection["fallback_used"] = requested_env not in {"", AUTO_SIMNOW_ENV, candidate_env}
-    connection["attempted_simnow_envs"] = candidates
-    return BtApiStore(**store_config), connection
 
 
 def create_live_broker(store, config):
-    """Create live broker from store and configuration.
-
-    Args:
-        store: BtApiStore instance.
-        config: Configuration dictionary with broker settings.
-
-    Returns:
-        BtApiBroker instance.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:create_live_broker"
     )
-    broker_kwargs = dict(config.get("broker") or {})
-    return BtApiBroker(store=store, **broker_kwargs)
 
 
 def add_live_feeds(cerebro, store, config):
-    """Add live feeds to cerebro from configuration.
-
-    Args:
-        cerebro: Cerebro instance.
-        store: BtApiStore instance.
-        config: Configuration dictionary with feed and symbols settings.
-
-    Returns:
-        List of added data feeds.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:add_live_feeds"
     )
-    feed_config = dict(config.get("feed") or {})
-    timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
-    compression = int(feed_config.pop("compression", 1))
-    backfill_start = bool(feed_config.pop("backfill_start", False))
-
-    feeds = []
-    for symbol in config.get("symbols") or []:
-        data = BtApiFeed(
-            store=store,
-            dataname=symbol,
-            timeframe=timeframe,
-            compression=compression,
-            backfill_start=backfill_start,
-            **feed_config,
-        )
-        cerebro.adddata(data, name=symbol)
-        feeds.append(data)
-    return feeds
 
 
 def run_cerebro_with_timeout(cerebro, timeout_seconds=60):
-    """Run cerebro with a timeout that stops execution.
-
-    Args:
-        cerebro: Cerebro instance to run.
-        timeout_seconds: Timeout in seconds before forcing stop.
-
-    Returns:
-        List of strategy results.
-    """
-    from backtrader_runtime.legacy import legacy_direct_execution_error
+    """Reject this retired legacy CTP entry point."""
     raise legacy_direct_execution_error(
         "examples/_support/ctp_legacy_example_support.py:run_cerebro_with_timeout"
     )
-    timer = threading.Timer(float(timeout_seconds), cerebro.runstop)
-    timer.daemon = True
-    timer.start()
-    try:
-        return cerebro.run()
-    finally:
-        timer.cancel()

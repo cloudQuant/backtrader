@@ -117,9 +117,23 @@ _SERVICE_RECOVERY_TRADE_STATE_FIELDS = frozenset(
         "historyon",
     }
 )
+_SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2 = "backtrader.managed_paper_trade.v2"
+_SERVICE_RECOVERY_TRADE_STATE_FIELDS_V2 = _SERVICE_RECOVERY_TRADE_STATE_FIELDS | {
+    "strategy_position_ref"
+}
 _SERVICE_RECOVERY_TRADE_NOTIFICATION_FIELDS = frozenset(
     {"callback", "data_name", "tradeid"}
 )
+
+
+def _service_recovery_strategy_position_ref(value):
+    prefix = "btsp1_"
+    return (
+        type(value) is str
+        and value.startswith(prefix)
+        and len(value) == len(prefix) + 64
+        and all(character in "0123456789abcdef" for character in value[len(prefix) :])
+    )
 
 
 def _set_current_datetime(line, value):
@@ -2170,7 +2184,15 @@ class Strategy(StrategyBase):
 
     @classmethod
     def _service_recovery_trade_state(
-        cls, trade, *, data_name, tradeid, receipt_id, fill_id, match_time_ns
+        cls,
+        trade,
+        *,
+        data_name,
+        tradeid,
+        receipt_id,
+        fill_id,
+        match_time_ns,
+        strategy_position_ref=None,
     ):
         if (
             not isinstance(data_name, str)
@@ -2198,6 +2220,10 @@ class Strategy(StrategyBase):
             or type(trade.barclose) is not int
             or trade.barclose != 0
             or trade.history
+            or (
+                strategy_position_ref is not None
+                and not _service_recovery_strategy_position_ref(strategy_position_ref)
+            )
         ):
             raise ValueError("recovery Trade state is not a single open fill")
         size = cls._service_recovery_trade_float_hex(trade.size, nonzero=True)
@@ -2211,8 +2237,12 @@ class Strategy(StrategyBase):
         dtclose = cls._service_recovery_trade_float_hex(trade.dtclose)
         if float.fromhex(dtclose) != 0.0:
             raise ValueError("open recovery Trade has a close time")
-        return {
-            "schema": _SERVICE_RECOVERY_TRADE_STATE_SCHEMA,
+        state = {
+            "schema": (
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                if strategy_position_ref is not None
+                else _SERVICE_RECOVERY_TRADE_STATE_SCHEMA
+            ),
             "data_name": data_name,
             "tradeid": tradeid,
             "receipt_id": receipt_id,
@@ -2236,13 +2266,44 @@ class Strategy(StrategyBase):
             "barlen": 0,
             "historyon": False,
         }
+        if strategy_position_ref is not None:
+            state["strategy_position_ref"] = strategy_position_ref
+        return state
 
     @classmethod
-    def _service_recovery_trade_from_state(cls, data, state, *, data_name, tradeid):
+    def _service_recovery_trade_from_state(
+        cls, data, state, *, data_name, tradeid, strategy_position_ref=None
+    ):
+        state_schema = state.get("schema") if isinstance(state, Mapping) else None
+        state_fields = (
+            _SERVICE_RECOVERY_TRADE_STATE_FIELDS_V2
+            if state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+            else _SERVICE_RECOVERY_TRADE_STATE_FIELDS
+        )
+        state_position_ref = (
+            state.get("strategy_position_ref")
+            if state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+            else None
+        )
         if (
             not isinstance(state, Mapping)
-            or frozenset(state) != _SERVICE_RECOVERY_TRADE_STATE_FIELDS
-            or state.get("schema") != _SERVICE_RECOVERY_TRADE_STATE_SCHEMA
+            or frozenset(state) != state_fields
+            or state_schema
+            not in {
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA,
+                _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2,
+            }
+            or (state_schema == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                and not _service_recovery_strategy_position_ref(state_position_ref))
+            or (
+                strategy_position_ref is not None
+                and not _service_recovery_strategy_position_ref(strategy_position_ref)
+            )
+            or (
+                state_position_ref is not None
+                and strategy_position_ref is not None
+                and state_position_ref != strategy_position_ref
+            )
             or state.get("data_name") != data_name
             or type(state.get("tradeid")) is not int
             or state.get("tradeid") != tradeid
@@ -2316,6 +2377,9 @@ class Strategy(StrategyBase):
         trade.service_execution_recovery_receipt_id = state["receipt_id"]
         trade.service_execution_recovery_fill_id = state["fill_id"]
         trade.service_execution_recovery_match_time_ns = state["match_time_ns"]
+        resolved_ref = state_position_ref or strategy_position_ref
+        if resolved_ref is not None:
+            trade.service_execution_strategy_position_ref = resolved_ref
         return trade
 
     @staticmethod
@@ -2375,9 +2439,30 @@ class Strategy(StrategyBase):
             raise RuntimeError("managed paper Trade checkpoints are unavailable")
         seen = set()
         for checkpoint in checkpoints:
+            checkpoint_fields = (
+                frozenset(checkpoint) if isinstance(checkpoint, Mapping) else frozenset()
+            )
+            if checkpoint_fields == {
+                "data_name",
+                "tradeid",
+                "state",
+                "receipt_id",
+            }:
+                checkpoint_ref = None
+            elif checkpoint_fields == {
+                "data_name",
+                "tradeid",
+                "state",
+                "receipt_id",
+                "strategy_position_ref",
+            }:
+                checkpoint_ref = checkpoint.get("strategy_position_ref")
+                if not _service_recovery_strategy_position_ref(checkpoint_ref):
+                    raise RuntimeError("managed paper Trade checkpoint reference is invalid")
+            else:
+                raise RuntimeError("managed paper Trade checkpoint row is invalid")
             if (
                 not isinstance(checkpoint, Mapping)
-                or frozenset(checkpoint) != {"data_name", "tradeid", "state", "receipt_id"}
             ):
                 raise RuntimeError("managed paper Trade checkpoint row is invalid")
             data_name = checkpoint["data_name"]
@@ -2399,13 +2484,34 @@ class Strategy(StrategyBase):
                 or projection.get("trade_state") != state
             ):
                 raise RuntimeError("managed paper Trade checkpoint receipt is not ready")
+            try:
+                resolved_ref = adapter.recovery_strategy_position_ref_for_key(
+                    data_name, tradeid
+                )
+            except Exception as error:
+                raise RuntimeError(
+                    "managed paper Trade checkpoint identity is unavailable"
+                ) from error
+            if checkpoint_ref is not None and resolved_ref != checkpoint_ref:
+                raise RuntimeError("managed paper Trade checkpoint identity changed")
+            if projection.get("strategy_position_ref") not in (None, resolved_ref):
+                raise RuntimeError("managed paper fill position reference changed")
+            if (
+                state.get("schema") == _SERVICE_RECOVERY_TRADE_STATE_SCHEMA_V2
+                and state.get("strategy_position_ref") != resolved_ref
+            ):
+                raise RuntimeError("managed paper Trade checkpoint reference changed")
             notification = self._service_recovery_trade_notifications(
                 projection.get("trade_notification"),
                 data_name=data_name,
                 tradeid=tradeid,
             )
             trade = self._service_recovery_trade_from_state(
-                feed, state, data_name=data_name, tradeid=tradeid
+                feed,
+                state,
+                data_name=data_name,
+                tradeid=tradeid,
+                strategy_position_ref=resolved_ref,
             )
             fill = projection.get("fill")
             intent_context = projection.get("intent_context")

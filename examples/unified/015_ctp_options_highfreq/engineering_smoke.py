@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 import backtrader as bt
-from backtrader.feeds.ctpcohort import CtpCohortNow
+from backtrader.feeds.market_cohort import MarketCohortNow
 from backtrader.stores.btapistore import BtApiStore
 
 
@@ -301,7 +301,12 @@ class EngineeringSmokeAdapter:
         now_ns: Callable[[], int] = time.monotonic_ns,
         starting_cash: float = 10_000.0,
     ) -> None:
-        """Build the market-data-only chain or reject without any side effect."""
+        """Retain the historical graph, disabled until neutral SDK contracts exist."""
+
+        raise EngineeringObservationBlocked(
+            "NEUTRAL_CTP_SESSION_CONTRACT_UNAVAILABLE",
+            "the current SDK has no equivalent bundle-preflight and reconciliation snapshot contract",
+        )
 
         if not isinstance(store, BtApiStore):
             raise EngineeringSmokeError("BTAPISTORE_REQUIRED")
@@ -336,7 +341,7 @@ class EngineeringSmokeAdapter:
                 dispatch_ticks=True,
                 dispatch_bars=False,
                 backfill_start=False,
-                ctp_decision_now_provider=self._decision_now_provider,
+                market_decision_now_provider=self._decision_now_provider,
             )
             for symbol in self.symbols
         )
@@ -367,10 +372,10 @@ class EngineeringSmokeAdapter:
             "strategy": _type_name(_SmokeStrategy),
         }
 
-    def _decision_now_provider(self, tick: Any) -> CtpCohortNow:
+    def _decision_now_provider(self, tick: Any) -> MarketCohortNow:
         """Require an explicit same-domain clock; never use process time."""
         now = getattr(tick, "cohort_now", None)
-        if not isinstance(now, CtpCohortNow):
+        if not isinstance(now, MarketCohortNow):
             raise EngineeringSmokeError("TRUSTED_COHORT_NOW_REQUIRED")
         if now.clock_domain_id != self.session.clock_domain_id:
             raise EngineeringSmokeError("CLOCK_DOMAIN_MISMATCH")
@@ -389,7 +394,7 @@ class EngineeringSmokeAdapter:
         ):
             self._block("COHORT_EPOCH_INVALID")
             return
-        if not isinstance(getattr(tick, "cohort_now", None), CtpCohortNow):
+        if not isinstance(getattr(tick, "cohort_now", None), MarketCohortNow):
             self._block("TRUSTED_COHORT_NOW_REQUIRED")
             return
         self._last_tick = (int(getattr(tick, "ingest_seq", 0)), str(getattr(tick, "symbol", "")))
@@ -735,7 +740,6 @@ def _normalize_reconciliation_snapshot(snapshot: Mapping[str, Any]) -> dict[str,
     normalized = dict(snapshot)
     if "generation" not in normalized:
         normalized["generation"] = normalized.get("connection_generation")
-    normalized.setdefault("trading_day", normalized.get("TradingDay"))
     return normalized
 
 

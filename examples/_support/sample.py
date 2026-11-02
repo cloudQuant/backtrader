@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Fail-closed Iteration 41 migration shell for the historical CTP sample.
+"""Retired direct-execution shell for the historical CTP sample.
 
 The former version of this file imported ``ctpbeebt.CTPStore`` at module
 import time, loaded ``params_01.json`` from the current working directory, and
@@ -7,11 +7,10 @@ could dispatch ``beeapi.action`` calls directly. That route predated the
 configuration-first runtime contract and bypassed the Backtrader/SDK execution
 boundary. It is deliberately *not* an Iteration 41 execution route.
 
-The only supported entry point is the registered, local ``simulation/replay``
-audit profile in ``examples/_support/sample/runtime``. It validates mandatory schema-v4
-``config.yaml`` and returns a zero-I/O migration report. Sandbox and live
-execution are ``NOT_SUPPORTED`` until this example has a separately reviewed
-managed SDK/execution migration.
+The former ``backtrader_runtime`` config-first replay profile has no equivalent
+supported CTP entrypoint and is retired. The retained runtime example config is
+not read. Backtrader's native replay APIs remain available for ordinary local
+data replay; they do not enable this historical CTP execution path.
 """
 
 from __future__ import annotations
@@ -20,29 +19,9 @@ import argparse
 import json
 from datetime import datetime, time
 from pathlib import Path
-import sys
 from typing import Any, Dict, Optional
 
-
 HERE = Path(__file__).resolve().parent
-REPOSITORY_ROOT = HERE.parent
-if str(REPOSITORY_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPOSITORY_ROOT))
-
-# ``backtrader_runtime`` is intentionally dependency-free with respect to
-# Backtrader, CTP, providers, gateways, and execution packages. Keep this
-# import before any legacy strategy/provider import so a bad contract rejects
-# without loading an external trading dependency.  # noqa: E402
-from backtrader_runtime import (  # noqa: E402
-    dispatch_configured_runtime,
-    EffectiveRuntimeConfig,
-    RuntimeConfigError,
-    RuntimeRegistry,
-    iteration41_runtime_registry,
-    resolve_runner_effective_config,
-)
-
-
 STRATEGY_ID = "example.sample.ctp_legacy"
 DEFAULT_RUNTIME_DIR = HERE / "sample" / "runtime"
 LOCAL_SCENARIO = "no_action"
@@ -124,118 +103,48 @@ class SmaCross:
         _reject_legacy_direct_execution("sell")
 
 
-def runtime_registry() -> RuntimeRegistry:
-    """Return only the code-owned Iteration 41 registry."""
-
-    return iteration41_runtime_registry()
-
-
-def _validate_sample_profile(config: Any, effective: Any) -> None:
-    """Bind this retired direct sample to one local no-action profile."""
-
-    if config.strategy_id != STRATEGY_ID:
-        raise RuntimeConfigError(
-            "PRESET_POLICY_VIOLATION",
-            "This migration shell is registered only for the historical sample strategy.",
-            field_path="strategy.id",
-            reason="strategy_not_bound",
-        )
-    if (
-        (config.mode, config.preset) != ("simulation", "replay")
-        or effective.allows_network
-        or effective.allows_external_writes
-        or effective.allows_production_writes
-    ):
-        raise RuntimeConfigError(
-            "PRESET_POLICY_VIOLATION",
-            "The historical CTP sample supports only the local no-action replay profile.",
-            field_path="runtime.preset",
-            reason="preset_not_bound",
-        )
-    scenario = config.parameters.get("scenario", LOCAL_SCENARIO)
-    if scenario != LOCAL_SCENARIO:
-        raise RuntimeConfigError(
-            "CONFIG_SCHEMA_UNSUPPORTED",
-            "The historical CTP migration profile accepts only parameters.scenario=no_action.",
-            field_path="parameters.scenario",
-            reason="invalid_scenario",
-        )
-
-
 def run_runtime(
     runtime_dir: Optional[Path] = DEFAULT_RUNTIME_DIR,
     *,
-    registry: Optional[RuntimeRegistry] = None,
-    effective: Optional[EffectiveRuntimeConfig] = None,
+    registry: Optional[object] = None,
+    effective: Optional[object] = None,
     runtime_directory: Optional[object] = None,
 ) -> Dict[str, Any]:
-    """Validate mandatory config and report a pure local, read-only migration.
+    """Reject the retired config-first CTP route without reading its config."""
 
-    No CTP library, Backtrader strategy, parameter JSON, credential, provider,
-    socket, broker, or action object is loaded on this route.
-    """
-
-    trusted_registry = runtime_registry() if registry is None else registry
-    effective = resolve_runner_effective_config(runtime_dir, trusted_registry, effective=effective)
-    config = effective.config
-    _validate_sample_profile(config, effective)
-
-    return {
-        "status": "LOCAL_REPLAY_PASS",
-        "admission_status": "LOCAL_REPLAY_ONLY",
-        "scenario": LOCAL_SCENARIO,
-        "external_request_counts": {"network": 0, "order_write": 0},
-        "legacy_direct_execution": "NOT_SUPPORTED",
-        "legacy_parameter_source": {
-            "path": LEGACY_PARAMS_FILENAME,
-            "status": "IGNORED_BY_ITERATION41_RUNTIME",
-        },
-        "evidence_boundary": (
-            "CONFIG_GATE_AND_NO_ACTION_PROBE_ONLY_NOT_CTP_SIMNOW_OR_REAL_TRADING_EVIDENCE"
-        ),
-        "runtime_config": {
-            "config_schema_version": 4,
-            "strategy_id": config.strategy_id,
-            "mode": config.mode,
-            "preset": config.preset,
-            "config_digest": config.config_digest,
-            "effective_digest": effective.effective_digest,
-            "scope": "LOCAL_REPLAY_ONLY",
-            "allows_network": effective.allows_network,
-            "allows_external_writes": effective.allows_external_writes,
-            "allows_production_writes": effective.allows_production_writes,
-        },
-    }
+    del runtime_dir, registry, effective, runtime_directory
+    raise LegacyDirectExecutionDisabled("retired_config_first_runtime")
 
 
 def main(argv: Optional[tuple[str, ...]] = None) -> int:
-    """Run the no-action migration report or reject before legacy imports."""
+    """Report retirement without reading configuration or loading providers."""
 
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument(
         "--runtime-dir",
         type=Path,
         default=DEFAULT_RUNTIME_DIR,
-        help="registered runtime directory; must contain config.yaml",
+        help="retired compatibility option; no configuration file is read",
     )
     args = parser.parse_args(argv)
     try:
-        report = dispatch_configured_runtime(args.runtime_dir, runtime_registry())
-    except RuntimeConfigError as exc:
+        run_runtime(args.runtime_dir)
+    except LegacyDirectExecutionDisabled as exc:
         print(
             json.dumps(
                 {
-                    "status": "REJECTED",
-                    "error": exc.as_dict(),
+                    "status": "NOT_SUPPORTED",
+                    "error_code": "CTP_LEGACY_RUNTIME_RETIRED",
+                    "runtime_config_read": False,
                     "external_request_counts": {"network": 0, "order_write": 0},
+                    "message": str(exc),
                 },
                 ensure_ascii=False,
                 sort_keys=True,
             )
         )
         return 2
-    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
-    return 0
+    raise AssertionError("retired CTP runtime unexpectedly returned")
 
 
 if __name__ == "__main__":

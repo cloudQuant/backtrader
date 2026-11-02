@@ -22,7 +22,6 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from ..feed import AbstractDataBase
 from ..linebuffer import LineBuffer
-from ..stores.registered_sim import RegisteredSimStore
 
 
 _UTC = _datetime.timezone.utc
@@ -537,67 +536,90 @@ def _strategy_event_facts(strategy: Any) -> Dict[str, Any]:
     }
 
 
-def _order_capacity_facts(store: Any) -> Dict[str, Any]:
-    if not isinstance(store, RegisteredSimStore):
-        return {"status": "UNAVAILABLE", "reason_code": "registered_sim_store_required"}
-    try:
-        facts = store.registered_sim_order_capacity_facts()
-    except Exception:
-        return {"status": "UNAVAILABLE", "reason_code": "order_projection_failed"}
-    if isinstance(facts, Mapping) and facts.get("status") == "UNAVAILABLE":
-        return {
-            "status": "UNAVAILABLE",
-            "reason_code": facts.get("reason_code")
-            if isinstance(facts.get("reason_code"), str)
-            else "order_projection_unavailable",
-            "dispatching_order_count": facts.get("dispatching_order_count")
-            if _nonnegative_int(facts.get("dispatching_order_count"))
-            else None,
-        }
-    if not isinstance(facts, Mapping):
-        return {"status": "INCOMPLETE", "reason_code": "invalid_order_projection"}
-    required = (
-        "active_order_count",
-        "unknown_order_count",
-        "terminal_order_count",
-        "dispatching_order_count",
-        "terminal_order_limit",
-    )
-    if (
-        facts.get("schema") != "backtrader.registered_sim_order_capacity.v1"
-        or facts.get("status") not in ("OBSERVED", "UNSTABLE_OR_OVER_CAPACITY")
-        or any(not _nonnegative_int(facts.get(name)) for name in required[:-1])
-        or type(facts.get("terminal_order_limit")) is not int
-        or facts["terminal_order_limit"] <= 0
-        or facts.get("active_unknown_limit", _MISSING) is not None
-        or facts.get("active_unknown_bounded") is not False
-        or facts["dispatching_order_count"] != 0
-        or type(facts.get("terminal_limit_respected")) is not bool
-        or facts["terminal_limit_respected"]
-        != (facts["terminal_order_count"] <= facts["terminal_order_limit"])
-        or (facts.get("status") == "OBSERVED") != facts["terminal_limit_respected"]
-    ):
-        return {"status": "INCOMPLETE", "reason_code": "invalid_order_projection"}
-    projection = {
-        key: facts[key]
-        for key in (
-            "schema",
-            *required,
-            "active_unknown_limit",
-            "active_unknown_bounded",
-            "terminal_limit_respected",
-        )
+def _order_capacity_facts(
+    store: Any,
+    exchange_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Project only an exact route-bound SDK capacity snapshot.
+
+    The Store owns route selection: an explicit exchange name is forwarded as
+    supplied, while ``None`` may resolve only when the Store proves a single
+    live SDK route. This sampler never reads Store client/provider internals
+    and never constructs counts from Backtrader state.
+    """
+    unavailable = {
+        "schema": "backtrader.order_capacity.v1",
+        "status": "UNAVAILABLE",
+        "reason_code": "sdk_order_capacity_unavailable",
     }
-    if facts["status"] == "UNSTABLE_OR_OVER_CAPACITY":
-        projection.update(
-            {
-                "status": "INCOMPLETE",
-                "reason_code": "terminal_order_cap_exceeded",
-            }
+    if exchange_name is not None and (
+        type(exchange_name) is not str
+        or not exchange_name
+        or exchange_name != exchange_name.strip()
+        or not exchange_name.isprintable()
+        or len(exchange_name) > 256
+    ):
+        unavailable["reason_code"] = "sdk_order_capacity_route_invalid"
+        return unavailable
+    try:
+        getter = getattr(store, "order_capacity_facts", None)
+    except Exception:
+        return unavailable
+    if not callable(getter):
+        return unavailable
+    try:
+        from bt_api_py.execution_capacity import (
+            ORDER_CAPACITY_SCHEMA,
+            OrderCapacitySnapshot,
         )
-    else:
-        projection["status"] = "OBSERVED"
-    return projection
+    except Exception:
+        return unavailable
+    try:
+        snapshot = getter(exchange_name)
+    except Exception:
+        return unavailable
+    try:
+        if (
+            type(snapshot) is not OrderCapacitySnapshot
+            or snapshot.schema != ORDER_CAPACITY_SCHEMA
+            or (exchange_name is not None and snapshot.exchange_name != exchange_name)
+            or (snapshot.status != "UNAVAILABLE" and snapshot.exchange_name is None)
+        ):
+            unavailable["reason_code"] = "sdk_order_capacity_projection_invalid"
+            return unavailable
+        # Recheck the frozen DTO invariants in case an instance was created
+        # without running its initializer or altered through low-level means.
+        OrderCapacitySnapshot.__post_init__(snapshot)
+    except Exception:
+        unavailable["reason_code"] = "sdk_order_capacity_projection_invalid"
+        return unavailable
+
+    result: Dict[str, Any] = {
+        "schema": "backtrader.order_capacity.v1",
+        "exchange_name": snapshot.exchange_name,
+        "status": snapshot.status,
+    }
+    if snapshot.status == "UNAVAILABLE":
+        result["reason_code"] = snapshot.reason_code
+        return result
+    result.update(
+        {
+            "active_order_count": snapshot.active_order_count,
+            "unknown_order_count": snapshot.unknown_order_count,
+            "terminal_order_count": snapshot.terminal_order_count,
+            "dispatching_order_count": snapshot.dispatching_order_count,
+            "terminal_order_limit": snapshot.terminal_order_limit,
+            "terminal_limit_respected": snapshot.terminal_limit_respected,
+            "active_unknown_limit": snapshot.active_unknown_limit,
+            "active_unknown_bounded": snapshot.active_unknown_bounded,
+        }
+    )
+    if snapshot.status == "UNSTABLE_OR_OVER_CAPACITY":
+        # Preserve the prior BT projection's explicit fail-closed status while
+        # retaining the SDK authority's validated count and limit facts.
+        result["status"] = "INCOMPLETE"
+        result["reason_code"] = "terminal_order_cap_exceeded"
+    return result
 
 
 class LiveCapacitySampler:
@@ -614,6 +636,7 @@ class LiveCapacitySampler:
         run_id: str,
         ordinals: Iterable[int],
         *,
+        exchange_name: Optional[str] = None,
         max_samples: int = 16,
         max_graph_nodes: int = MAX_GRAPH_NODES,
         max_graph_references: int = MAX_GRAPH_REFERENCES,
@@ -622,6 +645,14 @@ class LiveCapacitySampler:
             raise ValueError("run_id must be non-empty exact text")
         if type(max_samples) is not int or not 1 <= max_samples <= MAX_CAPACITY_SAMPLES:
             raise ValueError("max_samples must be between 1 and 32")
+        if exchange_name is not None and (
+            type(exchange_name) is not str
+            or not exchange_name
+            or exchange_name != exchange_name.strip()
+            or not exchange_name.isprintable()
+            or len(exchange_name) > 256
+        ):
+            raise ValueError("exchange_name must be an exact non-empty route name")
         if type(max_graph_nodes) is not int or not 1 <= max_graph_nodes <= MAX_GRAPH_NODES:
             raise ValueError("max_graph_nodes exceeds the fixed graph bound")
         if (
@@ -641,6 +672,7 @@ class LiveCapacitySampler:
         ):
             raise ValueError("ordinals must be a non-empty bounded increasing integer sequence")
         self._run_id = run_id
+        self._exchange_name = exchange_name
         self._expected_ordinals = expected
         self._max_samples = max_samples
         self._max_graph_nodes = max_graph_nodes
@@ -730,7 +762,7 @@ class LiveCapacitySampler:
                     owners_complete=line_facts["observation_complete"],
                 )
             row["strategy_events"] = _strategy_event_facts(strategy)
-            row["orders"] = _order_capacity_facts(store)
+            row["orders"] = _order_capacity_facts(store, self._exchange_name)
         except Exception:
             row["issues"].append("snapshot_projection_failed")
 
@@ -805,6 +837,7 @@ class LiveCapacityRunCapture:
         calendar_slot_count: int,
         process_id: Optional[int],
         process_create_time: Optional[float],
+        exchange_name: Optional[str] = None,
         max_samples: int = MAX_RUN_CAPACITY_SAMPLES,
         process_identity_issue: Optional[str] = None,
     ) -> None:
@@ -818,11 +851,20 @@ class LiveCapacityRunCapture:
             raise ValueError("calendar_slot_count must be a positive integer")
         if type(max_samples) is not int or not 1 <= max_samples <= MAX_RUN_CAPACITY_SAMPLES:
             raise ValueError("max_samples must be between 1 and 16")
+        if exchange_name is not None and (
+            type(exchange_name) is not str
+            or not exchange_name
+            or exchange_name != exchange_name.strip()
+            or not exchange_name.isprintable()
+            or len(exchange_name) > 256
+        ):
+            raise ValueError("exchange_name must be an exact non-empty route name")
         self._run_id = run_id
         self._epoch_id = epoch_id
         self._calendar_id = calendar_id
         self._calendar_slot_count = calendar_slot_count
         self._max_samples = max_samples
+        self._exchange_name = exchange_name
         self._process_id = process_id
         self._process_create_time = process_create_time
         self._process_identity_status = "OBSERVED"
@@ -995,7 +1037,10 @@ class LiveCapacityRunCapture:
                 self._expected_ordinals = expected
                 if self._process_identity_status == "OBSERVED":
                     self._sampler = LiveCapacitySampler(
-                        self._run_id, expected, max_samples=len(expected)
+                        self._run_id,
+                        expected,
+                        exchange_name=self._exchange_name,
+                        max_samples=len(expected),
                     )
 
             self._last_ordinal = slot_index
@@ -1604,6 +1649,7 @@ def _evaluate_strategy_event_bounds(samples: Tuple[Mapping[str, Any], ...]) -> D
 def _evaluate_order_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     rows = []
     terminal_limits = []
+    exchange_names = []
     for sample in samples:
         facts = sample.get("orders")
         required_counts = (
@@ -1614,8 +1660,11 @@ def _evaluate_order_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Tuple[Dict
         )
         if (
             not isinstance(facts, Mapping)
-            or facts.get("schema") != "backtrader.registered_sim_order_capacity.v1"
+            or facts.get("schema") != "backtrader.order_capacity.v1"
             or facts.get("status") != "OBSERVED"
+            or type(facts.get("exchange_name")) is not str
+            or not facts["exchange_name"]
+            or facts["exchange_name"] != facts["exchange_name"].strip()
             or any(not _nonnegative_int(facts.get(name)) for name in required_counts)
             or type(facts.get("terminal_order_limit")) is not int
             or facts["terminal_order_limit"] <= 0
@@ -1630,6 +1679,7 @@ def _evaluate_order_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Tuple[Dict
                 {"status": "NOT_EVALUATED", "reason_code": "order_snapshot_incomplete"},
             )
         terminal_limits.append(facts["terminal_order_limit"])
+        exchange_names.append(facts["exchange_name"])
         rows.append(
             {
                 "ordinal": sample["ordinal"],
@@ -1637,6 +1687,26 @@ def _evaluate_order_bounds(samples: Tuple[Mapping[str, Any], ...]) -> Tuple[Dict
                 "active_order_count": facts["active_order_count"],
                 "unknown_order_count": facts["unknown_order_count"],
             }
+        )
+    if len(set(exchange_names)) != 1:
+        return (
+            _fixed_component_result(
+                status="INCOMPLETE",
+                reason_code="order_capacity_route_changed",
+                counts_by_ordinal=tuple(rows),
+            ),
+            {
+                "status": "NOT_EVALUATED",
+                "reason_code": "active_unknown_retention_semantics_unbounded",
+                "counts_by_ordinal": tuple(
+                    {
+                        "ordinal": row["ordinal"],
+                        "active_order_count": row["active_order_count"],
+                        "unknown_order_count": row["unknown_order_count"],
+                    }
+                    for row in rows
+                ),
+            },
         )
     if len(set(terminal_limits)) != 1:
         return (

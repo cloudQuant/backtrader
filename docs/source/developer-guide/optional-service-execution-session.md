@@ -1,4 +1,8 @@
-# 可选执行服务运行入口
+﻿# 可选执行服务运行入口
+
+> 迭代 53 迁移状态（2026-11-01）：当前候选实现路径为 `backtrader.service.service_execution_session`。
+> 目录迁移尚未完成结构、导入、发行包或行为验收；既往本机合成生命周期记录不等于迁移后验证或真实账户验收。
+> 当前入口仍限于普通 bar 模式和单一明确执行/查询范围；channel 与优化模式拒绝，服务账户/行情读取与执行写入尚未统一到一个 Store。
 
 `ServiceExecutionSession` 将已配置的执行客户端接入普通 bar 模式的 Cerebro。
 它在运行线程上注册客户端，随 Broker 轮询维护租约、刷新订单，在退出时先停止
@@ -64,7 +68,7 @@ communication:
 ```python
 from bt_api_py.service_config import parse_client_config
 from bt_api_py.service_runtime import ServiceClientRuntime
-from backtrader.stores.service_execution_session import ServiceExecutionSession
+from backtrader.service.service_execution_session import ServiceExecutionSession
 
 runtime = ServiceClientRuntime(
     parse_client_config(raw_client_config),
@@ -118,7 +122,8 @@ results = session.run(cerebro, runonce=False, preload=False)
 
 ## 验证边界
 
-对应测试为 `tests/unit/stores/test_service_execution_session.py` 和
-`tests/unit/stores/test_service_execution_session_local_process.py`。本机进程场景使用
+原验证记录引用 `tests/unit/stores/test_service_execution_session.py` 和
+`tests/unit/stores/test_service_execution_session_local_process.py`；这两个测试路径在当前工作区均不存在，此次迁移后的模块尚未完成结构、导入、发行包或行为验收。
+本机进程场景原使用
 真实 SDK、CURVE、服务宿主、SQLite 和 Cerebro；provider 回报由测试控制端通过公共
 台账 API 注入。这是本机生命周期与订单通知证据，不是交易所回调或真实账户验收。

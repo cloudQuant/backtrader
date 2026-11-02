@@ -48,8 +48,8 @@ TARGET_FREE_SELECTION_REASONS = frozenset(
         "PRODUCT_KEY_UNAVAILABLE",
     }
 )
-# The shared CTP facts projector defines this as CloseProfit + PositionProfit
-# - Commission, all in the one qualified CNY Account row.
+# Historical result rows may still carry this legacy label. The neutral live
+# facts collector does not produce this CTP-specific PNL basis.
 RUN_LOSS_PNL_BASIS = "ctp_total_net_after_fees_v1"
 _RUN_LOSS_OPEN_REJECTION_CODES = frozenset(
     {
@@ -1203,258 +1203,9 @@ def _dated_close_actions_for_position(
     limit_price: Decimal,
     reason: str,
 ) -> Tuple[Tuple[Alpha003OrderAction, ...], Optional[str]]:
-    """Map exact bridge-proved SHFE/INE date buckets to Broker close intents."""
+    """Require a neutral dated-inventory receipt for exchange close rules."""
 
-    if inputs.evidence_source == "CAUSAL_REPLAY":
-        return (), "REPLAY_DATED_CLOSE_FACTS_UNAVAILABLE"
-    if position.exchange not in {"SHFE", "INE"}:
-        return (), "DATED_CLOSE_NOT_REQUIRED"
-
-    from backtrader.stores.factor_execution_facts import (
-        FactorExecutionDatedCloseLegFacts,
-        FactorExecutionDatedInventoryRow,
-    )
-
-    legs = tuple(
-        leg
-        for leg in inputs.dated_close_legs
-        if getattr(leg, "target_id", None) == position.target_id
-    )
-    if not legs:
-        return (), "DATED_CLOSE_FACTS_UNAVAILABLE"
-    if any(type(leg) is not FactorExecutionDatedCloseLegFacts for leg in legs):
-        return (), "DATED_CLOSE_FACT_TYPE_INVALID"
-    if any(leg.ready is not True or leg.blockers for leg in legs):
-        return (), "DATED_CLOSE_PROOF_BLOCKED"
-
-    expected_position_side = "LONG" if position.quantity > 0 else "SHORT"
-    expected_date_codes = {
-        "TODAY": ("1", "3", "close_today"),
-        "HISTORY": ("2", "4", "close_yesterday"),
-    }
-    seen_buckets = set()
-    row_ids = set()
-    actions = []
-    total_quantity = 0
-    for leg in sorted(
-        legs,
-        key=lambda item: (
-            0 if item.position_date == "TODAY" else 1,
-            item.hedge_flag or "",
-            item.position_side or "",
-        ),
-    ):
-        if (
-            leg.target_id != position.target_id
-            or leg.instrument != position.instrument
-            or leg.exchange != position.exchange
-            or leg.position_side != expected_position_side
-            or leg.side != side
-            or leg.owner_strategy_scope != inputs.strategy_scope
-            or leg.owner_intent_id != position.owner_intent_id
-        ):
-            return (), "DATED_CLOSE_OWNER_OR_ROUTE_MISMATCH"
-        if (
-            inputs.dated_query_set_id is None
-            or inputs.dated_snapshot_id is None
-            or inputs.dated_account_fingerprint is None
-            or inputs.dated_connection_generation is None
-            or inputs.dated_trading_day is None
-            or inputs.dated_available_at is None
-            or leg.query_set_id != inputs.dated_query_set_id
-            or leg.snapshot_id != inputs.dated_snapshot_id
-            or leg.account_fingerprint != inputs.dated_account_fingerprint
-            or leg.connection_generation != inputs.dated_connection_generation
-            or leg.trading_day != inputs.dated_trading_day
-            or leg.available_at != inputs.dated_available_at
-            or leg.available_at > inputs.evaluated_at
-        ):
-            return (), "DATED_CLOSE_PROVENANCE_MISMATCH"
-        expected_codes = expected_date_codes.get(leg.position_date)
-        if (
-            expected_codes is None
-            or leg.offset != expected_codes[2]
-            or leg.offset_flag != expected_codes[1]
-        ):
-            return (), "DATED_CLOSE_OFFSET_OR_HEDGE_INVALID"
-        # The current registered SimNow encoder routes only speculation
-        # HedgeFlag=1. Other provider hedge modes remain blocked until the
-        # shared Store can preserve them end to end.
-        if leg.hedge_flag != "1":
-            return (), "DATED_CLOSE_HEDGE_UNSUPPORTED"
-        bucket_identity = (leg.position_side, leg.hedge_flag, leg.position_date)
-        if bucket_identity in seen_buckets:
-            return (), "DATED_CLOSE_BUCKET_DUPLICATE"
-        seen_buckets.add(bucket_identity)
-
-        source_ids = tuple(leg.source_row_ids)
-        if (
-            not source_ids
-            or len(set(source_ids)) != len(source_ids)
-            or any(type(row_id) is not str or not row_id for row_id in source_ids)
-            or row_ids.intersection(source_ids)
-        ):
-            return (), "DATED_CLOSE_SOURCE_ROWS_INVALID"
-        row_ids.update(source_ids)
-        rows = tuple(leg.inventory_rows)
-        if (
-            not rows
-            or len(rows) != len(source_ids)
-            or any(type(row) is not FactorExecutionDatedInventoryRow for row in rows)
-            or {row.source_row_id for row in rows} != set(source_ids)
-        ):
-            return (), "DATED_CLOSE_SOURCE_ROWS_INCOMPLETE"
-        expected_position_code = expected_codes[0]
-        freeze_values = (
-            "long_frozen",
-            "short_frozen",
-            "comb_long_frozen",
-            "comb_short_frozen",
-            "strike_frozen",
-            "abandon_frozen",
-            "long_frozen_amount",
-            "short_frozen_amount",
-            "frozen_margin",
-            "frozen_cash",
-            "frozen_commission",
-            "strike_frozen_amount",
-            "yd_strike_frozen",
-        )
-        observed_field_aliases = (
-            ("InstrumentID", "instrument_id"),
-            ("ExchangeID", "exchange_id"),
-            ("PosiDirection", "position_direction"),
-            ("HedgeFlag", "hedge_flag"),
-            ("PositionDate", "position_date"),
-            ("TradingDay", "trading_day"),
-            ("Position", "position"),
-            ("TodayPosition", "today_position"),
-            ("YdPosition", "yd_position"),
-            ("LongFrozen", "long_frozen"),
-            ("ShortFrozen", "short_frozen"),
-            ("CombLongFrozen", "comb_long_frozen"),
-            ("CombShortFrozen", "comb_short_frozen"),
-            ("StrikeFrozen", "strike_frozen"),
-            ("AbandonFrozen", "abandon_frozen"),
-            ("LongFrozenAmount", "long_frozen_amount"),
-            ("ShortFrozenAmount", "short_frozen_amount"),
-            ("FrozenMargin", "frozen_margin"),
-            ("FrozenCash", "frozen_cash"),
-            ("FrozenCommission", "frozen_commission"),
-            ("StrikeFrozenAmount", "strike_frozen_amount"),
-            ("YdStrikeFrozen", "yd_strike_frozen"),
-        )
-        for row in rows:
-            observed_fields = set(row.observed_fields)
-            if (
-                row.blockers
-                or any(
-                    not observed_fields.intersection(aliases) for aliases in observed_field_aliases
-                )
-                or row.instrument != position.instrument
-                or row.exchange != position.exchange
-                or row.position_side != leg.position_side
-                or row.hedge_flag != leg.hedge_flag
-                or row.hedge_flag != "1"
-                or row.position_date != leg.position_date
-                or row.position_date_code != expected_position_code
-                or row.trading_day != inputs.dated_trading_day
-                or row.query_set_id != inputs.dated_query_set_id
-                or row.snapshot_id != inputs.dated_snapshot_id
-                or row.connection_generation != inputs.dated_connection_generation
-                or row.account_fingerprint != inputs.dated_account_fingerprint
-                or row.position is None
-                or row.position <= 0
-                or row.today_position is None
-                or row.yd_position is None
-                or (leg.position_date == "TODAY" and row.today_position != row.position)
-                or (leg.position_date == "HISTORY" and row.today_position != 0)
-                or any(
-                    getattr(row, name) is None or getattr(row, name) != 0 for name in freeze_values
-                )
-            ):
-                return (), "DATED_CLOSE_INVENTORY_ROW_INVALID"
-        provider_quantity = sum((row.position for row in rows), Decimal(0))
-        quantity = _exact_hands(leg.available_quantity)
-        if (
-            leg.provider_quantity != provider_quantity
-            or leg.owned_quantity != provider_quantity
-            or leg.available_quantity != provider_quantity
-            or quantity is None
-            or quantity <= 0
-        ):
-            return (), "DATED_CLOSE_QUANTITY_MISMATCH"
-
-        lots = tuple(leg.lots)
-        opening_execution_ids = tuple(leg.opening_execution_ids)
-        if not lots or any(
-            not item.execution_id
-            or not item.intent_id
-            or not item.open_observation_id
-            or not item.open_snapshot_id
-            or not item.open_query_set_id
-            or item.owner_intent_id != leg.owner_intent_id
-            or item.strategy_scope != inputs.strategy_scope
-            or item.position_side != leg.position_side
-            or item.hedge_flag != leg.hedge_flag
-            or item.trading_day is None
-            or item.remaining_quantity is None
-            or item.remaining_quantity <= 0
-            or item.opened_quantity is None
-            or item.closed_quantity is None
-            or item.opened_quantity <= 0
-            or item.closed_quantity < 0
-            or item.opened_quantity - item.closed_quantity != item.remaining_quantity
-            or (leg.position_date == "TODAY" and item.trading_day != inputs.dated_trading_day)
-            or (leg.position_date == "HISTORY" and item.trading_day >= inputs.dated_trading_day)
-            for item in lots
-        ):
-            return (), "DATED_CLOSE_OPENING_LOT_PROOF_INVALID"
-        if (
-            sum((item.remaining_quantity for item in lots), Decimal(0)) != provider_quantity
-            or len(set(opening_execution_ids)) != len(opening_execution_ids)
-            or set(opening_execution_ids)
-            != {item.execution_id for item in lots if item.execution_id is not None}
-            or any(item.execution_id is None for item in lots)
-        ):
-            return (), "DATED_CLOSE_OPENING_LOT_QUANTITY_MISMATCH"
-
-        total_quantity += quantity
-        actions.append(
-            Alpha003OrderAction(
-                action="SUBMIT",
-                target_id=position.target_id,
-                instrument=position.instrument,
-                side=side,
-                position_effect="CLOSE",
-                quantity=quantity,
-                limit_price=limit_price,
-                offset=leg.offset,
-                reason=reason,
-                owner_intent_id=position.owner_intent_id,
-                exchange=position.exchange,
-                decision_available_at=inputs.evaluated_at,
-                position_side=leg.position_side.lower(),
-                dated_position_side=leg.position_side,
-                position_date=leg.position_date,
-                offset_flag=leg.offset_flag,
-                hedge_flag=leg.hedge_flag,
-                dated_query_set_id=leg.query_set_id,
-                dated_snapshot_id=leg.snapshot_id,
-                dated_account_fingerprint=leg.account_fingerprint,
-                dated_connection_generation=leg.connection_generation,
-                dated_trading_day=leg.trading_day,
-                dated_available_at=leg.available_at,
-                dated_source_row_ids=source_ids,
-                dated_opening_execution_ids=opening_execution_ids,
-                dated_close_execution_ids=tuple(leg.close_execution_ids),
-            )
-        )
-    if total_quantity != abs(position.quantity):
-        return (), "DATED_CLOSE_TOTAL_POSITION_MISMATCH"
-    return tuple(actions), None
-
-
+    return (), "SDK_NEUTRAL_DATED_INVENTORY_RECEIPT_UNAVAILABLE"
 def _decimal_number(value: Any, label: str) -> Decimal:
     if isinstance(value, bool) or value is None:
         raise ValueError("{} must be a finite decimal number".format(label))
@@ -1543,7 +1294,7 @@ _RISK_DECIMAL_CONTEXT_PRECISION = 2048
 def _risk_decimal_operand(value: Any, *, allow_negative: bool = False) -> Optional[Decimal]:
     """Return a bounded non-negative Decimal suitable for risk arithmetic.
 
-    CTP/native facts and operator configuration are external inputs.  Cap both
+    Provider facts and operator configuration are external inputs. Cap both
     coefficient length and exponent before doing risk math so an extreme value
     cannot cause unbounded work or overflow the directed-rounding context.
     """
@@ -3408,174 +3159,25 @@ def _live_planning_input(
 
 
 def _live_execution_evidence_payload(facts: Any) -> Mapping[str, Any]:
-    """Bind the source clocks and identities used by a durable order decision."""
+    """Project provider-neutral receipt identity and bounded fact counts."""
 
     if facts is None:
         return MappingProxyType({})
-
-    quotes = []
-    for quote in getattr(facts, "quotes", ()):
-        quotes.append(
-            {
-                "instrument": quote.instrument,
-                "exchange": quote.exchange,
-                "source_ref": quote.source_ref,
-                "metadata_snapshot_id": quote.metadata_snapshot_id,
-                "generation": quote.generation,
-                "sequence": quote.sequence,
-                "event_time": _time_key(quote.event_time) if quote.event_time else None,
-                "available_at": _time_key(quote.available_at) if quote.available_at else None,
-                "quality": quote.quality,
-                "bid": str(quote.bid) if quote.bid is not None else None,
-                "ask": str(quote.ask) if quote.ask is not None else None,
-            }
-        )
-    queries = []
-    for query in getattr(facts, "query_provenance", ()):
-        queries.append(
-            {
-                "family": query.family,
-                "target_id": query.target_id,
-                "request_id": query.request_id,
-                "connection_generation": query.connection_generation,
-                "started_at": _time_key(query.started_at) if query.started_at else None,
-                "completed_at": _time_key(query.completed_at) if query.completed_at else None,
-                "query_complete": query.query_complete,
-                "scope_complete": query.scope_complete,
-                "row_count": query.row_count,
-            }
-        )
-    def amount_decimal(value):
-        return None if value is None else str(value)
-
-    positions = tuple(
-        {
-            "target_id": position.target_id,
-            "instrument": position.instrument,
-            "exchange": position.exchange,
-            "snapshot_id": position.snapshot_id,
-            "available_at": _time_key(position.available_at),
-            "quantity": amount_decimal(position.quantity),
-            "broker_quantity": amount_decimal(position.broker_quantity),
-            "long_quantity": amount_decimal(position.long_quantity),
-            "short_quantity": amount_decimal(position.short_quantity),
-            "attributed_signed_quantity": amount_decimal(
-                position.attributed_signed_quantity
-            ),
-            "position_book_status": position.position_book_status,
-            "position_book_blocker_code": position.position_book_blocker_code,
-            "dated_inventory_positions": tuple(
-                amount_decimal(row.position) for row in position.dated_inventory_rows
-            ),
-        }
-        for position in getattr(facts, "positions", ())
-    )
-    working_orders = tuple(
-        {
-            "target_id": order.target_id,
-            "instrument": order.instrument,
-            "exchange": order.exchange,
-            "order_ref": order.order_ref,
-            "state": order.state,
-            "side": order.side,
-            "position_effect": order.position_effect,
-            "remaining_quantity": amount_decimal(order.remaining_quantity),
-            "owner_strategy_scope": order.owner_strategy_scope,
-            "owner_intent_id": order.owner_intent_id,
-            "execution_unknown": order.execution_unknown,
-            "cancel_pending": order.cancel_pending,
-        }
-        for order in getattr(facts, "working_orders", ())
-    )
-    execution_intents = tuple(
-        {
-            "intent_id": intent.intent_id,
-            "decision_id": intent.decision_id,
-            "action": intent.action,
-            "instrument": intent.instrument,
-            "side": intent.side,
-            "position_effect": intent.position_effect,
-            "state": intent.state,
-            "dispatch_state": intent.dispatch_state,
-            "target_id": intent.target_id,
-            "exchange": intent.exchange,
-            "account_scope": intent.account_scope,
-            "strategy_scope": intent.strategy_scope,
-        }
-        for intent in getattr(facts, "execution_intents", ())
-    )
-    query_coverage = tuple(
-        {
-            "family": query.family,
-            "target_id": query.target_id,
-            "request_type": query.request_type,
-            "request_id": query.request_id,
-            "connection_generation": query.connection_generation,
-            "account_fingerprint": query.account_fingerprint,
-            "trading_day": query.trading_day,
-            "started_at": _time_key(query.started_at) if query.started_at else None,
-            "completed_at": _time_key(query.completed_at) if query.completed_at else None,
-            "source_owned": query.source_owned,
-            "query_complete": query.query_complete,
-            "scope_complete": query.scope_complete,
-            "row_count": query.row_count,
-        }
-        for query in getattr(facts, "query_provenance", ())
-        if query.family in {"positions_result", "orders_result"}
-    )
-    account = getattr(facts, "account", None)
     return MappingProxyType(
         {
-            "snapshot_id": facts.snapshot_id,
-            "available_at": _time_key(facts.available_at) if facts.available_at else None,
-            "account_snapshot_id": getattr(account, "snapshot_id", None),
-            "account_currency": getattr(account, "currency", None),
-            "account_available_at": (
-                _time_key(account.available_at)
-                if account is not None and account.available_at is not None
-                else None
-            ),
-            "quotes": tuple(quotes),
-            "query_provenance": tuple(queries),
-            "portfolio_exposure": {
-                "full_target_ids": tuple(getattr(facts, "_full_target_ids", ())),
-                "account_totals": {
-                    "used_margin": amount_decimal(
-                        None if account is None else account.used_margin
-                    ),
-                    "current_notional": amount_decimal(
-                        None if account is None else account.current_notional
-                    ),
-                    "current_worst_case_loss": amount_decimal(
-                        None if account is None else account.current_worst_case_loss
-                    ),
-                },
-                "positions": positions,
-                "working_orders": working_orders,
-                "execution_intents": execution_intents,
-                "query_coverage": query_coverage,
-            },
+            "source_ref": getattr(facts, "source_ref", None),
+            "generation": getattr(facts, "generation", None),
+            "receipt_digest": getattr(facts, "receipt_digest", None),
+            "session_ref": getattr(facts, "session_ref", None),
+            "receipt_complete": getattr(getattr(facts, "receipt", None), "complete", None),
+            "fee_status": getattr(facts, "fee_status", "UNAVAILABLE"),
+            "provider_position_count": len(getattr(facts, "provider_positions", ())),
+            "provider_open_order_count": len(getattr(facts, "provider_open_orders", ())),
+            "local_position_count": len(getattr(facts, "local_positions", ())),
+            "local_order_count": len(getattr(facts, "local_orders", ())),
+            "blockers": tuple(getattr(facts, "blockers", ())),
         }
     )
-
-
-def _fee_pair_source_now(facts: Any, now: Any) -> Any:
-    """Use the latest of the bar clock and the facts' own projection bounds.
-
-    The refresh loop projects facts slightly after the bar clock, so the caller
-    must not claim to be older than either the evidence or the projection when
-    opening a source lease.
-    """
-
-    marker = getattr(facts, "_source_projection", None)
-    candidates = (
-        now,
-        getattr(facts, "available_at", None),
-        getattr(marker, "projected_at", None),
-    )
-    return max(value for value in candidates if isinstance(value, datetime))
-
-
 def _planned_action_payload(action: Alpha003OrderAction) -> Mapping[str, Any]:
     """Serialize a shadow/order-plan preview without declaring an intent."""
 
@@ -3736,8 +3338,11 @@ class Alpha003TargetStrategy(bt.Strategy):
         ("replay_quotes", ()),
         ("replay_instruments", None),
         ("routes", None),
+        ("market_instrument_keys", None),
         ("session_calendars", None),
         ("account_scope", None),
+        ("account_route", None),
+        ("market_environment", "simnow"),
         ("strategy_scope", None),
         ("logical_run_id", None),
         ("quote_max_age_seconds", None),
@@ -3855,6 +3460,11 @@ class Alpha003TargetStrategy(bt.Strategy):
             raise ValueError("source_kind must be the internal trading-day lineage")
         self._source_kind = source_kind
         self._routes = self._normalize_routes(self.p.routes, target_ids)
+        self._market_instrument_keys = self._normalize_market_instrument_keys(
+            self.p.market_instrument_keys,
+            target_ids,
+            required=not self.p.replay_mode,
+        )
         self._session_calendars = self.p.session_calendars or {}
         if not isinstance(self._session_calendars, Mapping):
             raise TypeError("session_calendars must map exact exchange IDs to calendars")
@@ -3867,6 +3477,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         self.order_events = deque(maxlen=128)
         self.trade_events = deque(maxlen=128)
         self.last_execution_facts = None
+        self._account_session_snapshot = None
+        self._last_execution_account_session_snapshot = None
         self._last_execution_facts_broker = None
         self._last_execution_facts_store = None
         self._last_execution_targets = ()
@@ -3878,11 +3490,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         # projection through the source-bound grid/lease commit, so the query
         # set behind `facts` cannot be replaced before it is consumed.
         self._execution_projection_hold = None
-        self._last_fee_pair_grid_settled_batch_id = None
-        self._last_fee_pair_open_context = None
         self.last_order_plan: Optional[Alpha003OrderPlan] = None
         self.last_execution_block_reason: Optional[str] = None
-        self._last_commission_idle_notice: Optional[Mapping[str, Any]] = None
         self._last_batch_id: Optional[str] = None
         self._last_signal_target: Optional[Alpha003TargetDecision] = None
         self._eligible_grid_count = 0
@@ -3919,7 +3528,6 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._source_receipt_batch_id: Optional[str] = None
         self._source_receipt_tape_reference: Optional[Mapping[str, Any]] = None
         self._source_receipt_cache: Any = None
-        self._fee_pair_source_only_sequence_blocked = False
         self.source_continuity_failure_count = 0
         self.source_continuity_first_error: Optional[str] = None
         refresh_loop = self.p.control_refresh_loop
@@ -3982,7 +3590,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         if value is None:
             value = {}
         if not isinstance(value, Mapping):
-            raise TypeError("routes must map each target to exact (InstrumentID, ExchangeID)")
+            raise TypeError("routes must map each target to exact (instrument, venue)")
         if set(value) - set(targets):
             raise ValueError("routes may only name declared target feeds")
         normalized = {}
@@ -3991,36 +3599,77 @@ class Alpha003TargetStrategy(bt.Strategy):
             if pair is None:
                 continue
             if not isinstance(pair, (tuple, list)) or len(pair) != 2:
-                raise ValueError("each route must be an exact (InstrumentID, ExchangeID) pair")
+                raise ValueError("each route must be an exact (instrument, venue) pair")
             instrument, exchange = pair
-            _require_text(instrument, "route InstrumentID")
-            _require_text(exchange, "route ExchangeID")
+            _require_text(instrument, "route instrument")
+            _require_text(exchange, "route venue")
             normalized[target] = (instrument, exchange)
         return MappingProxyType(normalized)
 
-    def _validate_live_execution_binding(self) -> None:
-        from backtrader.brokers.btapibroker import BtApiBroker
-        from backtrader.stores.registered_sim import RegisteredSimStore
-
-        if not isinstance(self.broker, BtApiBroker):
-            raise ValueError("live execution requires BtApiBroker")
-        store = getattr(self.broker, "store", None)
-        if not isinstance(store, RegisteredSimStore):
-            raise ValueError("live execution requires RegisteredSimStore")
-        if getattr(store, "registered_sim_route_id", None) != "simnow-registered-v1":
-            raise ValueError("live execution requires the registered SimNow route")
-        coordinator = self._coordinator
-        if coordinator is None or getattr(coordinator, "broker", None) is not self.broker:
-            raise ValueError("live execution requires the coordinator attached to this Broker")
-        for name, expected in (
-            ("account_scope", self._account_scope),
-            ("strategy_scope", self._strategy_scope),
-            ("logical_run_id", self._logical_run_id),
+    @staticmethod
+    def _normalize_market_instrument_keys(
+        value: Any, targets: Tuple[str, ...], *, required: bool
+    ) -> Mapping[str, Any]:
+        if value is None and not required:
+            return MappingProxyType({})
+        try:
+            from bt_api_py.facade_protocol import MarketInstrumentKey
+        except ImportError:
+            raise ValueError("SDK_MARKET_INSTRUMENT_KEY_CONTRACT_UNAVAILABLE") from None
+        if (
+            not isinstance(value, Mapping)
+            or set(value) != set(targets)
+            or any(type(item) is not MarketInstrumentKey for item in value.values())
         ):
-            if getattr(coordinator, name, None) != expected:
-                raise ValueError("live coordinator %s mismatch" % name)
-        if set(self._routes) != set(self._target_ids):
-            raise ValueError("live routes must cover the exact factor target pool")
+            raise ValueError("SDK_MARKET_INSTRUMENT_KEY_SET_INVALID")
+        return MappingProxyType(dict(value))
+
+    def _validate_live_execution_binding(self) -> None:
+        """Require the neutral session projection for the explicit SDK route."""
+
+        self._account_session_snapshot = self._read_live_account_session_snapshot(
+            getattr(self.broker, "store", None)
+        )
+
+    def _read_live_account_session_snapshot(self, store: Any) -> Any:
+        """Read the SDK's exact opaque session observation for this route."""
+
+        try:
+            from bt_api_py.facade_protocol import AccountSessionSnapshot
+        except ImportError:
+            raise ValueError("SDK_ACCOUNT_SESSION_CONTRACT_UNAVAILABLE") from None
+        route = self.p.account_route
+        if type(route) is not str or not route or route != route.strip():
+            raise ValueError("SDK_ACCOUNT_ROUTE_REQUIRED")
+        reader = getattr(store, "account_session_snapshot", None)
+        if not callable(reader):
+            raise ValueError("SDK_STORE_ACCOUNT_SESSION_CAPABILITY_UNAVAILABLE")
+        try:
+            snapshot = reader(route)
+        except Exception:
+            raise ValueError("SDK_ACCOUNT_SESSION_SNAPSHOT_UNAVAILABLE") from None
+        if (
+            type(snapshot) is not AccountSessionSnapshot
+            or snapshot.exchange_name != route
+            or snapshot.available is not True
+            or snapshot.connected is not True
+            or snapshot.authenticated is not True
+        ):
+            raise ValueError("SDK_ACCOUNT_SESSION_NOT_READY")
+        if any(
+            type(value) is not str or not value or value != value.strip()
+            for value in (
+                snapshot.source_ref,
+                snapshot.generation,
+                snapshot.session_ref,
+            )
+        ):
+            raise ValueError("SDK_ACCOUNT_SESSION_IDENTITY_UNAVAILABLE")
+        if type(snapshot.observed_at) is not datetime:
+            raise ValueError("SDK_ACCOUNT_SESSION_OBSERVATION_UNAVAILABLE")
+        if self.p.execution_enabled and snapshot.trading_enabled is not True:
+            raise ValueError("SDK_ACCOUNT_SESSION_TRADING_DISABLED")
+        return snapshot
 
     def _clock_now(self) -> datetime:
         clock = getattr(self.cerebro, "live_bar_cohort_clock", None)
@@ -4046,9 +3695,14 @@ class Alpha003TargetStrategy(bt.Strategy):
         # Keep the durable cursor as a monotonic floor so a restart can never
         # reuse an ordinal that a prior GRID already consumed.
         local = self._eligible_grid_count + (1 if is_new else 0)
-        if self.p.replay_mode or self._coordinator is None:
+        cursor_reader = (
+            getattr(self._coordinator, "grid_cursor", None)
+            if not self.p.replay_mode and self._coordinator is not None
+            else None
+        )
+        if not callable(cursor_reader):
             return local
-        cursor = self._coordinator.grid_cursor(_read(self.p.cohort, "cohort_id"))
+        cursor = cursor_reader(_read(self.p.cohort, "cohort_id"))
         if cursor is None:
             return local
         ordinal = _read(cursor, "ordinal")
@@ -4107,12 +3761,6 @@ class Alpha003TargetStrategy(bt.Strategy):
             self._eligible_grid_count += 1
         decision = select_alpha003_targets(policy_input)
         self.last_target_decision = decision
-        refresh_loop = self.p.control_refresh_loop
-        publish_fee_priority = getattr(
-            refresh_loop, "publish_commission_target_decision", None
-        )
-        if callable(publish_fee_priority):
-            publish_fee_priority(decision)
         self.last_signal_block_reason = decision.reason
         # A target is actionable only on the grid that produced it. Keeping an
         # older target through a non-due/invalid grid would quietly turn the
@@ -4147,14 +3795,15 @@ class Alpha003TargetStrategy(bt.Strategy):
         return close_at, run_end, reason
 
     def _live_facts(self, now: datetime, *, hold_projection: bool = False):
-        from backtrader.stores.factor_execution_facts import (
+        from backtrader.factor_execution.factor_execution import FactorExecutionError
+        from backtrader.factor_execution.factor_execution_facts import (
+            FactorExecutionFacts,
             FactorExecutionTarget,
-            project_factor_execution_facts,
         )
+        from bt_api_py.facade_protocol import MarketInstrumentKey
 
-        # Never leave an older projection visible when this call cannot obtain
-        # a coherent current Store/query-set view.
         self.last_execution_facts = None
+        self._last_execution_account_session_snapshot = None
         self._last_execution_facts_broker = None
         self._last_execution_facts_store = None
         self._last_execution_targets = ()
@@ -4163,331 +3812,116 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_execution_query_max_age_seconds = None
         self._last_execution_quote_max_age_seconds = None
         self.last_execution_block_reason = None
+
         broker = self.broker
         store = getattr(broker, "store", None)
         if store is None:
             self.last_execution_block_reason = "EXECUTION_STORE_UNAVAILABLE"
             return None
-        execution_enabled = getattr(self.p, "execution_enabled", None)
-        if type(execution_enabled) is not bool:
-            self.last_execution_block_reason = "EXECUTION_MODE_INVALID"
+        coordinator = self._coordinator
+        if coordinator is None or getattr(coordinator, "query_facade", None) is None:
+            self.last_execution_block_reason = "QUERY_FACADE_UNAVAILABLE"
             return None
-        if self._risk_policy is None and execution_enabled is True:
-            self.last_execution_block_reason = "RISK_POLICY_REQUIRED"
+        route = self.p.account_route
+        environment = self.p.market_environment
+        if type(route) is not str or not route or route != route.strip():
+            self.last_execution_block_reason = "SDK_ACCOUNT_ROUTE_REQUIRED"
             return None
-        quote_max_age_seconds = self._quote_max_age_seconds
-        query_max_age_seconds = self._max_query_age_seconds
-        if self._risk_policy is not None:
-            if quote_max_age_seconds is None:
-                quote_max_age_seconds = self._risk_policy.quote_max_age_seconds
-            if query_max_age_seconds is None:
-                query_max_age_seconds = self._risk_policy.max_state_age_seconds
-        if quote_max_age_seconds is None or query_max_age_seconds is None:
-            self.last_execution_block_reason = "LIVE_FACT_AGE_BOUNDS_REQUIRED"
+        if type(environment) is not str or environment != "simnow":
+            self.last_execution_block_reason = "SDK_MARKET_ENVIRONMENT_UNAVAILABLE"
             return None
         try:
-            quote_max_age_seconds = _positive_decimal(
-                quote_max_age_seconds, "quote_max_age_seconds"
-            )
-            query_max_age_seconds = _positive_decimal(
-                query_max_age_seconds, "max_query_age_seconds"
-            )
-        except (TypeError, ValueError):
-            self.last_execution_block_reason = "LIVE_FACT_AGE_BOUNDS_INVALID"
-            return None
-        if self._risk_policy is not None:
-            # User/configured query limits may tighten the registered risk
-            # profile, but can never make quote or account facts older than
-            # the policy that authorizes new risk. A non-policy sentinel (for
-            # example in a read-only test double) contributes no extra bound.
-            policy_quote_age = getattr(
-                self._risk_policy, "quote_max_age_seconds", None
-            )
-            policy_query_age = getattr(
-                self._risk_policy, "max_state_age_seconds", None
-            )
-            if policy_quote_age is not None:
-                quote_max_age_seconds = min(quote_max_age_seconds, policy_quote_age)
-            if policy_query_age is not None:
-                query_max_age_seconds = min(query_max_age_seconds, policy_query_age)
-        targets = tuple(
-            FactorExecutionTarget(
-                target_id=target,
-                instrument=self._routes[target][0],
-                exchange=self._routes[target][1],
-                data=self._data_by_target[target],
-            )
-            for target in self._target_ids
-            if target in self._routes
-        )
-        if len(targets) != len(self._target_ids):
-            self.last_execution_block_reason = "LIVE_ROUTE_SET_INCOMPLETE"
-            return None
-        execution_target_ids = tuple(
-            target_id for target_id in self._target_ids if target_id in self._authorized_targets
-        )
-        refresh_loop_execution_ids = getattr(
-            self.p.control_refresh_loop, "execution_target_ids", execution_target_ids
-        )
-        if tuple(refresh_loop_execution_ids) != execution_target_ids:
-            self.last_execution_block_reason = "LIVE_EXECUTION_TARGET_SET_MISMATCH"
-            return None
-        refresh_loop = getattr(self.p, "control_refresh_loop", None)
-        commission_required_override = getattr(
-            refresh_loop, "commission_required_for_open", None
-        )
-        if commission_required_override is not None and type(commission_required_override) is not bool:
-            self.last_execution_block_reason = "COMMISSION_REQUIRED_FOR_OPEN_INVALID"
-            return None
-        commission_required_for_open = (
-            execution_enabled is True or commission_required_override is True
-        )
-
-        def project_current_snapshot():
-            return project_factor_execution_facts(
-                store,
-                broker,
-                targets=targets,
-                account_scope=self._account_scope,
-                strategy_scope=self._strategy_scope,
-                now=now,
-                query_set=getattr(
-                    getattr(self.p.control_refresh_loop, "last_receipt", None),
-                    "query_set",
-                    None,
-                ),
-                quote_max_age=timedelta(seconds=float(quote_max_age_seconds)),
-                max_query_age=timedelta(seconds=float(query_max_age_seconds)),
-                execution_target_ids=execution_target_ids,
-                commission_identity_by_target=getattr(
-                    refresh_loop, "commission_identity_by_target", None
-                ),
-                commission_required_for_open=commission_required_for_open,
-            )
-
-        try:
-            projection_scope = getattr(refresh_loop, "strategy_fact_projection_scope", None)
-            if callable(projection_scope) and getattr(
-                self, "_execution_projection_hold", None
-            ) is not None:
-                # This thread already pinned the Store/query-set boundary for
-                # the enclosing live turn, so the projection cannot be
-                # superseded underneath it.
-                facts = project_current_snapshot()
-                self._last_execution_refresh_receipt = getattr(
-                    refresh_loop, "last_receipt", None
+            now = _as_utc(now, "execution facts observation time")
+            if (
+                set(self._market_instrument_keys) != set(self._target_ids)
+                or any(
+                    type(instrument) is not MarketInstrumentKey
+                    for instrument in self._market_instrument_keys.values()
                 )
-            elif callable(projection_scope):
-                manager = projection_scope()
-                acquired = manager.__enter__()
-                if acquired is not True:
-                    manager.__exit__(None, None, None)
-                    self.last_execution_block_reason = "EXECUTION_FACT_REFRESH_IN_PROGRESS"
-                    return None
-                try:
-                    facts = project_current_snapshot()
-                    # Pin the exact receipt behind this projection. The refresh
-                    # thread clears/replaces `last_receipt` outside this scope,
-                    # so the loss guard and the fee-pair source lease must
-                    # consume the same query set the planning facts were built
-                    # from.
-                    self._last_execution_refresh_receipt = getattr(
-                        refresh_loop, "last_receipt", None
+            ):
+                raise FactorExecutionError("SDK_MARKET_INSTRUMENT_KEY_SET_INVALID")
+            targets = tuple(
+                FactorExecutionTarget(
+                    target_id=target,
+                    data=self._data_by_target[target],
+                    instrument=self._market_instrument_keys[target],
+                )
+                for target in self._target_ids
+                if target in self._routes and target in self._data_by_target
+            )
+            if len(targets) != len(self._target_ids):
+                raise FactorExecutionError("LIVE_ROUTE_SET_INCOMPLETE")
+            refresh_loop = self.p.control_refresh_loop
+            if refresh_loop is None:
+                raise FactorExecutionError("LIVE_REFRESH_LOOP_UNAVAILABLE")
+
+            projection_scope = getattr(refresh_loop, "strategy_fact_projection_scope", None)
+            if not callable(projection_scope):
+                raise FactorExecutionError("LIVE_QUERY_SNAPSHOT_SCOPE_UNAVAILABLE")
+            manager = projection_scope()
+            acquired = manager.__enter__()
+            if acquired is not True:
+                manager.__exit__(None, None, None)
+                self.last_execution_block_reason = "EXECUTION_FACT_REFRESH_IN_PROGRESS"
+                return None
+
+            try:
+                receipt = getattr(refresh_loop, "last_receipt", None)
+                lease = getattr(refresh_loop, "last_lease", None)
+                if receipt is None or lease is None:
+                    raise FactorExecutionError("QUERY_RECEIPT_OR_LEASE_UNAVAILABLE")
+                session = self._read_live_account_session_snapshot(store)
+                facts = coordinator.collect_facts(
+                    strategy=self,
+                    receipt=receipt,
+                    lease=lease,
+                    account_session_snapshot=session,
+                    now=now,
+                )
+                if (
+                    type(facts) is not FactorExecutionFacts
+                    or facts.account_session_snapshot is not session
+                    or facts.session_ref != session.session_ref
+                    or facts.source_ref != receipt.source_ref
+                    or facts.generation != receipt.generation
+                    or facts.fee_receipt is not None
+                    or facts.fee_status != "UNAVAILABLE"
+                    or facts.fee_blockers != ("NEUTRAL_FEE_RECEIPT_UNAVAILABLE",)
+                    or not facts.validate_current(
+                        query_facade=coordinator.query_facade,
+                        now=now,
                     )
-                except BaseException:
-                    manager.__exit__(*sys.exc_info())
-                    raise
+                ):
+                    raise FactorExecutionError("NEUTRAL_FACTOR_FACTS_BINDING_INVALID")
+                self._last_execution_account_session_snapshot = session
+                self._last_execution_refresh_receipt = receipt
+                self._last_execution_facts_broker = broker
+                self._last_execution_facts_store = store
+                self._last_execution_targets = targets
+                self._last_execution_facts_now = now
+                self.last_execution_facts = facts
                 if hold_projection:
-                    # Keep the boundary until the caller has consumed `facts`
-                    # for its source-bound grid/lease commit.
                     self._execution_projection_hold = manager
                 else:
                     manager.__exit__(None, None, None)
-            else:
-                facts = project_current_snapshot()
-                self._last_execution_refresh_receipt = getattr(
-                    refresh_loop, "last_receipt", None
-                )
-        except (OverflowError, TypeError, ValueError, RuntimeError):
-            self.last_execution_block_reason = "EXECUTION_FACT_PROJECTION_UNAVAILABLE"
+            except BaseException:
+                manager.__exit__(*sys.exc_info())
+                raise
+        except FactorExecutionError as error:
+            self.last_execution_block_reason = error.code
             return None
-        self.last_execution_facts = facts
-        self._last_execution_facts_broker = broker
-        self._last_execution_facts_store = store
-        self._last_execution_targets = targets
-        self._last_execution_facts_now = now
-        self._last_execution_query_max_age_seconds = query_max_age_seconds
-        self._last_execution_quote_max_age_seconds = quote_max_age_seconds
-        self.last_execution_block_reason = None
+        except Exception:
+            self.last_execution_block_reason = "NEUTRAL_FACTOR_FACTS_UNAVAILABLE"
+            return None
+
+        self.last_execution_block_reason = "SDK_NEUTRAL_QUOTES_AND_FEES_UNAVAILABLE"
         return facts
-
+    
     def _refresh_run_loss_guard(self, facts: Any, now: datetime):
-        """Seed once, then advance the persisted run PnL latch from one full query."""
-        if self.p.execution_enabled is not True or self.p.replay_mode is True:
-            return None, None
+        """Return the missing neutral account PnL capability without inferring it."""
 
-        from backtrader.stores.execution_decision_journal import (
-            ExecutionDecisionJournalError,
-            ExecutionRunLossGuardContext,
-            ExecutionRunLossGuardSnapshot,
-        )
-        from backtrader.stores.factor_execution import FactorExecutionError
-        from backtrader.stores.factor_execution_facts import (
-            FactorExecutionAccountFacts,
-            FactorExecutionFacts,
-            FactorExecutionQuerySetFacts,
-            FactorExecutionRefreshReceipt,
-        )
-
-        try:
-            now_utc = _as_utc(now, "loss guard observation clock")
-        except (TypeError, ValueError) as error:
-            raise FactorExecutionError("RUN_LOSS_GUARD_CLOCK_INVALID") from error
-        refresh_loop = getattr(self.p, "control_refresh_loop", None)
-        if refresh_loop is None:
-            raise FactorExecutionError("RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED")
-        complete_check = getattr(type(refresh_loop), "_receipt_complete", None)
-        if not callable(complete_check):
-            raise FactorExecutionError("RUN_LOSS_GUARD_REFRESH_BINDING_REQUIRED")
-
-        coordinator = self._coordinator
-        if coordinator is None:
-            raise FactorExecutionError("RUN_LOSS_GUARD_COORDINATOR_UNAVAILABLE")
-        journal = coordinator.journal
-        try:
-            saved = journal.run_loss_guard(
-                self._account_scope,
-                self._strategy_scope,
-                self._logical_run_id,
-            )
-        except ExecutionDecisionJournalError as error:
-            raise FactorExecutionError(error.code) from error
-
-        account = getattr(facts, "account", None) if facts is not None else None
-        if saved is None:
-            if (
-                type(account) is not FactorExecutionAccountFacts
-                or type(account.trading_day) is not str
-            ):
-                return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
-            try:
-                context = ExecutionRunLossGuardContext(
-                    account_scope=self._account_scope,
-                    strategy_scope=self._strategy_scope,
-                    logical_run_id=self._logical_run_id,
-                    trading_day=account.trading_day,
-                    currency="CNY",
-                    pnl_basis=RUN_LOSS_PNL_BASIS,
-                )
-            except ExecutionDecisionJournalError:
-                return None, "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH"
-        else:
-            if type(saved) is not ExecutionRunLossGuardSnapshot:
-                raise FactorExecutionError("RUN_LOSS_GUARD_STATE_INVALID")
-            context = saved.context
-            if type(context) is not ExecutionRunLossGuardContext:
-                raise FactorExecutionError("RUN_LOSS_GUARD_STATE_INVALID")
-
-        try:
-            self._coordinator.run_loss_guard(context)
-        except FactorExecutionError as error:
-            if error.code in _RUN_LOSS_OPEN_REJECTION_CODES:
-                return None, error.code
-            raise
-
-        if saved is not None and (
-            saved.net_loss_threshold != self._loss_guard_net_loss_threshold
-            or saved.max_observation_age_seconds
-            != self._loss_guard_max_observation_age_seconds
-        ):
-            return None, "RUN_LOSS_GUARD_POLICY_CONFLICT"
-        if (
-            type(facts) is not FactorExecutionFacts
-            or type(account) is not FactorExecutionAccountFacts
-        ):
-            return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
-
-        receipt = getattr(self, "_last_execution_refresh_receipt", None)
-        if receipt is None:
-            receipt = getattr(refresh_loop, "last_receipt", None)
-        if type(receipt) is not FactorExecutionRefreshReceipt:
-            return None, "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
-        if complete_check(receipt) is not True:
-            return None, "RUN_LOSS_ACCOUNT_REFRESH_INCOMPLETE"
-        query_set = receipt.query_set
-        if type(query_set) is not FactorExecutionQuerySetFacts:
-            return None, "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH"
-        if (
-            facts.account_scope != self._account_scope
-            or facts.strategy_scope != self._strategy_scope
-            or facts.query_set_id != query_set.query_set_id
-            or account.account_scope != self._account_scope
-            or account.account_fingerprint != query_set.account_fingerprint
-            or account.connection_generation != query_set.connection_generation
-            or account.trading_day != query_set.trading_day
-        ):
-            return None, "RUN_LOSS_ACCOUNT_QUERYSET_MISMATCH"
-        if (
-            account.trading_day != context.trading_day
-            or query_set.trading_day != context.trading_day
-        ):
-            # The policy's first TradingDay is immutable across restarts and
-            # CTP day changes. Never create a fresh baseline implicitly.
-            return None, "RUN_LOSS_ACCOUNT_TRADING_DAY_MISMATCH"
-        if account.currency != "CNY" or context.currency != "CNY":
-            return None, "RUN_LOSS_ACCOUNT_CURRENCY_MISMATCH"
-        if (
-            account.total_net_pnl_available is not True
-            or account.total_net_pnl_reason is not None
-            or type(account.total_net_pnl) is not Decimal
-            or not account.total_net_pnl.is_finite()
-        ):
-            return None, "RUN_LOSS_ACCOUNT_PNL_UNQUALIFIED"
-
-        try:
-            receipt_at = _as_utc(receipt.completed_at, "loss guard refresh completion")
-            query_set_at = _as_utc(query_set.completed_at_utc, "loss guard query-set completion")
-            account_at = _as_utc(account.available_at, "loss guard account completion")
-            receipt_started = _as_utc(receipt.started_at, "loss guard refresh start")
-        except (TypeError, ValueError):
-            return None, "RUN_LOSS_ACCOUNT_ASOF_INVALID"
-        max_age = timedelta(seconds=self._loss_guard_max_observation_age_seconds)
-        # The bar clock is sampled before the refresh completes, so the same
-        # query may legitimately become available a few milliseconds later.
-        # Evaluate freshness at the decision moment, not at that early sample.
-        decision_now = max(now_utc, receipt_at, query_set_at, account_at)
-        if (
-            receipt_started > receipt_at
-            or query_set_at > receipt_at
-            or receipt_at > decision_now
-            or query_set_at > decision_now
-            or account_at > decision_now
-            or account_at > query_set_at
-            or decision_now - receipt_at > max_age
-            or decision_now - query_set_at > max_age
-            or decision_now - account_at > max_age
-        ):
-            return None, "RUN_LOSS_OBSERVATION_STALE"
-
-        try:
-            if saved is None:
-                self._coordinator.enable_run_loss_guard(
-                    context,
-                    account,
-                    net_loss_threshold=self._loss_guard_net_loss_threshold,
-                    max_observation_age_seconds=self._loss_guard_max_observation_age_seconds,
-                    now=now_utc,
-                )
-            elif saved.latest_observation_id != account.snapshot_id:
-                # The journal accepts an exact latest-ID replay idempotently;
-                # the caller skips it and records only newly queried IDs.
-                self._coordinator.record_run_loss_observation(context, account, now=now_utc)
-        except FactorExecutionError as error:
-            if error.code in _RUN_LOSS_OPEN_REJECTION_CODES:
-                return None, error.code
-            raise
-        return context, None
-
+        return None, "SDK_NEUTRAL_ACCOUNT_PNL_UNAVAILABLE"
+    
     def _replay_instrument_facts(self, target_id: str, now: datetime) -> Alpha003InstrumentRiskFact:
         value = self._replay_instruments[target_id]
         if isinstance(value, Alpha003InstrumentRiskFact):
@@ -5170,7 +4604,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         return order
 
     def _order_intents(self, plan: Alpha003OrderPlan, batch: Any):
-        from backtrader.stores.execution_decision_journal import ExecutionIntentKey
+        from bt_api_py.execution_journal import ExecutionIntentKey
 
         keys = []
         economics = []
@@ -5344,591 +4778,6 @@ class Alpha003TargetStrategy(bt.Strategy):
         self._last_decision_tape_error = None
         return True, frozen_reference, None
 
-    def _fee_pair_live_grid_settlement(
-        self,
-        batch: Any,
-        snapshot: Any,
-        facts: Any,
-        plan: Alpha003OrderPlan,
-        planning: Optional[Alpha003OrderPlanningInput],
-        target_decision: Optional[Alpha003TargetDecision],
-        loss_guard_context: Any,
-        loss_guard_blocker: Optional[str],
-    ) -> Optional[Mapping[str, Any]]:
-        """Build the exact writer settlement input for one legal two-leg OPEN.
-
-        A source-only row remains the default. This method returns a settlement
-        only when the actual Strategy planner has produced exactly the two
-        registered OPEN legs, all frozen freshness/risk gates are satisfied,
-        and the loss guard has a current durable context.
-        """
-
-        if (
-            not self.p.execution_enabled
-            or self._coordinator is None
-            or self._risk_policy is None
-            or planning is None
-            or type(plan) is not Alpha003OrderPlan
-            or plan.status != "READY"
-            or plan.reason is not None
-            or loss_guard_context is None
-            or loss_guard_blocker is not None
-            or facts is None
-        ):
-            return None
-        # Never append a second OPEN-bearing GRID while an earlier pair still
-        # owns the durable account amount head.  The live loop gets one
-        # source-bound flat-release attempt before planning a new grid; this
-        # second read closes the race with another Journal writer.
-        try:
-            active_amount_hold = self._coordinator.journal.fee_pair_active_amount_reservation(
-                self._account_scope
-            )
-        except Exception:
-            return None
-        if active_amount_hold is not None:
-            return None
-        actions = tuple(plan.actions)
-        if (
-            len(actions) != 2
-            or any(
-                action.action != "SUBMIT" or action.position_effect != "OPEN"
-                for action in actions
-            )
-            or plan.open_risk_candidate is None
-        ):
-            return None
-        target_ids = tuple(action.target_id for action in actions)
-        if len(set(target_ids)) != 2 or target_ids != tuple(sorted(target_ids)):
-            return None
-        if (
-            type(target_decision) is not Alpha003TargetDecision
-            or target_decision.status != "TARGETS_READY"
-            or target_decision.execution_mode != "LIVE"
-            or target_decision.batch_id != _read(batch, "batch_id")
-            or target_decision.cohort_id != _read(batch, "cohort_id")
-            or tuple(sorted(item.target_id for item in target_decision.targets)) != target_ids
-        ):
-            return None
-        risk_candidate = plan.open_risk_candidate
-        if (
-            risk_candidate.batch_id != _read(batch, "batch_id")
-            or risk_candidate.strategy_scope != self._strategy_scope
-            or tuple(sorted(item.target_id for item in risk_candidate.legs)) != target_ids
-        ):
-            return None
-
-        route_rows = tuple(getattr(facts, "route_eligibilities", ()))
-        routes_by_target = {route.target_id: route for route in route_rows}
-        if len(routes_by_target) != len(route_rows):
-            return None
-        selected_routes = tuple(routes_by_target.get(target_id) for target_id in target_ids)
-        if any(route is None for route in selected_routes):
-            return None
-        session_pairs = {
-            (route.current_session_front_id, route.current_session_id)
-            for route in selected_routes
-        }
-        account = getattr(facts, "account", None)
-        if (
-            len(session_pairs) != 1
-            or account is None
-            or type(account.connection_generation) is not int
-            or account.connection_generation <= 0
-        ):
-            return None
-        front_id, session_id = next(iter(session_pairs))
-        if (
-            type(front_id) is not int
-            or front_id <= 0
-            or type(session_id) is not int
-            or session_id <= 0
-        ):
-            return None
-
-        grid_plan = replace(plan, actions=actions)
-        intent_keys, intent_economics = self._order_intents(grid_plan, batch)
-        if len(intent_keys) != 2 or len(intent_economics) != 2:
-            return None
-        proposed_actions = tuple(_planned_action_payload(action) for action in actions)
-        economic_payload = {
-            "plan_id": FACTOR_NAME,
-            "factor_source_sha256": _read(
-                _read(snapshot, "factors")[FACTOR_NAME], "source_sha256"
-            ),
-            "snapshot_id": getattr(facts, "snapshot_id", None),
-            "execution_evidence": _live_execution_evidence_payload(facts),
-            "batch_id": _read(batch, "batch_id"),
-            # The Journal requires the settlement payload's epoch to be the
-            # canonical string; ``_live_grid_decision`` replays this exact
-            # projection through ``fee_pair_open_grid_admission``, so both
-            # sides must serialize it the same way.
-            "epoch_id": str(_read(batch, "epoch_id")),
-            "signal_batch_id": target_decision.batch_id,
-            "decision_tape_status": "DURABLE",
-            "decision_tape_error": None,
-            "intent_economics": intent_economics,
-            "proposed_actions": proposed_actions,
-            "dispatch_suppressed": False,
-            "plan_status": plan.status,
-            "plan_reason": plan.reason,
-            "open_risk_candidate": _open_risk_candidate_payload(risk_candidate),
-        }
-        query_age = self._last_execution_query_max_age_seconds
-        quote_age = self._last_execution_quote_max_age_seconds
-        if (
-            query_age is None
-            or quote_age is None
-            or query_age > self._risk_policy.max_state_age_seconds
-        ):
-            return None
-        exit_reserve = _future_exit_intent_reserve(
-            planning,
-            planned_actions=actions,
-            proposed_open_actions=actions,
-        )
-        return {
-            "order_plan": {
-                "status": grid_plan.status,
-                "reason": grid_plan.reason,
-                "decision_batch_id": grid_plan.decision_batch_id,
-                "decision_available_at": grid_plan.decision_available_at,
-                "actions": proposed_actions,
-            },
-            "owner_token": secrets.token_hex(32),
-            "economic_payload": economic_payload,
-            "current_account_session_id": "ctp-front-session:{}:{}".format(
-                front_id, session_id
-            ),
-            "current_account_session_generation": "ctp-connection-generation:{}".format(
-                account.connection_generation
-            ),
-            "max_query_age_seconds": float(query_age),
-            "max_quote_age_seconds": float(quote_age),
-            "max_order_intents_per_run": self._risk_policy.max_order_intents_per_run,
-            "expected_run_order_intents_used": planning.run_order_intents_used,
-            "remaining_exit_intent_reserve": exit_reserve,
-            "loss_guard_context": loss_guard_context,
-        }
-
-    def _record_fee_pair_source_only_tape(
-        self,
-        batch: Any,
-        snapshot: Any,
-        target_decision: Optional[Alpha003TargetDecision],
-        facts: Any,
-        *,
-        settlement: Optional[Mapping[str, Any]] = None,
-    ) -> Tuple[bool, Optional[Mapping[str, Any]], Optional[str]]:
-        """Append the registered fee-pair grid as an immutable no-intent row."""
-
-        if self._fee_pair_source_only_sequence_blocked:
-            return False, None, "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED"
-        batch_id = _read(batch, "batch_id") if batch is not None else None
-        if not isinstance(batch_id, str) or not batch_id:
-            return False, None, "DECISION_TAPE_BATCH_UNAVAILABLE"
-        if self._last_decision_tape_batch_id == batch_id:
-            reference = self._last_decision_tape_reference
-            return (reference is not None), reference, self._last_decision_tape_error
-
-        # A possibly durable append must never be retried for this grid.
-        self._last_decision_tape_batch_id = batch_id
-        self._last_decision_tape_reference = None
-        self._last_fee_pair_grid_settled_batch_id = None
-        self._last_fee_pair_open_context = None
-        self._last_decision_tape_error = "FEE_PAIR_SOURCE_ONLY_WRITE_NOT_CONFIRMED"
-        sink = self.p.decision_tape
-        writer = (
-            getattr(sink, "record_fee_pair_source_only_from_live", None)
-            if sink is not None
-            else None
-        )
-        if not callable(writer) or self._coordinator is None:
-            self._last_decision_tape_error = "FEE_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
-            return False, None, self._last_decision_tape_error
-
-        try:
-            writer_kwargs = {
-                "account_scope": self._account_scope,
-                "strategy_scope": self._strategy_scope,
-                "logical_run_id": self._logical_run_id,
-                "source_kind": self._source_kind,
-                "source_restart_marker": self._source_restart_marker,
-            }
-            settled_grid = settlement is not None
-            if settlement is None:
-                result = writer(
-                    batch,
-                    snapshot,
-                    target_decision,
-                    facts,
-                    self._coordinator.journal,
-                    **writer_kwargs,
-                )
-            else:
-                from backtrader.stores.factor_execution_facts import (
-                    FactorExecutionFactsSourceError,
-                    fee_pair_facts_open_source_scope,
-                )
-
-                selected_ids = tuple(
-                    sorted(item.target_id for item in target_decision.targets)
-                )
-                targets_by_id = {
-                    target.target_id: target for target in self._last_execution_targets
-                }
-                selected_targets = tuple(targets_by_id.get(target_id) for target_id in selected_ids)
-                query_age = self._last_execution_query_max_age_seconds
-                quote_age = self._last_execution_quote_max_age_seconds
-                if (
-                    len(selected_ids) != 2
-                    or any(target is None for target in selected_targets)
-                    or self._risk_policy is None
-                    or self._last_execution_facts_now is None
-                    or self._last_execution_facts_store is None
-                    or self._last_execution_facts_broker is None
-                    or query_age is None
-                    or quote_age is None
-                    or query_age > self._risk_policy.max_state_age_seconds
-                ):
-                    raise RuntimeError("FEE_PAIR_OPEN_SOURCE_BINDING_REQUIRED")
-                source_scope = fee_pair_facts_open_source_scope(
-                    self._last_execution_facts_store,
-                    self._last_execution_facts_broker,
-                    facts,
-                    now=_fee_pair_source_now(facts, self._last_execution_facts_now),
-                    targets=selected_targets,
-                    quote_max_age=timedelta(seconds=float(quote_age)),
-                    max_query_age=timedelta(seconds=float(query_age)),
-                )
-                with ExitStack() as stack:
-                    try:
-                        source_lease = stack.enter_context(source_scope)
-                    except FactorExecutionFactsSourceError:
-                        # The projection is not yet source-issued, so this grid
-                        # cannot authorize OPEN. It is still a real LIVE_READY
-                        # grid: record the ordinary SOURCE_ONLY row so the
-                        # contiguous source chain advances instead of leaving
-                        # a gap that poisons every later slot.
-                        source_lease = None
-                    if source_lease is None:
-                        settled_grid = False
-                        result = writer(
-                            batch,
-                            snapshot,
-                            target_decision,
-                            facts,
-                            self._coordinator.journal,
-                            **writer_kwargs,
-                        )
-                    else:
-                        result = writer(
-                            batch,
-                            snapshot,
-                            target_decision,
-                            facts,
-                            self._coordinator.journal,
-                            settlement=settlement,
-                            source_lease=source_lease,
-                            **writer_kwargs,
-                        )
-            if not isinstance(result, Mapping):
-                raise ValueError("fee-pair source-only receipt is unavailable")
-            raw_reference = result.get("tape_reference")
-            if not isinstance(raw_reference, Mapping):
-                raise ValueError("fee-pair tape reference is unavailable")
-            reference = {
-                name: raw_reference.get(name)
-                for name in ("file_id", "record_id", "record_index", "batch_id")
-            }
-            if (
-                type(reference["file_id"]) is not str
-                or not reference["file_id"]
-                or type(reference["record_id"]) is not str
-                or not reference["record_id"]
-                or type(reference["record_index"]) is not int
-                or reference["record_index"] < 1
-                or reference["batch_id"] != batch_id
-            ):
-                raise ValueError("fee-pair tape reference is invalid")
-            physical_receipt = result.get("source_receipt")
-            strategy_receipt = self._source_receipt(batch, snapshot, reference)
-            if physical_receipt != strategy_receipt:
-                raise ValueError("fee-pair source receipt differs from Strategy projection")
-            anchor_kind = "SOURCE_ONLY"
-            if settled_grid:
-                from backtrader.stores.execution_decision_journal import (
-                    ExecutionFeePairOpenContext,
-                )
-
-                open_context = result.get("fee_pair_open_context")
-                amount_reservation = result.get("amount_reservation")
-                if (
-                    type(open_context) is not ExecutionFeePairOpenContext
-                    or result.get("open_dispatch_authorized") is not True
-                    or not isinstance(amount_reservation, Mapping)
-                    or amount_reservation.get("status") != "ACTIVE"
-                    or amount_reservation.get("candidate_id") != result.get("candidate_id")
-                    or amount_reservation.get("reservation_sha256")
-                    != open_context.reservation_sha256
-                ):
-                    raise ValueError("fee-pair open hold is not durably active")
-                self._last_fee_pair_open_context = open_context
-                self._last_fee_pair_grid_settled_batch_id = batch_id
-                anchor_kind = "GRID"
-            elif result.get("open_dispatch_authorized") is True:
-                raise ValueError("unexpected fee-pair open authorization")
-            if not self._confirm_source_anchor(strategy_receipt, anchor_kind=anchor_kind):
-                self._latch_decision_tape_failure()
-                self._last_decision_tape_error = "SOURCE_HIGHWATER_CONFIRMATION_FAILED"
-                return False, None, self._last_decision_tape_error
-        except Exception as error:
-            raw_code = getattr(error, "code", None)
-            code = (
-                raw_code
-                if type(raw_code) is str
-                and 1 <= len(raw_code) <= 96
-                and raw_code.isascii()
-                and raw_code[0].isalpha()
-                and all(character.isupper() or character.isdigit() or character == "_"
-                        for character in raw_code)
-                else "FEE_PAIR_SOURCE_ONLY_WRITE_FAILED"
-            )
-            self._last_decision_tape_error = code
-            # Candidate validation can fail before any reservation or append.
-            # It is a known no-candidate outcome, but the Journal requires a
-            # contiguous same-epoch source chain, so later slots cannot be
-            # anchored truthfully across this missing grid. Preserve the
-            # original failure code and stop only this Strategy's source
-            # sequence; uncertain writer/Journal failures also latch the tape.
-            no_candidate_codes = {
-                "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE",
-                "FEE_PAIR_SELECTED_PAIR_REQUIRED",
-                "FEE_PAIR_SELECTED_PAIR_INVALID",
-                "FEE_PAIR_SELECTED_PAIR_NOT_AUTHORIZED",
-                "FEE_PAIR_ACCOUNT_SESSION_UNAVAILABLE",
-                "FEE_PAIR_ROUTE_AMBIGUOUS",
-                "FEE_PAIR_QUOTE_AMBIGUOUS",
-                "FEE_PAIR_ROUTE_SESSION_UNAVAILABLE",
-                "FEE_PAIR_QUOTE_MISSING",
-                "FEE_PAIR_QUOTE_IDENTITY_INVALID",
-            }
-            if code not in no_candidate_codes:
-                self._latch_decision_tape_failure()
-                self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
-            else:
-                # The Journal's same-epoch source chain requires contiguous
-                # slot and physical-row indexes. Once a LIVE_READY grid cannot
-                # form the required pair, no later grid in this run can append
-                # a truthful anchor across that gap. Keep writes stopped for
-                # this run while ordinary risk reductions continue.
-                self._fee_pair_source_only_sequence_blocked = True
-            return False, None, self._last_decision_tape_error
-
-        frozen_reference = MappingProxyType(reference)
-        self._last_decision_tape_reference = frozen_reference
-        self._last_decision_tape_error = None
-        return True, frozen_reference, None
-
-    def _release_active_fee_pair_hold_if_flat(self, facts: Any) -> Optional[str]:
-        """Try one source-bound, Journal-atomic flat release for the current pair.
-
-        Release is attempted only from the exact Store/Broker projection made
-        for this Strategy turn.  The Journal independently verifies terminal
-        intent resolutions and FactorPositionBook flat checkpoints; failure
-        leaves the active head in place and never authorizes an OPEN.
-        """
-
-        if self._coordinator is None:
-            return "FEE_PAIR_AMOUNT_RELEASE_FACTS_UNAVAILABLE"
-        journal = self._coordinator.journal
-        try:
-            active = journal.fee_pair_active_amount_reservation(self._account_scope)
-        except Exception as error:
-            code = getattr(error, "code", None)
-            return code if type(code) is str else "FEE_PAIR_AMOUNT_HOLD_READ_FAILED"
-        if active is None:
-            return None
-        if (
-            facts is None
-            or self._risk_policy is None
-            or self._last_execution_facts_now is None
-            or self._last_execution_facts_store is None
-            or self._last_execution_facts_broker is None
-            or self._last_execution_query_max_age_seconds is None
-        ):
-            return "FEE_PAIR_AMOUNT_RELEASE_FACTS_UNAVAILABLE"
-        candidate_id = active.get("candidate_id")
-        legs = active.get("reserved_legs")
-        if (
-            active.get("status") != "ACTIVE"
-            or type(candidate_id) is not str
-            or not isinstance(legs, (tuple, list))
-            or len(legs) != 2
-        ):
-            return "FEE_PAIR_AMOUNT_HOLD_PROJECTION_INVALID"
-        target_ids = tuple(
-            leg.get("target_id") if isinstance(leg, Mapping) else None for leg in legs
-        )
-        if (
-            any(type(target_id) is not str or not target_id for target_id in target_ids)
-            or len(set(target_ids)) != 2
-        ):
-            return "FEE_PAIR_AMOUNT_HOLD_PROJECTION_INVALID"
-        targets_by_id = {
-            target.target_id: target for target in self._last_execution_targets
-        }
-        selected_targets = tuple(targets_by_id.get(target_id) for target_id in target_ids)
-        if any(target is None for target in selected_targets):
-            return "FEE_PAIR_AMOUNT_RELEASE_TARGETS_UNAVAILABLE"
-        query_age = min(
-            self._last_execution_query_max_age_seconds,
-            self._risk_policy.max_state_age_seconds,
-        )
-        if query_age <= 0:
-            return "FEE_PAIR_AMOUNT_RELEASE_AGE_INVALID"
-        from backtrader.stores.execution_decision_journal import (
-            ExecutionDecisionJournalError,
-        )
-        from backtrader.stores.factor_execution_facts import (
-            FactorExecutionFactsSourceError,
-            fee_pair_facts_release_source_scope,
-        )
-
-        try:
-            source_scope = fee_pair_facts_release_source_scope(
-                self._last_execution_facts_store,
-                self._last_execution_facts_broker,
-                facts,
-                now=_fee_pair_source_now(facts, self._last_execution_facts_now),
-                targets=selected_targets,
-                max_query_age=timedelta(seconds=float(query_age)),
-            )
-            with source_scope as source_lease:
-                journal.release_fee_pair_grid_amount_hold_for_flat(
-                    candidate_id,
-                    facts=facts,
-                    source_lease=source_lease,
-                )
-        except (FactorExecutionFactsSourceError, ExecutionDecisionJournalError) as error:
-            code = getattr(error, "code", None)
-            return code if type(code) is str else "FEE_PAIR_AMOUNT_RELEASE_BLOCKED"
-        except Exception:
-            return "FEE_PAIR_AMOUNT_RELEASE_BLOCKED"
-        return None
-
-    def _record_fee_pair_no_pair_source_only_tape(
-        self,
-        batch: Any,
-        snapshot: Any,
-        target_decision: Alpha003TargetDecision,
-    ) -> Tuple[bool, Optional[Mapping[str, Any]], Optional[str]]:
-        """Record only the exact selector result that proves no legal pair."""
-
-        if self._fee_pair_source_only_sequence_blocked:
-            return False, None, "FEE_PAIR_SOURCE_SEQUENCE_BLOCKED"
-        batch_id = _read(batch, "batch_id") if batch is not None else None
-        if not isinstance(batch_id, str) or not batch_id:
-            return False, None, "DECISION_TAPE_BATCH_UNAVAILABLE"
-        if self._last_decision_tape_batch_id == batch_id:
-            reference = self._last_decision_tape_reference
-            return (reference is not None), reference, self._last_decision_tape_error
-
-        self._last_decision_tape_batch_id = batch_id
-        self._last_decision_tape_reference = None
-        self._last_decision_tape_error = "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITE_NOT_CONFIRMED"
-        sink = self.p.decision_tape
-        writer = (
-            getattr(sink, "record_fee_pair_no_pair_source_only_from_live", None)
-            if sink is not None
-            else None
-        )
-        if not callable(writer) or self._coordinator is None:
-            self._last_decision_tape_error = "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
-            self._fee_pair_source_only_sequence_blocked = True
-            return False, None, self._last_decision_tape_error
-
-        try:
-            result = writer(
-                batch,
-                snapshot,
-                target_decision,
-                self._coordinator.journal,
-                account_scope=self._account_scope,
-                strategy_scope=self._strategy_scope,
-                logical_run_id=self._logical_run_id,
-                source_kind=self._source_kind,
-                source_restart_marker=self._source_restart_marker,
-                eligible_grid_index=target_decision.eligible_grid_index,
-            )
-            if not isinstance(result, Mapping):
-                raise ValueError("no-pair source-only result is unavailable")
-            raw_reference = result.get("tape_reference")
-            if not isinstance(raw_reference, Mapping):
-                raise ValueError("no-pair tape reference is unavailable")
-            reference = {
-                name: raw_reference.get(name)
-                for name in ("file_id", "record_id", "record_index", "batch_id")
-            }
-            if (
-                type(reference["file_id"]) is not str
-                or not reference["file_id"]
-                or type(reference["record_id"]) is not str
-                or not reference["record_id"]
-                or type(reference["record_index"]) is not int
-                or reference["record_index"] < 1
-                or reference["batch_id"] != batch_id
-            ):
-                raise ValueError("no-pair tape reference is invalid")
-            source_receipt = result.get("source_receipt")
-            strategy_receipt = self._source_receipt(batch, snapshot, reference)
-            if source_receipt != strategy_receipt:
-                raise ValueError("no-pair source receipt differs from Strategy projection")
-            decision = result.get("decision")
-            if (
-                decision is None
-                or decision.key.close_time != strategy_receipt.close_time
-                or decision.key.cohort_id != strategy_receipt.cohort_id
-                or decision.intent_keys
-                or decision.economic_payload.get("_execution_source_anchor_only") is not True
-                or decision.economic_payload.get("_execution_fee_pair_no_pair_source_only")
-                != {
-                    "reason_code": "NO_LEGAL_FEE_PAIR",
-                    "selection_reason": "NO_VALID_SIGNAL",
-                }
-                or decision.economic_payload.get("_execution_fee_pair_workflow") is not None
-            ):
-                raise ValueError("no-pair Journal decision is invalid")
-            if not self._confirm_source_anchor(strategy_receipt, anchor_kind="SOURCE_ONLY"):
-                self._latch_decision_tape_failure()
-                self._last_decision_tape_error = "SOURCE_HIGHWATER_CONFIRMATION_FAILED"
-                self._fee_pair_source_only_sequence_blocked = True
-                return False, None, self._last_decision_tape_error
-        except Exception as error:
-            raw_code = getattr(error, "code", None)
-            code = (
-                raw_code
-                if type(raw_code) is str
-                and 1 <= len(raw_code) <= 96
-                and raw_code.isascii()
-                and raw_code[0].isalpha()
-                and all(
-                    character.isupper() or character.isdigit() or character == "_"
-                    for character in raw_code
-                )
-                else "FEE_PAIR_NO_PAIR_SOURCE_ONLY_WRITE_FAILED"
-            )
-            self._latch_decision_tape_failure()
-            self._fee_pair_source_only_sequence_blocked = True
-            self._last_decision_tape_error = code
-            self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
-            return False, None, code
-
-        frozen_reference = MappingProxyType(reference)
-        self._last_decision_tape_reference = frozen_reference
-        self._last_decision_tape_error = None
-        return True, frozen_reference, None
-
     @staticmethod
     def _gate_open_actions(plan: Alpha003OrderPlan, *, tape_durable: bool) -> Alpha003OrderPlan:
         if tape_durable or plan.status != "READY":
@@ -5976,7 +4825,7 @@ class Alpha003TargetStrategy(bt.Strategy):
                 raise ValueError("source receipt cache is unavailable")
             return self._source_receipt_cache
 
-        from backtrader.stores.execution_decision_journal import (
+        from bt_api_py.execution_journal import (
             ExecutionSourceMemberReceipt,
             ExecutionSourceReceipt,
         )
@@ -6084,57 +4933,11 @@ class Alpha003TargetStrategy(bt.Strategy):
                 pass
 
     def _record_source_only(self, batch: Any, snapshot: Any, tape_reference: Any) -> bool:
-        """Persist source continuity without entering an order-dispatch scope."""
+        """Report the absent neutral execution source-receipt capability."""
 
-        if self._coordinator is None:
-            self.last_execution_block_reason = "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
-            self._note_source_continuity_failure(
-                "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
-            )
-            return False
-        try:
-            from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
-
-            receipt = self._source_receipt(batch, snapshot, tape_reference)
-            key = ExecutionDecisionKey(
-                account_scope=self._account_scope,
-                strategy_scope=self._strategy_scope,
-                logical_run_id=self._logical_run_id,
-                cohort_id=receipt.cohort_id,
-                close_time=receipt.close_time,
-                decision_kind=self._source_kind,
-            )
-            if receipt.readiness in ("WARMUP", "CATCHING_UP"):
-                sink = self.p.decision_tape
-                verified_prewarm = (
-                    getattr(sink, "record_verified_source_prewarm", None)
-                    if sink is not None
-                    else None
-                )
-                if not callable(verified_prewarm):
-                    raise ValueError("verified source tape writer is unavailable")
-                verified_prewarm(
-                    key=key,
-                    batch=batch,
-                    source_receipt=receipt,
-                    coordinator=self._coordinator,
-                )
-            else:
-                self._coordinator.record_source_receipt(
-                    key=key,
-                    batch=batch,
-                    source_receipt=receipt,
-                )
-            if not self._confirm_source_anchor(receipt, anchor_kind="SOURCE_ONLY"):
-                self._latch_decision_tape_failure()
-                return False
-            return True
-        except Exception:
-            self._latch_decision_tape_failure()
-            self.last_execution_block_reason = "SOURCE_RECEIPT_WRITE_FAILED"
-            self._note_source_continuity_failure("SOURCE_RECEIPT_WRITE_FAILED")
-            return False
-
+        self.last_execution_block_reason = "SDK_NEUTRAL_EXECUTION_SOURCE_RECEIPT_UNAVAILABLE"
+        return False
+    
     @staticmethod
     def _live_good_source_batch(batch: Any, snapshot: Any) -> bool:
         try:
@@ -6216,7 +5019,7 @@ class Alpha003TargetStrategy(bt.Strategy):
         )
         grid_plan = replace(plan, actions=grid_actions)
         keys, economics = self._order_intents(grid_plan, batch) if grid_actions else ((), ())
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
+        from bt_api_py.execution_journal import ExecutionDecisionKey
 
         key = ExecutionDecisionKey(
             account_scope=self._account_scope,
@@ -6273,8 +5076,8 @@ class Alpha003TargetStrategy(bt.Strategy):
         ):
             self.last_execution_block_reason = "FACTOR_SNAPSHOT_CHANGED_BEFORE_DECISION"
             return False
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournalError
-        from backtrader.stores.factor_execution import FactorExecutionError
+        from bt_api_py.execution_journal import ExecutionDecisionJournalError
+        from backtrader.factor_execution.factor_execution import FactorExecutionError
 
         try:
             if (
@@ -6546,107 +5349,21 @@ class Alpha003TargetStrategy(bt.Strategy):
         *,
         planning: Optional[Alpha003OrderPlanningInput] = None,
     ) -> None:
-        if (
-            not self.p.execution_enabled
-            or self._coordinator is None
-            or facts is None
-            or plan.status != "READY"
-        ):
-            return
-        actions = tuple(
-            action
-            for action in plan.actions
-            if action.position_effect == "CLOSE" or action.action == "CANCEL"
-        )
-        if not actions:
-            return
-        if any(
-            action.action == "CANCEL" and self._find_order_object(action) is None
-            for action in actions
-        ):
-            self.last_execution_block_reason = "CANCEL_ORDER_OBJECT_UNAVAILABLE"
-            return
-        plan_for_risk = replace(plan, actions=actions)
-        keys, economics = self._order_intents(plan_for_risk, batch)
-        event_time = getattr(facts, "available_at", None)
-        if event_time is None:
-            self.last_execution_block_reason = "RISK_EVENT_TIME_UNAVAILABLE"
-            return
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionKey
+        """Do not dispatch until the SDK provides a neutral managed-write facade."""
 
-        key = ExecutionDecisionKey(
-            account_scope=self._account_scope,
-            strategy_scope=self._strategy_scope,
-            logical_run_id=self._logical_run_id,
-            cohort_id=_read(self.p.cohort, "cohort_id"),
-            close_time=_time_key(event_time),
-            decision_kind="ALPHA003_RISK_REDUCTION",
-        )
-        payload = {
-            "snapshot_id": facts.snapshot_id,
-            "available_at": _time_key(event_time),
-            "execution_evidence": _live_execution_evidence_payload(facts),
-            "batch_id": _read(batch, "batch_id") if batch is not None else None,
-            "intent_economics": economics,
-            "plan_reason": plan.reason,
-        }
-        with self._coordinator.risk_decision_scope(
-            owner=self,
-            key=key,
-            economic_payload=payload,
-            intent_keys=keys,
-            # Risk keys use the fact snapshot's event/completion time. That
-            # can follow the market batch close when a fresh quote/query was
-            # consumed, so do not bind its independent durable key to the
-            # batch close timestamp.
-            batch=None,
-            execution_facts=facts,
-            inputs_complete=True,
-            expected_run_order_intents_used=(
-                planning.run_order_intents_used
-                if planning is not None
-                else self._coordinator.run_order_count()
-            ),
-            remaining_exit_intent_reserve=(
-                _future_exit_intent_reserve(planning, planned_actions=actions)
-                if planning is not None
-                else 0
-            ),
-        ) as scope:
-            if scope.dispatch_allowed:
-                self._dispatch_live_actions(actions, batch)
-
+        if self.p.execution_enabled:
+            self.last_execution_block_reason = "SDK_MANAGED_EXECUTION_FACADE_UNAVAILABLE"
+        elif self.last_execution_block_reason is None:
+            self.last_execution_block_reason = "SDK_NEUTRAL_QUOTES_AND_FEES_UNAVAILABLE"
+    
     def _run_live_prenext_risk(self) -> None:
-        """Evaluate only fresh live risk reductions during factor warmup."""
+        """Keep warmup live risk inactive until neutral execution facts exist."""
 
-        if self.p.replay_mode or not self.p.execution_enabled:
-            return
-        if self._coordinator is None:
-            self.last_execution_block_reason = "DURABLE_DECISION_COORDINATOR_UNAVAILABLE"
-            return
-        try:
-            now = self._clock_now()
-        except (TypeError, ValueError, RuntimeError):
-            self.last_execution_block_reason = "MARKET_DECISION_TIME_UNAVAILABLE"
-            return
-        facts = self._live_facts(now)
-        if facts is None:
-            return
-        planning = _live_planning_input(
-            facts,
-            strategy_scope=self._strategy_scope,
-            evaluated_at=now,
-            risk_evidence_available_at=facts.available_at,
-            session_close_at=None,
-            run_end=self._shutdown_requested.is_set(),
-            risk_policy=self._risk_policy,
-            target_decision=None,
-            eligible_grid_ordinal=None,
-            run_order_intents_used=self._coordinator.run_order_count(),
-        )
-        self.last_order_plan = plan_alpha003_orders(planning)
-        self._live_risk_decision(None, facts, self.last_order_plan, planning=planning)
-
+        if self.p.execution_enabled:
+            self.last_execution_block_reason = "SDK_MANAGED_EXECUTION_FACADE_UNAVAILABLE"
+        elif self.last_execution_block_reason is None:
+            self.last_execution_block_reason = "SDK_NEUTRAL_QUOTES_AND_FEES_UNAVAILABLE"
+    
     def _dispatch_live_actions(self, actions: Tuple[Alpha003OrderAction, ...], batch: Any) -> None:
         for action in actions:
             if action.action == "CANCEL":
@@ -6759,430 +5476,37 @@ class Alpha003TargetStrategy(bt.Strategy):
         is_new_batch: bool,
         session_reason: Optional[str] = None,
     ) -> None:
-        self._last_grid_fee_pair_blocked = False
+        """Record a blocked live decision until neutral risk/write receipts exist."""
+
         facts = self._live_facts(now, hold_projection=True)
-        fee_pair_release_blocker = None
-        if is_new_batch and self.p.execution_enabled and self._coordinator is not None:
-            fee_pair_release_blocker = self._release_active_fee_pair_hold_if_flat(facts)
-            if fee_pair_release_blocker is not None:
-                self.last_execution_block_reason = fee_pair_release_blocker
-        loss_guard_context = None
-        loss_guard_blocker = None
-        if facts is not None and self.p.execution_enabled:
-            from backtrader.stores.factor_execution import FactorExecutionError
-
-            try:
-                loss_guard_context, loss_guard_blocker = self._refresh_run_loss_guard(facts, now)
-            except FactorExecutionError as error:
-                if error.code != "JOURNAL_READ_FAILED":
-                    raise
-                loss_guard_blocker = error.code
-            if loss_guard_blocker is not None:
-                self.last_execution_block_reason = loss_guard_blocker
-        if self.p.execution_enabled and self._coordinator is not None:
-            # Read the persisted latch after refreshing it: the current query
-            # may have tripped it, and a restarted run may already be tripped
-            # even when current account facts are unavailable.  Only the
-            # confirmed latch starts winddown; an unrelated guard blocker does
-            # not prove that the loss threshold was reached.
-            from backtrader.stores.execution_decision_journal import (
-                ExecutionDecisionJournalError,
-                ExecutionRunLossGuardSnapshot,
-            )
-
-            try:
-                loss_guard = self._coordinator.journal.run_loss_guard(
-                    self._account_scope, self._strategy_scope, self._logical_run_id
-                )
-            except ExecutionDecisionJournalError as error:
-                # A read failure is not evidence of a trip or permission to
-                # open. Preserve the independent risk-reduction path.
-                loss_guard = None
-                loss_guard_context = None
-                loss_guard_blocker = error.code
-                self.last_execution_block_reason = error.code
-            if type(loss_guard) is ExecutionRunLossGuardSnapshot and loss_guard.tripped is True:
-                if not self._shutdown_requested.is_set():
-                    self.request_shutdown()
-        run_end = run_end or self._shutdown_requested.is_set()
-        target_decision = None if run_end else self._last_signal_target
-        planning = None
-        run_order_intents_used = (
-            self._coordinator.run_order_count()
-            if self._coordinator is not None
-            else self._live_shadow_order_count
-        )
-        if facts is not None and self._risk_policy is not None:
-            planning = _live_planning_input(
-                facts,
-                strategy_scope=self._strategy_scope,
-                evaluated_at=now,
-                # The risk evidence is the execution-facts snapshot itself: the
-                # journal settlement requires this timestamp to equal
-                # ``facts.available_at`` exactly. The batch's source-event
-                # ``available_at`` can precede the query-set completion (live
-                # query latency), so it cannot stand in for the evidence time.
-                risk_evidence_available_at=facts.available_at,
-                session_close_at=session_close,
-                run_end=run_end,
-                risk_policy=self._risk_policy,
-                target_decision=target_decision,
-                eligible_grid_ordinal=Alpha003TargetStrategy._journal_grid_ordinal(
-                    self, batch, ordinal
-                ),
-                run_order_intents_used=run_order_intents_used,
-            )
-            if session_reason is not None:
-                planning = replace(
-                    planning,
-                    execution_blockers=tuple(
-                        dict.fromkeys(planning.execution_blockers + (session_reason,))
-                    ),
-                )
-            self.last_order_plan = plan_alpha003_orders(planning)
+        if facts is None:
+            blocker = self.last_execution_block_reason or "NEUTRAL_FACTOR_FACTS_UNAVAILABLE"
+        elif self.p.execution_enabled:
+            blocker = "SDK_MANAGED_EXECUTION_FACADE_UNAVAILABLE"
         else:
-            self.last_order_plan = Alpha003OrderPlan(
-                "BLOCKED",
-                "EXECUTION_FACTS_UNAVAILABLE",
-                (),
-                _read(batch, "batch_id") if batch is not None else None,
-                now,
-                None,
-            )
-        proposed_plan = self.last_order_plan
-        tape_order_plan = proposed_plan
-        if (
-            is_new_batch
-            and batch is not None
-            and snapshot is not None
-            and not self._live_good_source_batch(batch, snapshot)
-        ):
-            tape_order_plan = self._no_intent_source_tape_plan(batch, snapshot)
-        fee_pair_scope_required = False
-        fee_pair_scope_unavailable = False
-        fee_pair_source_only_durable = False
-        fee_pair_grid_settled_durable = False
-        fee_pair_no_pair_source_only_durable = False
-        if self.p.execution_enabled and self._coordinator is not None:
-            try:
-                fee_pair_scope_required = (
-                    self._coordinator.journal.fee_pair_required_scope(
-                        self._account_scope, self._strategy_scope
-                    )
-                    is not None
-                )
-            except Exception:
-                # Do not append an ordinary OPEN-bearing row if the immutable
-                # scope fence cannot be read immediately before the tape path.
-                fee_pair_scope_unavailable = True
-        tape_durable = False
-        tape_reference = None
-        tape_error = None
+            blocker = "SDK_NEUTRAL_QUOTES_AND_FEES_UNAVAILABLE"
+        self.last_execution_block_reason = blocker
+        batch_id = _read(batch, "batch_id") if batch is not None else None
+        self.last_order_plan = Alpha003OrderPlan(
+            "BLOCKED",
+            blocker,
+            (),
+            batch_id,
+            now,
+            None,
+        )
         if is_new_batch and batch is not None and snapshot is not None:
-            readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
-            if fee_pair_scope_unavailable:
-                tape_error = "FEE_PAIR_SCOPE_STATUS_UNAVAILABLE"
-            elif fee_pair_scope_required and readiness == "LIVE_READY":
-                if not self._live_good_source_batch(batch, snapshot):
-                    tape_error = "FEE_PAIR_LIVE_SOURCE_CANDIDATE_UNAVAILABLE"
-                else:
-                    no_pair_decision = self.last_target_decision
-                    no_pair_selection = (
-                        type(no_pair_decision) is Alpha003TargetDecision
-                        and no_pair_decision.status == "BLOCKED"
-                        and no_pair_decision.reason in TARGET_FREE_SELECTION_REASONS
-                        and no_pair_decision.execution_mode == "LIVE"
-                        and no_pair_decision.batch_id == _read(batch, "batch_id")
-                        and no_pair_decision.cohort_id == _read(batch, "cohort_id")
-                        and not no_pair_decision.targets
-                    )
-                    if (
-                        no_pair_selection
-                        and _read(batch, "status") == "COMPLETE"
-                        and _read(snapshot, "batch_complete") is True
-                    ):
-                        tape_durable, tape_reference, tape_error = (
-                            self._record_fee_pair_no_pair_source_only_tape(
-                                batch,
-                                snapshot,
-                                no_pair_decision,
-                            )
-                        )
-                        fee_pair_no_pair_source_only_durable = tape_durable
-                    else:
-                        settlement = self._fee_pair_live_grid_settlement(
-                            batch,
-                            snapshot,
-                            facts,
-                            proposed_plan,
-                            planning,
-                            target_decision,
-                            loss_guard_context,
-                            loss_guard_blocker,
-                        )
-                        tape_durable, tape_reference, tape_error = (
-                            self._record_fee_pair_source_only_tape(
-                                batch,
-                                snapshot,
-                                target_decision,
-                                facts,
-                                settlement=settlement,
-                            )
-                        )
-                        fee_pair_grid_settled_durable = bool(
-                            tape_durable
-                            and settlement is not None
-                            and self._last_fee_pair_grid_settled_batch_id
-                            == _read(batch, "batch_id")
-                        )
-                        fee_pair_source_only_durable = bool(
-                            tape_durable and not fee_pair_grid_settled_durable
-                        )
-            else:
-                tape_durable, tape_reference, tape_error = self._record_decision_tape(
-                    batch, snapshot, target_decision, tape_order_plan
-                )
-            if not tape_durable:
-                self.last_execution_block_reason = tape_error
-                if (
-                    fee_pair_scope_required
-                    and tape_error == "FEE_PAIR_SOURCE_ONLY_WRITER_UNAVAILABLE"
-                    and any(
-                        action.action == "SUBMIT"
-                        and action.position_effect == "OPEN"
-                        for action in proposed_plan.actions
-                    )
-                ):
-                    # The registered scope fence is the authoritative reason a
-                    # new OPEN stopped; a missing writer is only the local
-                    # diagnostic that prevented an anchor. Do not let it mask
-                    # the precise fail-closed contract.
-                    self.last_execution_block_reason = "FEE_PAIR_SCOPE_FAIL_CLOSED"
-            self.last_order_plan = self._gate_open_actions(proposed_plan, tape_durable=tape_durable)
-        if is_new_batch and batch is not None and snapshot is not None and tape_durable:
-            source_receipt = None
-            try:
-                source_receipt = self._source_receipt(batch, snapshot, tape_reference)
-            except Exception:
-                self.last_execution_block_reason = "SOURCE_RECEIPT_BUILD_FAILED"
-                self._note_source_continuity_failure("SOURCE_RECEIPT_BUILD_FAILED")
-                self.last_order_plan = self._gate_open_actions(
-                    proposed_plan, tape_durable=False
-                )
-            if source_receipt is not None:
-                readiness = _state_name(_read(snapshot, "readiness"), "snapshot readiness")
-                live_good_batch = (
-                    readiness == "LIVE_READY"
-                    and source_receipt.readiness == readiness
-                    and self._live_good_source_batch(batch, snapshot)
-                )
-                grid_recorded = False
-                if live_good_batch:
-                    if not fee_pair_no_pair_source_only_durable:
-                        if fee_pair_grid_settled_durable:
-                            try:
-                                from backtrader.stores.execution_decision_journal import (
-                                    ExecutionDecisionJournalError,
-                                    ExecutionFeePairOpenContext,
-                                )
-                                from backtrader.stores.factor_execution import FactorExecutionError
-                                from backtrader.stores.factor_execution_facts import (
-                                    FactorExecutionFactsSourceError,
-                                    fee_pair_facts_open_source_scope,
-                                )
-
-                                open_context = self._last_fee_pair_open_context
-                                selected_ids = tuple(
-                                    sorted(item.target_id for item in target_decision.targets)
-                                )
-                                targets_by_id = {
-                                    target.target_id: target
-                                    for target in self._last_execution_targets
-                                }
-                                selected_targets = tuple(
-                                    targets_by_id.get(target_id) for target_id in selected_ids
-                                )
-                                query_age = self._last_execution_query_max_age_seconds
-                                quote_age = self._last_execution_quote_max_age_seconds
-                                if (
-                                    type(open_context) is not ExecutionFeePairOpenContext
-                                    or open_context.facts is not facts
-                                    or len(selected_ids) != 2
-                                    or any(target is None for target in selected_targets)
-                                    or self._last_execution_facts_now is None
-                                    or query_age is None
-                                    or quote_age is None
-                                    or query_age > self._risk_policy.max_state_age_seconds
-                                ):
-                                    raise FactorExecutionFactsSourceError(
-                                        "fee_pair_open_context_unavailable"
-                                    )
-                                source_scope = fee_pair_facts_open_source_scope(
-                                    self._last_execution_facts_store,
-                                    self._last_execution_facts_broker,
-                                    facts,
-                                    now=_fee_pair_source_now(facts, self._last_execution_facts_now),
-                                    targets=selected_targets,
-                                    quote_max_age=timedelta(
-                                        seconds=float(quote_age)
-                                    ),
-                                    max_query_age=timedelta(seconds=float(query_age)),
-                                )
-                                with source_scope as source_lease:
-                                    open_context = replace(
-                                        open_context, source_lease=source_lease
-                                    )
-                                    grid_recorded = self._live_grid_decision(
-                                        batch,
-                                        snapshot,
-                                        facts,
-                                        self.last_order_plan,
-                                        decision_tape_reference=tape_reference,
-                                        tape_error=tape_error,
-                                        source_receipt=source_receipt,
-                                        proposed_plan=proposed_plan,
-                                        planning=planning,
-                                        loss_guard_context=loss_guard_context,
-                                        loss_guard_blocker=loss_guard_blocker,
-                                        fee_pair_open_context=open_context,
-                                    )
-                            except (
-                                FactorExecutionFactsSourceError,
-                                ExecutionDecisionJournalError,
-                                FactorExecutionError,
-                            ) as error:
-                                error_code = getattr(error, "code", None)
-                                self.last_execution_block_reason = (
-                                    error_code
-                                    if type(error_code) is str
-                                    else "FEE_PAIR_OPEN_SOURCE_BINDING_REQUIRED"
-                                )
-                                retained_actions = tuple(
-                                    action
-                                    for action in proposed_plan.actions
-                                    if action.action == "CANCEL"
-                                    or action.action != "SUBMIT"
-                                    or action.position_effect != "OPEN"
-                                )
-                                self.last_order_plan = replace(
-                                    proposed_plan,
-                                    status=(
-                                        "READY"
-                                        if retained_actions
-                                        and proposed_plan.status == "READY"
-                                        else "BLOCKED"
-                                    ),
-                                    reason=self.last_execution_block_reason,
-                                    actions=retained_actions,
-                                )
-                                self._last_grid_fee_pair_blocked = True
-                        else:
-                            grid_recorded = self._live_grid_decision(
-                                batch,
-                                snapshot,
-                                facts,
-                                self.last_order_plan,
-                                decision_tape_reference=tape_reference,
-                                tape_error=tape_error,
-                                source_receipt=source_receipt,
-                                proposed_plan=proposed_plan,
-                                planning=planning,
-                                loss_guard_context=loss_guard_context,
-                                loss_guard_blocker=loss_guard_blocker,
-                            )
-                    ready_callback = getattr(self.p, "live_ready_callback", None)
-                    capture_ready = getattr(self, "_capture_live_ready_boundary", None)
-                    if grid_recorded and callable(ready_callback) and callable(capture_ready):
-                        # A readiness receipt is an execution boundary: don't
-                        # publish it until the source/grid anchor is durable.
-                        capture_ready(batch, snapshot)
-                    capacity_callback = getattr(self.p, "live_capacity_callback", None)
-                    capture_capacity = getattr(self, "_capture_live_capacity_boundary", None)
-                    if grid_recorded and callable(capacity_callback) and callable(capture_capacity):
-                        capture_capacity(batch, snapshot, engine_phase="grid_recorded")
-                if not grid_recorded:
-                    if fee_pair_no_pair_source_only_durable:
-                        # The durable NO_LEGAL_FEE_PAIR source row is the only
-                        # evidence this slot may carry. Keep OPEN filtered
-                        # while the independent risk path below still sees
-                        # CANCEL/CLOSE actions.
-                        retained_actions = tuple(
-                            action
-                            for action in proposed_plan.actions
-                            if action.action == "CANCEL"
-                            or action.action != "SUBMIT"
-                            or action.position_effect != "OPEN"
-                        )
-                        self.last_order_plan = replace(
-                            proposed_plan,
-                            status=(
-                                "READY"
-                                if retained_actions and proposed_plan.status == "READY"
-                                else "BLOCKED"
-                            ),
-                            reason="NO_LEGAL_FEE_PAIR",
-                            actions=retained_actions,
-                        )
-                        if self.last_execution_block_reason is None:
-                            self.last_execution_block_reason = "NO_LEGAL_FEE_PAIR"
-                        self._last_grid_fee_pair_blocked = True
-                    elif fee_pair_source_only_durable or fee_pair_grid_settled_durable:
-                        # The SOURCE_ONLY row already advanced the durable
-                        # source highwater for this slot. A later stale-snapshot
-                        # or Journal rejection must not fall through to the
-                        # ordinary source writer and retry the same key. Keep
-                        # OPEN filtered while the independent risk path below
-                        # still sees CANCEL/CLOSE actions.
-                        open_actions = tuple(
-                            action
-                            for action in proposed_plan.actions
-                            if action.action == "SUBMIT"
-                            and action.position_effect == "OPEN"
-                        )
-                        if open_actions:
-                            retained_actions = tuple(
-                                action
-                                for action in proposed_plan.actions
-                                if action.action == "CANCEL"
-                                or action.action != "SUBMIT"
-                                or action.position_effect != "OPEN"
-                            )
-                            self.last_order_plan = replace(
-                                proposed_plan,
-                                status=(
-                                    "READY"
-                                    if retained_actions and proposed_plan.status == "READY"
-                                    else "BLOCKED"
-                                ),
-                                reason=(
-                                    "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
-                                    if fee_pair_source_only_durable
-                                    else self.last_execution_block_reason
-                                    or "FEE_PAIR_GRID_OPEN_ADMISSION_FAILED"
-                                ),
-                                actions=retained_actions,
-                            )
-                        else:
-                            self.last_order_plan = proposed_plan
-                        if self.last_execution_block_reason is None:
-                            self.last_execution_block_reason = (
-                                "FEE_PAIR_SOURCE_ONLY_GRID_NOT_SETTLED"
-                                if fee_pair_source_only_durable
-                                else "FEE_PAIR_GRID_OPEN_ADMISSION_FAILED"
-                            )
-                        self._last_grid_fee_pair_blocked = True
-                    elif not getattr(self, "_last_grid_fee_pair_blocked", False):
-                        self._record_source_only(batch, snapshot, tape_reference)
-        elif is_new_batch and batch is not None and snapshot is not None:
-            # No tape row means there is no source identity to anchor and no
-            # grid decision may advance. Fresh risk reductions still run below.
-            if self.last_execution_block_reason != "FEE_PAIR_SCOPE_FAIL_CLOSED":
-                self.last_execution_block_reason = tape_error or "SOURCE_TAPE_UNAVAILABLE"
-        if self.p.execution_enabled and planning is not None:
-            self._live_risk_decision(batch, facts, self.last_order_plan, planning=planning)
+            durable, _reference, tape_error = self._record_decision_tape(
+                batch,
+                snapshot,
+                self._last_signal_target,
+                self.last_order_plan,
+            )
+            if not durable:
+                self.last_execution_block_reason = tape_error or "DECISION_TAPE_WRITE_FAILED"
         if self._shutdown_requested.is_set():
             self._update_shutdown_state(facts, self.last_order_plan)
-
+    
     def _run_replay(
         self,
         batch: Any,
@@ -7329,16 +5653,18 @@ class Alpha003TargetStrategy(bt.Strategy):
         )
 
     def _update_shutdown_state(self, facts: Any, plan: Optional[Alpha003OrderPlan]) -> None:
+        """Confirm only a fresh, complete, provider-neutral flat account view."""
+
         if not self._shutdown_requested.is_set():
             self._shutdown_ready_state = False
             self._shutdown_blocker_state = "SHUTDOWN_NOT_REQUESTED"
             return
-        if facts is None:
+        if facts is None or self._coordinator is None:
             self._shutdown_ready_state = False
-            self._shutdown_blocker_state = "SHUTDOWN_FACTS_UNAVAILABLE"
+            self._shutdown_blocker_state = "SHUTDOWN_NEUTRAL_FACTS_UNAVAILABLE"
             return
         try:
-            from backtrader.stores.factor_execution_facts import FactorExecutionFacts
+            from backtrader.factor_execution.factor_execution_facts import FactorExecutionFacts
         except ImportError:
             self._shutdown_ready_state = False
             self._shutdown_blocker_state = "SHUTDOWN_FACT_TYPE_UNAVAILABLE"
@@ -7347,95 +5673,41 @@ class Alpha003TargetStrategy(bt.Strategy):
             self._shutdown_ready_state = False
             self._shutdown_blocker_state = "SHUTDOWN_FACT_TYPE_INVALID"
             return
+        try:
+            now = self._clock_now()
+            current = facts.validate_current(
+                query_facade=self._coordinator.query_facade,
+                now=now,
+            )
+        except Exception:
+            current = False
+        if not current:
+            self._shutdown_ready_state = False
+            self._shutdown_blocker_state = "SHUTDOWN_NEUTRAL_FACTS_STALE"
+            return
         if (
-            getattr(facts, "account_scope", None) != self._account_scope
-            or getattr(facts, "strategy_scope", None) != self._strategy_scope
+            not getattr(facts.receipt, "complete", False)
+            or facts.blockers
+            or facts.provider_positions
+            or facts.provider_open_orders
+            or facts.local_orders
         ):
             self._shutdown_ready_state = False
-            self._shutdown_blocker_state = "SHUTDOWN_FACT_SCOPE_MISMATCH"
+            self._shutdown_blocker_state = "SHUTDOWN_NEUTRAL_ACCOUNT_NOT_FLAT"
             return
-        passive_read_only = self._passive_read_only_retirement_proven(facts)
-        if passive_read_only:
-            blockers = facts.read_only_observation_blockers
-            facts_ready = not blockers
-        else:
-            facts_ready = facts.read_only_reconciliation_ready is True
-            blockers = () if facts_ready else facts.read_only_reconciliation_blockers
-        if not facts_ready:
+        local_positions = tuple(facts.local_positions)
+        if (
+            len(local_positions) != len(self._target_ids)
+            or {item.target_id for item in local_positions} != set(self._target_ids)
+            or any(item.quantity != 0 for item in local_positions)
+        ):
             self._shutdown_ready_state = False
-            self._shutdown_blocker_state = (
-                "SHUTDOWN_RECONCILIATION_BLOCKED:" + blockers[0]
-                if blockers
-                else "SHUTDOWN_RECONCILIATION_UNAVAILABLE"
-            )
+            self._shutdown_blocker_state = "SHUTDOWN_LOCAL_POSITION_SET_NOT_FLAT"
             return
-        if passive_read_only:
-            positions = tuple(getattr(facts, "positions", ()))
-            target_positions = tuple(
-                item for item in positions if getattr(item, "target_id", None) is not None
-            )
-            by_target = {item.target_id: item for item in target_positions}
-            if len(by_target) != len(target_positions) or set(by_target) != set(self._target_ids):
-                self._shutdown_ready_state = False
-                self._shutdown_blocker_state = "SHUTDOWN_POSITION_SET_INCOMPLETE"
-                return
-            self._shutdown_ready_state = True
-            self._shutdown_blocker_state = None
-            self._last_shutdown_facts_id = getattr(facts, "snapshot_id", None)
-            return
-
-        # Retirement is a read-only reconciliation decision. The planner may
-        # be blocked for missing quote, margin, or write-grant evidence even
-        # when this complete snapshot proves every target flat and order-free.
-        positions = tuple(getattr(facts, "positions", ()))
-        by_target = {getattr(item, "target_id", None): item for item in positions}
-        if set(by_target) != set(self._target_ids):
-            self._shutdown_ready_state = False
-            self._shutdown_blocker_state = "SHUTDOWN_POSITION_SET_INCOMPLETE"
-            return
-        for target_id, position in by_target.items():
-            quantity = _exact_hands(getattr(position, "quantity", None))
-            if quantity is None:
-                self._shutdown_ready_state = False
-                self._shutdown_blocker_state = "SHUTDOWN_POSITION_QUANTITY_UNAVAILABLE"
-                return
-            if quantity:
-                if getattr(
-                    position, "owner_strategy_scope", None
-                ) != self._strategy_scope or not getattr(position, "owner_intent_id", None):
-                    self._shutdown_ready_state = False
-                    self._shutdown_blocker_state = "SHUTDOWN_POSITION_OWNERSHIP_UNAVAILABLE"
-                    return
-                if self._risk_policy is None or self._risk_policy.run_end_policy == "CLOSE_ALL":
-                    self._shutdown_ready_state = False
-                    self._shutdown_blocker_state = "SHUTDOWN_OWNED_POSITION_OPEN:" + target_id
-                    return
-
-        target_routes = set(self._routes.values())
-        for order in tuple(getattr(facts, "working_orders", ())):
-            route = (getattr(order, "instrument", None), getattr(order, "exchange", None))
-            if route not in target_routes:
-                continue
-            if getattr(order, "owner_strategy_scope", None) != self._strategy_scope or not getattr(
-                order, "owner_intent_id", None
-            ):
-                self._shutdown_ready_state = False
-                self._shutdown_blocker_state = "SHUTDOWN_WORKING_ORDER_OWNERSHIP_UNAVAILABLE"
-                return
-            self._shutdown_ready_state = False
-            self._shutdown_blocker_state = (
-                "SHUTDOWN_ORDER_UNKNOWN"
-                if getattr(order, "execution_unknown", False)
-                or str(getattr(order, "state", "")).upper()
-                in {"UNKNOWN", "DISPATCHING", "PREPARED", "CANCEL_PENDING"}
-                else "SHUTDOWN_ORDER_TERMINAL_PENDING"
-            )
-            return
-
         self._shutdown_ready_state = True
         self._shutdown_blocker_state = None
-        self._last_shutdown_facts_id = getattr(facts, "snapshot_id", None)
-
+        self._last_shutdown_facts_id = facts.receipt_digest
+    
     def _request_engine_stop_if_ready(self) -> bool:
         """Request public Cerebro stop only after fresh owner-scope readiness."""
 
@@ -7460,52 +5732,6 @@ class Alpha003TargetStrategy(bt.Strategy):
 
     def notify_idle(self) -> None:
         """Consume refresh notices and shutdown requests during market gaps."""
-
-        refresh_loop = getattr(self.p, "control_refresh_loop", None)
-        consume_fee_notice = getattr(refresh_loop, "consume_commission_idle_notice", None)
-        if callable(consume_fee_notice):
-            try:
-                notice = consume_fee_notice()
-            except Exception:
-                notice = None
-                self.last_execution_block_reason = "COMMISSION_IDLE_NOTICE_UNAVAILABLE"
-            if notice is not None:
-                valid_mapping = isinstance(notice, Mapping)
-                revision = notice.get("revision") if valid_mapping else None
-                priority_changed = notice.get("priority_changed") if valid_mapping else None
-                fee_snapshot_changed = notice.get("fee_snapshot_changed") if valid_mapping else None
-                batch_id = notice.get("batch_id") if valid_mapping else None
-                previous_revision = (
-                    self._last_commission_idle_notice.get("revision", 0)
-                    if isinstance(self._last_commission_idle_notice, Mapping)
-                    else 0
-                )
-                if (
-                    type(revision) is not int
-                    or revision <= previous_revision
-                    or type(priority_changed) is not bool
-                    or type(fee_snapshot_changed) is not bool
-                    or (batch_id is not None and (type(batch_id) is not str or not batch_id))
-                ):
-                    self.last_execution_block_reason = "COMMISSION_IDLE_NOTICE_INVALID"
-                else:
-                    self._last_commission_idle_notice = MappingProxyType(
-                        {
-                            "revision": revision,
-                            "priority_changed": priority_changed,
-                            "fee_snapshot_changed": fee_snapshot_changed,
-                            "batch_id": batch_id,
-                        }
-                    )
-                    if (
-                        fee_snapshot_changed
-                        and not self._shutdown_requested.is_set()
-                        and not self.p.replay_mode
-                    ):
-                        try:
-                            self._live_facts(self._clock_now())
-                        except Exception:
-                            self.last_execution_block_reason = "COMMISSION_IDLE_FACT_REFRESH_FAILED"
 
         if not self._shutdown_requested.is_set():
             return

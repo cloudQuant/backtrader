@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""014_2 standard entry — dry self-check / offline replay / SimNow live observation.
+"""014_2 standard entry — dry self-check / offline replay / managed-runtime seam.
 
 Usage (Python 3.11 required for the live tier; dry/replay need only the core):
 
@@ -9,15 +9,13 @@ Usage (Python 3.11 required for the live tier; dry/replay need only the core):
 
 Exit codes: 0 PASS, 1 FAIL, 2 BLOCKED, 3 UNKNOWN.
 
-The strategy is decision-only by contract (its token outcomes are
-``ENGINEERING_WRITE_DISABLED`` / ``REPLAY_WRITE_DISABLED`` and it never submits
-an order), so the live tier is an **observation** acceptance: the real
-direct registered-sim chain streams real ticks, the feed seals closed-minute
-``BarEvidence`` plus captured quote windows, and the strategy computes its FQ2
-features and decisions on live inputs.  Zero writes are possible on this
-route; ``--allow-write`` is refused explicitly (the write tier would require a
-strategy-level execution addition outside this iteration's scope).  Evidence
-is written under ``evidence/<run_id>/`` (git-ignored).
+The previous direct SimNow/registered-sim live implementation has been retired.
+The live entry accepts only explicit SDK-owned provider configuration and host
+runtime bindings through ``bt_api_py.managed_runtime_composition``. The CLI has
+no trusted host-injection source and returns ``BLOCKED``. Even with an injected
+host, this strategy remains unavailable until the SDK exposes multi-instrument
+option rules and a qualified market clock, and Backtrader has an adapter for
+the composed SDK facade. Offline replay remains a separate synthetic path.
 """
 
 from __future__ import annotations
@@ -62,99 +60,6 @@ class LiveRejected(RuntimeError):
         self.exit_code = int(exit_code)
 
 
-_OBSERVATION_CLEANUP_KEEPALIVE: List[Any] = []
-
-
-def _observation_cleanup_error(exc: BaseException, *, phase: str) -> Dict[str, str]:
-    exception_type = type(exc).__name__
-    if exception_type not in {
-        "AttributeError",
-        "AssertionError",
-        "FileNotFoundError",
-        "ImportError",
-        "KeyError",
-        "LiveRejected",
-        "OSError",
-        "RuntimeError",
-        "SimNowDirectError",
-        "TimeoutError",
-        "TypeError",
-        "ValueError",
-    }:
-        exception_type = "OtherException"
-    return {"phase": phase, "exception_type": exception_type}
-
-
-def _observation_close_health_error(health: Any, *, phase: str) -> Optional[Dict[str, str]]:
-    if not isinstance(health, Mapping):
-        return {"phase": phase, "reason": "health_not_mapping"}
-    false_fields = (
-        "worker_alive",
-        "close_thread_alive",
-        "funding_worker_alive",
-        "restart_blocked_by_worker",
-        "restart_blocked_by_close",
-        "funding_restart_blocked_by_worker",
-        "read_only_metadata_probe_active",
-        "funding_inflight",
-    )
-    zero_fields = (
-        "queue_depth",
-        "inflight",
-        "publications_pending",
-        "broker_update_queue_depth",
-        "funding_queue_depth",
-        "funding_pending",
-    )
-    try:
-        if "shutdown_state" not in health:
-            return {"phase": phase, "reason": "health_field_missing", "field": "shutdown_state"}
-        if health.get("shutdown_state") != "PASS":
-            return {"phase": phase, "reason": "shutdown_state_not_pass"}
-        for field in false_fields:
-            if field not in health:
-                return {"phase": phase, "reason": "health_field_missing", "field": field}
-            if type(health[field]) is not bool or health[field] is not False:
-                return {"phase": phase, "reason": "health_flag_not_false", "field": field}
-        for field in zero_fields:
-            if field not in health:
-                return {"phase": phase, "reason": "health_field_missing", "field": field}
-            if type(health[field]) is not int or health[field] != 0:
-                return {"phase": phase, "reason": "health_count_not_zero", "field": field}
-    except Exception:
-        return {"phase": phase, "reason": "health_unreadable"}
-    return None
-
-
-def _close_registered_live_store(
-    store: Any, *, timeout: float, action: Optional[str], reason: str
-) -> Optional[Dict[str, Any]]:
-    """Run each selected cleanup operation once and require Store.stop health."""
-    failures: List[Dict[str, str]] = []
-    if action == "freeze":
-        try:
-            store.registered_sim_freeze(reason)
-        except Exception as exc:
-            failures.append(_observation_cleanup_error(exc, phase="registered_sim_freeze"))
-    elif action == "disarm":
-        try:
-            store.registered_sim_disarm(reason)
-        except Exception as exc:
-            failures.append(_observation_cleanup_error(exc, phase="registered_sim_disarm"))
-    try:
-        close_health = store.stop(timeout=timeout)
-    except Exception as exc:
-        failures.append(_observation_cleanup_error(exc, phase="store_stop"))
-    else:
-        close_error = _observation_close_health_error(close_health, phase="store_stop")
-        if close_error is not None:
-            failures.append(close_error)
-    if not failures:
-        return None
-    if not any(item is store for item in _OBSERVATION_CLEANUP_KEEPALIVE):
-        _OBSERVATION_CLEANUP_KEEPALIVE.append(store)
-    return {"phase": "store_cleanup", "failures": failures}
-
 def _load_legacy():
     """Return the folder-local legacy engine (package import or direct script)."""
     if __package__:
@@ -184,28 +89,13 @@ def _load_raw_config() -> Dict[str, Any]:
     return raw
 
 
-def _load_env() -> Dict[str, str]:
-    """Merge the checkout-root .env into a name->value view (never injected)."""
-    values = dict(os.environ)
-    env_path = CHECKOUT_ROOT / ".env"
-    if env_path.is_file():
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            if key and key not in values:
-                values[key] = value.strip().strip('"').strip("'")
-    return values
-
-
 def _ensure_dev_sdk_path(*, strict: bool = False) -> None:
-    """Prefer the dev bt_api_py source tree over any installed copy."""
+    """Prefer the public bt_api_py and neutral bt_api_base dev sources."""
     import importlib.util
 
     root = Path(os.environ.get("BT_API_PY_ROOT") or "D:/bt_api_py").expanduser()
-    for extra in reversed((root / "bt_api" / "bt_api_base" / "src", root / "bt_api" / "bt_api_ctp" / "src")):
+    candidates = (root / "bt_api" / "bt_api_base" / "src", root)
+    for extra in reversed(candidates):
         if not extra.is_dir():
             continue
         text = str(extra)
@@ -214,41 +104,21 @@ def _ensure_dev_sdk_path(*, strict: bool = False) -> None:
         sys.path.insert(0, text)
     if not strict:
         return
-    root_text = str(root).replace("\\", "/").lower()
-    loaded = sys.modules.get("bt_api_ctp")
-    if loaded is not None:
-        origin = getattr(loaded, "__file__", "") or ""
-        if root_text not in str(origin).replace("\\", "/").lower():
-            raise LiveRejected("sdk_origin_not_dev_source", {"module": "bt_api_ctp"})
-        return
-    found = importlib.util.find_spec("bt_api_ctp")
-    origin = getattr(found, "origin", None)
-    if origin is None or root_text not in str(origin).replace("\\", "/").lower():
-        raise LiveRejected("sdk_origin_not_dev_source", {"module": "bt_api_ctp", "found": origin is not None})
 
-
-def _resolve_ref(value: Any, env: Mapping[str, str], *, field: str) -> str:
-    """Resolve a literal or ``{env: NAME}`` reference; never print values."""
-    if isinstance(value, Mapping):
-        name = str(value.get("env") or "").strip()
-        if not name:
-            raise LiveRejected("credential_ref_missing_name", {"field": field})
-        resolved = str(env.get(name, "") or "").strip()
-        if not resolved:
-            raise LiveRejected("credential_env_missing", {"field": field, "env_name": name})
-        return resolved
-    text = str(value or "").strip()
-    if not text:
-        raise LiveRejected("config_value_missing", {"field": field})
-    return text
-
-
-def _split_symbol(symbol: str) -> Tuple[str, str]:
-    text = str(symbol or "").strip().upper()
-    exchange, _, code = text.partition(".")
-    if not exchange or not code:
-        raise LiveRejected("live_symbol_needs_exchange_prefix", {"symbol": text})
-    return code, exchange
+    root_text = str(root.resolve()).replace("\\", "/").lower()
+    for name in ("bt_api_py", "bt_api_base"):
+        loaded = sys.modules.get(name)
+        if loaded is not None:
+            origin = getattr(loaded, "__file__", "") or ""
+        else:
+            try:
+                found = importlib.util.find_spec(name)
+            except (ImportError, ValueError):
+                found = None
+            origin = getattr(found, "origin", None)
+        normalized = str(origin or "").replace("\\", "/").lower()
+        if not normalized or root_text not in normalized:
+            raise LiveRejected("sdk_origin_not_dev_source", {"module": name})
 
 
 def _live_section_errors(live: Mapping[str, Any]) -> List[str]:
@@ -563,609 +433,128 @@ def _live_strategy_config(legacy_config: Mapping[str, Any], live: Mapping[str, A
     return view
 
 
-def run_live(args) -> int:
+def _run_managed_runtime_host(
+    args: Any,
+    *,
+    access_mode: str,
+    provider_configuration: Any = None,
+    runtime_binding: Any = None,
+    authorization_source: Any = None,
+    operator_grant: Any = None,
+    registry: Any = None,
+    unavailable_capabilities: Tuple[str, ...],
+) -> int:
+    """Use only the SDK's explicit host-bound composition seam.
+
+    The command-line example has no trusted runtime-owner injection channel, so
+    it stops before importing provider code or reading credential inputs. An
+    embedding host may pass SDK-issued configuration, runtime binding and any
+    required authorization objects explicitly. Composition alone does not
+    supply the missing Backtrader strategy, Store/Broker, option-rules or
+    qualified market-clock contracts; those remain unavailable.
+    """
     decision = getattr(args, "tier_decision", None)
-    decision_evidence = decision.as_evidence() if decision is not None else {}
-    if args.allow_write:
+    entry_tier = decision.as_evidence() if decision is not None else {}
+    base = {
+        "status": "BLOCKED",
+        "mode": "live",
+        "backend": "bt_api_py.managed_runtime_composition",
+        "access_mode": access_mode,
+        "entry_tier": dict(entry_tier),
+        "strategy_dispatched": False,
+        "unavailable_capabilities": list(unavailable_capabilities),
+    }
+    if provider_configuration is None or runtime_binding is None:
+        _json_print({**base, "reason": "managed_runtime_host_injection_required"})
+        return EXIT_BLOCKED
+
+    try:
+        _ensure_dev_sdk_path(strict=True)
+        from bt_api_py.managed_runtime_composition import (
+            ManagedRuntimeCompositionError,
+            compose_managed_runtime,
+        )
+    except Exception:
+        _json_print({**base, "reason": "sdk_managed_runtime_composition_unavailable"})
+        return EXIT_BLOCKED
+
+    try:
+        composition = compose_managed_runtime(
+            provider_configuration,
+            runtime_binding=runtime_binding,
+            access_mode=access_mode,
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+            registry=registry,
+        )
+    except ManagedRuntimeCompositionError as exc:
+        _json_print({**base, "reason": exc.code})
+        return EXIT_BLOCKED
+    except Exception:
+        _json_print({**base, "reason": "managed_runtime_composition_failed"})
+        return EXIT_BLOCKED
+
+    result = {
+        **base,
+        "reason": "backtrader_managed_strategy_adapter_unavailable",
+        "sdk_route": composition.exchange_name,
+        "runtime_composed": True,
+        "write_grant_result": (
+            "not_used_strategy_not_dispatched"
+            if access_mode == "managed_execution"
+            else "not_applicable_read_only"
+        ),
+    }
+    try:
+        composition.close()
+    except ManagedRuntimeCompositionError as exc:
+        result.update(
+            status="UNKNOWN",
+            reason=exc.code,
+            composition_close="unconfirmed",
+        )
+        _json_print(result)
+        return EXIT_UNKNOWN
+    result["composition_close"] = "closed"
+    _json_print(result)
+    return EXIT_BLOCKED
+
+
+def run_live(
+    args,
+    *,
+    provider_configuration: Any = None,
+    runtime_binding: Any = None,
+    registry: Any = None,
+) -> int:
+    if getattr(args, "allow_write", False):
         _json_print(
             {
                 "status": "BLOCKED",
                 "mode": "live",
                 "reason": "write_tier_not_implemented_for_decision_only_strategy",
-                "entry_tier": dict(decision_evidence),
+                "entry_tier": getattr(
+                    getattr(args, "tier_decision", None), "as_evidence", lambda: {}
+                )(),
                 "write_grant_result": "refused_no_order_path_by_contract",
-                "hint": (
-                    "this strategy has no order path by contract; the live tier is a zero-write "
-                    "observation of real sealed evidence and decisions"
-                ),
             }
         )
         return EXIT_BLOCKED
-
-    if sys.version_info[:2] != (3, 11):
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": "live_tier_requires_python_3_11",
-                "entry_tier": dict(decision_evidence),
-                "current": f"{sys.version_info.major}.{sys.version_info.minor}",
-                "hint": "run the live tier with the reviewed C:/anaconda3/python.exe (3.11)",
-            }
-        )
-        return EXIT_BLOCKED
-
-    # Backend selection is config-first.  The explicit service route must be
-    # chosen before importing the direct SimNow adapter or reading the root
-    # .env; an unsupported value never falls back to the direct provider.
-    try:
-        raw_config = _load_raw_config()
-    except Exception as exc:
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": f"config_unreadable:{type(exc).__name__}",
-                "entry_tier": dict(decision_evidence),
-                "write_grant_result": "not_evaluated",
-            }
-        )
-        return EXIT_BLOCKED
-    raw_live = raw_config.get(LIVE_ADAPTER_KEY) or {}
-    if not isinstance(raw_live, Mapping):
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": "live_adapter_invalid",
-                "entry_tier": dict(decision_evidence),
-                "write_grant_result": "not_evaluated",
-            }
-        )
-        return EXIT_BLOCKED
-    live = dict(raw_live)
-    backend = live.get("backend", "direct")
-    if backend == "service":
-        if __package__:
-            from . import service_live_backend
-        else:
-            import service_live_backend
-        return service_live_backend.run_live_service(
-            args,
-            raw_config,
-            decision,
-            sys.modules[__name__],
-        )
-    if backend != "direct":
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "reason": "live_backend_unsupported",
-                "supported_backends": ["direct", "service"],
-                "entry_tier": dict(decision_evidence),
-                "write_grant_result": "not_evaluated",
-            }
-        )
-        return EXIT_BLOCKED
-
-    # The dev SDK source paths must precede any bt_api_ctp import: importing
-    # simnow_direct eagerly builds the CTP wrapper class, and an installed
-    # site-packages bt_api_ctp must never be bound.  The strict origin check
-    # below still fails closed if this preload was skipped or defeated.
-    _ensure_dev_sdk_path()
-
-    # Import order matters: legacy_runner's iteration-41 fence puts the
-    # checkout root on sys.path before anything binds ``backtrader``.
-    import legacy_runner
-    import simnow_direct
-
-    import backtrader as bt
-    from backtrader.brokers.btapibroker import BtApiBroker
-    try:
-        legacy_config = legacy_runner.load_config()
-    except Exception as exc:
-        _json_print({"status": "REJECTED", "mode": "live", "error": f"{type(exc).__name__}: {exc}"})
-        return EXIT_BLOCKED
-    errors = _live_section_errors(live)
-    if errors:
-        _json_print({"status": "REJECTED", "mode": "live", "errors": errors})
-        return EXIT_BLOCKED
-    try:
-        env = _load_env()
-        _ensure_dev_sdk_path(strict=True)
-    except LiveRejected as exc:
-        _json_print({"status": "BLOCKED", "mode": "live", "reason": exc.reason, "details": exc.details})
-        return exc.exit_code
-    except Exception as exc:
-        _json_print({"status": "BLOCKED", "mode": "live", "reason": f"{type(exc).__name__}: {exc}"})
-        return EXIT_BLOCKED
-
-    timeouts = dict(live.get("timeouts") or {})
-    observation = dict(live.get("observation") or {})
-    run_seconds = float(args.run_seconds or timeouts.get("run_seconds") or 4200.0)
-    if run_seconds > 7200.0:
-        run_seconds = 7200.0
-    run_id = (
-        f"live-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-        f"-{uuid.uuid4().hex[:8]}"
+    return _run_managed_runtime_host(
+        args,
+        access_mode="read_only",
+        provider_configuration=provider_configuration,
+        runtime_binding=runtime_binding,
+        registry=registry,
+        unavailable_capabilities=(
+            "backtrader_managed_store_feed_adapter",
+            "multi_instrument_option_runtime",
+            "provider_issued_option_contract_rules",
+            "verified_market_data_clock",
+        ),
     )
-    output_directory = Path(args.evidence_dir) if args.evidence_dir else (HERE / "evidence" / run_id)
-    output_directory.mkdir(parents=True, exist_ok=True)
-    summary: Dict[str, Any] = {
-        "schema_version": 1,
-        "run_id": run_id,
-        "example_id": "014_2_ctp_options_midfreq",
-        "mode": "live",
-        "tier": "observation_only_feed_sealed",
-        "entry_tier": dict(decision_evidence),
-        "write_grant_result": "refused_no_order_path_by_contract",
-        "status": "STARTING",
-        "trigger": "observation",
-        "evidence_directory": str(output_directory),
-    }
-    started_mono = time.monotonic()
-    started_wall = time.time()
 
-    def _write_summary() -> None:
-        try:
-            (output_directory / "run.json").write_text(
-                json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
 
-    store = None
-    result_code = EXIT_BLOCKED
-    try:
-        credentials = {
-            "broker_id": _resolve_ref(
-                env.get(str((live.get("credentials") or {}).get("broker_id_env"))), {}, field="broker_id"
-            ),
-            "user_id": _resolve_ref(
-                env.get(str((live.get("credentials") or {}).get("user_id_env"))), {}, field="user_id"
-            ),
-            "password": _resolve_ref(
-                env.get(str((live.get("credentials") or {}).get("password_env"))), {}, field="password"
-            ),
-            "app_id": _resolve_ref(
-                env.get(str((live.get("credentials") or {}).get("app_id_env"))), {}, field="app_id"
-            ),
-            "auth_code": _resolve_ref(
-                env.get(str((live.get("credentials") or {}).get("auth_code_env"))), {}, field="auth_code"
-            ),
-        }
-        selection = simnow_direct.select_front_pair(
-            ((live.get("fronts") or {}) or {}).get("pairs") or [],
-            env,
-            samples=3,
-            connect_timeout=3.0,
-        )
-        rules_hash = simnow_direct.canonical_sha256(
-            {"strategy": STRATEGY_ID, "live_candidate": live.get("live_candidate"), "kind": "iter42-0142-observe-v1"}
-        )
-        strategy_view = _live_strategy_config(legacy_config, live, rules_hash)
-        contracts = dict(strategy_view["candidate"]["contracts"])
-        legs: List[Tuple[str, str, str]] = []
-        for field in ("future", "call", "put"):
-            full_symbol = str(contracts.get(field) or "")
-            code, exchange = _split_symbol(full_symbol)
-            legs.append((full_symbol, code, exchange))
-        exchange = legs[0][2]
-
-        attempts: List[Dict[str, Any]] = []
-        store = None
-        armed: Optional[Dict[str, Any]] = None
-        for candidate_pair in selection["ordered_pairs"]:
-            attempt_record: Dict[str, Any] = {
-                "index": candidate_pair["index"],
-                "kind": candidate_pair["kind"],
-                "whitelisted": candidate_pair["whitelisted"],
-                "score_ms": candidate_pair["score_ms"],
-            }
-            attempt_store = simnow_direct.RegisteredSimStore(
-                provider="ctp",
-                backend="direct",
-                config={
-                    "md_front": candidate_pair["md_front"],
-                    "td_front": candidate_pair["td_front"],
-                    "broker_id": credentials["broker_id"],
-                    "investor_id": credentials["user_id"],
-                    "password": credentials["password"],
-                    "app_id": credentials["app_id"],
-                    "auth_code": credentials["auth_code"],
-                    "auto_settlement_confirm": False,
-                    "allow_zero_login_response": bool(
-                        ((live.get("live_market_data") or {}) or {}).get(
-                            "allow_zero_login_response", False
-                        )
-                    ),
-                },
-            )
-            try:
-                attempt_store.start()
-                try:
-                    ready = attempt_store.registered_sim_wait_ready(
-                        timeout=float(timeouts.get("login_seconds") or 30.0)
-                    )
-                except Exception:
-                    ready = False
-                login_facts: Dict[str, Any] = {}
-                try:
-                    login_facts = attempt_store.registered_sim_login_facts()
-                except Exception:
-                    login_facts = {}
-                if not ready or not (
-                    login_facts.get("read_only_ready") or login_facts.get("trading_ready")
-                ):
-                    raise LiveRejected("login_not_ready", {"login": login_facts, "wait_ready": ready})
-                query_timeout = float(timeouts.get("query_seconds") or 8.0)
-                account = _rows(attempt_store.registered_sim_query("account_result", timeout=query_timeout))
-                positions = _rows(
-                    attempt_store.registered_sim_query("positions_result", timeout=query_timeout)
-                )
-                metadata = []
-                for full_symbol, code, leg_exchange in legs:
-                    rows = _rows(
-                        attempt_store.registered_sim_query(
-                            "instruments_result",
-                            timeout=query_timeout,
-                            instrument_id=code,
-                            exchange_id=leg_exchange,
-                        )
-                    )
-                    row = None
-                    for item in rows:
-                        if str(_row_get(item, "InstrumentID", "instrument_id", default="")).upper() == code.upper():
-                            row = item
-                            break
-                    if row is None:
-                        raise LiveRejected(
-                            "instrument_not_found", {"instrument": code, "exchange": leg_exchange}
-                        )
-                    expectation = dict((live.get("instrument_metadata") or {}).get(full_symbol) or {})
-                    tick = _row_get(row, "PriceTick", "price_tick")
-                    multiple = _row_get(row, "VolumeMultiple", "volume_multiple")
-                    if (
-                        tick in (None, "")
-                        or multiple in (None, "")
-                        or abs(float(tick) - float(expectation.get("price_tick") or 0)) > 1e-9
-                        or abs(float(multiple) - float(expectation.get("volume_multiple") or 0)) > 1e-9
-                    ):
-                        raise LiveRejected(
-                            "instrument_metadata_mismatch",
-                            {
-                                "symbol": full_symbol,
-                                "price_tick": tick,
-                                "volume_multiple": multiple,
-                                "expected": expectation,
-                            },
-                        )
-                    metadata.append(
-                        {
-                            "symbol": full_symbol,
-                            "price_tick": float(tick),
-                            "volume_multiple": float(multiple),
-                            "lower_limit": _row_get(row, "LowerLimitPrice", "lower_limit_price"),
-                            "upper_limit": _row_get(row, "UpperLimitPrice", "upper_limit_price"),
-                        }
-                    )
-                preflight = {
-                    "login": login_facts,
-                    "trading_day": str(login_facts.get("trading_day") or ""),
-                    "account_rows": len(account),
-                    "position_rows": len(positions),
-                    "metadata": metadata,
-                }
-                attempt_record["admission"] = "observed"
-                attempts.append(attempt_record)
-                store = attempt_store
-                armed = {"candidate": candidate_pair, "preflight": preflight}
-                break
-            except Exception as exc:
-                attempt_record["error_type"] = _observation_cleanup_error(
-                    exc, phase="front_admission"
-                )["exception_type"]
-                if isinstance(exc, LiveRejected):
-                    attempt_record["error"] = exc.reason
-                    attempt_record["error_details"] = dict(exc.details)
-                elif isinstance(exc, simnow_direct.SimNowDirectError):
-                    attempt_record["error"] = exc.reason
-                    attempt_record["error_details"] = dict(exc.details)
-                cleanup_error = _close_registered_live_store(
-                    attempt_store,
-                    timeout=float(timeouts.get("stop_seconds") or 12.0),
-                    action=None,
-                    reason="pair_attempt_failed",
-                )
-                if cleanup_error is not None:
-                    attempt_record["cleanup_status"] = "uncertain"
-                    attempt_record["cleanup_error"] = cleanup_error
-                    attempts.append(attempt_record)
-                    store = None
-                    summary["admission_attempts"] = attempts
-                    summary["cleanup_prior_outcome"] = {"business_error_type": attempt_record.get("error_type")}
-                    if attempt_record.get("error") is not None:
-                        summary["cleanup_prior_outcome"]["reason"] = attempt_record["error"]
-                    if attempt_record.get("error_details") is not None:
-                        summary["cleanup_prior_outcome"]["details"] = attempt_record["error_details"]
-                    summary["cleanup_status"] = "uncertain"
-                    summary["cleanup_error"] = cleanup_error
-                    raise LiveRejected("cleanup_uncertain", {"cleanup_error": cleanup_error})
-                attempt_record["cleanup_status"] = "closed"
-                attempts.append(attempt_record)
-                store = None
-        summary["admission_attempts"] = attempts
-        if armed is None:
-            raise LiveRejected("no_admissible_front_pair", {"attempts": attempts})
-        preflight = armed["preflight"]
-        selected = armed["candidate"]
-        summary["environment"] = {
-            "venue": "simnow",
-            "write_tier": "NOT_IMPLEMENTED_DECISION_ONLY_STRATEGY",
-            "front_selection": selection["receipt"],
-            "selected_index": selected["index"],
-            "selected_whitelisted": selected["whitelisted"],
-            "legs": [item[0] for item in legs],
-            "exchange": exchange,
-            "environment_switched_after_write": False,
-        }
-        summary["preflight"] = {
-            "trading_day": preflight["trading_day"],
-            "connection_generation": preflight["login"].get("connection_generation"),
-            "account_rows": preflight["account_rows"],
-            "position_rows": preflight["position_rows"],
-            "metadata": preflight["metadata"],
-        }
-
-        clock = _LiveClock(
-            generation=int(preflight["login"].get("connection_generation") or 0),
-            rules_hash=rules_hash,
-            source=f"iter42:{STRATEGY_ID}:registered-sim-observe",
-            validity_seconds=min(run_seconds + 600.0, 7200.0),
-        )
-        session_segment = f"{LIVE_SESSION_SEGMENT_PREFIX}:{preflight['trading_day']}"
-        store.configure_live_tick_provenance(clock.provenance(session_segment=session_segment))
-        provider = _ObservationEvidenceProvider(clock.mapping, LIVE_CANDIDATE_ID, 60.0)
-        summary["clock"] = {
-            "domain": clock.domain,
-            "generation": clock.generation,
-            "rules_hash": rules_hash,
-            "session_segment": session_segment,
-            "mapping_id": clock.mapping.mapping_id,
-            "synthetic": bool(clock.mapping.synthetic),
-        }
-
-        broker = BtApiBroker(
-            store=store,
-            provider="btapi",
-            position_mode="net",
-            max_order_size=1,
-            cash_check_enabled=True,
-            sdk_preflight=False,
-            require_complete_ctp_evidence=False,
-            market_data_only=True,
-            startup_account_state={
-                "nonzero_position_record_count": 0,
-                "gross_position_lots": 0,
-                "active_orders_count": 0,
-            },
-            force_refresh_queries=False,
-            position_sync_policy="startup",
-            account_refresh_interval=3600.0,
-            open_orders_refresh_interval=3600.0,
-            flatten_on_stop=False,
-            shutdown_timeout=float(timeouts.get("drain_seconds") or 120.0),
-        )
-        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-        cerebro.setbroker(broker)
-        for full_symbol, code, _leg_exchange in legs:
-            feed = store.getdata(
-                dataname=code,
-                timeframe=bt.TimeFrame.Minutes,
-                compression=1,
-                dispatch_bars=True,
-                dispatch_ticks=False,
-                backfill_start=False,
-                qcheck=1.0,
-                closed_bar_evidence_provider=provider,
-                closed_bar_quote_capture=True,
-                closed_bar_quote_limit=int(observation.get("quote_limit") or 240),
-            )
-            cerebro.adddata(feed, name=full_symbol)
-        strategy_cls = __import__("ctp_options_midfreq_strategy").CTPOptionsMidFrequencyStrategy
-        cerebro.addstrategy(
-            strategy_cls,
-            config=strategy_view,
-            quote_producer=None,
-            timing_provider=None,
-            require_feed_bar_evidence=True,
-            feed_evidence_clock_mode="live",
-            feed_evidence_clock_domain=clock.domain,
-            max_pending_feed_decisions=int(observation.get("max_pending_decisions") or 8),
-        )
-
-        previous_sigint = signal.getsignal(signal.SIGINT)
-        previous_sigterm = signal.getsignal(signal.SIGTERM)
-        stop_requested = {"flag": False}
-
-        def _request_stop(_reason: str) -> None:
-            stop_requested["flag"] = True
-
-        signal.signal(signal.SIGINT, lambda *_a: _request_stop("operator_sigint"))
-        signal.signal(signal.SIGTERM, lambda *_a: _request_stop("operator_sigterm"))
-
-        deadline_mono = started_mono + run_seconds
-        idle_interval = max(float((legacy_config.get("timing") or {}).get("idle_interval_ms") or 250) / 1000.0, 0.05)
-
-        def _strategy_instance():
-            runstrats = getattr(cerebro, "runstrats", None) or []
-            if runstrats and runstrats[0]:
-                return runstrats[0][0]
-            return None
-
-        def _idle_pump() -> None:
-            while not stop_requested["flag"] and time.monotonic() < deadline_mono:
-                strategy = _strategy_instance()
-                if strategy is not None:
-                    try:
-                        strategy.notify_idle()
-                    except Exception:
-                        pass
-                time.sleep(idle_interval)
-
-        def _watchdog() -> None:
-            while True:
-                if stop_requested["flag"] or time.monotonic() >= deadline_mono:
-                    break
-                time.sleep(0.5)
-            hard_deadline = (
-                time.monotonic()
-                + float(timeouts.get("drain_seconds") or 120.0)
-                + 2.0 * float(timeouts.get("stop_seconds") or 12.0)
-            )
-            while time.monotonic() < hard_deadline:
-                if getattr(getattr(cerebro, "_event_stop", None), "is_set", lambda: False)():
-                    return
-                time.sleep(1.0)
-            try:
-                cerebro.runstop()
-            except Exception:
-                pass
-
-        watchdog = threading.Thread(target=_watchdog, name="options-observe-watchdog", daemon=True)
-        idle_thread = threading.Thread(target=_idle_pump, name="options-observe-idle", daemon=True)
-        watchdog.start()
-        idle_thread.start()
-        summary["status"] = "RUNNING"
-        _write_summary()
-        run_error = None
-        scope_fault: Optional[LiveRejected] = None
-        try:
-            cerebro.run()
-        except LiveRejected as exc:
-            scope_fault = exc
-        except Exception as exc:
-            run_error = f"{type(exc).__name__}: {exc}"
-        finally:
-            stop_requested["flag"] = True
-            watchdog.join(timeout=2.0)
-            idle_thread.join(timeout=2.0)
-            signal.signal(signal.SIGINT, previous_sigint)
-            signal.signal(signal.SIGTERM, previous_sigterm)
-
-        strategy_instance = _strategy_instance()
-        strategy_report: Dict[str, Any] = {}
-        if strategy_instance is not None:
-            builder = getattr(strategy_instance, "build_report", None) or getattr(
-                strategy_instance, "report", None
-            )
-            if callable(builder):
-                try:
-                    strategy_report = builder() or {}
-                except Exception as exc:
-                    strategy_report = {"report_error": f"{type(exc).__name__}: {exc}"}
-        (output_directory / "strategy_report.json").write_text(
-            json.dumps(strategy_report, ensure_ascii=False, sort_keys=True, default=str, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        minute_events = list(strategy_report.get("minute_events") or [])
-        feed_evidence_fault = (strategy_report.get("feed_evidence") or {}).get("fault")
-        feature_minutes = [
-            event
-            for event in minute_events
-            if str(event.get("kind") or "") in {"WARMUP", "ORDINARY_DECISION"}
-        ]
-        decisions = [
-            event for event in minute_events if str(event.get("kind") or "") == "ORDINARY_DECISION"
-        ]
-        skip_reasons: Dict[str, int] = {}
-        for event in minute_events:
-            kind = str(event.get("kind") or "")
-            if kind.startswith(("SKIP", "RESET")):
-                skip_reasons[kind] = skip_reasons.get(kind, 0) + 1
-        summary.update(
-            {
-                "run": {
-                    "started_utc": _utc_iso(started_wall),
-                    "finished_utc": _utc_iso(time.time()),
-                    "seconds": round(time.monotonic() - started_mono, 3),
-                    "run_error": run_error,
-                },
-                "observation": {
-                    "feature_minutes": len(feature_minutes),
-                    "decisions": len(decisions),
-                    "decision_outcomes": [
-                        str(event.get("outcome") or "") for event in decisions
-                    ],
-                    "skip_reasons": skip_reasons,
-                    "feed_evidence_fault": feed_evidence_fault,
-                },
-                "external_request_counts": {"network": "NOT_PROVEN", "order_write": 0},
-            }
-        )
-        if scope_fault is not None:
-            summary["status"] = "BLOCKED"
-            summary["reason"] = scope_fault.reason
-            summary["details"] = dict(scope_fault.details)
-            code_exit = EXIT_BLOCKED
-        elif run_error is not None:
-            summary["status"] = "UNKNOWN"
-            code_exit = EXIT_UNKNOWN
-        elif feed_evidence_fault:
-            summary["status"] = "BLOCKED"
-            summary["reason"] = f"feed_evidence_fault:{feed_evidence_fault}"
-            code_exit = EXIT_BLOCKED
-        elif len(feature_minutes) >= 1:
-            summary["status"] = "OBSERVATION_PASS"
-            code_exit = EXIT_PASS
-        else:
-            summary["status"] = "FAIL"
-            summary["reason"] = "no_complete_minute_window"
-            code_exit = EXIT_FAIL
-        summary["tier"] = "observation_only_feed_sealed"
-        result_code = code_exit
-    except simnow_direct.SimNowDirectError as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        result_code = EXIT_BLOCKED
-    except LiveRejected as exc:
-        summary.update({"status": "BLOCKED", "reason": exc.reason, "details": exc.details})
-        result_code = exc.exit_code
-    except Exception as exc:
-        failure = _observation_cleanup_error(exc, phase="live_handler")
-        summary.update({"status": "BLOCKED", "reason": "handler_exception", "business_error_type": failure["exception_type"]})
-        result_code = EXIT_BLOCKED
-    finally:
-        if store is not None:
-            cleanup_error = _close_registered_live_store(
-                store,
-                timeout=float((live.get("timeouts") or {}).get("stop_seconds") or 12.0),
-                action=None,
-                reason="observation_complete",
-            )
-            if cleanup_error is None:
-                summary["cleanup_status"] = "closed"
-            else:
-                prior_outcome = {"status": summary.get("status")}
-                for field in ("reason", "business_error_type", "details"):
-                    if summary.get(field) is not None:
-                        prior_outcome[field] = summary.get(field)
-                summary["cleanup_prior_outcome"] = prior_outcome
-                summary.update(
-                    {
-                        "status": "BLOCKED",
-                        "reason": "cleanup_uncertain",
-                        "cleanup_status": "uncertain",
-                        "cleanup_error": cleanup_error,
-                    }
-                )
-                result_code = EXIT_BLOCKED
-        _write_summary()
-        _json_print(summary)
-    return result_code
-
-# -------------------------------------------------------------------------- main
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     mode = parser.add_mutually_exclusive_group()

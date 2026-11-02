@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
-# Process execution is a configuration-first alias.  This branch deliberately
-# runs before Backtrader, the SDK, or the historical CLI is imported.
+# The old configuration-first runtime CLI is retired. Keep this branch before
+# framework and example imports so it never reads runtime configuration or opens
+# a provider session.
+def _retired_runtime_cli(argv=None):
+    del argv
+    import json
+
+    print(
+        json.dumps(
+            {
+                "status": "RETIRED",
+                "reason": "BACKTRADER_RUNTIME_RETIRED",
+                "replacement": "run.py",
+                "message": "Use run.py for replay or the supported managed entrypoint.",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+    return 2
+
+
 if __name__ == "__main__":
-    import sys as _iteration41_sys
-    from pathlib import Path as _Iteration41Path
+    raise SystemExit(_retired_runtime_cli())
 
-    _ITERATION41_REPOSITORY_ROOT = _Iteration41Path(__file__).resolve().parents[3]
-    if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
-        _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
-    from backtrader_runtime.legacy import run_legacy_config_first_cli as _run_config_gate
-
-    raise SystemExit(_run_config_gate(_Iteration41Path(__file__).resolve().parent / "runtime"))
 
 import argparse
 from dataclasses import asdict, replace
@@ -62,18 +75,19 @@ else:
 import yaml
 
 
-def _iteration41_legacy():
-    """Import the config-first helpers only where the legacy CLI path needs them.
+class LegacyRuntimeUnavailableError(RuntimeError):
+    """Stable local failure for direct execution routes retired with the old runtime."""
 
-    ``run.py`` loads this module for its offline dry and replay tiers, which must
-    also work from a copy of this folder where ``backtrader_runtime`` is not
-    installed.  Only the retired direct-script route and the config-first CLI
-    below ever need that package, so it is imported on demand here.
-    """
+    code = "BACKTRADER_RUNTIME_RETIRED"
 
-    from backtrader_runtime import legacy
 
-    return legacy
+def _retired_direct_execution_error(action):
+    return LegacyRuntimeUnavailableError(
+        f"{action} is unavailable because the Backtrader runtime path was retired; "
+        "use the example run.py entrypoint."
+    )
+
+
 if __package__:
     from .event_driven_strategy import CrossExchangeArbitrageStrategy, EventArbitrageEngine, EventBook
     from .event_driven_strategy import EventPathQualification
@@ -2375,14 +2389,14 @@ def build_store(*args, **kwargs):
     """Reject direct Store construction outside a reviewed runtime route."""
 
     del args, kwargs
-    raise _iteration41_legacy().legacy_direct_execution_error("012_2 direct Store construction")
+    raise _retired_direct_execution_error("012_2 direct Store construction")
 
 
 def run_network(*args, **kwargs):
     """Reject the retired direct network route until v4 shadow is registered."""
 
     del args, kwargs
-    raise _iteration41_legacy().legacy_direct_execution_error("012_2 direct network runner")
+    raise _retired_direct_execution_error("012_2 direct network runner")
 
 
 def build_parser():
@@ -2409,9 +2423,9 @@ def build_parser():
 
 
 def main(argv=None):
-    """Retain only the fixed Iteration 41 configuration-first CLI alias."""
+    """Retire the former configuration-first command without reading config."""
 
-    return _iteration41_legacy().run_legacy_config_first_cli(HERE / "runtime", argv)
+    return _retired_runtime_cli(argv)
 
 
 if __name__ == "__main__":

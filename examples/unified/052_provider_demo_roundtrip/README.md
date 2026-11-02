@@ -1,10 +1,15 @@
-﻿# 052 — provider Demo 直接 paper 往返（迭代 52 首个竖切）
+﻿# 052 — provider Demo paper 示例（迭代 52；当前接线迁移中）
 
-本目录是迭代 52 的第一条真实 paper 竖切：**同一份**普通 Backtrader `Strategy` 通过统一
-schema-v2 配置、`bt_api_runtime` 的受控直接装配和既有 `BtApiStore` / `BtApiBroker` 执行链，
-在 provider 外部模拟账户上完成一笔有界 LIMIT 往返（挂单 → 确认 → 撤单；若部分成交则
-reduce-only 平仓），并在有界会话内正常停机。
+本目录曾以一份普通 Backtrader `Strategy` 的统一 paper 交易路径为迭代 52 竖切目标；以下原设计与命令记录不等于当前验收状态。当前入口仍在迁移，不能据此声称往返交易、连接就绪、完整 paper/live 能力或真实账户验收已完成。
 
+## 当前接线状态（2026-11-01）
+
+- 非 CTP 的 `run.py` 预检分支要求宿主显式注入精确 `ProviderConfigurationSelection`，由 SDK 返回 `ProviderConfiguration` 后调用 `bt_api_py.managed_runtime_composition.compose_read_only_runtime(configuration)`；预检结束只关闭一次组合。命令行本身不会签发或推导 selection，因此单独运行 `--preflight-only` 不会创建可用路由。配置选择不证明账户、连接或行情就绪；缺少精确只读 route owner 或 SDK 只读能力时应保持 unavailable。
+- CTP 的 `simnow_runner.py` 仍经本地 `simnow_paper.compose_runtime(..., access_mode="read_only")` 组合，并要求宿主 `runtime_binding`；它尚未接入上述 SDK 只读入口。这是当前两条入口的结构性差异，后续统一时需保留 CTP 专有配置/原生能力由 SDK 管理的边界。
+- managed execution 仍是独立能力：需要可信宿主提供的 runtime binding、写授权来源、精确 operator grant 及执行授权。配置、`paper/live` 模式或只读预检都不授予写权限；缺能力时必须返回 unavailable。
+- 本轮仅做源码接线与文档更新，没有运行示例、测试或账户操作。当前状态不构成 BT01/BT02、完整 I52 或任何真实账户验收。
+
+以下场景表与其后的历史运行命令、语义和证据表述保留为早期实现/设计记录，不代表当前入口可运行或已经复验。
 场景由配置中的 `strategy_parameters.venue` 选择（代码拥有的 provider profile 负责映射到
 SDK venue key、账户币种、凭据变量名与 ledger 场所），策略源码不判断 venue/provider/endpoint：
 
@@ -13,10 +18,10 @@ SDK venue key、账户币种、凭据变量名与 ledger 场所），策略源�
 | `config.yaml` | `BINANCE` | BTCUSDT（USD-M） | Binance Demo |
 | `config.okx.yaml` | `OKX` | BTC-USDT-SWAP | OKX Demo |
 
-必需文件：`README.md + config.yaml + provider_demo_roundtrip_strategy.py + run.py`；
+历史目录约定（未按当前入口复核）：`README.md + config.yaml + provider_demo_roundtrip_strategy.py + run.py`；
 `config.okx.yaml` 是第二个公开模板；`entry_tier.py` 是迭代 43 的可复制判层副本（运行必需，非第二入口）。
 
-## 运行方式
+## 历史运行命令（不代表当前可运行）
 
 ```text
 python run.py                                   # 离线校验（Binance 模板），不读凭据、不联网
@@ -43,7 +48,7 @@ reduce-only GFD 平仓；registered-sim 的**撤单**路径受跨会话 OrderRef
 - 运行需要 dev SDK 源码与新的 runtime/contract 源码（`BT_API_PY_SRC`、`BT_API_RUNTIME_SRC`、
   `BT_API_CONTRACT_SRC`，默认 `D:/bt_api_py` 下的对应目录）。
 
-## live 语义（要点）
+## 历史 live 设计要点（待当前实现复核）
 
 - **模式与权限分离**：`mode: paper` 绑定 Demo 账户环境；`--allow-write` 与一次性有界
   `DirectWriteGrant`（run id、provider/环境/symbol、到期时间、最大订单数、最大名义金额）
@@ -62,7 +67,7 @@ reduce-only GFD 平仓；registered-sim 的**撤单**路径受跨会话 OrderRef
 - **停机**：Broker → Store 逆序关闭并记录 `broker_shutdown_state`、`store_connected`；
   进程退出不冒充账户清理成功。
 
-## 运行层选择（迭代 43）
+## 历史运行层选择记录（迭代 43）
 
 本目录的通道由 `entry_tier.decide` 解析；模板不声明 `entry.tier`（避免与 schema-v2 契约冲突），
 因此命令行 `--live` 是唯一升层方式：无 flag 为 `dry`，`--live` 为 `live`，`--dry` 为离线校验。
@@ -72,7 +77,9 @@ reduce-only GFD 平仓；registered-sim 的**撤单**路径受跨会话 OrderRef
   两者不互相覆盖。
 - `--allow-write` 与选层正交：判层器不读它，写准入在选层之后独立执行。
 
-## 证据与边界
+## 历史证据与边界说明
+> 本节中的“已完成”表述沿用旧 README 的历史文字；本次没有重新核实对应账户、源码或验收记录，不能据此判断当前代码状态。
+
 
 - 本目录已用**同一策略源码**在 Binance USD-M Demo（挂/撤）与 OKX SWAP Demo（IOC 开/平）
   完成有界 paper 往返；这是两个外部模拟账户场所的证据，不是收益、延迟、HFT 或生产就绪结论。

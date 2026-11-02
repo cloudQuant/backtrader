@@ -28,7 +28,7 @@ import yaml
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.channel import Event, EventPriority
 from backtrader.events import BarEvent, TickEvent
-from backtrader.feeds import ClockMapping, CtpCohortNow
+from backtrader.feeds import ClockMapping, MarketCohortNow
 from backtrader.stores.btapistore import BtApiStore
 
 try:
@@ -70,8 +70,8 @@ _BTAPI_STORE_TYPE = BtApiStore
 
 # Frozen SimNow environment table.  Only these three keys may appear in
 # ``config.yaml`` or in the selection env override.  The SDK profile names and
-# their front pairs stay owned by ``bt_api_ctp``; this example never invents an
-# endpoint and never infers a route from geography or the process public IP.
+# provider-route selection remains owned by the SDK; this example never invents
+# an endpoint and never infers a route from geography or the process public IP.
 ENVIRONMENT_SELECTION_ENV = "ITER30_SIMNOW_PROFILE"
 DEFAULT_ENVIRONMENT = "simnow_first_group1"
 ENVIRONMENT_PROFILES: dict[str, dict[str, Any]] = {
@@ -113,7 +113,7 @@ BACKTRADER_DEPENDENCY_FILES = (
     "strategy.py",
     "channel.py",
     "feeds/btapifeed.py",
-    "feeds/ctpcohort.py",
+    "feeds/market_cohort.py",
     "stores/btapistore.py",
 )
 
@@ -241,22 +241,10 @@ def _sdk_environment_resolver(
     fallback_sdk_profile: str | None,
     timeout: float = 4.0,
 ) -> Mapping[str, Any]:
-    """Probe the frozen SDK pairs for one family; never infers a route."""
+    """Reject direct front probing until the SDK has a neutral host selector."""
 
-    from bt_api_ctp.ctp_env_selector import select_reachable_ctp_environment
-
-    selection = select_reachable_ctp_environment(
-        env=family,
-        profile=sdk_profile,
-        front_probe_timeout=timeout,
-    )
-    return {
-        "actual_profile": selection.profile,
-        "td_front": selection.td_front,
-        "md_front": selection.md_front,
-        "readiness": selection.readiness,
-        "reason": selection.reason,
-    }
+    del family, sdk_profile, fallback_sdk_profile, timeout
+    raise RuntimeError("managed_runtime_host_binding_required")
 
 
 def environment_profile_key(config: Mapping[str, Any], *, override: str | None = None) -> str:
@@ -328,7 +316,7 @@ def select_environment(
         )
     except RuntimeError as exc:
         raise RunnerConfigurationError(
-            f"CTP_SESSION_PROFILE_UNAVAILABLE: no reachable CTP front pair for {key}: {exc}"
+            f"MANAGED_RUNTIME_HOST_UNAVAILABLE: no SDK host binding for {key}: {exc}"
         ) from None
     actual = str(resolved.get("actual_profile") or "").strip()
     allowed = tuple(
@@ -1062,7 +1050,7 @@ def _make_tick(
         bid_volume=float(quote["bid_size"]),
         ask_volume=float(quote["ask_size"]),
     )
-    tick.schema_version = "ctp.quote.v2"
+    tick.schema_version = "bt.example.market_tick.replay.v1"
     tick.volume_semantics = "delta"
     tick.event_time_utc = _iso(source_epoch)
     tick.recv_time_utc = _iso(receive_epoch)
@@ -1262,7 +1250,7 @@ class _ObservationTrustedNowProvider:
     def __init__(
         self,
         *,
-        provider: Callable[[Any], CtpCohortNow],
+        provider: Callable[[Any], MarketCohortNow],
         mapping: ClockMapping,
         expected_symbols: tuple[str, ...],
         observation_duration_seconds: float,
@@ -1286,35 +1274,35 @@ class _ObservationTrustedNowProvider:
 
         return [symbol for symbol in self._expected_symbols if symbol in self._accepted_symbols]
 
-    def __call__(self, tick: Any) -> CtpCohortNow:
+    def __call__(self, tick: Any) -> MarketCohortNow:
         """Validate one tick's trusted time; retain the first swallowed failure."""
 
         self.calls += 1
         try:
             self._validate_tick(tick)
             now = self._provider(tick)
-            if not isinstance(now, CtpCohortNow):
+            if not isinstance(now, MarketCohortNow):
                 self._reject(
                     "TRUSTED_COHORT_NOW_REQUIRED",
-                    "live observation requires CtpCohortNow evidence",
+                    "live observation requires MarketCohortNow evidence",
                 )
             if now.clock_domain_id != self._mapping.clock_domain_id:
                 self._reject(
                     "TRUSTED_COHORT_NOW_DOMAIN",
-                    "trusted CTP time must use the live mapping clock domain",
+                    "trusted market time must use the live mapping clock domain",
                 )
             tick_receive_ns = getattr(tick, "recv_monotonic_ns", None)
             if type(tick_receive_ns) is not int or now.now_monotonic_ns < tick_receive_ns:
                 self._reject(
                     "TRUSTED_COHORT_NOW_STALE",
-                    "trusted CTP time predates the delivered quote",
+                    "trusted market time predates the delivered event",
                 )
             try:
                 self._mapping.validate_pair(now.now_epoch, now.now_monotonic_ns / 1_000_000_000.0)
             except (TypeError, ValueError, OverflowError):
                 self._reject(
                     "TRUSTED_COHORT_NOW_MAPPING",
-                    "trusted CTP time is outside the caller-owned live mapping",
+                    "trusted market time is outside the caller-owned live mapping",
                 )
             self._require_observation_window_coverage(now)
             self._accepted_symbols.add(str(tick.symbol))
@@ -1338,7 +1326,7 @@ class _ObservationTrustedNowProvider:
                 "live observation did not receive trusted CTP time for every configured leg",
             )
 
-    def _require_observation_window_coverage(self, now: CtpCohortNow) -> None:
+    def _require_observation_window_coverage(self, now: MarketCohortNow) -> None:
         """Bind the complete bounded run to its first coherent live time.
 
         The wall-clock watchdog may remain active while an otherwise live
@@ -1361,7 +1349,7 @@ class _ObservationTrustedNowProvider:
             )
         self._initial_coherent_mono_ns = now.now_monotonic_ns
 
-    def idle_now(self) -> CtpCohortNow:
+    def idle_now(self) -> MarketCohortNow:
         """Return trusted time for one no-data idle poll, or fail closed.
 
         Unlike ``__call__`` there is no delivered quote to cross-check, so the
@@ -1373,45 +1361,45 @@ class _ObservationTrustedNowProvider:
         now = self._provider(_IdleTick())
         if now is None:
             return None
-        if not isinstance(now, CtpCohortNow):
+        if not isinstance(now, MarketCohortNow):
             self._reject(
                 "TRUSTED_COHORT_NOW_REQUIRED",
-                "live observation requires CtpCohortNow evidence",
+                "live observation requires MarketCohortNow evidence",
             )
         if now.clock_domain_id != self._mapping.clock_domain_id:
             self._reject(
                 "TRUSTED_COHORT_NOW_DOMAIN",
-                "trusted CTP time must use the live mapping clock domain",
+                "trusted market time must use the live mapping clock domain",
             )
         try:
             self._mapping.validate_pair(now.now_epoch, now.now_monotonic_ns / 1_000_000_000.0)
         except (TypeError, ValueError, OverflowError):
             self._reject(
                 "TRUSTED_COHORT_NOW_MAPPING",
-                "trusted CTP time is outside the caller-owned live mapping",
+                "trusted market time is outside the caller-owned live mapping",
             )
         self._require_observation_window_coverage(now)
         return now
 
     def _validate_tick(self, tick: Any) -> None:
-        if getattr(tick, "schema_version", None) != "ctp.quote.v2":
+        if getattr(tick, "schema_version", None) != "bt.example.market_tick.replay.v1":
             self._reject(
-                "LIVE_CTP_QUOTE_REQUIRED", "live observation requires strict CTP-v2 quotes"
+                "LIVE_CTP_QUOTE_REQUIRED", "live observation requires the expected market-event schema"
             )
         if getattr(tick, "clock_domain_id", None) != self._mapping.clock_domain_id:
             self._reject(
                 "LIVE_QUOTE_CLOCK_DOMAIN",
-                "CTP quote clock domain differs from the caller-owned live mapping",
+                "market-event clock domain differs from the caller-owned live mapping",
             )
         if getattr(tick, "connection_generation", None) != self._mapping.connection_generation:
             self._reject(
                 "LIVE_QUOTE_GENERATION",
-                "CTP quote generation differs from the caller-owned live mapping",
+                "market-event generation differs from the caller-owned live mapping",
             )
         if getattr(tick, "rules_hash", None) != self._mapping.rules_hash:
             self._reject(
                 "LIVE_QUOTE_RULES_HASH",
-                "CTP quote rules identity differs from the frozen candidate bundle",
+                "market-event rules identity differs from the frozen candidate bundle",
             )
         source_values = (
             str(getattr(tick, "source", "") or "").lower(),
@@ -1944,27 +1932,21 @@ def run_engineering_observation(
     run_seconds: float,
     feed_clock: Any,
     clock_mapping: ClockMapping,
-    live_now_provider: Callable[[Any], CtpCohortNow],
+    live_now_provider: Callable[[Any], MarketCohortNow],
     environment_selection: EnvironmentSelection | None = None,
 ) -> dict[str, Any]:
-    """Run one bounded, injected, zero-write strategy observation.
+    """Retained historical observation path; disabled pending neutral SDK contracts.
 
-    This is deliberately not a CLI mode and does not load credentials.  A
-    separately governed CTP owner injects exactly one lifecycle root: an API,
-    or a connected Store whose lifecycle it explicitly transfers after a
-    read-only preflight.  The Store path never reads ``store.sdk_api`` and
-    never creates a second Store.  Successful completion proves only that this
-    strategy callback chain observed live-shaped data in a forced
-    market-data-only session; it cannot establish G3, G4, profitability, or
-    HFT admission.
-
-    ``environment_profile`` names one frozen key of ``ENVIRONMENT_PROFILES``
-    and only constrains the session's *family*: any profile inside that family
-    (for example the reachable ``set1_group1_vpn`` alternate for the nominal
-    ``set1_group1``) is accepted.  A caller that probed reachability may pass
-    the resolved ``environment_selection``; otherwise the frozen offline
-    selection for that key is used and the report records ``not_probed``.
+    The old implementation below depends on ``get_ctp_session_state`` and its
+    provider-specific session fields.  The current public SDK facade has no
+    neutral one-to-one contract that replaces those fields and binds them to
+    the selected runtime, market route, and clock evidence.  Keep the
+    implementation as migration reference, but do not enter it until the SDK
+    contract and managed runtime composition exist.  Use :func:`run_replay` for
+    local replay.
     """
+
+    raise RunnerConfigurationError("NEUTRAL_SESSION_ATTESTATION_UNAVAILABLE")
 
     try:
         from .engineering_smoke import (
@@ -2010,7 +1992,7 @@ def run_engineering_observation(
     if not callable(live_now_provider):
         raise EngineeringObservationBlocked(
             "TRUSTED_COHORT_NOW_REQUIRED",
-            "engineering observation requires an injected CtpCohortNow provider",
+            "engineering observation requires an injected MarketCohortNow provider",
         )
     _require_feed_clock(feed_clock, EngineeringObservationBlocked)
 
@@ -2193,7 +2175,7 @@ def run_engineering_observation(
                 qcheck=0.01,
                 price_tick=float(bundle[role]["tick_size"]),
                 clock=feed_clock,
-                ctp_decision_now_provider=trusted_now,
+                market_decision_now_provider=trusted_now,
             )
             feeds.append(feed)
             cerebro.adddata(feed, name=feed._dataname)
@@ -2643,9 +2625,29 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run one fail-closed replay and print the JSON report; return exit status."""
+    """Keep explicit offline replay; retire the historical live CLI before config I/O."""
 
     args = build_parser().parse_args(argv)
+    if args.mode != "replay":
+        print(
+            json.dumps(
+                {
+                    "status": "BLOCKED",
+                    "reason": (
+                        "LEGACY_NON_REPLAY_ENTRY_RETIRED"
+                        if args.mode is not None
+                        else "EXPLICIT_REPLAY_MODE_REQUIRED"
+                    ),
+                    "mode": args.mode,
+                    "provider_configuration": "not_read",
+                    "provider_runtime": "not_started",
+                    "replay_entry": "python run.py --replay",
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 2
     try:
         config, _ = load_config(args.config)
         config = effective_config(config, mode=args.mode, purpose=args.purpose)

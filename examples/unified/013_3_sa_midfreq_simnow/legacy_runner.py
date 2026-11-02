@@ -1,24 +1,27 @@
 #!/usr/bin/env python
-"""Run the Iteration 22 SA strategy in replay, shadow, or admitted SimNow mode."""
+"""Retained Iteration 22 runner source; use ``run.py`` for current entrypoints."""
 
 from __future__ import annotations
 
 # This retained Iteration 22 module remains importable for its frozen local
-# fixtures and regression tests.  Direct process execution is different: it
-# must cross the fixed Iteration 41 config-first route *before* this module
-# imports Backtrader, a Store, a provider, or parses its historical CLI.  A
-# no-argument invocation delegates only to this example's registered
-# ``runtime/`` directory; every legacy flag is rejected by the shared fence.
+# fixtures. Direct process execution of this legacy module is retired. Offline
+# replay remains available through this example's ``run.py --replay`` entry.
 if __name__ == "__main__":
-    from pathlib import Path as _ConfigGatePath
-    import sys as _config_gate_sys
+    import json as _json
 
-    _CONFIG_GATE_REPOSITORY_ROOT = _ConfigGatePath(__file__).resolve().parents[3]
-    if str(_CONFIG_GATE_REPOSITORY_ROOT) not in _config_gate_sys.path:
-        _config_gate_sys.path.insert(0, str(_CONFIG_GATE_REPOSITORY_ROOT))
-    from backtrader_runtime.legacy import run_legacy_config_first_cli as _run_config_gate
-
-    raise SystemExit(_run_config_gate(_ConfigGatePath(__file__).resolve().parent / "runtime"))
+    print(
+        _json.dumps(
+            {
+                "status": "BLOCKED",
+                "reason": "LEGACY_CTP_RUNNER_RETIRED",
+                "provider_configuration": "not_read",
+                "provider_runtime": "not_started",
+                "replay_entry": "python run.py --replay",
+            },
+            sort_keys=True,
+        )
+    )
+    raise SystemExit(2)
 
 import argparse
 import hashlib
@@ -62,10 +65,6 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 import backtrader as bt  # noqa: E402
 import yaml  # noqa: E402
-
-from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402
-from backtrader.events import TickEvent  # noqa: E402
-from backtrader.stores.btapistore import BtApiStore  # noqa: E402
 
 try:
     from .reporting import (
@@ -1682,6 +1681,18 @@ def _invoke_public(store: Any, names: tuple[str, ...], *args, **kwargs) -> Any:
     return None
 
 
+# Historical Iteration 22 CTP Store adapter.  Keep this mapping for the
+# retained legacy diagnostic/source fixtures only; it is not the SDK-neutral
+# query path used by ``provider_runtime.py``.  The current QueryFacade contract
+# covers account, positions, open_orders, and instruments (plus futures market
+# families), but this snapshot also requires orders, trades, commission, and
+# margin results.  It additionally consumes CTP account fingerprints,
+# per-request IDs, and native TradingDay fields.  Neutral receipts do carry a
+# source and generation, and the session snapshot carries ``business_day``;
+# neither is an exact substitute for the legacy account fingerprint/request
+# identity or the CTP TradingDay contract.  Do not extend this table into a
+# new runtime path or infer missing identity/economic facts from route/source
+# identity alone.
 QUERY_METHODS = {
     "account": ("query_account_result", "get_account_query_result"),
     "positions": ("query_positions_result", "get_positions_query_result"),
@@ -1708,7 +1719,9 @@ def public_preflight_snapshot(
     product_id: str | None = None,
     exchange_id: str | None = None,
 ) -> dict[str, Any]:
-    """Read only public Store contracts; never reach into native/client attributes."""
+    """Retired CTP Store snapshot path; current SDK has no equivalent full contract."""
+
+    raise RunnerConfigurationError("NEUTRAL_CTP_PREFLIGHT_SNAPSHOT_UNAVAILABLE")
 
     combined = getattr(store, "get_ctp_preflight_snapshot", None)
     if callable(combined):
@@ -1802,6 +1815,14 @@ def _query_evidence(
     return evidence
 
 
+# The following validation helpers intentionally consume the historical CTP
+# result shape.  Current SDK ExecutionRulesSnapshot/ExecutionEconomics APIs
+# expose different neutral DTOs and require a runtime-sealed provider issuer;
+# they are not lossless adapters for this legacy manifest contract.  In
+# particular, neutral query rows cannot be passed through these parsers as if
+# they contained native TradingDay, request IDs, fee currency, or margin rows.
+# Preserve these helpers with the legacy source until that complete evidence
+# contract has a provider-neutral replacement.
 def _query_session_identity(
     snapshot: Mapping[str, Any], query: Mapping[str, Any], label: str
 ) -> dict[str, Any]:
@@ -2505,133 +2526,16 @@ def validate_preflight(
     }
 
 
-def _validate_ctp_package_manifest(diagnostics: Mapping[str, Any]) -> list[dict[str, str]]:
-    """Validate the public SDK's deterministic Python-source package identity."""
-
-    raw = diagnostics.get("ctp_package_manifest")
-    if type(raw) is not list or not raw:
-        raise PreflightError("CTP package manifest is missing")
-    manifest: list[dict[str, str]] = []
-    for item in raw:
-        if not isinstance(item, Mapping) or set(item) != {"path", "sha256"}:
-            raise PreflightError("CTP package manifest row has an invalid shape")
-        path = str(item.get("path") or "")
-        digest = str(item.get("sha256") or "").lower()
-        parts = path.split("/")
-        if (
-            not path
-            or path.startswith("/")
-            or "\\" in path
-            or any(part in {"", ".", "..", "__pycache__"} for part in parts)
-            or not path.endswith(".py")
-            or not _HEX64.fullmatch(digest)
-        ):
-            raise PreflightError("CTP package manifest row is invalid")
-        manifest.append({"path": path, "sha256": digest})
-    if manifest != sorted(manifest, key=lambda item: item["path"]):
-        raise PreflightError("CTP package manifest paths are not sorted")
-    if len({item["path"] for item in manifest}) != len(manifest):
-        raise PreflightError("CTP package manifest paths are not unique")
-    canonical = json.dumps(
-        manifest,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    expected = hashlib.sha256(canonical).hexdigest()
-    observed = str(diagnostics.get("ctp_package_sha256") or "").lower()
-    if observed != expected:
-        raise PreflightError("CTP package manifest hash is invalid")
-    return manifest
-
-
 def native_probe() -> dict[str, Any]:
-    """Probe CTP native loading in an isolated child process."""
+    """Report the unavailable provider-native diagnostic capability."""
 
-    script = r"""
-import hashlib, importlib, json, pathlib, platform, sys
-result = {"ready": False, "python": sys.version.split()[0], "platform": platform.platform(), "architecture": platform.machine()}
-try:
-    package = importlib.import_module("bt_api_ctp")
-    probe = getattr(package, "get_ctp_native_diagnostics", None)
-    if not callable(probe):
-        raise RuntimeError("bt_api_ctp_public_native_diagnostics_missing")
-    status = dict(probe())
-    result.update(status)
-    result["ready"] = status.get("native_loaded") is True
-    package_path = pathlib.Path(package.__file__).resolve()
-    result["bt_api_ctp_path"] = str(package_path)
-    result["bt_api_ctp_version"] = getattr(package, "__version__", None)
-    package_root = package_path.parent
-    actual_manifest = [
-        {
-            "path": path.relative_to(package_root).as_posix(),
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        }
-        for path in sorted(
-            (
-                candidate
-                for candidate in package_root.rglob("*.py")
-                if candidate.is_file()
-                and "__pycache__" not in candidate.relative_to(package_root).parts
-            ),
-            key=lambda candidate: candidate.relative_to(package_root).as_posix(),
-        )
-    ]
-    canonical_manifest = json.dumps(
-        actual_manifest,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    actual_package_sha256 = hashlib.sha256(canonical_manifest).hexdigest()
-    result["ctp_package_manifest_verified"] = bool(
-        actual_manifest == status.get("ctp_package_manifest")
-        and actual_package_sha256 == status.get("ctp_package_sha256")
-    )
-    if not result["ctp_package_manifest_verified"]:
-        result["ready"] = False
-        result["reason"] = "ctp_package_manifest_mismatch"
-    package_dir = pathlib.Path(str(status.get("package_dir") or ""))
-    native_files = []
-    for name in status.get("matching_extensions") or ():
-        path = (package_dir / str(name)).resolve()
-        if path.is_file():
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            native_files.append({"path": str(path), "sha256": digest})
-    result["native_files"] = native_files
-    if result["ready"] and not native_files:
-        result["ready"] = False
-        result["reason"] = "loaded_native_file_identity_missing"
-except BaseException as exc:
-    result["reason"] = type(exc).__name__
-print(json.dumps(result, sort_keys=True))
-raise SystemExit(0 if result.get("ready") else 3)
-"""
-    completed = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, timeout=20, check=False
-    )
-    output = completed.stdout.strip().splitlines()
-    try:
-        result = json.loads(output[-1]) if output else {}
-    except json.JSONDecodeError:
-        result = {}
-    try:
-        result["ctp_package_manifest"] = _validate_ctp_package_manifest(result)
-    except PreflightError as exc:
-        result["ready"] = False
-        result["reason"] = str(exc)
-    result["exit_code"] = completed.returncode
-    result["signal"] = -completed.returncode if completed.returncode < 0 else None
-    result["accepted"] = bool(
-        completed.returncode == 0
-        and result.get("ready") is True
-        and result.get("ctp_package_manifest_verified") is True
-        and _HEX64.fullmatch(str(result.get("ctp_package_sha256") or "").lower())
-    )
-    return result
+    return {
+        "ready": False,
+        "accepted": False,
+        "status": "UNAVAILABLE",
+        "reason": "PROVIDER_NATIVE_DIAGNOSTICS_UNAVAILABLE",
+        "exit_code": 3,
+    }
 
 
 class ReplayClock:
@@ -2646,6 +2550,12 @@ class ReplayClock:
         """Reposition both clock domains to the values carried by one fixture tick."""
         self.wall = float(wall)
         self.monotonic_value = float(monotonic_value)
+
+    def set_replay_event_time(self, wall: float) -> None:
+        """Advance local replay time without representing market receive time."""
+        next_wall = float(wall)
+        self.monotonic_value += max(next_wall - self.wall, 0.0)
+        self.wall = next_wall
 
     def utc_now(self) -> float:
         """Return the replayed wall-clock time in UTC epoch seconds."""
@@ -2670,127 +2580,106 @@ class ReplayClock:
 
 
 class ReplayClient:
-    """Explicit read-only local event source for the replay-only composition."""
+    """Explicit read-only replay port for one local fixture instrument."""
 
-    def __init__(self, ticks, clock: ReplayClock, *, eof_event_time_watermark: float) -> None:
-        """Buffer fixture ``ticks``, bind ``clock``, and record the end-of-source watermark."""
+    def __init__(
+        self,
+        ticks,
+        clock: ReplayClock,
+        *,
+        final_event_time_watermark_utc: datetime | None,
+        replay_mode,
+        replay_source_ref: str,
+        replay_epoch: str,
+        instrument,
+    ) -> None:
+        """Bind the exact SDK replay identity and retain a local event watermark."""
+        from bt_api_py.replay_market_contracts import (
+            MarketInstrumentKey,
+            ReplayMarketMode,
+        )
+
+        if (
+            type(replay_mode) is not ReplayMarketMode
+            or type(replay_source_ref) is not str
+            or not replay_source_ref
+            or type(replay_epoch) is not str
+            or not replay_epoch
+            or type(instrument) is not MarketInstrumentKey
+            or (
+                final_event_time_watermark_utc is not None
+                and (
+                    not isinstance(final_event_time_watermark_utc, datetime)
+                    or final_event_time_watermark_utc.tzinfo is None
+                    or final_event_time_watermark_utc.utcoffset() != timezone.utc.utcoffset(
+                        final_event_time_watermark_utc
+                    )
+                )
+            )
+        ):
+            raise RunnerConfigurationError("local replay SDK identity is unavailable")
         self.ticks = deque(ticks)
         self.clock = clock
-        self.connected = False
-        self.subscriptions = []
-        self.eof_event_time_watermark = float(eof_event_time_watermark)
+        self.replay_mode = replay_mode
+        self.replay_source_ref = replay_source_ref
+        self.replay_epoch = replay_epoch
+        self.instrument = instrument
+        self._started_symbol = None
+        self._closed = False
+        self._eof_returned = False
+        self._last_event_time_utc = None
+        self.final_event_time_watermark_utc = final_event_time_watermark_utc
 
-    def connect(self) -> None:
-        """Mark the local source connected (no I/O)."""
-        self.connected = True
+    def start_replay(self, symbol: str) -> None:
+        """Start this local reader once for its bound fixture instrument."""
+        if (
+            self._closed
+            or self._started_symbol is not None
+            or type(symbol) is not str
+            or symbol not in {self.instrument.instrument_id, self.instrument.native_symbol}
+        ):
+            raise RunnerConfigurationError("replay reader start binding is invalid")
+        self._started_symbol = symbol
 
-    def disconnect(self) -> None:
-        """Mark the local source disconnected (no I/O)."""
-        self.connected = False
+    def close_replay(self, symbol: str) -> None:
+        """Close only this local reader after its bound feed has stopped."""
+        if self._started_symbol != symbol or self._closed:
+            raise RunnerConfigurationError("replay reader close binding is invalid")
+        self._closed = True
 
-    def subscribe(self, symbol) -> None:
-        """Record ``symbol``; the local source serves every subscription."""
-        self.subscriptions.append(symbol)
+    def poll_replay_tick(self, symbol):
+        """Return one exact SDK event or an explicit EOF watermark result."""
+        from bt_api_py.replay_market_contracts import (
+            ReplayMarketPollStatus,
+            ReplayMarketTickPollResult,
+        )
 
-    def supports_live_ticks(self, _symbol) -> bool:
-        """Always true: the fixture delivers its ticks one at a time."""
-        return True
-
-    def has_pending_tick(self, _symbol) -> bool:
-        """True while buffered fixture ticks remain."""
-        return bool(self.ticks)
-
-    def is_source_exhausted(self, _symbol) -> bool:
-        """True once every fixture tick has been consumed."""
-        return not self.ticks
-
-    def get_source_event_time_watermark(self, _symbol) -> float:
-        """Return the fixed event-time watermark for the end of source."""
-        return self.eof_event_time_watermark
-
-    def poll_tick(self, symbol):
-        """Pop the next buffered tick for ``symbol`` and advance the replay clock.
-
-        Returns ``None`` when the buffer is empty or the head tick belongs
-        to another symbol.
-        """
+        if self._closed or self._started_symbol != symbol:
+            raise RunnerConfigurationError("replay reader poll binding is invalid")
         if not self.ticks:
-            return None
+            if not self._eof_returned and self._last_event_time_utc is not None:
+                watermark = self.final_event_time_watermark_utc
+                if watermark is None or watermark < self._last_event_time_utc:
+                    raise RunnerConfigurationError("replay EOF watermark is unavailable")
+            else:
+                watermark = self.final_event_time_watermark_utc
+            self._eof_returned = True
+            return ReplayMarketTickPollResult(
+                status=ReplayMarketPollStatus.EOF,
+                event=None,
+                final_event_time_watermark_utc=watermark,
+            )
         tick = self.ticks[0]
-        if tick.symbol != symbol:
-            return None
+        if tick.instrument.native_symbol != symbol and tick.instrument.instrument_id != symbol:
+            raise RunnerConfigurationError("replay event symbol differs from the bound reader")
         tick = self.ticks.popleft()
-        self.clock.set(tick.timestamp, tick.recv_monotonic_ns / 1e9)
-        return tick
-
-
-class LocalReplayStore:
-    """Minimal in-process source adapter for :class:`ReplayClient`.
-
-    This deliberately does not inherit from ``BtApiStore`` and has no provider
-    tag, SDK factory, or order methods.  The only source accepted is an
-    explicitly constructed local ``ReplayClient``; there is no default or
-    fallback client construction.
-    """
-
-    def __init__(self, client: ReplayClient, *, contract_metadata: Mapping[str, Any]) -> None:
-        if type(client) is not ReplayClient:
-            raise RunnerConfigurationError("local replay requires an explicit ReplayClient")
-        self._client = client
-        self.contract_metadata = deepcopy(dict(contract_metadata))
-        self._feeds = []
-        self._started = False
-        self.delivered_events = 0
-
-    def start(self, data=None, broker=None) -> None:
-        del broker
-        if data is not None:
-            self.register(data)
-        if not self._started:
-            self._client.connect()
-            self._started = True
-
-    def register(self, feed) -> None:
-        if feed not in self._feeds:
-            self._feeds.append(feed)
-
-    def subscribe(self, symbol) -> None:
-        self._client.subscribe(symbol)
-
-    def poll_tick(self, symbol):
-        return self._client.poll_tick(symbol)
-
-    def poll_live(self, _symbol):
-        return None
-
-    def is_source_exhausted(self, symbol) -> bool:
-        return self._client.is_source_exhausted(symbol)
-
-    def get_source_event_time_watermark(self, symbol) -> float:
-        return self._client.get_source_event_time_watermark(symbol)
-
-    def mark_strategy_delivered(self, _event) -> None:
-        self.delivered_events += 1
-
-    def get_notifications(self):
-        return []
-
-    def getdata(self, *args, **kwargs):
-        """Create the known feed with a non-CTP local replay label."""
-        from backtrader.feeds.btapifeed import BtApiFeed
-
-        if "data_cls" in kwargs:
-            raise RunnerConfigurationError("local replay feed class is fixed")
-        kwargs["store"] = self
-        kwargs["provider"] = "local_replay"
-        feed = BtApiFeed(*args, **kwargs)
-        feed._store = self
-        return feed
-
-    def stop(self) -> None:
-        if self._started:
-            self._client.disconnect()
-            self._started = False
+        self.clock.set_replay_event_time(tick.event_time_utc.timestamp())
+        self._last_event_time_utc = tick.event_time_utc
+        return ReplayMarketTickPollResult(
+            status=ReplayMarketPollStatus.EVENT,
+            event=tick,
+            final_event_time_watermark_utc=None,
+        )
 
 
 class LocalReplayBroker(bt.brokers.BackBroker):
@@ -2830,29 +2719,57 @@ class LocalReplayBroker(bt.brokers.BackBroker):
         return None
 
 
-def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
-    """Yield deterministic CTP V2 quote ticks from the synthetic fixture.
+def _fixture_date(value: Any) -> date:
+    """Parse a public fixture date without provider-specific date aliases."""
+    text = str(value or "").strip()
+    if len(text) == 8 and text.isdigit():
+        return date(int(text[:4]), int(text[4:6]), int(text[6:8]))
+    return date.fromisoformat(text)
 
-    ``trend`` drifts up, ``reverse`` drifts down with crossed depths, and
-    ``no_signal`` oscillates flat; unknown scenarios fail closed.  Each
-    tick carries the full evidence contract so the production feed
-    quality gate can run unmodified.
+
+def generate_replay_ticks(
+    fixture: Mapping[str, Any],
+    scenario: str,
+    *,
+    source_ref: str,
+    replay_epoch: str,
+    instrument,
+):
+    """Yield exact SDK replay events from the synthetic fixture.
+
+    Events carry only replay lineage and event-time facts. No provider receive
+    clock, generation, ingest sequence, freshness, or execution eligibility is
+    constructed by this generator.
     """
     if fixture.get("schema_version") != "iter22.synthetic-quote-fixture.v1":
         raise RunnerConfigurationError("unsupported replay fixture schema")
+    try:
+        from bt_api_py.replay_market_contracts import (
+            ReplayMarketMode,
+            ReplayMarketTickEvent,
+            ReplayVolumeSemantics,
+        )
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RunnerConfigurationError("SDK replay market contract is unavailable") from exc
+    if (
+        type(source_ref) is not str
+        or not source_ref
+        or type(replay_epoch) is not str
+        or not replay_epoch
+    ):
+        raise RunnerConfigurationError("replay lineage is unavailable")
     interval = float(fixture["tick_interval_seconds"])
     tick_size = float(fixture["price_tick"])
     base = float(fixture["base_price"])
     cumulative = float(fixture["starting_cumulative_volume"])
     sequence = 0
-    monotonic_value = 1000.0
+    trading_day = _fixture_date(fixture["trading_day"])
     for session_start, session_end in fixture["sessions"]:
         start = datetime.fromisoformat(session_start).timestamp()
         end = datetime.fromisoformat(session_end).timestamp()
         event_time = start
         while event_time < end:
             sequence += 1
-            monotonic_value += interval
             elapsed_minutes = int((event_time - start) // 60)
             second = int(event_time - start) % 60
             if scenario == "trend":
@@ -2869,65 +2786,30 @@ def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
             last = round(center / tick_size) * tick_size
             bid = last - tick_size
             ask = last
-            cumulative += 1
-            tick = TickEvent(
-                timestamp=event_time,
-                symbol=str(fixture["instrument"]),
-                exchange=str(fixture["exchange"]),
-                asset_type="futures",
-                local_time=event_time,
-                exchange_time=event_time,
-                received_wall_time=event_time,
-                received_monotonic_ns=int(monotonic_value * 1e9),
+            cumulative += 1.0
+            event_datetime = datetime.fromtimestamp(event_time, timezone.utc)
+            event_session_date = event_datetime.astimezone(BEIJING).date()
+            yield ReplayMarketTickEvent(
+                mode=ReplayMarketMode.SYNTHETIC,
+                source_ref=source_ref,
+                replay_epoch=replay_epoch,
+                instrument=instrument,
+                event_time_utc=event_datetime,
                 sequence=sequence,
-                continuity_status="continuous",
-                source=str(fixture["source"]),
-                price=last,
-                volume=1.0,
+                last_price=last,
                 bid_price=bid,
                 ask_price=ask,
-                bid_volume=bid_size,
-                ask_volume=ask_size,
+                bid_size=bid_size,
+                ask_size=ask_size,
+                lower_limit=float(fixture["lower_limit"]),
+                upper_limit=float(fixture["upper_limit"]),
+                delta_volume=1.0,
+                cumulative_volume=cumulative,
+                volume_semantics=ReplayVolumeSemantics.DELTA,
+                open_interest=100000.0,
+                trading_day=trading_day,
+                event_session_date=event_session_date,
             )
-            tick.schema_version = "ctp.quote.v2"
-            tick.event_time_utc = datetime.fromtimestamp(event_time, timezone.utc).isoformat()
-            tick.recv_time_utc = tick.event_time_utc
-            tick.recv_monotonic_ns = int(monotonic_value * 1e9)
-            tick.ingest_seq = sequence
-            tick.connection_generation = int(fixture["connection_generation"])
-            # The replay producer owns an explicit, deterministic CTP V2
-            # evidence contract.  These fields are synthetic fixture facts;
-            # they do not promote the replay into a market or calibration
-            # observation.  The Feed may therefore enforce its production
-            # quality gate without inventing provenance for missing fields.
-            tick.subscription_epoch = 1
-            tick.clock_domain_id = "iter22-replay-monotonic-v1"
-            tick.source_clock_quality = "verified"
-            tick.receive_clock_quality = "verified"
-            tick.source_clock_error_ms = 0.0
-            tick.receive_clock_error_ms = 0.0
-            tick.freshness_verified = True
-            tick.execution_eligible = True
-            tick.stale = False
-            tick.stale_reason = ""
-            tick.trading_day = str(fixture["trading_day"])
-            tick.action_day = (
-                datetime.fromtimestamp(event_time, timezone.utc)
-                .astimezone(BEIJING)
-                .strftime("%Y%m%d")
-            )
-            tick.cum_volume = cumulative
-            tick.cumulative_volume = cumulative
-            tick.delta_volume = 1.0
-            tick.volume_semantics = "delta"
-            tick.volume_complete = True
-            tick.volume_quality = "CONTINUOUS"
-            tick.event_time_source = "fixture_utc"
-            tick.open_interest = 100000.0
-            tick.quality_flags = ()
-            tick.lower_limit = float(fixture["lower_limit"])
-            tick.upper_limit = float(fixture["upper_limit"])
-            yield tick
             event_time += interval
 
 
@@ -2937,6 +2819,7 @@ def _strategy_params(
     mode: str,
     purpose: str,
     instrument: str,
+    venue: str = "",
     trading_day: str,
     metadata: Mapping[str, Any],
     fee: Mapping[str, Any],
@@ -2948,7 +2831,12 @@ def _strategy_params(
     clock=None,
     run_deadline=None,
     hypothetical_fills=False,
-    connection_generation=0,
+    source_ref="",
+    generation=0,
+    session_ref="",
+    replay_source_mode="",
+    replay_source_ref="",
+    replay_epoch="",
     account_id_hash="",
     environment_profile="",
     maximum_entry_attempts=None,
@@ -2969,8 +2857,14 @@ def _strategy_params(
         "purpose": purpose,
         "candidate_id": config["candidate_id"],
         "instrument": instrument,
+        "venue": venue,
         "trading_day": trading_day,
-        "connection_generation": int(connection_generation or 0),
+        "source_ref": str(source_ref or ""),
+        "generation": generation or 0,
+        "session_ref": str(session_ref or ""),
+        "replay_source_mode": str(replay_source_mode or ""),
+        "replay_source_ref": str(replay_source_ref or ""),
+        "replay_epoch": str(replay_epoch or ""),
         "account_fingerprint": account_id_hash,
         "environment_profile": environment_profile,
         "tick_size": metadata["price_tick"],
@@ -3240,9 +3134,11 @@ def run_replay(
 ) -> dict[str, Any]:
     """Execute the frozen synthetic fixture through the local replay path.
 
-    Drives the Backtrader Feed/strategy chain with an explicit ``ReplayClient``
-    and ``ReplayClock``, a minimal local-only Store, and a no-order valuation
-    broker. There is no CTP Store/Broker construction, SDK fallback, network,
+    Drives the Backtrader Feed/strategy chain with a ``ReplayClient`` read-only
+    market-tick port passed to ``BtApiFeed(store=None, provider="local_replay",
+    replay_market_tick_port=client)`` and a deterministic ``ReplayClock``. The
+    ``LocalReplayBroker`` rejects order entry and performs no inherited matching;
+    no Store is constructed. There is no CTP Store/Broker, SDK fallback, network,
     or provider write route. Fails closed unless the strategy stays read-only
     and ends flat; the manifest and evidence are finalized either way.
     """
@@ -3252,6 +3148,8 @@ def run_replay(
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
     fixture_hash = sha256_file(fixture_path)
     instrument = str(fixture["instrument"])
+    venue = str(fixture["exchange"])
+    replay_source_ref = f"synthetic-fixture:sha256:{fixture_hash}"
     metadata = {
         "price_tick": float(fixture["price_tick"]),
         "volume_multiple": float(fixture["volume_multiple"]),
@@ -3262,7 +3160,7 @@ def run_replay(
     fee = dict(_mapping(config["fee_policy"])["replay_fixture"])
     if replay.get("hypothetical_fills") is True:
         raise RunnerConfigurationError(
-            "this native BtApiBroker replay has no local fill model; "
+            "this read-only replay has no local fill model; "
             "hypothetical_fills must remain false"
         )
     run_id = run_id or _run_id("replay")
@@ -3314,7 +3212,6 @@ def run_replay(
     manifest["g4_gate_status"] = "NOT_RUN"
     manifest["execution_basis"] = "none"
     manifest["replay_audit_queue_limit"] = replay_queue_limit
-    store = None
     report: dict[str, Any] | None = None
     failure: BaseException | None = None
     exit_status = "FAIL_CLOSED"
@@ -3337,7 +3234,10 @@ def run_replay(
             {
                 "status": "FIXTURE_ONLY",
                 "instrument": instrument,
-                "source": str(fixture["source"]),
+                "venue": venue,
+                "source_mode": "synthetic",
+                "replay_source_ref": replay_source_ref,
+                "replay_epoch": run_id,
                 "market_evidence": False,
             },
         )
@@ -3350,32 +3250,54 @@ def run_replay(
                 "market_evidence": False,
             },
         )
+        try:
+            from bt_api_py.replay_market_contracts import (
+                MarketInstrumentKey,
+                ReplayMarketMode,
+            )
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise RunnerConfigurationError("SDK replay market contract is unavailable") from exc
+        from backtrader.feeds.btapifeed import BtApiFeed
+        replay_instrument = MarketInstrumentKey(
+            provider="local_replay",
+            venue=venue,
+            environment="local_fixture",
+            product_type="futures",
+            instrument_id=instrument,
+            native_symbol=instrument,
+        )
         first_epoch = datetime.fromisoformat(fixture["sessions"][0][0]).timestamp()
         clock = ReplayClock(first_epoch)
-        eof_watermark = datetime.fromisoformat(fixture["sessions"][-1][1]).timestamp() + 0.5
-        client = ReplayClient(
-            generate_replay_ticks(fixture, scenario),
-            clock,
-            eof_event_time_watermark=eof_watermark,
+        eof_watermark = datetime.fromtimestamp(
+            datetime.fromisoformat(fixture["sessions"][-1][1]).timestamp() + 0.5,
+            timezone.utc,
         )
-        broker_metadata = {
-            **metadata,
-            "tick_size": metadata["price_tick"],
-            "contract_multiplier": metadata["volume_multiple"],
-            "min_size": 1,
-            "lot_size": 1,
-            "quantity_step": 1,
-            "currency": "CNY",
-        }
-        store = LocalReplayStore(client, contract_metadata={instrument: broker_metadata})
+        client = ReplayClient(
+            generate_replay_ticks(
+                fixture,
+                scenario,
+                source_ref=replay_source_ref,
+                replay_epoch=run_id,
+                instrument=replay_instrument,
+            ),
+            clock,
+            final_event_time_watermark_utc=eof_watermark,
+            replay_mode=ReplayMarketMode.SYNTHETIC,
+            replay_source_ref=replay_source_ref,
+            replay_epoch=run_id,
+            instrument=replay_instrument,
+        )
         cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
         broker = LocalReplayBroker(
             cash=float(replay["starting_cash"]),
             position_mode="net",
         )
         cerebro.setbroker(broker)
-        feed = store.getdata(
+        feed = BtApiFeed(
             dataname=instrument,
+            store=None,
+            provider="local_replay",
+            replay_market_tick_port=client,
             timeframe=bt.TimeFrame.Minutes,
             compression=1,
             dispatch_ticks=True,
@@ -3408,7 +3330,10 @@ def run_replay(
             admitted=False,
             preflight_ready=True,
             clock=clock,
-            connection_generation=int(fixture["connection_generation"]),
+            venue=str(fixture["exchange"]),
+            replay_source_mode="synthetic",
+            replay_source_ref=replay_source_ref,
+            replay_epoch=run_id,
             account_id_hash="acct_replay_fixture",
             environment_profile="local_fixture",
             hypothetical_fills=False,
@@ -3430,7 +3355,8 @@ def run_replay(
             g4_gate_status="NOT_RUN",
             runtime_chain={
                 "cerebro": f"{type(cerebro).__module__}.{type(cerebro).__name__}",
-                "store": f"{type(store).__module__}.{type(store).__name__}",
+                "store": None,
+                "replay_port": f"{type(client).__module__}.{type(client).__name__}",
                 "feed": f"{type(feed).__module__}.{type(feed).__name__}",
                 "feed_provider": getattr(feed, "provider", None),
                 "broker": f"{type(broker).__module__}.{type(broker).__name__}",
@@ -3490,13 +3416,6 @@ def run_replay(
             except Exception:
                 pass
     finally:
-        if store is not None:
-            try:
-                store.stop()
-            except BaseException as exc:
-                if failure is None:
-                    failure = exc
-                    exit_status = "FAIL_CLOSED"
         try:
             reporter.finalize_manifest(manifest, exit_status)
         except BaseException as exc:
@@ -3541,7 +3460,7 @@ def _build_live_store(
     state_directory: Path,
     allow_order_writes: bool,
     api_cls=None,
-    store_cls=BtApiStore,
+    store_cls=None,
     reachable_selector: Callable[..., Any] | None = None,
 ) -> tuple[BtApiStore, dict[str, Any], list[str]]:
     """Build the only managed CTP client through ``provider='btapi'``.
@@ -3555,6 +3474,10 @@ def _build_live_store(
         raise RunnerConfigurationError("order writes are permitted only in simnow mode")
     if allow_order_writes and purpose not in {"engineering_smoke", "natural_signal"}:
         raise RunnerConfigurationError("order writes require an admitted SimNow purpose")
+    if store_cls is None:
+        from backtrader.stores.btapistore import BtApiStore
+
+        store_cls = BtApiStore
     fronts = resolve_fronts(
         config,
         env_values,
@@ -5305,13 +5228,16 @@ def run_api_diagnostic(
     run_seconds: float,
     run_id: str | None = None,
 ) -> dict[str, Any]:
-    """Run the narrow Set-2 CTP API/session diagnostic.
+    """Retain the old diagnostic source while refusing the unmigrated entry.
 
-    The diagnostic starts the existing managed Store in its default
-    ``market_data_only`` state, performs one public query snapshot, and stops.
-    It never selects an SA contract, verifies/prepares settlement, subscribes,
-    arms execution, or invokes order/cancel APIs.
+    The historical implementation below reads CTP session fields plus a
+    combined instrument/order/trade/fee/margin snapshot.  The current neutral
+    SDK facades do not provide that complete evidence contract.  The supported
+    live-observation entry uses the managed runtime and AccountSessionSnapshot;
+    this historical diagnostic remains unavailable.
     """
+
+    raise RunnerConfigurationError("NEUTRAL_CTP_DIAGNOSTIC_UNAVAILABLE")
 
     _load_env_file(HERE / ".env")
     config = effective_profile_config(config, os.environ)
@@ -5392,18 +5318,12 @@ def run_api_diagnostic(
     try:
         probe = native_probe()
         reporter.write_json("native_probe.json", probe)
-        manifest["source_components"]["bt_api_ctp"] = {
-            "module": "bt_api_ctp",
-            "version": probe.get("bt_api_ctp_version"),
-            "path": probe.get("bt_api_ctp_path"),
-            "sha256": probe.get("ctp_package_sha256"),
-            "package_manifest": probe.get("ctp_package_manifest") or [],
-            "package_manifest_verified": probe.get("ctp_package_manifest_verified") is True,
-            "native_files": probe.get("native_files") or [],
-            "native_loaded": probe.get("native_loaded") is True,
+        manifest["source_components"]["provider_native_diagnostics"] = {
+            "status": probe.get("status"),
+            "available": probe.get("accepted") is True,
         }
         if not probe.get("accepted"):
-            raise PreflightError("CTP native probe did not prove the target extension is loaded")
+            raise PreflightError("provider native diagnostics are unavailable")
 
         # ``start`` can allocate native resources before a later connection or
         # authentication failure.  Treat the call itself as requiring cleanup,
@@ -5612,7 +5532,7 @@ def _run_network_legacy_impl(
     run_id: str | None = None,
     retention_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Run one controlled shadow or admitted SimNow network session.
+    """Retain the historical Iteration 22 SimNow network implementation.
 
     Re-applies the CLI boundary for direct API callers (trust root, frozen
     profile, receipt revalidation, invocation contract) before claiming an
@@ -5620,7 +5540,18 @@ def _run_network_legacy_impl(
     mode plus a validated receipt; every stage (settlement, two-stage
     preflight, native probe, strategy execution, controlled drain,
     reconciliation, recovery) fails closed into a finalized manifest.
+
+    The supported ``run_network`` entry above rejects this legacy path.  This
+    implementation remains only as historical source/evidence context; its
+    CTP Store calls, environment/profile parser, native probe, and native-row
+    validators have not been migrated to the current SDK composition because
+    the SDK-neutral query/session contracts do not carry its complete
+    order/trade/fee/margin/account-identity evidence set.  Do not treat this
+    private helper as a current provider entrypoint or infer that the retained
+    checks are satisfied by partial neutral query results.
     """
+    raise RunnerConfigurationError("LEGACY_CTP_STORE_RUNTIME_DISABLED")
+
     # API callers do not pass through ``main``.  Load the local trust root
     # before revalidating a signed receipt, and do both before claiming an
     # output directory or constructing a Store.
@@ -5748,18 +5679,12 @@ def _run_network_legacy_impl(
         reporter.write_json("retention.json", retention)
         probe = native_probe()
         reporter.write_json("native_probe.json", probe)
-        manifest["source_components"]["bt_api_ctp"] = {
-            "module": "bt_api_ctp",
-            "version": probe.get("bt_api_ctp_version"),
-            "path": probe.get("bt_api_ctp_path"),
-            "sha256": probe.get("ctp_package_sha256"),
-            "package_manifest": probe.get("ctp_package_manifest") or [],
-            "package_manifest_verified": probe.get("ctp_package_manifest_verified") is True,
-            "native_files": probe.get("native_files") or [],
-            "native_loaded": probe.get("native_loaded") is True,
+        manifest["source_components"]["provider_native_diagnostics"] = {
+            "status": probe.get("status"),
+            "available": probe.get("accepted") is True,
         }
         if not probe.get("accepted"):
-            raise PreflightError("CTP native probe did not prove the target extension is loaded")
+            raise PreflightError("provider native diagnostics are unavailable")
         if allow_order_writes:
             if receipt.get("source_hashes") != source_file_hashes():
                 raise PreflightError("source tree changed after receipt validation")
@@ -6252,6 +6177,8 @@ def _run_network_legacy_impl(
                         )
                     reporter.write_json("preflight.json", preflight)
 
+                from backtrader.brokers.btapibroker import BtApiBroker
+
                 broker = BtApiBroker(
                     store=store,
                     provider="btapi",
@@ -6318,7 +6245,10 @@ def _run_network_legacy_impl(
                         else preflight["ready_for_shadow"]
                     ),
                     run_deadline=deadline,
-                    connection_generation=preflight["query_identity"]["connection_generation"],
+                    venue=str(identity.get("venue") or ""),
+                    generation=preflight["query_identity"]["connection_generation"],
+                    source_ref=str(preflight.get("source_ref") or ""),
+                    session_ref=str(preflight.get("session_ref") or ""),
                     account_id_hash=identity["account_fingerprint"],
                     environment_profile=identity["sdk_profile"],
                     maximum_entry_attempts=maximum_entry_attempts,

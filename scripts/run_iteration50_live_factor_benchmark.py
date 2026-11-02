@@ -13,6 +13,8 @@ warm-up. ``--factors representative-six`` selects Alpha001/003/006/048/056/101.
 ``--scenario 27b`` adds one bounded Store disconnect/recovery and a real local
 BackBroker limit-order/cancel lifecycle. The finite calendar can be wall-clock
 paced with ``--duration-seconds``; this remains synthetic local evidence.
+The selected Backtrader root must provide the current execution journal bridge;
+the journal and decision key are supplied by the explicitly installed SDK.
 """
 
 from __future__ import annotations
@@ -283,12 +285,12 @@ def _post_close_journal_readback(strategy: Any) -> Dict[str, Any]:
         receipt["database_bytes_after_checkpoint"] + receipt["wal_bytes_after_checkpoint"]
     )
     if live_readback is not None and receipt["journal_mode_after_close"] == "wal":
-        from backtrader.stores.execution_decision_journal import ExecutionDecisionJournal
+        from backtrader.execution._journal_ports import new_execution_journal
 
         reopened = None
         receipt["reopen_attempted"] = True
         try:
-            reopened = ExecutionDecisionJournal(
+            reopened = new_execution_journal(
                 database_path, **_journal_options(strategy.p.evaluation_grids)
             )
             reopened_capacity = _capacity_snapshot_values(reopened.decision_capacity_snapshot())
@@ -1634,10 +1636,8 @@ def _make_runtime(
     from backtrader.research.alpha101 import get_alpha
     from backtrader.research.live_cohort import LiveBarCohort, LiveCohortCalendar
     from backtrader.research.operators import OperatorReason
-    from backtrader.stores.execution_decision_journal import (
-        ExecutionDecisionJournal,
-        ExecutionDecisionKey,
-    )
+    from backtrader.execution._journal_ports import new_execution_journal
+    from bt_api_py.execution import ExecutionDecisionKey
 
     target_count = args.assets
     targets = _target_ids(target_count)
@@ -2136,7 +2136,7 @@ def _make_runtime(
             }
             self._factor = self._factor_roots.get(FACTOR_NAME)
             self._feeds = {data._name: data for data in self.datas}
-            self._journal = ExecutionDecisionJournal(
+            self._journal = new_execution_journal(
                 self.p.database_path,
                 **_journal_options(self.p.evaluation_grids),
             )

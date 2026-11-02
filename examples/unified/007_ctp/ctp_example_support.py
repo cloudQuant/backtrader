@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
-import os
 import threading as threading
 from pathlib import Path
 
@@ -28,40 +27,22 @@ from backtrader.feeds.btapifeed import BtApiFeed as BtApiFeed
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EXAMPLES_ROOT = Path(__file__).resolve().parent
 
-SIMNOW_ENVIRONMENTS = {
-    "new_7x24": {
-        "name": "SimNow New 7x24",
-        "td_address": "tcp://182.254.243.31:40001",
-        "md_address": "tcp://182.254.243.31:40011",
-    },
-    "new_group1": {
-        "name": "SimNow New Group 1",
-        "td_address": "tcp://182.254.243.31:30001",
-        "md_address": "tcp://182.254.243.31:30011",
-    },
-    "new_group2": {
-        "name": "SimNow New Group 2",
-        "td_address": "tcp://182.254.243.31:30002",
-        "md_address": "tcp://182.254.243.31:30012",
-    },
-    "new_group3": {
-        "name": "SimNow New Group 3",
-        "td_address": "tcp://182.254.243.31:30003",
-        "md_address": "tcp://182.254.243.31:30013",
-    },
-}
 
-AUTO_SIMNOW_ENV = "auto"
-SIMNOW_ENV_PRIORITY = (
-    "new_7x24",
-    "new_group1",
-    "new_group2",
-    "new_group3",
-)
-DEFAULT_SIMNOW_ENV = AUTO_SIMNOW_ENV
-DEFAULT_BROKER_ID = "9999"
-DEFAULT_APP_ID = "simnow_client_test"
-DEFAULT_AUTH_CODE = "0000000000000000"
+
+
+class RetiredCtpExecution(RuntimeError):
+    """Finite failure for historical direct CTP entrypoints."""
+
+    code = "CTP_LEGACY_RUNTIME_RETIRED"
+
+    def __init__(self, source: str) -> None:
+        super().__init__("{}:{}".format(self.code, source))
+
+
+def legacy_direct_execution_error(source: str) -> RetiredCtpExecution:
+    """Return the local fail-closed error without importing a retired runtime."""
+
+    return RetiredCtpExecution(source)
 
 
 def resolve_config_path(config_arg: str | None, base_dir: Path, default_name: str) -> Path:
@@ -628,69 +609,16 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
 
 def get_simnow_credentials():
     """Reject the retired credential path before consulting process state."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py credentials")
 
 
-def _normalize_simnow_env_key(raw_value):
-    """Normalize SimNow environment key to lowercase string.
-
-    Args:
-        raw_value: Raw environment value.
-
-    Returns:
-        Normalized lowercase string.
-    """
-    return str(raw_value or "").strip().lower()
 
 
-def iter_simnow_env_candidates(env_key=None, strict=False):
-    """Iterate over SimNow environment candidates in priority order.
-
-    Args:
-        env_key: Specific environment key to use.
-        strict: If True, return only the specified environment.
-
-    Yields:
-        Environment keys in priority order.
-
-    Raises:
-        ValueError: If environment key is not supported.
-    """
-    selected_env = _normalize_simnow_env_key(
-        env_key or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV
-    )
-    if not selected_env:
-        selected_env = DEFAULT_SIMNOW_ENV
-
-    if selected_env != AUTO_SIMNOW_ENV and selected_env not in SIMNOW_ENVIRONMENTS:
-        raise ValueError(
-            f"Unsupported SimNow environment {selected_env!r}. "
-            f"Choose from: {AUTO_SIMNOW_ENV}, {', '.join(sorted(SIMNOW_ENVIRONMENTS))}."
-        )
-
-    if strict and selected_env != AUTO_SIMNOW_ENV:
-        return [selected_env]
-
-    candidates = []
-    if selected_env != AUTO_SIMNOW_ENV:
-        candidates.append(selected_env)
-
-    for candidate in SIMNOW_ENV_PRIORITY:
-        if candidate in SIMNOW_ENVIRONMENTS and candidate not in candidates:
-            candidates.append(candidate)
-
-    for candidate in SIMNOW_ENVIRONMENTS:
-        if candidate not in candidates:
-            candidates.append(candidate)
-
-    return candidates
 
 
 def create_simnow_connection(env_key=None):
     """Reject the retired SimNow route before reading account credentials."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     del env_key
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py SimNow route")
@@ -698,7 +626,6 @@ def create_simnow_connection(env_key=None):
 
 def create_live_store(config):
     """Reject direct Store construction; the old SimNow route is retired."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     del config
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py Store")
@@ -706,7 +633,6 @@ def create_live_store(config):
 
 def create_live_broker(store, config):
     """Reject the retired direct broker composition route."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     del store, config
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py Broker")
@@ -714,7 +640,6 @@ def create_live_broker(store, config):
 
 def add_live_feeds(cerebro, store, config):
     """Reject the retired direct feed route before inspecting caller inputs."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     del cerebro, store, config
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py live feeds")
@@ -722,7 +647,6 @@ def add_live_feeds(cerebro, store, config):
 
 def run_cerebro_with_timeout(cerebro, timeout_seconds=60):
     """Reject the retired direct Cerebro runner before it can start a live Store."""
-    from backtrader_runtime.legacy import legacy_direct_execution_error
 
     del cerebro, timeout_seconds
     raise legacy_direct_execution_error("examples/unified/007_ctp/ctp_example_support.py Cerebro runner")

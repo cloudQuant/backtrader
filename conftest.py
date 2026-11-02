@@ -260,7 +260,7 @@ def _configure_execution_journal_ports():
     try:
         from bt_api_execution.journal import reset_journal_ports
 
-        from backtrader.stores._journal_ports import install_backtrader_journal_ports
+        from backtrader.execution._journal_ports import install_backtrader_journal_ports
     except ImportError:
         yield
         return

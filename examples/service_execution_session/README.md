@@ -1,5 +1,9 @@
 # Configured execution session with Cerebro
 
+> Iteration 53 migration status (2026-11-01): this example uses the candidate path `backtrader.service.service_execution_session`.
+> The directory move has not passed structural, import, distribution, or behavior acceptance.
+> This remains a local synthetic no-write example; it does not establish production provider callbacks, account evidence, reconnect behavior, or BT01/BT02 acceptance.
+
 From the Backtrader repository root, run:
 
 ```powershell
@@ -93,7 +97,7 @@ example, with `alpha_runtime` carrying the primary writer/query bindings and
 `beta_runtime` carrying only Beta's granted query binding:
 
 ```python
-from backtrader.stores.service_execution_session import (
+from backtrader.service.service_execution_session import (
     ServiceExecutionSession,
     ServiceStrategyAccountBookRoute,
 )

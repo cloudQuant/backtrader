@@ -200,90 +200,32 @@ def run_replay(
 
 # ------------------------------------------------------------------ live observe
 def run_live_observe(args) -> int:
-    """Read independent, explicitly configured orderbooks without enabling writes."""
+    """Fail closed before reading service configuration or account data."""
 
     decision = getattr(args, "tier_decision", None)
     tier_evidence = decision.as_evidence() if decision is not None else {}
-    okx_config = getattr(args, "service_config_okx", None)
-    binance_config = getattr(args, "service_config_binance", None)
-    if okx_config is None and binance_config is None:
-        # Preserve the historical no-config behavior. Observation is opt-in and
-        # never falls back to the legacy .env or exchange adapter path.
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "channel": "observe",
-                "reason": "live_observation_unavailable",
-                "entry_tier": dict(tier_evidence),
-                "write_grant_result": "not_requested",
-                "gap": "independent account/orderbook observation requires both explicit service configs",
-                "hint": "pass --service-config-okx and --service-config-binance; no session was opened",
-            }
-        )
-        return EXIT_BLOCKED
-    if okx_config is None or binance_config is None:
-        _json_print(
-            {
-                "status": "BLOCKED",
-                "mode": "live",
-                "channel": "observe",
-                "reason": "service_config_pair_incomplete",
-                "entry_tier": dict(tier_evidence),
-                "write_grant_result": "not_requested",
-                "hint": "both venue configs are required before any SDK session is opened",
-            }
-        )
-        return EXIT_BLOCKED
-    from backtrader_runtime.service_observation import ServiceObservationError
-    try:
-        from backtrader_runtime.cross_exchange_orderbook_observation import (
-            observe_cross_exchange_orderbooks,
-        )
-
-        report = observe_cross_exchange_orderbooks(
-            okx_config_path=okx_config,
-            binance_config_path=binance_config,
-            strategy_id="012_1_midfreq_cross_exchange",
-            timeout_ms=getattr(args, "service_observation_timeout_ms", 2000),
-            depth=getattr(args, "service_book_depth", 20),
-            max_event_age_seconds="2.0",
-        )
-    except ServiceObservationError as error:
-        report = {
-            "status": "BLOCKED",
-            "reason": error.code,
-            "observation_level": "INDEPENDENT_SERVICE_ORDERBOOK_SNAPSHOTS",
-            "write_capability": "UNSUPPORTED",
-            "trade_execution": "not_run",
-            "execution_eligible": False,
-            "cross_venue_alignment": "NOT_EVALUATED",
-        }
-    except Exception:
-        report = {
-            "status": "UNKNOWN",
-            "reason": "service_observation_failed",
-            "observation_level": "INDEPENDENT_SERVICE_ORDERBOOK_SNAPSHOTS",
-            "write_capability": "UNSUPPORTED",
-            "trade_execution": "not_run",
-            "execution_eligible": False,
-            "cross_venue_alignment": "NOT_EVALUATED",
-        }
-    report.update(
+    _json_print(
         {
+            "status": "BLOCKED",
             "mode": "live",
             "channel": "observe",
-            "example_id": "012_1_midfreq_cross_exchange",
+            "reason": "MARKET_STREAM_CHANNEL_UNAVAILABLE",
+            "observation_level": "INDEPENDENT_SERVICE_ORDERBOOK_SNAPSHOTS",
+            "write_capability": "UNSUPPORTED",
+            "trade_execution": "not_run",
+            "execution_eligible": False,
+            "cross_venue_alignment": "NOT_EVALUATED",
+            "service_configuration": "not_read",
+            "account_read": "not_started",
+            "provider_runtime": "not_started",
             "entry_tier": dict(tier_evidence),
             "write_grant_result": "not_requested",
+            "gap": "No registered SDK orderbook-stream capability is available for the selected routes.",
+            "hint": "Use --replay for the offline fixture; live observation is unavailable.",
         }
     )
-    _json_print(report)
-    if report.get("status") == "OBSERVED":
-        return EXIT_PASS
-    if report.get("status") == "UNKNOWN":
-        return EXIT_UNKNOWN
     return EXIT_BLOCKED
+
 
 
 def run_live(args) -> int:

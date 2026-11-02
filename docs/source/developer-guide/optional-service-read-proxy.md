@@ -1,4 +1,9 @@
-# 可选服务读取代理
+﻿# 可选服务读取代理
+
+> 迭代 53 迁移状态（2026-11-01）：当前候选实现路径为 `backtrader.service.service_read_proxy`。
+> 本次只同步结构文档；目录迁移尚未通过结构、导入、发行包或行为验收。
+> 2026-10-14 第 07 轮 B 记录是其所记版本的本机合成 provider 证据，不是迁移后复验、交易所账户或写入验收。
+> 代理仍为只读，Broker 必须设置 `market_data_only=True`，关闭后不自动重连；完整 BT01/BT02 和真实账户仍需独立验收。
 
 `ServiceReadProxy` 将 SDK 的账户与行情 facade 接入现有 `BtApiStore`、
 `BtApiBroker` 和 `BtApiFeed`。策略进程只使用客户端；账户会话、行情连接和
@@ -12,18 +17,18 @@
 当前接入使用 `bt_api_base>=0.15.8` 的合同及 SDK 的
 `ServiceAccountClient`、`ServiceMarketClient`；这不是已发布 wheel 的安装声明。
 bar 行情授权需包含订阅、快照、重放、head 和 `market.history`。服务端必须提供
-实际历史 provider，才能声明和授予历史读取能力。CTP 实时行情可单独使用
-`ServiceCtpTickBinding` 订阅 `ctp.quote.v2`；它只向 Feed 交付经验证的原始 tick，
-没有 Kline 历史或 tick→bar 投影。
+实际历史 provider，才能声明和授予历史读取能力。当前服务代理提供中立 bar 和
+订单簿绑定；provider tick 接入尚不可用，不能把来源时间当作已验证的时钟证明。
 
 下面假设 `runtime` 已启动，`account_client`、`market_client`、`resource`
-已按同一部署图构造；完整可运行的合成服务装配见
-`tests/test_service_read_proxy_integration.py`。
+已按同一部署图构造。原文引用的合成服务集成测试路径
+`tests/test_service_read_proxy_integration.py` 当前工作区不存在；下文代码仅说明装配形状，不能代表迁移后可运行验收。
 
 ```python
 import backtrader as bt
 from backtrader.stores.btapistore import BtApiStore
-from backtrader.stores.service_read_proxy import ServiceFeedBinding, ServiceReadProxy
+from backtrader.service.service_read_proxy import ServiceReadProxy
+from bt_api_py.service_market_bindings import ServiceFeedBinding
 
 proxy = ServiceReadProxy(
     account_client,
@@ -43,7 +48,7 @@ cerebro.addstrategy(MyReadOnlyStrategy)
 try:
     cerebro.run(runonce=False, preload=False)
 finally:
-    proxy.close()
+    proxy.disconnect()
     runtime.close()
 ```
 
@@ -65,18 +70,11 @@ finally:
 - 未成交订单未知和完整空集合有不同含义。订单事实缺失、不完整、单位错误或
   合约未映射时拒绝读取；启动后账户失去有效基线时也会传播错误，不返回旧缓存。
 - bar Feed 先建立实时订阅，再分页读取历史。历史和实时重叠的相同闭合 K 线只输出
-  一次；内容冲突、乱序、流代次改变或无法恢复的缺口会报错。CTP tick Feed 不读
-  history；authenticated wire scope、stream epoch 和 sequence 连续性分别校验。Provider
-  connection generation 与 subscription epoch 在绑定期间保持不变；provider `ingest_seq`
-  只要求严格递增（不要求连续，因为上游可跨订阅共享游标）。wire 缺口或 source scope
-  改变会失败关闭，provider tick 数据字段保持原样。
+  一次；内容冲突、乱序、流代次改变或无法恢复的缺口会报错。服务流的 wire scope、
+  stream epoch 和 sequence 分别校验；这些检查不建立 provider 原生时钟证明。
 - 历史页数、行数和去重状态有上限。仅处理固定时长、UTC 对齐的闭合 K 线；
-  bar Feed 不支持 tick、订单簿或带交易日历锚点的周/月/年线。CTP tick binding
-  必须显式设置 `backfill_start=False`，因为该来源不提供 K 线历史，且不把 tick 合成为
-  K 线历史。它还必须绑定可信 CTP metadata 的 account session generation、
-  `clock_domain_id` 和正数 `quote_stream_generation`；新账户 session 不得复用旧 metadata，
-  事件必须标识 `source=ctp.native.md` 并与可信来源和 generation 相符。
-  未收盘事件会被拒绝，上游 bar 仍应只发布已收盘事件。
+  bar Feed 不支持 tick、订单簿或带交易日历锚点的周/月/年线。未收盘事件会被拒绝，
+  上游 bar 仍应只发布已收盘事件。
 - facade 与 runtime 的所有操作应在所属线程执行，并持续维护租约。代理关闭
   自己使用的 facade，调用方负责最后关闭共享 runtime；关闭失败可显式重试。
   成功关闭是终态，重新运行须创建新 facade 和代理，不自动重连或回退到 direct。

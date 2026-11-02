@@ -1,471 +1,551 @@
-"""SimNow registered-sim paper runner for the iteration-52 demo round trip.
+"""SimNow route adapter for the iteration-52 provider demo.
 
-Only ``run.py``'s live SIMNOW branch imports this module, so the dry/offline and
-crypto paths never load it, the private ``ctp:`` block or the credential file.
+The example consumes only the SDK's provider-neutral configuration and
+managed-runtime facades.  CTP configuration parsing, endpoint selection,
+credential handling, native records and execution admission stay in the SDK.
+An external host must inject the exact ready runtime binding; this module never
+constructs a client or turns configuration/readiness into write authority.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import sys
-import uuid
-from datetime import datetime, timezone
+import threading
 from pathlib import Path
+from typing import Any
 
 import paper_common
+import simnow_paper
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
-DEFAULT_SDK_ROOT = Path(os.environ.get("BT_API_PY_ROOT", "D:/bt_api_py"))
-if str(HERE) not in sys.path:
-    # simnow_paper is a folder-local module next to this file.
-    sys.path.insert(0, str(HERE))
-
-# SimNow credential env-name overrides; the values themselves never enter config.
-_SIMNOW_OVERRIDE_FIELDS = {
-    "broker_id": "broker_id",
-    "user_id": "investor_id",
-    "password": "password",
-    "app_id": "app_id",
-    "auth_code": "auth_code",
-}
+SIMNOW_ROUTE = "CTP___FUTURE"
 
 
-def _prepend_simnow_sdk_sources() -> None:
-    """Prefer the reviewed dev bt_api_py base/CTP sources for the CTP wrapper.
+class _ManagedSessionAbort(Exception):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
 
-    ``simnow_direct`` builds its wrapper class at import time, so the dev
-    sources must precede any installed ``bt_api_ctp`` copy.  Only the two
-    source trees are added; the facade directory also ships a ``backtrader``
-    shim and must never shadow the framework package.
-    """
-    for extra in reversed(
-        (
-            DEFAULT_SDK_ROOT / "bt_api" / "bt_api_base" / "src",
-            DEFAULT_SDK_ROOT / "bt_api" / "bt_api_ctp" / "src",
-        )
+
+def _safe_code(exc: BaseException, fallback: str) -> str:
+    value = getattr(exc, "code", None)
+    if (
+        type(value) is str
+        and value.isascii()
+        and value
+        and all(char.isalnum() or char == "_" for char in value)
+        and len(value) <= 96
     ):
-        if not extra.is_dir():
-            continue
-        text = str(extra)
-        if text in sys.path:
-            sys.path.remove(text)
-        sys.path.insert(0, text)
+        return value
+    return fallback
 
 
-def _load_optional_credentials(path: Path, names: tuple[str, ...]) -> dict[str, str]:
-    """Read only the named variables from ``path`` (or the process environment)."""
-    values: dict[str, str] = {}
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, _, value = stripped.partition("=")
-            key = key.strip()
-            if key in names:
-                values[key] = value.strip().strip("'\"")
-    for name in names:
-        if not values.get(name):
-            values[name] = os.environ.get(name, "")
-    return {name: value for name, value in values.items() if value}
+def _close_unclaimed_composition_once(composition: Any) -> tuple[bool, str | None]:
+    """Close only an exact SDK composition whose live owner check succeeds.
 
-
-def _load_private_ctp_block(path: Path) -> dict:
-    """Parse the sealed canonical ``ctp:`` block without emitting any value.
-
-    The file is private operator input: errors carry field names and exception
-    types only, never content.  Callers must only invoke this on a live run.
+    Call this only when ManagedRuntimeCerebroSession construction failed before
+    assigning a session. The session constructor only validates and stores the
+    composition; it does not claim or close it on a failed construction.
     """
-    import yaml
-
-    if not path.is_file():
-        raise RuntimeError("private_config_unavailable")
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001 - bounded code
-        raise RuntimeError("private_config_invalid:" + type(exc).__name__) from None
-    if not isinstance(raw, dict):
-        raise RuntimeError("private_config_invalid:root")
-    block = raw.get("ctp")
-    if not isinstance(block, dict):
-        raise RuntimeError("private_config_ctp_block_missing")
-    return block
-
-
-def _simnow_strategy_identity(module, strategy_path: Path, instrument: str, exchange: str) -> str:
-    """Bind the unchanged strategy source and the resolved SimNow scope."""
-    payload = {
-        "strategy_id": "iteration52-simnow-paper-roundtrip",
-        "instrument": instrument,
-        "exchange": exchange,
-    }
-    builder = getattr(module, "strategy_identity_sha256", None)
-    if callable(builder):
-        return str(builder(strategy_path, payload))
-    source_sha = hashlib.sha256(strategy_path.read_bytes()).hexdigest()
-    merged = dict(payload, strategy_source_sha256=source_sha)
-    return hashlib.sha256(
-        json.dumps(merged, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-
-
-def _store_facts(session) -> dict:
-    store = getattr(session, "store", None)
-    facts = getattr(store, "simnow_paper_facts", None)
-    if not callable(facts):
-        return {}
-    try:
-        return dict(facts())
-    except Exception:  # noqa: BLE001 - evidence stays finite
-        return {"unavailable": True}
-
-
-def run_simnow(plan, params: dict, args, tier_evidence: dict) -> int:
-    """Run the bounded SimNow registered-sim paper adapter.
-
-    Only this branch reads the private ``ctp:`` block or the credential env
-    file.  The dry/offline path returns before it, and crypto venues never
-    enter it.
-    """
-    import simnow_paper
-
-    venue = "SIMNOW"
-
-    def _blocked(reason: str, **extra) -> int:
-        payload = {
-            "status": "BLOCKED",
-            "reason": reason,
-            "entry_tier": tier_evidence,
-            "venue": venue,
-            "credential_env_names": list(extra.pop("credential_env_names", ())),
-        }
-        payload.update(extra)
-        evidence = paper_common.write_evidence(payload)
-        payload["evidence_path"] = str(evidence.relative_to(REPO_ROOT))
-        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
-        return 2
-
-    if sys.version_info[:2] != (3, 11):
-        return _blocked(
-            "live_tier_requires_python_3_11",
-            current="{}.{}".format(*sys.version_info[:2]),
-            hint="run the SimNow paper tier with C:/anaconda3/python.exe (3.11)",
-        )
-    if args.order_journal:
-        return _blocked("order_journal_unsupported_for_simnow")
 
     try:
-        ctp_block = _load_private_ctp_block(Path(args.private_config))
-    except RuntimeError as exc:
-        return _blocked(str(exc))
-
-    raw_pairs = ctp_block.get("front_pairs")
-    if raw_pairs is None:
-        raw_pairs = [
-            {"md_front": ctp_block.get("md_front"), "td_front": ctp_block.get("td_front")}
-        ]
-    if not isinstance(raw_pairs, list) or not 1 <= len(raw_pairs) <= 8:
-        return _blocked("private_config_front_pairs_invalid")
-    pairs: list[tuple[str, str]] = []
-    for item in raw_pairs:
-        if not isinstance(item, dict):
-            return _blocked("private_config_front_pair_invalid")
-        md_front = item.get("md_front")
-        td_front = item.get("td_front")
-        if not all(isinstance(value, str) and value.strip() for value in (md_front, td_front)):
-            return _blocked("private_config_front_pair_invalid")
-        pairs.append((td_front.strip(), md_front.strip()))
-
-    instrument = str(ctp_block.get("instrument_id") or "").strip().upper()
-    exchange = str(ctp_block.get("exchange_id") or "").strip().upper()
-    if not instrument or not exchange:
-        return _blocked("private_config_contract_missing")
-
-    credential_names = dict(simnow_paper.SIMNOW_CREDENTIAL_NAMES)
-    overrides = params.get("credential_env_names")
-    if isinstance(overrides, dict):
-        for key, sdk_field in _SIMNOW_OVERRIDE_FIELDS.items():
-            value = overrides.get(key)
-            if isinstance(value, str) and value.strip():
-                credential_names[sdk_field] = value.strip()
-    env_names = tuple(sorted(set(credential_names.values())))
-    env_values = _load_optional_credentials(Path(args.env_file), env_names)
-
-    def _credential(sdk_field: str, ctp_key: str) -> str:
-        env_name = credential_names[sdk_field]
-        return str(env_values.get(env_name) or ctp_block.get(ctp_key) or "")
-
-    broker_id = str(ctp_block.get("broker_id") or env_values.get(credential_names["broker_id"]) or "")
-    user_id = str(ctp_block.get("user_id") or env_values.get(credential_names["investor_id"]) or "")
-    password = _credential("password", "password")
-    app_id = _credential("app_id", "app_id")
-    auth_code = _credential("auth_code", "auth_code")
-    if not all((broker_id, user_id, password, app_id, auth_code)):
-        return _blocked("credentials_unavailable", credential_env_names=env_names)
-
-    # simnow_direct builds its CTP wrapper class at import time, so the dev SDK
-    # source trees must precede any installed copy.
-    _prepend_simnow_sdk_sources()
+        from bt_api_py.managed_runtime_composition import ManagedRuntimeComposition
+    except Exception:
+        return False, "MANAGED_RUNTIME_SDK_UNAVAILABLE"
+    if type(composition) is not ManagedRuntimeComposition:
+        return False, "MANAGED_RUNTIME_COMPOSITION_INVALID"
     try:
-        module = simnow_paper.load_simnow_direct()
-    except simnow_paper.SimNowPaperError as exc:
-        return _blocked(exc.reason, details=exc.details)
-    except Exception as exc:  # noqa: BLE001 - finite code only
-        return _blocked("simnow_direct_unavailable:" + type(exc).__name__)
-    front_env: dict[str, str] = {}
-    selector_pairs: list[dict] = []
-    for index, (td_front, md_front) in enumerate(pairs):
-        td_name = "ITER52_SIMNOW_TD_{}".format(index)
-        md_name = "ITER52_SIMNOW_MD_{}".format(index)
-        front_env[td_name] = td_front
-        front_env[md_name] = md_front
-        selector_pairs.append({"td_env": td_name, "md_env": md_name, "kind": "standard"})
-    try:
-        selection = module.select_front_pair(
-            selector_pairs,
-            front_env,
-            samples=3,
-            connect_timeout=3.0,
-        )
-    except Exception as exc:  # noqa: BLE001 - bounded reason only
-        reason = getattr(exc, "reason", None)
-        suffix = ":" + str(reason)[:80] if isinstance(reason, str) and reason else ""
-        return _blocked(
-            "front_selection_failed" + suffix,
-            front_selection_error=type(exc).__name__,
-        )
-    receipt = dict(selection.get("receipt") or {})
-    td_front = str(selection.get("td_front") or "")
-    md_front = str(selection.get("md_front") or "")
-    if not td_front or not md_front:
-        return _blocked("front_selection_failed:missing_selected_pair")
+        assert_owner_thread = composition.assert_owner_thread
+        close = composition.close
+    except Exception:
+        return False, "MANAGED_RUNTIME_COMPOSITION_INVALID"
+    from types import MethodType
 
-    strategy_path = HERE / "provider_demo_roundtrip_strategy.py"
-    try:
-        identity_sha = _simnow_strategy_identity(module, strategy_path, instrument, exchange)
-    except Exception as exc:  # noqa: BLE001
-        return _blocked("strategy_identity_unavailable:" + type(exc).__name__)
-
-    strategy_params = paper_common.strategy_params(params)
-    time_in_force = str(strategy_params.get("time_in_force") or "GFD").strip().upper()
-    if time_in_force not in {"GFD", "GOOD_FOR_DAY"}:
-        return _blocked("simnow_paper_gfd_required")
-    strategy_params["time_in_force"] = "GFD"
-    try:
-        max_orders = int(params.get("max_orders") or 2)
-    except (TypeError, ValueError):
-        return _blocked("simnow_paper_order_budget_invalid")
-    if max_orders < 1 or max_orders > 2:
-        return _blocked("simnow_paper_order_budget_invalid", max_orders=max_orders)
-
-    run_id = (
-        "i52-simnow-paper-"
-        + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        + "-"
-        + uuid.uuid4().hex[:8]
-    )
-    try:
-        simnow_plan = simnow_paper.build_simnow_plan(
-            instrument=instrument,
-            exchange=exchange,
-            md_front=md_front,
-            td_front=td_front,
-            broker_id=broker_id,
-            user_id=user_id,
-            password=password,
-            app_id=app_id,
-            auth_code=auth_code,
-            strategy_identity_sha256=identity_sha,
-            execution_cycle_id=run_id,
-            price_tick=float(params["tick_size"]),
-            volume_multiple=float(params["contract_value"]),
-            quantity_step=float(params["step_size"]),
-            min_quantity=float(params["min_quantity"]),
-            max_quantity=float(params["max_quantity"]),
-            quantity_unit=str(params.get("quantity_unit") or "contracts"),
-            allow_zero_login_response=bool(params.get("allow_zero_login_response", True)),
-            login_timeout=float(params.get("login_seconds") or 30.0),
-            query_timeout=float(params.get("query_seconds") or 8.0),
-            stop_timeout=float(params.get("stop_seconds") or 12.0),
-            credential_names=tuple(sorted(credential_names.items())),
-        )
-        profile = simnow_paper.build_simnow_profile(
-            simnow_plan,
-            provider_ref=plan.references.provider,
-            endpoint_ref=plan.references.endpoint,
-            account_ref=plan.references.account,
-            credential_ref=plan.references.credential,
-            scope_ref=plan.references.scope,
-        )
-    except simnow_paper.SimNowPaperError as exc:
-        return _blocked(exc.reason, details=exc.details)
-    except (KeyError, TypeError, ValueError) as exc:
-        return _blocked("simnow_paper_parameter_invalid:" + type(exc).__name__)
-    except Exception as exc:  # noqa: BLE001 - profile construction stays finite
-        return _blocked("simnow_paper_profile_invalid:" + type(exc).__name__)
-
-    from bt_api_runtime.direct_backtrader import (
-        DirectBacktraderSession,
-        DirectCredentials,
-        DirectSessionError,
-    )
-
-    try:
-        # Preflight (login + typed queries + front probes) runs before the
-        # session timer, so the one-shot approval needs headroom over the
-        # default two minutes while still being bounded.
-        grant_seconds = max(int(args.grant_seconds), 300)
-        grant = paper_common.build_grant(plan, profile, params, run_id, grant_seconds)
-        credentials = DirectCredentials(simnow_plan.credential_values())
-        session = DirectBacktraderSession(
-            plan=plan,
-            profile=profile,
-            run_id=run_id,
-            credentials=credentials,
-            strategy_id="iteration52-simnow-paper-roundtrip",
-            grant=grant,
-            store_factory=simnow_paper.make_store_factory(
-                simnow_plan, simnow_module=module
-            ),
-            broker_factory=simnow_paper.make_broker_factory(simnow_plan),
-            initialize_risk_baseline=False,
-        )
-    except DirectSessionError as exc:
-        return _blocked(exc.code, credential_env_names=env_names)
-    except (KeyError, TypeError, ValueError) as exc:
-        return _blocked("simnow_paper_grant_invalid:" + type(exc).__name__)
-    except Exception as exc:  # noqa: BLE001 - session construction stays finite
-        return _blocked("simnow_paper_session_build_failed:" + type(exc).__name__)
-
-    if args.preflight_only:
-        payload: dict
-        try:
-            readiness = session.preflight()
-            payload = {
-                "status": "COMPLETED",
-                "reason": "preflight_ok",
-                "entry_tier": tier_evidence,
-                "venue": venue,
-                "credential_env_names": list(env_names),
-                "front_selection": receipt,
-                "readiness": readiness,
-                "config_sha256": session.config_sha256(),
-            }
-        except simnow_paper.SimNowPaperError as exc:
-            payload = {
-                "status": "BLOCKED",
-                "reason": exc.reason,
-                "details": exc.details,
-                "entry_tier": tier_evidence,
-                "venue": venue,
-                "credential_env_names": list(env_names),
-                "front_selection": receipt,
-            }
-        except DirectSessionError as exc:
-            payload = {
-                "status": "BLOCKED",
-                "reason": exc.code,
-                "entry_tier": tier_evidence,
-                "venue": venue,
-                "credential_env_names": list(env_names),
-                "front_selection": receipt,
-            }
-        except Exception as exc:  # noqa: BLE001 - finite code only
-            payload = {
-                "status": "BLOCKED",
-                "reason": "preflight_failure:" + type(exc).__name__,
-                "entry_tier": tier_evidence,
-                "venue": venue,
-                "credential_env_names": list(env_names),
-                "front_selection": receipt,
-            }
-        finally:
-            try:
-                session.close()
-            except Exception:  # noqa: BLE001 - cleanup evidence is separate
-                pass
-        facts = _store_facts(session)
-        payload["simnow_paper"] = facts
-        stop = facts.get("stop") if isinstance(facts, dict) else None
-        if isinstance(stop, dict) and stop.get("action") in {"freeze", "frozen"}:
-            payload["status"] = "BLOCKED"
-            payload["reason"] = "preflight_cleanup_uncertain"
-        evidence = paper_common.write_evidence(payload)
-        payload["evidence_path"] = str(evidence.relative_to(REPO_ROOT))
-        print(json.dumps(paper_common.summarize(payload), sort_keys=True))
-        return 0 if payload["status"] == "COMPLETED" else 2
-
-    from provider_demo_roundtrip_strategy import ProviderDemoRoundTripStrategy
-
-    strategy_cls = simnow_paper.adapt_roundtrip_strategy(ProviderDemoRoundTripStrategy)
-    try:
-        report = session.run(
-            strategy_cls,
-            strategy_params=strategy_params,
-            seconds=args.session_seconds,
-            initialize_risk_baseline=False,
-        )
-    except DirectSessionError as exc:
-        return _blocked(exc.code, credential_env_names=env_names, front_selection=receipt)
-    except Exception as exc:  # noqa: BLE001 - finite code only
-        return _blocked(
-            "session_failure:" + type(exc).__name__,
-            credential_env_names=env_names,
-            front_selection=receipt,
-        )
-
-    facts = _store_facts(session)
-    phase = str((report.strategy_facts or {}).get("phase") or "")
-    stop = facts.get("stop") if isinstance(facts, dict) else None
-    stop_action = str((stop or {}).get("action") or "") if isinstance(stop, dict) else ""
-    if stop_action in {"freeze", "frozen"}:
-        status = "UNKNOWN"
-        reason = (
-            "simnow_paper_residual_exposure"
-            if (stop or {}).get("reason") == "simnow_paper_residual_exposure"
-            else "simnow_paper_stop_" + (stop or {}).get("reason", "frozen")
-        )
-    elif report.status == "COMPLETED" and phase in ("canceled", "closed", "closed_verified"):
-        status = "PASS"
-        reason = "round_trip_" + phase
-    elif report.status == "COMPLETED" and phase in (
-        "waiting",
-        "submitted",
-        "resting",
-        "partially_filled",
-        "filled",
-        "awaiting_close",
-        "flattening",
+    if (
+        type(assert_owner_thread) is not MethodType
+        or assert_owner_thread.__self__ is not composition
+        or assert_owner_thread.__func__ is not ManagedRuntimeComposition.assert_owner_thread
+        or type(close) is not MethodType
+        or close.__self__ is not composition
+        or close.__func__ is not ManagedRuntimeComposition.close
     ):
-        status = "UNKNOWN"
-        reason = "round_trip_incomplete"
-    elif report.status == "COMPLETED":
-        status = "FAILED"
-        reason = "round_trip_" + phase
-    else:
-        status = "BLOCKED"
-        reason = report.code
+        return False, "MANAGED_RUNTIME_COMPOSITION_INVALID"
+    try:
+        assert_owner_thread()
+    except Exception as exc:
+        return False, _safe_code(exc, "MANAGED_RUNTIME_OWNER_THREAD_UNVERIFIED")
+    try:
+        close()
+    except Exception as exc:
+        return False, _safe_code(exc, "MANAGED_RUNTIME_CLOSE_FAILED")
+    return True, None
 
-    payload = {
-        "status": status,
-        "reason": reason,
-        "entry_tier": tier_evidence,
-        "venue": venue,
-        "credential_env_names": list(env_names),
-        "front_selection": receipt,
-        "simnow_paper": facts,
-        "report": report.to_json(),
-    }
-    detail = str((payload["report"] or {}).get("failure_detail") or "")
-    for secret in (simnow_plan.password, simnow_plan.app_id, simnow_plan.auth_code):
-        if secret and secret in detail:
-            payload["report"]["failure_detail"] = "<redacted>"
-            payload["redaction_applied"] = True
-            break
+
+def _emit(payload: dict[str, Any]) -> int:
     evidence = paper_common.write_evidence(payload)
     payload["evidence_path"] = str(evidence.relative_to(REPO_ROOT))
     print(json.dumps(paper_common.summarize(payload), sort_keys=True))
-    return {"PASS": 0, "FAILED": 1, "BLOCKED": 2, "UNKNOWN": 3}[status]
+    return {
+        "PASS": 0,
+        "COMPLETED": 0,
+        "FAILED": 1,
+        "BLOCKED": 2,
+        "UNKNOWN": 3,
+    }.get(str(payload.get("status")), 2)
+
+
+def _base_payload(tier_evidence: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": "BLOCKED",
+        "reason": "SIMNOW_RUNTIME_UNAVAILABLE",
+        "entry_tier": tier_evidence,
+        "venue": "SIMNOW",
+    }
+
+
+def _public_configuration(configuration: Any) -> dict[str, Any]:
+    builder = getattr(configuration, "to_public_dict", None)
+    if not callable(builder):
+        raise simnow_paper.SimNowPaperError("PROVIDER_CONFIGURATION_RESULT_INVALID")
+    result = builder()
+    if type(result) is not dict:
+        raise simnow_paper.SimNowPaperError("PROVIDER_CONFIGURATION_RESULT_INVALID")
+    return result
+
+
+def _load_configuration(args: Any, params: dict[str, Any]) -> Any:
+    """Pass paths to the SDK; never open the private files in Backtrader."""
+
+    configured_names = params.get("credential_env_names", {})
+    if not isinstance(configured_names, dict):
+        configured_names = {}
+    return simnow_paper.load_configuration(
+        exchange_name=SIMNOW_ROUTE,
+        config_path=Path(args.private_config),
+        credential_env_file=Path(args.env_file),
+        credential_values={},
+        credential_names=configured_names,
+    )
+
+
+def _run_readonly_preflight(
+    *,
+    configuration: Any,
+    public_configuration: dict[str, Any],
+    runtime_binding: object,
+    tier_evidence: dict[str, Any],
+) -> int:
+    composition = None
+    runtime_session = None
+    payload = _base_payload(tier_evidence)
+    payload["provider_configuration"] = public_configuration
+    try:
+        composition = simnow_paper.compose_runtime(
+            configuration,
+            runtime_binding=runtime_binding,
+            access_mode="read_only",
+        )
+        from backtrader.service.managed_runtime_host import ManagedRuntimeCerebroSession
+
+        runtime_session = ManagedRuntimeCerebroSession(composition)
+        runtime_session.assert_owner_thread()
+        payload.update(
+            {
+                "status": "COMPLETED",
+                "reason": "readonly_preflight_complete",
+                "readiness": simnow_paper.collect_readonly_preflight(
+                    composition.api,
+                    configuration,
+                ),
+            }
+        )
+    except simnow_paper.SimNowPaperError as exc:
+        payload.update({"status": "BLOCKED", "reason": exc.code})
+    except Exception as exc:  # noqa: BLE001 - report a finite error only
+        payload.update(
+            {
+                "status": "BLOCKED",
+                "reason": _safe_code(exc, "SIMNOW_PREFLIGHT_FAILED"),
+            }
+        )
+    finally:
+        if composition is None:
+            payload["route_close_confirmed"] = None
+            payload["cleanup_status"] = "NOT_CREATED"
+            payload["cleanup_reason"] = "MANAGED_RUNTIME_COMPOSITION_NOT_CREATED"
+        elif runtime_session is None:
+            route_closed, cleanup_reason = _close_unclaimed_composition_once(composition)
+            payload["route_close_confirmed"] = route_closed
+            payload["cleanup_status"] = "CLOSED" if route_closed else "UNKNOWN"
+            payload["cleanup_reason"] = cleanup_reason
+            if not route_closed:
+                payload["status"] = "UNKNOWN"
+                payload.setdefault("reason", "MANAGED_RUNTIME_CLEANUP_UNCERTAIN")
+        else:
+            try:
+                close_report = runtime_session.close()
+                route_closed = close_report.composition_close_confirmed is True
+                payload["route_close_confirmed"] = route_closed
+                payload["cleanup_status"] = "CLOSED" if route_closed else "UNKNOWN"
+                payload["cleanup_reason"] = (
+                    None if route_closed else "MANAGED_RUNTIME_CLOSE_UNCERTAIN"
+                )
+                if not route_closed:
+                    payload["status"] = "UNKNOWN"
+                    payload.setdefault("reason", "MANAGED_RUNTIME_CLOSE_UNCERTAIN")
+            except Exception as exc:  # noqa: BLE001 - one-shot close, no retry
+                payload["status"] = "UNKNOWN"
+                payload["cleanup_status"] = "UNKNOWN"
+                payload["cleanup_reason"] = _safe_code(
+                    exc, "MANAGED_RUNTIME_CLOSE_FAILED"
+                )
+                payload["route_close_confirmed"] = False
+                payload.setdefault("reason", "MANAGED_RUNTIME_CLOSE_UNCERTAIN")
+    return _emit(payload)
+
+
+def _bounded_strategy_facts(strategy: Any) -> dict[str, Any]:
+    facts = getattr(strategy, "session_facts", None)
+    if not callable(facts):
+        return {}
+    try:
+        raw = facts()
+    except Exception:
+        return {"available": False}
+    if not isinstance(raw, dict):
+        return {"available": False}
+    result: dict[str, Any] = {
+        "available": True,
+        "phase": raw.get("phase") if type(raw.get("phase")) is str else None,
+        "cancel_requested": (
+            raw.get("cancel_requested")
+            if type(raw.get("cancel_requested")) is bool
+            else None
+        ),
+    }
+    for name in ("open_order", "close_order"):
+        order = raw.get(name)
+        status = order.get("status") if isinstance(order, dict) else None
+        result[name + "_status"] = status if type(status) is str else None
+    return result
+
+
+def _safe_shutdown_facts(broker: Any, store: Any) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    try:
+        state = broker.get_shutdown_state()
+    except Exception:
+        state = None
+    if isinstance(state, dict):
+        for key in ("status", "remote_flat_proven", "flat_proven"):
+            value = state.get(key)
+            if type(value) in (str, bool):
+                result["broker_" + key] = value
+    try:
+        health = store.get_command_health()
+    except Exception:
+        health = None
+    if isinstance(health, dict):
+        for key in ("shutdown_state", "close_thread_alive", "restart_blocked_by_close"):
+            value = health.get(key)
+            if type(value) in (str, bool):
+                result["store_" + key] = value
+    return result
+
+
+def _run_managed_bt_session(
+    *,
+    composition: Any,
+    configuration: Any,
+    public_configuration: dict[str, Any],
+    params: dict[str, Any],
+    args: Any,
+    plan: Any,
+    operator_grant: Any,
+    execution_authorization: object,
+    tier_evidence: dict[str, Any],
+) -> int:
+    """Run the shared BT strategy over the provider-neutral managed facade."""
+
+    payload = _base_payload(tier_evidence)
+    payload["provider_configuration"] = public_configuration
+    payload["strategy_started"] = False
+    report: dict[str, Any] = {}
+    store = broker = cerebro = None
+    timer = None
+    route_closed = False
+    runtime_session = None
+    session_run_attempted = False
+    try:
+        from backtrader.service.managed_runtime_host import ManagedRuntimeCerebroSession
+
+        runtime_session = ManagedRuntimeCerebroSession(composition)
+        runtime_session.assert_owner_thread()
+        readiness = simnow_paper.collect_readonly_preflight(
+            composition.api,
+            configuration,
+        )
+        payload["readiness"] = readiness
+        if readiness.get("flat_and_instrument_ready") is not True:
+            raise _ManagedSessionAbort(
+                "SIMNOW_READINESS_NOT_FLAT_OR_INSTRUMENT_UNVERIFIED"
+            )
+
+        instrument = configuration.instrument
+        route = configuration.exchange_name
+        if (
+            type(instrument.native_symbol) is not str
+            or not instrument.native_symbol
+            or route != SIMNOW_ROUTE
+            or instrument.environment != configuration.environment
+        ):
+            raise _ManagedSessionAbort("PROVIDER_CONFIGURATION_RESULT_INVALID")
+
+        import backtrader as bt
+        from backtrader.dataseries import TimeFrame
+        from backtrader.stores.btapistore import BtApiStore
+        from provider_demo_roundtrip_strategy import ProviderDemoRoundTripStrategy
+
+        symbol = instrument.native_symbol
+        store = BtApiStore(
+            api=composition.api,
+            execution_authorization=execution_authorization,
+            config={
+                "symbol_routes": {symbol: route},
+                "required_environments": {route: configuration.environment},
+                "supports_dual_side": True,
+                "position_mode": "dual_side",
+            },
+            contract_metadata={symbol: {"instrument_key": instrument}},
+        )
+        broker = store.getbroker(
+            position_mode="dual_side",
+            position_sync_policy="startup",
+            cancel_wait_remote=True,
+            cancel_confirmation_timeout=5.0,
+            shutdown_timeout=30.0,
+            flatten_on_stop=True,
+            approval_expires_at_utc=operator_grant.expires_at_utc,
+            approval_max_order_count=operator_grant.max_order_count,
+        )
+        cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+        cerebro.setbroker(broker)
+        data = store.getdata(
+            dataname=symbol,
+            timeframe=TimeFrame.Ticks,
+            orderbook_as_ticks=True,
+            backfill_start=False,
+            qcheck=0.05,
+        )
+        cerebro.adddata(data, name=symbol)
+        cerebro.addstrategy(
+            ProviderDemoRoundTripStrategy,
+            **paper_common.strategy_params(params),
+        )
+        timeout = getattr(args, "session_seconds", 60.0)
+        if (
+            isinstance(timeout, bool)
+            or type(timeout) not in (int, float)
+            or not 1.0 <= float(timeout) <= 300.0
+        ):
+            raise _ManagedSessionAbort("SESSION_TIMEOUT_INVALID")
+        timer = threading.Timer(float(timeout), cerebro.runstop)
+        timer.daemon = True
+        timer.start()
+        payload["strategy_started"] = True
+        try:
+            session_run_attempted = True
+            run_result = runtime_session.run(cerebro, runonce=False)
+        finally:
+            timer.cancel()
+            timer = None
+        strategy = run_result[0] if isinstance(run_result, (list, tuple)) and run_result else None
+        strategy_facts = _bounded_strategy_facts(strategy)
+        shutdown_facts = _safe_shutdown_facts(broker, store)
+        report = {
+            "strategy": strategy_facts,
+            "shutdown": shutdown_facts,
+        }
+        payload["report"] = report
+        phase = strategy_facts.get("phase")
+        shutdown_pass = (
+            shutdown_facts.get("broker_status") == "PASS"
+            and shutdown_facts.get("broker_remote_flat_proven") is True
+            and shutdown_facts.get("store_shutdown_state") == "PASS"
+            and shutdown_facts.get("store_close_thread_alive") is False
+        )
+        if phase in {"canceled", "closed_verified"} and shutdown_pass:
+            payload.update({"status": "PASS", "reason": "round_trip_" + phase})
+        elif shutdown_facts.get("broker_status") == "FAIL":
+            payload.update({"status": "UNKNOWN", "reason": "broker_shutdown_unproven"})
+        elif phase in {"waiting", "submitted", "resting", "partially_filled", "filled", "awaiting_close", "flattening"}:
+            payload.update({"status": "UNKNOWN", "reason": "round_trip_incomplete"})
+        else:
+            payload.update({"status": "BLOCKED", "reason": "round_trip_not_verified"})
+    except _ManagedSessionAbort as exc:
+        payload.update({"status": "BLOCKED", "reason": exc.code})
+    except Exception as exc:  # noqa: BLE001 - no native/provider text in evidence
+        payload.update(
+            {
+                "status": "BLOCKED",
+                "reason": _safe_code(exc, "MANAGED_BACKTRADER_SESSION_FAILED"),
+            }
+        )
+        if broker is not None and store is not None:
+            payload["report"] = {"shutdown": _safe_shutdown_facts(broker, store)}
+    finally:
+        if timer is not None:
+            timer.cancel()
+        if runtime_session is None:
+            route_closed, cleanup_reason = _close_unclaimed_composition_once(composition)
+            payload["route_close_confirmed"] = route_closed
+            payload["cleanup_status"] = "CLOSED" if route_closed else "UNKNOWN"
+            payload["cleanup_reason"] = cleanup_reason
+            if not route_closed:
+                payload["status"] = "UNKNOWN"
+                payload.setdefault("reason", "MANAGED_RUNTIME_CLEANUP_UNCERTAIN")
+        elif session_run_attempted:
+            # run() owns the one close attempt. Inspect only; never close twice.
+            try:
+                cleanup_report = runtime_session.cleanup_report
+                route_closed = cleanup_report.composition_close_confirmed is True
+                payload["route_close_confirmed"] = route_closed
+                payload["cleanup_status"] = "CLOSED" if route_closed else "UNKNOWN"
+                payload["cleanup_reason"] = (
+                    None if route_closed else "MANAGED_RUNTIME_CLEANUP_UNCERTAIN"
+                )
+            except Exception:
+                route_closed = False
+                payload["route_close_confirmed"] = False
+                payload["cleanup_status"] = "UNKNOWN"
+                payload["cleanup_reason"] = "MANAGED_RUNTIME_CLEANUP_REPORT_UNAVAILABLE"
+            if not route_closed:
+                payload["status"] = "UNKNOWN"
+                payload.setdefault("reason", "MANAGED_RUNTIME_CLEANUP_UNCERTAIN")
+        else:
+            # Setup/readiness failed before run() took lifecycle ownership.
+            try:
+                close_report = runtime_session.close()
+                route_closed = close_report.composition_close_confirmed is True
+                cleanup_reason = (
+                    None if route_closed else "MANAGED_RUNTIME_CLOSE_UNCERTAIN"
+                )
+            except Exception as exc:  # noqa: BLE001 - one-shot close, no retry
+                route_closed = False
+                cleanup_reason = _safe_code(exc, "MANAGED_RUNTIME_CLOSE_FAILED")
+            payload["route_close_confirmed"] = route_closed
+            payload["cleanup_status"] = "CLOSED" if route_closed else "UNKNOWN"
+            payload["cleanup_reason"] = cleanup_reason
+            if not route_closed:
+                payload["status"] = "UNKNOWN"
+                payload.setdefault("reason", "MANAGED_RUNTIME_CLOSE_UNCERTAIN")
+    return _emit(payload)
+
+
+def run_simnow(
+    plan: Any,
+    params: dict[str, Any],
+    args: Any,
+    tier_evidence: dict[str, Any],
+    *,
+    runtime_binding: object | None = None,
+    authorization_source: object | None = None,
+    operator_grant: object | None = None,
+    execution_authorization: object | None = None,
+) -> int:
+    """Run a read-only preflight or compose an explicitly authorized route.
+
+    Runtime and write-capability parameters are supplied only by a trusted
+    host.  This CLI has no implicit host resolver, credential accessor or
+    operator-grant issuer.  A managed runtime can be composed after all exact
+    inputs are present. Provider market-clock and execution capabilities can
+    independently remain unavailable after composition.
+    """
+
+    payload = _base_payload(tier_evidence)
+    if sys.version_info[:2] != (3, 11):
+        payload.update(
+            {
+                "reason": "LIVE_TIER_REQUIRES_PYTHON_3_11",
+                "current_python": "{}.{}".format(*sys.version_info[:2]),
+            }
+        )
+        return _emit(payload)
+    if getattr(args, "order_journal", None):
+        payload["reason"] = "ORDER_JOURNAL_UNSUPPORTED_FOR_SIMNOW"
+        return _emit(payload)
+    if runtime_binding is None:
+        payload["reason"] = "MANAGED_RUNTIME_BINDING_UNAVAILABLE"
+        return _emit(payload)
+
+    if not bool(getattr(args, "preflight_only", False)):
+        if not bool(getattr(args, "allow_write", False)):
+            payload["reason"] = "WRITE_NOT_AUTHORIZED"
+            return _emit(payload)
+        if operator_grant is None:
+            payload["reason"] = "OPERATOR_WRITE_GRANT_UNAVAILABLE"
+            return _emit(payload)
+        if authorization_source is None:
+            payload["reason"] = "SDK_AUTHORIZATION_SOURCE_UNAVAILABLE"
+            return _emit(payload)
+        if execution_authorization is None:
+            payload["reason"] = "SDK_EXECUTION_AUTHORIZATION_UNAVAILABLE"
+            return _emit(payload)
+
+    try:
+        configuration = _load_configuration(args, params)
+        public_configuration = _public_configuration(configuration)
+    except simnow_paper.SimNowPaperError as exc:
+        payload["reason"] = exc.code
+        return _emit(payload)
+    except Exception as exc:  # noqa: BLE001 - no provider/file values in output
+        payload["reason"] = _safe_code(exc, "PROVIDER_CONFIGURATION_UNAVAILABLE")
+        return _emit(payload)
+
+    if getattr(args, "preflight_only", False):
+        return _run_readonly_preflight(
+            configuration=configuration,
+            public_configuration=public_configuration,
+            runtime_binding=runtime_binding,
+            tier_evidence=tier_evidence,
+        )
+
+    try:
+        from bt_api_py.facade_protocol import OperatorWriteGrant
+
+        if type(operator_grant) is not OperatorWriteGrant:
+            payload["reason"] = "OPERATOR_WRITE_GRANT_INVALID"
+            payload["provider_configuration"] = public_configuration
+            return _emit(payload)
+        composition = simnow_paper.compose_runtime(
+            configuration,
+            runtime_binding=runtime_binding,
+            access_mode="managed_execution",
+            authorization_source=authorization_source,
+            operator_grant=operator_grant,
+        )
+    except simnow_paper.SimNowPaperError as exc:
+        payload["reason"] = exc.code
+        payload["provider_configuration"] = public_configuration
+        return _emit(payload)
+    except Exception as exc:  # noqa: BLE001 - no provider details in output
+        payload["reason"] = _safe_code(exc, "MANAGED_RUNTIME_COMPOSITION_UNAVAILABLE")
+        payload["provider_configuration"] = public_configuration
+        return _emit(payload)
+
+    return _run_managed_bt_session(
+        composition=composition,
+        configuration=configuration,
+        public_configuration=public_configuration,
+        params=params,
+        args=args,
+        plan=plan,
+        operator_grant=operator_grant,
+        execution_authorization=execution_authorization,
+        tier_evidence=tier_evidence,
+    )
+
+
+__all__ = ["run_simnow"]

@@ -133,14 +133,14 @@ idle 50ms。默认 `runtime_provider: unavailable`，所以普通 replay 仍明�
 | L4 | 经济 screen | 随 L2 阻塞 |
 
 L2 的原因是结构性的：`bt_api_ctp` 的 managed receipt 刻意不签发执行资格
-（`execution_qualified=False`），而 `CtpQuoteCohortValidator` 要求
+（`execution_qualified=False`），而 `MarketQuoteCohortValidator` 要求
 `execution_eligible is True` 且 `quality_flags` 为空。因此在本机 CTP 链路上**无法**得到
 合格 cohort 或经济 screen；`BLOCKED` 不等于 `NOT_RUN`，解除条件是上游提供可签发的原生
 资格证据链（属 SDK 仓库工作项）。replay 路径的资格字段是示例自己写死的，只能作为公式
 证据。迭代 25 的 G3 在此期间保持 `INCOMPLETE`，且不得以阻塞为理由放宽门限。
 
 运行前需要安装包含公开 cohort API 的当前 `backtrader` 包：
-`backtrader.feeds.CtpQuoteCohortValidator` 和 `CtpCohortNow`。在源码检出中可执行：
+`backtrader.feeds.MarketQuoteCohortValidator` 和 `MarketCohortNow`。在源码检出中可执行：
 
 ```bash
 cd examples/unified/015_ctp_options_highfreq

@@ -1,7 +1,7 @@
 """Run the CPython 3.8 core compatibility and retired-runtime contract.
 
-This harness covers current Backtrader core behavior and the Store-owned CTP
-managed-order contract, and checks that the retired runtime package and
+This harness covers selected Backtrader core behavior and the Store base
+export, and checks that the retired runtime package and
 ``backtrader.runtime`` facade stay out of the active source tree.  The release
 wheel job separately verifies the built artifact.  This harness does not
 install or import optional managed-execution SDKs or contact a provider or
@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 CORE_COMPATIBILITY_TEST_TARGETS = (
     "tests/unit/core/test_errors.py",
-    "tests/unit/stores/test_ctp_managed_order_contract.py",
+    "tests/unit/core/test_store.py",
     "tests/unit/scripts/test_run_iteration41_cpython38_core_runtime.py",
 )
 
@@ -40,6 +40,7 @@ _MANAGED_SDK_EXCLUSIONS = (
     "bt_api_py and bt_api_execution declare Python >=3.11",
     "bt_api_base, bt_api_risk, and bt_api_monitor declare Python >=3.9",
     "no provider, account, gateway, or managed-execution SDK path is covered",
+    "the retired Store-owned CTP managed-order contract is not covered",
 )
 
 
