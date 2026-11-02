@@ -11,6 +11,7 @@
 #   -k EXPR   Only run tests matching expression
 #   -v        Verbose output
 #   -h        Show this help
+# Output is appended to test_results.log in the repository root.
 # =============================================================================
 
 set -o pipefail
@@ -56,24 +57,34 @@ if [ "$TEST_PATH_SPECIFIED" -eq 0 ]; then
     IGNORE_ARGS=(--ignore=tests/functional/strategies_regression)
 fi
 
-# Print header
+# Create temp file for this run's statistics and append to the persistent log.
+LOG_FILE="$REPO_ROOT/test_results.log"
+if ! : >> "$LOG_FILE"; then
+    echo "Cannot write test log: $LOG_FILE" >&2
+    exit 1
+fi
+TEMP_OUTPUT=$(mktemp) || exit 1
+trap 'rm -f -- "$TEMP_OUTPUT"' EXIT
+
+# Print and log the run header.
+{
+echo ""
 echo -e "${BLUE}============================================================${NC}"
 echo -e "${CYAN}Backtrader Test Runner${NC}"
 echo -e "${BLUE}============================================================${NC}"
+echo "Run started:  $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo -e "Test Path:    ${YELLOW}$TEST_PATH${NC}"
 echo -e "Workers:      ${YELLOW}$WORKERS${NC}"
 echo -e "Timeout:      ${YELLOW}${TIMEOUT}s${NC} per test"
 echo -e "Filter:       ${YELLOW}${FILTER:-none}${NC}"
+echo "Log file:     $LOG_FILE (append)"
 echo -e "${BLUE}============================================================${NC}"
-
-# Create temp file to capture output
-TEMP_OUTPUT=$(mktemp)
-trap "rm -f $TEMP_OUTPUT" EXIT
+} | tee -a "$LOG_FILE"
 
 # Execute tests
 START_TIME=$(date +%s)
 
-python -m pytest "$TEST_PATH" \
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest "$TEST_PATH" \
     -n "$WORKERS" \
     --timeout="$TIMEOUT" \
     --timeout-method=thread \
@@ -84,7 +95,7 @@ python -m pytest "$TEST_PATH" \
     -q \
     "${IGNORE_ARGS[@]}" \
     $VERBOSE \
-    $FILTER 2>&1 | tee "$TEMP_OUTPUT"
+    $FILTER 2>&1 | tee -a "$LOG_FILE" "$TEMP_OUTPUT"
 
 EXIT_CODE=${PIPESTATUS[0]}
 END_TIME=$(date +%s)
@@ -98,7 +109,8 @@ FAILED_TESTS=${FAILED_TESTS:-0}
 TIMEOUT_TESTS=${TIMEOUT_TESTS:-0}
 PASSED_TESTS=${PASSED_TESTS:-0}
 
-# Print summary
+# Print and log the summary.
+{
 echo ""
 echo -e "${BLUE}============================================================${NC}"
 echo -e "${CYAN}Test Summary${NC}"
@@ -142,4 +154,6 @@ if [ "$TIMEOUT_TESTS" -gt 0 ]; then
 fi
 
 echo -e "${BLUE}============================================================${NC}"
+echo "Run finished: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+} | tee -a "$LOG_FILE"
 exit $EXIT_CODE
