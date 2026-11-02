@@ -2633,31 +2633,15 @@ class Strategy(StrategyBase):
         event_context = projection.get("event_context")
         if not all(isinstance(value, Mapping) for value in (fill, intent_context, event_context)):
             raise ValueError("managed paper fill projection is incomplete")
-        expected_fill_fields = {
-            "schema",
-            "time_source",
-            "fill_id",
-            "match_time_ns",
-            "quantity",
-            "price",
-            "commission",
-            "commission_currency",
-            "commission_model_id",
-            "commission_model_version",
-            "event_id",
-            "event_sequence",
-            "journal_generation",
-            "scope_key",
-            "intent_id",
-            "intent_fingerprint",
-            "account_ref",
-            "strategy_ref",
-            "quote_source_ref",
-            "quote_generation",
-            "quote_cursor",
-            "quote_instrument",
-            "receipt_sha256",
-        }
+        # Single owner of the wire shape: bt_api_base.paper_fill_protocol
+        # (iteration 60). This path is only reached with the SDK installed;
+        # without it the projection cannot be validated and is refused.
+        try:
+            from bt_api_base.paper_fill_protocol import (
+                MANAGED_PAPER_FILL_V2_FIELDS as expected_fill_fields,
+            )
+        except ImportError:
+            raise ValueError("managed paper fill contract is unavailable") from None
         if (
             frozenset(fill) != expected_fill_fields
             or fill.get("schema") != "managed_paper_fill.v2"
@@ -4275,6 +4259,17 @@ class Strategy(StrategyBase):
             A property ``position`` is also available as a shortcut.
         """
         data = data if data is not None else self.datas[0]
+        # Iteration 60 (60.07): a strategy bound to its own account book on a
+        # shared account reads its own position, never the account total.
+        # close(), order_target_*() and the ``position`` property follow.
+        account_book = self.__dict__.get("account_book")
+        if account_book is not None and (broker is None or broker is self.broker):
+            if side is not None or kwargs:
+                raise ValueError(
+                    "strategy account books hold net positions; "
+                    "per-side position reads are not supported"
+                )
+            return account_book.getposition(data)
         broker = broker or self.broker
         return broker.getposition(data, side=side, **kwargs)
 

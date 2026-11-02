@@ -353,3 +353,60 @@ def test_broker_refuses_direct_books_under_a_service_session(account):
     broker._service_execution_session = object()
     with pytest.raises(ValueError, match="service session"):
         broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
+
+
+# ---------------------------------------------------------------------------
+# Strategy-scoped position APIs (breaking change, iteration 60.07)
+# ---------------------------------------------------------------------------
+
+
+def _bound_pair(account):
+    broker = BtApiBroker(store=None)
+    strategy_a, strategy_b = _strategies(broker, ("strategy-a", _ACCOUNT), ("strategy-b", _ACCOUNT))
+    broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
+    broker.bind_direct_strategy_account_book(strategy_b, account.reader("b"))
+    return broker, strategy_a, strategy_b
+
+
+def test_getposition_and_position_are_strategy_scoped(account):
+    _broker, strategy_a, strategy_b = _bound_pair(account)
+    data = _Data()
+    assert strategy_a.getposition(data).size == 2.0
+    assert strategy_b.getposition(data).size == 3.0
+    assert strategy_a.getposition(data, strategy_a.broker).size == 2.0
+
+
+def test_close_sells_only_the_strategy_owned_position(account):
+    _broker, strategy_a, _strategy_b = _bound_pair(account)
+    calls = []
+    strategy_a.__dict__["sell"] = lambda **kwargs: calls.append(kwargs) or "order"
+    assert strategy_a.close(data=_Data()) == "order"
+    # The account holds 5; strategy A closes exactly its own 2.
+    assert calls[0]["size"] == 2.0
+
+
+def test_per_side_reads_are_refused_instead_of_falling_back(account):
+    _broker, strategy_a, _strategy_b = _bound_pair(account)
+    with pytest.raises(ValueError, match="per-side"):
+        strategy_a.getposition(_Data(), side="long")
+
+
+def test_explicit_other_broker_keeps_account_level_semantics(account):
+    _broker, strategy_a, _strategy_b = _bound_pair(account)
+
+    class _OtherBroker:
+        def getposition(self, data, side=None, **kwargs):
+            return SimpleNamespace(size=5.0)
+
+    assert strategy_a.getposition(_Data(), _OtherBroker()).size == 5.0
+
+
+def test_unbound_strategy_keeps_broker_positions(account):
+    broker = BtApiBroker(store=None)
+    (strategy,) = _strategies(broker, ("strategy-a", _ACCOUNT))
+    calls = []
+    broker.getposition = lambda data, side=None, **kwargs: calls.append(data) or SimpleNamespace(
+        size=7.0
+    )
+    assert strategy.getposition(_Data()).size == 7.0
+    assert calls
