@@ -56,7 +56,7 @@ from .lineseries import Lines, LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
 from .parameters import make_legacy_parameter_accessor
-from .position_modes import (
+from .position import (
     POSITION_MODE_DUAL_SIDE,
     POSITION_OFFSET_CLOSE,
     POSITION_SIDE_LONG,

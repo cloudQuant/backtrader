@@ -17,8 +17,8 @@ from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
-from ..position import Position
-from ..position_modes import (
+from ..position import (
+    Position,
     POSITION_MODE_DUAL_SIDE,
     infer_position_side,
     normalize_order_position_meta,

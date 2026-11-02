@@ -65,7 +65,6 @@ RUNTIME_SOURCE_MODULES = (
     ("backtrader.broker_base", "backtrader.broker", "backtrader"),
     ("backtrader.feed_base", "backtrader.feed", "backtrader"),
     ("backtrader.position", "backtrader.position", "backtrader"),
-    ("backtrader.position_modes", "backtrader.position_modes", "backtrader"),
     ("backtrader.events", "backtrader.events", "backtrader"),
     ("backtrader.store", "backtrader.stores.btapistore", "backtrader"),
     ("backtrader.live_store", "backtrader.stores.livestore", "backtrader"),

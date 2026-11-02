@@ -95,8 +95,8 @@ backtrader 的「线」(line) 是带最小周期(minperiod)与时钟(clock)语�
 
 - `broker.py` + `brokers/`：`BackBroker`（回测撮合）、`TickBroker`（tick 级撮合
   状态机，`brokers/hft/` 提供延迟/队列/撮合模型）、实盘 broker（btapi/CTP 等）。
-- `order.py` / `trade.py` / `position.py`：订单、成交、持仓数据结构。
-- `position_modes.py`：net 与 dual_side（双向持仓）的归一化与校验。
+- `order.py` / `trade.py` / `position.py`：订单、成交、持仓数据结构；
+  `position.py` 同时负责 net 与 dual_side（双向持仓）的归一化与校验。
 - `comminfo.py` + `commissions/`：手续费/保证金/杠杆模型。
 
 ---

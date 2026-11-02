@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Smoke tests for backtrader.position_modes.
+"""Smoke tests for position-mode helpers in backtrader.position.
 
 Covers the net/dual-side normalization and validation helpers used by the
 brokers: mode/side/offset normalization, dual-side action validation, order
@@ -8,7 +8,7 @@ metadata normalization, side inference, trade keys and signed sizes.
 
 import pytest
 
-from backtrader import position_modes as pm
+import backtrader.position as pm
 
 
 def test_normalize_position_mode():

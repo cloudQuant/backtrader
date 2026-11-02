@@ -22,8 +22,8 @@ from backtrader.broker import BrokerBase
 # from backtrader.comminfo import CommInfoBase
 from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.parameters import Float, ParameterDescriptor
-from backtrader.position import Position
-from backtrader.position_modes import (
+from backtrader.position import (
+    Position,
     POSITION_MODE_DUAL_SIDE,
     POSITION_SIDE_LONG,
     POSITION_SIDE_SHORT,
