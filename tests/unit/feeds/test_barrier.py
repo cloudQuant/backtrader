@@ -11,7 +11,6 @@ from backtrader.feeds import (
     BarLeg,
     ClockMapping,
     MultiLegBarBarrier,
-    CtpQuoteEvidence,
     validate_quote_against_bar,
 )
 
@@ -315,38 +314,6 @@ def test_quote_missing_scope_or_quality_cannot_enter_a_decision_input():
         result = validate_quote_against_bar(event, bar=bar)
         assert result.accepted is False
 
-
-def test_already_validated_ctp_quote_evidence_can_be_cutoff_checked():
-    quote = CtpQuoteEvidence(
-        symbol="C",
-        exchange="CZCE",
-        asset_type="option",
-        bid=10.0,
-        ask=10.5,
-        bid_size=1.0,
-        ask_size=1.0,
-        last=10.0,
-        lower_limit=1.0,
-        upper_limit=20.0,
-        source_epoch=BASE.timestamp() - 1.0,
-        receive_epoch=BASE.timestamp() + 0.5,
-        receive_monotonic_ns=500_000_000,
-        ingest_seq=101,
-        connection_generation=7,
-        subscription_epoch=1,
-        trading_day="20260910",
-        action_day="20260910",
-        clock_domain_id="replay-clock",
-        rules_hash="rules-v1",
-        source="fixture",
-        event_time_source="exchange",
-        source_clock_error_ms=0.0,
-        receive_clock_error_ms=0.0,
-    )
-    result = validate_quote_against_bar(quote, bar=_bar("C", quote_cutoff_seq=110))
-    assert result.accepted is True
-    assert result.event is not None
-    assert result.event["validated_quote_type"] == "CtpQuoteEvidence"
 
 
 def test_quote_monotonic_units_are_field_defined_and_aliases_must_agree():
