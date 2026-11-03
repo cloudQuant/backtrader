@@ -16,6 +16,7 @@ from typing import Any, DefaultDict, Dict, List, Optional
 from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
+from ._btapi_owner_fence import AccountOwnerFenceBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
 from ..position import (
@@ -60,7 +61,11 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 
 
 class BtApiBroker(
-    StrategyLedgerBrokerMixin, ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerBase
+    AccountOwnerFenceBrokerMixin,
+    StrategyLedgerBrokerMixin,
+    ServiceRecoveryBrokerMixin,
+    BrokerReconciliationMixin,
+    BrokerBase,
 ):
     """Broker implementation that routes live orders through BtApiStore."""
 
@@ -2087,6 +2092,13 @@ class BtApiBroker(
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
             correlation = self._prepare_order_correlation(order)
             self._order_correlations[order.ref] = correlation
+            # Iteration 60 (P0-1): the owner fence is the last check before
+            # the provider write.
+            fence_error = self._account_owner_fence_error()
+            if fence_error is not None:
+                self._order_correlations.pop(order.ref, None)
+                code, message = fence_error
+                return self._reject_order(order, code, message)
             response = self.store.submit_order(order)
             queued_receipt = bool(
                 isinstance(response, Mapping)
@@ -2284,6 +2296,12 @@ class BtApiBroker(
                 cancel_reconcile_confirmed_live=False,
                 cancel_retry_due_monotonic_ns=None,
             )
+        fence_error = self._account_owner_fence_error()
+        if fence_error is not None:
+            code, _message = fence_error
+            order.addinfo(cancel_error_code=code, cancel_requested_remote=False)
+            self.notify(order)
+            return order
         self._consume_approval_operation(
             order,
             risk_reducing=True,

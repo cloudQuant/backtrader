@@ -325,3 +325,70 @@ def test_strategy_book_sizer_sells_only_the_strategy_position(stack):
     assert sizer.getsizing(stack.data, False) == 2
     with pytest.raises(ServiceStrategyAccountBookError):  # strategy cash is unavailable
         sizer.getsizing(stack.data, True)
+
+
+# -- account-owner dispatch fence (acceptance report P0-1) ---------------------------
+
+
+def _handoff(path):
+    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
+
+    return AccountOwnerHandoff(
+        path, ACCOUNT, initial_owner="direct-old", proof_verifier=lambda proof, old: True
+    )
+
+
+def test_owner_fence_blocks_every_write_during_and_after_a_handoff(tmp_path):
+    from bt_api_py.account_owner_handoff import OwnerRevocationProof
+
+    path = tmp_path / "owner.sqlite3"
+    data = _data()
+    old_store, new_store = _Store(), _Store()
+    old_broker, new_broker = BtApiBroker(store=old_store), BtApiBroker(store=new_store)
+    old_handoff, new_handoff = _handoff(path), _handoff(path)
+    try:
+        assert old_broker.bind_account_owner(old_handoff, "direct-old") == 1
+        with pytest.raises(ValueError, match="not the current account owner"):
+            new_broker.bind_account_owner(new_handoff, "gateway-new")
+        (a_old,) = _strategies(old_broker, data, "strategy-a")
+        live = a_old.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert live.status == live.Accepted and old_store.sent == [live.ref]
+
+        new_handoff.begin(from_owner="direct-old", to_owner="gateway-new")
+        blocked = a_old.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(blocked) == "account_owner_fenced"
+        old_broker.cancel(live)
+        assert live.info.get("cancel_error_code") == "account_owner_fenced"
+        assert old_store.sent == [live.ref]  # nothing else reached the provider
+
+        new_handoff.fence(
+            to_owner="gateway-new",
+            proof=OwnerRevocationProof(ACCOUNT, 1, "PROVIDER_SESSION_REVOKED", "logout-1"),
+        )
+        new_handoff.restore(to_owner="gateway-new", ledger_cut="cut-1")
+        new_handoff.sync(to_owner="gateway-new", provider_snapshot_ref="snap-1")
+        new_handoff.reconcile(to_owner="gateway-new", reconciliation_state="BALANCED")
+        assert new_handoff.ready(to_owner="gateway-new") == ("gateway-new", 2)
+
+        assert new_broker.bind_account_owner(new_handoff, "gateway-new") == 2
+        (a_new,) = _strategies(new_broker, data, "strategy-a")
+        moved = a_new.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert moved.status == moved.Accepted and new_store.sent == [moved.ref]
+        stale = a_old.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(stale) == "account_owner_fenced"
+        assert old_store.sent == [live.ref]
+    finally:
+        old_handoff.close()
+        new_handoff.close()
+
+
+def test_unreadable_owner_fence_blocks_dispatch(tmp_path):
+    data = _data()
+    store = _Store()
+    broker = BtApiBroker(store=store)
+    handoff = _handoff(tmp_path / "owner.sqlite3")
+    broker.bind_account_owner(handoff, "direct-old")
+    handoff.close()  # the fence can no longer be read
+    (a,) = _strategies(broker, data, "strategy-a")
+    order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+    assert _code(order) == "account_owner_fenced" and store.sent == []
