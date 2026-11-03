@@ -18,6 +18,7 @@ import math
 
 from ..analyzer import Analyzer
 from ..mathsupport import is_finite_real
+from ._strategy_scope import clear_result_gap, notified_cash, notified_value, record_result_gap, scoped_missing_input
 
 
 # Ratio of used capital
@@ -81,11 +82,13 @@ class GrossLeverage(Analyzer):
             fundvalue: Current fund value.
             shares: Number of fund shares.
         """
-        self._cash = cash
+        scoped_cash = notified_cash(self.strategy, cash, consumer=self)
         if not self._fundmode:
-            self._value = value
+            scoped_value = notified_value(self.strategy, value, fundvalue, consumer=self)
         else:
-            self._value = fundvalue
+            scoped_value = notified_value(self.strategy, value, fundvalue, fund=True, consumer=self)
+        self._cash = scoped_cash
+        self._value = scoped_value
 
     # Run once per bar, get ratio of used capital
     def next(self):
@@ -96,6 +99,11 @@ class GrossLeverage(Analyzer):
         """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
+        if scoped_missing_input(getattr(self, "strategy", None), self._value, self._cash):
+            record_result_gap(self)
+            self.rets[self.data0.datetime.datetime()] = float("nan")
+            return
+        clear_result_gap(self)
         try:
             if is_finite_real(self._value) and self._value != 0.0 and is_finite_real(self._cash):
                 lev = (self._value - self._cash) / self._value

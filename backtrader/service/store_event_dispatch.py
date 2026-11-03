@@ -42,10 +42,17 @@ def drain_store_sdk_events_locked(store, *, error_type, missing_dependency_error
             elif kind == "account":
                 store._apply_sdk_account_push(venue, event)
             elif kind == "position":
-                # Position pushes are audit-only: startup-policy brokers
-                # own local leg accounting from confirmed fills.
+                # Position pushes never change local leg accounting (that
+                # follows confirmed fills); a subscribed account keeps them as
+                # reconciliation evidence for the strategy ledger.
+                subscription = getattr(store, "_account_position_subscription", None)
+                if subscription is not None:
+                    subscription.on_position_event(event)
                 store.emit_runtime_event("venue_position_update", venue=venue)
             elif kind in {"disconnect", "disconnected"}:
+                subscription = getattr(store, "_account_position_subscription", None)
+                if subscription is not None:
+                    subscription.on_disconnect(event)
                 store._mark_stream_disconnected(venue, event)
             elif kind == "tick":
                 if type(symbol) is str and symbol:
@@ -76,6 +83,12 @@ def drain_store_sdk_events_locked(store, *, error_type, missing_dependency_error
                 if event is None:
                     continue
                 if kind == "bar":
+                    if event.get("bar_final") is False:
+                        # D60-15: a provider bar the provider itself marks as
+                        # still forming is never published; only its final
+                        # version may become a Backtrader bar.
+                        store._market_delivery_state.increment(str(symbol), "unfinished_provider_bar")
+                        continue
                     store._accept_sdk_market_event(event, event)
                     store._enqueue_live_bar(str(symbol), store._copy_or_normalize_bar(event))
                 else:

@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import itertools
 import threading
+from pathlib import Path
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -27,6 +28,8 @@ from backtrader.service.service_strategy_account_book import (  # noqa: E402
     ServiceStrategyAccountBookError,
 )
 from bt_api_py.strategy_ledger import (  # noqa: E402
+    AccountPositionReport,
+    InstrumentTerms,
     LedgerIntent,
     SqliteStrategyLedger,
     StrategyBudget,
@@ -34,6 +37,30 @@ from bt_api_py.strategy_ledger import (  # noqa: E402
 
 INSTRUMENT = "PAPER:SIM:SA2701"
 ACCOUNT = "account-direct"
+TERMS = {INSTRUMENT: InstrumentTerms(Decimal("10"), "CNY", "futures")}
+
+
+def _ledger(path, **kwargs):
+    kwargs.setdefault("require_budget", False)
+    return SqliteStrategyLedger(path, account_ref=ACCOUNT, instruments=TERMS, **kwargs)
+
+
+def _report(positions, *, complete=True):
+    import time
+
+    return AccountPositionReport(ACCOUNT, "provider:fake", time.time_ns(), complete, positions)
+
+
+def _owner(broker, path):
+    """Bind ``broker`` as the current account owner (required on a shared account)."""
+
+    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
+
+    handoff = AccountOwnerHandoff(
+        path, ACCOUNT, initial_owner="direct", proof_verifier=lambda proof, old: True
+    )
+    broker.bind_account_owner(handoff, "direct")
+    return handoff
 
 
 class _Store:
@@ -138,21 +165,21 @@ def _fill(broker, order, size, price=1500.0):
 
 @pytest.fixture
 def stack(tmp_path):
-    ledger = SqliteStrategyLedger(
-        tmp_path / "ledger.sqlite3", account_ref=ACCOUNT, contract_multipliers={INSTRUMENT: 10}
-    )
+    ledger = _ledger(tmp_path / "ledger.sqlite3")
     _seed(ledger, "seed-a", "strategy-a", "2")
     _seed(ledger, "seed-b", "strategy-b", "3")
     store = _Store()
     broker = BtApiBroker(store=store)
+    handoff = _owner(broker, tmp_path / "owner.sqlite3")
     data = _data()
     a, b = _strategies(broker, data, "strategy-a", "strategy-b")
-    broker.bind_direct_strategy_ledger(a, ledger)
-    broker.bind_direct_strategy_ledger(b, ledger)
+    broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
+    broker.bind_direct_strategy_ledger(b, ledger, unreconciled=True)
     try:
         yield SimpleNamespace(ledger=ledger, store=store, broker=broker, data=data, a=a, b=b,
-                              path=tmp_path / "ledger.sqlite3")
+                              path=tmp_path / "ledger.sqlite3", owner_path=tmp_path / "owner.sqlite3")
     finally:
+        handoff.close()
         ledger.close()
 
 
@@ -173,10 +200,206 @@ def test_each_strategy_reads_its_own_position(stack):
 def test_reader_with_provider_positions_fails_closed_on_residual(stack, tmp_path):
     other = BtApiBroker(store=_Store())
     (c,) = _strategies(other, stack.data, "strategy-a")
-    view = other.bind_direct_strategy_ledger(c, stack.ledger, account_positions=lambda: {INSTRUMENT: 6})
+    view = other.bind_direct_strategy_ledger(
+        c, stack.ledger, account_positions=lambda: _report({INSTRUMENT: 6})
+    )
     with pytest.raises(ServiceStrategyAccountBookError) as info:
         view.getposition(stack.data)
     assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_RESIDUAL"
+
+
+def test_binding_needs_a_reconciliation_source_or_an_explicit_opt_out(stack):
+    other = BtApiBroker(store=_Store())  # not an SDK-mode Store
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    with pytest.raises(ValueError, match="needs account positions"):
+        other.bind_direct_strategy_ledger(c, stack.ledger)
+    with pytest.raises(ValueError, match="cannot be combined"):
+        other.bind_direct_strategy_ledger(
+            c, stack.ledger, account_positions=lambda: _report({}), unreconciled=True
+        )
+
+
+class _SubscribingStore(_Store):
+    """SDK-mode Store with the real subscription wiring and a counted REST read."""
+
+    _sdk_mode = True
+    provider = "sim"
+    _account_position_subscription = None
+
+    def __init__(self, quantity="5"):
+        super().__init__()
+        self.quantity = quantity
+        self.reads = 0
+
+    from backtrader.stores.btapistore import BtApiStore as _Real
+
+    subscribe_account_positions = _Real.subscribe_account_positions
+    del _Real
+
+    def get_positions(self):
+        self.reads += 1
+        return [
+            {
+                "data_name": INSTRUMENT,
+                "side": "net",
+                "quantity": self.quantity,
+                "observed_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            }
+        ]
+
+
+def test_default_direct_subscription_is_unverified_without_a_stream_watermark(stack):
+    store = _SubscribingStore()
+    other = BtApiBroker(store=store)
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    view = other.bind_direct_strategy_ledger(c, stack.ledger)
+    assert store._account_position_subscription is not None and store.reads == 1  # baseline
+    for _ in range(5):
+        with pytest.raises(ServiceStrategyAccountBookError) as info:
+            view.getposition(stack.data)
+        assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED"
+    assert store.reads == 1  # reads never query the provider
+
+
+def test_position_pushes_and_disconnects_move_the_evidence(stack):
+    store = _SubscribingStore()
+    other = BtApiBroker(store=store)
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    view = other.bind_direct_strategy_ledger(c, stack.ledger)
+    subscription = store._account_position_subscription
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
+    subscription.on_position_event(
+        {"symbol": INSTRUMENT, "position_side": "net", "quantity": 7, "exchange_time": now}
+    )
+    with pytest.raises(ServiceStrategyAccountBookError) as info:
+        view.getposition(stack.data)  # someone else moved the account to 7
+    assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED"
+    subscription.on_disconnect()
+    with pytest.raises(ServiceStrategyAccountBookError) as info:
+        view.getposition(stack.data)  # a plain snapshot cannot prove stream continuity
+    assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED"
+    assert store.reads == 2
+    subscription.on_position_event({"symbol": INSTRUMENT, "quantity_known": False})
+    store.quantity = "9"
+    with pytest.raises(ServiceStrategyAccountBookError):
+        view.getposition(stack.data)  # still unverified after a new unsequenced snapshot
+
+
+def test_failed_baseline_keeps_the_book_closed(stack):
+    class _Broken(_SubscribingStore):
+        def get_positions(self):
+            raise RuntimeError("provider down")
+
+    other = BtApiBroker(store=_Broken())
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    view = other.bind_direct_strategy_ledger(c, stack.ledger)
+    with pytest.raises(ServiceStrategyAccountBookError) as info:
+        view.getposition(stack.data)
+    assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED"
+
+
+def test_store_event_dispatch_routes_position_and_disconnect_events():
+    from backtrader.service.store_event_dispatch import drain_store_sdk_events_locked
+
+    calls = []
+
+    class _Subscription:
+        def on_position_event(self, event):
+            calls.append(("position", event["quantity"]))
+
+        def on_disconnect(self, event):
+            calls.append(("disconnect", event.get("kind")))
+
+    class _Api:
+        def poll_events(self, venue, **_kwargs):
+            return [
+                {"kind": "position", "symbol": INSTRUMENT, "quantity": 3},
+                {"kind": "disconnect"},
+            ]
+
+    store = SimpleNamespace(
+        _sdk_exchanges=["SIM"],
+        _api=_Api(),
+        _sdk_event_batch_size=10,
+        _sdk_coalesce_market_snapshots=(),
+        uses_async_commands=False,
+        _account_position_subscription=_Subscription(),
+        emit_runtime_event=lambda *a, **k: None,
+        _mark_stream_disconnected=lambda venue, event: calls.append(("store-disconnect", venue)),
+        _subscribed_datanames=set(),
+    )
+    drain_store_sdk_events_locked(store, error_type=RuntimeError, missing_dependency_error_type=ImportError)
+    assert calls == [("position", 3), ("disconnect", "disconnect"), ("store-disconnect", "SIM")]
+
+
+def test_explicit_store_snapshot_mode_remains_unverified(stack):
+    store = _SubscribingStore()
+    other = BtApiBroker(store=store)
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    view = other.bind_direct_strategy_ledger(c, stack.ledger, account_positions="store_snapshot")
+    for _ in range(2):
+        with pytest.raises(ServiceStrategyAccountBookError) as error:
+            view.getposition(stack.data)
+        assert error.value.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED"
+    assert store.reads == 2 and store._account_position_subscription is None
+
+
+def test_store_report_marks_old_rows_and_bad_rows(stack):
+    from backtrader.brokers._btapi_strategy_ledger import store_account_position_report
+
+    class _Rows(_Store):
+        _sdk_mode = True
+
+        def __init__(self, rows):
+            super().__init__()
+            self.rows = rows
+
+        def get_positions(self):
+            return self.rows
+
+    old = "2026-01-01T00:00:00Z"
+    report = store_account_position_report(
+        _Rows([{"data_name": INSTRUMENT, "side": "short", "quantity": "2", "observed_at_utc": old}]),
+        ACCOUNT,
+    )
+    assert report.positions == {INSTRUMENT: Decimal("-2")} and not report.complete
+    assert stack.ledger.reconcile(report).reason == "REPORT_INCOMPLETE"
+    empty = store_account_position_report(_Rows([]), "unrelated-account")
+    assert empty.positions == {} and not empty.complete
+    with pytest.raises(ValueError, match="not usable evidence"):
+        store_account_position_report(
+            _Rows([{"data_name": INSTRUMENT, "side": "both", "quantity": "2", "observed_at_utc": old}]),
+            ACCOUNT,
+        )
+
+
+def test_ledger_gated_orders_need_the_owner_fence(tmp_path):
+    ledger = _ledger(tmp_path / "nofence.sqlite3")
+    try:
+        store = _Store()
+        broker = BtApiBroker(store=store)
+        data = _data()
+        (a,) = _strategies(broker, data, "strategy-a")
+        broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
+        order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(order) == "account_owner_unbound" and store.sent == []
+    finally:
+        ledger.close()
+
+
+def test_provider_fees_reach_the_ledger_per_currency(stack):
+    order = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    # The Broker keeps the provider's running fee per currency for each fill.
+    stack.broker._record_provider_fee(order, {"fee_currency": "CNY"}, 1.5)
+    _fill(stack.broker, order, 1)
+    stack.broker._record_provider_fee(order, {"fee_currency": "CNY"}, 2.0)
+    stack.broker._record_provider_fee(order, {"fee_currency": "BNB"}, 0.01)
+    stack.broker._record_provider_fee(order, {}, 9.0)  # no currency: never booked
+    _fill(stack.broker, order, 1)
+    fees = stack.ledger.snapshot("strategy-a").fees_since_baseline
+    assert dict(fees) == {"CNY": Decimal("3.5"), "BNB": Decimal("0.01")}
+    stack.broker.notify(order)  # redelivery does not double count
+    assert dict(stack.ledger.snapshot("strategy-a").fees_since_baseline) == dict(fees)
 
 
 # -- admission through the product entry (P0-3) ------------------------------------
@@ -258,17 +481,19 @@ def test_unknown_dispatch_keeps_capacity_across_restart(stack):
     intent_id = order.info["strategy_ledger_intent_id"]
     assert stack.ledger.intent_state(intent_id) == "UNKNOWN"
     stack.ledger.close()  # restart
-    ledger = SqliteStrategyLedger(stack.path, account_ref=ACCOUNT, contract_multipliers={INSTRUMENT: 10})
+    ledger = _ledger(stack.path)
     try:
         assert ledger.intent_state(intent_id) == "UNKNOWN"
         broker = BtApiBroker(store=_Store())
+        owner = _owner(broker, stack.owner_path)
         (a,) = _strategies(broker, stack.data, "strategy-a")
-        broker.bind_direct_strategy_ledger(a, ledger)
+        broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
         again = a.sell(data=stack.data, size=1, price=1500.0, exectype=bt.Order.Limit)
         assert _code(again) == "strategy_ledger_close_capacity_exceeded"
+        owner.close()
     finally:
         ledger.close()
-    stack.ledger = SqliteStrategyLedger(stack.path, account_ref=ACCOUNT)  # fixture teardown
+    stack.ledger = _ledger(stack.path)  # fixture teardown
 
 
 def test_budget_refuses_unknown_inputs_through_the_product_entry(tmp_path):
@@ -280,12 +505,18 @@ def test_budget_refuses_unknown_inputs_through_the_product_entry(tmp_path):
     try:
         store = _Store()
         broker = BtApiBroker(store=store)
+        owner = _owner(broker, tmp_path / "owner.sqlite3")
         data = _data()
-        (a,) = _strategies(broker, data, "strategy-a")
-        broker.bind_direct_strategy_ledger(a, ledger)
+        a, b = _strategies(broker, data, "strategy-a", "strategy-b")
+        broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
+        broker.bind_direct_strategy_ledger(b, ledger, unreconciled=True)
         order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
-        assert _code(order) == "strategy_ledger_multiplier_unknown"
+        assert _code(order) == "strategy_ledger_instrument_terms_unknown"
+        # B has no budget: refused, not unlimited (acceptance report F3).
+        unbudgeted = b.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(unbudgeted) == "strategy_ledger_budget_unconfigured"
         assert store.sent == []
+        owner.close()
     finally:
         ledger.close()
 
@@ -296,14 +527,14 @@ def test_budget_refuses_unknown_inputs_through_the_product_entry(tmp_path):
 def test_binding_rejects_identity_mismatch_double_binding_and_second_ledger(stack, tmp_path):
     (a2,) = _strategies(stack.broker, stack.data, "strategy-a")
     with pytest.raises(ValueError, match="already bound to another strategy"):
-        stack.broker.bind_direct_strategy_ledger(a2, stack.ledger)
+        stack.broker.bind_direct_strategy_ledger(a2, stack.ledger, unreconciled=True)
     with pytest.raises(ValueError, match="already has"):
-        stack.broker.bind_direct_strategy_ledger(stack.a, stack.ledger)
+        stack.broker.bind_direct_strategy_ledger(stack.a, stack.ledger, unreconciled=True)
     other = SqliteStrategyLedger(tmp_path / "other.sqlite3", account_ref=ACCOUNT)
     try:
         (c,) = _strategies(stack.broker, stack.data, "strategy-c")
         with pytest.raises(ValueError, match="another strategy ledger"):
-            stack.broker.bind_direct_strategy_ledger(c, other)
+            stack.broker.bind_direct_strategy_ledger(c, other, unreconciled=True)
     finally:
         other.close()
 
@@ -323,7 +554,7 @@ def test_strategy_book_sizer_sells_only_the_strategy_position(stack):
     sizer = StrategyAccountBookPercentSizer(currency="CNY")
     sizer.set(stack.a, stack.broker)
     assert sizer.getsizing(stack.data, False) == 2
-    with pytest.raises(ServiceStrategyAccountBookError):  # strategy cash is unavailable
+    with pytest.raises(ServiceStrategyAccountBookError):  # no capital, unreconciled: no cash
         sizer.getsizing(stack.data, True)
 
 
@@ -338,8 +569,8 @@ def _handoff(path):
     )
 
 
-def test_owner_fence_blocks_every_write_during_and_after_a_handoff(tmp_path):
-    from bt_api_py.account_owner_handoff import OwnerRevocationProof
+def test_owner_fence_blocks_writes_when_handoff_recovery_is_unverified(tmp_path):
+    from bt_api_py.account_owner_handoff import HandoffError, OwnerRevocationProof
 
     path = tmp_path / "owner.sqlite3"
     data = _data()
@@ -367,13 +598,15 @@ def test_owner_fence_blocks_every_write_during_and_after_a_handoff(tmp_path):
         )
         new_handoff.restore(to_owner="gateway-new", ledger_cut="cut-1")
         new_handoff.sync(to_owner="gateway-new", provider_snapshot_ref="snap-1")
-        new_handoff.reconcile(to_owner="gateway-new", reconciliation_state="BALANCED")
-        assert new_handoff.ready(to_owner="gateway-new") == ("gateway-new", 2)
-
-        assert new_broker.bind_account_owner(new_handoff, "gateway-new") == 2
-        (a_new,) = _strategies(new_broker, data, "strategy-a")
-        moved = a_new.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
-        assert moved.status == moved.Accepted and new_store.sent == [moved.ref]
+        with pytest.raises(HandoffError) as error:
+            new_handoff.reconcile(to_owner="gateway-new", reconciliation_state="BALANCED")
+        assert error.value.code == "HANDOFF_NO_GO_RECOVERY_UNVERIFIED"
+        with pytest.raises(HandoffError) as error:
+            new_handoff.ready(to_owner="gateway-new")
+        assert error.value.code == "HANDOFF_STAGE_OUT_OF_ORDER"
+        with pytest.raises(ValueError, match="not the current account owner"):
+            new_broker.bind_account_owner(new_handoff, "gateway-new")
+        assert new_store.sent == []
         stale = a_old.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
         assert _code(stale) == "account_owner_fenced"
         assert old_store.sent == [live.ref]
@@ -392,3 +625,135 @@ def test_unreadable_owner_fence_blocks_dispatch(tmp_path):
     (a,) = _strategies(broker, data, "strategy-a")
     order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
     assert _code(order) == "account_owner_fenced" and store.sent == []
+
+
+# -- owner fence at the provider exit (acceptance report G2) --------------------------
+
+
+def _adapter_dispatch(owner_fence, calls):
+    import asyncio
+
+    from backtrader.execution.sdk_correlated_order_adapter import SdkCorrelatedOrderAdapter
+
+    class _Error(RuntimeError):
+        pass
+
+    adapter = SdkCorrelatedOrderAdapter(error_type=_Error, bindings=object())
+
+    def route(**_kwargs):
+        calls.append("route")
+
+    with pytest.raises(_Error) as info:
+        asyncio.run(
+            adapter.dispatch_command(
+                "submit",
+                {"request": object()},
+                api=object(),
+                authorization=object(),
+                current_authorization=lambda: None,
+                assert_write_route_identity=route,
+                validate_approval_lease_command=lambda command: None,
+                sanitize_exception=lambda error: None,
+                owner_fence=owner_fence,
+            )
+        )
+    return info.value
+
+
+def test_worker_rechecks_the_owner_fence_before_any_write():
+    calls = []
+    error = _adapter_dispatch(lambda: False, calls)
+    assert error.code == "account_owner_fenced" and error.definite_reject is True
+    assert calls == []  # nothing past the fence ran
+
+    def unreadable():
+        raise OSError("fence store gone")
+
+    error = _adapter_dispatch(unreadable, calls)
+    assert error.code == "account_owner_fenced" and calls == []
+
+
+def test_binding_the_owner_installs_the_fence_in_the_store(tmp_path):
+    from backtrader.stores.btapistore import BtApiStore
+
+    class _FencedStore(_Store):
+        bind_account_owner_fence = BtApiStore.bind_account_owner_fence
+        _account_owner_fence = None
+
+    store = _FencedStore()
+    broker = BtApiBroker(store=store)
+    handoff = _owner(broker, tmp_path / "owner.sqlite3")
+    try:
+        fence = store._account_owner_fence
+        assert fence() is True
+        handoff.begin(from_owner="direct", to_owner="gateway-new")
+        assert fence() is False  # a command already queued is now refused at the exit
+        with pytest.raises(ValueError, match="already bound"):
+            store.bind_account_owner_fence(lambda: True)
+    finally:
+        handoff.close()
+
+
+def test_async_store_without_an_exit_fence_cannot_be_bound(tmp_path, monkeypatch):
+    broker = BtApiBroker(store=_Store())
+    monkeypatch.setattr(broker, "_uses_async_commands", lambda: True)
+    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
+
+    handoff = AccountOwnerHandoff(
+        tmp_path / "owner.sqlite3", ACCOUNT, initial_owner="direct", proof_verifier=lambda p, o: True
+    )
+    try:
+        with pytest.raises(ValueError, match="rechecks the owner fence"):
+            broker.bind_account_owner(handoff, "direct")
+    finally:
+        handoff.close()
+
+
+# -- G6: the direct strategy-ledger path never needs bt_api_execution ----------------
+
+
+def test_direct_ledger_path_runs_with_bt_api_execution_unavailable(tmp_path):
+    """Import-blocked, not an isolated install: see the delivery notes for G8."""
+
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent(
+        f"""
+        import sys
+
+        class _Block:
+            def find_spec(self, name, path=None, target=None):
+                if name == "bt_api_execution" or name.startswith("bt_api_execution."):
+                    raise ImportError("bt_api_execution is not installed (test)")
+                return None
+
+        sys.meta_path.insert(0, _Block())
+        sys.path.insert(0, {str(Path(__file__).resolve().parent)!r})
+        import test_iter60_direct_strategy_account_book as t
+        import backtrader as bt
+        from pathlib import Path as _P
+
+        ledger = t._ledger(_P({str(tmp_path)!r}) / "noexec.sqlite3")
+        t._seed(ledger, "seed-a", "strategy-a", "2")
+        broker = t.BtApiBroker(store=t._Store())
+        owner = t._owner(broker, _P({str(tmp_path)!r}) / "owner.sqlite3")
+        data = t._data()
+        (a,) = t._strategies(broker, data, "strategy-a")
+        broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
+        order = a.close(data=data, price=1500.0, exectype=bt.Order.Limit)
+        assert order.status == order.Accepted, order.info.get("error_code")
+        assert a.getposition(data).size == 2.0
+        loaded = sorted(n for n in sys.modules if n.startswith("bt_api_execution"))
+        assert not loaded, loaded
+        owner.close()
+        ledger.close()
+        print("ok")
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=180, check=False
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stdout.strip().endswith("ok")

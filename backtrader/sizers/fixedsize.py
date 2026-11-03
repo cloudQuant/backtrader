@@ -30,6 +30,8 @@ class FixedSize(Sizer):
       - ``tranches`` (default: ``1``)
     """
 
+    uses_account_cash = False  # sizes from the stake and positions only
+
     # Use new parameter descriptor system to define parameters
     stake = ParameterDescriptor(
         default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations"
@@ -87,6 +89,8 @@ class FixedReverser(Sizer):
       - ``stake`` (default: ``1``)
     """
 
+    uses_account_cash = False  # sizes from the stake and positions only
+
     stake = ParameterDescriptor(
         default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations"
     )
@@ -120,6 +124,8 @@ class FixedSizeTarget(Sizer):
       - ``stake`` (default: ``1``)
       - ``tranches`` (default: ``1``)
     """
+
+    uses_account_cash = False  # sizes from the stake and positions only
 
     stake = ParameterDescriptor(
         default=1, type_=int, validator=Int(min_val=1), doc="Fixed target stake size"

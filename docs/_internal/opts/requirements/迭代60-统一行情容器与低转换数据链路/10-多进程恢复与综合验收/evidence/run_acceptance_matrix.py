@@ -22,25 +22,39 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[8]  # .../new_projects
-SDK = ROOT / "bt_api_py"
-REPOS = {
-    "backtrader": (ROOT / "backtrader", ["tests", "-m", "not slow and not performance"]),
-    "bt_api_py": (SDK, ["tests"]),
-    "bt_api_base": (SDK / "bt_api" / "bt_api_base", ["tests"]),
-    "bt_api_ctp": (SDK / "bt_api" / "bt_api_ctp", ["tests"]),
-    "bt_api_okx": (SDK / "bt_api" / "bt_api_okx", ["tests"]),
-    "bt_api_binance": (SDK / "bt_api" / "bt_api_binance", ["tests"]),
-    "bt_api_execution": (SDK / "bt_api" / "bt_api_execution", ["tests"]),
-    "bt_api_gateway": (SDK / "bt_api" / "bt_api_gateway", ["tests"]),
-    "bt_api_transport_zmq": (SDK / "bt_api" / "bt_api_transport_zmq", ["tests"]),
-}
+DEFAULT_ROOT = Path(__file__).resolve().parents[8]  # .../new_projects
+
+
+def _repos(root: Path) -> dict:
+    sdk = root / "bt_api_py"
+    return {
+        "backtrader": (root / "backtrader", ["tests", "-m", "not slow and not performance"]),
+        "bt_api_py": (sdk, ["tests"]),
+        "bt_api_base": (sdk / "bt_api" / "bt_api_base", ["tests"]),
+        "bt_api_ctp": (sdk / "bt_api" / "bt_api_ctp", ["tests"]),
+        "bt_api_okx": (sdk / "bt_api" / "bt_api_okx", ["tests"]),
+        "bt_api_binance": (sdk / "bt_api" / "bt_api_binance", ["tests"]),
+        "bt_api_execution": (sdk / "bt_api" / "bt_api_execution", ["tests"]),
+        "bt_api_gateway": (sdk / "bt_api" / "bt_api_gateway", ["tests"]),
+        "bt_api_transport_zmq": (sdk / "bt_api" / "bt_api_transport_zmq", ["tests"]),
+    }
+
+
+def _pythonpath(root: Path, extra: str = "") -> str:
+    """Import every package from the source trees under ``root`` (not site-packages)."""
+    sdk = root / "bt_api_py"
+    parts = [str(root / "backtrader"), str(sdk)]
+    parts += [str(path / "src") for path in sorted((sdk / "bt_api").glob("bt_api_*")) if (path / "src").is_dir()]
+    if extra:
+        parts.insert(0, extra)
+    return os.pathsep.join(parts)
 PACKAGES = (
     "backtrader",
     "bt_api_py",
@@ -61,7 +75,7 @@ def _git(repo: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def _imports(python: str) -> dict[str, str]:
+def _imports(python: str, env: dict) -> dict[str, str]:
     script = (
         "import importlib, json\n"
         f"names = {list(PACKAGES)!r}\n"
@@ -79,7 +93,9 @@ def _imports(python: str) -> dict[str, str]:
         "    out['msgpack_backend'] = 'python'\n"
         "print(json.dumps(out))\n"
     )
-    result = subprocess.run([python, "-c", script], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        [python, "-c", script], capture_output=True, text=True, check=False, env=env
+    )
     try:
         return json.loads(result.stdout.strip().splitlines()[-1])
     except (IndexError, json.JSONDecodeError):
@@ -89,7 +105,7 @@ def _imports(python: str) -> dict[str, str]:
 def _failures(log: str) -> list[str]:
     found = set()
     for line in log.splitlines():
-        if line.startswith(("FAILED ", "ERROR ")):
+        if line.startswith(("FAILED tests", "ERROR tests")):
             found.add(line.split(" - ", 1)[0].strip())
     return sorted(found)
 
@@ -101,7 +117,10 @@ def main() -> int:
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--workers", default="8")
     parser.add_argument("--only", nargs="*")
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    parser.add_argument("--extra-path", default="", help="prepended to PYTHONPATH (e.g. a msgpack overlay)")
     options = parser.parse_args()
+    env = dict(os.environ, PYTHONPATH=_pythonpath(options.root, options.extra_path))
     options.out.mkdir(parents=True, exist_ok=True)
 
     manifest = {
@@ -113,10 +132,12 @@ def main() -> int:
             check=False,
         ).stdout.strip(),
         "platform": platform.platform(),
-        "imports": _imports(options.python),
+        "root": str(options.root),
+        "pythonpath": env["PYTHONPATH"],
+        "imports": _imports(options.python, env),
         "repos": {},
     }
-    for name, (repo, args) in REPOS.items():
+    for name, (repo, args) in _repos(options.root).items():
         if options.only and name not in options.only:
             continue
         command = [
@@ -124,7 +145,9 @@ def main() -> int:
             "-n", options.workers, "-rfE",
         ]
         started = time.monotonic()
-        result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            command, cwd=repo, capture_output=True, text=True, check=False, env=env
+        )
         log = result.stdout + result.stderr
         (options.out / f"{name}.log").write_text(log, encoding="utf-8")
         failures = _failures(log)
@@ -148,7 +171,6 @@ def main() -> int:
         if options.baseline is not None:
             old_path = options.baseline / f"{name}.failures.txt"
             if old_path.exists():
-                old = set(old_path.read_text(encoding="utf-8").split())
                 old = {line for line in old_path.read_text(encoding="utf-8").splitlines() if line}
                 new = set(failures)
                 entry["new_failures"] = sorted(new - old)

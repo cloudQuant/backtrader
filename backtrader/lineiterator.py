@@ -1280,7 +1280,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
             if owner is None and Strategy is not None:
                 owner = metabase.findowner(instance, Strategy)
-            if owner:
+            # An Observer is built while its Strategy is still empty (falsy);
+            # it must see that owner during __init__.  Indicators keep the
+            # historical truthiness rule that factor construction relies on.
+            is_observer = getattr(cls, "_ltype", None) == LineIterator.ObsType
+            if owner or (owner is not None and is_observer):
                 instance._owner = owner
                 strict_context = getattr(owner, "_factor_strict_context", None)
                 if strict_context is not None:

@@ -11,7 +11,7 @@ of order state or verification receipts.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable, Dict, Mapping, Type
+from typing import Any, Callable, Dict, Mapping, Optional, Type
 
 from .order_request_projection import (
     execution_contract_from_order_request as _execution_contract_from_order_request,
@@ -212,12 +212,21 @@ class SdkCorrelatedOrderAdapter:
         assert_write_route_identity: Callable[..., Any],
         validate_approval_lease_command: Callable[[Mapping[str, Any]], Any],
         sanitize_exception: Callable[[BaseException], Any],
+        owner_fence: Optional[Callable[[], bool]] = None,
     ) -> Dict[str, Any]:
         """Claim, dispatch once, verify the SDK acknowledgement, and retain it.
 
         Store provides only its live route/auth guards and reuses its single
         execution-binding registry. Dispatch still runs inside the existing
         command worker's coordinator call path.
+
+        ``owner_fence`` checks whether the local owner generation still
+        permits dispatch. A failed check before the claim is a definite local
+        rejection; a failed check after the claim is UNKNOWN. Neither check
+        is atomic with the provider write: an already admitted command may
+        still reach the provider after a handoff begins. Safe takeover needs
+        independently verified provider-session revocation or an enforced
+        fence at the dispatch boundary.
         """
 
         from bt_api_py.correlated_command_dispatch import (
@@ -227,6 +236,11 @@ class SdkCorrelatedOrderAdapter:
 
         if operation not in {"submit", "cancel"}:
             raise self._error_type("unsupported SDK command operation")
+        if owner_fence is not None and not _fence_allows(owner_fence):
+            error = self._error_type("account owner fence blocked the write before dispatch")
+            error.definite_reject = True
+            error.code = "account_owner_fenced"
+            raise error
         request = command.get("request")
         try:
             assert_write_route_identity(expected_api=api, require_live_route=True)
@@ -280,6 +294,11 @@ class SdkCorrelatedOrderAdapter:
 
         def before_dispatch() -> None:
             assert_write_route_identity(expected_api=api, require_live_route=True)
+            if owner_fence is not None and not _fence_allows(owner_fence):
+                error = self._error_type("account owner fence changed before dispatch")
+                error.execution_unknown = True
+                error.code = "account_owner_fenced"
+                raise error
             if current_authorization() is not authorization:
                 error = self._error_type("SDK execution authorization changed before dispatch")
                 error.execution_unknown = True
@@ -475,3 +494,12 @@ __all__ = (
     "prepare_store_order_correlation",
     "resolve_store_order_request_context",
 )
+
+
+def _fence_allows(owner_fence: Callable[[], bool]) -> bool:
+    """An unreadable fence blocks the write."""
+
+    try:
+        return owner_fence() is True
+    except Exception:
+        return False

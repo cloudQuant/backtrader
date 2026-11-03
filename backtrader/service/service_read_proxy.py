@@ -649,6 +649,8 @@ def _bar_to_dict(bar: MarketBar) -> dict[str, Any]:
         "close": bar.close,
         "volume": bar.volume,
         "openinterest": bar.open_interest,
+        # collect_market_history has validated the typed closed-bar page.
+        "bar_final": True,
     }
 
 

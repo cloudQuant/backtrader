@@ -74,6 +74,15 @@ def _finite_market_number(value):
     return finite_market_number(value)
 
 
+def _normalize_bar_with_finality(bar):
+    """Project a bar without discarding an explicitly supplied completion state."""
+    source = dict(bar) if isinstance(bar, Mapping) else bar
+    normalized = _normalize_bar(source)
+    if isinstance(source, dict) and "bar_final" in source:
+        normalized["bar_final"] = source["bar_final"]
+    return normalized
+
+
 def _as_utc_datetime(value):
     """Parse an event-time field without silently replacing invalid source time."""
     from bt_api_py.market_tick_contracts import parse_market_event_datetime
@@ -320,11 +329,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._live = collections.deque()
         else:
             self._history = collections.deque(
-                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                _normalize_bar_with_finality(bar)
                 for bar in history_source
             )
             self._live = collections.deque(
-                _normalize_bar(dict(bar) if isinstance(bar, Mapping) else bar)
+                _normalize_bar_with_finality(bar)
                 for bar in live_source
             )
         self._live_notified = False
@@ -341,7 +350,13 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         self._last_market_scope = None
         self._highest_market_scope = None
         self._last_published_bar = None
-        self._bar_integrity = {"duplicates": 0, "late": 0, "revisions_refused": 0}
+        self._bar_integrity = {
+            "duplicates": 0,
+            "late": 0,
+            "revisions_refused": 0,
+            "unfinished": 0,
+            "unknown_finality": 0,
+        }
         self._bar_sequence = 0
         # Per-feed opaque marker proves that a strategy callback received the
         # sealed event from this exact Feed instance, rather than a caller
@@ -642,10 +657,17 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
     # Tick-timeframe feeds (many events per timestamp) are not checked.
 
     def bar_integrity_counts(self):
-        """Counts of dropped duplicate, late and refused-revision bars."""
+        """Counts of dropped bars, including unknown and unfinished finality."""
         return dict(self._bar_integrity)
 
     def _publish_bar(self, bar) -> bool:
+        final = bar.get("bar_final") if isinstance(bar, Mapping) else getattr(bar, "bar_final", None)
+        if final is False:
+            # D60-15: a provider bar still forming is never published.
+            return self._drop_bar("unfinished")
+        if final is not True:
+            # No completion claim, or a non-boolean claim, is not a closed bar.
+            return self._drop_bar("unknown_finality")
         if self._timeframe == TimeFrame.Ticks:
             return self._load_bar(bar)
         normalized = _normalize_bar(bar)
@@ -661,7 +683,87 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             if when == last_when:
                 return self._drop_bar("duplicates" if values == last_values else "revisions_refused")
         self._last_published_bar = (when, values)
+        source = bar.get("bar_source") if isinstance(bar, Mapping) else getattr(bar, "bar_source", None)
+        self._valuation_bar = (
+            date2num(when),
+            normalized["close"],
+            self._get_bucket_end(when),
+            source if type(source) is str and source else "provider_bar",
+        )
         return self._load_bar(normalized)
+
+    #: Upper bound in seconds on how old the close of the current bar may be
+    #: for :meth:`valuation_mark`; ``None`` means one bar period plus
+    #: ``receive_time_max_age``.
+    valuation_mark_max_age = None
+
+    def valuation_mark(self):
+        """Price of the current bar for strategy valuation (iteration 60, 60.11-A5).
+
+        Returns ``(price: Decimal, as_of_utc: datetime, source: str)`` where
+        ``as_of_utc`` is the bar's close time. Eligible only when the bar on
+        the lines is the final bar this feed itself published (provider bars
+        need ``bar_final=True``; local bars are closed by the event-time
+        watermark), its close is finite and positive, and the close is not
+        older than ``valuation_mark_max_age`` against this feed's wall clock
+        (``clock`` param) nor in the future. Otherwise raises ``ValueError``
+        whose ``code`` attribute is a finite reason; never guesses.
+        """
+        from decimal import Decimal
+
+        def refuse(code):
+            error = ValueError(f"valuation mark unavailable ({code})")
+            error.code = code
+            raise error
+
+        if self._timeframe == TimeFrame.Ticks:
+            refuse("MARK_TIMEFRAME_UNSUPPORTED")
+        record = getattr(self, "_valuation_bar", None)
+        if record is None or len(self) == 0:
+            refuse("MARK_NOT_PUBLISHED")
+        line_time, close, close_time, source = record
+        try:
+            on_lines = float(self.lines.datetime[0])
+            line_close = float(self.lines.close[0])
+        except (IndexError, TypeError, ValueError):
+            refuse("MARK_NOT_PUBLISHED")
+        if on_lines != line_time or line_close != close:
+            refuse("MARK_NOT_PUBLISHED")  # the lines do not hold the published bar
+        price = Decimal(str(close))
+        if not price.is_finite() or price <= 0:
+            refuse("MARK_PRICE_INVALID")
+        if not isinstance(close_time, _dt.datetime):
+            refuse("MARK_TIME_UNKNOWN")
+        as_of = close_time if close_time.tzinfo else close_time.replace(tzinfo=_UTC)
+        max_age = self.valuation_mark_max_age
+        if max_age is None:
+            period = (self._get_bucket_end(close_time) - close_time).total_seconds()
+            max_age = period + float(self.p.receive_time_max_age or 0.0)
+        try:
+            max_age = float(max_age)
+        except (TypeError, ValueError):
+            refuse("MARK_AGE_INVALID")
+        if not math.isfinite(max_age) or max_age < 0:
+            refuse("MARK_AGE_INVALID")
+        now = self._now_wall_ns() / 1_000_000_000
+        age = now - as_of.timestamp()
+        if age < -float(self.p.receive_time_max_age or 0.0):
+            refuse("MARK_FROM_FUTURE")
+        if age > max_age:
+            refuse("MARK_STALE")
+        return price, as_of, source
+
+    def _now_wall_ns(self):
+        clock = self.p.clock
+        for name in ("time_ns", "wall_time_ns"):
+            method = getattr(clock, name, None) if clock is not None else None
+            if callable(method):
+                return int(method())
+        for name in ("time", "wall_time"):
+            method = getattr(clock, name, None) if clock is not None else None
+            if callable(method):
+                return int(float(method()) * 1_000_000_000)
+        return _time.time_ns()
 
     def _drop_bar(self, kind) -> bool:
         self._bar_integrity[kind] += 1
@@ -1443,6 +1545,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     "close": bar_event.close,
                     "volume": bar_event.volume,
                     "openinterest": bar_event.openinterest,
+                    # This path receives only the local aggregation's line-
+                    # eligible closure (or an individual tick event).
+                    "bar_final": True,
+                    "bar_source": "local_aggregation",
                 }
             )
 

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import pytest
 
 pytest.importorskip("msgpack")
+pytest.importorskip("bt_api_base.market_protocol")
 
 from bt_api_base.market_protocol import (  # noqa: E402
     MARKET_EVENT_OPERATION,

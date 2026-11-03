@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import math
 import threading
+from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
+from types import MappingProxyType
 from typing import Any
 
 from bt_api_py.account_book_contracts import StrategyAccountBookSnapshot as _StrategyAccountBookSnapshot
@@ -196,6 +199,133 @@ class DirectStrategyAccountBookView(_StrategyAccountBookProjection):
         return snapshot
 
 
+@dataclass(frozen=True)
+class StrategyBookValuation:
+    """One strategy's cash, position values and equity from one snapshot cut.
+
+    Policy ``strategy_spot_equity.v1``: equity = cash in ``currency`` + the sum
+    of long spot positions x mark x multiplier, all in ``currency``. Every
+    figure comes from the same snapshot (``journal_generation`` /
+    ``cursor``), so a caller never mixes two versions of the book.
+    """
+
+    currency: str
+    cash: Decimal
+    positions: Mapping[str, Decimal]
+    values: Mapping[str, Decimal]
+    multipliers: Mapping[str, Decimal]
+    equity: Decimal
+    journal_generation: str
+    cursor: int
+
+
+def value_strategy_book(
+    snapshot: _StrategyAccountBookSnapshot,
+    *,
+    marks: Mapping[str, Decimal],
+    multipliers: Mapping[str, Decimal],
+    currency: str | None = None,
+) -> StrategyBookValuation:
+    """Value ``snapshot`` or raise a finite ``ServiceStrategyAccountBookError``.
+
+    ``marks`` are the caller's eligible current prices per instrument and
+    ``multipliers`` the caller's own contract multipliers (Backtrader
+    ``comminfo``); both must agree with the instrument terms the book
+    published, otherwise nothing is valued. The inputs themselves are not
+    evidence of a mark's provenance or freshness; the caller must establish
+    those separately. No input is assumed: a missing
+    financial cut, cost, terms, mark, an unsupported model, a second non-zero
+    currency (no FX) or a terms conflict makes the valuation unavailable.
+    """
+
+    from bt_api_py.strategy_ledger import InstrumentTerms
+
+    if not snapshot.financial_available:
+        raise ServiceStrategyAccountBookError(
+            snapshot.financial_error_code or "STRATEGY_FINANCIAL_UNAVAILABLE"
+        )
+    if not snapshot.cost_basis_complete:
+        raise ServiceStrategyAccountBookError("STRATEGY_POSITION_COST_INCOMPLETE")
+    _require_consistent_financial_cut(snapshot)
+    cash_rows = dict(snapshot.cash_by_currency)
+    if currency is None:
+        if len(cash_rows) != 1:
+            raise ServiceStrategyAccountBookError("STRATEGY_CURRENCY_AMBIGUOUS")
+        (currency,) = cash_rows
+    currency = _required_text(currency, "INVALID_CASH_CURRENCY")
+    if currency not in cash_rows:
+        raise ServiceStrategyAccountBookError("STRATEGY_CASH_UNAVAILABLE")
+    if any(amount != 0 for name, amount in cash_rows.items() if name != currency):
+        raise ServiceStrategyAccountBookError("STRATEGY_FX_UNAVAILABLE")
+    positions, values, used_multipliers = {}, {}, {}
+    for instrument, quantity in snapshot.positions.items():
+        if quantity == 0:
+            continue
+        cost = snapshot.position_costs.get(instrument)
+        if cost is None:
+            raise ServiceStrategyAccountBookError("STRATEGY_POSITION_COST_MISSING")
+        if cost.quantity != quantity:
+            raise ServiceStrategyAccountBookError("STRATEGY_POSITION_COST_MISMATCH")
+        terms = InstrumentTerms.from_version(cost.metadata_version)
+        if terms is None:
+            raise ServiceStrategyAccountBookError("STRATEGY_INSTRUMENT_TERMS_UNKNOWN")
+        if terms.product_model != "spot" or cost.product_model != "spot":
+            raise ServiceStrategyAccountBookError("STRATEGY_VALUATION_MODEL_UNSUPPORTED")
+        if terms.quote_currency != currency or cost.cost_currency != currency:
+            raise ServiceStrategyAccountBookError("STRATEGY_FX_UNAVAILABLE")
+        mark = marks.get(instrument)
+        if type(mark) is not Decimal or not mark.is_finite() or mark <= 0:
+            raise ServiceStrategyAccountBookError("STRATEGY_MARK_UNAVAILABLE")
+        local = multipliers.get(instrument)
+        if local is None or Decimal(local) != terms.multiplier:
+            raise ServiceStrategyAccountBookError("STRATEGY_INSTRUMENT_TERMS_CONFLICT")
+        positions[instrument] = quantity
+        values[instrument] = quantity * mark * terms.multiplier
+        used_multipliers[instrument] = terms.multiplier
+    cash = cash_rows[currency]
+    return StrategyBookValuation(
+        currency=currency,
+        cash=cash,
+        positions=MappingProxyType(positions),
+        values=MappingProxyType(values),
+        multipliers=MappingProxyType(used_multipliers),
+        equity=cash + sum(values.values(), Decimal("0")),
+        journal_generation=snapshot.journal_generation,
+        cursor=snapshot.current_execution_cursor,
+    )
+
+
+def _require_consistent_financial_cut(snapshot: _StrategyAccountBookSnapshot) -> None:
+    """Reject financial and position cuts not bound to one ledger transaction.
+
+    Service's current independent financial projection is useful for reads,
+    but equal quantities do not prove its cash and positions share a cut.
+    Matching the direct ledger's declared cut is a consistency check only;
+    it does not authenticate the provider or a caller-supplied price.
+    """
+
+    cut = snapshot.financial_ledger_cut
+    if (
+        snapshot.financial_cut_relationship != "SAME_TRANSACTION"
+        or snapshot.financial_freshness != "RECONCILED_IN_SNAPSHOT"
+        or snapshot.account_key != snapshot.account_ref
+        or cut is None
+        or cut.account_key != snapshot.account_key
+        or cut.owner_directory_revision != snapshot.scope_directory_revision
+    ):
+        raise ServiceStrategyAccountBookError("STRATEGY_FINANCIAL_CUT_UNVERIFIED")
+    execution = next(
+        (item for item in cut.watermarks if item.source_kind == "execution_outbox"), None
+    )
+    if (
+        execution is None
+        or execution.source_ref != snapshot.account_ref
+        or execution.generation != snapshot.journal_generation
+        or execution.cursor != snapshot.current_execution_cursor
+    ):
+        raise ServiceStrategyAccountBookError("STRATEGY_FINANCIAL_CUT_UNVERIFIED")
+
+
 def _safe_code(error: BaseException, fallback: str) -> str:
     code = getattr(error, "code", None)
     if (
@@ -235,4 +365,6 @@ __all__ = [
     "DirectStrategyAccountBookView",
     "ServiceStrategyAccountBookError",
     "ServiceStrategyAccountBookView",
+    "StrategyBookValuation",
+    "value_strategy_book",
 ]

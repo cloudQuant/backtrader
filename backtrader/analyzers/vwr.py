@@ -21,6 +21,7 @@ from ..dataseries import TimeFrame
 from ..mathsupport import standarddev
 from ..metabase import OwnerContext
 from .returns import Returns
+from ._strategy_scope import notified_value, portfolio_observation, record_result_gap, scoped_missing_input
 
 
 # Get VWR indicator
@@ -145,9 +146,9 @@ class VWR(TimeFrameAnalyzerBase):
             self._fundmode = self.p.fund
         # Get initial value based on fundmode
         if not self._fundmode:
-            self._pis = [self.strategy.broker.getvalue()]  # keep initial value
+            self._pis = [portfolio_observation(self.strategy, consumer=self)]  # keep initial value
         else:
-            self._pis = [self.strategy.broker.fundvalue]  # keep initial value
+            self._pis = [portfolio_observation(self.strategy, fund=True, consumer=self)]
         # Initialize final value to None
         self._pns = [None]  # keep final prices (value)
 
@@ -171,6 +172,13 @@ class VWR(TimeFrameAnalyzerBase):
         rs = self._returns.get_analysis()
         ravg = rs["ravg"]
         rnorm100 = rs["rnorm100"]
+
+        if scoped_missing_input(
+            getattr(self, "strategy", None), ravg, rnorm100, *self._pis, *self._pns
+        ):
+            record_result_gap(self)
+            self.rets["vwr"] = float("nan")
+            return
 
         # make n 1 based in enumerate (number of periods and not index)
         # skip initial placeholders for synchronization
@@ -227,10 +235,9 @@ class VWR(TimeFrameAnalyzerBase):
             fundvalue: Current fund value.
             shares: Number of fund shares.
         """
-        if not self._fundmode:
-            self._pns[-1] = value  # annotate last seen pn for the current period
-        else:
-            self._pns[-1] = fundvalue  # annotate last pn for current period
+        self._pns[-1] = notified_value(
+            self.strategy, value, fundvalue, fund=self._fundmode, consumer=self
+        )
 
     def on_dt_over(self):
         """Handle timeframe boundary crossing.

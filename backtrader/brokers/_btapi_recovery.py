@@ -907,11 +907,8 @@ class ServiceRecoveryBrokerMixin:
                 execution_time_unavailable=True,
                 execution_pnl_unavailable=True,
             )
-        elif cumulative_commission is not None and previous_commission is not None:
-            if abs(cumulative_commission - previous_commission) > 1e-12:
-                self._fence_service_execution_recovery(
-                    order, "recovery_fee_correction_without_fill_unsupported"
-                )
+        elif details.get("cumulative_commission") not in (None, ""):
+            self._apply_fee_only_correction(order, details["cumulative_commission"], currency)
             order.status = states[state]
         else:
             order.status = states[state]
@@ -921,6 +918,67 @@ class ServiceRecoveryBrokerMixin:
             recovery_latest_source_sequence=event.get("sequence"),
             recovery_latest_source_event_id=event.get("event_id"),
             execution_time_unavailable=True,
+        )
+
+    def _apply_fee_only_correction(self, order, cumulative_fee, currency):
+        """Apply a late fee: same cumulative quantity, higher provider fee.
+
+        Contract (acceptance report F5): the provider's cumulative fee for
+        ``order`` is ``cumulative_fee`` in ``currency``. When it is valid, in
+        the order's fee currency and higher than what was booked, the delta
+        is added to ``order.executed.comm``, to the provider fee totals the
+        strategy ledger books (a fee-only ``apply_execution``), and recorded
+        as the next numbered entry of ``order.info["fee_corrections"]``; the
+        owning Strategy then moves the delta onto the Trade and calls
+        ``notify_fee_correction``. No fill is created. An identical fee is a
+        no-op (idempotent redelivery). A lower fee, another currency or an
+        unusable value keeps the existing fence. Returns ``"corrected"``,
+        ``"unchanged"`` or raises through the fence.
+        """
+        reported = self._neutral_decimal(cumulative_fee)
+        previous = self._neutral_decimal(order.executed.comm)
+        prior_currency = self._order_info_get(order, "cumulative_commission_currency")
+        valid = (
+            reported is not None
+            and previous is not None
+            and reported >= 0
+            and previous >= 0
+            and type(currency) is str
+            and bool(currency)
+            and currency == currency.strip()
+            and (prior_currency == currency or (prior_currency is None and previous == 0))
+        )
+        if not valid or reported < previous:
+            self._fence_unprojectable_recovery_fee(order)
+        if reported == previous:
+            return "unchanged"
+        delta = reported - previous
+        order.executed.comm = float(reported)
+        corrections = list(self._order_info_get(order, "fee_corrections") or ())
+        corrections.append(
+            {
+                "sequence": len(corrections) + 1,
+                "delta": str(delta),
+                "cumulative": str(reported),
+                "currency": currency,
+            }
+        )
+        order.addinfo(fee_corrections=tuple(corrections), cumulative_commission_currency=currency)
+        record = getattr(self, "_record_provider_fee", None)
+        if callable(record):
+            record(order, {"fee_currency": currency}, delta)
+        return "corrected"
+
+    def _fence_unprojectable_recovery_fee(self, order):
+        """Fence fee-only corrections until Trade economics can be reconciled."""
+        order.addinfo(
+            execution_commission_unavailable=True,
+            execution_pnl_unavailable=True,
+            service_execution_recovery_trade_history_unavailable=True,
+            pnl_status="PNL_INCOMPLETE",
+        )
+        self._fence_service_execution_recovery(
+            order, "recovery_fee_correction_without_fill_unsupported"
         )
 
     def _fence_service_execution_recovery(self, order, reason):

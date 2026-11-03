@@ -18,6 +18,7 @@ import math
 
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
+from ._strategy_scope import cash_value, position_value
 
 
 def _finite_real_or_zero(value):
@@ -108,10 +109,10 @@ class PositionsValue(Analyzer):
         includes cash. Stores results keyed by date or datetime.
         """
         # Get value for each data
-        pvals = [_finite_real_or_zero(self.strategy.broker.get_value([d])) for d in self.datas]
+        pvals = [_finite_real_or_zero(position_value(self.strategy, d)) for d in self.datas]
         # If cash is True, save cash
         if self.p.cash:
-            pvals.append(_finite_real_or_zero(self.strategy.broker.get_cash()))
+            pvals.append(_finite_real_or_zero(cash_value(self.strategy, alias=True)))
         # If usedate is True, use date as key, otherwise use datetime as key
         if self._usedate:
             self.rets[self.strategy.datetime.date()] = pvals

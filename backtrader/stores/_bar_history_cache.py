@@ -60,7 +60,12 @@ class StoreBarHistoryCache:
     def copy_or_normalize_bar(self, bar: Any) -> Any:
         """Normalize ordinary bars or deeply preserve explicit raw mappings."""
         if not self._preserve_raw_bars:
-            return self._normalize_bar(bar)
+            normalized = self._normalize_bar(bar)
+            if isinstance(bar, Mapping) and "bar_final" in bar:
+                # Normalization must not turn a forming bar into an
+                # apparently unqualified legacy bar, or discard finality.
+                normalized["bar_final"] = bar["bar_final"]
+            return normalized
         if isinstance(bar, Mapping):
             source = dict(bar)
             field_observations = source.get("field_observations")
@@ -94,6 +99,9 @@ class StoreBarHistoryCache:
                 "close": bar.close,
                 "volume": bar.volume,
                 "openinterest": bar.open_interest,
+                # The SDK history collector returns closed MarketBar rows;
+                # this is a projection of that contract, not source proof.
+                "bar_final": True,
             }
             for bar in bars
         ]

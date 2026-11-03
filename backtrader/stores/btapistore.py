@@ -2266,7 +2266,54 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             assert_write_route_identity=self._assert_write_route_identity,
             validate_approval_lease_command=self._validate_approval_lease_command,
             sanitize_exception=self.sanitize_exception,
+            owner_fence=self._account_owner_fence,
         )
+
+    #: ``() -> bool`` installed by ``bind_account_owner_fence``; ``None`` = unfenced.
+    _account_owner_fence = None
+
+    #: Subscribed account positions (``subscribe_account_positions``), or ``None``.
+    _account_position_subscription = None
+
+    def subscribe_account_positions(self, account_ref, *, baseline_interval_seconds=10.0):
+        """Observe ``account_ref``'s position snapshots and subsequent pushes.
+
+        A baseline is attempted at subscription and later refreshed according
+        to ``baseline_interval_seconds`` and interruption state. Without a
+        provider-verified snapshot/stream watermark, a report cannot prove an
+        atomic cut or authorize reconciliation solely from its completeness
+        flag. The returned subscription exposes an ``AccountPositionReport``.
+        """
+
+        from ._account_position_subscription import StoreAccountPositionSubscription
+
+        current = self._account_position_subscription
+        if current is not None:
+            if current.account_ref != account_ref:
+                raise ValueError("this store already subscribes another account's positions")
+            return current
+        subscription = StoreAccountPositionSubscription(
+            self, account_ref, baseline_interval_seconds=baseline_interval_seconds
+        )
+        subscription.baseline()
+        self._account_position_subscription = subscription
+        return subscription
+
+    def bind_account_owner_fence(self, allows_dispatch):
+        """Install a diagnostic owner-generation check before SDK dispatch.
+
+        The command worker invokes ``allows_dispatch()`` for queued writes.
+        Its result is only as trustworthy as the supplied callback: the check
+        and provider dispatch are not atomic, and this does not prove that an
+        old owner is unable to write. Dispatch-edge fencing remains to be
+        verified. A fence cannot be replaced once bound.
+        """
+
+        if not callable(allows_dispatch):
+            raise ValueError("an account-owner fence callable is required")
+        if self._account_owner_fence is not None:
+            raise ValueError("this store is already bound to an account-owner fence")
+        self._account_owner_fence = allows_dispatch
 
     @staticmethod
     def _validate_approval_lease_command(command: Mapping[str, Any]) -> None:
@@ -4028,6 +4075,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def _record_live_bar_enqueued(self, symbol: str, event_id: str) -> None:
         self._market_delivery_state.set_state(symbol, "last_enqueued_event_id", event_id)
+
+    def _seed_live_bar_queue(self, live_bars: Optional[Dict[str, Iterable[Any]]]) -> None:
+        """Seed completed bars through the same bounded path as live delivery."""
+        if not live_bars:
+            return
+        for dataname, bars in live_bars.items():
+            for bar in bars:
+                self._enqueue_live_bar(str(dataname), self._copy_or_normalize_bar(bar))
 
     def _enqueue_live_bar(self, symbol: str, bar: Any) -> None:
         """Append one copied bar to the Backtrader-owned bounded queue."""

@@ -155,6 +155,14 @@ class DataTrades(Observer):
         # Initialize parent first - this will set up the line system
         super().__init__(*args, **kwargs)
 
+        # DataTrades observes all strategy feeds. Generic Observer setup may
+        # use the strategy itself as a clock/data placeholder; it is not a
+        # tradable feed and must not be used for trade/data matching.
+        owner_datas = getattr(self._owner, "datas", None)
+        if owner_datas is not None:
+            self.datas = list(owner_datas)
+            self.ddatas = dict.fromkeys(self.datas)
+
         # Setup plotlines configuration after parent initialization
         self._setup_plotlines_simple()
 
@@ -164,7 +172,17 @@ class DataTrades(Observer):
         if not hasattr(self, "datas") or not self.datas:
             return
 
-        self.plotlines = dict(self.plotlines)
+        if isinstance(self.plotlines, dict):
+            self.plotlines = dict(self.plotlines)
+        else:
+            # ParamsMixin may convert the class dictionary to an object whose
+            # mapping helper functions are instance attributes, not bound
+            # methods. Copy its non-callable settings without invoking keys().
+            self.plotlines = {
+                name: value
+                for name, value in vars(self.plotlines).items()
+                if not name.startswith("_") and not callable(value)
+            }
 
         # CRITICAL FIX: Access parameter properly through self.params or self.p
         try:

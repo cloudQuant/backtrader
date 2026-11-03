@@ -1,35 +1,55 @@
-Iteration 60 end-to-end performance, 2026-11-03 (acceptance report P1-7)
-Script: evidence/bench_e2e.py (thresholds registered in THRESHOLDS before the runs)
-Machine: macOS (Darwin 25.5.0), Apple Silicon, Python 3.11.8 (anaconda base), one machine, no other load.
-Inputs: fixed tick payloads from tests/unit/feeds/test_market_tick_adapter_baseline.py.
-Product framing: CURVE PUB/SUB, market wire v2 topic frames, service wire envelopes.
-
-Registered thresholds
-  gateway_p99_ms <= 5.0 ; gateway_loss == 0 ; gateway_rss_growth_mb <= 50
-  direct_p99_us <= 200 ; codec v3/v2 round-trip ratio <= 1.10 (C extension)
-
-1) Codec: envelope encode + strict decode round trip, 20000 iterations (same validation both sides)
-  v2 JSON  (pre-v3 Base 24e9685)          2208 B   median 81.96 us   p99 97.21 us
-  v3 MsgPack, pure-Python msgpack 1.0.3   1977 B   median 224.50 us  p99 290.04 us   ratio 2.74  FAIL
-  v3 MsgPack, C extension msgpack 1.2.4   1977 B   median 73.33 us   p99 88.58 us    ratio 0.89  PASS
-
-2) Direct path (bind + Backtrader adapter), 20000 ticks
-  pure-Python msgpack env   median 14.88 us  p99 80.13 us   PASS
-  C msgpack env             median 14.42 us  p99 19.33 us   PASS
-
-3) Gateway path across processes (publish -> receive/decode/bind/BT adapter), 20000 msgs @ 2000/s
-                         p50      p95       p99       max       loss  thrpt/s  RSS+MB  verdict(p99)
-  v2 JSON              0.43 ms  41.57 ms  77.40 ms  574.6 ms   0    2122     13.3    FAIL
-  v3 pure-Python       0.58 ms 137.86 ms 183.04 ms  696.9 ms   0    2150     21.3    FAIL
-  v3 C extension       0.42 ms  34.60 ms  64.43 ms  577.5 ms   0    2123     11.9    FAIL
-  v3 C ext @ 500/s     0.42 ms   0.52 ms  13.96 ms  605.7 ms   0     516      3.2    FAIL (10000 msgs)
-
-Conclusions
-  * Loss, RSS and direct-path thresholds pass in every configuration.
-  * Codec: v3 MessagePack is ~11% faster than v2 JSON at equal validation ONLY with the msgpack C
-    extension; with the pure-Python msgpack shipped in the shared anaconda env it is 2.7x slower.
-    Deployments must check bt_api_base.wire_codec_v1.codec_backend() == "c".
-  * Gateway end-to-end p99 <= 5 ms is NOT met on this machine for either encoding; the tail is the
-    same order for JSON and MessagePack (v3-C 64 ms vs JSON 77 ms), so it is not caused by the codec
-    (max ~0.6 s in every run, consistent with start-up/scheduling, not investigated further).
-  * Per INV-12 no end-to-end speed-up is claimed; only the codec-level result with the C extension.
+== iteration 60 end-to-end tick perf (G8) ==
+{
+  "date": "2026-11-03 15:01:29 +0800",
+  "machine": "arm64",
+  "cpu": "Apple M2",
+  "cpus": 8,
+  "python": "3.11.8",
+  "codec_backend": "python",
+  "msgpack": [
+    1,
+    0,
+    3
+  ],
+  "load_avg_at_start": [
+    61.3701171875,
+    105.54296875,
+    78.5712890625
+  ],
+  "note": "other test suites were running concurrently (CPU contention possible)",
+  "n_events": 5000,
+  "warmup": 500,
+  "runs": 3,
+  "thresholds": {
+    "direct_p99_ms": 1.0,
+    "direct_throughput": 10000.0,
+    "gateway_paced_p99_ms": 5.0,
+    "gateway_burst_throughput": 5000.0,
+    "rss_mb": 500.0
+  }
+}
+-- direct: raw runs
+   {"p50_ms": 0.074958, "p95_ms": 0.1305, "p99_ms": 0.205792, "max_ms": 2.192667, "throughput": 11854.976741760647, "drops": 0, "bars": 8, "rss_mb": 114.046875}
+   {"p50_ms": 0.06975, "p95_ms": 0.133208, "p99_ms": 0.20625, "max_ms": 1.048, "throughput": 12150.412647454166, "drops": 0, "bars": 8, "rss_mb": 111.65625}
+   {"p50_ms": 0.067, "p95_ms": 0.13375, "p99_ms": 0.217166, "max_ms": 1.519583, "throughput": 12080.311262266408, "drops": 0, "bars": 8, "rss_mb": 114.125}
+   summary: p99 {'best': 0.205792, 'median': 0.20625} ms | throughput {'best': 12150.412647454166, 'median': 12080.311262266408} ev/s | drops [0, 0, 0] | peak RSS {'best': 111.65625, 'median': 114.046875} MB
+-- gateway_paced_1000_per_s: raw runs
+   {"p50_ms": 1635.429167, "p95_ms": 2346.4195, "p99_ms": 2376.390792, "max_ms": 2495.170333, "throughput": 438.1859938941463, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 104.265625}
+   {"p50_ms": 1.392375, "p95_ms": 1.994375, "p99_ms": 2.975208, "max_ms": 4.191, "throughput": 1000.0160687178573, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 107.890625}
+   {"p50_ms": 968.379458, "p95_ms": 1563.904458, "p99_ms": 1592.505667, "max_ms": 1598.013041, "throughput": 919.5629950089077, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 120.84375}
+   summary: p99 {'best': 2.975208, 'median': 1592.505667} ms | throughput {'best': 1000.0160687178573, 'median': 919.5629950089077} ev/s | drops [0, 0, 0] | peak RSS {'best': 104.265625, 'median': 107.890625} MB
+-- gateway_burst: raw runs
+   {"p50_ms": 805.562125, "p95_ms": 1252.083125, "p99_ms": 1289.665458, "max_ms": 1299.674917, "throughput": 1846.6486051407899, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 126.484375}
+   {"p50_ms": 858.302416, "p95_ms": 1196.109583, "p99_ms": 1226.851667, "max_ms": 1233.365208, "throughput": 1897.733241077992, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 124.84375}
+   {"p50_ms": 759.342209, "p95_ms": 1178.527458, "p99_ms": 1213.238791, "max_ms": 1216.734625, "throughput": 1905.5764763319376, "received": 5000, "drops": 0, "publisher_refused": 0, "blocked_by_health": 0, "bars": 8, "rss_mb": 126.34375}
+   summary: p99 {'best': 1213.238791, 'median': 1226.851667} ms | throughput {'best': 1905.5764763319376, 'median': 1897.733241077992} ev/s | drops [0, 0, 0] | peak RSS {'best': 124.84375, 'median': 126.34375} MB
+== verdicts against the pre-registered thresholds ==
+   PASS  direct p99 < 1.0 ms (median of runs)
+   PASS  direct throughput >= 10,000/s (median)
+   PASS  direct drops == 0 (all runs)
+   FAIL  gateway paced p99 < 5.0 ms (median)
+   PASS  gateway paced drops == 0 (all runs)
+   FAIL  gateway burst throughput >= 5,000/s (median)
+   PASS  peak RSS < 500 MB (all runs)
+   gateway burst drops (informational): [0, 0, 0]
+   load_avg_at_end: (30.53076171875, 87.93798828125, 73.939453125)

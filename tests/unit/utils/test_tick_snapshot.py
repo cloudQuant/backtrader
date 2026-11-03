@@ -133,7 +133,7 @@ def test_frozen_contract_with_mutable_fields_is_copied_not_shared():
     assert "ask" not in original.values
 
 
-def test_frozen_contract_with_mapping_proxy_of_scalars_is_shared():
+def test_frozen_contract_with_mapping_proxy_of_scalars_is_detached():
     import dataclasses
     from types import MappingProxyType
 
@@ -142,5 +142,44 @@ def test_frozen_contract_with_mapping_proxy_of_scalars_is_shared():
         values: MappingProxyType
 
     Frozen.__module__ = "bt_api_base._test_frozen_contract"
-    payload = Frozen(MappingProxyType({"bid": 1}))
-    assert snapshot_tick({"payload": payload})["payload"] is payload
+    source = {"bid": 1}
+    payload = Frozen(MappingProxyType(source))
+    copied = snapshot_tick({"payload": payload})["payload"]
+    assert copied is not payload
+    source["bid"] = 2
+    assert copied.values["bid"] == 1
+
+
+# -- acceptance report 2026-11-03 F2: a read-only view is not immutable --------------
+
+
+def test_report_reproduction_proxy_over_a_live_dict_is_detached():
+    from types import MappingProxyType
+
+    source = {"price": 1}
+    snapshot = snapshot_tick({"metadata": MappingProxyType(source)})
+    source["price"] = 2
+    source["added"] = 3
+    assert dict(snapshot["metadata"]) == {"price": 1}
+    assert type(snapshot["metadata"]) is MappingProxyType  # consumers keep a read-only view
+
+
+def test_nested_proxies_and_containers_are_detached():
+    from types import MappingProxyType
+
+    inner = {"levels": [1]}
+    snapshot = snapshot_tick(_tick(meta=MappingProxyType({"book": MappingProxyType(inner)})))
+    inner["levels"].append(2)
+    inner["late"] = True
+    assert dict(snapshot.meta["book"]) == {"levels": [1]}
+
+
+def test_repeated_snapshots_do_not_share_a_cached_live_proxy():
+    from types import MappingProxyType
+
+    source = {"price": 1}
+    tick = {"metadata": MappingProxyType(source)}
+    first = snapshot_tick(tick)
+    source["price"] = 2
+    second = snapshot_tick(tick)
+    assert first["metadata"]["price"] == 1 and second["metadata"]["price"] == 2

@@ -21,6 +21,7 @@ from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
 from ..metabase import OwnerContext
 from .drawdown import TimeDrawDown
+from ._strategy_scope import portfolio_observation, record_result_gap, scoped_missing_input
 
 __all__ = ["Calmar"]
 
@@ -120,9 +121,9 @@ class Calmar(TimeFrameAnalyzerBase):
             self._fundmode = self.p.fund
         # Add different values to self._values based on fundmode
         if not self._fundmode:
-            self._values.append(self.strategy.broker.getvalue())
+            self._values.append(portfolio_observation(self.strategy, consumer=self))
         else:
-            self._values.append(self.strategy.broker.fundvalue)
+            self._values.append(portfolio_observation(self.strategy, fund=True, consumer=self))
 
     def on_dt_over(self):
         """Calculate Calmar ratio when timeframe period ends.
@@ -134,9 +135,14 @@ class Calmar(TimeFrameAnalyzerBase):
         self._mdd = max(self._mdd, self._maxdd.maxdd)
         # Add value to self._values
         if not self._fundmode:
-            self._values.append(self.strategy.broker.getvalue())
+            self._values.append(portfolio_observation(self.strategy, consumer=self))
         else:
-            self._values.append(self.strategy.broker.fundvalue)
+            self._values.append(portfolio_observation(self.strategy, fund=True, consumer=self))
+        if scoped_missing_input(self.strategy, self._values[-1], self._values[0], self._maxdd.maxdd):
+            record_result_gap(self)
+            self.calmar = float("nan")
+            self.rets[self.dtkey] = self.calmar
+            return
         # Calculate average monthly return by default
         try:
             ratio = self._values[-1] / self._values[0]

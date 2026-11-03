@@ -20,6 +20,7 @@ import math
 from ..analyzer import Analyzer, TimeFrameAnalyzerBase
 from ..mathsupport import is_finite_real
 from ..utils import AutoOrderedDict
+from ._strategy_scope import notified_value, portfolio_observation, record_result_gap, scoped_missing_input
 
 __all__ = ["DrawDown", "TimeDrawDown"]
 
@@ -109,7 +110,9 @@ class DrawDown(Analyzer):
             fundvalue: Current fund value.
             shares: Number of fund shares.
         """
-        current_value = value if not self._fundmode else fundvalue
+        current_value = notified_value(
+            getattr(self, "strategy", None), value, fundvalue, fund=self._fundmode, consumer=self
+        )
         self._value = current_value
         if is_finite_real(current_value):
             if not is_finite_real(self._maxvalue):
@@ -130,6 +133,14 @@ class DrawDown(Analyzer):
         maxvalue = self._maxvalue
         value = self._value
         r_max = r.max
+
+        if scoped_missing_input(getattr(self, "strategy", None), value):
+            self._strategy_financial_history_unavailable = True
+        if getattr(self, "_strategy_financial_history_unavailable", False):
+            record_result_gap(self)
+            r.moneydown = r.drawdown = r.len = float("nan")
+            r_max.moneydown = r_max.drawdown = r_max.len = float("nan")
+            return
 
         # calculate current drawdown values
         if not (is_finite_real(maxvalue) and is_finite_real(value)):
@@ -249,9 +260,15 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
         Updates drawdown calculations for the timeframe period.
         """
         if not self._fundmode:
-            value = self.strategy.broker.getvalue()
+            value = portfolio_observation(self.strategy, consumer=self)
         else:
-            value = self.strategy.broker.fundvalue
+            value = portfolio_observation(self.strategy, fund=True, consumer=self)
+        if scoped_missing_input(self.strategy, value):
+            self._strategy_financial_history_unavailable = True
+        if getattr(self, "_strategy_financial_history_unavailable", False):
+            record_result_gap(self)
+            self.dd = self.maxdd = self.maxddlen = float("nan")
+            return
         value_valid = is_finite_real(value)
         if not is_finite_real(self.peak):
             self.peak = 0.0

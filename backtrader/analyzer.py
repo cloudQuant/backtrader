@@ -182,20 +182,56 @@ class Analyzer(ParameterizedBase):
     # Notify cash and value
     # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_cashvalue(self, cash, value):
+        strategy = getattr(self, "strategy", None)
+        scope = vars(strategy).get("account_book") if strategy is not None else None
+
+        def check_scope():
+            if (
+                getattr(self, "strategy", None) is not strategy
+                or (strategy is not None and vars(strategy).get("account_book") is not scope)
+            ):
+                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+
         children = self._children
         if children:
             for child in children:
+                check_scope()
+                if getattr(child, "strategy", None) is not strategy:
+                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
                 child._notify_cashvalue(cash, value)
+                if getattr(child, "strategy", None) is not strategy:
+                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+                check_scope()
+        check_scope()
         self.notify_cashvalue(cash, value)
+        check_scope()
 
     # Notify cash, value, fundvalue, shares
     # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_fund(self, cash, value, fundvalue, shares):
+        strategy = getattr(self, "strategy", None)
+        scope = vars(strategy).get("account_book") if strategy is not None else None
+
+        def check_scope():
+            if (
+                getattr(self, "strategy", None) is not strategy
+                or (strategy is not None and vars(strategy).get("account_book") is not scope)
+            ):
+                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+
         children = self._children
         if children:
             for child in children:
+                check_scope()
+                if getattr(child, "strategy", None) is not strategy:
+                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
                 child._notify_fund(cash, value, fundvalue, shares)
+                if getattr(child, "strategy", None) is not strategy:
+                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+                check_scope()
+        check_scope()
         self.notify_fund(cash, value, fundvalue, shares)
+        check_scope()
 
     # Notify trade
     def _notify_trade(self, trade):

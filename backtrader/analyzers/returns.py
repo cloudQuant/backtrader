@@ -18,6 +18,7 @@ import math
 
 from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
+from ._strategy_scope import portfolio_observation, record_result_gap, scoped_missing_input
 
 
 # Calculate total, average, compound and annualized returns using logarithmic method
@@ -126,9 +127,9 @@ class Returns(TimeFrameAnalyzerBase):
             self._fundmode = self.p.fund
         # If fundmode is False, get value, otherwise get fundvalue
         if not self._fundmode:
-            self._value_start = self.strategy.broker.getvalue()
+            self._value_start = portfolio_observation(self.strategy, consumer=self)
         else:
-            self._value_start = self.strategy.broker.fundvalue
+            self._value_start = portfolio_observation(self.strategy, fund=True, consumer=self)
         # Count subperiods
         self._tcount = 0
 
@@ -145,9 +146,15 @@ class Returns(TimeFrameAnalyzerBase):
         super().stop()
         # If fundmode is False, get value, otherwise get fundvalue
         if not self._fundmode:
-            self._value_end = self.strategy.broker.getvalue()
+            self._value_end = portfolio_observation(self.strategy, consumer=self)
         else:
-            self._value_end = self.strategy.broker.fundvalue
+            self._value_end = portfolio_observation(self.strategy, fund=True, consumer=self)
+
+        if scoped_missing_input(self.strategy, self._value_start, self._value_end):
+            record_result_gap(self)
+            for name in ("rtot", "ravg", "rnorm", "rnorm100"):
+                self.rets[name] = float("nan")
+            return
 
         # Compound return
         # rtot calculates total log returns

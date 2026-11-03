@@ -16,6 +16,13 @@ import collections
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
+from ._strategy_scope import (
+    clear_result_gap,
+    notified_value,
+    portfolio_observation,
+    record_result_gap,
+    scoped_missing_input,
+)
 from ..utils.log_message import get_logger, throttled_warning
 
 logger = get_logger(__name__)
@@ -127,9 +134,9 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         if self.p.data is None:
             # keep the initial portfolio value if not tracing data
             if not self._fundmode:
-                self._lastvalue = self.strategy.broker.getvalue()
+                self._lastvalue = portfolio_observation(self.strategy, consumer=self)
             else:
-                self._lastvalue = self.strategy.broker.fundvalue
+                self._lastvalue = portfolio_observation(self.strategy, fund=True, consumer=self)
 
     def notify_fund(self, cash, value, fundvalue, shares):
         """Update current value from fund notification.
@@ -141,9 +148,15 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
             shares: Number of fund shares.
         """
         if not self._fundmode:
-            self._value = value if self.p.data is None else self.p.data[0]
+            self._value = (
+                notified_value(self.strategy, value, fundvalue, consumer=self)
+                if self.p.data is None else self.p.data[0]
+            )
         else:
-            self._value = fundvalue if self.p.data is None else self.p.data[0]
+            self._value = (
+                notified_value(self.strategy, value, fundvalue, fund=True, consumer=self)
+                if self.p.data is None else self.p.data[0]
+            )
 
     # Called once in a new timeframe
     def on_dt_over(self):
@@ -168,6 +181,15 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         """
         # Calculate the return
         super().next()
+        strategy = getattr(self, "strategy", None)
+        if strategy is not None and self.p.data is None and scoped_missing_input(
+            strategy, self._value, self._values[0]
+        ):
+            record_result_gap(self)
+            self.rets[self.dtkey] = float("nan")
+            self._lastvalue = self._value
+            return
+        clear_result_gap(self)
         # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
             start_value = self._values[0]

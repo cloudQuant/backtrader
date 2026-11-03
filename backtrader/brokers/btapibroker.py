@@ -17,6 +17,7 @@ from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
 from ._btapi_owner_fence import AccountOwnerFenceBrokerMixin
+from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
 from ..position import (
@@ -63,6 +64,7 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 class BtApiBroker(
     AccountOwnerFenceBrokerMixin,
     StrategyLedgerBrokerMixin,
+    StrategyNotificationRecoveryBrokerMixin,
     ServiceRecoveryBrokerMixin,
     BrokerReconciliationMixin,
     BrokerBase,
@@ -2985,6 +2987,9 @@ class BtApiBroker(
         self._sync_direct_ledger(order)
         if self._service_execution_recovery_suppress_notifications:
             return
+        # Re-verification G3: a recovery-bound Strategy's notification is
+        # journaled durably before it can be delivered (ACK after its callback).
+        self._journal_strategy_notification(order)
         # ``Order.clone`` deliberately clones execution state but retains the
         # original ``info`` mapping.  A later broker update can otherwise
         # rewrite a queued Accepted/UNKNOWN notification before Cerebro
@@ -4894,6 +4899,26 @@ class BtApiBroker(
         if incremental_fill < -1e-12:
             return "ignored"
 
+        if incremental_fill <= 1e-12:
+            # Same cumulative quantity: at most a late fee (F5). It is applied
+            # as a fee-only correction (no fill is fabricated); an unusable,
+            # lower or foreign-currency fee keeps the recovery fence.
+            fee = update.get("cumulative_commission")
+            if fee not in (None, ""):
+                outcome = self._apply_fee_only_correction(
+                    order, fee, update.get("fee_currency")
+                )
+                if outcome == "corrected":
+                    self.notify(order)  # also books the fee in the strategy ledger
+            try:
+                previous_average = float(update.get("average_price"))
+            except (TypeError, ValueError, OverflowError):
+                return "ignored"
+            if not math.isfinite(previous_average) or previous_average <= 0:
+                return "ignored"
+            self._set_status_after_fill(order)
+            return "ignored"
+
         average_price = update.get("average_price")
         try:
             average_price = float(average_price)
@@ -4901,10 +4926,6 @@ class BtApiBroker(
             return "ignored"
         if not math.isfinite(average_price) or average_price <= 0:
             return "ignored"
-        if incremental_fill <= 1e-12:
-            self._set_status_after_fill(order)
-            return "ignored"
-
         if update.get("cumulative_commission") in (None, ""):
             return "ignored"
         try:
@@ -5111,12 +5132,28 @@ class BtApiBroker(
             psize=psize,
             pprice=pprice,
         )
+        if actual_commission is not None:
+            self._record_provider_fee(order, update, actual_commission)
         self._cache_order_identifiers(order, update)
         self._set_status_after_fill(order)
         self.notify(order)
         if trade_key:
             self._seen_trade_ids.add(trade_key)
         return "applied"
+
+    def _record_provider_fee(self, order, update, amount):
+        """Keep the provider-reported cumulative fee of ``order`` per currency.
+
+        The strategy ledger books fees by (intent, currency) from these totals
+        (acceptance report F4); a fee without an explicit currency is not kept.
+        """
+        currency = self._extract_update_value(update, "fee_currency")
+        if type(currency) is not str or not currency:
+            return
+        totals = dict(self._order_info_get(order, "provider_fee_totals") or {})
+        prior = Decimal(totals.get(currency, "0"))
+        totals[currency] = str(prior + Decimal(str(amount)))
+        order.addinfo(provider_fee_totals=totals)
 
     def _block_trade_identity_mismatch(self, order, update, error_code, error_msg):
         """Reject a fill whose explicit remote identity conflicts with its local intent."""

@@ -14,6 +14,7 @@ Example:
 
 from ..analyzers import DrawDown as DrawDownAnalyzer
 from ..observer import Observer
+from ._strategy_scope import observe, portfolio_value
 
 
 # Drawdown
@@ -145,7 +146,11 @@ class DrawDownOld(Observer):
 
         Computes drawdown from peak value and updates maximum.
         """
-        value = self._owner.broker.getvalue()
+        value = observe(self, "value", portfolio_value, self._owner)
+        if "value" in getattr(self, "_strategy_financial_unavailable", {}):
+            self.lines.drawdown[0] = float("nan")
+            self.lines.maxdrawdown[0] = float("nan")
+            return
 
         # update the maximum seen peak
         if value > self.peak:

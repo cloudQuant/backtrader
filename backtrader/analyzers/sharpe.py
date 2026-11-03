@@ -23,6 +23,7 @@ from ..mathsupport import average, is_finite_real, standarddev
 from ..metabase import OwnerContext
 from ..utils.py3 import itervalues
 from .annualreturn import AnnualReturn
+from ._strategy_scope import record_result_gap, scoped_missing_input
 from .timereturn import TimeReturn
 
 
@@ -169,6 +170,16 @@ class SharpeRatio(Analyzer):
             ratio = self._timeframe_ratio()
         # Save Sharpe ratio
         self.rets["sharperatio"] = ratio
+        if ratio is None:
+            child = self.anret if self.p.legacyannual else self.timereturn
+            reasons = vars(child).get("_strategy_financial_unavailable", {})
+            reason = reasons.get("result") or reasons.get("value")
+            if reason:
+                vars(self).setdefault("_strategy_financial_unavailable", {})["result"] = reason
+            else:
+                results = child.rets if self.p.legacyannual else child.get_analysis().values()
+                if scoped_missing_input(getattr(self, "strategy", None), *results):
+                    record_result_gap(self)
 
     def _legacy_annual_ratio(self):
         """Sharpe ratio using the legacy AnnualReturn sub-analyzer path."""

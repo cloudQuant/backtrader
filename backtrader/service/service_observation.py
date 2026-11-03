@@ -157,7 +157,29 @@ def open_service_read_session(
         raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
     account = service_config["account"]
     neutral_fields = ("mount", "account_ref", "key", "required_coverage")
-    if any(name not in account for name in neutral_fields):
+    allowed = set(neutral_fields) | {
+        "snapshot_format", "valuation_currency", "position_mode", "resource_by_leg", "qty_unit"
+    }
+    if any(name not in account for name in neutral_fields) or set(account) - allowed:
+        raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
+    if "snapshot_format" in account and (
+        type(account["snapshot_format"]) is not str
+        or account["snapshot_format"] not in {"generic", "typed"}
+    ):
+        raise _error("SERVICE_ACCOUNT_SNAPSHOT_FORMAT_INVALID")
+    for name in ("valuation_currency", "qty_unit"):
+        if name in account and (
+            type(account[name]) is not str
+            or not account[name]
+            or account[name] != account[name].strip()
+        ):
+            raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
+    if "position_mode" in account and (
+        type(account["position_mode"]) is not str
+        or account["position_mode"] not in ("net", "dual_side")
+    ):
+        raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
+    if "resource_by_leg" in account and not isinstance(account["resource_by_leg"], Mapping):
         raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
     # Do not start a service client when a Store-bound feed has no supported
     # neutral channel. Provider metadata alone cannot authorize a tick bridge.
@@ -165,12 +187,16 @@ def open_service_read_session(
         for item in instruments:
             if getattr(item, "resource", None) is None:
                 continue
+            if "valuation_currency" not in account or "position_mode" not in account:
+                raise _error("SERVICE_ACCOUNT_CONFIG_INVALID")
             key = getattr(item, "market_key", None)
             channel = key.get("channel") if isinstance(key, Mapping) else getattr(key, "channel", None)
             if channel not in {"bar", "orderbook"}:
                 raise _error("SERVICE_MARKET_CHANNEL_UNSUPPORTED")
     sdk_config = dict(service_config)
     sdk_config["account"] = {name: account[name] for name in neutral_fields}
+    if "snapshot_format" in account:
+        sdk_config["account"]["snapshot_format"] = account["snapshot_format"]
     clients = open_service_observation_clients(
         sdk_config, instruments=instruments, provider_route=provider_route,
         allow_write=allow_write, environ=environ, timeout_seconds=timeout_seconds,

@@ -23,6 +23,7 @@ class RecordingObserver:
 class DummyStrategy:
     """Minimal strategy-shaped object for Cerebro notification tests."""
 
+    _iter_observers_for_notification = bt.Strategy._iter_observers_for_notification
     _notify_store_to_observers = bt.Strategy._notify_store_to_observers
     _notify_data_to_observers = bt.Strategy._notify_data_to_observers
 
@@ -117,3 +118,26 @@ def test_cerebro_datanotify_forwards_to_strategy_and_observer():
     assert strategy.data_calls[0][1] == 4
     assert observer.data_events[0][0] is data
     assert observer.data_events[0][1] == 4
+
+
+def test_cerebro_store_and_data_bridge_deduplicates_multi_observers():
+    first = RecordingObserver()
+    second = RecordingObserver()
+    strategy = DummyStrategy(first)
+    strategy.stats = [first, [second, first]]
+    store = DummyStore([("runtime_event", (), {"event": {"event_type": "connected"}})])
+    data = DummyData([(4, (), {"source": "live"})])
+    cerebro = bt.Cerebro()
+    cerebro.stores = [store]
+    cerebro.datas = [data]
+    cerebro.runningstrats = [strategy]
+
+    cerebro._storenotify()
+    cerebro._datanotify()
+
+    assert len(strategy.store_calls) == len(strategy.data_calls) == 1
+    for observer in (first, second):
+        assert len(observer.store_events) == len(observer.data_events) == 1
+        assert observer.store_events[0][0] == "runtime_event"
+        assert observer.data_events[0][0] is data
+        assert observer.data_events[0][1] == 4

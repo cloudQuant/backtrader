@@ -18,6 +18,7 @@ import math
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
+from ._strategy_scope import portfolio_observation, record_result_gap, scoped_missing_input
 from ..utils.date import num2date
 from ..utils.log_message import get_logger
 from ..utils.py3 import range
@@ -64,7 +65,7 @@ class AnnualReturn(Analyzer):
         """
         # Cache current date and account value each time next is called
         dt_val = self.data.datetime[0]
-        value_val = self.strategy.broker.getvalue()
+        value_val = portfolio_observation(self.strategy, consumer=self)
         self._dt_cache.append(dt_val)
         self._value_cache.append(value_val)
 
@@ -102,7 +103,7 @@ class AnnualReturn(Analyzer):
             # When years are not equal, it indicates current i is a new year
             if dt.year > cur_year:
                 if cur_year >= 0:
-                    annual_ret = self._safe_annual_return(value_start, value_end)
+                    annual_ret = self._scoped_annual_return(value_start, value_end)
                     self.rets.append(annual_ret)
                     self.ret[cur_year] = annual_ret
 
@@ -119,7 +120,7 @@ class AnnualReturn(Analyzer):
         # If current year hasn't ended and return hasn't been calculated, calculate at the end even if less than a full year
         if cur_year >= 0 and cur_year not in self.ret:
             # finish calculating pending data
-            annual_ret = self._safe_annual_return(value_start, value_end)
+            annual_ret = self._scoped_annual_return(value_start, value_end)
             self.rets.append(annual_ret)
             self.ret[cur_year] = annual_ret
 
@@ -143,6 +144,12 @@ class AnnualReturn(Analyzer):
             return annual_ret
         except (ZeroDivisionError, TypeError, ValueError):
             return 0.0
+
+    def _scoped_annual_return(self, value_start, value_end):
+        if scoped_missing_input(getattr(self, "strategy", None), value_start, value_end):
+            record_result_gap(self)
+            return float("nan")
+        return self._safe_annual_return(value_start, value_end)
 
     def get_analysis(self):
         """Return the annual return analysis results.
@@ -202,6 +209,10 @@ class MyAnnualReturn(Analyzer):
         for year, data in df.groupby("year"):
             begin_value = list(data["pre_value"])[0]
             end_value = list(data["value"])[-1]
+            if scoped_missing_input(getattr(self, "strategy", None), begin_value, end_value):
+                record_result_gap(self)
+                self.ret[year] = float("nan")
+                continue
             try:
                 valid_values = math.isfinite(begin_value) and math.isfinite(end_value)
             except TypeError:

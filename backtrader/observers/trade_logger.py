@@ -1599,6 +1599,18 @@ class TradeLogger(Observer):
             return
 
         if self.p.log_format == "json":
+            # JSON has no NaN: preserve unknown scoped financial metrics as
+            # null and include their finite, queryable unavailability reasons.
+            reasons = vars(self).get("_strategy_financial_unavailable", {})
+            unavailable = {}
+            payload = dict(payload)
+            for field, metric in (("broker_value", "value"), ("broker_cash", "cash")):
+                value = payload.get(field)
+                if metric in reasons and isinstance(value, float) and math.isnan(value):
+                    payload[field] = None
+                    unavailable[field] = reasons[metric]
+            if unavailable:
+                payload["strategy_financial_unavailable"] = unavailable
             logger.info(json.dumps(payload, ensure_ascii=False, default=str))
             return
 
@@ -2037,6 +2049,15 @@ class TradeLogger(Observer):
 
     def _get_broker_value(self):
         """Get current broker portfolio value."""
+        from ..analyzers._strategy_scope import _book
+        from ._strategy_scope import observe, portfolio_value
+
+        book = _book(self._owner)
+        if book is not None:
+            return float(observe(self, "value", portfolio_value, self._owner))
+        reasons = vars(self).get("_strategy_financial_unavailable")
+        if reasons is not None:
+            reasons.pop("value", None)
         try:
             broker = getattr(self._owner, "broker", None)
             if broker is None:
@@ -2048,6 +2069,15 @@ class TradeLogger(Observer):
 
     def _get_broker_cash(self):
         """Get current broker cash."""
+        from ..analyzers._strategy_scope import _book
+        from ._strategy_scope import cash_value, observe
+
+        book = _book(self._owner)
+        if book is not None:
+            return float(observe(self, "cash", cash_value, self._owner))
+        reasons = vars(self).get("_strategy_financial_unavailable")
+        if reasons is not None:
+            reasons.pop("cash", None)
         try:
             broker = getattr(self._owner, "broker", None)
             if broker is None:

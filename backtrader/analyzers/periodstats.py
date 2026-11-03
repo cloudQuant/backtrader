@@ -17,6 +17,7 @@ Example:
 import math
 
 from ..analyzer import Analyzer
+from ._strategy_scope import record_result_gap, scoped_missing_input
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev
 from ..metabase import OwnerContext
@@ -104,6 +105,12 @@ class PeriodStats(Analyzer):
         """
         # Get returns, default is annual
         trets = self._tr.get_analysis()  # dict key = date, value = ret
+        values = list(itervalues(trets))
+        if scoped_missing_input(getattr(self, "strategy", None), *(values or [float("nan")])):
+            record_result_gap(self)
+            for key in ("average", "stddev", "positive", "negative", "nochange", "best", "worst"):
+                self.rets[key] = float("nan")
+            return
         # Count years with positive, negative, and zero returns
         pos = nul = neg = 0
         sanitized_trets = []

@@ -526,6 +526,19 @@ class Strategy(StrategyBase):
             at_time=at_time,
         )
 
+    def _iter_observers_for_notification(self):
+        """Yield registered observers in order, including multi-feed groups once."""
+        if not hasattr(self, "stats") or not self.stats:
+            return
+        seen = set()
+        for item in self.stats:
+            observers = item if isinstance(item, list) else (item,)
+            for observer in observers:
+                identity = id(observer)
+                if identity not in seen:
+                    seen.add(identity)
+                    yield observer
+
     def _notify_signal_to_observers(self, action, size, price, data=None, reason=None):
         """Notify all TradeLogger observers about a trading signal.
 
@@ -541,7 +554,7 @@ class Strategy(StrategyBase):
         """
         # Notify all observers that have log_signal method (TradeLogger)
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "log_signal"):
                     data_name = getattr(data, "_name", None) if data else None
                     observer.log_signal(action, size, price, data_name, reason)
@@ -553,7 +566,7 @@ class Strategy(StrategyBase):
             order: The order object with status change
         """
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_order"):
                     observer.notify_order(order)
 
@@ -564,35 +577,35 @@ class Strategy(StrategyBase):
             trade: The trade object
         """
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_trade"):
                     observer.notify_trade(trade)
 
     def _notify_store_to_observers(self, msg, *args, **kwargs):
         """Forward store notifications to observers that support runtime events."""
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_store_event"):
                     observer.notify_store_event(msg, *args, **kwargs)
 
     def _notify_data_to_observers(self, data, status, *args, **kwargs):
         """Forward data-feed notifications to observers that support runtime events."""
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_data_event"):
                     observer.notify_data_event(data, status, *args, **kwargs)
 
     def _notify_tick_to_observers(self, tick):
         """Forward tick events to observers that support tick logging."""
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_tick_event"):
                     observer.notify_tick_event(tick)
 
     def _notify_bar_to_observers(self, bar):
         """Forward bar events to observers that support bar logging."""
         if hasattr(self, "stats") and self.stats:
-            for observer in self.stats:
+            for observer in self._iter_observers_for_notification():
                 if hasattr(observer, "notify_bar_event"):
                     observer.notify_bar_event(bar)
 
@@ -1240,8 +1253,8 @@ class Strategy(StrategyBase):
             self.stats.append(obs, obsname)
             return
 
-        setattr(self.stats, obsname, [])
-        obs_list = getattr(self.stats, obsname)
+        obs_list = []
+        self.stats.append(obs_list, obsname)
 
         for data in self.datas:
             # Use OwnerContext so observer's findowner() can find this strategy
@@ -1250,6 +1263,14 @@ class Strategy(StrategyBase):
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self
+            # Multi observers are bound to the specific feed used to create
+            # them. Generic observer initialization otherwise defaults every
+            # instance to the strategy's first feed.
+            obs.datas = [data]
+            obs.ddatas = dict.fromkeys(obs.datas)
+            obs.data = obs.data0 = data
+            if not getattr(obs, "_stclock", False):
+                obs._clock = data
             self._register_observer(obs)
             obs_list.append(obs)
 
@@ -1776,28 +1797,17 @@ class Strategy(StrategyBase):
     def _next_observers(self, minperstatus, once=False):
         """Update observers based on minimum period status.
 
-        Iterates over self.stats.items (populated by _addobserver) instead of
-        _lineiterators[ObsType] which is intentionally kept empty to avoid
-        double-processing with _once() batch mode.
-
-        Note: Some pre-existing observers may have broken __init__ chains
-        (due to ObserverBase.__init_subclass__ wrapped_init not calling
-        super().__init__). Their next() calls are wrapped in try/except
-        to prevent one broken observer from crashing the entire run.
+        Include registered observers and any explicitly attached line
+        iterators once each. Multi-data observers are stored as lists in stats.
 
         Args:
             minperstatus: Current minimum period status
             once: If True, running in runonce mode; otherwise running in next() mode
         """
-        # Collect all observers from _lineiterators
         observers_to_process = list(self._lineiterators[LineIterator.ObsType])
-        # Also include TradeLogger observers from stats that are not in _lineiterators
-        # (TradeLogger needs next() to be called for position/indicator logging)
-        for obs in self.stats:
+        for obs in self._get_all_observers():
             if not any(existing is obs for existing in observers_to_process):
-                # Only add TradeLogger type observers to avoid breaking other observers
-                if obs.__class__.__name__ == "TradeLogger":
-                    observers_to_process.append(obs)
+                observers_to_process.append(obs)
 
         # Loop through observers
         for observer in observers_to_process:
@@ -2971,6 +2981,7 @@ class Strategy(StrategyBase):
         # If not simulated trading, add order to pending orders
         if not order.p.simulated:
             self._orderspending.append(order)
+        self._apply_fee_corrections(order)
         recovery_info = getattr(order, "info", None)
         recovery_receipt = (
             recovery_info.get("service_execution_recovery_receipt_id")
@@ -3069,6 +3080,7 @@ class Strategy(StrategyBase):
                     exbit.pnl,
                     comminfo=order.comminfo,
                 )
+                self._order_last_trade()[order.ref] = trade
                 # If trade is closed
                 if trade.isclosed:
                     # Copy trade and add to _tradespending
@@ -3094,6 +3106,7 @@ class Strategy(StrategyBase):
                     exbit.pnl,
                     comminfo=order.comminfo,
                 )
+                self._order_last_trade()[order.ref] = trade
 
                 # This extra check covers the case in which different tradeid
                 # orders have put the position down to 0 and the next order
@@ -3117,6 +3130,59 @@ class Strategy(StrategyBase):
         # If quick notify needed, call _notify
         if quicknotify:
             self._notify(qorders=qorders, qtrades=qtrades)
+
+    def _order_last_trade(self):
+        """``order.ref -> Trade`` this order last updated (for fee corrections)."""
+        mapping = self.__dict__.get("_fee_correction_trades")
+        if mapping is None:
+            mapping = {}
+            self.__dict__["_fee_correction_trades"] = mapping
+        return mapping
+
+    def _apply_fee_corrections(self, order):
+        """Move new late-fee corrections of ``order`` onto its Trade (F5).
+
+        A Broker records each provider fee-only correction as a numbered
+        entry of ``order.info["fee_corrections"]`` (see
+        ``ServiceRecoveryBrokerMixin._apply_fee_only_correction``); the order
+        commission already includes it. Each new entry is applied once: the
+        delta is added to the Trade this order last updated (``commission``
+        and ``pnlcomm``), then ``notify_fee_correction(order, trade, delta,
+        currency)`` is called on this Strategy, its analyzers and its
+        observers that define it. ``trade`` is ``None`` when the order
+        produced no Trade here. Trades are not re-notified, so analyzers that
+        already counted a closed Trade see the change only through this hook.
+        """
+        info = getattr(order, "info", None)
+        getter = getattr(info, "get", None)
+        corrections = getter("fee_corrections") if callable(getter) else None
+        if not corrections:
+            return
+        applied = self.__dict__.setdefault("_fee_corrections_applied", {})
+        done = applied.get(order.ref, 0)
+        for entry in corrections:
+            sequence = entry.get("sequence")
+            if type(sequence) is not int or sequence <= done:
+                continue
+            delta = float(entry["delta"])
+            currency = entry.get("currency")
+            trade = self._order_last_trade().get(order.ref)
+            if trade is not None:
+                trade.commission += delta
+                trade.pnlcomm = trade.pnl - trade.commission
+            applied[order.ref] = done = sequence
+            observers = getattr(self, "_lineiterators", {}).get(LineIterator.ObsType, ())
+            listeners = [self, *getattr(self, "analyzers", ()), *observers]
+            for listener in listeners:
+                hook = getattr(listener, "notify_fee_correction", None)
+                if callable(hook):
+                    hook(order, trade, delta, currency)
+
+    def notify_fee_correction(self, order, trade, delta, currency):
+        """A late provider fee changed ``order``'s commission by ``delta``.
+
+        ``trade`` (or ``None``) already includes the change. Default: no-op.
+        """
 
     def _notify(self, qorders=None, qtrades=None):
         """Deliver notifications and acknowledge durable receipts on success."""
@@ -3247,20 +3313,49 @@ class Strategy(StrategyBase):
         # If qorders is not empty, return after processing orders
         if qorders:
             return  # cash is notified regularly
-        # Get cash, value, fundvalue, fundshares
-        cash = self.broker.getcash()
-        value = self.broker.getvalue()
-        fundvalue = self.broker.fundvalue
-        fundshares = self.broker.fundshares
+        # A bound strategy must never receive account-wide Broker values.
+        # No atomic strategy snapshot currently provides all four values in
+        # the units and valuation policy required by these callbacks.
+        notification_book = self.__dict__.get("account_book")
+        if notification_book is not None:
+            from .service.strategy_financial_notifications import strategy_financial_notification
+
+            cash, value, fundvalue, fundshares, reasons = strategy_financial_notification()
+            self.__dict__["_strategy_financial_unavailable"] = reasons
+        else:
+            self.__dict__.pop("_strategy_financial_unavailable", None)
+            cash = self.broker.getcash()
+            value = self.broker.getvalue()
+            fundvalue = self.broker.fundvalue
+            fundshares = self.broker.fundshares
+
+        def check_financial_scope():
+            if self.__dict__.get("account_book") is not notification_book:
+                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+
         # Notify cash and value values, and notify analyzers
         if not notify_cashvalue_default:
+            check_financial_scope()
             self.notify_cashvalue(cash, value)
         # Notify fund values, and notify analyzers
         if not notify_fund_default:
+            check_financial_scope()
             self.notify_fund(cash, value, fundvalue, fundshares)
         for analyzer in all_analyzers:
+            check_financial_scope()
             analyzer._notify_cashvalue(cash, value)
+            check_financial_scope()
             analyzer._notify_fund(cash, value, fundvalue, fundshares)
+        check_financial_scope()
+
+    @property
+    def strategy_financial_unavailable(self):
+        """Copy of per-field reason codes for the most recent notification.
+
+        An empty mapping means no unavailable strategy fields were recorded;
+        it does not establish account permissions or a valuation guarantee.
+        """
+        return dict(self.__dict__.get("_strategy_financial_unavailable", {}))
 
     def add_timer(
         self,
@@ -4193,6 +4288,8 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        if self._strategy_account_book(self.broker) is not None:
+            return self._strategy_order_target_value(data, target, price, **kwargs)
         # Get the current position size
         possize = self.getposition(data, self.broker).size
         # If target is 0 and position exists, close the position
@@ -4216,6 +4313,146 @@ class Strategy(StrategyBase):
             return self.sell(data=data, size=size, price=price, **kwargs)
 
         return None  # no execution size == possize
+
+    #: Seconds a valuation mark may lag the newest mark used with it; ``0``
+    #: means every mark must be on the same bar time (60.11-A5).
+    strategy_mark_max_age = 0.0
+
+    def _strategy_valuation(self, account_book, target_data):
+        """Value this strategy's book from one snapshot (60.11-R1/R2/A10).
+
+        Marks are the current close of each held instrument's feed (looked up
+        by feed name) and of ``target_data``; they must be finite, positive
+        and within ``strategy_mark_max_age`` of each other. Live data is
+        valued only through each feed's own source-bound contract
+        (``BtApiFeed.valuation_mark()``: the final bar that feed published,
+        not older than its absolute max age against its wall clock); any
+        other live feed, or a historical run on a non-BackBroker Broker, is
+        refused (``STRATEGY_MARK_PROVENANCE_UNAVAILABLE``).
+        Multipliers come
+        from this Broker's commission info and must equal the instrument
+        terms published by the book. Returns ``(valuation, marks)`` or raises
+        ``ValueError`` naming the finite reason; nothing is ordered then.
+        """
+        from .service.service_strategy_account_book import (
+            ServiceStrategyAccountBookError,
+            value_strategy_book,
+        )
+        from .brokers.bbroker import BackBroker
+
+        try:
+            snapshot = account_book.snapshot()
+            feeds = {}
+            for name in snapshot.positions:
+                try:
+                    feeds[name] = self.getdatabyname(name)
+                except (KeyError, AttributeError):
+                    raise ServiceStrategyAccountBookError("STRATEGY_MARK_UNAVAILABLE") from None
+            feeds[getattr(target_data, "_name", None)] = target_data
+            # Relative mark age or a self-reported flag cannot establish
+            # the provenance and freshness of a live price: live data needs
+            # the feed's source-bound mark contract; otherwise only the
+            # historical BackBroker path is allowed.
+            live_marks = _live_valuation_marks(feeds)
+            cerebro = self.cerebro
+            if live_marks is None and (
+                type(self.broker) is not BackBroker
+                or getattr(cerebro, "_dolive", False)
+                or getattr(getattr(cerebro, "p", None), "live", False)
+            ):
+                raise ServiceStrategyAccountBookError("STRATEGY_MARK_PROVENANCE_UNAVAILABLE")
+            for data in feeds.values() if live_marks is None else ():
+                islive = getattr(data, "islive", None)
+                try:
+                    live = islive() if callable(islive) else None
+                except Exception:
+                    raise ServiceStrategyAccountBookError(
+                        "STRATEGY_MARK_PROVENANCE_UNAVAILABLE"
+                    ) from None
+                if live is not False:
+                    raise ServiceStrategyAccountBookError(
+                        "STRATEGY_MARK_PROVENANCE_UNAVAILABLE"
+                    )
+            marks, stamps, multipliers = {}, [], {}
+            for name, data in feeds.items():
+                comminfo = self.broker.getcommissioninfo(data)
+                if getattr(comminfo, "stocklike", False):
+                    get_param = getattr(comminfo, "get_param", None)
+                    mult = get_param("mult") if callable(get_param) else None
+                    if mult is not None:
+                        multipliers[name] = Decimal(str(mult))
+                if live_marks is not None:
+                    mark, stamp = live_marks[name]
+                else:
+                    mark, stamp = _eligible_mark(data)
+                if mark is not None:
+                    marks[name] = mark
+                    stamps.append(stamp)
+            try:
+                max_age = float(self.strategy_mark_max_age)
+            except (TypeError, ValueError, OverflowError):
+                raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID") from None
+            if not math.isfinite(max_age) or max_age < 0:
+                raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID")
+            if stamps and (max(stamps) - min(stamps)) * 86400.0 > max_age:
+                raise ServiceStrategyAccountBookError("STRATEGY_MARK_STALE")
+            valuation = value_strategy_book(snapshot, marks=marks, multipliers=multipliers)
+        except ServiceStrategyAccountBookError as error:
+            raise ValueError(f"strategy valuation is unavailable ({error.code})") from None
+        return valuation, marks
+
+    def _strategy_order_target_value(self, data, target, price, valuation=None, **kwargs):
+        """``order_target_value`` for a strategy bound to its account book (60.11-R1).
+
+        The value compared with ``target`` is this strategy's own position in
+        ``data`` from one valued snapshot, in that snapshot's cash currency;
+        never the Broker's account value. A zero target only closes this
+        strategy's own position and needs no valuation. Everything else needs
+        an available valuation (policy ``strategy_spot_equity.v1``) and a
+        stock-like commission info whose multiplier matches the book; the
+        order is sized at ``price`` (default: the eligible mark). Any missing
+        or conflicting input raises before an order is created.
+        """
+        target = Decimal(str(target))
+        if not target.is_finite() or target < 0:
+            raise ValueError("strategy target value must be a finite non-negative amount")
+        if target == 0:
+            possize = self.getposition(data, self.broker).size
+            return self.close(data=data, price=price, **kwargs) if possize else None
+        comminfo = self.broker.getcommissioninfo(data)
+        if not getattr(comminfo, "stocklike", False):
+            raise ValueError("strategy target value is unavailable for futures-like instruments")
+        if valuation is None:
+            valuation, marks = self._strategy_valuation(self._strategy_account_book(), data)
+        else:
+            valuation, marks = valuation
+        name = getattr(data, "_name", None)
+        mark = marks.get(name)
+        if mark is None:
+            raise ValueError("strategy valuation is unavailable (STRATEGY_MARK_UNAVAILABLE)")
+        if price is None:
+            price = mark
+        try:
+            price = Decimal(str(price))
+        except (ArithmeticError, ValueError):
+            price = Decimal("NaN")
+        if not price.is_finite() or price <= 0:
+            raise ValueError("strategy target value needs a finite positive price")
+        possize = valuation.positions.get(name, Decimal("0"))
+        mult = valuation.multipliers.get(name)
+        if mult is None:
+            get_param = getattr(comminfo, "get_param", None)
+            mult = Decimal(str(get_param("mult"))) if callable(get_param) else None
+        if mult is None or not mult.is_finite() or mult <= 0:
+            raise ValueError("strategy valuation is unavailable (STRATEGY_INSTRUMENT_TERMS_UNKNOWN)")
+        value = valuation.values.get(name, Decimal("0"))
+        if target > value:
+            size = comminfo.getsize(float(price), float(target - value))
+            return self.buy(data=data, size=size, price=float(price), **kwargs) if size else None
+        if target < value:
+            size = min(comminfo.getsize(float(price), float(value - target)), float(possize))
+            return self.sell(data=data, size=size, price=float(price), **kwargs) if size else None
+        return None
 
     def order_target_percent(self, data=None, target=0.0, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target percentage of portfolio value.
@@ -4246,12 +4483,41 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        account_book = self._strategy_account_book(self.broker)
+        if account_book is not None:
+            # 60.11-R2: the denominator is this strategy's equity (its cash +
+            # its valued positions, one snapshot), never the account's value,
+            # a budget or cash alone. A zero target only closes the
+            # strategy's own position; otherwise the valuation must exist.
+            price = kwargs.pop("price", None)
+            if not target:
+                return self._strategy_order_target_value(data, 0.0, price, **kwargs)
+            fraction = Decimal(str(target))
+            if not fraction.is_finite() or fraction < 0:
+                raise ValueError("strategy target percent must be a finite non-negative fraction")
+            valued = self._strategy_valuation(account_book, data)
+            if valued[0].equity <= 0:
+                raise ValueError("strategy valuation is unavailable (STRATEGY_EQUITY_NOT_POSITIVE)")
+            return self._strategy_order_target_value(
+                data, fraction * valued[0].equity, price, valuation=valued, **kwargs
+            )
         # Calculate target value based on portfolio value
         # Note: Getting position size here is not necessary
         # possize = self.getposition(data, self.broker).size
         target *= self.broker.getvalue()
 
         return self.order_target_value(data=data, target=target, **kwargs)
+
+    def notify_ledger_event(self, event):
+        """Receive one event of this strategy's SDK ledger book (iteration 60, G5).
+
+        Called only for a strategy bound with
+        ``BtApiBroker.bind_direct_strategy_ledger(..., event_cursor_path=...)``.
+        ``event`` is a ``bt_api_py.strategy_ledger.LedgerEvent`` with a stable
+        ``event_id``. Delivery is at least once: after a crash, or if this
+        method raises, the same event is delivered again, so side effects
+        here must be idempotent or keyed by ``event_id``. Default: no-op.
+        """
 
     def _strategy_account_book(self, broker=None):
         """Return the bound strategy account book when ``broker`` is ours.
@@ -4873,3 +5139,44 @@ class BtApiStrategy(Strategy):
             self.notify_order(data)
         if data.data_type == "trade":
             self.notify_trade(data)
+
+
+def _live_valuation_marks(feeds):
+    """``{name: (price, bar_time_days)}`` from source-bound feed marks, or ``None``.
+
+    ``None`` when no feed offers ``valuation_mark``; refuses (finite code)
+    when only some do or any mark is not eligible.
+    """
+    from .service.service_strategy_account_book import ServiceStrategyAccountBookError
+
+    providers = {name: getattr(data, "valuation_mark", None) for name, data in feeds.items()}
+    if not any(callable(item) for item in providers.values()):
+        return None
+    if not all(callable(item) for item in providers.values()):
+        raise ServiceStrategyAccountBookError("STRATEGY_MARK_PROVENANCE_UNAVAILABLE")
+    marks = {}
+    for name, provider in providers.items():
+        try:
+            price, as_of, _source = provider()
+        except ValueError as error:
+            code = getattr(error, "code", None)
+            raise ServiceStrategyAccountBookError(
+                f"STRATEGY_{code}" if type(code) is str else "STRATEGY_MARK_UNAVAILABLE"
+            ) from None
+        marks[name] = (price, as_of.timestamp() / 86400.0)
+    return marks
+
+
+def _eligible_mark(data):
+    """Return ``(close, bar_time)`` of ``data``'s current bar, or ``(None, None)``."""
+
+    try:
+        if len(data) == 0:
+            return None, None
+        mark = Decimal(str(data.close[0]))
+        stamp = float(data.datetime[0])
+    except (AttributeError, IndexError, ArithmeticError, TypeError, ValueError):
+        return None, None
+    if not mark.is_finite() or mark <= 0 or not math.isfinite(stamp):
+        return None, None
+    return mark, stamp

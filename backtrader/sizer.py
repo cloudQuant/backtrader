@@ -22,6 +22,8 @@ Example:
     ...         return int(cash * self.p.perc / data.close[0])
 """
 
+import math
+
 from .parameters import ParameterizedBase
 
 
@@ -46,6 +48,9 @@ class Sizer(ParameterizedBase):
         >>> cerebro.addsizer(bt.sizers.FixedSize, stake=100)
     """
 
+    #: Whether ``_getsizing`` uses the ``cash`` argument (Broker account cash).
+    uses_account_cash = True
+
     strategy = None
     broker = None
 
@@ -66,6 +71,22 @@ class Sizer(ParameterizedBase):
                 by the _getsizing method.
         """
         comminfo = self.broker.getcommissioninfo(data)
+        # Iteration 60 (60.11-R3): with a strategy account book bound, Broker
+        # cash is the shared account's cash, not this strategy's. A Sizer that
+        # sizes from ``cash`` receives this strategy's own cash instead, from
+        # one book snapshot, in its single cash currency; when that cash is
+        # unavailable (no capital, unreconciled, a second currency, a
+        # non stock-like instrument) the Sizer is refused before any order is
+        # created, never given account cash. Sizers that do not use ``cash``
+        # declare ``uses_account_cash = False``. The size is advice: the
+        # ledger admits the order against the same cash atomically.
+        strategy = getattr(self, "strategy", None)
+        scoped = getattr(strategy, "_strategy_account_book", None)
+        account_book = scoped(self.broker) if callable(scoped) else None
+        if self.uses_account_cash and account_book is not None:
+            return self._getsizing(
+                comminfo, _strategy_cash(account_book, comminfo, type(self).__name__), data, isbuy
+            )
         return self._getsizing(comminfo, self.broker.getcash(), data, isbuy)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
@@ -112,3 +133,29 @@ class Sizer(ParameterizedBase):
 
 # SizerBase class
 SizerBase = Sizer
+
+
+def _strategy_cash(account_book, comminfo, sizer_name):
+    """This strategy's cash for a cash-based Sizer, or ``ValueError``."""
+
+    if not getattr(comminfo, "stocklike", False):
+        raise ValueError(
+            f"{sizer_name}: strategy cash sizing is unavailable for futures-like instruments"
+        )
+    from .service.service_strategy_account_book import ServiceStrategyAccountBookError
+
+    try:
+        snapshot = account_book.snapshot()
+        if not snapshot.financial_available:
+            raise ServiceStrategyAccountBookError(snapshot.financial_error_code)
+        rows = dict(snapshot.cash_by_currency)
+        if len(rows) != 1:
+            code = "STRATEGY_FX_UNAVAILABLE" if rows else "STRATEGY_CASH_UNAVAILABLE"
+            raise ServiceStrategyAccountBookError(code)
+        (cash,) = rows.values()
+    except ServiceStrategyAccountBookError as error:
+        raise ValueError(f"{sizer_name}: strategy cash is unavailable ({error.code})") from None
+    cash = float(cash)
+    if not math.isfinite(cash):
+        raise ValueError(f"{sizer_name}: strategy cash is unavailable (STRATEGY_CASH_INVALID)")
+    return max(cash, 0.0)

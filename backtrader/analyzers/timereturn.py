@@ -15,6 +15,13 @@ Example:
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
+from ._strategy_scope import (
+    clear_result_gap,
+    notified_value,
+    portfolio_observation,
+    record_result_gap,
+    scoped_missing_input,
+)
 
 
 class TimeReturn(TimeFrameAnalyzerBase):
@@ -120,9 +127,9 @@ class TimeReturn(TimeFrameAnalyzerBase):
         if self._p_data is None:
             # keep the initial portfolio value if not tracing a data
             if not self._fundmode:
-                self._lastvalue = self.strategy.broker.getvalue()
+                self._lastvalue = portfolio_observation(self.strategy, consumer=self)
             else:
-                self._lastvalue = self.strategy.broker.fundvalue
+                self._lastvalue = portfolio_observation(self.strategy, fund=True, consumer=self)
 
     # Notify fund information
     def notify_fund(self, cash, value, fundvalue, shares):
@@ -139,12 +146,12 @@ class TimeReturn(TimeFrameAnalyzerBase):
         if not self._fundmode:
             # Record current value
             if p_data is None:
-                self._value = value  # the portofolio value if tracking no data
+                self._value = notified_value(self.strategy, value, fundvalue, consumer=self)
             else:
                 self._value = p_data[0]  # the data value if tracking data
         else:
             if p_data is None:
-                self._value = fundvalue  # the fund value if tracking no data
+                self._value = notified_value(self.strategy, value, fundvalue, fund=True, consumer=self)
             else:
                 self._value = p_data[0]  # the data value if tracking data
 
@@ -177,6 +184,14 @@ class TimeReturn(TimeFrameAnalyzerBase):
         """
         # Calculate the return
         super().next()
+        if getattr(self, "_p_data", None) is None and scoped_missing_input(
+            getattr(self, "strategy", None), self._value_start, self._value
+        ):
+            record_result_gap(self)
+            self.rets[self.dtkey] = float("nan")
+            self._lastvalue = self._value
+            return
+        clear_result_gap(self)
         # self.dtkey is an attribute set in analyzer, usually the end date of a period
         if self._value_start:
             try:

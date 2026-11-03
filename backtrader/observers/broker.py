@@ -13,6 +13,7 @@ Example:
 """
 
 from ..observer import Observer
+from ._strategy_scope import cash_value, fund_shares, observe, portfolio_value
 
 
 # Get cash
@@ -33,7 +34,7 @@ class Cash(Observer):
 
         Gets current cash amount from the broker.
         """
-        self.lines[0][0] = self._owner.broker.getcash()
+        self.lines[0][0] = observe(self, "cash", cash_value, self._owner)
 
 
 # Get value
@@ -85,9 +86,9 @@ class Value(Observer):
         Gets value from broker based on fund mode setting.
         """
         if not self._fundmode:
-            self.lines[0][0] = self._owner.broker.getvalue()
+            self.lines[0][0] = observe(self, "value", portfolio_value, self._owner)
         else:
-            self.lines[0][0] = self._owner.broker.fundvalue
+            self.lines[0][0] = observe(self, "value", portfolio_value, self._owner, fund=True)
 
 
 # Get both cash and value
@@ -134,11 +135,12 @@ class Broker(Observer):
         Gets current cash and portfolio value from the broker.
         """
         if not self._fundmode:
-            self.lines.value[0] = self._owner.broker.getvalue()
-            self.lines.cash[0] = self._owner.broker.getcash()
+            value = observe(self, "value", portfolio_value, self._owner)
         else:
-            self.lines.value[0] = self._owner.broker.fundvalue
-            self.lines.cash[0] = self._owner.broker.getcash()
+            value = observe(self, "value", portfolio_value, self._owner, fund=True)
+        cash = observe(self, "cash", cash_value, self._owner)
+        self.lines.value[0] = value
+        self.lines.cash[0] = cash
 
 
 # fundvalue
@@ -160,7 +162,7 @@ class FundValue(Observer):
 
         Gets current fund value from the broker.
         """
-        self.lines.fundval[0] = self._owner.broker.fundvalue
+        self.lines.fundval[0] = observe(self, "fundvalue", portfolio_value, self._owner, fund=True)
 
 
 # Fund shares
@@ -181,4 +183,4 @@ class FundShares(Observer):
 
         Gets current fund shares from the broker.
         """
-        self.lines.fundshares[0] = self._owner.broker.fundshares
+        self.lines.fundshares[0] = observe(self, "fundshares", fund_shares, self._owner)

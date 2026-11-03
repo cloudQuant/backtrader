@@ -18,6 +18,7 @@ from collections import OrderedDict
 from typing import Optional
 
 from ..analyzer import Analyzer
+from ._strategy_scope import clear_result_gap, portfolio_observation, record_result_gap, scoped_missing_input
 
 
 def _finite_real_or_zero(value):
@@ -64,7 +65,14 @@ class TotalValue(Analyzer):
         # Calculate the return
         super().next()
         # Cache attribute access for performance
-        self.rets[self.datas[0].datetime.datetime()] = _finite_real_or_zero(self._broker.getvalue())
+        strategy = getattr(self, "strategy", None)
+        value = portfolio_observation(strategy, consumer=self, broker=self._broker)
+        if scoped_missing_input(strategy, value):
+            record_result_gap(self)
+            self.rets[self.datas[0].datetime.datetime()] = float("nan")
+            return
+        clear_result_gap(self)
+        self.rets[self.datas[0].datetime.datetime()] = _finite_real_or_zero(value)
 
     def get_analysis(self):
         """Return the total value analysis results.
