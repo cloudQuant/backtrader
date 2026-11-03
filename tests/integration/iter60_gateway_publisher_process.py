@@ -1,6 +1,8 @@
 """Child process for the iteration-60 multi-process Gateway test.
 
-Publishes MessagePack v1 ticks over a CURVE PUB socket until stdin closes.
+Publishes tick market events (service wire v3 MessagePack envelopes, market
+wire v2 topic framing: the product Gateway path) over a CURVE PUB socket until
+stdin closes.
 Sequences divisible by ``GAP_EVERY`` are skipped on purpose so the receiver
 can prove gaps are observable. Configuration comes from the environment:
 ``ITER60_SERVER_PUBLIC``/``ITER60_SERVER_SECRET``/``ITER60_CLIENT_PUBLIC``
@@ -24,22 +26,42 @@ def expected_payload(sequence: int):
 
 
 def main() -> int:
-    from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
-    from bt_api_base.wire_codec_v1 import StreamPosition
-    from bt_api_transport_zmq.market_v2 import MARKET_WIRE_VERSION_MSGPACK_V1, ZmqMarketPublisher
+    import uuid
+    from datetime import datetime, timezone
+
+    from bt_api_base.market_protocol import (
+        MARKET_EVENT_OPERATION,
+        MARKET_EVENT_SCHEMA,
+        MARKET_EVENT_SCHEMA_VERSION,
+    )
+    from bt_api_base.service_protocol import (
+        WIRE_PROTOCOL_VERSION,
+        WireEnvelope,
+        WireHeader,
+        WireIdentity,
+        WireMessageKind,
+        WireRole,
+        WireScope,
+    )
+    from bt_api_transport_zmq.market_v2 import (
+        MARKET_WIRE_VERSION_TOPIC_FILTERED,
+        ZmqMarketPublisher,
+    )
     from bt_api_transport_zmq.server import CurveServerCredentials
     from tests.unit.feeds import test_market_tick_adapter_baseline as baseline
 
+    identity = WireIdentity(WireRole.SERVICE, "gateway-market-hub", "ctp-provider")
+    scope = WireScope(execution_domain_ref="public:ctp-market")
     publisher = ZmqMarketPublisher(
         "tcp://127.0.0.1:*",
-        WireIdentity(WireRole.SERVICE, "gateway-market-hub", "ctp-provider"),
-        WireScope(execution_domain_ref="public:ctp-market"),
+        identity,
+        scope,
         {os.environ["ITER60_CLIENT_PUBLIC"].encode(): "strategy-host-1"},
         credentials=CurveServerCredentials(
             os.environ["ITER60_SERVER_PUBLIC"].encode(),
             os.environ["ITER60_SERVER_SECRET"].encode(),
         ),
-        wire_version=MARKET_WIRE_VERSION_MSGPACK_V1,
+        wire_version=MARKET_WIRE_VERSION_TOPIC_FILTERED,
     )
     print(publisher.endpoint, flush=True)
     stop = threading.Event()
@@ -52,10 +74,30 @@ def main() -> int:
             sequence += 1
             if sequence % GAP_EVERY == 0:
                 continue
-            publisher.try_publish_container(
-                "tick",
-                expected_payload(sequence),
-                StreamPosition(baseline.SOURCE.stream_id, epoch, sequence),
+            publisher.try_publish(
+                WireEnvelope(
+                    header=WireHeader(
+                        protocol_version=WIRE_PROTOCOL_VERSION,
+                        kind=WireMessageKind.EVENT,
+                        message_id=uuid.uuid4().hex,
+                        correlation_id=None,
+                        identity=identity,
+                        scope=scope,
+                        operation=MARKET_EVENT_OPERATION,
+                        schema_id=MARKET_EVENT_SCHEMA,
+                        schema_version=MARKET_EVENT_SCHEMA_VERSION,
+                        sent_at_utc=datetime.now(timezone.utc)
+                        .isoformat(timespec="microseconds")
+                        .replace("+00:00", "Z"),
+                        stream_id=baseline.SUBSCRIPTION.stream_id,
+                        stream_epoch=epoch,
+                        sequence=sequence,
+                    ),
+                    payload={
+                        "key": baseline.SUBSCRIPTION.to_dict(),
+                        "data": expected_payload(sequence).to_dict(),
+                    },
+                )
             )
             time.sleep(0.001)
     finally:

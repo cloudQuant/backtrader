@@ -1,16 +1,18 @@
-"""Iteration 60, step 60.10: Gateway market path across real processes.
+"""Iteration 60, step 60.10 / acceptance report P1-2: Gateway market path across processes.
 
-A child process plays the Gateway publisher (CURVE PUB, MessagePack v1). This
-process subscribes, decodes each received message once, binds it to its own
-authenticated subscription source and projects it through the Backtrader
-adapter. Verified here:
+A child process plays the Gateway publisher on the product path: CURVE PUB,
+market wire v2 topic framing, service wire v3 MessagePack envelopes. This
+process subscribes, decodes each envelope once, binds the tick to its *own*
+authenticated subscription source (``bind_market_tick_event``, as the SDK
+service tick projection does) and projects it through the Backtrader adapter.
+Verified here:
 
 * decoded payloads equal what the publisher meant to send;
-* every decode yields a distinct immutable object (no cross-process identity);
-* deliberately skipped sequences are reported as gaps, never hidden;
+* deliberately skipped sequences are visible as gaps, never hidden;
 * after the publisher is killed and restarts under a new epoch, the receiver
-  sees NEW_EPOCH and must bind with the new source epoch (old-epoch binding
-  is refused).
+  sees a new stream epoch and must bind with the new source epoch (binding
+  with the old epoch is refused);
+* a client whose CURVE key is not in the audience receives nothing.
 """
 
 from __future__ import annotations
@@ -27,16 +29,16 @@ import pytest
 pytest.importorskip("msgpack")
 zmq = pytest.importorskip("zmq")
 pytest.importorskip("bt_api_transport_zmq.market_v2")
-pytest.importorskip("bt_api_py.gateway_market_receiver")
 
-from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope  # noqa: E402
-from bt_api_py.gateway_market_receiver import (  # noqa: E402
-    GatewayMarketBindingError,
-    bind_received_tick,
+from bt_api_base.market_tick_protocol import (  # noqa: E402
+    MarketEventCursor,
+    MarketTickContractError,
+    MarketTickPayload,
+    bind_market_tick_event,
 )
+from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope  # noqa: E402
 from bt_api_transport_zmq.market_v2 import (  # noqa: E402
-    MARKET_WIRE_VERSION_MSGPACK_V1,
-    ContainerSequenceMonitor,
+    MARKET_WIRE_VERSION_TOPIC_FILTERED,
     ZmqMarketSubscriber,
 )
 from bt_api_transport_zmq.server import CurveClientCredentials  # noqa: E402
@@ -46,6 +48,26 @@ from tests.integration import iter60_gateway_publisher_process as child  # noqa:
 from tests.unit.feeds import test_market_tick_adapter_baseline as baseline  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _thaw(value):
+    if isinstance(value, dict) or type(value).__name__ == "mappingproxy":
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    return value
+
+
+def _bind(envelope, source):
+    payload = MarketTickPayload.from_dict(_thaw(envelope.payload["data"]))
+    header = envelope.header
+    return bind_market_tick_event(
+        payload,
+        source,
+        MarketEventCursor(
+            stream_id=header.stream_id, epoch=header.stream_epoch, sequence=header.sequence
+        ),
+    )
 
 
 class _Gateway:
@@ -74,15 +96,14 @@ class _Gateway:
             self.process.kill()
             raise AssertionError(self.process.stderr.read())
 
-    def subscriber(self):
+    def subscriber(self, *, client_keys=None):
+        public, secret = client_keys or (self.client_public, self.client_secret)
         return ZmqMarketSubscriber(
             self.endpoint,
             WireIdentity(WireRole.SERVICE, "gateway-market-hub", "ctp-provider"),
             WireScope(execution_domain_ref="public:ctp-market"),
-            credentials=CurveClientCredentials(
-                self.server_public, self.client_public, self.client_secret
-            ),
-            wire_version=MARKET_WIRE_VERSION_MSGPACK_V1,
+            credentials=CurveClientCredentials(self.server_public, public, secret),
+            wire_version=MARKET_WIRE_VERSION_TOPIC_FILTERED,
             subscription_key=baseline.SUBSCRIPTION,
         )
 
@@ -100,7 +121,7 @@ def _receive(subscriber, count, *, timeout=8.0):
     messages = []
     deadline = time.monotonic() + timeout
     while len(messages) < count and time.monotonic() < deadline:
-        message = subscriber.receive_container(timeout_ms=50)
+        message = subscriber.receive(timeout_ms=50)
         if message is not None:
             messages.append(message)
     return messages
@@ -115,19 +136,18 @@ def test_gateway_publisher_process_to_backtrader_adapter():
         subscriber.close()
         gateway.stop()
     assert len(messages) >= 60, len(messages)
-    monitor = ContainerSequenceMonitor()
-    outcomes = [monitor.observe(message) for message in messages]
-    sequences = [message.stream.sequence for message in messages]
+    sequences = [message.header.sequence for message in messages]
+    assert sequences == sorted(sequences)
     # Skipped sequences (every 25th) are visible as gaps.
-    assert "GAP" in outcomes
-    assert not any(sequence % child.GAP_EVERY == 0 for sequence in sequences)
+    gaps = [b - a for a, b in zip(sequences, sequences[1:]) if b - a > 1]
+    assert gaps and not any(sequence % child.GAP_EVERY == 0 for sequence in sequences)
     for message in messages:
-        assert message.payload == child.expected_payload(message.stream.sequence)
-        fields = adapt_market_tick_event(bind_received_tick(message, baseline.SOURCE))
-        assert fields.last_price == 1500.0 + message.stream.sequence
-        assert fields.sequence == message.stream.sequence
-    # One decode per message: no two messages share a payload object.
-    assert len({id(message.payload) for message in messages}) == len(messages)
+        sequence = message.header.sequence
+        event = _bind(message, baseline.SOURCE)
+        assert event.data == child.expected_payload(sequence)
+        fields = adapt_market_tick_event(event)
+        assert fields.last_price == 1500.0 + sequence
+        assert fields.sequence == sequence
 
 
 def test_publisher_crash_and_restart_is_seen_as_a_new_epoch():
@@ -146,14 +166,21 @@ def test_publisher_crash_and_restart_is_seen_as_a_new_epoch():
         subscriber.close()
         second.stop()
     assert before and after
-    monitor = ContainerSequenceMonitor()
-    for message in before:
-        monitor.observe(message)
-    assert monitor.observe(after[0]) == "NEW_EPOCH"
+    assert {m.header.stream_epoch for m in before} == {"epoch-1"}
+    assert after[0].header.stream_epoch == "epoch-2"
     # The old subscription source no longer binds the restarted stream ...
-    with pytest.raises(GatewayMarketBindingError) as info:
-        bind_received_tick(after[0], baseline.SOURCE)
-    assert info.value.code == "GATEWAY_STREAM_MISMATCH"
+    with pytest.raises(MarketTickContractError):
+        _bind(after[0], baseline.SOURCE)
     # ... the receiver must resynchronize with the new epoch's source.
     renewed = dataclasses.replace(baseline.SOURCE, epoch="epoch-2")
-    assert bind_received_tick(after[0], renewed).cursor.epoch == "epoch-2"
+    assert _bind(after[0], renewed).cursor.epoch == "epoch-2"
+
+
+def test_a_key_outside_the_audience_receives_nothing():
+    gateway = _Gateway("epoch-1")
+    stranger = gateway.subscriber(client_keys=zmq.curve_keypair())
+    try:
+        assert _receive(stranger, 1, timeout=1.5) == []
+    finally:
+        stranger.close()
+        gateway.stop()
