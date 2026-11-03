@@ -12,7 +12,11 @@ references to values that cannot change:
 * immutable scalars (``str``, numbers, ``bool``, ``None``, ``Decimal``,
   date/time values, ``Enum`` members) and tuples/frozensets of them;
 * frozen dataclass instances defined by the ``bt_api_base`` / ``bt_api_py``
-  contract packages, whose constructors validate immutable field types.
+  contract packages **whose field values are themselves deeply immutable**
+  (checked per instance, recursively; ``MappingProxyType`` views of
+  immutable items count as immutable). ``frozen`` alone only blocks
+  attribute rebinding, so a frozen contract holding a ``dict`` or ``list`` is
+  copied, not shared (acceptance report P2-1).
 
 ``list``/``set``/``dict`` values are copied one level when their items are
 immutable; anything else falls back to ``copy.deepcopy`` for that value only.
@@ -27,7 +31,7 @@ import dataclasses
 import datetime as _dt
 import enum
 from decimal import Decimal
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 __all__ = ["snapshot_tick"]
@@ -52,12 +56,27 @@ def _is_frozen_contract(value: Any) -> bool:
     return cached
 
 
-def _is_immutable(value: Any) -> bool:
+_MAX_DEPTH = 16
+
+
+def _is_immutable(value: Any, depth: int = 0) -> bool:
     if value is None or isinstance(value, (_SCALARS, enum.Enum)):
         return True
+    if depth > _MAX_DEPTH:
+        return False
     if isinstance(value, (tuple, frozenset)):
-        return all(_is_immutable(item) for item in value)
-    return _is_frozen_contract(value)
+        return all(_is_immutable(item, depth + 1) for item in value)
+    if type(value) is MappingProxyType:
+        return all(
+            _is_immutable(key, depth + 1) and _is_immutable(item, depth + 1)
+            for key, item in value.items()
+        )
+    if not _is_frozen_contract(value):
+        return False
+    return all(
+        _is_immutable(getattr(value, field.name), depth + 1)
+        for field in dataclasses.fields(value)
+    )
 
 
 def _snapshot_value(value: Any) -> Any:

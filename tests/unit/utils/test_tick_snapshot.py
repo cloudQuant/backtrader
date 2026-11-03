@@ -105,3 +105,42 @@ def test_sdk_market_tick_event_is_shared():
     assert vars(snap) == vars(fields)
     fields.quality_flags.append("LOCAL")
     assert snap.quality_flags == []
+
+
+def test_frozen_contract_with_mutable_fields_is_copied_not_shared():
+    import dataclasses
+    import types
+
+    # A frozen dataclass from a contract package that still holds a dict and
+    # a list: ``frozen`` does not make those immutable.
+    module = types.ModuleType("bt_api_base._test_mutable_contract")
+
+    @dataclasses.dataclass(frozen=True)
+    class Holder:
+        values: dict
+        rows: list
+
+    Holder.__module__ = module.__name__
+    original = Holder({"bid": 1}, [1, 2])
+    tick = {"payload": original}
+    copied = snapshot_tick(tick)
+    assert copied["payload"] is not original
+    original.values["bid"] = 99
+    original.rows.append(3)
+    assert copied["payload"].values == {"bid": 1}
+    assert copied["payload"].rows == [1, 2]
+    copied["payload"].values["ask"] = 2
+    assert "ask" not in original.values
+
+
+def test_frozen_contract_with_mapping_proxy_of_scalars_is_shared():
+    import dataclasses
+    from types import MappingProxyType
+
+    @dataclasses.dataclass(frozen=True)
+    class Frozen:
+        values: MappingProxyType
+
+    Frozen.__module__ = "bt_api_base._test_frozen_contract"
+    payload = Frozen(MappingProxyType({"bid": 1}))
+    assert snapshot_tick({"payload": payload})["payload"] is payload
