@@ -53,8 +53,12 @@ def env(tmp_path):
     handoffs = []
 
     def broker():
+        # One owner process holds the host owner lock; its Brokers share it.
         item = BtApiBroker(store=base._Store())
-        handoffs.append(base._owner(item, tmp_path / "owner.sqlite3"))
+        if handoffs:
+            item.bind_account_owner(handoffs[0], "direct")
+        else:
+            handoffs.append(base._owner(item, tmp_path / "owner.sqlite3"))
         return item
 
     try:
@@ -138,18 +142,14 @@ def test_cursor_from_another_ledger_generation_requires_resync(env, tmp_path):
     rebuilt = base._ledger(tmp_path / "rebuilt.sqlite3")
     try:
         base._seed(rebuilt, "seed-a", "strategy-a", "2")
-        other = BtApiBroker(store=base._Store())
-        handoff = base._owner(other, tmp_path / "owner2.sqlite3")
-        try:
-            a2 = _strategy(other, data, "strategy-a")
-            with pytest.raises(StrategyLedgerEventError) as info:
-                other.bind_direct_strategy_ledger(
-                    a2, rebuilt, unreconciled=True, event_cursor_path=cursor
-                )
-            assert info.value.code == "RESYNC_REQUIRED"
-            assert _actions(a2) == []
-        finally:
-            handoff.close()
+        other = broker()  # same account owner; one coordination store per host
+        a2 = _strategy(other, data, "strategy-a")
+        with pytest.raises(StrategyLedgerEventError) as info:
+            other.bind_direct_strategy_ledger(
+                a2, rebuilt, unreconciled=True, event_cursor_path=cursor
+            )
+        assert info.value.code == "RESYNC_REQUIRED"
+        assert _actions(a2) == []
     finally:
         rebuilt.close()
 

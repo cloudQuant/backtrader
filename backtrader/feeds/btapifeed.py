@@ -96,6 +96,28 @@ def _tick_timestamp(tick):
     return market_event_timestamp(tick, on_invalid_datetime=_log_invalid_market_datetime)
 
 
+def _tick_mark_source(tick):
+    """Valuation source of one Tick-timeframe line value (iteration 60, F6).
+
+    Only a typed SDK tick that passed this feed's source and quality gates
+    (``quality == "GOOD"``, no ``LEGACY_SCHEMA``) is a ``market_tick``.
+    """
+    flags = _tick_value(tick, "quality_flags", default=()) or ()
+    if _tick_value(tick, "quality", default=None) == "GOOD" and "LEGACY_SCHEMA" not in flags:
+        return "market_tick"
+    return "legacy_tick"
+
+
+def _local_bar_source(bar_event):
+    """Valuation source of a bar this feed closed locally (iteration 60, F6)."""
+    if getattr(bar_event, "replay_bar_status", None) is not None:
+        return "replay"
+    flags = getattr(bar_event, "quality_flags", None) or ()
+    if "LEGACY_SCHEMA" in flags or getattr(bar_event, "quality", None) != "GOOD":
+        return "local_aggregation_legacy"
+    return "local_aggregation"
+
+
 def _tick_datetime(tick):
     from bt_api_py.market_tick_contracts import market_event_utc_naive_datetime
 
@@ -668,8 +690,17 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if final is not True:
             # No completion claim, or a non-boolean claim, is not a closed bar.
             return self._drop_bar("unknown_finality")
+        if isinstance(bar, Mapping):
+            source = bar.get("bar_source")
+        else:
+            source = getattr(bar, "bar_source", None)
+        source = source if type(source) is str and source else "provider_bar"
         if self._timeframe == TimeFrame.Ticks:
-            return self._load_bar(bar)
+            normalized = _normalize_bar(bar)
+            when = normalized["datetime"]
+            # A tick's mark time is its own event time, not a bucket end.
+            self._valuation_bar = (date2num(when), normalized["close"], when, source)
+            return self._load_bar(normalized)
         normalized = _normalize_bar(bar)
         when = normalized["datetime"]
         values = tuple(
@@ -683,31 +714,38 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             if when == last_when:
                 return self._drop_bar("duplicates" if values == last_values else "revisions_refused")
         self._last_published_bar = (when, values)
-        source = bar.get("bar_source") if isinstance(bar, Mapping) else getattr(bar, "bar_source", None)
         self._valuation_bar = (
-            date2num(when),
-            normalized["close"],
-            self._get_bucket_end(when),
-            source if type(source) is str and source else "provider_bar",
+            date2num(when), normalized["close"], self._get_bucket_end(when), source
         )
         return self._load_bar(normalized)
 
     #: Upper bound in seconds on how old the close of the current bar may be
     #: for :meth:`valuation_mark`; ``None`` means one bar period plus
-    #: ``receive_time_max_age``.
+    #: ``receive_time_max_age``. A caller may only tighten it.
     valuation_mark_max_age = None
 
-    def valuation_mark(self):
-        """Price of the current bar for strategy valuation (iteration 60, 60.11-A5).
+    #: Line sources :meth:`valuation_mark` accepts: a provider bar that the
+    #: provider declared final (``bar_final=True``), a bar this feed closed
+    #: from typed, quality-checked ticks by the event-time watermark, and,
+    #: on a Tick timeframe, one typed tick whose own source and quality made
+    #: it bar-eligible. Replayed bars and anything built from legacy
+    #: (untyped) ticks are never a live mark.
+    valuation_mark_sources = frozenset({"provider_bar", "local_aggregation", "market_tick"})
 
-        Returns ``(price: Decimal, as_of_utc: datetime, source: str)`` where
-        ``as_of_utc`` is the bar's close time. Eligible only when the bar on
-        the lines is the final bar this feed itself published (provider bars
-        need ``bar_final=True``; local bars are closed by the event-time
-        watermark), its close is finite and positive, and the close is not
-        older than ``valuation_mark_max_age`` against this feed's wall clock
-        (``clock`` param) nor in the future. Otherwise raises ``ValueError``
-        whose ``code`` attribute is a finite reason; never guesses.
+    def valuation_mark(self, max_age=None):
+        """Price on this feed's lines for strategy valuation (iteration 60, 60.11-A5/F6).
+
+        Returns ``(price: Decimal, as_of_utc: datetime, source: str)``.
+        ``as_of_utc`` is the provider/exchange event time the price belongs
+        to: a bar's close time, or a tick's own event time. Eligible only
+        when the value on the lines is the one this feed itself published
+        from an accepted source (:attr:`valuation_mark_sources`), its price
+        is finite and positive, and ``now - as_of_utc`` (``now`` from this
+        feed's injected ``clock`` param, the wall clock otherwise) is neither
+        negative beyond ``receive_time_max_age`` nor greater than the
+        tighter of :attr:`valuation_mark_max_age` and ``max_age`` seconds.
+        Otherwise raises ``ValueError`` whose ``code`` attribute is a finite
+        reason; never guesses.
         """
         from decimal import Decimal
 
@@ -716,8 +754,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             error.code = code
             raise error
 
-        if self._timeframe == TimeFrame.Ticks:
-            refuse("MARK_TIMEFRAME_UNSUPPORTED")
         record = getattr(self, "_valuation_bar", None)
         if record is None or len(self) == 0:
             refuse("MARK_NOT_PUBLISHED")
@@ -728,28 +764,36 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         except (IndexError, TypeError, ValueError):
             refuse("MARK_NOT_PUBLISHED")
         if on_lines != line_time or line_close != close:
-            refuse("MARK_NOT_PUBLISHED")  # the lines do not hold the published bar
+            refuse("MARK_NOT_PUBLISHED")  # the lines do not hold the published value
+        if source not in self.valuation_mark_sources:
+            refuse("MARK_SOURCE_UNTRUSTED")
         price = Decimal(str(close))
         if not price.is_finite() or price <= 0:
             refuse("MARK_PRICE_INVALID")
         if not isinstance(close_time, _dt.datetime):
             refuse("MARK_TIME_UNKNOWN")
         as_of = close_time if close_time.tzinfo else close_time.replace(tzinfo=_UTC)
-        max_age = self.valuation_mark_max_age
-        if max_age is None:
-            period = (self._get_bucket_end(close_time) - close_time).total_seconds()
-            max_age = period + float(self.p.receive_time_max_age or 0.0)
+        limit = self.valuation_mark_max_age
+        if limit is None:
+            if self._timeframe == TimeFrame.Ticks:
+                limit = float(self.p.receive_time_max_age or 0.0)
+            else:
+                period = (self._get_bucket_end(close_time) - close_time).total_seconds()
+                limit = period + float(self.p.receive_time_max_age or 0.0)
+        bounds = [limit] if max_age is None else [limit, max_age]
         try:
-            max_age = float(max_age)
-        except (TypeError, ValueError):
+            bounds = [float(item) for item in bounds]
+        except (TypeError, ValueError, OverflowError):
             refuse("MARK_AGE_INVALID")
-        if not math.isfinite(max_age) or max_age < 0:
+        if any(type(item) is bool for item in (limit, max_age)) or not all(
+            math.isfinite(item) and item >= 0 for item in bounds
+        ):
             refuse("MARK_AGE_INVALID")
         now = self._now_wall_ns() / 1_000_000_000
         age = now - as_of.timestamp()
         if age < -float(self.p.receive_time_max_age or 0.0):
             refuse("MARK_FROM_FUTURE")
-        if age > max_age:
+        if age > min(bounds):
             refuse("MARK_STALE")
         return price, as_of, source
 
@@ -1296,6 +1340,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     openinterest=openinterest,
                 ),
                 tick_dt,
+                bar_source=_tick_mark_source(tick),
             )
             return
 
@@ -1517,8 +1562,17 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
         return self._sealed_closed_bar_evidence_by_event_id.get(id(bar_event)) is evidence
 
-    def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True):
-        """Queue a completed bar for both notify_bar and line delivery."""
+    def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True, bar_source=None):
+        """Queue a completed bar for both notify_bar and line delivery.
+
+        ``bar_source`` names where the line value came from, for
+        :meth:`valuation_mark`; by default it is derived from the event:
+        replayed bars are ``replay``, local bars built from any legacy
+        (untyped) tick are ``local_aggregation_legacy``, otherwise
+        ``local_aggregation``.
+        """
+        if bar_source is None:
+            bar_source = _local_bar_source(bar_event)
         if self._live_bar_cohort is not None:
             if self._cohort_completed_lookahead is not _COHORT_MISSING:
                 self._live_bar_cohort._freeze("feed_completed_bar_queue_overflow")
@@ -1548,7 +1602,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     # This path receives only the local aggregation's line-
                     # eligible closure (or an individual tick event).
                     "bar_final": True,
-                    "bar_source": "local_aggregation",
+                    "bar_source": bar_source,
                 }
             )
 

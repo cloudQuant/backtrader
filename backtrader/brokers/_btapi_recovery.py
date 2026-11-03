@@ -952,22 +952,34 @@ class ServiceRecoveryBrokerMixin:
             self._fence_unprojectable_recovery_fee(order)
         if reported == previous:
             return "unchanged"
-        delta = reported - previous
-        order.executed.comm = float(reported)
+        self._book_fee_correction(order, reported - previous, reported, currency)
+        order.addinfo(cumulative_commission_currency=currency)
+        return "corrected"
+
+    def _book_fee_correction(self, order, delta, cumulative, currency):
+        """Record one fee-only correction of ``delta`` on ``order`` (no fill).
+
+        ``order.executed.comm`` moves by ``delta``; the next numbered entry of
+        ``order.info["fee_corrections"]`` (``sequence``, ``delta``,
+        ``cumulative``, ``currency``) is what the owning Strategy moves onto its
+        Trade exactly once; the provider fee totals the strategy ledger books
+        grow by ``delta``. ``cumulative`` is the provider's corrected cumulative
+        fee of the corrected unit (order or fill).
+        """
+        order.executed.comm = float(Decimal(str(order.executed.comm or 0)) + delta)
         corrections = list(self._order_info_get(order, "fee_corrections") or ())
         corrections.append(
             {
                 "sequence": len(corrections) + 1,
                 "delta": str(delta),
-                "cumulative": str(reported),
+                "cumulative": str(cumulative),
                 "currency": currency,
             }
         )
-        order.addinfo(fee_corrections=tuple(corrections), cumulative_commission_currency=currency)
+        order.addinfo(fee_corrections=tuple(corrections))
         record = getattr(self, "_record_provider_fee", None)
         if callable(record):
             record(order, {"fee_currency": currency}, delta)
-        return "corrected"
 
     def _fence_unprojectable_recovery_fee(self, order):
         """Fence fee-only corrections until Trade economics can be reconciled."""

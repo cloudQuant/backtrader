@@ -41,7 +41,14 @@ TERMS = {INSTRUMENT: InstrumentTerms(Decimal("10"), "CNY", "futures")}
 
 
 def _ledger(path, **kwargs):
-    kwargs.setdefault("require_budget", False)
+    # Opening always needs a budget (G4); a wide default keeps other rules in focus.
+    kwargs.setdefault(
+        "budgets",
+        {
+            ref: StrategyBudget(Decimal("1000000000"), "CNY")
+            for ref in ("strategy-a", "strategy-b", "strategy-c")
+        },
+    )
     return SqliteStrategyLedger(path, account_ref=ACCOUNT, instruments=TERMS, **kwargs)
 
 
@@ -51,14 +58,37 @@ def _report(positions, *, complete=True):
     return AccountPositionReport(ACCOUNT, "provider:fake", time.time_ns(), complete, positions)
 
 
+OWNER_ROUTE = "provider:fake-route"
+
+
+class _RevokedSessions:
+    """Fake provider confirmation that the old session is revoked."""
+
+    def verify_session_revocation(self, evidence):
+        return True
+
+
+def _bound_handoff(path, initial_owner):
+    """Account-bound coordination handoff (synthetic route, per-test host registry)."""
+
+    from bt_api_py.account_coordination import AccountCoordinationBinding, HostAccountRegistry
+    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
+
+    return AccountOwnerHandoff(
+        path,
+        ACCOUNT,
+        initial_owner=initial_owner,
+        binding=AccountCoordinationBinding(ACCOUNT, OWNER_ROUTE),
+        revocation_verifier=_RevokedSessions(),
+        host_registry=HostAccountRegistry(Path(path).parent / "owner-host"),
+    )
+
+
 def _owner(broker, path):
     """Bind ``broker`` as the current account owner (required on a shared account)."""
 
-    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
-
-    handoff = AccountOwnerHandoff(
-        path, ACCOUNT, initial_owner="direct", proof_verifier=lambda proof, old: True
-    )
+    handoff = _bound_handoff(path, "direct")
+    handoff.hold_owner_lock("direct", provider_session_ref="fake-session-direct")
     broker.bind_account_owner(handoff, "direct")
     return handoff
 
@@ -177,7 +207,8 @@ def stack(tmp_path):
     broker.bind_direct_strategy_ledger(b, ledger, unreconciled=True)
     try:
         yield SimpleNamespace(ledger=ledger, store=store, broker=broker, data=data, a=a, b=b,
-                              path=tmp_path / "ledger.sqlite3", owner_path=tmp_path / "owner.sqlite3")
+                              path=tmp_path / "ledger.sqlite3", owner_path=tmp_path / "owner.sqlite3",
+                              owner=handoff)
     finally:
         handoff.close()
         ledger.close()
@@ -484,6 +515,7 @@ def test_unknown_dispatch_keeps_capacity_across_restart(stack):
     ledger = _ledger(stack.path)
     try:
         assert ledger.intent_state(intent_id) == "UNKNOWN"
+        stack.owner.release_owner_lock()  # the old owner process exits (host lock freed)
         broker = BtApiBroker(store=_Store())
         owner = _owner(broker, stack.owner_path)
         (a,) = _strategies(broker, stack.data, "strategy-a")
@@ -561,22 +593,24 @@ def test_strategy_book_sizer_sells_only_the_strategy_position(stack):
 # -- account-owner dispatch fence (acceptance report P0-1) ---------------------------
 
 
-def _handoff(path):
-    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
-
-    return AccountOwnerHandoff(
-        path, ACCOUNT, initial_owner="direct-old", proof_verifier=lambda proof, old: True
-    )
+def _handoff(path, *, owner_lock=False):
+    handoff = _bound_handoff(path, "direct-old")
+    if owner_lock:
+        handoff.hold_owner_lock("direct-old", provider_session_ref="fake-session-old")
+    return handoff
 
 
 def test_owner_fence_blocks_writes_when_handoff_recovery_is_unverified(tmp_path):
-    from bt_api_py.account_owner_handoff import HandoffError, OwnerRevocationProof
+    import time
+
+    from bt_api_py.account_owner_handoff import HandoffError
+    from bt_api_py.provider_session_revocation import ProviderSessionRevocationEvidence
 
     path = tmp_path / "owner.sqlite3"
     data = _data()
     old_store, new_store = _Store(), _Store()
     old_broker, new_broker = BtApiBroker(store=old_store), BtApiBroker(store=new_store)
-    old_handoff, new_handoff = _handoff(path), _handoff(path)
+    old_handoff, new_handoff = _handoff(path, owner_lock=True), _handoff(path)
     try:
         assert old_broker.bind_account_owner(old_handoff, "direct-old") == 1
         with pytest.raises(ValueError, match="not the current account owner"):
@@ -594,7 +628,15 @@ def test_owner_fence_blocks_writes_when_handoff_recovery_is_unverified(tmp_path)
 
         new_handoff.fence(
             to_owner="gateway-new",
-            proof=OwnerRevocationProof(ACCOUNT, 1, "PROVIDER_SESSION_REVOKED", "logout-1"),
+            evidence=ProviderSessionRevocationEvidence(
+                ACCOUNT,
+                OWNER_ROUTE,
+                1,
+                "fake-session-old",
+                "PROVIDER_LOGOUT_RECEIPT",
+                time.time_ns(),
+                "logout-1",
+            ),
         )
         new_handoff.restore(to_owner="gateway-new", ledger_cut="cut-1")
         new_handoff.sync(to_owner="gateway-new", provider_snapshot_ref="snap-1")
@@ -619,7 +661,7 @@ def test_unreadable_owner_fence_blocks_dispatch(tmp_path):
     data = _data()
     store = _Store()
     broker = BtApiBroker(store=store)
-    handoff = _handoff(tmp_path / "owner.sqlite3")
+    handoff = _handoff(tmp_path / "owner.sqlite3", owner_lock=True)
     broker.bind_account_owner(handoff, "direct-old")
     handoff.close()  # the fence can no longer be read
     (a,) = _strategies(broker, data, "strategy-a")
@@ -697,16 +739,25 @@ def test_binding_the_owner_installs_the_fence_in_the_store(tmp_path):
 def test_async_store_without_an_exit_fence_cannot_be_bound(tmp_path, monkeypatch):
     broker = BtApiBroker(store=_Store())
     monkeypatch.setattr(broker, "_uses_async_commands", lambda: True)
-    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
-
-    handoff = AccountOwnerHandoff(
-        tmp_path / "owner.sqlite3", ACCOUNT, initial_owner="direct", proof_verifier=lambda p, o: True
-    )
+    handoff = _bound_handoff(tmp_path / "owner.sqlite3", "direct")
+    handoff.hold_owner_lock("direct", provider_session_ref="fake-session-direct")
     try:
-        with pytest.raises(ValueError, match="rechecks the owner fence"):
+        with pytest.raises(ValueError, match="holds dispatch leases"):
             broker.bind_account_owner(handoff, "direct")
     finally:
         handoff.close()
+
+
+def test_sync_provider_write_runs_under_an_owner_dispatch_lease(stack):
+    """G1: a synchronous Store write holds an SDK lease; UNKNOWN is carried."""
+
+    done = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    assert done.status == done.Accepted and stack.owner.unresolved_dispatches() == ()
+    stack.store.fail_with = TimeoutError("timed out")
+    lost = stack.a.buy(data=stack.data, size=1, price=1500.0, exectype=bt.Order.Limit)
+    intent_id = lost.info["strategy_ledger_intent_id"]
+    (unresolved,) = stack.owner.unresolved_dispatches()
+    assert (unresolved.intent_id, unresolved.state) == (intent_id, "UNKNOWN")
 
 
 # -- G6: the direct strategy-ledger path never needs bt_api_execution ----------------

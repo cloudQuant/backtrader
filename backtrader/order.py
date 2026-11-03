@@ -469,6 +469,11 @@ class OrderBase:
     ]
     # Add a number for each order
     refbasis = itertools.count(1)  # for a unique identifier per order
+    # Durable notification recovery (iteration 60 G3, additive): the stable
+    # journal id of this order notification, and whether it was delivered
+    # before (a replay after a restart, or a re-journaled duplicate).
+    notification_id = None
+    replayed = False
 
     # Set/get plimit property
     def _getplimit(self):

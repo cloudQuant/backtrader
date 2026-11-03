@@ -16,7 +16,12 @@ import pytest
 
 pytest.importorskip("bt_api_py.strategy_event_feed")
 
-from bt_api_py.strategy_ledger import LedgerIntent, SqliteStrategyLedger  # noqa: E402
+from bt_api_py.strategy_ledger import (  # noqa: E402
+    InstrumentTerms,
+    LedgerIntent,
+    SqliteStrategyLedger,
+    StrategyBudget,
+)
 from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402
 
 _ACCOUNT = "synthetic-ledger-account"
@@ -24,7 +29,16 @@ _INSTRUMENT = "PAPER:SIM:SA2701"
 
 
 def _ledger(path):
-    return SqliteStrategyLedger(path, account_ref=_ACCOUNT, require_budget=False)
+    # Opening always needs a budget (G4).
+    return SqliteStrategyLedger(
+        path,
+        account_ref=_ACCOUNT,
+        instruments={_INSTRUMENT: InstrumentTerms(Decimal("1"), "CNY", "futures")},
+        budgets={
+            ref: StrategyBudget(Decimal("1000000000"), "CNY")
+            for ref in ("strategy-a", "strategy-b")
+        },
+    )
 
 
 class _Recorder:

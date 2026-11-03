@@ -4314,21 +4314,36 @@ class Strategy(StrategyBase):
 
         return None  # no execution size == possize
 
-    #: Seconds a valuation mark may lag the newest mark used with it; ``0``
-    #: means every mark must be on the same bar time (60.11-A5).
+    #: Seconds a historical valuation mark may lag the newest mark used with
+    #: it; ``0`` means every mark must be on the same bar time (60.11-A5).
     strategy_mark_max_age = 0.0
+
+    #: Absolute freshness bound, in seconds, for a *live* valuation mark
+    #: (iteration 60, F6): ``now - event time`` of each mark must not exceed
+    #: it, where ``now`` is the feed's injected clock (wall clock in live
+    #: runs) and the event time is the provider/exchange time of the bar
+    #: close or tick. The default is deliberately tight; a strategy that
+    #: values on slower data must raise it explicitly. It only tightens each
+    #: feed's own ``valuation_mark_max_age`` and never loosens it.
+    strategy_mark_max_age_seconds = 5.0
 
     def _strategy_valuation(self, account_book, target_data):
         """Value this strategy's book from one snapshot (60.11-R1/R2/A10).
 
         Marks are the current close of each held instrument's feed (looked up
-        by feed name) and of ``target_data``; they must be finite, positive
-        and within ``strategy_mark_max_age`` of each other. Live data is
-        valued only through each feed's own source-bound contract
-        (``BtApiFeed.valuation_mark()``: the final bar that feed published,
-        not older than its absolute max age against its wall clock); any
-        other live feed, or a historical run on a non-BackBroker Broker, is
-        refused (``STRATEGY_MARK_PROVENANCE_UNAVAILABLE``).
+        by feed name) and of ``target_data``. Historical marks (BackBroker,
+        non-live feeds) must be finite, positive and within
+        ``strategy_mark_max_age`` of each other. Live data is valued only
+        through the trusted live mark contract (iteration 60, F6): every
+        feed offers ``valuation_mark()`` (``BtApiFeed``), is bound to the
+        same Store - the same account/provider route - as this strategy's
+        Broker (``STRATEGY_MARK_ROUTE_UNBOUND``), its value is a provider-
+        final bar, a bar closed from quality-checked typed ticks, or one
+        eligible typed tick, it carries its provider event time, and
+        ``now - event time <= strategy_mark_max_age_seconds``
+        (``STRATEGY_MARK_STALE``). Any other live feed, or a historical run
+        on a non-BackBroker Broker, is refused
+        (``STRATEGY_MARK_PROVENANCE_UNAVAILABLE``).
         Multipliers come
         from this Broker's commission info and must equal the instrument
         terms published by the book. Returns ``(valuation, marks)`` or raises
@@ -4353,7 +4368,9 @@ class Strategy(StrategyBase):
             # the provenance and freshness of a live price: live data needs
             # the feed's source-bound mark contract; otherwise only the
             # historical BackBroker path is allowed.
-            live_marks = _live_valuation_marks(feeds)
+            live_marks = _live_valuation_marks(
+                feeds, self.broker, self.strategy_mark_max_age_seconds
+            )
             cerebro = self.cerebro
             if live_marks is None and (
                 type(self.broker) is not BackBroker
@@ -4394,7 +4411,10 @@ class Strategy(StrategyBase):
                 raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID") from None
             if not math.isfinite(max_age) or max_age < 0:
                 raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID")
-            if stamps and (max(stamps) - min(stamps)) * 86400.0 > max_age:
+            # Live marks are each bounded absolutely (so their skew is too);
+            # the relative bar-time check applies to historical marks.
+            skew = (max(stamps) - min(stamps)) * 86400.0 if stamps else 0.0
+            if live_marks is None and skew > max_age:
                 raise ServiceStrategyAccountBookError("STRATEGY_MARK_STALE")
             valuation = value_strategy_book(snapshot, marks=marks, multipliers=multipliers)
         except ServiceStrategyAccountBookError as error:
@@ -5141,11 +5161,28 @@ class BtApiStrategy(Strategy):
             self.notify_trade(data)
 
 
-def _live_valuation_marks(feeds):
-    """``{name: (price, bar_time_days)}`` from source-bound feed marks, or ``None``.
+def _live_mark_max_age(value):
+    """Validated ``strategy_mark_max_age_seconds`` (finite, positive)."""
+    from .service.service_strategy_account_book import ServiceStrategyAccountBookError
+
+    if type(value) not in (int, float, Decimal):
+        raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID")
+    try:
+        value = float(value)
+    except (TypeError, ValueError, OverflowError):
+        raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID") from None
+    if not math.isfinite(value) or value <= 0:
+        raise ServiceStrategyAccountBookError("STRATEGY_MARK_AGE_INVALID")
+    return value
+
+
+def _live_valuation_marks(feeds, broker, max_age):
+    """``{name: (price, event_time_days)}`` from trusted live feed marks, or ``None``.
 
     ``None`` when no feed offers ``valuation_mark``; refuses (finite code)
-    when only some do or any mark is not eligible.
+    when only some do, when a feed is not bound to ``broker``'s Store (the
+    account/provider route the book reconciles with), or when any mark is
+    not eligible under ``max_age`` seconds.
     """
     from .service.service_strategy_account_book import ServiceStrategyAccountBookError
 
@@ -5154,10 +5191,14 @@ def _live_valuation_marks(feeds):
         return None
     if not all(callable(item) for item in providers.values()):
         raise ServiceStrategyAccountBookError("STRATEGY_MARK_PROVENANCE_UNAVAILABLE")
+    max_age = _live_mark_max_age(max_age)
+    route = getattr(broker, "store", None)
+    if route is None or any(getattr(data, "store", None) is not route for data in feeds.values()):
+        raise ServiceStrategyAccountBookError("STRATEGY_MARK_ROUTE_UNBOUND")
     marks = {}
     for name, provider in providers.items():
         try:
-            price, as_of, _source = provider()
+            price, as_of, _source = provider(max_age=max_age)
         except ValueError as error:
             code = getattr(error, "code", None)
             raise ServiceStrategyAccountBookError(

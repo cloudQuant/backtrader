@@ -1,25 +1,28 @@
-"""Durable snapshots for future Backtrader strategy notification recovery.
+"""Durable local projections for Backtrader strategy notification recovery.
 
-This is an *unconnected* framework projection component, not an execution
-journal or an authentication mechanism. A trusted caller must first bind the
-account, strategy, run, source and Backtrader objects, and must supply a
-versioned snapshot encoded by its own registered projection codec. This module
-never unpickles or reconstructs Order, Trade, or provider facts.
+Two framework projection stores, not execution journals or authentication
+mechanisms. A trusted caller binds the account, strategy, run, source and
+Backtrader objects and supplies canonical JSON encoded by its own registered
+projection codec. Nothing here unpickles or reconstructs Order, Trade, or
+provider facts.
 
-One projection batch atomically stores its checkpoint and order/trade
-notifications in a dedicated SQLite database. Delivery is ordered and at least
-once: acknowledge only after the callback returns. A crash after the callback
-but before acknowledgement redelivers the same stable event ID. A caller must
-provide a single active consumer for a scope and make external effects
-idempotent; this store does not fence another provider session or make user
-callbacks exactly once. Scope names and hashes are not credentials.
-Event IDs are unique only within the full declared scope; an external
-idempotency key must include that scope as well as the event ID.
+``StrategyNotificationJournal`` is the hot-path store used by
+``BtApiBroker.bind_strategy_notification_recovery``: one ordered, at-least-once
+journal per strategy with stable caller-derived event IDs, per-entry digests,
+O(1) append/acknowledge and bounded retention of acknowledged rows.
 
-This prototype scans all retained projection batches on each operation. Its
-cost grows with history; high-frequency performance has not been accepted and
-it must not be wired into a production path without a separately designed,
-verified bounded or incremental integrity scheme.
+``StrategyNotificationOutbox`` is the older checkpoint-batch primitive: one
+projection batch atomically stores its checkpoint and notifications; delivery
+is ordered, acknowledged in order, and every operation audits the full
+retained history, so its cost grows with history and it is not used on the
+notification path.
+
+For both: acknowledge only after the callback returns. A crash after the
+callback but before acknowledgement redelivers the same stable event ID. A
+caller must provide a single active consumer for a scope and make external
+effects idempotent; these stores do not fence another provider session or make
+user callbacks exactly once. Scope names and hashes are not credentials, and
+an external idempotency key must include the scope as well as the event ID.
 """
 
 from __future__ import annotations
@@ -37,11 +40,13 @@ from pathlib import Path
 from typing import Callable
 
 __all__ = [
+    "JournalEntry",
     "NotificationOutboxError",
     "NotificationScope",
     "NotificationSnapshot",
     "ProjectionCheckpoint",
     "ProjectionCommit",
+    "StrategyNotificationJournal",
     "StrategyNotificationOutbox",
 ]
 
@@ -254,16 +259,25 @@ def _digest(
     ).hexdigest()
 
 
-class StrategyNotificationOutbox:
-    """Ordered durable projection snapshots for one declared strategy run.
+class _DedicatedSqliteStore:
+    """Open a SQLite file dedicated to one store class, refusing anything else.
 
     The path must be dedicated to this component. Only a path this constructor
     created exclusively may be initialized; an existing database is first
     checked read-only, and unknown, empty or damaged databases are refused.
     File identity is checked while opening but is not a defense against an
-    adversary with arbitrary write access to the containing directory. This
-    class does not establish the authenticity of the projection namespace.
+    adversary with arbitrary write access to the containing directory.
+    Subclasses provide ``_verify_schema``, ``_audit`` and ``_initialise_new``.
     """
+
+    def _verify_schema(self) -> None:  # pragma: no cover - subclass contract
+        raise NotImplementedError
+
+    def _audit(self) -> None:  # pragma: no cover - subclass contract
+        raise NotImplementedError
+
+    def _initialise_new(self, path: str, identity: os.stat_result) -> None:  # pragma: no cover
+        raise NotImplementedError
 
     def __init__(self, path: str | Path, scope: NotificationScope) -> None:
         if type(scope) is not NotificationScope:
@@ -360,6 +374,36 @@ class StrategyNotificationOutbox:
             or current.st_ino != opened.st_ino
         ):
             raise NotificationOutboxError("STORE_PATH_CHANGED")
+
+    @contextmanager
+    def _transaction(self, *, immediate: bool = False, integrity_code: str = "STORE_UNAVAILABLE"):
+        """Rollback unsuccessful operations and expose finite storage failures."""
+        db = self._db
+        try:
+            db.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
+            yield
+            db.execute("COMMIT")
+        except BaseException as error:
+            try:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+            except sqlite3.Error:
+                raise NotificationOutboxError("STORE_UNAVAILABLE") from None
+            if isinstance(error, sqlite3.IntegrityError):
+                raise NotificationOutboxError(integrity_code) from None
+            if isinstance(error, sqlite3.Error):
+                raise NotificationOutboxError("STORE_UNAVAILABLE") from None
+            raise
+
+
+class StrategyNotificationOutbox(_DedicatedSqliteStore):
+    """Ordered durable projection snapshots for one declared strategy run.
+
+    Checkpoint-batch primitive: every operation audits the full retained
+    history, so it is not used on the notification hot path (see
+    ``StrategyNotificationJournal``). It does not establish the authenticity
+    of the projection namespace.
+    """
 
     def _verify_schema(self) -> None:
         version = self._db.execute("PRAGMA user_version").fetchone()[0]
@@ -485,26 +529,6 @@ class StrategyNotificationOutbox:
             ).fetchone()
             if seq != expected or event != (event_id,):
                 raise NotificationOutboxError("STORE_CORRUPT")
-
-    @contextmanager
-    def _transaction(self, *, immediate: bool = False, integrity_code: str = "STORE_UNAVAILABLE"):
-        """Rollback unsuccessful operations and expose finite storage failures."""
-        db = self._db
-        try:
-            db.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
-            yield
-            db.execute("COMMIT")
-        except BaseException as error:
-            try:
-                if db.in_transaction:
-                    db.execute("ROLLBACK")
-            except sqlite3.Error:
-                raise NotificationOutboxError("STORE_UNAVAILABLE") from None
-            if isinstance(error, sqlite3.IntegrityError):
-                raise NotificationOutboxError(integrity_code) from None
-            if isinstance(error, sqlite3.Error):
-                raise NotificationOutboxError("STORE_UNAVAILABLE") from None
-            raise
 
     def checkpoint(self) -> ProjectionCommit:
         with self._lock, self._transaction():
@@ -646,6 +670,307 @@ class StrategyNotificationOutbox:
         handler(event)
         self.acknowledge(event.event_id)
         return True
+
+    def close(self) -> None:
+        with self._lock:
+            try:
+                self._db.close()
+            except sqlite3.Error:
+                raise NotificationOutboxError("STORE_UNAVAILABLE") from None
+
+
+# ---------------------------------------------------------------------------
+# Bounded notification journal (re-verification G3, hot path)
+# ---------------------------------------------------------------------------
+
+_JOURNAL_VERSION = 2
+_JOURNAL_KINDS = ("order", "trade", "fee_correction")
+_JOURNAL_DDL = {
+    "journal_meta": (
+        "CREATE TABLE journal_meta (id INTEGER PRIMARY KEY CHECK(id=1), "
+        "account_ref TEXT NOT NULL, route_ref TEXT NOT NULL, strategy_ref TEXT NOT NULL, "
+        "run_id TEXT NOT NULL, source_epoch TEXT NOT NULL, next_seq INTEGER NOT NULL, "
+        "pending INTEGER NOT NULL, retained INTEGER NOT NULL)"
+    ),
+    "journal_notification": (
+        "CREATE TABLE journal_notification (seq INTEGER PRIMARY KEY, event_id TEXT NOT NULL "
+        "UNIQUE, kind TEXT NOT NULL, payload BLOB NOT NULL, digest TEXT NOT NULL, "
+        "acked INTEGER NOT NULL CHECK(acked IN (0, 1)))"
+    ),
+    "journal_pending": (
+        "CREATE INDEX journal_pending ON journal_notification(acked, seq)"
+    ),
+}
+_DEFAULT_RETAIN_ACKED = 1024
+_COMPACT_EVERY = 256
+
+
+@dataclass(frozen=True)
+class JournalEntry:
+    """One journaled notification: stable ``event_id``, delivery order ``seq``."""
+
+    seq: int
+    event_id: str
+    kind: str
+    payload: bytes
+    acked: bool
+
+
+def _entry_digest(scope: NotificationScope, seq: int, event_id: str, kind: str, payload: bytes):
+    value = [
+        scope.account_ref,
+        scope.route_ref,
+        scope.strategy_ref,
+        scope.run_id,
+        scope.source_epoch,
+        seq,
+        event_id,
+        kind,
+        payload.hex(),
+    ]
+    return hashlib.sha256(
+        json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+class StrategyNotificationJournal(_DedicatedSqliteStore):
+    """Bounded, ordered at-least-once journal of one strategy's notifications.
+
+    ``append`` durably stores a notification under a caller-derived stable
+    ``event_id`` *before* it is delivered; ``acknowledge`` marks it delivered
+    after the callback returned; ``pending`` returns the undelivered ones in
+    append order (what a restarted process redelivers). Appending the same
+    ``event_id`` with the same payload again is idempotent (the existing entry
+    is returned), with another payload it is refused (``EVENT_ID_CONFLICT``).
+
+    Costs are per operation, not per history: an append is one insert, an
+    acknowledgement one update; each entry carries its own digest, verified
+    when read back. Acknowledged entries beyond ``retain_acked`` (most recent
+    kept, for duplicate detection) are deleted in amortized batches, so the
+    file stays bounded by ``max_pending + retain_acked + 256`` rows. An
+    ``event_id`` compacted away is no longer recognised as a duplicate: a
+    re-append after that is delivered again (still at least once).
+
+    The declared scope is stored at creation. Opening with another
+    ``source_epoch`` (the upstream journal generation) raises
+    ``RESYNC_REQUIRED``: the old entries belong to another generation and
+    are never mapped onto the new one. Any other scope difference raises
+    ``SCOPE_MISMATCH``. Scope values are declarations, not credentials.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        scope: NotificationScope,
+        *,
+        retain_acked: int = _DEFAULT_RETAIN_ACKED,
+        max_pending: int = _MAX_PENDING_EVENTS,
+    ) -> None:
+        if type(retain_acked) is not int or retain_acked < 0:
+            raise NotificationOutboxError("RETENTION_INVALID")
+        if type(max_pending) is not int or not 1 <= max_pending <= 1_000_000:
+            raise NotificationOutboxError("RETENTION_INVALID")
+        self._retain_acked = retain_acked
+        self._max_pending = max_pending
+        self._acks_since_compaction = 0
+        super().__init__(path, scope)
+        with self._lock, self._transaction(immediate=True):
+            self._compact()
+
+    # -- schema --------------------------------------------------------------
+
+    def _verify_schema(self) -> None:
+        version = self._db.execute("PRAGMA user_version").fetchone()[0]
+        objects = self._db.execute(
+            "SELECT name, type, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        expected = {
+            (name, "index" if sql.startswith("CREATE INDEX") else "table", sql)
+            for name, sql in _JOURNAL_DDL.items()
+        }
+        if version != _JOURNAL_VERSION or set(objects) != expected:
+            raise NotificationOutboxError("STORE_SCHEMA_INVALID")
+
+    def _initialise_new(self, path: str, identity: os.stat_result) -> None:
+        db = self._db
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            self._check_identity(path, identity)
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            objects = db.execute(
+                "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+            if version != 0 or objects:
+                raise NotificationOutboxError("STORE_SCHEMA_INVALID")
+            for sql in _JOURNAL_DDL.values():
+                db.execute(sql)
+            scope = self._scope
+            db.execute(
+                "INSERT INTO journal_meta VALUES (1, ?, ?, ?, ?, ?, 1, 0, 0)",
+                (
+                    scope.account_ref,
+                    scope.route_ref,
+                    scope.strategy_ref,
+                    scope.run_id,
+                    scope.source_epoch,
+                ),
+            )
+            db.execute(f"PRAGMA user_version={_JOURNAL_VERSION}")
+            self._check_identity(path, identity)
+            db.execute("COMMIT")
+        except BaseException:
+            db.execute("ROLLBACK")
+            raise
+
+    def _meta(self) -> tuple[int, int, int]:
+        rows = self._db.execute(
+            "SELECT account_ref, route_ref, strategy_ref, run_id, source_epoch, next_seq, "
+            "pending, retained FROM journal_meta WHERE id=1"
+        ).fetchall()
+        if len(rows) != 1:
+            raise NotificationOutboxError("STORE_CORRUPT")
+        row = rows[0]
+        scope = self._scope
+        declared = (
+            scope.account_ref,
+            scope.route_ref,
+            scope.strategy_ref,
+            scope.run_id,
+        )
+        if tuple(row[:4]) != declared:
+            raise NotificationOutboxError("SCOPE_MISMATCH")
+        if row[4] != scope.source_epoch:
+            raise NotificationOutboxError("RESYNC_REQUIRED")
+        next_seq, pending, retained = row[5:]
+        if any(type(value) is not int for value in row[5:]) or not (
+            next_seq >= 1 and 0 <= pending <= retained < next_seq
+        ):
+            raise NotificationOutboxError("STORE_CORRUPT")
+        return next_seq, pending, retained
+
+    def _row(self, row: tuple) -> JournalEntry:
+        seq, event_id, kind, payload, digest, acked = row
+        try:
+            _text(event_id)
+            if kind not in _JOURNAL_KINDS or acked not in (0, 1) or type(seq) is not int:
+                raise NotificationOutboxError("STORE_CORRUPT")
+            _json_blob(payload, _MAX_PAYLOAD_BYTES)
+        except NotificationOutboxError:
+            raise NotificationOutboxError("STORE_CORRUPT") from None
+        if digest != _entry_digest(self._scope, seq, event_id, kind, payload):
+            raise NotificationOutboxError("STORE_CORRUPT")
+        return JournalEntry(seq, event_id, kind, payload, bool(acked))
+
+    def _audit(self) -> None:
+        """Open-time check of the retained (bounded) rows and counters."""
+        db = self._db
+        self._verify_schema()
+        if db.execute("PRAGMA quick_check").fetchone() != ("ok",):
+            raise NotificationOutboxError("STORE_CORRUPT")
+        next_seq, pending, retained = self._meta()
+        rows = db.execute(
+            "SELECT seq, event_id, kind, payload, digest, acked FROM journal_notification "
+            "ORDER BY seq"
+        ).fetchall()
+        unacked = 0
+        for row in rows:
+            entry = self._row(tuple(row))
+            if entry.seq >= next_seq:
+                raise NotificationOutboxError("STORE_CORRUPT")
+            unacked += not entry.acked
+        if len(rows) != retained or unacked != pending:
+            raise NotificationOutboxError("STORE_CORRUPT")
+
+    def _compact(self) -> None:
+        """Delete acknowledged rows older than the newest ``retain_acked``."""
+        db = self._db
+        cut = db.execute(
+            "SELECT seq FROM journal_notification WHERE acked=1 ORDER BY seq DESC "
+            "LIMIT 1 OFFSET ?",
+            (self._retain_acked,),
+        ).fetchone()
+        if cut is not None:
+            deleted = db.execute(
+                "DELETE FROM journal_notification WHERE acked=1 AND seq<=?", (cut[0],)
+            ).rowcount
+            db.execute("UPDATE journal_meta SET retained=retained-? WHERE id=1", (deleted,))
+        self._acks_since_compaction = 0
+
+    # -- operations ----------------------------------------------------------
+
+    def append(self, event_id: str, kind: str, payload: bytes) -> tuple[JournalEntry, bool]:
+        """Durably store one notification; return ``(entry, created)``."""
+        _text(event_id)
+        if type(kind) is not str or kind not in _JOURNAL_KINDS:
+            raise NotificationOutboxError("KIND_INVALID")
+        _json_blob(payload, _MAX_PAYLOAD_BYTES)
+        with self._lock, self._transaction(immediate=True, integrity_code="EVENT_ID_CONFLICT"):
+            next_seq, pending, retained = self._meta()
+            existing = self._db.execute(
+                "SELECT seq, event_id, kind, payload, digest, acked FROM journal_notification "
+                "WHERE event_id=?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                entry = self._row(tuple(existing))
+                if entry.kind != kind or entry.payload != payload:
+                    raise NotificationOutboxError("EVENT_ID_CONFLICT")
+                return entry, False
+            if pending + 1 > self._max_pending:
+                raise NotificationOutboxError("PENDING_CAPACITY_EXCEEDED")
+            digest = _entry_digest(self._scope, next_seq, event_id, kind, payload)
+            self._db.execute(
+                "INSERT INTO journal_notification VALUES (?, ?, ?, ?, ?, 0)",
+                (next_seq, event_id, kind, payload, digest),
+            )
+            self._db.execute(
+                "UPDATE journal_meta SET next_seq=?, pending=?, retained=? WHERE id=1",
+                (next_seq + 1, pending + 1, retained + 1),
+            )
+            return JournalEntry(next_seq, event_id, kind, payload, False), True
+
+    def pending(self, limit: int = _MAX_BATCH_EVENTS) -> tuple[JournalEntry, ...]:
+        """Return up to ``limit`` unacknowledged entries in append order."""
+        if type(limit) is not int or not 1 <= limit <= _MAX_PENDING_EVENTS:
+            raise NotificationOutboxError("LIMIT_INVALID")
+        with self._lock, self._transaction():
+            self._meta()
+            rows = self._db.execute(
+                "SELECT seq, event_id, kind, payload, digest, acked FROM journal_notification "
+                "WHERE acked=0 ORDER BY seq LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return tuple(self._row(tuple(row)) for row in rows)
+
+    def acknowledge(self, event_id: str) -> bool:
+        """Mark ``event_id`` delivered; ``False`` if it already was (idempotent)."""
+        _text(event_id)
+        with self._lock, self._transaction(immediate=True):
+            _next_seq, pending, _retained = self._meta()
+            row = self._db.execute(
+                "SELECT acked FROM journal_notification WHERE event_id=?", (event_id,)
+            ).fetchone()
+            if row is None:
+                raise NotificationOutboxError("ACK_UNKNOWN")
+            if row[0]:
+                return False
+            if pending < 1:
+                raise NotificationOutboxError("STORE_CORRUPT")
+            self._db.execute(
+                "UPDATE journal_notification SET acked=1 WHERE event_id=?", (event_id,)
+            )
+            self._db.execute("UPDATE journal_meta SET pending=? WHERE id=1", (pending - 1,))
+            self._acks_since_compaction += 1
+            if self._acks_since_compaction >= _COMPACT_EVERY:
+                self._compact()
+            return True
+
+    def stats(self) -> dict:
+        """Counters: ``pending``, ``retained`` rows and ``next_seq``."""
+        with self._lock, self._transaction():
+            next_seq, pending, retained = self._meta()
+        return {"next_seq": next_seq, "pending": pending, "retained": retained}
 
     def close(self) -> None:
         with self._lock:

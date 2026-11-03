@@ -194,6 +194,11 @@ class Trade:
     # Trade status names
     status_names = ["Created", "Open", "Closed"]
     Created, Open, Closed = range(3)
+    # Durable notification recovery (iteration 60 G3, additive): the stable
+    # journal id of this trade notification, and whether it was delivered
+    # before (a replay after a restart, or a re-journaled duplicate).
+    notification_id = None
+    replayed = False
 
     # Print trade related information
     def __str__(self):

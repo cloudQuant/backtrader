@@ -125,6 +125,13 @@ class TradeAnalyzer(Analyzer):
         # Closed trade
         trades.total.closed += 1
 
+        # Remember how this trade was bucketed so a later fee-only correction
+        # (iteration 60, F5) can adjust the same buckets.
+        self.__dict__.setdefault("_closed_buckets", {})[trade.ref] = (
+            bool(res.won),
+            bool(res.tlong),
+        )
+
         self._update_streak(trades, res)
         self._update_gross_net_pnl(trades, trade)
         self._update_won_lost(trades, trade, res)
@@ -132,6 +139,45 @@ class TradeAnalyzer(Analyzer):
         self._update_length(trades, trade)
         self._update_length_won_lost(trades, trade, res)
         self._update_length_long_short(trades, trade, res)
+
+    def notify_fee_correction(self, order, trade, delta, currency):
+        """Apply a late provider fee (iteration 60, F5) to closed-trade stats.
+
+        ``trade`` already carries the corrected ``commission``/``pnlcomm``.
+        Net pnl totals and averages of the buckets the trade was counted in
+        are reduced by ``delta``. Gross pnl, lengths, streaks and bucket
+        maxima are not recomputed. A correction that would move the trade
+        from won to lost (or back) is not re-bucketed silently: it is counted
+        in ``fee_corrections.reclassification_pending``. Corrections for
+        trades that are still open need nothing here; they are counted when
+        the trade closes with its corrected ``pnlcomm``.
+        """
+        if trade is None or delta == 0.0:
+            return
+        bucket = self.__dict__.get("_closed_buckets", {}).get(trade.ref)
+        if bucket is None:
+            return
+        won, is_long = bucket
+        trades = self.rets
+        fixes = trades.fee_corrections
+        fixes.count = (fixes.count or 0) + 1
+        fixes.total = (fixes.total or 0.0) + delta
+        if currency is not None:
+            fixes.currencies = tuple(sorted(set(fixes.currencies or ()) | {str(currency)}))
+        closed = trades.total.closed or 1
+        trades.pnl.net.total -= delta
+        trades.pnl.net.average = trades.pnl.net.total / closed
+        wlname = "won" if won else "lost"
+        trwl = trades[wlname]
+        trwl.pnl.total -= delta
+        trwl.pnl.average = trwl.pnl.total / (trwl.total or 1.0)
+        trls = trades["long" if is_long else "short"]
+        trls.pnl.total -= delta
+        trls.pnl.average = trls.pnl.total / (trls.total or 1.0)
+        trls.pnl[wlname].total -= delta
+        trls.pnl[wlname].average = trls.pnl[wlname].total / (trls[wlname] or 1.0)
+        if won != (trade.pnlcomm >= 0.0):
+            fixes.reclassification_pending = (fixes.reclassification_pending or 0) + 1
 
     @staticmethod
     def _update_streak(trades, res):

@@ -4,6 +4,46 @@ Broker getters and fund notifications are account-scoped.  A strategy with a
 bound account book must not consume them as its own financial data.
 """
 
+import threading
+
+#: Serializes a strategy account-book binding with the delivery of one
+#: financial callback tree (``Analyzer._notify_cashvalue`` / ``_notify_fund``),
+#: so a binding made by another thread can never land between a scope check
+#: and the callback it guards (iteration 60, G4). Reentrant: a callback tree
+#: on the delivering thread may nest. Binders hold it only for the check and
+#: the assignment; a financial callback must not wait on another thread that
+#: binds an account book.
+FINANCIAL_SCOPE_LOCK = threading.RLock()
+
+
+def bind_account_book(strategy, view, *, check=None):
+    """Bind ``view`` as ``strategy.account_book`` under the scope lock.
+
+    ``check(existing)`` runs under the same lock first and may raise to
+    refuse the binding; the assignment happens only if it returns.
+    """
+    with FINANCIAL_SCOPE_LOCK:
+        if check is not None:
+            check(getattr(strategy, "account_book", None))
+        strategy.account_book = view
+
+
+def notification_context_matches(strategy):
+    """Whether the values being delivered were produced for the current binding.
+
+    ``Strategy`` records ``_strategy_financial_unavailable`` exactly when it
+    produced a strategy-scoped notification for a bound book, and removes it
+    when it notified account values for an unbound strategy. A binding that
+    appeared after the values were produced therefore shows up as a mismatch.
+    """
+    if strategy is None:
+        return True
+    try:
+        own = vars(strategy)
+    except TypeError:
+        return True
+    return (own.get("account_book") is not None) == ("_strategy_financial_unavailable" in own)
+
 
 def _book(strategy):
     # Strategy._strategy_account_book stores the binding in the strategy's

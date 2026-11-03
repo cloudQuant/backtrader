@@ -2269,7 +2269,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             owner_fence=self._account_owner_fence,
         )
 
-    #: ``() -> bool`` installed by ``bind_account_owner_fence``; ``None`` = unfenced.
+    #: Lease-granting fence from ``bind_account_owner_fence``; ``None`` = unfenced.
     _account_owner_fence = None
 
     #: Subscribed account positions (``subscribe_account_positions``), or ``None``.
@@ -2295,25 +2295,41 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         subscription = StoreAccountPositionSubscription(
             self, account_ref, baseline_interval_seconds=baseline_interval_seconds
         )
-        subscription.baseline()
+        # Install the listener before the first read: pushes during a verified
+        # cut's snapshot read are buffered and replayed by the SDK bootstrap.
         self._account_position_subscription = subscription
+        subscription.start()
         return subscription
 
-    def bind_account_owner_fence(self, allows_dispatch):
-        """Install a diagnostic owner-generation check before SDK dispatch.
+    def position_stream_cut_capability(self, account_ref):
+        """``(capability, reason)``: the provider's declared query/push cut, if any.
 
-        The command worker invokes ``allows_dispatch()`` for queued writes.
-        Its result is only as trustworthy as the supplied callback: the check
-        and provider dispatch are not atomic, and this does not prove that an
-        old owner is unable to write. Dispatch-edge fencing remains to be
-        verified. A fence cannot be replaced once bound.
+        Resolution and the per-provider missing facts belong to the SDK
+        (``bt_api_py.position_stream_bootstrap.resolve_position_stream_cut``).
         """
 
-        if not callable(allows_dispatch):
-            raise ValueError("an account-owner fence callable is required")
+        try:
+            from bt_api_py.position_stream_bootstrap import resolve_position_stream_cut
+        except ImportError:
+            return None, "SDK_CUT_CONTRACT_UNAVAILABLE"
+        return resolve_position_stream_cut(self._api, self.provider)
+
+    def bind_account_owner_fence(self, fence):
+        """Install the Broker's account-owner fence for queued SDK writes.
+
+        ``fence()`` is an early pre-check; the command worker's last
+        pre-dispatch step takes ``fence.acquire_dispatch_lease(...)`` (an SDK
+        ``DispatchLease``) and holds it for the whole provider call, so a
+        handoff QUIESCE either refuses it or waits for it / records it
+        UNKNOWN (iteration 60, G1). Host-local only; cross-host exclusivity
+        needs provider-side session revocation. A fence cannot be replaced.
+        """
+
         if self._account_owner_fence is not None:
             raise ValueError("this store is already bound to an account-owner fence")
-        self._account_owner_fence = allows_dispatch
+        if not callable(fence) or not callable(getattr(fence, "acquire_dispatch_lease", None)):
+            raise ValueError("an account-owner fence that grants dispatch leases is required")
+        self._account_owner_fence = fence
 
     @staticmethod
     def _validate_approval_lease_command(command: Mapping[str, Any]) -> None:

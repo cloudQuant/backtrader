@@ -39,6 +39,7 @@ class _Book:
 class _Analyzer:
     _notify_cashvalue = Analyzer._notify_cashvalue
     _notify_fund = Analyzer._notify_fund
+    _notify_financial_tree = Analyzer._notify_financial_tree
 
     def __init__(self, name, calls, children=()):
         self.name = name

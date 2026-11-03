@@ -37,6 +37,7 @@ from bt_api_py.strategy_ledger import (  # noqa: E402
     InstrumentTerms,
     LedgerIntent,
     SqliteStrategyLedger,
+    StrategyBudget,
     StrategyCapital,
 )
 
@@ -118,7 +119,8 @@ def _ledger(tmp_path, *, holdings, capital="20000", terms=None, fee=None):
         tmp_path / "ledger.sqlite3",
         account_ref=ACCOUNT,
         instruments=instruments,
-        require_budget=False,
+        # Opening always needs a budget (G4); wide so other rules are tested.
+        budgets={ref: StrategyBudget(Decimal("1000000000"), "CNY") for ref in holdings},
         capital=(
             {ref: StrategyCapital(Decimal(capital), "CNY") for ref in holdings}
             if capital is not None

@@ -39,7 +39,10 @@ SCENARIO = textwrap.dedent(
     from backtrader.brokers.btapibroker import BtApiBroker
     from backtrader.metabase import OwnerContext
     from backtrader.service.service_strategy_account_book import ServiceStrategyAccountBookError
-    from bt_api_py.strategy_ledger import InstrumentTerms, LedgerIntent, SqliteStrategyLedger
+    from bt_api_py.strategy_ledger import (
+        InstrumentTerms, LedgerIntent, SqliteStrategyLedger, StrategyBudget
+    )
+    from bt_api_py.account_coordination import AccountCoordinationBinding, HostAccountRegistry
     from bt_api_py.account_owner_handoff import AccountOwnerHandoff
     from tests.unit import test_iter60_gateway_position_config as gw
     from tests.unit import test_service_account_views_integration as views
@@ -75,10 +78,14 @@ SCENARIO = textwrap.dedent(
             ledger = SqliteStrategyLedger(
                 tmp / "ledger.sqlite3", account_ref=views._ACCOUNT_REF,
                 instruments={INSTRUMENT: InstrumentTerms(Decimal("1"), "USD", "futures")},
-                require_budget=False,
+                budgets={"A": StrategyBudget(Decimal("1000000"), "USD")},
             )
-            handoff = AccountOwnerHandoff(tmp / "owner.sqlite3", views._ACCOUNT_REF,
-                                          initial_owner="direct", proof_verifier=lambda p, o: True)
+            handoff = AccountOwnerHandoff(
+                tmp / "owner.sqlite3", views._ACCOUNT_REF, initial_owner="direct",
+                binding=AccountCoordinationBinding(views._ACCOUNT_REF, "gateway:fake-route"),
+                host_registry=HostAccountRegistry(tmp / "owner-host"),
+            )
+            handoff.hold_owner_lock("direct", provider_session_ref="fake-session-direct")
             ledger.reserve(LedgerIntent("a", "A", INSTRUMENT, "BUY", Decimal("2"), Decimal("10")))
             ledger.apply_execution("a", cumulative_quantity=2, average_price=10)
             # The host publishes a linear-only strategy view, not evidence

@@ -7,8 +7,21 @@ account or establish an atomic fence at the provider write boundary.
 import pytest
 
 from backtrader.brokers._btapi_owner_fence import AccountOwnerFenceBrokerMixin
+from bt_api_py.account_coordination import AccountCoordinationBinding, HostAccountRegistry
 from bt_api_py.account_owner_handoff import AccountOwnerHandoff
 from bt_api_py.strategy_ledger import SqliteStrategyLedger
+
+
+def _handoff(tmp_path, account="account-A"):
+    handoff = AccountOwnerHandoff(
+        tmp_path / "owner.db",
+        account,
+        initial_owner="owner",
+        binding=AccountCoordinationBinding(account, "fake:route-1"),
+        host_registry=HostAccountRegistry(tmp_path / "host"),
+    )
+    handoff.hold_owner_lock("owner", provider_session_ref="fake-session-1")
+    return handoff
 
 
 class _Store:
@@ -30,7 +43,7 @@ class _Broker(AccountOwnerFenceBrokerMixin):
 
 
 def test_mismatched_ledger_first_prevents_owner_and_store_binding(tmp_path):
-    handoff = AccountOwnerHandoff(tmp_path / "owner.db", "account-A", initial_owner="owner")
+    handoff = _handoff(tmp_path)
     ledger = SqliteStrategyLedger(tmp_path / "ledger.db", account_ref="account-B")
     broker = _Broker()
     broker._direct_strategy_ledger = ledger
@@ -45,7 +58,7 @@ def test_mismatched_ledger_first_prevents_owner_and_store_binding(tmp_path):
 
 
 def test_mismatched_ledger_bound_later_fences_broker_and_store_worker(tmp_path):
-    handoff = AccountOwnerHandoff(tmp_path / "owner.db", "account-A", initial_owner="owner")
+    handoff = _handoff(tmp_path)
     ledger = SqliteStrategyLedger(tmp_path / "ledger.db", account_ref="account-B")
     broker = _Broker()
     try:
@@ -60,7 +73,7 @@ def test_mismatched_ledger_bound_later_fences_broker_and_store_worker(tmp_path):
 
 
 def test_matching_account_names_do_not_disable_other_owner_checks(tmp_path):
-    handoff = AccountOwnerHandoff(tmp_path / "owner.db", "account-A", initial_owner="owner")
+    handoff = _handoff(tmp_path)
     ledger = SqliteStrategyLedger(tmp_path / "ledger.db", account_ref="account-A")
     broker = _Broker()
     broker._direct_strategy_ledger = ledger

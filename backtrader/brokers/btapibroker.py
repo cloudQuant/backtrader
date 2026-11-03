@@ -17,6 +17,9 @@ from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
 from ._btapi_owner_fence import AccountOwnerFenceBrokerMixin
+from ._btapi_owner_fence import finish_dispatch_lease as _finish_owner_lease
+from ._btapi_owner_fence import lease_outcome_for_error as _owner_lease_error_outcome
+from ._btapi_owner_fence import lease_outcome_for_response as _owner_lease_response_outcome
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
@@ -1851,7 +1854,16 @@ class BtApiBroker(
         owner = bound.get(key)
         if owner is not None and owner is not strategy:
             raise ValueError("strategy account book is already bound to another strategy")
-        strategy.account_book = view
+
+        def _refuse_rebinding(current):
+            if current is not None:
+                raise ValueError("strategy already has an account book")
+
+        # Iteration 60 G4: bind under the financial scope lock, so the bind
+        # cannot interleave with an Analyzer financial callback tree.
+        from ..analyzers._strategy_scope import bind_account_book
+
+        bind_account_book(strategy, view, check=_refuse_rebinding)
         bound[key] = strategy
         return view
 
@@ -2094,14 +2106,23 @@ class BtApiBroker(
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
             correlation = self._prepare_order_correlation(order)
             self._order_correlations[order.ref] = correlation
-            # Iteration 60 (P0-1): the owner fence is the last check before
-            # the provider write.
+            # Iteration 60 (G1): early owner pre-check, then a synchronous
+            # Store write runs under an SDK dispatch lease (queued Stores
+            # take the lease in their command worker).
             fence_error = self._account_owner_fence_error()
+            owner_lease = None
+            if fence_error is None:
+                owner_lease, fence_error = self._acquire_account_owner_lease("submit", order)
             if fence_error is not None:
                 self._order_correlations.pop(order.ref, None)
                 code, message = fence_error
                 return self._reject_order(order, code, message)
-            response = self.store.submit_order(order)
+            try:
+                response = self.store.submit_order(order)
+            except BaseException as exc:
+                _finish_owner_lease(owner_lease, _owner_lease_error_outcome(exc))
+                raise
+            _finish_owner_lease(owner_lease, _owner_lease_response_outcome(response))
             queued_receipt = bool(
                 isinstance(response, Mapping)
                 and response.get("kind") == "command_receipt"
@@ -2299,18 +2320,30 @@ class BtApiBroker(
                 cancel_retry_due_monotonic_ns=None,
             )
         fence_error = self._account_owner_fence_error()
+        owner_lease = None
+        if fence_error is None:
+            owner_lease, fence_error = self._acquire_account_owner_lease("cancel", order)
         if fence_error is not None:
             code, _message = fence_error
             order.addinfo(cancel_error_code=code, cancel_requested_remote=False)
             self.notify(order)
             return order
-        self._consume_approval_operation(
-            order,
-            risk_reducing=True,
-            operation="cancel",
-        )
         try:
-            response = self.store.cancel_order(order)
+            self._consume_approval_operation(
+                order,
+                risk_reducing=True,
+                operation="cancel",
+            )
+        except BaseException:
+            _finish_owner_lease(owner_lease, "NOT_SENT")
+            raise
+        try:
+            try:
+                response = self.store.cancel_order(order)
+            except BaseException as exc:
+                _finish_owner_lease(owner_lease, _owner_lease_error_outcome(exc))
+                raise
+            _finish_owner_lease(owner_lease, _owner_lease_response_outcome(response))
         except Exception as exc:
             _safe_log("warning", "btapibroker:2813 fallback on Exception")
             self._sanitize_exception(exc)
@@ -2989,7 +3022,7 @@ class BtApiBroker(
             return
         # Re-verification G3: a recovery-bound Strategy's notification is
         # journaled durably before it can be delivered (ACK after its callback).
-        self._journal_strategy_notification(order)
+        journaled = self._journal_strategy_notification(order)
         # ``Order.clone`` deliberately clones execution state but retains the
         # original ``info`` mapping.  A later broker update can otherwise
         # rewrite a queued Accepted/UNKNOWN notification before Cerebro
@@ -2998,6 +3031,9 @@ class BtApiBroker(
         # user-provided object identities stored as values such as OCO links.
         snapshot = order.clone()
         snapshot.info = copy(order.info)
+        if journaled is not None:
+            snapshot.notification_id, snapshot.replayed = journaled
+            snapshot.addinfo(notification_id=journaled[0])
         if recovery_receipt_id is not None:
             snapshot.addinfo(service_execution_recovery_receipt_id=recovery_receipt_id)
         if recovery_restore_only:
@@ -4989,7 +5025,7 @@ class BtApiBroker(
         """Project one Store-correlated fill into Backtrader order and position state."""
         trade_key = None if from_cumulative_status else self._trade_dedupe_key(update)
         if trade_key and trade_key in self._seen_trade_ids:
-            return "ignored"
+            return self._apply_repeated_fill_fee(trade_key, update)
 
         order = self._lookup_order(update)
         if order is None:
@@ -5006,7 +5042,7 @@ class BtApiBroker(
         if trade_key is None and not from_cumulative_status:
             trade_key = self._trade_dedupe_key(update, order=order)
         if trade_key and trade_key in self._seen_trade_ids:
-            return "ignored"
+            return self._apply_repeated_fill_fee(trade_key, update)
 
         side_present, remote_is_buy = self._explicit_trade_side(update)
         if not side_present or remote_is_buy is None or remote_is_buy != bool(order.isbuy()):
@@ -5049,6 +5085,7 @@ class BtApiBroker(
                 return result
             if trade_key:
                 self._seen_trade_ids.add(trade_key)
+                self._remember_applied_fill(trade_key, order, fill_qty, fill_price, update)
             return result
 
         signed_fill = fill_quantity if remote_is_buy else -fill_quantity
@@ -5071,11 +5108,13 @@ class BtApiBroker(
         allow_local_estimate = not (
             bool(getattr(self.store, "_sdk_mode", False)) or self._uses_async_commands()
         )
+        # Keywords: the helper takes (opened_qty, closed_qty); a positional
+        # (closed, opened) call booked an opening fill's fee as closed (F5).
         closed_commission, opened_commission = self._execution_commissions(
             comminfo,
             price,
-            abs(closed),
-            abs(opened),
+            opened_qty=abs(opened),
+            closed_qty=abs(closed),
             actual_commission=actual_commission,
             allow_local_estimate=allow_local_estimate,
         )
@@ -5136,10 +5175,85 @@ class BtApiBroker(
             self._record_provider_fee(order, update, actual_commission)
         self._cache_order_identifiers(order, update)
         self._set_status_after_fill(order)
+        if trade_key:
+            self._remember_applied_fill(trade_key, order, fill_qty, fill_price, update)
         self.notify(order)
         if trade_key:
             self._seen_trade_ids.add(trade_key)
         return "applied"
+
+    # -- late fee on an already applied fill (re-verification F5, direct) ------
+
+    def _remember_applied_fill(self, trade_key, order, quantity, price, update):
+        """Keep the fee booked for one applied fill, to recognise a late correction."""
+        fills = self.__dict__.setdefault("_applied_fill_fees", {})
+        amount, _error = self._normalized_commission(update)
+        currency = self._extract_update_value(update, "fee_currency")
+        fills[trade_key] = (
+            order,
+            quantity,
+            price,
+            None if amount is None else Decimal(str(amount)),
+            currency if type(currency) is str and currency else None,
+        )
+
+    def _apply_repeated_fill_fee(self, trade_key, update):
+        """Handle a fill id seen before: at most a fee-only correction.
+
+        Contract: the provider re-reports an applied fill (same fill id, same
+        quantity and price) with its corrected fee for that fill. A higher fee
+        in the same currency is a fee-only correction of the difference
+        (``_book_fee_correction``: order commission, ledger fee totals, then
+        the Strategy's Trade and ``notify_fee_correction``); no fill is
+        created. The same fee is an idempotent duplicate (``"ignored"``). A
+        lower fee, another currency, or a fee for a fill booked without one
+        cannot be projected: the order is marked ``PNL_INCOMPLETE`` and new
+        openings and trading are fenced (``"fee_fenced"``). A different
+        quantity or price, or a fill without a fee, stays an ignored duplicate.
+        """
+        if trade_key in self._quarantined_trade_ids:
+            return "ignored"
+        record = (self.__dict__.get("_applied_fill_fees") or {}).get(trade_key)
+        if record is None:
+            return "ignored"
+        order, quantity, price, booked, booked_currency = record
+        amount, error = self._normalized_commission(update)
+        if amount is None:
+            return "ignored"
+        if (
+            self._neutral_decimal(self._extract_update_value(update, "quantity"), positive=True)
+            != quantity
+            or self._neutral_decimal(self._extract_update_value(update, "price"), positive=True)
+            != price
+        ):
+            return "ignored"
+        reported = Decimal(str(amount))
+        currency = self._extract_update_value(update, "fee_currency")
+        if booked is not None and reported == booked and currency == booked_currency:
+            return "ignored"
+        if booked is None or currency != booked_currency or reported < booked:
+            order.addinfo(
+                execution_commission_unavailable=True,
+                execution_pnl_unavailable=True,
+                pnl_status="PNL_INCOMPLETE",
+                fee_correction_error=(
+                    "fee_regressed"
+                    if booked is not None and currency == booked_currency
+                    else "fee_currency_or_basis_mismatch"
+                ),
+            )
+            self._trading_enabled = False
+            freeze = getattr(self.store, "freeze_openings", None)
+            if callable(freeze):
+                freeze("fill_fee_correction_unprojectable")
+            self.notify(order)
+            return "fee_fenced"
+        self._book_fee_correction(order, reported - booked, reported, currency)
+        self.__dict__["_applied_fill_fees"][trade_key] = (
+            order, quantity, price, reported, currency
+        )
+        self.notify(order)
+        return "fee_corrected"
 
     def _record_provider_fee(self, order, update, amount):
         """Keep the provider-reported cumulative fee of ``order`` per currency.
@@ -5318,11 +5432,13 @@ class BtApiBroker(
         allow_local_estimate = not (
             bool(getattr(self.store, "_sdk_mode", False)) or self._uses_async_commands()
         )
+        # Keywords: the helper takes (opened_qty, closed_qty); a positional
+        # (closed, opened) call booked an opening fill's fee as closed (F5).
         closed_commission, opened_commission = self._execution_commissions(
             comminfo,
             fill_price,
-            abs(closed),
-            abs(opened),
+            opened_qty=abs(opened),
+            closed_qty=abs(closed),
             actual_commission=actual_commission,
             allow_local_estimate=allow_local_estimate,
         )

@@ -25,7 +25,7 @@ _WHEN = dt.datetime(2026, 11, 2, 2, 0, tzinfo=dt.timezone.utc)
 def feed():
     item = BtApiFeed(dataname="SA609", store=None, timeframe=bt.TimeFrame.Ticks)
     item.events = []
-    item._enqueue_bar_event = lambda event, when: item.events.append(event)
+    item._enqueue_bar_event = lambda event, when, **_kw: item.events.append(event)
     return item
 
 

@@ -295,8 +295,18 @@ class ServiceExecutionSession:
         existing_view = getattr(strategy, "account_book", None)
         if existing_view is not None and existing_view is not view:
             raise ServiceExecutionSessionConfigError("STRATEGY_ACCOUNT_BOOK_ALREADY_BOUND")
+        def _refuse_other_view(current):
+            if current is not None and current is not view:
+                raise ServiceExecutionSessionConfigError("STRATEGY_ACCOUNT_BOOK_ALREADY_BOUND")
+
+        # Iteration 60 G4: bind under the financial scope lock (see
+        # ``backtrader.analyzers._strategy_scope.FINANCIAL_SCOPE_LOCK``).
+        from ..analyzers._strategy_scope import bind_account_book
+
         try:
-            strategy.account_book = view
+            bind_account_book(strategy, view, check=_refuse_other_view)
+        except ServiceExecutionSessionConfigError:
+            raise
         except Exception:
             raise ServiceExecutionSessionConfigError("STRATEGY_ACCOUNT_BOOK_BIND_FAILED") from None
         self._bound_strategy_views[object_key] = (strategy, key, view)

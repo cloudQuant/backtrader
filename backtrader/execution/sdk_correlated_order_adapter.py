@@ -212,7 +212,7 @@ class SdkCorrelatedOrderAdapter:
         assert_write_route_identity: Callable[..., Any],
         validate_approval_lease_command: Callable[[Mapping[str, Any]], Any],
         sanitize_exception: Callable[[BaseException], Any],
-        owner_fence: Optional[Callable[[], bool]] = None,
+        owner_fence: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Claim, dispatch once, verify the SDK acknowledgement, and retain it.
 
@@ -220,13 +220,15 @@ class SdkCorrelatedOrderAdapter:
         execution-binding registry. Dispatch still runs inside the existing
         command worker's coordinator call path.
 
-        ``owner_fence`` checks whether the local owner generation still
-        permits dispatch. A failed check before the claim is a definite local
-        rejection; a failed check after the claim is UNKNOWN. Neither check
-        is atomic with the provider write: an already admitted command may
-        still reach the provider after a handoff begins. Safe takeover needs
-        independently verified provider-session revocation or an enforced
-        fence at the dispatch boundary.
+        ``owner_fence`` (iteration 60, G1) is the Broker's account-owner
+        fence. Calling it is an early pre-check: a failure before the claim is
+        a definite local rejection. The exit itself is atomic with the
+        handoff: the last pre-dispatch step takes an SDK ``DispatchLease``
+        (``owner_fence.acquire_dispatch_lease``) and holds it until the
+        provider call returns, then records the outcome. A handoff QUIESCE
+        refuses new leases and waits for, or records UNKNOWN, those held. A
+        lease refused after the claim is reported UNKNOWN; a fence that cannot
+        grant leases is refused before the claim.
         """
 
         from bt_api_py.correlated_command_dispatch import (
@@ -240,6 +242,13 @@ class SdkCorrelatedOrderAdapter:
             error = self._error_type("account owner fence blocked the write before dispatch")
             error.definite_reject = True
             error.code = "account_owner_fenced"
+            raise error
+        if owner_fence is not None and not callable(
+            getattr(owner_fence, "acquire_dispatch_lease", None)
+        ):
+            error = self._error_type("account owner fence cannot hold a dispatch lease")
+            error.definite_reject = True
+            error.code = "account_owner_fence_unleased"
             raise error
         request = command.get("request")
         try:
@@ -292,13 +301,10 @@ class SdkCorrelatedOrderAdapter:
             error.code = "sdk_correlated_route_unavailable"
             raise error
 
+        held_leases: list = []
+
         def before_dispatch() -> None:
             assert_write_route_identity(expected_api=api, require_live_route=True)
-            if owner_fence is not None and not _fence_allows(owner_fence):
-                error = self._error_type("account owner fence changed before dispatch")
-                error.execution_unknown = True
-                error.code = "account_owner_fenced"
-                raise error
             if current_authorization() is not authorization:
                 error = self._error_type("SDK execution authorization changed before dispatch")
                 error.execution_unknown = True
@@ -317,19 +323,44 @@ class SdkCorrelatedOrderAdapter:
                 error.execution_unknown = True
                 error.code = "sdk_order_correlation_changed"
                 raise error
+            if owner_fence is not None:
+                # The lease is the last step: it is held for the whole
+                # provider call, so a QUIESCE either precedes it (refused)
+                # or waits for it / records it UNKNOWN.
+                try:
+                    held_leases.append(
+                        owner_fence.acquire_dispatch_lease(
+                            operation, _owner_dispatch_intent(operation, correlation)
+                        )
+                    )
+                except Exception:
+                    error = self._error_type("account owner fence refused the dispatch lease")
+                    error.execution_unknown = True
+                    error.code = "account_owner_fenced"
+                    raise error from None
             command["_sdk_dispatch_method_entered"] = True
 
-        acknowledgement = await dispatch_correlated_command(
-            operation,
-            execution_facade,
-            correlation,
-            request,
-            authorization,
-            acknowledgement_type=command_types["VerifiedOrderAcknowledgement"],
-            error_type=self._error_type,
-            before_dispatch=before_dispatch,
-            sanitize_exception=sanitize_exception,
-        )
+        try:
+            acknowledgement = await dispatch_correlated_command(
+                operation,
+                execution_facade,
+                correlation,
+                request,
+                authorization,
+                acknowledgement_type=command_types["VerifiedOrderAcknowledgement"],
+                error_type=self._error_type,
+                before_dispatch=before_dispatch,
+                sanitize_exception=sanitize_exception,
+            )
+        except BaseException as exc:
+            for lease in held_leases:
+                _finish_lease(lease, _lease_error_outcome(exc))
+            raise
+        for lease in held_leases:
+            _finish_lease(
+                lease,
+                "REJECTED" if acknowledgement.disposition == "rejected" else "ACKNOWLEDGED",
+            )
 
         verification_id = uuid.uuid4().hex
         status = acknowledgement.disposition
@@ -496,10 +527,38 @@ __all__ = (
 )
 
 
-def _fence_allows(owner_fence: Callable[[], bool]) -> bool:
+def _fence_allows(owner_fence: Any) -> bool:
     """An unreadable fence blocks the write."""
 
     try:
         return owner_fence() is True
     except Exception:
         return False
+
+
+def _owner_dispatch_intent(operation: str, correlation: Any) -> str:
+    """One provider-write intent per SDK client identity (never resubmitted)."""
+
+    client_order_id = correlation.client_order_id
+    return client_order_id if operation == "submit" else f"{operation}:{client_order_id}"
+
+
+def _lease_error_outcome(error: BaseException) -> str:
+    if bool(getattr(error, "definite_reject", False)) and not bool(
+        getattr(error, "execution_unknown", False)
+    ):
+        return "REJECTED"
+    return "UNKNOWN"
+
+
+def _finish_lease(lease: Any, outcome: str) -> None:
+    """A lease that cannot record its outcome stays IN_FLIGHT (UNKNOWN at FENCE)."""
+
+    try:
+        lease.finish(outcome)
+    except Exception:
+        from ..utils.log_message import get_logger
+
+        get_logger(__name__).warning(
+            "account-owner dispatch lease could not record its outcome"
+        )

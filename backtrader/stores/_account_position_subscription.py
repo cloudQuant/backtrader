@@ -14,15 +14,25 @@ until a trusted snapshot/stream continuity contract is available.
 
 That contract is ``bt_api_py.position_stream_bootstrap.PositionStreamBootstrap``
 behind a trusted provider verifier (snapshot at a stream cut + contiguous
-sequenced events + a current lease), reported through
-``bt_api_py.account_position_stream.BootstrapPositionReporter``. When such a
-reporter is bound (``verified_cut=`` or the Store's
-``position_stream_verified_cut(account_ref)`` hook) it is the only source of
-ledger evidence; otherwise every report is incomplete. None of the built-in
-providers can supply a verifier today: the OKX ``positions`` channel carries
-no sequence (``seqId``/``prevSeqId`` exist only for order books), Binance
-``ACCOUNT_UPDATE`` has no update id and pushes changed positions only, and
-CTP has no position push at all (only ``ReqQryInvestorPosition`` pages).
+sequenced events + a current lease). A provider declares that it can supply
+it through the SDK's neutral ``PositionStreamCutCapability``; the SDK's
+``VerifiedPositionStreamCut`` then opens the push subscription *before* the
+snapshot read, buffers pushes during the read and replays those after the cut
+(F4), and re-opens a new subscription epoch after an interruption. Evidence
+sources, in order:
+
+1. ``verified_cut=``: a ``BootstrapPositionReporter`` or a
+   ``VerifiedPositionStreamCut`` for this account;
+2. the Store's ``position_stream_verified_cut(account_ref)`` hook (same types);
+3. the Store's ``position_stream_cut_capability(account_ref)`` hook, which
+   returns ``(capability, reason)`` from the SDK resolver.
+
+With none of them every report is incomplete and ``cut_unavailable_reason``
+names the missing provider fact. None of the built-in providers declares the
+capability today (see ``bt_api_py.position_stream_bootstrap.
+PROVIDER_CUT_UNAVAILABLE``): the OKX ``positions`` channel carries no
+sequence, Binance ``ACCOUNT_UPDATE`` has no update id and pushes changed
+positions only, and CTP has no position push at all.
 
 The Store keeps only this framework wiring; the evidence rules live in the SDK.
 """
@@ -89,21 +99,53 @@ class StoreAccountPositionSubscription:
         self._interval_ns = int(interval * 1_000_000_000)
         self._baseline_ns = None
         self.baseline_failures = 0
+        from bt_api_py.position_stream_bootstrap import VerifiedPositionStreamCut
+
+        self.cut_unavailable_reason = None
         if verified_cut is None:
             hook = getattr(store, "position_stream_verified_cut", None)
             verified_cut = hook(account_ref) if callable(hook) else None
+        if verified_cut is None:
+            resolver = getattr(store, "position_stream_cut_capability", None)
+            capability, reason = resolver(account_ref) if callable(resolver) else (
+                None, "PROVIDER_CUT_NOT_DECLARED"
+            )
+            if capability is not None:
+                verified_cut = VerifiedPositionStreamCut(
+                    capability,
+                    account_ref=account_ref,
+                    source=f"btapistore:{provider}:verified_position_cut",
+                    clock_ns=clock_ns,
+                    retry_interval_ns=self._interval_ns,
+                )
+            else:
+                self.cut_unavailable_reason = reason
         if verified_cut is not None and (
-            type(verified_cut) is not BootstrapPositionReporter
+            type(verified_cut) not in (BootstrapPositionReporter, VerifiedPositionStreamCut)
             or verified_cut.account_ref != account_ref
         ):
-            raise ValueError("verified_cut must be this account's BootstrapPositionReporter")
+            raise ValueError(
+                "verified_cut must be this account's BootstrapPositionReporter"
+                " or VerifiedPositionStreamCut"
+            )
         self.verified_cut = verified_cut
+        self._driver = verified_cut if type(verified_cut) is VerifiedPositionStreamCut else None
+        self._driver_reporter = None if self._driver is None else self._driver.reporter()
 
     @property
     def account_ref(self):
         return self.positions.account_ref
 
     # -- feeding -----------------------------------------------------------
+
+    def start(self):
+        """Open the verified cut when a provider declared one, else a baseline."""
+
+        if self._driver is not None:
+            return self._driver.start()
+        if self.verified_cut is not None:
+            return self.verified_cut.report().complete
+        return self.baseline()
 
     def baseline(self):
         """Replace the state with one complete SDK position snapshot."""
@@ -149,6 +191,10 @@ class StoreAccountPositionSubscription:
     def on_position_event(self, event):
         """Apply one SDK ``position`` event (absolute quantity)."""
 
+        if self._driver is not None:
+            # The verified cut owns ledger evidence; the diagnostic state below
+            # is still kept for display.
+            self._driver.on_event(event)
         name = event.get("symbol")
         side = event.get("position_side") or "net"
         if event.get("quantity_known") is False:
@@ -164,6 +210,8 @@ class StoreAccountPositionSubscription:
             self.positions.mark_interrupted("POSITION_EVENT_INVALID")
 
     def on_disconnect(self, event=None):
+        if self._driver is not None:
+            self._driver.on_disconnect("STREAM_DISCONNECTED")
         self.positions.mark_interrupted("STREAM_DISCONNECTED")
 
     def _failed(self, reason):
@@ -179,6 +227,11 @@ class StoreAccountPositionSubscription:
         due or interrupted) and returned, but it is never complete.
         """
 
+        if self._driver is not None:
+            # Re-open a new subscription epoch after an interruption, rate
+            # limited by the baseline interval; never a provider read per query.
+            self._driver.restart_if_due()
+            return self._driver_reporter.report()
         if self.verified_cut is not None:
             return self.verified_cut.report()
         now = int(self._clock_ns())

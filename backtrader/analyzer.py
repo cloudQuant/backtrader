@@ -41,6 +41,10 @@ from .observer import Observer
 from .parameters import ParameterizedBase
 from .strategy import Strategy
 from .utils.py3 import MAXINT
+from .analyzers._strategy_scope import FINANCIAL_SCOPE_LOCK as _FINANCIAL_SCOPE_LOCK
+from .analyzers._strategy_scope import (
+    notification_context_matches as _notification_context_matches,
+)
 
 
 # Analyzer class - refactored to not use metaclass
@@ -182,33 +186,29 @@ class Analyzer(ParameterizedBase):
     # Notify cash and value
     # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_cashvalue(self, cash, value):
-        strategy = getattr(self, "strategy", None)
-        scope = vars(strategy).get("account_book") if strategy is not None else None
-
-        def check_scope():
-            if (
-                getattr(self, "strategy", None) is not strategy
-                or (strategy is not None and vars(strategy).get("account_book") is not scope)
-            ):
-                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
-
-        children = self._children
-        if children:
-            for child in children:
-                check_scope()
-                if getattr(child, "strategy", None) is not strategy:
-                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
-                child._notify_cashvalue(cash, value)
-                if getattr(child, "strategy", None) is not strategy:
-                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
-                check_scope()
-        check_scope()
-        self.notify_cashvalue(cash, value)
-        check_scope()
+        # The whole tree is delivered under the financial scope lock, so an
+        # account-book binding from another thread cannot interleave with a
+        # scope check (iteration 60, G4).
+        with _FINANCIAL_SCOPE_LOCK:
+            self._notify_financial_tree("_notify_cashvalue", "notify_cashvalue", (cash, value))
 
     # Notify cash, value, fundvalue, shares
     # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_fund(self, cash, value, fundvalue, shares):
+        with _FINANCIAL_SCOPE_LOCK:
+            self._notify_financial_tree(
+                "_notify_fund", "notify_fund", (cash, value, fundvalue, shares)
+            )
+
+    def _notify_financial_tree(self, child_method, own_method, args):
+        """Deliver one financial callback to the children, then to ``self``.
+
+        Every child must belong to the same Strategy, and that Strategy's
+        account-book binding must neither change during the tree nor differ
+        from the one the delivered values were produced for; otherwise
+        ``STRATEGY_FINANCIAL_SCOPE_CHANGED`` is raised before any further
+        callback. Called with ``_FINANCIAL_SCOPE_LOCK`` held.
+        """
         strategy = getattr(self, "strategy", None)
         scope = vars(strategy).get("account_book") if strategy is not None else None
 
@@ -216,21 +216,20 @@ class Analyzer(ParameterizedBase):
             if (
                 getattr(self, "strategy", None) is not strategy
                 or (strategy is not None and vars(strategy).get("account_book") is not scope)
+                or not _notification_context_matches(strategy)
             ):
                 raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
 
-        children = self._children
-        if children:
-            for child in children:
-                check_scope()
-                if getattr(child, "strategy", None) is not strategy:
-                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
-                child._notify_fund(cash, value, fundvalue, shares)
-                if getattr(child, "strategy", None) is not strategy:
-                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
-                check_scope()
         check_scope()
-        self.notify_fund(cash, value, fundvalue, shares)
+        for child in self._children:
+            check_scope()
+            if getattr(child, "strategy", None) is not strategy:
+                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+            getattr(child, child_method)(*args)
+            if getattr(child, "strategy", None) is not strategy:
+                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+            check_scope()
+        getattr(self, own_method)(*args)
         check_scope()
 
     # Notify trade

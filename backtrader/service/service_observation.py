@@ -195,8 +195,10 @@ def open_service_read_session(
                 raise _error("SERVICE_MARKET_CHANNEL_UNSUPPORTED")
     sdk_config = dict(service_config)
     sdk_config["account"] = {name: account[name] for name in neutral_fields}
-    if "snapshot_format" in account:
-        sdk_config["account"]["snapshot_format"] = account["snapshot_format"]
+    # Iteration 60.08 (G5): the typed Base account contract is the default on
+    # the service path; ``generic`` is an explicit legacy selection and a
+    # typed read never falls back to it.
+    sdk_config["account"]["snapshot_format"] = account.get("snapshot_format", "typed")
     clients = open_service_observation_clients(
         sdk_config, instruments=instruments, provider_route=provider_route,
         allow_write=allow_write, environ=environ, timeout_seconds=timeout_seconds,

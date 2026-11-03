@@ -152,3 +152,189 @@ def test_a_broken_cut_stays_incomplete():
     cut = BootstrapPositionReporter(stream, account_ref="account-a", source="ctp:verified-cut")
     subscription = StoreAccountPositionSubscription(_Store(), "account-a", verified_cut=cut)
     assert subscription.report().complete is False
+
+
+# ---------------------------------------------------------------------------
+# Provider-declared cut capability through the Store hooks (F4, end to end)
+# ---------------------------------------------------------------------------
+
+
+class _CutProvider:
+    """FAKE provider capability: numbered pushes, sequenced snapshot (UNIT/FAKE)."""
+
+    def __init__(self, now):
+        self.now, self.positions, self.sequence, self.epoch = now, {}, 0, 0
+        self.claims, self.binding, self.during_read, self.listener = [], None, None, None
+
+    def change(self, name, quantity, deliver=True):
+        self.positions[name] = quantity
+        self.sequence += 1
+        event = {"kind": "position", "symbol": name, "position_side": "net",
+                 "quantity": quantity, "epoch": self.epoch, "sequence": self.sequence}
+        if deliver:
+            self.listener(event)
+
+    def open_position_stream(self, account_ref):
+        self.epoch += 1
+        self.sequence = 0
+        self.binding = PositionStreamBinding(
+            AccountKey("ctp", "simnow", "simnow", "local-account"),
+            account_ref, "FAKE", "session-1", 1, self.epoch, f"ready-{self.epoch}",
+            self.now[0] + 10**12,
+        )
+        return self.binding
+
+    def position_stream_verifier(self, binding):
+        provider = self
+
+        class _V:
+            def verify_binding(self, b):
+                return b == provider.binding
+
+            def verify_snapshot(self, b, snapshot):
+                return b == provider.binding and snapshot in provider.claims
+
+            def verify_event(self, b, event):
+                return b == provider.binding and event in provider.claims
+
+            def verify_live(self, b, now_ns):
+                return b == provider.binding
+
+        return _V()
+
+    def read_position_cut(self, binding):
+        cut = self.sequence
+        rows = tuple(_row(str(q)) for name, q in self.positions.items() if q)
+        if self.during_read is not None:
+            self.during_read()
+        snapshot = PositionStreamSnapshot(binding, cut, self.now[0], f"cut-{cut}", rows)
+        self.claims.append(snapshot)
+        return snapshot
+
+    def position_stream_event(self, binding, raw):
+        if raw.get("epoch") != binding.subscription_epoch:
+            return None
+        event = PositionStreamEvent(
+            binding, raw["sequence"], self.now[0], f"push-{raw['sequence']}",
+            _row(str(raw["quantity"])),
+        )
+        self.claims.append(event)
+        return event
+
+
+class _CapabilityStore(_Store):
+    def __init__(self, capability, reason=None):
+        super().__init__()
+        self._capability, self._reason = capability, reason
+
+    def position_stream_cut_capability(self, account_ref):
+        return self._capability, self._reason
+
+
+def _subscribe(store):
+    """Mirror ``BtApiStore.subscribe_account_positions`` (listener before read)."""
+    subscription = StoreAccountPositionSubscription(store, "account-a")
+    if store._capability is not None:
+        store._capability.listener = subscription.on_position_event
+    subscription.start()
+    return subscription
+
+
+def test_push_during_cut_read_is_replayed_and_the_ledger_balances(tmp_path):
+    """F4 counterexample: X=1 pushed during the read of an empty snapshot."""
+    from bt_api_py.strategy_ledger import (
+        InstrumentTerms, LedgerIntent, SqliteStrategyLedger, StrategyBudget,
+    )
+    import time
+
+    now = [time.time_ns()]
+    provider = _CutProvider(now)
+    provider.during_read = lambda: provider.change("SA2701", 1)
+    store = _CapabilityStore(provider)
+    subscription = _subscribe(store)
+    report = subscription.report()
+    assert report.complete is True and report.positions == {"SA2701": Decimal("1")}
+    assert store.reads == 0  # evidence never comes from a per-query provider read
+    ledger = SqliteStrategyLedger(
+        tmp_path / "ledger.sqlite3",
+        account_ref="account-a",
+        instruments={"SA2701": InstrumentTerms(Decimal("1"), "CNY", "futures")},
+        budgets={"A": StrategyBudget(Decimal("1000000"), "CNY")},
+    )
+    try:
+        assert ledger.reconcile(subscription.report()).state == "RESIDUAL"  # empty book
+        ledger.reserve(LedgerIntent("a", "A", "SA2701", "BUY", Decimal("1"), Decimal("10")))
+        ledger.apply_execution("a", cumulative_quantity=1, average_price=10)
+        assert ledger.reconcile(subscription.report()).state == "BALANCED"
+        subscription.on_disconnect()
+        outcome = ledger.reconcile(subscription.report())
+        assert (outcome.state, outcome.reason) == ("UNVERIFIED", "REPORT_INCOMPLETE")
+    finally:
+        ledger.close()
+
+
+def test_interrupted_cut_reopens_a_new_epoch_rate_limited():
+    now = [10**18]
+    provider = _CutProvider(now)
+    store = _CapabilityStore(provider)
+    subscription = StoreAccountPositionSubscription(
+        store, "account-a", baseline_interval_seconds=1.0, clock_ns=lambda: now[0]
+    )
+    provider.listener = subscription.on_position_event
+    assert subscription.start() is True
+    provider.change("SA2701", 3, deliver=False)  # lost push
+    provider.change("SA2701", 4)  # gap detected
+    assert subscription.report().complete is False and provider.epoch == 1
+    now[0] += 2 * 10**9
+    report = subscription.report()
+    assert provider.epoch == 2 and report.complete is True
+    assert report.positions == {"SA2701": Decimal("4")}
+
+
+def test_undeclared_provider_stays_incomplete_with_the_missing_fact():
+    store = _CapabilityStore(None, "POSITION_PUSH_HAS_NO_SEQUENCE")
+    subscription = _subscribe(store)
+    assert subscription.cut_unavailable_reason == "POSITION_PUSH_HAS_NO_SEQUENCE"
+    assert subscription.report().complete is False
+
+
+def test_btapistore_hook_resolves_through_the_sdk():
+    from types import SimpleNamespace
+
+    from backtrader.stores.btapistore import BtApiStore
+
+    for provider, reason in (
+        ("OKX___SWAP", "POSITION_PUSH_HAS_NO_SEQUENCE"),
+        ("BINANCE___SWAP", "POSITION_PUSH_HAS_NO_UPDATE_ID"),
+        ("CTP___FUTURE", "NO_POSITION_PUSH"),
+    ):
+        fake = SimpleNamespace(_api=object(), provider=provider)
+        assert BtApiStore.position_stream_cut_capability(fake, "account-a") == (None, reason)
+    declared = _CutProvider([1])
+    fake = SimpleNamespace(
+        _api=SimpleNamespace(position_stream_cut_capability=declared), provider="x"
+    )
+    assert BtApiStore.position_stream_cut_capability(fake, "account-a") == (declared, None)
+
+
+def test_btapistore_installs_the_listener_before_the_first_read():
+    import time
+    from types import SimpleNamespace
+
+    from backtrader.stores.btapistore import BtApiStore
+
+    provider = _CutProvider([time.time_ns()])
+    store = SimpleNamespace(
+        _sdk_mode=True, provider="fake", _account_position_subscription=None,
+        position_stream_cut_capability=lambda ref: (provider, None),
+    )
+    # The Store's event dispatch routes pushes to the *installed* subscription;
+    # a push during the first snapshot read must reach it and be replayed.
+    provider.listener = lambda event: store._account_position_subscription.on_position_event(
+        event
+    )
+    provider.during_read = lambda: provider.change("SA2701", 2)
+    subscription = BtApiStore.subscribe_account_positions(store, "account-a")
+    assert store._account_position_subscription is subscription
+    report = subscription.report()
+    assert report.complete is True and report.positions == {"SA2701": Decimal("2")}

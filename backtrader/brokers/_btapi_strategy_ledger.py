@@ -8,8 +8,13 @@ keeps only the Backtrader side:
   (identity checked) and makes the ledger the Broker's admission gate. The
   book is reconciled on every read against an ``AccountPositionReport``
   delivered by subscription: by default the Store's provider position
-  stream (``BtApiStore.subscribe_account_positions``); for Gateway mode pass
-  ``bt_api_py.account_position_stream.GatewayAccountPositionStream.report``.
+  stream (``BtApiStore.subscribe_account_positions``), which is complete only
+  through a provider-declared verified snapshot/stream cut (SDK
+  ``PositionStreamCutCapability``; no built-in provider declares one yet);
+  for Gateway mode pass the ``report`` of
+  ``bt_api_py.account_position_stream.gateway_position_stream_from_config(...,
+  reconciliation_cut=True)`` (full-account cut; a strategy view alone stays
+  incomplete).
   ``account_positions="store_snapshot"`` reads a provider snapshot on every
   query but cannot prove account identity and completeness from its projected
   rows alone, so remains unverified. A ledger-only book needs
