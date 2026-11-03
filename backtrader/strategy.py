@@ -3871,6 +3871,14 @@ class Strategy(StrategyBase):
         possize = self.getposition(data, self.broker).size
         # If size is None, close the entire position; otherwise close the specified size
         size = abs(size if size is not None else possize)
+        # Iteration 60 (P0-2): with a strategy account book bound, close() may
+        # only reduce this strategy's own position. An explicit size above it
+        # would consume another strategy's share of the account position.
+        if self._strategy_account_book(self.broker) is not None and size > abs(possize):
+            raise ValueError(
+                "close size exceeds the strategy-owned position; "
+                "use the account-level API for account-wide orders"
+            )
         # If position is long (positive), sell to close
         if possize > 0:
             return self.sell(data=data, size=size, **kwargs)
@@ -4245,6 +4253,22 @@ class Strategy(StrategyBase):
 
         return self.order_target_value(data=data, target=target, **kwargs)
 
+    def _strategy_account_book(self, broker=None):
+        """Return the bound strategy account book when ``broker`` is ours.
+
+        Iteration 60 (60.07, P0-2): a strategy bound to its own account book on
+        a shared account reads its own positions from every position entry
+        point (``getposition``, ``position``, ``getpositionbyname``,
+        ``getpositions``, ``getpositionsbyname`` and their properties), so
+        ``close()``, ``order_target_*()`` and sizers follow. An explicit other
+        Broker keeps that Broker's semantics. Account-wide reads use
+        :meth:`getaccountposition` / :meth:`getaccountpositions`.
+        """
+        account_book = self.__dict__.get("account_book")
+        if account_book is not None and (broker is None or broker is self.broker):
+            return account_book
+        return None
+
     def getposition(self, data=None, broker=None, side=None, **kwargs):
         """Get the current position for a data feed.
 
@@ -4253,17 +4277,15 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            The current Position object.
+            The current Position object. With a strategy account book bound,
+            this strategy's own position (never the account total).
 
         Note:
             A property ``position`` is also available as a shortcut.
         """
         data = data if data is not None else self.datas[0]
-        # Iteration 60 (60.07): a strategy bound to its own account book on a
-        # shared account reads its own position, never the account total.
-        # close(), order_target_*() and the ``position`` property follow.
-        account_book = self.__dict__.get("account_book")
-        if account_book is not None and (broker is None or broker is self.broker):
+        account_book = self._strategy_account_book(broker)
+        if account_book is not None:
             if side is not None or kwargs:
                 raise ValueError(
                     "strategy account books hold net positions; "
@@ -4284,30 +4306,34 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            The current Position object.
+            The current Position object, strategy-scoped like :meth:`getposition`.
 
         Note:
             A property ``positionbyname`` is also available as a shortcut.
         """
         data = self.datas[0] if not name else self.getdatabyname(name)
-        broker = broker or self.broker
-        return broker.getposition(data, side=side, **kwargs)
+        return self.getposition(data, broker, side=side, **kwargs)
 
     # Property to access position by name
     positionbyname = property(getpositionbyname)
 
     def getpositions(self, broker=None):
-        """Get all positions from the broker.
+        """Get all positions.
 
         Args:
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            Dictionary mapping data feeds to Position objects.
+            Mapping of data feeds to Position objects. With a strategy account
+            book bound, a new dict of this strategy's own positions for every
+            data feed of the run.
 
         Note:
             A property ``positions`` is also available as a shortcut.
         """
+        account_book = self._strategy_account_book(broker)
+        if account_book is not None:
+            return {data: account_book.getposition(data) for data in self.env.datas}
         broker = broker or self.broker
         return broker.positions
 
@@ -4315,19 +4341,19 @@ class Strategy(StrategyBase):
     positions = property(getpositions)
 
     def getpositionsbyname(self, broker=None):
-        """Get all positions from the broker indexed by data name.
+        """Get all positions indexed by data name.
 
         Args:
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            OrderedDict mapping data names to Position objects.
+            OrderedDict mapping data names to Position objects, strategy-scoped
+            like :meth:`getpositions`.
 
         Note:
             A property ``positionsbyname`` is also available as a shortcut.
         """
-        broker = broker or self.broker
-        positions = broker.positions
+        positions = self.getpositions(broker)
 
         posbyname = collections.OrderedDict()
         for name, data in iteritems(self.env.datasbyname):
@@ -4337,6 +4363,21 @@ class Strategy(StrategyBase):
 
     # Property to access positions by name
     positionsbyname = property(getpositionsbyname)
+
+    def getaccountposition(self, data=None, broker=None, side=None, **kwargs):
+        """Account-wide position from the Broker, ignoring any strategy book.
+
+        This is the explicit entry for account-level reads on a shared account;
+        orders sized from it can affect other strategies' positions.
+        """
+        data = data if data is not None else self.datas[0]
+        broker = broker or self.broker
+        return broker.getposition(data, side=side, **kwargs)
+
+    def getaccountpositions(self, broker=None):
+        """Account-wide positions from the Broker, ignoring any strategy book."""
+        broker = broker or self.broker
+        return broker.positions
 
     def _addsizer(self, sizer, *args, **kwargs):
         """Add a sizer to the strategy.

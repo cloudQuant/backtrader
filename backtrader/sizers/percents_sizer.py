@@ -54,7 +54,13 @@ class PercentSizer(Sizer):
     # If current position exists, directly use position size as order stake
     # If need to convert to int, then convert to int
     def _getsizing(self, comminfo, cash, data, isbuy):
-        position = self.broker.getposition(data)
+        # Read through the strategy so a bound strategy account book sizes
+        # from this strategy's own position, not the shared account total.
+        strategy = getattr(self, "strategy", None)
+        if strategy is not None:
+            position = strategy.getposition(data, self.broker)
+        else:
+            position = self.broker.getposition(data)
         if not position:
             close_price = data.close[0]
             if not close_price or close_price != close_price:

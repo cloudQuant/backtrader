@@ -76,6 +76,11 @@ class TestPercentSizerZeroPrice:
         sizer = PercentSizer(percents=percents, retint=retint)
         sizer.broker = MagicMock()
         sizer.strategy = MagicMock()
+        # PercentSizer reads positions through the (unbound) strategy, which
+        # resolves to the Broker.
+        sizer.strategy.getposition.side_effect = (
+            lambda data, broker=None: sizer.broker.getposition(data)
+        )
         return sizer
 
     def _make_data(self, close_price=100.0):
