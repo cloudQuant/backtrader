@@ -39,9 +39,14 @@ Remaining at-least-once windows (documented, not hidden): a Strategy callback
 that ran but whose notification-journal ACK was lost is replayed once with
 the same ``notification_id`` (as in direct mode); a crash after an order
 notification was journaled but before its Trade was journaled replays the
-order only. Fees: Gateway trade observations carry no fee facts, so fills are
-booked with ``commission_source="unavailable"`` exactly as a fee-less direct
-fill.
+order only. Fees (iteration 60 R3): a Gateway trade observation carries the
+provider fee of the fill when the provider supplies it (Base execution event
+v2); the row then has ``fee``/``fee_currency``/``fee_unit`` like a direct fill
+row, and a later event for the same fill with a higher fee is the repeated-fill
+fee correction of the direct path (``notify_fee_correction``). A fill without a
+fee is booked with ``commission_source="unavailable"`` exactly as a fee-less
+direct fill. The terminal order of a previous process is not rebuilt, so a fee
+correction that arrives only after a restart is counted as orphaned.
 """
 
 from __future__ import annotations
@@ -134,6 +139,12 @@ def trade_update_row(observation, *, data_name, local_ref=None):
         row["order_id"] = record.order_id
     if record.traded_at_utc is not None:
         row["timestamp"] = record.traded_at_utc
+    fee = getattr(observation, "fee", None)
+    if fee is not None:
+        # The provider fee of this fill, in its explicit currency (direct parity).
+        row["fee"] = fee
+        row["fee_currency"] = observation.fee_currency
+        row["fee_unit"] = "currency"
     if local_ref is not None:
         row["local_ref"] = local_ref
     return row

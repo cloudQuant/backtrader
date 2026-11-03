@@ -123,12 +123,14 @@ def test_service_strategy_ledger_end_to_end_over_curve(session):
     # The BT order goes out as one typed command; the ledger admits it.
     projection = s.adapter.submit_order(_order("bt-buy-1", 2.0, 50000.0, "OPEN"), None)
     assert projection["status"] != "rejected", projection
-    # Over budget (5 x 50000 > 200000): refused by the host ledger, never dispatched.
-    # The SDK workflow treats every refusal except REQUEST_NOT_SENT as an
-    # unknown outcome (reconcile, never resubmit); the finite code is kept.
+    # Over budget (5 x 50000 > 200000): refused by the host ledger before the
+    # journal saw it. The reply states "not journaled, not dispatched"
+    # (iteration 60 R3), so the order is a definitive BT rejection, never UNKNOWN.
     refused = s.adapter.submit_order(_order("bt-buy-big", 5.0, 50000.0, "OPEN"), None)
     assert refused["error_code"] == "BUDGET_EXCEEDED", refused
-    assert refused["status"] != "accepted"
+    assert refused["status"] == "rejected", refused
+    assert refused.get("execution_unknown") is not True
+    assert refused.get("service_execution_state") != "UNKNOWN"
 
     # The provider fills; the subscription has not shown it yet: IN_FLIGHT.
     assert s.host.command("fill", "bt-buy-1", "FILLED", "2", "50000", "2") == "FILLED"
@@ -155,6 +157,7 @@ def test_service_strategy_ledger_end_to_end_over_curve(session):
     # A close beyond the strategy's own position is refused by the ledger.
     flip = s.adapter.submit_order(_order("bt-sell-3", -3.0, 50000.0, "CLOSE"), None)
     assert flip["error_code"] == "POSITION_FLIP_REFUSED", flip
+    assert flip["status"] == "rejected", flip
     close = s.adapter.submit_order(_order("bt-sell-1", -1.0, 50000.0, "CLOSE"), None)
     assert close["status"] != "rejected", close
     # While the close is pending, a difference on its instrument is IN_FLIGHT.
@@ -185,6 +188,21 @@ def test_service_strategy_ledger_end_to_end_over_curve(session):
     assert orders == [("sell", 1.0)]
     # Only admitted orders reached the provider.
     assert s.host.close() == ["bt-buy-1", "bt-sell-1"]
+    s.host.closed = True
+
+
+@pytest.mark.integration
+def test_a_dispatch_time_timeout_stays_unknown_and_is_never_rejected(session):
+    """The provider call outlives the client's request timeout: UNKNOWN, not Rejected."""
+
+    s, t = session, session.t
+    slow = s.adapter.submit_order(_order(t.SLOW_PREFIX + "1", 1.0, 50000.0, "OPEN"), None)
+    assert slow["status"] == "pending", slow
+    assert slow["execution_unknown"] is True
+    assert slow["service_execution_state"] == "UNKNOWN"
+    assert slow["error_code"] != "BUDGET_EXCEEDED"
+    # The host did dispatch it: a definitive rejection would have been wrong.
+    assert s.host.close() == [t.SLOW_PREFIX + "1"]
     s.host.closed = True
 
 

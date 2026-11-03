@@ -34,6 +34,10 @@ TRANSPORT_REF = "bt-r2e-rpc-v1"
 SERVER_SECURITY_REF = "bt-r2e-server-v1"
 CLIENT_SECURITY_REF = "bt-r2e-client-v1"
 ORDER_OPERATIONS = frozenset({"orders.submit", "orders.cancel"})
+#: Intents with this prefix make the synthetic provider outlive the client's
+#: request timeout (default 2 s) after dispatch (iteration 60 R3 UNKNOWN check).
+SLOW_PREFIX = "bt-slow-"
+SLOW_DISPATCH_SECONDS = 3.5
 QUERY_OPERATIONS = frozenset({"orders.query", "execution.account_books.query"})
 
 
@@ -174,6 +178,10 @@ class _Provider:
         from bt_api_execution import ProviderObservation
 
         self.submitted.append(intent.intent_id)
+        if intent.intent_id.startswith(SLOW_PREFIX):
+            import time
+
+            time.sleep(SLOW_DISPATCH_SECONDS)
         return ProviderObservation.accepted(intent.intent_id, "provider-" + intent.intent_id)
 
     def cancel(self, intent: Any) -> Any:
