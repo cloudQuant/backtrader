@@ -149,7 +149,7 @@ class DirectStrategyAccountBookView(_StrategyAccountBookProjection):
 
     ``reader.snapshot()`` must return the same neutral
     ``StrategyAccountBookSnapshot`` the service path returns (for example
-    ``bt_api_py.direct_strategy_account_book.DirectStrategyAccountBookReader``),
+    ``bt_api_py.strategy_ledger.StrategyLedgerReader``),
     so strategies, Sizers and analyzers see one contract in both modes.
     """
 

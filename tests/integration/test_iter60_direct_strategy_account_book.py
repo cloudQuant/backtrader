@@ -1,412 +1,327 @@
-"""Iteration 60, step 60.07: direct-mode strategy books on the shared contract.
+"""Iteration 60 (acceptance report P0-2/P0-3): direct strategy books on a ledger.
 
-End to end without a Gateway or service session: two strategies share one
-account and one instrument in a local execution store; the store is
-reconciled locally, projected by the SDK direct reader into the same
-``StrategyAccountBookSnapshot`` the service path returns, and consumed by the
-Backtrader direct view and the existing strategy-scoped Sizer.
+Product path under test: a real ``BtApiBroker`` gated by the SDK
+``SqliteStrategyLedger`` (no bt_api_execution). Orders enter through
+``Strategy.buy/sell/close`` -> ``BtApiBroker.submit`` -> Store; the ledger
+admits each order before dispatch and follows notifications. Shared account:
+strategy A owns 2, strategy B owns 3 of one instrument (account total 5).
 """
 
 from __future__ import annotations
 
-import time
+import datetime as dt
+import itertools
+import threading
 from decimal import Decimal
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
-bt_api_execution = pytest.importorskip("bt_api_execution")
-pytest.importorskip("bt_api_py.direct_strategy_account_book")
-
-from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope  # noqa: E402
-from bt_api_execution import (  # noqa: E402
-    AllocationOwnerKind,
-    CancelObservation,
-    CurrencyAmount,
-    ExecutionAccountBookService,
-    ExecutionAccountSnapshot,
-    ExecutionAllocationBaseline,
-    ExecutionOwnerScope,
-    ExecutionScope,
-    ExecutionScopeDirectory,
-    ExecutionState,
-    ExternalActivitySnapshot,
-    PositionFact,
-    ProviderObservation,
-    SqliteExecutionStore,
-    StrategyCloseCapacityGate,
-)
-from bt_api_execution.service_order_entry import (  # noqa: E402
-    SUBMIT_OPERATION,
-    ExecutionOrderEntryService,
-)
-from bt_api_py.direct_strategy_account_book import DirectStrategyAccountBookReader  # noqa: E402
-
-from backtrader.service.service_strategy_account_book import (  # noqa: E402
-    DirectStrategyAccountBookView,
-    ServiceStrategyAccountBookError,
-)
-from backtrader.sizers import StrategyAccountBookPercentSizer  # noqa: E402
-
-_ACCOUNT = "account-direct"
-_INSTRUMENT = "PAPER:SIM:SA2701"
-_DOMAIN = "paper:direct"
-
-
-class _Provider:
-    def submit(self, intent):
-        return ProviderObservation.accepted(intent.intent_id, f"provider-{intent.intent_id}")
-
-    def cancel(self, intent):  # pragma: no cover - no cancels in these scenarios
-        return CancelObservation.accepted(
-            intent.cancel_id, intent.target_intent_id, intent.provider_order_id
-        )
-
-
-class _DirectAccount:
-    """A direct-mode account coordinator: one store, strategies A and B."""
-
-    def __init__(self, path) -> None:
-        self.store = SqliteExecutionStore(path)
-        self.scopes = {
-            n: ExecutionScope("PAPER", "simulation", _ACCOUNT, f"strategy-{n}", "20261102")
-            for n in ("a", "b")
-        }
-        self.wires = {
-            n: WireScope(_DOMAIN, account_ref=_ACCOUNT, strategy_ref=f"strategy-{n}")
-            for n in ("a", "b")
-        }
-        self.service = ExecutionOrderEntryService(
-            self.store,
-            {self.wires[n]: self.scopes[n] for n in ("a", "b")},
-            _Provider(),
-            admission_gate=StrategyCloseCapacityGate(self.store),
-        )
-        self.start_ns = time.time_ns()
-
-    def buy_filled(self, name, intent_id, quantity):
-        reply = self.service.handle(
-            SUBMIT_OPERATION,
-            principal_ref="direct-client",
-            identity=WireIdentity(WireRole.STRATEGY_CLIENT, "direct-client", f"strategy-{name}"),
-            scope=self.wires[name],
-            arguments={
-                "intent_id": intent_id,
-                "signal_id": f"signal-{intent_id}",
-                "instrument": _INSTRUMENT,
-                "side": "BUY",
-                "position_effect": "OPEN",
-                "order_type": "LIMIT",
-                "quantity": quantity,
-                "price": "1500",
-                "time_in_force": "GTC",
-                "reduce_only": False,
-                "metadata_version": "metadata-v1",
-                "deadline_ns": None,
-                "tags": {},
-            },
-        )
-        assert reply["ok"] is True, reply
-        self.service._facade_pair(self.scopes[name])[0].reconcile(
-            ProviderObservation(
-                intent_id,
-                ExecutionState.FILLED,
-                provider_order_id=f"provider-{intent_id}",
-                filled_quantity=Decimal(quantity),
-                average_price=Decimal("1500"),
-                cumulative_commission=Decimal("1"),
-                cumulative_commission_currency="CNY",
-            )
-        )
-
-    def reconcile(self, *, with_allocation=True):
-        generation = str(self.store.journal_source_identity()["generation"])
-        directory = ExecutionScopeDirectory(
-            account_key=self.scopes["a"].account_key,
-            source="trusted-owner-registry",
-            source_ref="registry-1",
-            revision="owner-revision-1",
-            covers_from_ns=self.start_ns,
-            as_of_ns=self.start_ns + 3_600_000_000_000,
-            scopes=tuple(
-                ExecutionOwnerScope(
-                    self.scopes[n], AllocationOwnerKind.STRATEGY, f"strategy-{n}", self.wires[n]
-                )
-                for n in ("a", "b")
-            ),
-        )
-        baseline = ExecutionAccountSnapshot(
-            account_key=directory.account_key,
-            source="synthetic-provider",
-            source_ref="baseline",
-            generation="session-1",
-            journal_generation=generation,
-            as_of_ns=self.start_ns,
-            execution_cursor=0,
-            position_mode="NET",
-            positions=(),
-            cumulative_fees=(),
-            fee_coverage_start_ns=self.start_ns - 1,
-        )
-        _rows, _first, head, _high = self.store.execution_outbox_bounds()
-        now = max(time.time_ns(), self.start_ns + 1)
-        current = ExecutionAccountSnapshot(
-            account_key=directory.account_key,
-            source=baseline.source,
-            source_ref="current",
-            generation=baseline.generation,
-            journal_generation=generation,
-            as_of_ns=now,
-            execution_cursor=head or 0,
-            position_mode="NET",
-            positions=(PositionFact(_INSTRUMENT, Decimal("5")),),
-            cumulative_fees=(CurrencyAmount("CNY", Decimal("2")),),
-            fee_coverage_start_ns=baseline.fee_coverage_start_ns,
-        )
-        allocation = ExecutionAllocationBaseline(
-            account_key=directory.account_key,
-            source="trusted-virtual-position-ledger",
-            source_ref="allocation-zero",
-            revision="allocation-revision-1",
-            scope_directory_revision=directory.revision,
-            provider_generation=baseline.generation,
-            journal_generation=generation,
-            as_of_ns=baseline.as_of_ns,
-            execution_cursor=0,
-            positions=(),
-        )
-        activity = ExternalActivitySnapshot(
-            account_key=directory.account_key,
-            source="synthetic-trade-feed",
-            source_ref="window",
-            generation=baseline.generation,
-            coverage_start_ns=baseline.as_of_ns,
-            coverage_end_ns=now,
-            fills=(),
-            orders=(),
-        )
-        return ExecutionAccountBookService(self.store).reconcile(
-            directory,
-            baseline,
-            current,
-            allocation_baseline=allocation if with_allocation else None,
-            external_activity=activity,
-        )
-
-    def reader(self, name, **kwargs):
-        return DirectStrategyAccountBookReader(
-            lambda: self.reconcile(**kwargs),
-            strategy_ref=f"strategy-{name}",
-            account_ref=_ACCOUNT,
-        )
-
-    def close(self):
-        for scope in self.scopes.values():
-            self.service._facade_pair(scope)[0].close()
-        self.store.close()
-
-
-class _Data:
-    _name = _INSTRUMENT
-
-    class _Close:
-        def __getitem__(self, index):
-            return 1500.0
-
-    close = _Close()
-
-
-@pytest.fixture
-def account(tmp_path):
-    item = _DirectAccount(tmp_path / "direct.sqlite3")
-    item.buy_filled("a", "a-open", "2")
-    item.buy_filled("b", "b-open", "3")
-    try:
-        yield item
-    finally:
-        item.close()
-
-
-def test_direct_views_project_each_strategys_own_position(account):
-    view_a = DirectStrategyAccountBookView(account.reader("a"))
-    view_b = DirectStrategyAccountBookView(account.reader("b"))
-    assert view_a.getposition(_Data()).size == 2.0
-    assert view_b.getposition(_Data()).size == 3.0
-    snapshot = view_a.snapshot()
-    assert snapshot.strategy_ref == "strategy-a"
-    assert snapshot.positions == {_INSTRUMENT: Decimal("2")}
-    assert snapshot.fees_since_baseline == {"CNY": Decimal("1")}
-
-
-def test_direct_cash_and_value_fail_closed_without_financial_projection(account):
-    view = DirectStrategyAccountBookView(account.reader("a"))
-    with pytest.raises(ServiceStrategyAccountBookError) as info:
-        view.getcash(currency="CNY")
-    assert info.value.code == "STRATEGY_FINANCIAL_UNAVAILABLE"
-    with pytest.raises(ServiceStrategyAccountBookError) as info:
-        view.getvalue()
-    assert info.value.code == "STRATEGY_VALUE_UNAVAILABLE"
-
-
-def test_incomplete_local_reconciliation_fails_closed(account):
-    view = DirectStrategyAccountBookView(account.reader("a", with_allocation=False))
-    with pytest.raises(ServiceStrategyAccountBookError) as info:
-        view.getposition(_Data())
-    assert info.value.code == "STRATEGY_BOOK_COVERAGE_INCOMPLETE"
-
-
-def test_existing_strategy_sizer_sells_only_the_strategy_owned_position(account):
-    view = DirectStrategyAccountBookView(account.reader("a"))
-    strategy = SimpleNamespace(
-        p=SimpleNamespace(strategy_ref="strategy-a", account_ref=_ACCOUNT),
-        account_book=view,
-    )
-    sizer = StrategyAccountBookPercentSizer(currency="CNY")
-    sizer.set(strategy, SimpleNamespace())
-    # The account holds 5, strategy A owns 2: selling uses A's 2 only.
-    assert sizer.getsizing(_Data(), False) == 2
-    # Buying needs strategy cash, which is unavailable: fail closed.
-    with pytest.raises(ServiceStrategyAccountBookError):
-        sizer.getsizing(_Data(), True)
-
-
-def test_view_rejects_a_reader_snapshot_for_another_strategy(account):
-    reader = account.reader("a")
-    original = reader.snapshot
-
-    class _Swapped:
-        strategy_ref = "strategy-b"
-        account_ref = _ACCOUNT
-
-        def snapshot(self):
-            return original()
-
-    view = DirectStrategyAccountBookView(_Swapped())
-    with pytest.raises(ServiceStrategyAccountBookError) as info:
-        view.snapshot()
-    assert info.value.code == "OWNER_BINDING_MISMATCH"
-
-
-# ---------------------------------------------------------------------------
-# BtApiBroker.bind_direct_strategy_account_book on real Strategy instances
-# ---------------------------------------------------------------------------
-
-import itertools  # noqa: E402
+pytest.importorskip("bt_api_py.strategy_ledger")
 
 import backtrader as bt  # noqa: E402
 from backtrader.brokers.btapibroker import BtApiBroker  # noqa: E402
 from backtrader.metabase import OwnerContext  # noqa: E402
+from backtrader.service.service_strategy_account_book import (  # noqa: E402
+    ServiceStrategyAccountBookError,
+)
+from bt_api_py.strategy_ledger import (  # noqa: E402
+    LedgerIntent,
+    SqliteStrategyLedger,
+    StrategyBudget,
+)
+
+INSTRUMENT = "PAPER:SIM:SA2701"
+ACCOUNT = "account-direct"
+
+
+class _Store:
+    """Minimal SDK-shaped Store: verified preflight, verified acknowledgements."""
+
+    _sdk_mode = False
+
+    def __init__(self):
+        self.sent = []
+        self.lock = threading.Lock()
+        self.fail_with = None
+
+    def evaluate_order_rules(self, order, **_kwargs):
+        return SimpleNamespace(
+            status="accepted",
+            normalized_offset="open",
+            normalized_position_side="long",
+            normalized_time_in_force="GTC",
+        )
+
+    def verify_order_rules(self, order, rules):
+        return True
+
+    def evaluate_order_economics(self, order, rules):
+        return SimpleNamespace(status="accepted")
+
+    def verify_order_economics(self, order, economics):
+        return True
+
+    def prepare_order_correlation(self, order):
+        return {"ref": order.ref}
+
+    def verify_order_response(self, correlation, response):
+        return True
+
+    def submit_order(self, order):
+        with self.lock:
+            self.sent.append(order.ref)
+        if self.fail_with is not None:
+            raise self.fail_with
+        return {
+            "kind": "verified_order_ack",
+            "verified_order_ack": True,
+            "operation": "submit",
+            "status": "accepted",
+            "id": f"provider-{order.ref}",
+        }
 
 
 class _IdentifiedStrategy(bt.Strategy):
     params = (("strategy_ref", None), ("account_ref", None))
 
 
-def _strategies(broker, *identities):
+def _data():
+    frame = pd.DataFrame(
+        {"open": [1500.0], "high": [1501.0], "low": [1499.0], "close": [1500.0], "volume": [1.0]},
+        index=pd.to_datetime(["2026-11-03 09:00"]),
+    )
+    data = bt.feeds.PandasData(dataname=frame, name=INSTRUMENT)
+    data._start()
+    assert data.load()
+    return data
+
+
+def _strategies(broker, data, *refs):
     cerebro = bt.Cerebro()
     cerebro.setbroker(broker)
     cerebro.stcount = itertools.count()
+    cerebro.datas = [data]
+    cerebro.datasbyname = {INSTRUMENT: data}
+    result = []
     with OwnerContext.set_owner(cerebro):
-        return [
-            _IdentifiedStrategy.__new__(
-                _IdentifiedStrategy, strategy_ref=strategy_ref, account_ref=account_ref
+        for ref in refs:
+            strategy = _IdentifiedStrategy.__new__(
+                _IdentifiedStrategy, strategy_ref=ref, account_ref=ACCOUNT
             )
-            for strategy_ref, account_ref in identities
-        ]
+            strategy.datas = [data]
+            strategy.data = data
+            result.append(strategy)
+    return result
 
 
-def test_btapibroker_is_constructible_without_a_store():
-    # Regression: iteration-53 WIP dropped @staticmethod from
-    # _parse_approval_expiry, so BtApiBroker() raised TypeError.
-    broker = BtApiBroker(store=None)
-    assert broker._approval_expires_at_utc is None
-
-
-def test_broker_binds_each_strategy_to_its_own_direct_book(account):
-    broker = BtApiBroker(store=None)
-    strategy_a, strategy_b = _strategies(broker, ("strategy-a", _ACCOUNT), ("strategy-b", _ACCOUNT))
-    view_a = broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
-    view_b = broker.bind_direct_strategy_account_book(strategy_b, account.reader("b"))
-    assert strategy_a.account_book is view_a and strategy_b.account_book is view_b
-    assert strategy_a.account_book.getposition(_Data()).size == 2.0
-    assert strategy_b.account_book.getposition(_Data()).size == 3.0
-    # Account-level Broker getters keep their meaning; they are not the books.
-    assert broker.getcash() == broker._cash
-
-
-def test_broker_rejects_identity_mismatch_and_double_binding(account):
-    broker = BtApiBroker(store=None)
-    strategy_a, impostor = _strategies(broker, ("strategy-a", _ACCOUNT), ("strategy-a", _ACCOUNT))
-    (strategy_b,) = _strategies(broker, ("strategy-b", _ACCOUNT))
-    with pytest.raises(ValueError, match="identity"):
-        broker.bind_direct_strategy_account_book(strategy_b, account.reader("a"))
-    broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
-    with pytest.raises(ValueError, match="already has"):
-        broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
-    with pytest.raises(ValueError, match="another strategy"):
-        broker.bind_direct_strategy_account_book(impostor, account.reader("a"))
-
-
-def test_broker_refuses_direct_books_under_a_service_session(account):
-    broker = BtApiBroker(store=None)
-    (strategy_a,) = _strategies(broker, ("strategy-a", _ACCOUNT))
-    broker._service_execution_session = object()
-    with pytest.raises(ValueError, match="service session"):
-        broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
-
-
-# ---------------------------------------------------------------------------
-# Strategy-scoped position APIs (breaking change, iteration 60.07)
-# ---------------------------------------------------------------------------
-
-
-def _bound_pair(account):
-    broker = BtApiBroker(store=None)
-    strategy_a, strategy_b = _strategies(broker, ("strategy-a", _ACCOUNT), ("strategy-b", _ACCOUNT))
-    broker.bind_direct_strategy_account_book(strategy_a, account.reader("a"))
-    broker.bind_direct_strategy_account_book(strategy_b, account.reader("b"))
-    return broker, strategy_a, strategy_b
-
-
-def test_getposition_and_position_are_strategy_scoped(account):
-    _broker, strategy_a, strategy_b = _bound_pair(account)
-    data = _Data()
-    assert strategy_a.getposition(data).size == 2.0
-    assert strategy_b.getposition(data).size == 3.0
-    assert strategy_a.getposition(data, strategy_a.broker).size == 2.0
-
-
-def test_close_sells_only_the_strategy_owned_position(account):
-    _broker, strategy_a, _strategy_b = _bound_pair(account)
-    calls = []
-    strategy_a.__dict__["sell"] = lambda **kwargs: calls.append(kwargs) or "order"
-    assert strategy_a.close(data=_Data()) == "order"
-    # The account holds 5; strategy A closes exactly its own 2.
-    assert calls[0]["size"] == 2.0
-
-
-def test_per_side_reads_are_refused_instead_of_falling_back(account):
-    _broker, strategy_a, _strategy_b = _bound_pair(account)
-    with pytest.raises(ValueError, match="per-side"):
-        strategy_a.getposition(_Data(), side="long")
-
-
-def test_explicit_other_broker_keeps_account_level_semantics(account):
-    _broker, strategy_a, _strategy_b = _bound_pair(account)
-
-    class _OtherBroker:
-        def getposition(self, data, side=None, **kwargs):
-            return SimpleNamespace(size=5.0)
-
-    assert strategy_a.getposition(_Data(), _OtherBroker()).size == 5.0
-
-
-def test_unbound_strategy_keeps_broker_positions(account):
-    broker = BtApiBroker(store=None)
-    (strategy,) = _strategies(broker, ("strategy-a", _ACCOUNT))
-    calls = []
-    broker.getposition = lambda data, side=None, **kwargs: calls.append(data) or SimpleNamespace(
-        size=7.0
+def _seed(ledger, intent_id, strategy_ref, quantity):
+    intent = LedgerIntent(
+        intent_id, strategy_ref, INSTRUMENT, "BUY", Decimal(quantity), Decimal("1500")
     )
-    assert strategy.getposition(_Data()).size == 7.0
-    assert calls
+    ledger.reserve(intent)
+    ledger.apply_execution(intent_id, cumulative_quantity=Decimal(quantity), average_price=1500)
+
+
+def _fill(broker, order, size, price=1500.0):
+    """Report an execution of ``size`` more units through the Broker."""
+    signed = size if order.isbuy() else -size
+    order.execute(dt.datetime(2026, 11, 3, 9, 1), signed, price, 0, 0.0, 0.0, signed, 0.0, 0.0,
+                  0.0, 0.0, 0, 0.0)
+    if abs(order.executed.size) < abs(order.size):
+        order.partial()
+    else:
+        order.completed()
+    broker.notify(order)
+
+
+@pytest.fixture
+def stack(tmp_path):
+    ledger = SqliteStrategyLedger(
+        tmp_path / "ledger.sqlite3", account_ref=ACCOUNT, contract_multipliers={INSTRUMENT: 10}
+    )
+    _seed(ledger, "seed-a", "strategy-a", "2")
+    _seed(ledger, "seed-b", "strategy-b", "3")
+    store = _Store()
+    broker = BtApiBroker(store=store)
+    data = _data()
+    a, b = _strategies(broker, data, "strategy-a", "strategy-b")
+    broker.bind_direct_strategy_ledger(a, ledger)
+    broker.bind_direct_strategy_ledger(b, ledger)
+    try:
+        yield SimpleNamespace(ledger=ledger, store=store, broker=broker, data=data, a=a, b=b,
+                              path=tmp_path / "ledger.sqlite3")
+    finally:
+        ledger.close()
+
+
+def _code(order):
+    return order.info.get("error_code")
+
+
+# -- scoped reads (P0-2) on the product binding -----------------------------------
+
+
+def test_each_strategy_reads_its_own_position(stack):
+    assert stack.a.getposition(stack.data).size == 2.0
+    assert stack.b.getposition(stack.data).size == 3.0
+    assert stack.a.getpositionbyname(INSTRUMENT).size == 2.0
+    assert stack.a.getpositions()[stack.data].size == 2.0
+
+
+def test_reader_with_provider_positions_fails_closed_on_residual(stack, tmp_path):
+    other = BtApiBroker(store=_Store())
+    (c,) = _strategies(other, stack.data, "strategy-a")
+    view = other.bind_direct_strategy_ledger(c, stack.ledger, account_positions=lambda: {INSTRUMENT: 6})
+    with pytest.raises(ServiceStrategyAccountBookError) as info:
+        view.getposition(stack.data)
+    assert info.value.code == "STRATEGY_BOOK_RECONCILIATION_RESIDUAL"
+
+
+# -- admission through the product entry (P0-3) ------------------------------------
+
+
+def test_explicit_over_close_is_rejected_before_dispatch(stack):
+    # Strategy.close guards first ...
+    with pytest.raises(ValueError, match="exceeds"):
+        stack.a.close(data=stack.data, size=5)
+    # ... and a raw sell through the Broker is refused by the ledger.
+    order = stack.a.sell(data=stack.data, size=5, price=1500.0, exectype=bt.Order.Limit)
+    assert order.status == order.Rejected
+    assert _code(order) == "strategy_ledger_position_flip_refused"
+    assert stack.store.sent == []
+    assert stack.b.getposition(stack.data).size == 3.0
+
+
+def test_a_second_close_cannot_reuse_pending_capacity(stack):
+    first = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    assert first.status == first.Accepted
+    second = stack.a.sell(data=stack.data, size=1, price=1500.0, exectype=bt.Order.Limit)
+    assert _code(second) == "strategy_ledger_close_capacity_exceeded"
+    # B can still close its own 3.
+    third = stack.b.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    assert third.status == third.Accepted
+    assert stack.store.sent == [first.ref, third.ref]  # each dispatched exactly once
+
+
+def test_concurrent_closes_dispatch_at_most_one(stack):
+    results = []
+    barrier = threading.Barrier(4)
+
+    def attempt():
+        barrier.wait()
+        results.append(stack.a.sell(data=stack.data, size=2, price=1500.0, exectype=bt.Order.Limit))
+
+    threads = [threading.Thread(target=attempt) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    accepted = [o for o in results if o.status == o.Accepted]
+    assert len(accepted) == 1 and stack.store.sent == [accepted[0].ref]
+
+
+def test_unbound_strategy_cannot_trade_on_a_gated_account(stack):
+    (stranger,) = _strategies(stack.broker, stack.data, "strategy-c")
+    order = stranger.buy(data=stack.data, size=1, price=1500.0, exectype=bt.Order.Limit)
+    assert _code(order) == "strategy_ledger_unbound"
+    assert stack.store.sent == []
+
+
+def test_partial_fill_and_cancel_follow_the_ledger(stack):
+    order = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    _fill(stack.broker, order, 1)
+    assert stack.a.getposition(stack.data).size == 1.0
+    assert stack.ledger.intent_state(order.info["strategy_ledger_intent_id"]) == "PARTIALLY_FILLED"
+    order.cancel()
+    stack.broker.notify(order)
+    assert stack.ledger.intent_state(order.info["strategy_ledger_intent_id"]) == "CANCELLED"
+    rest = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    assert rest.status == rest.Accepted and abs(rest.size) == 1.0
+    _fill(stack.broker, rest, 1)
+    assert stack.a.getposition(stack.data).size == 0.0
+    assert stack.b.getposition(stack.data).size == 3.0
+
+
+def test_redelivered_notifications_do_not_double_count(stack):
+    order = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    _fill(stack.broker, order, 2)
+    stack.broker.notify(order)
+    stack.broker.notify(order)
+    assert stack.a.getposition(stack.data).size == 0.0
+
+
+def test_unknown_dispatch_keeps_capacity_across_restart(stack):
+    stack.store.fail_with = TimeoutError("timed out")
+    order = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
+    intent_id = order.info["strategy_ledger_intent_id"]
+    assert stack.ledger.intent_state(intent_id) == "UNKNOWN"
+    stack.ledger.close()  # restart
+    ledger = SqliteStrategyLedger(stack.path, account_ref=ACCOUNT, contract_multipliers={INSTRUMENT: 10})
+    try:
+        assert ledger.intent_state(intent_id) == "UNKNOWN"
+        broker = BtApiBroker(store=_Store())
+        (a,) = _strategies(broker, stack.data, "strategy-a")
+        broker.bind_direct_strategy_ledger(a, ledger)
+        again = a.sell(data=stack.data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(again) == "strategy_ledger_close_capacity_exceeded"
+    finally:
+        ledger.close()
+    stack.ledger = SqliteStrategyLedger(stack.path, account_ref=ACCOUNT)  # fixture teardown
+
+
+def test_budget_refuses_unknown_inputs_through_the_product_entry(tmp_path):
+    ledger = SqliteStrategyLedger(
+        tmp_path / "budget.sqlite3",
+        account_ref=ACCOUNT,
+        budgets={"strategy-a": StrategyBudget(Decimal("100000"), "CNY")},
+    )
+    try:
+        store = _Store()
+        broker = BtApiBroker(store=store)
+        data = _data()
+        (a,) = _strategies(broker, data, "strategy-a")
+        broker.bind_direct_strategy_ledger(a, ledger)
+        order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+        assert _code(order) == "strategy_ledger_multiplier_unknown"
+        assert store.sent == []
+    finally:
+        ledger.close()
+
+
+# -- binding rules -------------------------------------------------------------------
+
+
+def test_binding_rejects_identity_mismatch_double_binding_and_second_ledger(stack, tmp_path):
+    (a2,) = _strategies(stack.broker, stack.data, "strategy-a")
+    with pytest.raises(ValueError, match="already bound to another strategy"):
+        stack.broker.bind_direct_strategy_ledger(a2, stack.ledger)
+    with pytest.raises(ValueError, match="already has"):
+        stack.broker.bind_direct_strategy_ledger(stack.a, stack.ledger)
+    other = SqliteStrategyLedger(tmp_path / "other.sqlite3", account_ref=ACCOUNT)
+    try:
+        (c,) = _strategies(stack.broker, stack.data, "strategy-c")
+        with pytest.raises(ValueError, match="another strategy ledger"):
+            stack.broker.bind_direct_strategy_ledger(c, other)
+    finally:
+        other.close()
+
+
+def test_unbound_broker_keeps_backtest_semantics():
+    broker = BtApiBroker(store=_Store())
+    data = _data()
+    (a,) = _strategies(broker, data, "strategy-a")
+    order = a.buy(data=data, size=1, price=1500.0, exectype=bt.Order.Limit)
+    assert order.status == order.Accepted
+    assert "strategy_ledger_intent_id" not in order.info
+
+
+def test_strategy_book_sizer_sells_only_the_strategy_position(stack):
+    from backtrader.sizers.strategy_account_book import StrategyAccountBookPercentSizer
+
+    sizer = StrategyAccountBookPercentSizer(currency="CNY")
+    sizer.set(stack.a, stack.broker)
+    assert sizer.getsizing(stack.data, False) == 2
+    with pytest.raises(ServiceStrategyAccountBookError):  # strategy cash is unavailable
+        sizer.getsizing(stack.data, True)

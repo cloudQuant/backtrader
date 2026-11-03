@@ -16,6 +16,7 @@ from typing import Any, DefaultDict, Dict, List, Optional
 from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
 from ._btapi_reconciliation import BrokerReconciliationMixin
+from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
 from ..position import (
     Position,
@@ -58,7 +59,9 @@ _DATA_NAME_KEYS = (
 _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "expired"})
 
 
-class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerBase):
+class BtApiBroker(
+    StrategyLedgerBrokerMixin, ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerBase
+):
     """Broker implementation that routes live orders through BtApiStore."""
 
     def get_futures_contracts(self, route, exchange_id, product_id, *, environment,
@@ -1803,7 +1806,7 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
         """Attach a direct-mode strategy book view to its actual Strategy.
 
         ``reader`` is an SDK direct reader (for example
-        ``bt_api_py.direct_strategy_account_book.DirectStrategyAccountBookReader``)
+        ``bt_api_py.strategy_ledger.StrategyLedgerReader``)
         exposing ``strategy_ref``, ``account_ref`` and ``snapshot()``. The
         Strategy's ``strategy_ref``/``account_ref`` parameters must match the
         reader, the Strategy must use this Broker, and one Strategy can bind
@@ -2050,6 +2053,13 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
                 "strategy_paused",
                 "Strategy order routing is currently paused",
             )
+
+        # Iteration 60 (P0-3): a ledger-gated account admits each order
+        # against the strategy's own book before anything is dispatched.
+        ledger_error = self._direct_ledger_admission_error(order)
+        if ledger_error is not None:
+            code, message = ledger_error
+            return self._reject_order(order, code, message)
 
         approval_error = self._consume_approval_operation(
             order,
@@ -2954,6 +2964,7 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
         recovery_fill_projection=None,
     ):
         """Queue an order notification, optionally bound to one recovery receipt."""
+        self._sync_direct_ledger(order)
         if self._service_execution_recovery_suppress_notifications:
             return
         # ``Order.clone`` deliberately clones execution state but retains the
@@ -3740,6 +3751,15 @@ class BtApiBroker(ServiceRecoveryBrokerMixin, BrokerReconciliationMixin, BrokerB
         if offset in {"close", "close_today", "close_yesterday"}:
             self._verified_risk_reducing_orders.add(id(order))
         return None
+
+    @staticmethod
+    def _order_type_name(order):
+        """Lower-case Backtrader order type name (``limit``, ``market``, ...)."""
+        try:
+            return str(order.getordername() or "").strip().lower()
+        except Exception:
+            _safe_log("warning", "btapibroker: order type name unavailable")
+            return ""
 
     def _validate_order(self, order):
         """Validate Backtrader order shape without interpreting venue rules."""
