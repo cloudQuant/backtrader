@@ -20,6 +20,7 @@ from ._btapi_owner_fence import AccountOwnerFenceBrokerMixin
 from ._btapi_owner_fence import finish_dispatch_lease as _finish_owner_lease
 from ._btapi_owner_fence import lease_outcome_for_error as _owner_lease_error_outcome
 from ._btapi_owner_fence import lease_outcome_for_response as _owner_lease_response_outcome
+from ._btapi_gateway_events import GatewayExecutionEventsBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
@@ -68,6 +69,7 @@ class BtApiBroker(
     AccountOwnerFenceBrokerMixin,
     StrategyLedgerBrokerMixin,
     StrategyNotificationRecoveryBrokerMixin,
+    GatewayExecutionEventsBrokerMixin,
     ServiceRecoveryBrokerMixin,
     BrokerReconciliationMixin,
     BrokerBase,
@@ -2601,6 +2603,7 @@ class BtApiBroker(
         if session is not None:
             session.poll(self)
         self._drain_store_updates()
+        self._poll_gateway_execution_events()  # R2-C, no-op unless bound
         service_recovery = self._uses_service_execution_recovery()
         if service_recovery:
             self._process_service_execution_recovery()
@@ -3023,6 +3026,12 @@ class BtApiBroker(
         # Re-verification G3: a recovery-bound Strategy's notification is
         # journaled durably before it can be delivered (ACK after its callback).
         journaled = self._journal_strategy_notification(order)
+        if (
+            journaled is not None
+            and journaled[1]
+            and self._gateway_previous_process_duplicate(order, journaled[0])
+        ):
+            return  # R2-C: a re-applied Gateway event a previous process journaled
         # ``Order.clone`` deliberately clones execution state but retains the
         # original ``info`` mapping.  A later broker update can otherwise
         # rewrite a queued Accepted/UNKNOWN notification before Cerebro
@@ -3951,43 +3960,41 @@ class BtApiBroker(
             if raw_update is None:
                 return
             for update in self._iter_broker_update_rows(raw_update):
-                kind = str(update.get("kind") or "").lower()
-                command = str(update.get("command") or "")
-                reconciliation_completion = (
-                    kind == "command_completion" and command == "reconciliation"
-                )
-                execution_evidence_update = bool(
-                    kind in {"order", "trade", "error"}
-                    or (
-                        kind == "command_completion"
-                        and command
-                        in {
-                            "submit",
-                            "cancel",
-                            "query",
-                            "reconcile",
-                            "order_reconciliation",
-                        }
-                    )
-                )
-                if not reconciliation_completion:
-                    self._execution_reconciliation_event_epoch += 1
-                    if self._execution_reconciliation_required:
-                        self._reset_execution_reconciliation_rounds(
-                            "broker_update_between_snapshots"
-                        )
-                    elif self._execution_reconciliation_rounds >= 2 and execution_evidence_update:
-                        self._begin_execution_reconciliation(
-                            "broker_update_after_reconciliation"
-                        )
-                if kind == "order":
-                    self._apply_order_update(update, from_store_callback=True)
-                elif kind == "trade":
-                    self._apply_trade_update(update)
-                elif kind == "error":
-                    self._apply_error_update(update)
-                elif kind == "command_completion":
-                    self._apply_command_completion(update)
+                self._apply_broker_update_row(update)
+
+    def _apply_broker_update_row(self, update):
+        """Apply one neutral update row (Store drain and Gateway execution events)."""
+        kind = str(update.get("kind") or "").lower()
+        command = str(update.get("command") or "")
+        reconciliation_completion = kind == "command_completion" and command == "reconciliation"
+        execution_evidence_update = bool(
+            kind in {"order", "trade", "error"}
+            or (
+                kind == "command_completion"
+                and command
+                in {
+                    "submit",
+                    "cancel",
+                    "query",
+                    "reconcile",
+                    "order_reconciliation",
+                }
+            )
+        )
+        if not reconciliation_completion:
+            self._execution_reconciliation_event_epoch += 1
+            if self._execution_reconciliation_required:
+                self._reset_execution_reconciliation_rounds("broker_update_between_snapshots")
+            elif self._execution_reconciliation_rounds >= 2 and execution_evidence_update:
+                self._begin_execution_reconciliation("broker_update_after_reconciliation")
+        if kind == "order":
+            self._apply_order_update(update, from_store_callback=True)
+        elif kind == "trade":
+            self._apply_trade_update(update)
+        elif kind == "error":
+            self._apply_error_update(update)
+        elif kind == "command_completion":
+            self._apply_command_completion(update)
 
     def _apply_command_completion(self, update):
         """Apply worker results on the Cerebro thread without treating REST ACKs as fills."""

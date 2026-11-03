@@ -6,6 +6,8 @@ account or establish an atomic fence at the provider write boundary.
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from backtrader.brokers._btapi_owner_fence import AccountOwnerFenceBrokerMixin
 from bt_api_py.account_coordination import AccountCoordinationBinding, HostAccountRegistry
 from bt_api_py.account_owner_handoff import AccountOwnerHandoff

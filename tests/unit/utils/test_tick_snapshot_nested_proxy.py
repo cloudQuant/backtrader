@@ -78,7 +78,7 @@ def test_frozen_contract_proxy_cycle_is_detached():
 
 
 def test_real_market_provider_event_with_nested_proxy_is_detached():
-    from bt_api_base.market_protocol import MarketProviderEvent
+    MarketProviderEvent = pytest.importorskip("bt_api_base.market_protocol").MarketProviderEvent
 
     source = {"levels": [1]}
     original = MarketProviderEvent(
@@ -91,7 +91,7 @@ def test_real_market_provider_event_with_nested_proxy_is_detached():
 
 
 def test_top_level_market_provider_event_with_proxy_is_detached():
-    from bt_api_base.market_protocol import MarketProviderEvent
+    MarketProviderEvent = pytest.importorskip("bt_api_base.market_protocol").MarketProviderEvent
 
     source = {"levels": [1]}
     original = MarketProviderEvent(

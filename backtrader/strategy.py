@@ -3316,37 +3316,46 @@ class Strategy(StrategyBase):
         # A bound strategy must never receive account-wide Broker values.
         # No atomic strategy snapshot currently provides all four values in
         # the units and valuation policy required by these callbacks.
-        notification_book = self.__dict__.get("account_book")
-        if notification_book is not None:
-            from .service.strategy_financial_notifications import strategy_financial_notification
+        # Producing the values and delivering them to this Strategy and its
+        # analyzers is one critical section under the financial scope lock
+        # (the lock ``bind_account_book`` takes), so a binding from another
+        # thread can never land between a scope check and a callback
+        # (iteration 60, R2-D). The lock is reentrant for nested trees.
+        lock = _FINANCIAL_SCOPE_LOCK or _load_financial_scope_lock()
+        with lock:
+            notification_book = self.__dict__.get("account_book")
+            if notification_book is not None:
+                from .service.strategy_financial_notifications import (
+                    strategy_financial_notification,
+                )
 
-            cash, value, fundvalue, fundshares, reasons = strategy_financial_notification()
-            self.__dict__["_strategy_financial_unavailable"] = reasons
-        else:
-            self.__dict__.pop("_strategy_financial_unavailable", None)
-            cash = self.broker.getcash()
-            value = self.broker.getvalue()
-            fundvalue = self.broker.fundvalue
-            fundshares = self.broker.fundshares
+                cash, value, fundvalue, fundshares, reasons = strategy_financial_notification()
+                self.__dict__["_strategy_financial_unavailable"] = reasons
+            else:
+                self.__dict__.pop("_strategy_financial_unavailable", None)
+                cash = self.broker.getcash()
+                value = self.broker.getvalue()
+                fundvalue = self.broker.fundvalue
+                fundshares = self.broker.fundshares
 
-        def check_financial_scope():
-            if self.__dict__.get("account_book") is not notification_book:
-                raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
+            def check_financial_scope():
+                if self.__dict__.get("account_book") is not notification_book:
+                    raise RuntimeError("STRATEGY_FINANCIAL_SCOPE_CHANGED")
 
-        # Notify cash and value values, and notify analyzers
-        if not notify_cashvalue_default:
+            # Notify cash and value values, and notify analyzers
+            if not notify_cashvalue_default:
+                check_financial_scope()
+                self.notify_cashvalue(cash, value)
+            # Notify fund values, and notify analyzers
+            if not notify_fund_default:
+                check_financial_scope()
+                self.notify_fund(cash, value, fundvalue, fundshares)
+            for analyzer in all_analyzers:
+                check_financial_scope()
+                analyzer._notify_cashvalue(cash, value)
+                check_financial_scope()
+                analyzer._notify_fund(cash, value, fundvalue, fundshares)
             check_financial_scope()
-            self.notify_cashvalue(cash, value)
-        # Notify fund values, and notify analyzers
-        if not notify_fund_default:
-            check_financial_scope()
-            self.notify_fund(cash, value, fundvalue, fundshares)
-        for analyzer in all_analyzers:
-            check_financial_scope()
-            analyzer._notify_cashvalue(cash, value)
-            check_financial_scope()
-            analyzer._notify_fund(cash, value, fundvalue, fundshares)
-        check_financial_scope()
 
     @property
     def strategy_financial_unavailable(self):
@@ -5159,6 +5168,18 @@ class BtApiStrategy(Strategy):
             self.notify_order(data)
         if data.data_type == "trade":
             self.notify_trade(data)
+
+
+_FINANCIAL_SCOPE_LOCK = None
+
+
+def _load_financial_scope_lock():
+    """The shared ``analyzers._strategy_scope.FINANCIAL_SCOPE_LOCK`` (lazy, no cycle)."""
+    global _FINANCIAL_SCOPE_LOCK
+    from .analyzers._strategy_scope import FINANCIAL_SCOPE_LOCK
+
+    _FINANCIAL_SCOPE_LOCK = FINANCIAL_SCOPE_LOCK
+    return FINANCIAL_SCOPE_LOCK
 
 
 def _live_mark_max_age(value):

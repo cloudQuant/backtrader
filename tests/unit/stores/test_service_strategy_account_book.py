@@ -6,6 +6,8 @@ from decimal import Decimal
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from bt_api_py.service_account_book_client import STRATEGY_ACCOUNT_BOOKS_OPERATION
 
 from backtrader.service.service_strategy_account_book import (

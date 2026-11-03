@@ -216,6 +216,7 @@ def _build_run(
         max_window_bars=4,
         wait_timeout_ns=1_000_000_000,
     )
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
     feed = bt.feeds.BtApiFeed(
         dataname="A",
         historical_bars=(),

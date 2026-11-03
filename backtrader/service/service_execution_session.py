@@ -101,6 +101,11 @@ class ServiceExecutionSession:
 
         runtime = assembly.runtime
         client = assembly.execution_client
+        if getattr(client, "typed_commands", None) is not True:
+            # Iteration 60 R2-B: managed order entry is typed end to end. A
+            # client without a configured command binding would send the
+            # generic request map; refuse instead of falling back silently.
+            raise ServiceExecutionSessionConfigError("COMMAND_BINDING_REQUIRED")
         recovery_facade = assembly.recovery_facade
         recovery_flow = assembly.recovery_flow
         logical_run_id = assembly.logical_run_id

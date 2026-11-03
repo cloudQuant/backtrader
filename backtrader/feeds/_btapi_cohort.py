@@ -11,7 +11,7 @@ import datetime as _dt
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 
 from ..channel import EventPriority
 from ..utils import date2num
@@ -93,6 +93,15 @@ def _raw_tick_field(tick, names):
 
 
 def _tick_value(tick, *names, default=None):
+    if type(tick) is SimpleNamespace:
+        # Adapted SDK ticks: instance attributes only, so ``getattr`` is the
+        # instance-dict lookup (SimpleNamespace has no plain-named class attrs).
+        values = tick.__dict__
+        for name in names:
+            value = values.get(name)
+            if value is not None:
+                return value
+        return default
     if _is_mapping(tick):
         for name in names:
             if name in tick and tick[name] is not None:

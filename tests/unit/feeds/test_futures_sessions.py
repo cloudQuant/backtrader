@@ -7,6 +7,8 @@ from itertools import zip_longest
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 import backtrader.futures.grid as futures_sessions
 from backtrader.futures import ProductKey
 from backtrader.futures import (

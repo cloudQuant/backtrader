@@ -1282,6 +1282,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         tick_dt = _tick_datetime(tick)
         tick_ts = _tick_timestamp(tick)
 
+        bucket_start = None
         market_tick_event = getattr(tick, "market_tick_event", None)
         if market_tick_event is not None and self._timeframe != TimeFrame.Ticks:
             data = market_tick_event.data
@@ -1344,7 +1345,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             )
             return
 
-        bucket_start = self._get_bucket_start(tick_dt)
+        if bucket_start is None:  # same tick_dt: computed above for SDK ticks
+            bucket_start = self._get_bucket_start(tick_dt)
         current = self._bar_builders.get(bucket_start)
         if current is None:
             current = self._new_bar_builder(bucket_start, tick, price, volume, openinterest)
@@ -1608,6 +1610,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
     def _now_monotonic_ns(self):
         clock = self.p.clock
+        if clock is None:
+            return _time.monotonic_ns()
         method = getattr(clock, "monotonic_ns", None) if clock is not None else None
         if callable(method):
             return int(method())
@@ -2068,7 +2072,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         without involving this Feed.
         """
 
-        if _tick_value(tick, "schema_version", default=None) != "sdk.market.tick.v1":
+        from bt_api_py.market_tick_contracts import TYPED_MARKET_TICK_SCHEMA_VERSIONS
+
+        schema_version = _tick_value(tick, "schema_version", default=None)
+        if schema_version not in TYPED_MARKET_TICK_SCHEMA_VERSIONS:
             return
         decision_fields = (
             "cohort_decision_now_monotonic_ns",

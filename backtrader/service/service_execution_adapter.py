@@ -504,12 +504,18 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
                     data_name=dataname,
                     intent_id=target_intent_id,
                 )
-        request = self._workflow_cancel_request_type(
-            cancel_id=cancel_id,
-            target_intent_id=target_intent_id,
-            provider_order_id=provider_order_id,
-            metadata_version=metadata_version,
-        )
+        cancel_fields = {
+            "cancel_id": cancel_id,
+            "target_intent_id": target_intent_id,
+            "provider_order_id": provider_order_id,
+            "metadata_version": metadata_version,
+        }
+        managed_instrument = info.get("managed_instrument")
+        if _instrument(managed_instrument):
+            # Typed cancel (iteration 60 R2-B): names the order's instrument
+            # key under a multi-instrument command binding, also after restart.
+            cancel_fields["instrument"] = managed_instrument
+        request = self._workflow_cancel_request_type(**cancel_fields)
         try:
             outcome = self._workflow.cancel(request)
         except Exception as error:  # noqa: BLE001 - dispatch certainty is unavailable

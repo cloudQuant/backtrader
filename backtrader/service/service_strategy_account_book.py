@@ -84,8 +84,12 @@ class ServiceStrategyAccountBookView(_StrategyAccountBookProjection):
     The SDK reader revalidates its exact runtime route and registration on each
     read, then returns the neutral typed snapshot. This view only binds that
     snapshot to the configured Strategy and projects its local broker-facing
-    values. Cash requires an explicit currency; portfolio value remains
-    unavailable without trusted current marks and FX.
+    values. Cash requires an explicit currency; ``getvalue()`` stays
+    unavailable. Strategy valuation (``value_strategy_book``, used by
+    ``order_target_value``/``order_target_percent``) accepts a service
+    snapshot exactly like a direct one: a host strategy-ledger book with one
+    declared cut and a ``BALANCED`` verdict, plus the live-mark contract
+    (``BtApiFeed`` marks on the Broker's Store route, absolute age).
     """
 
     __slots__ = ("_client", "strategy_ref", "account_ref", "_owner_thread_id", "_frozen")
@@ -298,22 +302,31 @@ def value_strategy_book(
 def _require_consistent_financial_cut(snapshot: _StrategyAccountBookSnapshot) -> None:
     """Reject financial and position cuts not bound to one ledger transaction.
 
-    Service's current independent financial projection is useful for reads,
-    but equal quantities do not prove its cash and positions share a cut.
-    Matching the direct ledger's declared cut is a consistency check only;
-    it does not authenticate the provider or a caller-supplied price.
+    The same rule applies in direct and service mode: the snapshot must be
+    Base contract version 2, declare ``SAME_TRANSACTION`` with equal position
+    and financial cut ids, and carry that transaction's ``BALANCED``
+    reconciliation verdict. Service's persisted execution financial
+    projection (``INDEPENDENT_OF_LEGACY_ACCOUNT_BOOK_CUT``) is useful for
+    reads, but equal quantities do not prove its cash and positions share a
+    cut, so it is refused. Matching the declared cut is a consistency check
+    only; it does not authenticate the provider or a caller-supplied price.
     """
 
     cut = snapshot.financial_ledger_cut
     if (
-        snapshot.financial_cut_relationship != "SAME_TRANSACTION"
+        getattr(snapshot, "contract_version", None) != 2
+        or snapshot.financial_cut_relationship != "SAME_TRANSACTION"
         or snapshot.financial_freshness != "RECONCILED_IN_SNAPSHOT"
         or snapshot.account_key != snapshot.account_ref
         or cut is None
         or cut.account_key != snapshot.account_key
         or cut.owner_directory_revision != snapshot.scope_directory_revision
+        or snapshot.position_cut_id is None
+        or snapshot.financial_cut_id != snapshot.position_cut_id
     ):
         raise ServiceStrategyAccountBookError("STRATEGY_FINANCIAL_CUT_UNVERIFIED")
+    if snapshot.reconciliation_state != "BALANCED":
+        raise ServiceStrategyAccountBookError("STRATEGY_BOOK_UNRECONCILED")
     execution = next(
         (item for item in cut.watermarks if item.source_kind == "execution_outbox"), None
     )

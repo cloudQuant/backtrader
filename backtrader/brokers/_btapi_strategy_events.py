@@ -236,10 +236,15 @@ def _order_record(order, identity):
     from ..order import Order
 
     executed = getattr(order, "executed", None)
+    # A Gateway-rebuilt order (R2-C) keeps journaling under the ref of the
+    # process that created it, so a re-applied event yields the same payload.
+    original_ref = getattr(getattr(order, "info", None), "get", lambda _key: None)(
+        "notification_ref"
+    )
     return {
         "v": _PAYLOAD_VERSION,
         "identity": identity,
-        "ref": int(order.ref),
+        "ref": int(order.ref if type(original_ref) is not int else original_ref),
         "status": int(order.status),
         "status_name": Order.Status[order.status],
         "side": "buy" if order.isbuy() else "sell",
@@ -385,11 +390,17 @@ class _NotificationRecovery:
         self.original_order = strategy.notify_order
         self.original_trade = strategy.notify_trade
         self.original_add = strategy._addnotification
+        # Entries below this sequence were journaled by an earlier process;
+        # ids of such entries met again are kept for the Gateway projection.
+        self.session_floor = journal.stats()["next_seq"]
+        self.previous_process_ids = set()
 
     # -- journal / ack ---------------------------------------------------
 
     def append(self, event_id, kind, record):
         entry, created = self.journal.append(event_id, kind, _canonical(record))
+        if not created and entry.seq < self.session_floor:
+            self.previous_process_ids.add(event_id)
         return entry.acked or not created
 
     def fail(self, error, what):

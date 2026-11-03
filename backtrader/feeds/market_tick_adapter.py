@@ -24,6 +24,26 @@ class MarketTickAdapterError(ValueError):
         super().__init__(self.code)
 
 
+_RESOLVED = []  # [(types tuple, require_qualified, qualification error)] once imported
+
+
+def _resolved_market_tick_api():
+    """The SDK names used per tick, imported once (an import is a lookup per call)."""
+    if _RESOLVED:
+        return _RESOLVED[0]
+    types = _load_market_tick_types()
+    try:
+        from bt_api_py.market_tick_contracts import (
+            MarketTickQualificationError,
+            require_qualified_market_tick,
+        )
+    except (ImportError, AttributeError) as exc:
+        raise MarketTickAdapterError("MARKET_TICK_API_UNAVAILABLE") from exc
+    resolved = (types, require_qualified_market_tick, MarketTickQualificationError)
+    _RESOLVED.append(resolved)
+    return resolved
+
+
 def _load_market_tick_types():
     try:
         from bt_api_py.market_tick_contracts import (
@@ -63,20 +83,16 @@ def adapt_market_tick_event(value):
     can be used for lines or strategy dispatch.
     """
 
+    types, require_qualified_market_tick, MarketTickQualificationError = (
+        _resolved_market_tick_api()
+    )
     (
         _MarketClockQuality,
         MarketFreshnessStatus,
         _MarketTickEvent,
         schema,
         version,
-    ) = _load_market_tick_types()
-    try:
-        from bt_api_py.market_tick_contracts import (
-            MarketTickQualificationError,
-            require_qualified_market_tick,
-        )
-    except (ImportError, AttributeError) as exc:
-        raise MarketTickAdapterError("MARKET_TICK_API_UNAVAILABLE") from exc
+    ) = types
     try:
         value, event_time, received_at = require_qualified_market_tick(value)
     except MarketTickQualificationError as exc:

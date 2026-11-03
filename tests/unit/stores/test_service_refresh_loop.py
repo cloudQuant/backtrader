@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from bt_api_py.managed_order_refresh import RefreshLoopError
 
 from backtrader.service.service_refresh_loop import ManagedOrderRefreshLoop

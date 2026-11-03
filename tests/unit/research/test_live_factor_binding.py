@@ -239,6 +239,7 @@ def _make_inputs(
         if include_live
         else ()
     )
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
     feed = bt.feeds.BtApiFeed(
         dataname="SYM",
         historical_bars=historical,

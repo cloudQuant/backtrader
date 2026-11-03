@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 import backtrader as bt
 from backtrader.analyzer import Analyzer
 from backtrader.metabase import OwnerContext

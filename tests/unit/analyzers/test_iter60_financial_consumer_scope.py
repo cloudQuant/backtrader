@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from backtrader.analyzers._strategy_scope import cash_value, fund_shares, portfolio_value
 from backtrader.analyzers.annualreturn import AnnualReturn
 from backtrader.analyzers.drawdown import DrawDown

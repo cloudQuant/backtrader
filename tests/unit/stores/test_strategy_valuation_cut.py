@@ -7,6 +7,8 @@ import runpy
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from bt_api_base.account_book_protocol import (
     StrategyAccountBookSnapshot,
     StrategyFinancialLedgerCut,
@@ -63,7 +65,18 @@ def _direct_snapshot():
         financial_cut_relationship="SAME_TRANSACTION",
         financial_ledger_cut=cut,
         account_key=ACCOUNT,
+        position_cut_id="generation-1:4:cut",
+        financial_cut_id="generation-1:4:cut",
+        reconciliation_state="BALANCED",
     )
+
+
+def _forged(snapshot, **changes):
+    """A snapshot that bypassed Base validation (BT must still refuse it)."""
+    forged = replace(snapshot)
+    for name, value in changes.items():
+        object.__setattr__(forged, name, value)
+    return forged
 
 
 def _value(snapshot):
@@ -94,7 +107,7 @@ def test_direct_same_transaction_cut_is_valued():
     ],
 )
 def test_direct_cut_mismatches_do_not_value(changes):
-    snapshot = replace(_direct_snapshot(), **changes)
+    snapshot = _forged(_direct_snapshot(), **changes)
     with pytest.raises(ServiceStrategyAccountBookError, match="STRATEGY_FINANCIAL_CUT_UNVERIFIED"):
         _value(snapshot)
 
@@ -113,7 +126,35 @@ def test_execution_watermark_mismatches_do_not_value(changes):
     execution = replace(cut.watermarks[0], **changes)
     mismatched = replace(cut, watermarks=(execution, *cut.watermarks[1:]))
     with pytest.raises(ServiceStrategyAccountBookError, match="STRATEGY_FINANCIAL_CUT_UNVERIFIED"):
-        _value(replace(snapshot, financial_ledger_cut=mismatched))
+        _value(_forged(snapshot, financial_ledger_cut=mismatched))
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"financial_cut_id": "generation-1:4:other"},
+        {"financial_cut_id": None},
+        {"position_cut_id": None, "financial_cut_id": None},
+        {"contract_version": 1},
+    ],
+)
+def test_cut_identity_mismatches_do_not_value(changes):
+    """R2-D: one declared transaction for positions and financials, contract 2."""
+    with pytest.raises(ServiceStrategyAccountBookError, match="STRATEGY_FINANCIAL_CUT_UNVERIFIED"):
+        _value(_forged(_direct_snapshot(), **changes))
+
+
+@pytest.mark.parametrize("state", ["IN_FLIGHT", "RESIDUAL", "UNVERIFIED", None])
+def test_unbalanced_verdict_does_not_value(state):
+    with pytest.raises(ServiceStrategyAccountBookError, match="STRATEGY_BOOK_UNRECONCILED"):
+        _value(_forged(_direct_snapshot(), reconciliation_state=state))
+
+
+def test_base_refuses_to_build_a_mismatched_same_transaction_snapshot():
+    from bt_api_base.account_book_protocol import AccountBookProjectionError
+
+    with pytest.raises(AccountBookProjectionError, match="STRATEGY_FINANCIAL_CUT_MISMATCH"):
+        replace(_direct_snapshot(), financial_cut_id="generation-1:4:other")
 
 
 def test_service_independent_cut_is_not_upgraded_by_matching_costs_and_terms():

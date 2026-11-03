@@ -231,6 +231,7 @@ def _restart_setup(*, indicator=None, mode="native"):
         feed_sequence=first_history["bar_sequence"],
         close_time=first_history["bucket_end"],
     )
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
     feed = bt.feeds.BtApiFeed(
         dataname=INSTRUMENT,
         historical_bars=history,
@@ -295,6 +296,7 @@ def _restart_setup(*, indicator=None, mode="native"):
 
 
 def _bare_cohort(calendar, origin=None, *, wait_timeout_ns=5_000_000_000):
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
     feed = bt.feeds.BtApiFeed(
         dataname=INSTRUMENT,
         historical_bars=(),

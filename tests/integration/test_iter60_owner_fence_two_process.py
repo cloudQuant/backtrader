@@ -14,6 +14,8 @@ import time
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from bt_api_py.account_coordination import AccountCoordinationBinding, HostAccountRegistry
 from bt_api_py.account_owner_handoff import AccountOwnerHandoff, HandoffError
 from bt_api_py.provider_session_revocation import ProviderSessionRevocationEvidence

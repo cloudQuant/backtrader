@@ -11,6 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
+
 from backtrader.brokers.btapibroker import BtApiBroker
 
 
