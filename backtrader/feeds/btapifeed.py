@@ -340,6 +340,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         self._last_connection_generation = None
         self._last_market_scope = None
         self._highest_market_scope = None
+        self._last_published_bar = None
+        self._bar_integrity = {"duplicates": 0, "late": 0, "revisions_refused": 0}
         self._bar_sequence = 0
         # Per-feed opaque marker proves that a strategy callback received the
         # sealed event from this exact Feed instance, rather than a caller
@@ -623,11 +625,48 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         return bool(has_pending_live_bar(self._dataname)) if callable(has_pending_live_bar) else False
 
     def _load_history(self) -> bool:
-        """Load one historical bar if available."""
-        if not self._history:
-            return False
+        """Load the next publishable historical bar, if any."""
+        while self._history:
+            if self._publish_bar(self._history.popleft()):
+                return True
+        return False
 
-        return self._load_bar(self._history.popleft())
+    # -- published-bar integrity (iteration 60, acceptance report P1-6) -------
+    #
+    # Provider bars are closed intervals (Base ``MarketBar``) whose identity is
+    # the feed plus the bar's open time. Once a bar is published to the line
+    # buffers it is never rewritten: a later bar with an earlier time is late,
+    # one with the same time and identical OHLCV is a duplicate (for example
+    # the history/live overlap), and one with the same time but different
+    # values is a refused revision. All three are dropped, counted and logged;
+    # Tick-timeframe feeds (many events per timestamp) are not checked.
+
+    def bar_integrity_counts(self):
+        """Counts of dropped duplicate, late and refused-revision bars."""
+        return dict(self._bar_integrity)
+
+    def _publish_bar(self, bar) -> bool:
+        if self._timeframe == TimeFrame.Ticks:
+            return self._load_bar(bar)
+        normalized = _normalize_bar(bar)
+        when = normalized["datetime"]
+        values = tuple(
+            normalized[name] for name in ("open", "high", "low", "close", "volume", "openinterest")
+        )
+        last = self._last_published_bar
+        if last is not None:
+            last_when, last_values = last
+            if when < last_when:
+                return self._drop_bar("late")
+            if when == last_when:
+                return self._drop_bar("duplicates" if values == last_values else "revisions_refused")
+        self._last_published_bar = (when, values)
+        return self._load_bar(normalized)
+
+    def _drop_bar(self, kind) -> bool:
+        self._bar_integrity[kind] += 1
+        _safe_log("warning", "btapifeed: dropped %s bar for %s", kind, self._dataname)
+        return False
 
     def _load(self) -> bool:
         """Load the next historical or live bar."""
@@ -637,15 +676,16 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             # sleep from this path while another cohort member is pending.
             return self._load_live_bar_cohort_envelope()
 
-        if self._history:
-            return self._load_history()
+        if self._history and self._load_history():
+            return True
 
         # Preserve the causal pair between a completed bar callback and the
         # matching data-line advance.  Do not consume newer ticks while an
         # already completed bar is waiting for Strategy.next().
-        if self._live:
+        while self._live:
             self._mark_live()
-            return self._load_bar(self._live.popleft())
+            if self._publish_bar(self._live.popleft()):
+                return True
 
         if self.p.orderbook_as_ticks and not self._uses_sdk_market_streams():
             if self._load_orderbook_tick():
@@ -679,7 +719,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
         self._mark_live()
 
-        return self._load_bar(bar)
+        return True if self._publish_bar(bar) else None
 
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""
