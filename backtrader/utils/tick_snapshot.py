@@ -30,6 +30,7 @@ import copy
 import dataclasses
 import datetime as _dt
 import enum
+import weakref
 from decimal import Decimal
 from types import MappingProxyType, SimpleNamespace
 from typing import Any
@@ -39,6 +40,7 @@ __all__ = ["snapshot_tick"]
 _SCALARS = (str, int, float, bool, bytes, Decimal, _dt.date, _dt.time, _dt.timedelta, _dt.tzinfo)
 _CONTRACT_PREFIXES = ("bt_api_base.", "bt_api_py.")
 _frozen_contract_types: dict[type, bool] = {}
+_verified: dict[int, tuple] = {}
 
 
 def _is_frozen_contract(value: Any) -> bool:
@@ -73,10 +75,24 @@ def _is_immutable(value: Any, depth: int = 0) -> bool:
         )
     if not _is_frozen_contract(value):
         return False
-    return all(
+    # A frozen contract verified deeply immutable can never change afterwards,
+    # so the verdict is cached per live object (id + weak reference; entries
+    # vanish with the object).
+    key = id(value)
+    cached = _verified.get(key)
+    if cached is not None and cached[0]() is value:
+        return True
+    immutable = all(
         _is_immutable(getattr(value, field.name), depth + 1)
         for field in dataclasses.fields(value)
     )
+    if immutable:
+        try:
+            ref = weakref.ref(value, lambda _ref, key=key: _verified.pop(key, None))
+        except TypeError:  # no weakref support (slots): just don't cache
+            return True
+        _verified[key] = (ref,)
+    return immutable
 
 
 def _snapshot_value(value: Any) -> Any:
