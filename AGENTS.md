@@ -101,6 +101,7 @@ bt_api_py 的 SDK 家族职责表（本机为 `/Users/yunjinqi/Documents/new_pro
 - 因子本地归属账本的 SQLite schema、核验、幂等写入和容量记账/读取位于 `bt_api_execution.factor_position_attribution`，经 `bt_api_py.factor_position_attribution` 提供；BT 保留 Broker 持仓比较。BT journal 端口按实例显式组合，进程默认注册须单独显式安装。它不证明 provider 事实，当前为未提交、未行为验收的 WIP。
 - `cerebro.py` / `_cerebro/`、`strategy.py`、`line*.py`：引擎唯一调度、策略回调、线运算与多数据时钟；不新增第二套策略调度器。
 - `research/`、`indicators/`、`observers/`、`analyzers/`、`sizers/`：各自的研究、指标、观察、分析和仓位计算；不私自创建账户事实或绕过执行/风控边界。
+- `strategies/factor_strategy.py`：离线因子研究策略与网格采集；因子、研究协议、面板和 sink 仍归 `research/`。迭代 61 源码迁移和图驱动修复尚待验收；按用户决定不保留旧 `backtrader.research.FactorStrategy` 与 `backtrader.research.factor_strategy` 入口。
 - `tests/` 是验证，`examples/` 展示使用，`scripts/` / `tools/` 为任务入口，`docs/` 解释和记录；产品代码不依赖这些目录作为运行时实现。
 
 ## 持久开发流程
