@@ -1,9 +1,0 @@
-.env
-reports/
-__pycache__/
-/runtime/config.yaml
-!/runtime/config.example.yaml
-
-
-# 迭代42 标准入口证据目录（不入库）
-/evidence/

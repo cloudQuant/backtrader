@@ -3,7 +3,6 @@
 DOCS_BUILD_DIR := docs/_build/html
 DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
 BT_CONDA_PYTHON ?= /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python
-BT_ISOLATED_RSS_STRESS_TEST := tests/unit/test_iteration22_ctp_benchmarks.py::test_short_stress_profile_waits_for_deadline_and_is_incomplete
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -34,8 +33,7 @@ test-all:  ## Run parallel functional tests plus the serial performance gate
 	$(MAKE) test-performance
 
 test-performance:  ## Run wall-clock microbenchmarks without xdist
-	$(BT_CONDA_PYTHON) -m pytest tests -m performance -n 0 -q --deselect=$(BT_ISOLATED_RSS_STRESS_TEST)
-	$(BT_CONDA_PYTHON) -m pytest $(BT_ISOLATED_RSS_STRESS_TEST) -n 0 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m performance -n 0 -q
 
 test-original:  ## Run only original tests (excluding crypto tests)
 	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ -v --tb=short --html=tests/report.html

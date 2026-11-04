@@ -1,3 +1,0 @@
-# Evidence and run artifacts are local; never commit them.
-cases/*/evidence/
-__pycache__/

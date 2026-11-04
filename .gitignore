@@ -228,3 +228,6 @@ examples/live/000_live_certification/*_penetration/reports/
 /examples/012_2_event_driven_cross_exchange/
 /examples/013_3_sa_midfreq_simnow/
 /examples/016_self_similarity/
+
+# Archived examples, reports and captures (local only; never committed)
+/archived/
