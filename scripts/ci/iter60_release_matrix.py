@@ -57,8 +57,9 @@ TESTS = (
     ("sdk", "tests/unit/test_iter60_account_owner_handoff.py", ()),
     ("sdk", "tests/unit/test_iter60_handoff_local_only.py", ()),
     ("sdk", "tests/integration/test_iter60_cross_host_writer_authority.py", ()),
-    ("sdk", "bt_api/bt_api_base/tests/test_iter60_execution_trade_fee_events.py", ()),
-    ("sdk", "bt_api/bt_api_base/tests/test_wire_exit_gates.py", ()),
+    # Sibling helper modules only; Base's conftest would put its src tree on sys.path.
+    ("sdk", "bt_api/bt_api_base/tests/test_iter60_execution_trade_fee_events.py", ("bt_api/bt_api_base/tests/test_wire_account_codec.py", "bt_api/bt_api_base/tests/test_wire_codec_v1.py", "bt_api/bt_api_base/tests/test_wire_execution_observations.py", "bt_api/bt_api_base/tests/test_wire_strategy_account_book.py", "bt_api/bt_api_base/tests/test_wire_strategy_commands.py")),
+    ("sdk", "bt_api/bt_api_base/tests/test_wire_exit_gates.py", ("bt_api/bt_api_base/tests/test_wire_account_codec.py", "bt_api/bt_api_base/tests/test_wire_codec_v1.py", "bt_api/bt_api_base/tests/test_wire_execution_observations.py", "bt_api/bt_api_base/tests/test_wire_strategy_account_book.py", "bt_api/bt_api_base/tests/test_wire_strategy_commands.py")),
     ("sdk", "bt_api/bt_api_okx/tests/test_iter60_private_push_rows.py", ()),
     ("sdk", "bt_api/bt_api_ctp/tests/test_iter60_real_client_scope_issuer.py", ()),
     ("bt", "tests/unit/brokers/test_iter60_owner_fence_writer_authority.py", ()),
@@ -118,7 +119,9 @@ def probe_code(modules=MODULES) -> str:
     return (
         "import importlib, importlib.metadata as md, json, sys, numpy\n"
         f"mods = {tuple(modules)!r}\n"
-        "out = {'python': sys.version.split()[0], 'numpy': numpy.__version__, 'modules': {}}\n"
+        "import msgpack, zmq\n"
+        "out = {'python': sys.version.split()[0], 'numpy': numpy.__version__, "
+        "'msgpack': md.version('msgpack'), 'pyzmq': zmq.__version__, 'modules': {}}\n"
         "for name in mods:\n"
         "    mod = importlib.import_module(name)\n"
         "    dist = {'backtrader': 'back-trader-python'}.get(name, name.replace('_', '-'))\n"
@@ -137,6 +140,11 @@ def main() -> int:
     parser.add_argument("--sdk", type=Path, default=BT_ROOT.parent / "bt_api_py")
     parser.add_argument("--python", action="append", required=True)
     parser.add_argument("--skip-tests", action="store_true")
+    parser.add_argument(
+        "--pip-extra", action="append", default=[],
+        help="third-party requirement installed into every venv from the package index "
+             "(only when the interpreter lacks it; recorded in matrix.json)",
+    )
     args = parser.parse_args()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -158,6 +166,20 @@ def main() -> int:
         built = {"backtrader": build(python, BT_ROOT, wheelhouse)}
         for name, rel in SDK_PACKAGES:
             built[name] = build(python, sdk / rel, wheelhouse)
+        # A pure-Python wheel (py3-none-any) that this interpreter cannot build
+        # (for example no Cython for the build backend) is reused from an
+        # interpreter that built it; the reuse is recorded.
+        for name, item in built.items():
+            if item["ok"]:
+                continue
+            for other in artifacts.values():
+                donor = other.get(name)
+                pure = [a for a in (donor or {}).get("artifacts", []) if a.endswith("-py3-none-any.whl")]
+                if donor and donor["ok"] and pure:
+                    source_dir = next(out.glob(f"wheelhouse-py*/{pure[0]}")).parent
+                    shutil.copy2(source_dir / pure[0], wheelhouse / pure[0])
+                    item.update(ok=True, reused_from=str(source_dir / pure[0]))
+                    break
         artifacts[f"py{tag}"] = built
         wheels = sorted(str(p) for p in wheelhouse.glob("*.whl"))
         venv = out / f"venv-py{tag}"
@@ -166,6 +188,13 @@ def main() -> int:
         run([python, "-m", "venv", "--system-site-packages", str(venv)])
         vpy = str(venv / "bin" / "python")
         run([vpy, "-m", "pip", "install", "--no-deps", "--no-index", "--force-reinstall", *wheels])
+        extras_installed = []
+        for requirement in args.pip_extra:
+            # pip decides against the version constraint; an inherited older
+            # copy is shadowed by the venv's own install.
+            proc, _ = run([vpy, "-m", "pip", "install", requirement])
+            if "Successfully installed" in proc.stdout:
+                extras_installed.append(requirement)
         clean_env = {k: v for k, v in os.environ.items() if k not in {"PYTHONPATH", "PYTHONHOME"}}
         clean_env["PYTHONDONTWRITEBYTECODE"] = "1"
         scratch = out / f"run-py{tag}"
@@ -174,7 +203,11 @@ def main() -> int:
         scratch.mkdir()
         missing = [name for name, item in built.items() if not item["ok"]]
         proc, _ = run([vpy, "-I", "-c", probe_code(tuple(m for m in MODULES if m not in missing))],
-                      cwd=scratch, env=clean_env)
+                      cwd=scratch, env=clean_env, check=False)
+        if proc.returncode != 0:
+            results.append({"python": tag, "probe_failed": proc.stderr.strip()[-800:],
+                            "build_failures": missing, "extras_installed": extras_installed})
+            continue
         probe = json.loads(proc.stdout.strip().splitlines()[-1])
         venv_prefix = str(venv.resolve())
         outside = {
@@ -183,7 +216,9 @@ def main() -> int:
             if not str(Path(info["file"]).resolve()).startswith(venv_prefix)
         }
         entry = {"python": probe["python"], "numpy": probe["numpy"], "venv": str(venv),
+                 "msgpack": probe["msgpack"], "pyzmq": probe["pyzmq"],
                  "build_failures": sorted(name for name, item in built.items() if not item["ok"]),
+                 "extras_installed": extras_installed,
                  "modules": probe["modules"], "imported_outside_venv": outside, "tests": []}
         if not args.skip_tests:
             for repo, rel, helpers in TESTS:
@@ -215,7 +250,12 @@ def main() -> int:
     lines = ["# Iteration 60 release/install matrix", "",
              f"Generated {report['generated_at']} on {report['host']}.", ""]
     for entry in results:
-        lines.append(f"## Python {entry['python']} / numpy {entry['numpy']}")
+        if "probe_failed" in entry:
+            lines.append(f"## Python tag {entry['python']}: import probe FAILED")
+            lines.append(f"```\n{entry['probe_failed']}\n```")
+            continue
+        lines.append(f"## Python {entry['python']} / numpy {entry['numpy']} / msgpack {entry['msgpack']} / pyzmq {entry['pyzmq']}")
+        lines.append(f"- third-party requirements installed into the venv: {entry['extras_installed'] or 'none'}")
         lines.append(f"- packages whose wheel did not build: {entry['build_failures'] or 'none'}")
         lines.append(f"- modules imported outside the venv: {entry['imported_outside_venv'] or 'none'}")
         for name, info in sorted(entry["modules"].items()):
@@ -224,8 +264,9 @@ def main() -> int:
             lines.append(f"- `{item['file']}` rc={item['returncode']}: {item['summary']}")
         lines.append("")
     (out / "matrix.md").write_text("\n".join(lines), encoding="utf-8")
-    failed = any(entry["imported_outside_venv"] or entry["build_failures"] for entry in results) or any(
-        item["returncode"] != 0 for entry in results for item in entry["tests"]
+    failed = any("probe_failed" in entry or entry["imported_outside_venv"] or entry["build_failures"]
+                 for entry in results) or any(
+        item["returncode"] != 0 for entry in results for item in entry.get("tests", [])
     )
     print(out / "matrix.md")
     return 1 if failed else 0
