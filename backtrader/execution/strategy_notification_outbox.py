@@ -1224,6 +1224,16 @@ class StrategyNotificationJournal(_DedicatedSqliteStore):
             trade_record = self._index_row("trade", trade_key, record, record, digest)
         return order, trade_key, trade_record
 
+    def indexed_order_keys(self) -> tuple[str, ...]:
+        """Keys of every indexed order, oldest update first (bounded by ``retain_orders``)."""
+        with self._lock, self._transaction():
+            self._meta()
+            rows = self._db.execute("SELECT order_key FROM journal_order ORDER BY seq").fetchall()
+        keys = tuple(row[0] for row in rows)
+        if any(type(key) is not str for key in keys):
+            raise NotificationOutboxError("STORE_CORRUPT")
+        return keys
+
     def index_stats(self) -> dict:
         """Row counts of the applied-fill index (``orders``, ``fills``, ``trades``)."""
         with self._lock, self._transaction():

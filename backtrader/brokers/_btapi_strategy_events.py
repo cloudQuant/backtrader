@@ -798,7 +798,43 @@ class _NotificationRecovery:
         record = dict(state["order"])
         record["executed"] = dict(record["executed"])
         totals = {name: _Decimal(total) for name, total in state.get("fee_totals", {}).items()}
+        unattributed = {
+            name: _Decimal(total) for name, total in state.get("unattributed_fees", {}).items()
+        }
         delta = reported - _Decimal(fill["fee"])
+        # A correction reconciled from the ledger at startup (the earlier process
+        # booked it but crashed before journaling, see reconcile_ledger_fees) is
+        # already in ``totals`` and was already notified: consume it first.
+        consumed = min(unattributed.get(currency, _Decimal("0")), delta)
+        if consumed:
+            unattributed[currency] = unattributed[currency] - consumed
+            delta -= consumed
+        if not delta:
+            from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+            self.journal.update_index(
+                JournalIndexUpdate(
+                    orders=(
+                        (
+                            order_key,
+                            _canonical(
+                                {
+                                    **{k: v for k, v in state.items() if k != "pending_ledger_fees"},
+                                    "unattributed_fees": {
+                                        name: str(value)
+                                        for name, value in unattributed.items()
+                                        if value
+                                    },
+                                }
+                            ),
+                        ),
+                    ),
+                    fills=(
+                        (fill_key, order_key, _canonical(dict(fill, fee=str(reported)))),
+                    ),
+                )
+            )
+            return DurableFeeCorrectionDelivery(self.strategy, ())
         before = totals.get(currency, _Decimal("0"))
         target = before + delta
         intent_id = record.get("strategy_ledger_intent_id")
@@ -807,6 +843,7 @@ class _NotificationRecovery:
                 filled, fees = ledger.execution_totals(intent_id)
                 current = fees.get(currency, _Decimal("0"))
                 if current == before:
+                    self.write_ledger_fee_intent(order_key, {**totals, currency: target})
                     ledger.apply_execution(
                         intent_id, cumulative_quantity=filled, fee=target, fee_currency=currency
                     )
@@ -852,6 +889,17 @@ class _NotificationRecovery:
                             "v": _INDEX_VERSION,
                             "order": record,
                             "fee_totals": {name: str(v) for name, v in totals.items()},
+                            **(
+                                {
+                                    "unattributed_fees": {
+                                        name: str(value)
+                                        for name, value in unattributed.items()
+                                        if value
+                                    }
+                                }
+                                if any(unattributed.values())
+                                else {}
+                            ),
                         }
                     ),
                 ),
@@ -874,6 +922,172 @@ class _NotificationRecovery:
             if created
         ]
         return DurableFeeCorrectionDelivery(self.strategy, entries)
+
+    def write_ledger_fee_intent(self, order_key, targets):
+        """Write-ahead before a fee correction moves the strategy ledger.
+
+        ``targets`` (``{currency: corrected total}``) are provider facts the
+        Broker is about to book. Stored in the order's index state; the
+        journal write that follows rewrites that state without them. A crash
+        in between leaves them for :meth:`reconcile_ledger_fees`.
+        """
+        from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+        order_bytes, _trade_key, _trade_bytes = self.journal.indexed_order(order_key)
+        if order_bytes is None:
+            return False
+        state = _json.loads(order_bytes)
+        state["pending_ledger_fees"] = {str(c): str(_Decimal(str(v))) for c, v in targets.items()}
+        self.journal.update_index(
+            JournalIndexUpdate(orders=((order_key, _canonical(state)),))
+        )
+        return True
+
+    def reconcile_ledger_fees(self, ledger):
+        """Startup: close the crash window between a fee's ledger write and its journal.
+
+        Every fee correction first records its target totals in the order's
+        index state (:meth:`write_ledger_fee_intent`), then books the ledger,
+        then journals. For each indexed order whose ledger fill quantity equals
+        the journaled executed size, per currency with ledger fee ``L``,
+        journaled fee ``J`` and write-ahead target ``P``:
+
+        * ``L == J`` and ``P > J``: the crash came before the ledger write; the
+          ledger is moved to ``P`` (once: compared first) and the correction
+          journaled and notified;
+        * ``L == P > J``: the crash came after the ledger write; the correction
+          ``L - J`` is journaled and notified;
+        * ``L != J`` otherwise (no write-ahead, or another value): not this
+          window - fail closed (``ledger_fee_diverged``), nothing is invented.
+
+        A correction reconciled here is kept as ``unattributed_fees`` so a
+        later per-fill re-report of it is neither booked nor notified twice.
+        Returns ``(deliveries, fence reasons)``.
+        """
+        from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+        deliveries, fences = [], []
+        for order_key in self.journal.indexed_order_keys():
+            order_bytes, trade_key, trade_bytes = self.journal.indexed_order(order_key)
+            if order_bytes is None:
+                continue
+            state = _json.loads(order_bytes)
+            pending = {
+                name: _Decimal(total)
+                for name, total in (state.get("pending_ledger_fees") or {}).items()
+            }
+            record = dict(state["order"])
+            record["executed"] = dict(record["executed"])
+            intent_id = record.get("strategy_ledger_intent_id")
+            if type(intent_id) is not str or not intent_id:
+                continue
+            try:
+                filled, fees = ledger.execution_totals(intent_id)
+            except Exception as error:
+                if getattr(error, "code", None) == "INTENT_NOT_FOUND":
+                    continue
+                return [], ["ledger_fee_unavailable"]
+            executed = abs(_Decimal(str(record["executed"].get("size") or 0)))
+            if _Decimal(filled) != executed:
+                # A fill the journal never saw: outside this window (see the
+                # module notes); fees of this order are not reconciled here.
+                continue
+            totals = {
+                name: _Decimal(total) for name, total in state.get("fee_totals", {}).items()
+            }
+            unattributed = {
+                name: _Decimal(total)
+                for name, total in state.get("unattributed_fees", {}).items()
+            }
+            trade = None if trade_bytes is None else dict(_json.loads(trade_bytes))
+            if trade is not None:
+                trade.pop("order_notification_id", None)
+            entries = []
+            diverged = False
+            for currency in sorted(set(fees) | set(totals) | set(pending)):
+                ledger_fee = _Decimal(fees.get(currency, 0))
+                journal_fee = totals.get(currency, _Decimal("0"))
+                target = pending.get(currency)
+                if ledger_fee == journal_fee:
+                    if target is None or target <= journal_fee:
+                        continue
+                    try:  # crashed before the ledger write: book the recorded fact
+                        ledger.apply_execution(
+                            intent_id,
+                            cumulative_quantity=filled,
+                            fee=target,
+                            fee_currency=currency,
+                        )
+                    except Exception as error:
+                        _logger.error(
+                            "strategy ledger fee reconciliation failed (%s)",
+                            getattr(error, "code", type(error).__name__),
+                        )
+                        return [], ["ledger_fee_unavailable"]
+                    ledger_fee = target
+                elif target is None or ledger_fee != target or ledger_fee < journal_fee:
+                    diverged = True
+                    break
+                delta = ledger_fee - journal_fee
+                totals[currency] = ledger_fee
+                unattributed[currency] = unattributed.get(currency, _Decimal("0")) + delta
+                comm = record["executed"].get("comm") or 0.0
+                record["executed"]["comm"] = float(_Decimal(str(comm)) + delta)
+                sequence = int(record.get("fee_corrections") or 0) + 1
+                record["fee_corrections"] = sequence
+                if trade is not None and trade.get("commission") is not None:
+                    trade["commission"] = float(_Decimal(str(trade["commission"])) + delta)
+                    if trade.get("pnl") is not None:
+                        trade["pnlcomm"] = trade["pnl"] - trade["commission"]
+                correction = {
+                    "v": _PAYLOAD_VERSION,
+                    "sequence": sequence,
+                    "delta": str(delta),
+                    "cumulative": str(ledger_fee),
+                    "currency": currency,
+                    "order": dict(record, executed=dict(record["executed"])),
+                    "trade": None if trade is None else dict(trade),
+                }
+                fee_id = _stable_id(
+                    "f", self.generation, record["identity"], sequence, "ledger:" + str(ledger_fee)
+                )
+                entries.append((fee_id, "fee_correction", correction))
+            if diverged:
+                fences.append("ledger_fee_diverged")
+                continue
+            if not entries and not pending:
+                continue
+            order_state = {
+                "v": _INDEX_VERSION,
+                "order": record,
+                "fee_totals": {n: str(v) for n, v in totals.items()},
+            }
+            if any(unattributed.values()):
+                order_state["unattributed_fees"] = {
+                    n: str(v) for n, v in unattributed.items() if v
+                }
+            index = JournalIndexUpdate(
+                orders=((order_key, _canonical(order_state)),),
+                trades=() if trade is None or not entries else ((trade_key, _canonical(trade)),),
+            )
+            if not entries:  # a write-ahead that was booked and journaled already
+                self.journal.update_index(index)
+                continue
+            order_id = self.order_event_id(self.generation, record["identity"], record)
+            entries.append((order_id, "order", record))
+            results = self.append_many(
+                [
+                    (event_id, kind, _canonical(payload), True)
+                    if kind == "fee_correction"
+                    else (event_id, kind, _canonical(payload))
+                    for event_id, kind, payload in entries
+                ],
+                index=index,
+            )
+            created = [item for item, (_e, made) in zip(entries, results) if made]
+            if created:
+                deliveries.append(DurableFeeCorrectionDelivery(self.strategy, created))
+        return deliveries, fences
 
     def notify_order(self, order, *args, **kwargs):
         result = self.original_order(order, *args, **kwargs)
@@ -1059,6 +1273,18 @@ class StrategyNotificationRecoveryBrokerMixin:
         strategy._addnotification = recovery.addnotification
         recoveries[id(strategy)] = recovery
         states[id(strategy)] = "ACTIVE"
+        if route == _ROUTE_DIRECT:
+            # Close the "ledger booked, journal not written" crash window of a
+            # live fee correction (iteration 60, post-acceptance follow-up).
+            try:
+                deliveries, fences = recovery.reconcile_ledger_fees(ledger)
+            except Exception as error:  # fail closed: the index cannot be trusted
+                recovery.fail(error, "index")
+                deliveries, fences = [], ["applied_fill_index_unavailable"]
+            for delivery in deliveries:
+                self.notifs.append(delivery)
+            if fences:
+                self._fence_durable_fee(fences[0])
         return delivered
 
     def strategy_notification_recovery_state(self, strategy):
@@ -1125,6 +1351,30 @@ class StrategyNotificationRecoveryBrokerMixin:
         if sequences and owner is not None:
             applied = owner.__dict__.setdefault("_fee_corrections_applied", {})
             applied[order.ref] = max(applied.get(order.ref, 0), max(sequences))
+
+    def _journal_ledger_fee_intent(self, order):
+        """Before ``_sync_direct_ledger`` books an unjournaled fee correction."""
+        recoveries = self._strategy_notification_recovery
+        if not recoveries or getattr(self, "_direct_strategy_ledger", None) is None:
+            return
+        recovery = recoveries.get(id(getattr(order, "owner", None)))
+        if recovery is None or recovery.state != "ACTIVE":
+            return
+        journaled = _info_int(order, "fee_corrections_journaled")
+        if not any(
+            type(entry.get("sequence")) is int and entry["sequence"] > journaled
+            for entry in _fee_corrections(order)
+        ):
+            return
+        identity = _order_identity(order, recovery.nonce)
+        if not _durable(identity):
+            return
+        get = getattr(getattr(order, "info", None), "get", None)
+        totals = (get("provider_fee_totals") if callable(get) else None) or {}
+        try:
+            recovery.write_ledger_fee_intent(identity, totals)
+        except Exception as error:  # fail closed: the window would stay open
+            recovery.fail(error, "journal")
 
     def fee_correction_fence(self):
         """Why a late fee correction without a live order fenced trading, or ``None``."""

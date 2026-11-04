@@ -232,10 +232,18 @@ def _child(directory, mode, scenario, stage):
         _correct(s, "0.8")
         os._exit(79)
     real_append = recovery.journal.append_many
+    if stage in {"trade_correct_die_before_append", "trade_correct_die_before_ledger"}:
+        _trade(s, scenario)  # the live process books the correction itself
+    if stage == "trade_correct_die_before_ledger":
+
+        def ledger_then_die(*_args, **_kwargs):
+            os._exit(73)  # the write-ahead is stored; the ledger never moved
+
+        s.ledger.apply_execution = ledger_then_die
 
     def append_then_die(entries, **kwargs):
         correction = any(item[1] == "fee_correction" for item in entries)
-        if correction and stage == "die_before_append":
+        if correction and stage in {"die_before_append", "trade_correct_die_before_append"}:
             os._exit(72)  # the ledger moved; nothing journaled
         results = real_append(entries, **kwargs)
         if correction and stage == "die_after_append" and any(c for _e, c in results):
@@ -565,6 +573,70 @@ def test_crash_after_the_ledger_before_the_journal_books_the_fee_once(tmp_path, 
         (call,) = _corrections(s.received)
         assert call["replayed"] is False and call["delta"] == pytest.approx(0.3)
         assert _fees(s) == {"CNY": Decimal("1.3")}
+        _healthy(s)
+    finally:
+        _close(s)
+
+
+# -- (f) ledger booked, journal never written, and no provider re-report ----------
+
+
+def _ledger_ahead_is_notified_once(tmp_path, mode):
+    s = _open(tmp_path, mode)
+    try:
+        assert _fees(s) == {"CNY": Decimal("1.3")}  # the dead process moved the ledger
+        s.t.cycle(s)  # no provider re-report: the startup reconciliation notifies
+        (call,) = _corrections(s.received)
+        assert call["replayed"] is False and call["recovered"] is True
+        assert (call["delta"], call["currency"]) == (pytest.approx(0.3), "CNY")
+        assert call["comm"] == pytest.approx(1.3)
+        assert _fees(s) == {"CNY": Decimal("1.3")}
+        _healthy(s)
+    finally:
+        _close(s)
+    s = _open(tmp_path, mode)  # a further restart: nothing new to tell
+    try:
+        s.t.cycle(s)
+        assert _corrections(s.received) == []
+        _correct(s, "0.8")  # the provider re-reports it late: consumed, not twice
+        assert _corrections(s.received) == [] and _fees(s) == {"CNY": Decimal("1.3")}
+        _correct(s, "0.9")  # a genuinely new correction is still booked once
+        (call,) = _corrections(s.received)
+        assert call["delta"] == pytest.approx(0.1) and _fees(s) == {"CNY": Decimal("1.4")}
+        _healthy(s)
+    finally:
+        _close(s)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mode", _MODES)
+def test_live_crash_after_the_ledger_is_notified_without_a_provider_resend(tmp_path, mode):
+    assert _run(tmp_path, mode, "terminal", "trade_correct_die_before_append") == 72
+    assert _corrections(_logged(tmp_path / "trade_correct_die_before_append.log")) == []
+    _ledger_ahead_is_notified_once(tmp_path, mode)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mode", _MODES)
+def test_restart_crash_after_the_ledger_is_notified_without_a_provider_resend(tmp_path, mode):
+    assert _run(tmp_path, mode, "terminal", "trade") == 70
+    assert _run(tmp_path, mode, "terminal", "die_before_append") == 72
+    _ledger_ahead_is_notified_once(tmp_path, mode)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mode", _MODES)
+def test_live_crash_before_the_ledger_books_the_recorded_fee_once(tmp_path, mode):
+    assert _run(tmp_path, mode, "terminal", "trade_correct_die_before_ledger") == 73
+    s = _open(tmp_path, mode)
+    try:
+        # The startup reconciliation booked the provider fact the write-ahead kept.
+        assert _fees(s) == {"CNY": Decimal("1.3")}
+        s.t.cycle(s)
+        (call,) = _corrections(s.received)
+        assert call["delta"] == pytest.approx(0.3) and call["currency"] == "CNY"
+        _correct(s, "0.8")  # re-reported later: consumed, not booked twice
+        assert len(_corrections(s.received)) == 1 and _fees(s) == {"CNY": Decimal("1.3")}
         _healthy(s)
     finally:
         _close(s)

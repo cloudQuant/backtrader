@@ -3020,6 +3020,9 @@ class BtApiBroker(
         recovery_fill_projection=None,
     ):
         """Queue an order notification, optionally bound to one recovery receipt."""
+        # Write-ahead of a fee correction's ledger update (closed at restart by
+        # reconcile_ledger_fees if the process dies before it is journaled).
+        self._journal_ledger_fee_intent(order)
         self._sync_direct_ledger(order)
         if self._service_execution_recovery_suppress_notifications:
             return
