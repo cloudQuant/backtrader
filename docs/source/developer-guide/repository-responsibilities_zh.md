@@ -116,6 +116,8 @@
 
 > 配置合约元数据的历史别名候选算法由 SDK `instrument_metadata_aliases` 持有；BT Store 保留输入文本转换和本地匹配调用。该启发式不证明场所或合约身份，源码未行为或发行验收。
 
+> 跨主机账户单写者的写者权威（TTL 写者租约、权威授予的派发租约、接管与撤销证据规则）归 SDK `bt_api_py.account_writer_authority`，同主机协调仍归 `account_coordination`/`account_owner_handoff`；BT `brokers/_btapi_owner_fence.py` 只把 Broker 绑定到 SDK 的 `AccountOwnerHandoff` 或 `RemoteAccountOwnerHandoff` 并映射拒绝码，不持有租约状态。provider 执行观察（逐笔成交、终态订单、费用）由各 provider 的 Gateway 账户 provider 产生，Gateway 只按策略前缀路由；BT 托管路由（`ServiceExecutionSession`）的订单身份与 typed 结果由 SDK 客户端校验，Broker 只投影服务记录。本轮为本地源码与模拟验证，真实撤销证据、真实场所与部署未验收。
+
 > 状态：现行开发约定；盘点基准：2026-11-01 的 `dev` 工作区，包含尚未提交的迭代 53 迁移。本文不是逐文件代码审计报告，也不证明未验收代码可用。首次使用和每次准备修改本仓库前，先读本文，并以实际代码、构建配置及适用的 `AGENTS.md` 为准。
 
 > SDK 订单方向解析器由 route 选出的 provider 接收完整行；Binance 的 `o` 嵌套字段选择在 Binance provider。base 旧字段解析器与第三方 projector 的入口签名已变更，源码尚未行为及发行验收。
