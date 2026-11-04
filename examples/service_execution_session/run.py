@@ -57,23 +57,37 @@ _QUERY_OPERATIONS = frozenset({"orders.query"})
 _WIRE_SCOPE = WireScope(_DOMAIN, account_ref=_ACCOUNT, strategy_ref=_STRATEGY)
 
 
-class _SyntheticEmptyLegacyClient:
-    """Connectable Store leaf with empty local lists and no balance method."""
+class _SyntheticNoWriteFacade:
+    """Unified bt_api_py facade call shape that never writes or reads an account.
+
+    The Store no longer accepts a legacy client. It has no account ports, so
+    an SDK-mode Store start refuses (fail closed) instead of inventing account
+    evidence; see README.
+    """
 
     def __init__(self) -> None:
         self.connected = False
 
-    def connect(self) -> None:
-        self.connected = True
+    def list_exchanges(self) -> list[str]:
+        return ["OKX___SWAP"]
 
-    def disconnect(self) -> None:
+    async def async_make_order(self, exchange_name, request, *, normalized=True,
+                               budget_capability=None):
+        raise RuntimeError("LOCAL_SYNTHETIC_DIRECT_WRITES_DISABLED")
+
+    async def async_cancel_order(self, exchange_name, request, *, normalized=True,
+                                 budget_capability=None):
+        raise RuntimeError("LOCAL_SYNTHETIC_DIRECT_WRITES_DISABLED")
+
+    async def async_query_order(self, exchange_name, request, *, normalized=True):
+        raise RuntimeError("LOCAL_SYNTHETIC_DIRECT_QUERIES_DISABLED")
+
+    def poll_events(self, exchange_name, *, max_raw_items=None,
+                    coalesce_market_snapshots=("orderbook", "tick")):
+        return []
+
+    def close(self) -> None:
         self.connected = False
-
-    def get_positions(self) -> list[Any]:
-        return []
-
-    def fetch_open_orders(self) -> list[Any]:
-        return []
 
 
 class _SyntheticNoWriteProvider:
@@ -144,6 +158,17 @@ def _client_endpoint() -> str:
         return f"tcp://127.0.0.1:{probe.getsockname()[1]}"
 
 
+def _command_binding() -> dict[str, Any]:
+    """The typed command-binding declaration shared with config.example.json."""
+    config = json.loads(
+        Path(__file__).with_name("config.example.json").read_text(encoding="utf-8")
+    )
+    for item in config["client_config"]["clients"]["execution"]["settings"]["bindings"]:
+        if item["mount"] == "broker.orders":
+            return item["command_binding"]
+    raise RuntimeError("LOCAL_SYNTHETIC_COMMAND_BINDING_MISSING")
+
+
 def _service_config(endpoint: str) -> dict[str, Any]:
     return {
         "service_config_schema_version": 1,
@@ -159,7 +184,9 @@ def _service_config(endpoint: str) -> dict[str, Any]:
                 "settings": {
                     "instance_id": _INSTANCE_ID,
                     "bind_ports": ["service.order_entry", "service.order_query"],
-                    "options": {"role": "account_owner"},
+                    # Typed-only order entry (iteration 60): the same
+                    # declaration as the client's broker.orders route.
+                    "options": {"role": "account_owner", "command_bindings": [_command_binding()]},
                 },
             }
         },
@@ -314,7 +341,7 @@ def _start_local_service(endpoint: str, directory: Path, keys: dict[str, bytes])
     process.start()
     child.close()
     host = {"process": process, "pipe": parent}
-    if not parent.poll(15.0):
+    if not parent.poll(60.0):  # spawn + imports can take this long on a loaded host
         _bound_failed_process_close(process)
         parent.close()
         raise RuntimeError("LOCAL_SYNTHETIC_HOST_START_TIMEOUT")
@@ -427,7 +454,7 @@ def _validate_local_config(parsed: Any, endpoint: str) -> tuple[str, str]:
 
 
 def _make_cerebro(csv_path: Path) -> tuple[bt.Cerebro, BtApiStore, Any]:
-    api = _SyntheticEmptyLegacyClient()
+    api = _SyntheticNoWriteFacade()
     store = BtApiStore(
         provider="okx",
         api=api,

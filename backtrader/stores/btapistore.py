@@ -667,6 +667,28 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         return self._connected
 
     @property
+    def uses_async_commands(self) -> bool:
+        """Whether this SDK facade exposes the typed asynchronous command contract.
+
+        Restored in iteration 60: the iteration-53 split removed the property
+        while ``store_lifecycle``, ``store_event_dispatch``, the reconciliation
+        bridge and ``BtApiBroker`` still read it, so every SDK-mode start
+        failed with ``AttributeError`` and the Broker silently treated SDK
+        Stores as synchronous.
+        """
+        import inspect
+
+        api = self._api
+        return bool(
+            self._sdk_mode
+            and api is not None
+            and all(
+                inspect.iscoroutinefunction(getattr(api, name, None))
+                for name in ("async_make_order", "async_cancel_order", "async_query_order")
+            )
+        )
+
+    @property
     def sdk_api(self) -> Any:
         """Return no raw API for retired gateway/forwarding routes.
 

@@ -263,6 +263,10 @@ def value_strategy_book(
         raise ServiceStrategyAccountBookError("STRATEGY_FX_UNAVAILABLE")
     positions, values, used_multipliers = {}, {}, {}
     for instrument, quantity in snapshot.positions.items():
+        if quantity < 0:
+            # The spot-cost model has no borrow or margin facts: a short is
+            # refused, never netted into equity (iteration 60, report item 6).
+            raise ServiceStrategyAccountBookError("STRATEGY_SHORT_POSITION_UNSUPPORTED")
         if quantity == 0:
             continue
         cost = snapshot.position_costs.get(instrument)

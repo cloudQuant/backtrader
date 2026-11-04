@@ -1,5 +1,18 @@
 # Configured execution session with Cerebro
 
+> Iteration 60 status (2026-11-04): the strategy client's `broker.orders` route
+> and the local service's execution `account_owner` both declare the same typed
+> `command_binding` (`config.example.json`), so orders travel as typed commands
+> only. The Store now takes a unified `bt_api_py` facade instead of the retired
+> legacy client. An SDK-mode Store must prove its account (balances, positions,
+> account-risk baseline and a clean startup reconciliation) through the facade's
+> account ports before Cerebro trades; this example's synthetic facade has no
+> account ports and invents no account evidence, so the run refuses at Store
+> start (fail closed) unless a real SDK facade is supplied. The full local run
+> loop - typed submit, managed-order refresh, fills and a clean flat shutdown -
+> is exercised by `tests/integration/test_iter60_service_session_cerebro_curve.py`
+> (INTEGRATION_SIM, with a test-only account seam).
+
 > Iteration 53 migration status (2026-11-01): this example uses the candidate path `backtrader.service.service_execution_session`.
 > The directory move has not passed structural, import, distribution, or behavior acceptance.
 > This remains a local synthetic no-write example; it does not establish production provider callbacks, account evidence, reconnect behavior, or BT01/BT02 acceptance.

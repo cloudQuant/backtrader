@@ -17,7 +17,27 @@
               "scope_ref": "local-synthetic-orders-v1",
               "transport_ref": "local-synthetic-rpc-v1",
               "account_ref": "local-synthetic-account",
-              "required": true
+              "required": true,
+              "command_binding": {
+                "binding_schema_version": 1,
+                "account_key": {
+                  "provider": "paper",
+                  "venue": "paper",
+                  "environment": "simulation",
+                  "account_id": "local-synthetic-account"
+                },
+                "instruments": [
+                  {
+                    "provider": "paper",
+                    "venue": "paper",
+                    "environment": "simulation",
+                    "product_type": "spot",
+                    "instrument_id": "SYNTHETIC-LOCAL",
+                    "native_symbol": "SYNTHETIC-LOCAL"
+                  }
+                ],
+                "quantity_unit": "base"
+              }
             },
             {
               "mount": "broker.order_query",

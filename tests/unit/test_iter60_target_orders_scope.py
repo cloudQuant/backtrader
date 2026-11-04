@@ -435,6 +435,32 @@ def test_futures_terms_in_the_book_are_not_valued(tmp_path):
         ledger.close()
 
 
+def test_a_short_position_is_refused_before_it_can_be_valued(tmp_path):
+    """Spot-cost valuation has no borrow/margin facts: a short is never netted.
+
+    The SDK ledger refuses opening a short in a capital book; a snapshot that
+    carries one anyway (another host's model) is refused by the valuation.
+    """
+
+    import dataclasses
+
+    from backtrader.service.service_strategy_account_book import (
+        ServiceStrategyAccountBookError,
+        value_strategy_book,
+    )
+
+    ledger, totals = _ledger(tmp_path, holdings={"A": {"X": 2}})
+    try:
+        with pytest.raises(Exception, match="POSITION_FLIP_REFUSED"):
+            ledger.reserve(LedgerIntent("A-X-flip", "A", "X", "SELL", Decimal("5"), Decimal("100")))
+        snapshot = ledger.reader("A", account_positions=lambda: _report(totals)).snapshot()
+        shorted = dataclasses.replace(snapshot, positions={"X": Decimal("-2")})
+        with pytest.raises(ServiceStrategyAccountBookError, match="STRATEGY_SHORT_POSITION_UNSUPPORTED"):
+            value_strategy_book(shorted, marks={"X": Decimal("100")}, multipliers={"X": 1.0})
+    finally:
+        ledger.close()
+
+
 def test_second_cash_currency_without_fx_is_refused(tmp_path):
     ledger, totals = _ledger(
         tmp_path, holdings={"A": {"X": 2}}, fee={"fee": "0.01", "fee_currency": "BNB"}

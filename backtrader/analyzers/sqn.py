@@ -79,8 +79,25 @@ class SQN(Analyzer):
             trade: The trade object that was closed.
         """
         if trade.status == trade.Closed:
+            self.__dict__.setdefault("_closed_index", {})[trade.ref] = len(self.pnl)
             self.pnl.append(trade.pnlcomm)
             self.count += 1
+
+    def notify_fee_correction(self, order, trade, delta, currency):
+        """Apply a late provider fee to a closed trade's net P&L (iteration 60).
+
+        ``trade`` already carries the corrected ``pnlcomm``; the stored value
+        of that closed trade is replaced so the SQN at ``stop`` uses it. A
+        trade still open needs nothing (its corrected ``pnlcomm`` is used when
+        it closes); a trade this analyzer never saw closed (for example one of
+        an earlier process after a restart) is left alone.
+        """
+        if trade is None:
+            return
+        index = self.__dict__.get("_closed_index", {}).get(getattr(trade, "ref", None))
+        if index is None:
+            return
+        self.pnl[index] = trade.pnlcomm
 
     # Stop, calculate SQN indicator, if trade count > 0, SQN equals average trade profit * sqrt(trade count) / standard deviation of trade profit
     def stop(self):

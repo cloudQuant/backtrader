@@ -2106,8 +2106,15 @@ class BtApiBroker(
             self._freeze_order_execution_contract(order, replace=True)
             if self.store is None:
                 raise ValueError("BtApiBroker requires a BtApiStore instance")
-            correlation = self._prepare_order_correlation(order)
-            self._order_correlations[order.ref] = correlation
+            # A managed route (ServiceExecutionSession, managed runtime) owns
+            # the write identity and verifies its typed result itself; the
+            # direct SDK correlation applies only to Store-dispatched writes.
+            # (Iteration 60: the iteration-53 split required it for every
+            # SDK-mode write, so every managed order became UNKNOWN.)
+            managed_route = bool(getattr(self.store, "managed_execution_active", False))
+            if not managed_route:
+                correlation = self._prepare_order_correlation(order)
+                self._order_correlations[order.ref] = correlation
             # Iteration 60 (G1): early owner pre-check, then a synchronous
             # Store write runs under an SDK dispatch lease (queued Stores
             # take the lease in their command worker).
@@ -2138,7 +2145,7 @@ class BtApiBroker(
                 order.addinfo(submit_command_queued=True)
                 self.notify(order)
                 return order
-            if not self._verify_order_response(correlation, response):
+            if not managed_route and not self._verify_order_response(correlation, response):
                 return self._accept_unknown_submission(
                     order,
                     RuntimeError("sdk_order_response_unverified"),
@@ -2156,6 +2163,8 @@ class BtApiBroker(
                     self._recovery_orders_by_intent[intent_id] = order
                 self._defer_service_execution_recovery_snapshot_notification(order)
                 return order
+            if managed_route:
+                return self._apply_managed_submit_projection(order, response)
             if (
                 isinstance(response, Mapping)
                 and response.get("kind") == "command_receipt"
@@ -4688,6 +4697,274 @@ class BtApiBroker(
             or self._order_info_get(order, "cancel_execution_unknown", False)
         )
 
+    def _apply_managed_submit_projection(self, order, response):
+        """Project a managed route's submit result (iteration 60 restoration).
+
+        The managed adapter (``ServiceExecutionAdapter`` and the SDK typed
+        client behind it) has already verified its typed result; it is not an
+        SDK direct acknowledgement and is not re-verified as one. A definite
+        rejection rejects the order; an UNKNOWN keeps it Submitted and marked
+        ``execution_unknown`` (never accepted or filled); anything else accepts
+        it, and a fill already in the record is applied through the ordinary
+        update path exactly as ``refresh_managed_orders`` would.
+        """
+        if not isinstance(response, Mapping):
+            order.addinfo(
+                execution_unknown=True,
+                error_code="invalid_managed_execution_projection",
+                error_msg="Managed execution projection is invalid; reconcile the original intent",
+            )
+            self.orders[order.ref] = order
+            self.notify(order)
+            return order
+        unknown = (
+            response.get("execution_unknown") is True
+            or response.get("service_execution_state") == "UNKNOWN"
+        )
+        if response.get("status") == "rejected" and not unknown:
+            self._attach_remote_error_code(order, response)
+            return self._reject_order(
+                order,
+                str(response.get("error_code") or "managed_submit_rejected"),
+                str(response.get("error_msg") or "The managed route rejected the order"),
+            )
+        for key in ("managed_intent_id", "service_execution_state", "service_record_revision"):
+            value = response.get(key)
+            if value is not None:
+                order.addinfo(**{key: value})
+        unit = response.get("quantity_unit")
+        if type(unit) is str and unit:
+            # Fills of this order are bound to the typed route's unit.
+            order.addinfo(quantity_unit=unit)
+            self._freeze_order_execution_contract(order, replace=True)
+        self._cache_order_identifiers(order, response)
+        self.orders[order.ref] = order
+        if unknown:
+            order.addinfo(
+                execution_unknown=True,
+                error_code=str(response.get("error_code") or "managed_submit_unknown"),
+                error_msg=str(
+                    response.get("error_msg")
+                    or "The managed submit outcome is unknown; reconcile the original intent"
+                ),
+            )
+            self.notify(order)
+            return order
+        order.accept(self)
+        self.notify(order)
+        if response.get("filled") is not None and response.get("managed_execution_replayed") is not True:
+            self._apply_managed_record(order, response)
+            order.addinfo(
+                service_refresh_applied=(
+                    response.get("service_execution_state"),
+                    response.get("service_record_revision"),
+                    response.get("status"),
+                    response.get("execution_unknown"),
+                    response.get("filled"),
+                    response.get("price"),
+                    response.get("avg_price"),
+                )
+            )
+        return order
+
+    def refresh_managed_orders(self, *, limit: int = 32):
+        """Apply current durable service records to managed orders.
+
+        Live managed orders go through the ordinary update path.  A managed order
+        that already terminated locally is read too, but only while it still
+        carries an uncertainty marker, and its record is projected through
+        :meth:`apply_confirmed_terminal_observation`.
+
+        The caller owns the schedule; this method performs one bounded pass and
+        returns the framework order refs whose state was applied.  ``limit``
+        bounds every adapter refresh attempt, including missing, replayed, or
+        unchanged projections.  Live managed orders rotate fairly between
+        passes so an unchanged early order cannot consume an unbounded pass or
+        starve later orders.  Each application goes through the ordinary update
+        path, and an unchanged durable revision is skipped so the same state is
+        never booked twice.  A store or adapter without refresh support raises
+        instead of silently doing nothing.
+        Restored in iteration 60: the iteration-53 split had dropped it, so
+        ``ServiceExecutionSession`` could not start its refresh loop
+        (``BROKER_CANNOT_REFRESH``).
+        """
+
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("refresh limit must be a positive integer")
+        if self.store is None:
+            raise ValueError("BtApiBroker requires a BtApiStore instance")
+        refresh = getattr(self.store, "refresh_managed_order_projection", None)
+        if not callable(refresh):
+            raise ValueError("store does not support managed order refresh")
+
+        eligible_orders = []
+        eligible_order_ids = set()
+        for order in list(self.orders.values()):
+            if not self._order_info_get(order, "managed_intent_id"):
+                continue
+            if not order.alive() and not self._order_is_uncertain(order):
+                continue
+            order_id = id(order)
+            if order_id not in eligible_order_ids:
+                eligible_order_ids.add(order_id)
+                eligible_orders.append(order)
+
+        # Keep the current round-robin position while pruning orders that were
+        # removed, became terminal, or stopped being managed between passes.
+        # Identity keys avoid relying on framework-order equality semantics.
+        eligible_by_id = {id(order): order for order in eligible_orders}
+        queue = collections.deque()
+        queued_order_ids = set()
+        for order in getattr(self, "_managed_refresh_order_queue", ()):
+            order_id = id(order)
+            if order_id in eligible_by_id and order_id not in queued_order_ids:
+                queue.append(eligible_by_id[order_id])
+                queued_order_ids.add(order_id)
+        for order in eligible_orders:
+            order_id = id(order)
+            if order_id not in queued_order_ids:
+                queue.append(order)
+                queued_order_ids.add(order_id)
+        self._managed_refresh_order_queue = queue
+
+        applied = []
+        visits_remaining = len(queue)
+        attempts = 0
+        while visits_remaining and attempts < limit:
+            order = queue.popleft()
+            queue.append(order)
+            visits_remaining -= 1
+
+            # An update earlier in this pass, or another caller, may have made
+            # this candidate terminal before its turn arrives; a terminal order
+            # stays eligible only while its own fate remains unresolved.
+            if not self._order_info_get(order, "managed_intent_id"):
+                continue
+            if not order.alive() and not self._order_is_uncertain(order):
+                continue
+
+            # Rotate before entering Store/adapter code. If refresh raises, the
+            # following pass still begins with the next managed order.
+            attempts += 1
+            try:
+                projection = refresh(order)
+            except ServiceExecutionReadError as error:
+                error.applied_refs = tuple(applied)
+                order.addinfo(
+                    execution_unknown=True,
+                    service_refresh_error_code=error.code,
+                    service_read_unavailable=True,
+                )
+                raise
+            if not order.alive():
+                # The strategy already saw this order terminate, so re-entering
+                # the update path here would notify the same state a second time.
+                if self.apply_confirmed_terminal_observation(
+                    order, projection, source="managed_service_projection"
+                ):
+                    applied.append(getattr(order, "ref", None))
+                continue
+            if not isinstance(projection, dict):
+                continue
+
+            # A successful durable read resolves the read failure even when
+            # the service returns the same revision and the projection is
+            # otherwise skipped below. A successful UNKNOWN or an unrecognized
+            # never-seen record remains a business uncertainty and keeps
+            # execution_unknown; a known record that disappeared raises above.
+            service_read_unavailable = bool(
+                self._order_info_get(order, "service_read_unavailable", False)
+            )
+            if service_read_unavailable:
+                order.addinfo(
+                    service_refresh_error_code=None,
+                    service_read_unavailable=False,
+                )
+                has_known_non_unknown_state = (
+                    projection.get("service_execution_state") not in (None, "UNKNOWN")
+                    and projection.get("execution_unknown") is not True
+                )
+                if has_known_non_unknown_state:
+                    order.addinfo(execution_unknown=False)
+            if projection.get("managed_execution_replayed") is True:
+                continue
+            # A repeat projection of the same durable revision must not be
+            # applied again: applying it would notify the strategy a second
+            # time for a state it already saw.
+            fingerprint = (
+                projection.get("service_execution_state"),
+                projection.get("service_record_revision"),
+                projection.get("status"),
+                projection.get("execution_unknown"),
+                projection.get("filled"),
+                projection.get("price"),
+                projection.get("avg_price"),
+            )
+            if self._order_info_get(order, "service_refresh_applied") == fingerprint:
+                continue
+            if self._apply_managed_record(order, projection):
+                order.addinfo(service_refresh_applied=fingerprint)
+                applied.append(getattr(order, "ref", None))
+                continue
+            update = dict(projection)
+            update.setdefault("bt_order_ref", getattr(order, "ref", None))
+            update.setdefault("data_name", self._position_key(order.data))
+            update.setdefault("side", "buy" if order.isbuy() else "sell")
+            self._apply_order_update(update)
+            order.addinfo(service_refresh_applied=fingerprint)
+            applied.append(getattr(order, "ref", None))
+        return tuple(applied)
+
+    def _apply_managed_record(self, order, projection):
+        """Project one durable managed-route record of a live order; ``True`` if handled.
+
+        Only for a live managed route without the recovery journal (the
+        recovery variant keeps its own receipts). The execution owner's
+        durable record is the authority for its managed order: a cumulative
+        fill is booked once through the cumulative-checkpoint rule (an
+        unpriced or fee-less fill is not booked; no fill is invented), and a
+        definite terminal state ends the order with the recorded fill size.
+        """
+        if (
+            projection.get("kind") != "service_execution_record"
+            or self._uses_service_execution_recovery()
+            or not bool(getattr(self.store, "managed_execution_active", False))
+            or projection.get("execution_unknown") is True
+        ):
+            return False
+        status = projection.get("status")
+        if projection.get("filled") is not None:
+            update = {
+                "kind": "order",
+                "execution_source": "cumulative",
+                "status": status,
+                "filled_quantity": projection.get("filled"),
+                "average_price": projection.get("avg_price") or projection.get("price"),
+                "cumulative_commission": projection.get("cumulative_commission"),
+                "fee_currency": projection.get("fee_currency"),
+                "bt_order_ref": getattr(order, "ref", None),
+                "data_name": self._position_key(order.data),
+                "side": "buy" if order.isbuy() else "sell",
+                "managed_intent_id": projection.get("managed_intent_id"),
+                "quantity_unit": (self._order_execution_contracts.get(order.ref) or {}).get(
+                    "quantity_unit"
+                ),
+            }
+            self._apply_trade_from_order_update(order, update, managed_route=True)
+            return True
+        if status in {"rejected", "canceled", "expired"}:
+            update = dict(projection)
+            update.update(
+                terminal_confirmed=True,
+                filled_quantity=format(abs(float(order.executed.size or 0.0)), "f"),
+                bt_order_ref=getattr(order, "ref", None),
+                data_name=self._position_key(order.data),
+                side="buy" if order.isbuy() else "sell",
+            )
+            self._apply_order_update(update)
+            return True
+        return False
+
     def apply_confirmed_terminal_observation(self, order, observation, *, source=None):
         """Resolve uncertainty markers from a late provider-confirmed terminal fact.
 
@@ -4928,12 +5205,13 @@ class BtApiBroker(
 
         return canonical_broker_order_status(status)
 
-    def _apply_trade_from_order_update(self, order, update):
-        """Apply only the private service-recovery cumulative checkpoint."""
-        if (
+    def _apply_trade_from_order_update(self, order, update, *, managed_route=False):
+        """Apply a service cumulative checkpoint (recovery, or a live managed route)."""
+        if update.get("execution_source") != "cumulative":
+            return "ignored"
+        if not managed_route and (
             not self._uses_service_execution_recovery()
             or not bool(self._order_info_get(order, "service_execution_recovery_managed", False))
-            or update.get("execution_source") != "cumulative"
         ):
             return "ignored"
         if bool(self._order_info_get(order, "ledger_mismatch", False)):
@@ -4978,18 +5256,31 @@ class BtApiBroker(
             return "ignored"
         if not math.isfinite(average_price) or average_price <= 0:
             return "ignored"
-        if update.get("cumulative_commission") in (None, ""):
-            return "ignored"
-        try:
-            cumulative_commission = float(update["cumulative_commission"])
-            prior_commission = float(order.executed.comm or 0.0)
-        except (TypeError, ValueError):
-            return "ignored"
-        if not math.isfinite(cumulative_commission) or not math.isfinite(prior_commission):
-            return "ignored"
         currency = update.get("fee_currency")
-        if type(currency) is not str or not currency:
+        fee_known = update.get("cumulative_commission") not in (None, "") and (
+            type(currency) is str and bool(currency)
+        )
+        if not fee_known and not managed_route:
             return "ignored"
+        fee_fields = {}
+        if fee_known:
+            try:
+                cumulative_commission = float(update["cumulative_commission"])
+                prior_commission = float(order.executed.comm or 0.0)
+            except (TypeError, ValueError):
+                return "ignored"
+            if not math.isfinite(cumulative_commission) or not math.isfinite(prior_commission):
+                return "ignored"
+            fee_fields = {
+                "fee": cumulative_commission - prior_commission,
+                "fee_currency": currency,
+                "fee_unit": "currency",
+            }
+        else:
+            # A managed record without a fee currency (the SDK service order
+            # record carries none): the fill is a recorded fact, its fee is
+            # unknown - booked without a fee, never as zero.
+            order.addinfo(managed_commission_currency_unavailable=True)
 
         incremental_price = (
             cumulative_filled * average_price
@@ -4998,13 +5289,13 @@ class BtApiBroker(
         if not math.isfinite(incremental_price) or incremental_price <= 0:
             return "ignored"
         trade_update = dict(update)
+        for name in ("fee", "fee_currency", "fee_unit", "cumulative_commission"):
+            trade_update.pop(name, None)
         trade_update.update(
             kind="trade",
             quantity=incremental_fill,
             price=incremental_price,
-            fee=cumulative_commission - prior_commission,
-            fee_currency=currency,
-            fee_unit="currency",
+            **fee_fields,
         )
         trade_update.setdefault("side", "buy" if order.isbuy() else "sell")
         result = self._apply_trade_update(

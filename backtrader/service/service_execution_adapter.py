@@ -405,7 +405,21 @@ class ServiceExecutionAdapter(ServiceExecutionRecoveryMixin):
         self._projected_revisions[intent_id] = getattr(view, "updated_at_ns", None)
         if view is not None:
             self._known_record_intents.add(intent_id)
-        return _submission_projection(view, data_name=_data_name(order), replayed=replayed)
+        projection = _submission_projection(view, data_name=_data_name(order), replayed=replayed)
+        unit = self.command_quantity_unit
+        if unit is not None:
+            # The typed route's neutral quantity unit (its command binding):
+            # the Broker binds the order's fills to it.
+            projection = {**projection, "quantity_unit": unit}
+        return projection
+
+    @property
+    def command_quantity_unit(self) -> Optional[str]:
+        """The neutral quantity unit of the typed write route, if it has a binding."""
+
+        binding = getattr(self._client, "command_binding", None)
+        unit = getattr(binding, "quantity_unit", None)
+        return unit if type(unit) is str and unit else None
 
     # -- refresh ------------------------------------------------------------
 
@@ -697,6 +711,9 @@ def _submission_projection(
                 commission = _decimal_text(getattr(view, "cumulative_commission", None))
                 if commission is not None:
                     projection["cumulative_commission"] = commission
+                    currency = _view_text(view, "cumulative_commission_currency")
+                    if currency is not None:
+                        projection["fee_currency"] = currency
                 return _mark_replay(projection, state) if replayed else projection
             # A fill the framework cannot size or price exactly must not be
             # reported as one; the order stays accepted and the caller
