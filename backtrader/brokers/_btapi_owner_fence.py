@@ -16,7 +16,13 @@ A handoff's QUIESCE is the exclusive side: after it commits no new lease is
 granted, and leases already running are waited for or recorded UNKNOWN. The
 Broker pre-check (``_account_owner_fence_error``) remains an early, local
 rejection only. Matching ledger and owner account references are names, not
-provider authentication; cross-host exclusivity is not proven here.
+provider authentication.
+
+A host-local ``AccountOwnerHandoff`` coordinates one host. For several hosts
+the Broker binds a ``bt_api_py.account_writer_authority.RemoteAccountOwnerHandoff``
+instead: the same surface, but the owner holds a TTL writer lease of one
+writer authority and every dispatch lease is granted by that authority (see
+the SDK module for the takeover and revocation rules and their limits).
 """
 
 from __future__ import annotations
@@ -53,6 +59,32 @@ def _account_references_match(broker, handoff) -> bool:
         )
     except Exception:
         return False
+
+
+#: Lease refusals meaning "this process may not write for the account now".
+_FENCED_CODES = frozenset(
+    {
+        "HANDOFF_DISPATCH_FENCED",
+        "HANDOFF_HOST_OWNER_LOCK_NOT_HELD",
+        "HANDOFF_WRITER_LEASE_NOT_HELD",
+        "HANDOFF_WRITER_LEASE_EXPIRED",
+        "HANDOFF_WRITER_LEASE_EXPIRING",
+        "HANDOFF_NO_GO_PREVIOUS_SESSION_NOT_REVOKED",
+        "HANDOFF_AUTHORITY_UNAVAILABLE",
+    }
+)
+
+
+def _handoff_types() -> tuple[type, ...]:
+    """Exact SDK handoff types a Broker may bind (host-local or writer authority)."""
+
+    from bt_api_py.account_owner_handoff import AccountOwnerHandoff
+
+    try:
+        from bt_api_py.account_writer_authority import RemoteAccountOwnerHandoff
+    except ImportError:  # an older SDK without the writer authority
+        return (AccountOwnerHandoff,)
+    return (AccountOwnerHandoff, RemoteAccountOwnerHandoff)
 
 
 class AccountOwnerLeaseRefused(RuntimeError):
@@ -145,9 +177,7 @@ class AccountOwnerFenceBrokerMixin:
         owner (or back again) this Broker instance never dispatches again.
         """
 
-        from bt_api_py.account_owner_handoff import AccountOwnerHandoff
-
-        if type(handoff) is not AccountOwnerHandoff:
+        if type(handoff) not in _handoff_types():
             raise ValueError("a bt_api_py AccountOwnerHandoff is required")
         if self._account_owner_fence is not None:
             raise ValueError("this broker is already bound to an account owner")
@@ -159,7 +189,9 @@ class AccountOwnerFenceBrokerMixin:
         if owner != owner_id or handoff.stage is not None:
             raise ValueError("owner_id is not the current account owner")
         if handoff.holds_owner_lock != owner_id:
-            raise ValueError("this process does not hold the host owner lock for owner_id")
+            raise ValueError(
+                "this process does not hold the host owner lock (or writer lease) for owner_id"
+            )
         fence = AccountOwnerDispatchFence(self, handoff, owner_id, generation)
         store = getattr(self, "store", None)
         bind_store = getattr(store, "bind_account_owner_fence", None)
@@ -217,7 +249,7 @@ class AccountOwnerFenceBrokerMixin:
                 operation, self._account_owner_dispatch_intent(order, operation)
             )
         except AccountOwnerLeaseRefused as error:
-            if error.code in {"HANDOFF_DISPATCH_FENCED", "HANDOFF_HOST_OWNER_LOCK_NOT_HELD"}:
+            if error.code in _FENCED_CODES:
                 code = "account_owner_fenced"
             elif error.code == "HANDOFF_DISPATCH_INTENT_ALREADY_SENT":
                 code = "account_owner_intent_already_sent"
