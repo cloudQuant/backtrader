@@ -25,24 +25,9 @@ from matplotlib.ticker import FuncFormatter
 
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+from backtrader.utils.paths import data_path
 
 BASE_DIR = Path(__file__).resolve().parent
-
-
-def resolve_data_path(filename: str) -> Path:
-    """Resolve leaf, shared example, optional data-dir, or caller-relative inputs."""
-    candidates = [BASE_DIR / filename, BASE_DIR.parents[1] / "data" / filename]
-    data_dir = os.environ.get("BACKTRADER_DATA_DIR")
-    if data_dir:
-        candidates.append(Path(data_dir).expanduser() / filename)
-    candidates.append(Path(filename))
-
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-
-    searched = ", ".join(str(path.resolve()) for path in candidates)
-    raise FileNotFoundError(f"Data file not found: {filename}. Tried paths: {searched}")
 
 
 def setup_chinese_font():
@@ -158,7 +143,7 @@ class ExtendPandasFeed(bt.feeds.PandasData):
 
 def clean_data():
     """Clean convertible bond data."""
-    df = pd.read_csv(resolve_data_path("bond_merged_all_data.csv"))
+    df = pd.read_csv(data_path("tests/datas/bond_merged_all_data.csv"))
     df.columns = [
         "symbol",
         "bond_symbol",
@@ -426,7 +411,7 @@ def run_test_strategy(max_bonds=None, stdstats=True):
     )
     # Add index data
     print("Loading index data...")
-    index_data = pd.read_csv(resolve_data_path("bond_index_000000.csv"))
+    index_data = pd.read_csv(data_path("tests/datas/bond_index_000000.csv"))
     index_data.index = pd.to_datetime(index_data["datetime"])
     index_data = index_data[index_data.index > pd.to_datetime("2018-01-01")]
     index_data = index_data.drop(["datetime"], axis=1)

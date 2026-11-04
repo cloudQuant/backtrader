@@ -17,7 +17,6 @@ from backtrader.research import (
     FactorHistoryContract,
     FactorIndicator,
     FactorSpec,
-    FactorStrategy,
     LiveFactorPlan,
     LiveFactorOutputStatus,
     LiveFactorReadiness,
@@ -35,6 +34,7 @@ from backtrader.research.live import _executed_graph_span
 from backtrader.research.operators import CrossSectionalRank
 from backtrader.research.strict import live_source_binding_active, live_source_binding_scope
 from backtrader.research.alpha101 import get_alpha
+from backtrader.strategies.factor_strategy import FactorStrategy
 
 
 UTC = timezone.utc

@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
+from backtrader.utils.paths import find_project_root
+
 
 FACTOR_NAME = "alpha003"
 FACTOR_MODES = ("native", "build")
@@ -60,17 +62,7 @@ class RunIdentityConflictError(RuntimeError):
 
 
 def _repo_root() -> Path:
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "backtrader" / "__init__.py").is_file():
-            return parent
-    raise RuntimeError("could not locate the Backtrader checkout")
-
-
-def _add_checkout_root() -> Path:
-    root = _repo_root()
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
-    return root
+    return find_project_root(__file__)
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -139,6 +131,26 @@ def _module_source_path(module: Any) -> Optional[str]:
     if not isinstance(filename, str) or not filename:
         return None
     return str(Path(filename).resolve())
+
+
+def _factor_strategy_source_path(root: Path, strategy_class: Any) -> str:
+    module_name = "backtrader.strategies.factor_strategy"
+    module = sys.modules.get(module_name)
+    source = _module_source_path(module)
+    expected = (root / "backtrader" / "strategies" / "factor_strategy.py").resolve()
+    try:
+        expected.relative_to(root.resolve())
+    except ValueError as exc:
+        raise ImportError("FactorStrategy source resolves outside selected checkout: %s" % expected) from exc
+    if (
+        strategy_class.__module__ != module_name
+        or getattr(module, "FactorStrategy", None) is not strategy_class
+        or source is None
+        or Path(source) != expected
+        or not expected.is_file()
+    ):
+        raise ImportError("FactorStrategy source does not match selected checkout: %s" % source)
+    return source
 
 
 def _parse_local_times(values: pd.Series, label: str) -> pd.DatetimeIndex:
@@ -422,7 +434,6 @@ def _resolve_factor_mode(factor_mode: Optional[str]) -> str:
 
 
 def _params(root: Path, factor_mode: str = "native") -> Dict[str, Any]:
-    _add_checkout_root()
     import backtrader as bt
     from backtrader.research.alpha101 import get_alpha
 
@@ -605,7 +616,7 @@ def _cache_chunk(
 
 
 def _run_worker(config_path: Path) -> None:
-    root = _add_checkout_root()
+    root = _repo_root()
     config = json.loads(config_path.read_text(encoding="utf-8"))
     factor_mode = _resolve_factor_mode(config.get("factor_mode"))
     params = _params(root, factor_mode)
@@ -633,17 +644,18 @@ def _run_worker(config_path: Path) -> None:
     open_utc = open_local.tz_localize(SOURCE_TIMEZONE).tz_convert("UTC")
     research_grid = pd.DataFrame({"open_time": open_utc}, index=grid_index)
 
-    _add_checkout_root()
     import backtrader as bt
     from backtrader.brokers.bbroker import BackBroker
     from backtrader.research import (
         FactorSpec,
-        FactorStrategy,
         MemorySink,
         ResearchSpec,
         align_to_grid,
     )
     from backtrader.research.alpha101 import get_alpha
+    from backtrader.strategies.factor_strategy import FactorStrategy
+
+    _factor_strategy_source_path(root, FactorStrategy)
 
     start_close = (
         pd.Timestamp(config["study_first_close"]).tz_localize(SOURCE_TIMEZONE).tz_convert("UTC")
@@ -937,7 +949,10 @@ def _worker_config(
 def _run_parent(
     data_dir: Path, output_dir: Path, chunk_days: int, factor_mode: str = "native"
 ) -> dict:
-    root = _add_checkout_root()
+    root = _repo_root()
+    from backtrader.strategies.factor_strategy import FactorStrategy
+
+    factor_strategy_source_path = _factor_strategy_source_path(root, FactorStrategy)
     factor_mode = _resolve_factor_mode(factor_mode)
     if type(chunk_days) is not int or chunk_days <= 0:
         raise ValueError("chunk_days must be a positive integer")
@@ -1242,9 +1257,7 @@ def _run_parent(
         "source_commit": commit,
         "factor_class": factor_class,
         "factor_mode": factor_mode,
-        "factor_strategy_source_path": str(
-            (root / "backtrader" / "research" / "factor_strategy.py").resolve()
-        ),
+        "factor_strategy_source_path": factor_strategy_source_path,
         "symbol_count": len(entries),
         "symbols_sha256": hashlib.sha256("\n".join(arrays["symbols"]).encode("utf-8")).hexdigest(),
         "grid_count": len(calendar),

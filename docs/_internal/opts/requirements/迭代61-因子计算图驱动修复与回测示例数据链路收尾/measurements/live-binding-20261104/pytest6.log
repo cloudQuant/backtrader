@@ -1,0 +1,21 @@
+..............................................                           [100%]
+=============================== warnings summary ===============================
+test_factor_single_class_modes.py:207
+  /private/tmp/iter61-live-binding.8A3GhSo8/test_factor_single_class_modes.py:207: DeprecationWarning: invalid escape sequence '\['
+    with pytest.raises(ResearchConfigError, match="params\['mode'\]"):
+
+../../../Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+  <unknown>:207: DeprecationWarning: invalid escape sequence '\['
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: /private/tmp/iter61-live-binding.8A3GhSo8/junit6.xml ---
+46 passed, 8 warnings in 1.88s

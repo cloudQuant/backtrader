@@ -1,4 +1,4 @@
-# 可转债双低因子多品种策略
+﻿# 可转债双低因子多品种策略
 
 ## 策略简介
 
@@ -56,40 +56,16 @@
 
 ## 回测示例
 
-```python
-import backtrader as bt
-
-# 加载策略
-
-from strategies.multi_extend_data.strategy import BondConvertTwoFactor, ExtendPandasFeed
-
-cerebro = bt.Cerebro()
-
-# 加载指数数据（用于时间对齐）
-
-index_data = load_index_data('bond_index_000000.csv')
-index_feed = ExtendPandasFeed(dataname=index_data)
-cerebro.adddata(index_feed, name="000000")
-
-# 加载多个可转债数据
-
-bonds = load_bond_data('bond_merged_all_data.csv')
-for symbol, data in bonds.items():
-    feed = ExtendPandasFeed(dataname=data)
-    cerebro.adddata(feed, name=symbol)
-
-# 添加策略
-
-cerebro.addstrategy(BondConvertTwoFactor,
-                    first_factor_weight=0.5,
-                    second_factor_weight=0.5,
-                    hold_percent=20)
-
-# 运行回测
-
-results = cerebro.run()
+从仓库根目录运行：
 
 ```bash
+python examples/backtest/001_multi_extend_data/run.py
+```
+
+入口从 `tests/datas/` 读取 `bond_index_000000.csv` 和
+`bond_merged_all_data.csv`，并读取本示例的配置。策略和 Feed 的本地导入为
+`from strategy_multi_extend_data import BondConvertTwoFactor, ExtendPandasFeed`；
+可按 `run.py` 中的方式创建 Feed 和配置策略。缺少数据时需提供对应仓库夹具。
 
 ## 参考资料
 

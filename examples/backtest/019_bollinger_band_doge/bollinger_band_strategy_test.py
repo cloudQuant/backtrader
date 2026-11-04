@@ -18,6 +18,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import backtrader as bt
+from backtrader.utils.paths import data_path
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -25,7 +26,7 @@ from plotly.subplots import make_subplots
 warnings.filterwarnings('ignore')
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_PATH = BASE_DIR.parents[1] / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+DATA_PATH = data_path("tests/datas/DOGEUSDT_15m_20200710_20260126.csv")
 OUTPUT_DIR = BASE_DIR / "output"
 TEST_RESULTS_DIR = OUTPUT_DIR / "test"
 TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)

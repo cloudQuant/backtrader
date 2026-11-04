@@ -16,7 +16,9 @@
 [交易运行模式标准](../docs/source/advanced/architecture/trading-modes_zh.md)。
 
 支持目录（不是示例，不得成为示例运行的依赖）：`_support/`（仓库级工具与权威材料、
-`sample` fixture）、`data/`（多例共用只读 CSV）、`output/`、`logs/`、`__pycache__/`、`test_results/`（可重建产物）。
+`sample` fixture）、`output/`、`logs/`、`__pycache__/`、`test_results/`（可重建产物）。
+本轮整理的仓库默认数据取自 `tests/datas/`，由 `backtrader.utils.paths.data_path` 按
+项目根解析；部分示例另支持显式外部输入，合成示例可自行生成数据。
 
 四件套标准：`README.md + config.yaml + <name>_strategy.py + run.py`，
 `run.py` 退出码 `0/1/2/3 = PASS/FAIL/BLOCKED/UNKNOWN`，证据写各自 git-ignored 的 `evidence/`。
@@ -46,21 +48,21 @@
 
 | 目录 | 离线入口 | 输入 | 复制到别处 |
 |---|---|---|---|
-| `001_multi_extend_data` | `run.py`（此例不解析 `--dry/--replay`） | `bond_merged_all_data.csv`(70MB) + `bond_index_000000.csv` | ⚠️ 非零退出并点名 `bond_*` |
-| `002_hft_alignment_demo` | `run_backtrader.py` 等 | 目录内合成 `data/` | ✅ Backtrader 默认数据入口；hftbacktest 对齐未在本轮复验 |
+| `001_multi_extend_data` | `run.py`（此例不解析 `--dry/--replay`） | `tests/datas/bond_merged_all_data.csv`(70MB) + `bond_index_000000.csv` | ❌ 需在本 checkout 内运行（数据按项目根解析），缺数据非零退出并点名 |
+| `002_hft_alignment_demo` | `run_backtrader.py` 等 | `tests/datas/binance_bbo_demo/`（4 个演示文件） | ❌ 需在本 checkout 内运行；Backtrader 默认数据入口，hftbacktest 对齐未在本轮复验 |
 | `003_hft_notebook_examples` | `prepare_data.py --skip-download` | 外部 `J:\binance-public-data…\bookTicker\BTCUSDT` | ⚠️ 非零退出并点名缺失文件 |
 | `004_midfreq_demo` `005_midfreq_arbitrage` | `run.py` | 自带数据 | ✅ exit 0 |
-| `006_plots` | `example_bokeh_charts.py` 等 4 个（`plot_plotly_example.py --output output/plotly_example.html` 无浏览器导出） | 目录内 `data/nvda-1999-2014.txt` | ✅（需 UTF-8 控制台，见 §4） |
-| `008_dual_side` | `dual_side_*.py` 3 个 | 目录内 `data/2006-day-001.txt` | ✅ |
-| `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | 目录内 `data/113013.csv`、`data/orcl-1995-2014.txt` | ✅ |
+| `006_plots` | `example_bokeh_charts.py` 等 4 个（`plot_plotly_example.py --output output/plotly_example.html` 无浏览器导出） | `tests/datas/nvda-1999-2014.txt` | ❌ 需在本 checkout 内运行（需 UTF-8 控制台，见 §4） |
+| `008_dual_side` | `dual_side_*.py` 3 个 | `tests/datas/2006-day-001.txt` | ❌ 需在本 checkout 内运行 |
+| `009_trade_logger` | `trade_logger_example.py`、`trade_logger_heikin_ashi_example.py` | `tests/datas/113013.csv`、`orcl-1995-2014.txt` | ❌ 需在本 checkout 内运行 |
 | `011_hft_backtest` | `tick_backtest.py`、`orderbook_backtest.py` | `tests/datas/tick_data/`(7.2MB) | ⚠️ `exit 2` 指示先 `tools/generate_test_data.py`（假通过已修） |
-| `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `XAUUSD_M1.csv`(99MB)，经 `--config` 解析（不支持 `BACKTRADER_DATA_DIR`） | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
-| `025_factor_single` | `run.py`（支持 `--max-symbols/--data-dir/--no-charts/--report/--report-language/--save-panel/--panel`） | `tests/datas/a_stocks` 真实日线；默认均匀抽样500只 | 单因子 Close/MA；评价需含研究 API 的 fincore，缺失时仍输出因子值并以 `PANEL_ONLY` 退出0 |
+| `016_self_similarity` `017_fnn_embedding` | `run.py`（`--config/--mode/--fromdate`） | `tests/datas/XAUUSD_M1.csv`(99MB)，由 `config.yaml` 的 `{repo}` 占位符定位项目根 | ⚠️ 非零退出并点名 `XAUUSD_M1.csv` |
+| `025_factor_single` | `run.py`（支持 `--max-symbols/--data-dir/--no-charts/--report/--report-language/--save-panel/--panel`） | `tests/datas/a_stocks` 真实日线（`config.yaml` 写根相对路径）；默认均匀抽样500只 | 单因子 Close/MA；评价需含研究 API 的 fincore，缺失时仍输出因子值并以 `PANEL_ONLY` 退出0 |
 | `026_factor_multi` | `run.py`（同上） | 同一真实日线面板 | Close/MA、ROC、KDJ 及固定权重合成；支持 `--save-panel`/`--panel` 离线复评 |
 | `027_alpha003_panel_acceptance` | `run.py`（快速真实数据演示，支持 `--report/--report-language`）、`run_daily.py`（全市场分块） | `tests/datas/a_stocks` 真实日线；`run.py` 默认500只 | 生产 `get_alpha(3)`；`run_daily.py` 保留分块/续跑/oracle 验收 |
 
-小数据随目录走（`<leaf>/data/`，逐字节副本 + 漂移守卫）；**大数据不随目录复制**，缺失即 fail-closed 点名，
-绝不静默联网补齐。`003` 是这一范式的既有实现。
+仓库默认夹具统一指向 `tests/datas/`，由 `backtrader.utils.paths` 等工具解析；显式外部路径和合成输入按各示例说明处理。缺少默认输入时应报告原因，默认不静默联网补齐。`003` 的 `data/` 是
+`prepare_data.py` 从外部 binance-public-data 生成的本地产物，不是示例输入副本。
 
 ## 3. live 索引
 
@@ -82,7 +84,7 @@
 | `examples/012_1…015`、`examples/007_ctp` | `examples/unified/<同名>` |
 | `examples/000_live_certification/**` | `examples/live/000_live_certification/**` |
 | `examples/sample*`、`clean_bond_data.py`、`cross_exchange_replay_rules.py`、`strategy_candidate_approval.py`、`demo-approval-trust-root.pem`、`iteration41-runtime-inventory.json` | `examples/_support/…` |
-| `examples/113013.csv`、`bond_index_000000.csv`、`DOGEUSDT_15m_*.csv`、`113013_strategy_result.png` | `examples/data/…` |
+| `examples/113013.csv`、`bond_index_000000.csv`、`DOGEUSDT_15m_*.csv`、`113013_strategy_result.png` | 数据并入 `tests/datas/…`（`examples/data/` 已删除）；结果图归对应示例的 `reports/reference/` |
 
 历史证据文档（`docs/_internal/**` 81 个文件）不改写，其旧路径按"已退役"读；
 `AGENTS.md` 只追加现状说明。
@@ -94,18 +96,19 @@
 
 | 当前路径 | 建议归属 | 迁移时必须处理 |
 |---|---|---|
-| `backtest/018_sma_crossover/` | 已完成 | 策略定义、运行入口、配置、README 与本地 CSV fixture 已归档在同一目录。 |
-| `backtest/019_bollinger_band_doge/` | 已完成 | 共用 `examples/data/` 中的 DOGE 数据；训练和测试产物写入该叶子的忽略 `output/` 目录。 |
+| `backtest/018_sma_crossover/` | 已完成 | 策略定义、运行入口、配置与 README 在同一目录；输入取自 `tests/datas/2006-day-001.txt`（根相对路径）。 |
+| `backtest/019_bollinger_band_doge/` | 已完成 | 读取 `tests/datas/` 中的 DOGE 数据；训练和测试产物写入该叶子的忽略 `output/` 目录。 |
 | `backtest/020_bollinger_binance_optimizer/` | 已完成 | Binance ZIP 数据由调用者提供；新增独立 `--output-dir`，不写到输入目录的父目录。 |
 | `backtest/024_bond_two_factor_rank_legacy/optimize_strategy.py` | 已完成，独立保留 | 与 `001_multi_extend_data` 的并列排名、排序和过期订单处理不同；合并会改变结果，因此单独归档并说明差异。 |
-| `backtest/021_premium_rate_crossover/` | 已完成 | 读取共享 `data/113013.csv`，生成图表写入独立输出目录；旧 PNG 保留在 reference。 |
+| `backtest/021_premium_rate_crossover/` | 已完成 | 读取 `tests/datas/113013.csv`，生成图表写入独立输出目录；旧 PNG 保留在 reference。 |
 | `backtest/022_cryptohftdata_sma/` | 已完成 | 远端历史数据仅在 `--run` 显式授权后请求；先检查可选 SDK 与 API-key 环境变量，缺少条件时阻塞。 |
 | `backtest/023_mixed_mode_backtest/` | 已完成 | 由入口生成本地确定性 tick/bar fixture，不依赖测试数据目录或全仓库生成工具。 |
 
 `examples/test_results/` 是本地运行产物，已加入 `examples/.gitignore`；其中已有文件保留在工作区，不作为示例输入提交。
 `backtest/017_fnn_embedding/` 的模型缓存可能供默认回放使用，保留在 `models/`；历史结果 JSON/CSV/JSONL 与训练日志已移到
 `reports/reference/`，本次运行的新结果、日志和诊断报告写到忽略的 `output/`。`examples/data/113013_strategy_result.png`
-是结果图而非输入数据，已归入对应示例的参考报告。三个 CSV 仍作为只读输入数据保留。
+是结果图而非输入数据，已归入对应示例的参考报告。原 `examples/data/` 的三个只读 CSV 已并入 `tests/datas/`，
+本轮整理的示例夹具副本已删除，相关仓库默认数据路径由 `backtrader.utils.paths` 解析。
 
 ## 6. 保持现有边界的事项
 

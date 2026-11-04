@@ -347,7 +347,9 @@ def test_current_stage_detection_uses_research_api_without_scripts_directory(
 
 
 def test_stage_benchmark_is_loaded_from_host_and_bound_to_selected_root(tmp_path: Path) -> None:
-    module = _load_stage_benchmark(tmp_path)
+    module = _load_stage_benchmark(
+        tmp_path, SimpleNamespace(__name__="backtrader.strategies.factor_strategy")
+    )
 
     assert tmp_path.resolve() == module.REPO_ROOT
     assert module.EXAMPLES["025"] == (tmp_path / "examples" / "backtest" / "025_factor_single")

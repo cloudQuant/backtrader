@@ -1,0 +1,20 @@
+{
+  "broker": {
+    "cancel": 0,
+    "submit": 0
+  },
+  "dates": 35,
+  "evaluation_id": "15ba38b7ea21d40c1919691fe6e785d1ed4689a351e514ef6bc2486dce4a6b3c",
+  "evaluation_status": "OK",
+  "factor_calculation": "RAN",
+  "factor_classes": {
+    "close_ma": "multi_factor_strategy.CloseMAFactor",
+    "kdj_j": "multi_factor_strategy.KDJFactor",
+    "roc": "multi_factor_strategy.ROCFactor"
+  },
+  "factor_mode": "build",
+  "output_dir": "/private/tmp/iter61-eval025026.I5g1dG/026-build-once",
+  "reports": [],
+  "status": "COMPLETED",
+  "symbols": 4
+}

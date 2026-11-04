@@ -1,0 +1,8 @@
+initial cash: 1000.00
+signal: buy
+BUY filled @ 20.00 size=1.00
+signal: sell
+SELL filled @ 1.00 size=-1.00
+final cash: 981.00
+order history: [{'timestamp': 22.0, 'timestamp_ns': 22000000000, 'symbol': 'BTC/USDT', 'side': 'buy', 'status': 'Completed', 'price': 20.0, 'size': 1.0, 'opened': 1.0, 'closed': 0, 'pnl': 0.0, 'commission': 0.0, 'source': 'tick', 'role': 'taker', 'reference_price': 20.0, 'order_ref': 1}, {'timestamp': 25.0, 'timestamp_ns': 25000000000, 'symbol': 'BTC/USDT', 'side': 'sell', 'status': 'Completed', 'price': 1.0, 'size': 1.0, 'opened': 0, 'closed': -1.0, 'pnl': -19.0, 'commission': 0.0, 'source': 'tick', 'role': 'taker', 'reference_price': 1.0, 'order_ref': 2}]
+context attached: True

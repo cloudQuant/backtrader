@@ -1,4 +1,4 @@
-# 原生 Indicator 因子研究
+﻿# 原生 Indicator 因子研究
 
 迭代45把因子计算留在 Backtrader，把标签、IC、多因子合成与报告放在 fincore。所有研究因子继承 `FactorIndicator`；`FactorStrategy` 负责装配和采集，作者不用为每个因子重写策略的 `next()`。
 
@@ -123,11 +123,18 @@ built = FactorSpec("built", alpha, "factor", field_bindings=bindings, mode="buil
 
 ## 装配研究
 
+`FactorStrategy` 现位于 `backtrader.strategies.factor_strategy`。旧的 `backtrader.research.FactorStrategy` 和 `backtrader.research.factor_strategy` 入口已退役；调用者须更新导入。引用旧模块路径的已保存 pickle 可能无法直接加载，不能假定兼容。迭代 61 的迁移与行为验收状态见其内部计划。
+
 调用方提供完整 UTC 网格。索引名为 `close_time`，另有 UTC `open_time` 列；每行是一根真实闭合 bar。网格必须包含预热、研究窗口，以及最长标签所需尾部。不要通过多个 Feed 日期的交集来生成研究日历。
+
+字段以 `feed:target:<line>` 或 `feed:<name>:<line>` 绑定。对使用 `align_to_grid` 的源，缺失窗口按实际绑定的 Feed 和字段检查；具名源的实际投递时钟若与计算网格不一致，会明确报错，避免读取错位值。不同开盘时间本身不意味着收盘时间不一致。
+
+没有对齐元数据，或元数据未覆盖自定义计算字段时，沿用既有回退，不能据此证明该字段历史窗口完整。手工复制私有对齐元数据到包含研究终点之后尾部的 Feed 不属于受支持接线，应使用 `align_to_grid` 返回的 Feed。元数据也不单独证明被复制或篡改的来源。
 
 ```python
 import backtrader as bt
-from backtrader.research import FactorStrategy, MemorySink, ResearchSpec, align_to_grid
+from backtrader.research import MemorySink, ResearchSpec, align_to_grid
+from backtrader.strategies.factor_strategy import FactorStrategy
 
 research = ResearchSpec(
     grid=grid,

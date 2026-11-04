@@ -299,6 +299,7 @@
 | `strategy.py`、`indicator.py`、`observer.py`、`analyzer.py`、`sizer.py`、`signal.py` | 策略和相应组件的公共基类、接口和生命周期。 |
 | `indicators/`、`observers/`、`analyzers/`、`sizers/`、`signals/` | 各自类型的可复用实现；信号、分析与观察不应暗中更改账户。 |
 | `research/` | 因子研究、面板与研究协议；计算仍服从引擎生命周期，下游分析通过既定外部接口接入，不复制其他项目的权威算法。 |
+| `strategies/factor_strategy.py` | 因子研究的 Backtrader 策略装配和同步网格采集；研究协议、因子、面板与 sink 仍归 `research/`，Cerebro 保持唯一调度。迭代 61 迁移和驱动修复已按用户确认的本地证据范围完成；旧 `research.FactorStrategy` 和 `research.factor_strategy` 路径按用户决定退役。 |
 | `plot/`、`bokeh/`、包内 `reports/` | 绘图后端和报告展示；可选展示依赖不应无故成为核心导入前提。 |
 | `channels/`、`channel.py`、`notifications/`、`events.py`、`timer.py` | 按现有公开合同处理通道、事件、通知与定时，不自行引入第二套引擎。 |
 | `live_trading/`、`configs/`、`profiles.py` | 现有实盘配置及辅助能力、无凭据配置模板和配置投影；逐项确认支持状态，不存真实凭据。 |

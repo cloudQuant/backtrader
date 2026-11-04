@@ -53,6 +53,19 @@ def main(argv=None):
         print(f"Blocked: API key environment variable {args.api_key_env!r} is unset. No request made.")
         return 2
 
+    # The feed imports the SDK lazily when it starts, so finding the package
+    # alone does not prove that its client and dependencies are importable.
+    try:
+        from cryptohftdata import CryptoHFTDataClient
+    except ImportError:
+        print(
+            "Blocked: optional SDK unavailable; install backtrader[cryptohftdata]. No request made."
+        )
+        return 2
+    if not callable(CryptoHFTDataClient):
+        print("Blocked: optional SDK client unavailable. No request made.")
+        return 2
+
     cerebro = bt.Cerebro()
     cerebro.adddata(
         bt.feeds.CryptoHFTData(

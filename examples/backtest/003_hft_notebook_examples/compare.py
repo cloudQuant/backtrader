@@ -11,7 +11,7 @@ from dataclasses import asdict
 
 from backtrader.brokers.hft.binance_bbo_compare import compare_binance_bbo_strategy
 
-from common import add_common_arguments, fill_counter, resolve_paths, resolve_runtime
+from common import add_common_arguments, missing_data, hftbacktest_blocked, fill_counter, resolve_paths, resolve_runtime
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -26,7 +26,11 @@ def main() -> int:
         int: Exit code (0 for success).
     """
     args = _build_parser().parse_args()
+    if hftbacktest_blocked():
+        return 2
     paths = resolve_paths(args)
+    if missing_data(paths):
+        return 2
     runtime = resolve_runtime(args)
     result = compare_binance_bbo_strategy(
         strategy_name=args.strategy,

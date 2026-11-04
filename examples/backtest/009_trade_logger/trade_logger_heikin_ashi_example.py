@@ -11,42 +11,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import datetime
 import os
-import sys
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = BASE_DIR.parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 import backtrader as bt
-
-
-
-def resolve_data_path(filename: str) -> Path:
-    """Resolve data file path by searching common locations.
-
-    Args:
-        filename: Name of the data file to locate.
-
-    Returns:
-        Path object pointing to the found data file.
-
-    Raises:
-        FileNotFoundError: If the data file cannot be found in any search path.
-    """
-    search_paths = [
-        BASE_DIR / "data" / filename,
-        BASE_DIR / filename,
-        BASE_DIR.parent / filename,
-        BASE_DIR / "datas" / filename,
-        BASE_DIR.parent / "datas" / filename,
-        PROJECT_ROOT / "tests" / "datas" / filename,
-    ]
-    for p in search_paths:
-        if p.exists():
-            return p
-    raise FileNotFoundError(f"Cannot find data file: {filename}")
+from backtrader.utils.paths import data_path
 
 
 class HeikinAshiStrategy(bt.Strategy):
@@ -133,9 +100,9 @@ def test_heikin_ashi_strategy():
         AssertionError: If any performance metric deviates from expected values.
     """
     cerebro = bt.Cerebro()
-    data_path = resolve_data_path("orcl-1995-2014.txt")
+    datapath = data_path("tests/datas/orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
-        dataname=str(data_path),
+        dataname=str(datapath),
         dtformat='%Y-%m-%d',
         headers=True,
         datetime=0, open=1, high=2, low=3, close=4, volume=6, openinterest=-1,

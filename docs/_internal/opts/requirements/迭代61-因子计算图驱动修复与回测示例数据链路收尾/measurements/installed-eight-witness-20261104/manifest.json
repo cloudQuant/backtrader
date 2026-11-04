@@ -1,0 +1,242 @@
+{
+  "package": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw",
+  "package_artifact_sha256": {
+    "back_trader_python-1.4.0-py3-none-any.whl": "680b057b6b814101bb3aace4235b0af9282a083163e9e286922bfa1a4940e042",
+    "back_trader_python-1.4.0.tar.gz": "ae644f6e26289cdcabdf2108f7f892c12852d17eb9ff45ca11bc25a6a45f096d"
+  },
+  "inputs": {
+    "tests/__init__.py": {
+      "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/__init__.py"
+    },
+    "tests/test_utils/__init__.py": {
+      "sha256": "23b1a42464e9e6384eee94b9f2e2ae9c10c3debfd298ebeba82d8308e7b5446d",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/test_utils/__init__.py"
+    },
+    "tests/test_utils/factories.py": {
+      "sha256": "3b53750547d6ff9fbd7cce8c0b8e9e5c934a7e08448732b3ee608ef21ebd9fe4",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/test_utils/factories.py"
+    },
+    "tests/unit/test_factor_build_expression.py": {
+      "sha256": "a770ae6a70d1ad457d2a5ced6884a0d022012c57697ccb8ca0c95fa469e7c25c",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_factor_build_expression.py"
+    },
+    "tests/unit/test_factor_research_representatives.py": {
+      "sha256": "057dc19d8b4a284fe557ab6dcc328bba376a06c9ae69a91f780969c32c5835a4",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_factor_research_representatives.py"
+    },
+    "tests/test_utils/alpha101_native_harness.py": {
+      "sha256": "f5b7ba48f1624b6705fab954998f427b625debc05f9de7c36f086384d674ae66",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/test_utils/alpha101_native_harness.py"
+    },
+    "tests/test_utils/alpha101_trace_validation.py": {
+      "sha256": "eb28f31f53789c95fb1e4f8b9fbab5cd58b34b1b719d0a669f00dc0d535066c5",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/test_utils/alpha101_trace_validation.py"
+    },
+    "tests/test_utils/alpha101_full_reference.py": {
+      "sha256": "17ef9dff8f298a48b1e370d541bfb847c18122286552a1b7ccd3e181e98eed38",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/test_utils/alpha101_full_reference.py"
+    },
+    "tests/fixtures/research/alpha101_dependencies.json": {
+      "sha256": "38389daf5ba2c13f1a69e9ead38a219448f499e624f9b851bee25e10db5bed1b",
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/fixtures/research/alpha101_dependencies.json"
+    },
+    "tests/unit/test_iter61_factor_formula_oracles.py": {
+      "sha256": "cb86bd0476e0c4518a8df160a716bd14d3b4b71a7cf1ea1ae56b13c0ae1617e4",
+      "source": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-xvju9zek/testroot/tests/unit/test_iter61_factor_formula_oracles.py"
+    },
+    "examples/backtest/025_factor_single/close_ma_factor_strategy.py": {
+      "sha256": "910758794ab31a80b29a58b6d86a40615a1e305785bd5f49ff47be425ea81fbd",
+      "source": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-xvju9zek/testroot/examples/backtest/025_factor_single/close_ma_factor_strategy.py"
+    },
+    "examples/backtest/026_factor_multi/multi_factor_strategy.py": {
+      "sha256": "b795bd5dfa8939210a738c53575de0e18e6327365bcfbbbda6b359d9f6ef9f47",
+      "source": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-xvju9zek/testroot/examples/backtest/026_factor_multi/multi_factor_strategy.py"
+    }
+  },
+  "fixed_test_nodes": [
+    "tests/unit/test_factor_build_expression.py::test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",
+    "tests/unit/test_factor_build_expression.py::test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle",
+    "tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle",
+    "tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle",
+    "tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle"
+  ],
+  "results": {
+    "wheel": {
+      "target": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-wheel",
+      "exit_code": 0,
+      "log": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/out/wheel/pytest.log",
+      "junit": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/out/wheel/junit.xml",
+      "cases": [
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        }
+      ]
+    },
+    "sdist": {
+      "target": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-sdist",
+      "exit_code": 0,
+      "log": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/out/sdist/pytest.log",
+      "junit": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/out/sdist/junit.xml",
+      "cases": [
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_factor_build_expression",
+          "name": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_close_ma_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_roc_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[native-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[native-runonce]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[build-runnext]",
+          "outcome": "passed"
+        },
+        {
+          "classname": "tests.unit.test_iter61_factor_formula_oracles",
+          "name": "test_kdj_independent_oracle[build-runonce]",
+          "outcome": "passed"
+        }
+      ]
+    }
+  }
+}

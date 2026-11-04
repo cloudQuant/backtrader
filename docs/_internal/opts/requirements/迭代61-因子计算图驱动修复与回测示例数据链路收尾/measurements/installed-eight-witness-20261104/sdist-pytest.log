@@ -1,0 +1,26 @@
+PACKAGE_ORIGINS {"backtrader": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-sdist/backtrader/__init__.py", "research": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-sdist/backtrader/research/__init__.py", "strategy": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-sdist/backtrader/strategies/factor_strategy.py", "target": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-7r2itszw/target-sdist"}
+============================= test session starts ==============================
+platform darwin -- Python 3.11.8, pytest-8.4.2, pluggy-1.6.0 -- /Users/yunjinqi/opt/anaconda3/bin/python
+rootdir: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/testroot
+configfile: ../../../../../../../../dev/null
+collecting ... collected 16 items
+
+tests/unit/test_factor_build_expression.py::test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext] PASSED [  6%]
+tests/unit/test_factor_build_expression.py::test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce] PASSED [ 12%]
+tests/unit/test_factor_build_expression.py::test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext] PASSED [ 18%]
+tests/unit/test_factor_build_expression.py::test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce] PASSED [ 25%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle[native-runnext] PASSED [ 31%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle[native-runonce] PASSED [ 37%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle[build-runnext] PASSED [ 43%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle[build-runonce] PASSED [ 50%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle[native-runnext] PASSED [ 56%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle[native-runonce] PASSED [ 62%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle[build-runnext] PASSED [ 68%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle[build-runonce] PASSED [ 75%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle[native-runnext] PASSED [ 81%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle[native-runonce] PASSED [ 87%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle[build-runnext] PASSED [ 93%]
+tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle[build-runonce] PASSED [100%]
+
+- generated xml file: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-eight-witness-o3tk1k8u/out/sdist/junit.xml -
+============================= 16 passed in 12.48s ==============================

@@ -8,23 +8,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
+from backtrader.utils.paths import data_path
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 EXAMPLE_ID = "025_factor_single"
 FACTOR_MODES = ("native", "build")
-
-
-def _add_checkout_root() -> None:
-    """Use this checkout in-place; a copied example uses installed Backtrader."""
-    for parent in SCRIPT_DIR.parents:
-        if (parent / "backtrader" / "__init__.py").is_file():
-            root = str(parent)
-            if root not in sys.path:
-                sys.path.insert(0, root)
-            return
-
-
-_add_checkout_root()
 
 
 def _load_config(path: Path = CONFIG_PATH) -> Dict[str, Any]:
@@ -99,7 +88,8 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
     directory = data_config.get("directory")
     if not isinstance(directory, str) or not directory:
         raise FileNotFoundError("daily data directory not found: %s" % directory)
-    root = _resolve_path(directory)
+    supplied = Path(directory).expanduser()
+    root = supplied.resolve() if supplied.is_absolute() else data_path(supplied)
     manifest_path = root / "_metadata" / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError("daily data directory not found: %s" % root)
@@ -227,7 +217,8 @@ def _run_native_collection(
 ) -> Tuple[Any, Any, Any]:
     import backtrader as bt
     from backtrader.brokers import BackBroker
-    from backtrader.research import FactorSpec, FactorStrategy, align_to_grid
+    from backtrader.research import FactorSpec, align_to_grid
+    from backtrader.strategies.factor_strategy import FactorStrategy
 
     factor_mode = _resolve_factor_mode(None, config.get("factor_mode"))
     indicator = _factor_classes(factor_mode)["close_ma"]
@@ -407,7 +398,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             factor_mode = _resolve_factor_mode(args.factor_mode, config.get("factor_mode"))
             config["factor_mode"] = factor_mode
         if args.data_dir:
-            config["data"]["directory"] = args.data_dir
+            config["data"]["directory"] = str(Path(args.data_dir).expanduser().resolve())
         if args.max_symbols is not None:
             config["data"]["max_symbols"] = args.max_symbols
         periods = _parse_periods(args.periods, config["evaluation"]["periods"])

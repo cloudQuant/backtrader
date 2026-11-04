@@ -1,0 +1,8 @@
+(version 1)
+(allow default)
+(deny network*)
+(deny file-write*)
+(allow file-write* (subpath "/private/tmp/iter61-public-sample-wSN5YPpI"))
+(deny file-read* (regex #"/(config\.yaml|\.env[^/]*)$"))
+(deny file-read* (regex #"/(\.ssh|\.aws|\.kube|\.config|\.codex)(/|$)"))
+(deny file-read* (regex #"/(\.netrc|\.condarc|\.pypirc|credentials|credentials\.json)$"))

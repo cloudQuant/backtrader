@@ -12,7 +12,7 @@ import pytest
 import backtrader as bt
 import backtrader.research.operators as operators
 from backtrader.linebuffer import LineBuffer
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research import align_to_grid
 from backtrader.research.alpha101 import get_alpha
 from backtrader.research.operators import OperatorReason

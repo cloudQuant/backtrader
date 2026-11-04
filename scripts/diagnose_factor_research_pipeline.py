@@ -211,7 +211,7 @@ def _install_observers(root: Path, observer: _Observer) -> None:
     sink_module = importlib.import_module("backtrader.research.sink")
     panel_module = importlib.import_module("backtrader.research.panel")
     align_module = importlib.import_module("backtrader.research.align")
-    strategy_module = importlib.import_module("backtrader.research.factor_strategy")
+    strategy_module = _strategy_module(root)
     research_package = importlib.import_module("backtrader.research")
 
     original_sink = sink_module.MemorySink
@@ -964,6 +964,7 @@ def _operator_worker(args: argparse.Namespace, root: Path, origins: Dict[str, st
         if path.is_file():
             source_hashes[path.relative_to(root).as_posix()] = _sha256(path)
     source_hashes["diagnose_factor_research_pipeline.py"] = _sha256(Path(__file__).resolve())
+    _record_strategy_source(root, _strategy_module(root), origins, source_hashes)
     output = {
         "classification": DIAGNOSTIC_CLASS,
         "mode": "operators",
@@ -1205,7 +1206,7 @@ def _single_worker_example(value: Any) -> str:
     return example
 
 
-def _load_stage_benchmark(root: Path) -> Any:
+def _load_stage_benchmark(root: Path, strategy_module: Any) -> Any:
     path = Path(__file__).resolve().with_name("benchmark_factor_research.py")
     if not path.is_file():
         raise FileNotFoundError("host scripts/benchmark_factor_research.py is missing: %s" % path)
@@ -1214,6 +1215,7 @@ def _load_stage_benchmark(root: Path) -> Any:
         raise ImportError("could not load existing stage benchmark at %s" % path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    module._factor_strategy = lambda: strategy_module.FactorStrategy
     selected_root = root.resolve()
     module.REPO_ROOT = selected_root
     module.EXAMPLES = {
@@ -1263,6 +1265,56 @@ def _module_origins(root: Path) -> Dict[str, str]:
     return origins
 
 
+def _strategy_module(root: Path) -> Any:
+    """Select only a strategy module belonging to the requested checkout."""
+    import importlib
+
+    _module_origins(root)
+    root = root.resolve()
+    names = ("backtrader.strategies.factor_strategy", "backtrader.research.factor_strategy")
+    paths = {name: root.joinpath(*name.split(".")).with_suffix(".py").resolve() for name in names}
+    for path in paths.values():
+        try:
+            path.relative_to(root)
+        except ValueError as exc:
+            raise ImportError(
+                "FactorStrategy source resolves outside selected root: %s" % path
+            ) from exc
+    loaded = [name for name in names if name in sys.modules]
+    for name in loaded:
+        origin = getattr(sys.modules[name], "__file__", None)
+        if not origin or Path(origin).resolve() != paths[name]:
+            raise ImportError("%s resolved outside selected source: %s" % (name, origin))
+    if len(loaded) > 1:
+        raise ImportError("ambiguous loaded FactorStrategy modules")
+    candidates = loaded or [name for name in names if paths[name].is_file()]
+    if len(candidates) != 1:
+        raise ImportError("expected exactly one FactorStrategy source in selected root")
+    name = candidates[0]
+    if not paths[name].is_file():
+        raise ImportError("selected FactorStrategy source is missing: %s" % paths[name])
+    module = importlib.import_module(name)
+    if Path(module.__file__).resolve() != paths[name]:
+        raise ImportError("%s resolved outside selected source: %s" % (name, module.__file__))
+    if getattr(getattr(module, "FactorStrategy", None), "__module__", None) != name:
+        raise ImportError("FactorStrategy is not defined in selected source: %s" % name)
+    return module
+
+
+def _record_strategy_source(
+    root: Path, module: Any, origins: Dict[str, str], hashes: Dict[str, str]
+) -> None:
+    source = Path(module.__file__).resolve()
+    relative = source.relative_to(root.resolve()).as_posix()
+    for candidate in (
+        "backtrader/research/factor_strategy.py",
+        "backtrader/strategies/factor_strategy.py",
+    ):
+        hashes.pop(candidate, None)
+    origins[module.__name__] = str(source)
+    hashes[relative] = _sha256(source)
+
+
 def _legacy_source_hashes(root: Path, example: str) -> Dict[str, str]:
     example_dir = root / "examples" / "backtest" / EXAMPLE_DIRECTORIES[example]
     paths = [example_dir / "run.py", example_dir / "config.yaml"]
@@ -1281,10 +1333,12 @@ def _legacy_source_hashes(root: Path, example: str) -> Dict[str, str]:
 def _install_legacy_observers(root: Path, entry: Any, observer: _Observer) -> Dict[str, str]:
     import backtrader as bt
     import backtrader.research as research_package
-    from backtrader.research.factor_strategy import FactorStrategy
     from backtrader.research import inputs as inputs_module
 
     origins = _module_origins(root)
+    strategy_module = _strategy_module(root)
+    FactorStrategy = strategy_module.FactorStrategy
+    origins[strategy_module.__name__] = str(Path(strategy_module.__file__).resolve())
     metrics = observer.metrics
     metrics["legacy_pipeline"] = {
         "load_daily_panel": {"calls": 0, "time_s": 0.0, "rss_bytes": {}},
@@ -1741,6 +1795,7 @@ def _legacy_worker(
         }
     status = legacy_validation.get("status", "FAILED")
     source_hashes = _legacy_source_hashes(root, example)
+    _record_strategy_source(root, _strategy_module(root), origins, source_hashes)
     source_hashes["diagnose_factor_research_pipeline.py"] = _sha256(Path(__file__).resolve())
     legacy_metrics = observer.metrics["legacy_pipeline"]
     factor_info = legacy_metrics["get_dataset"].get("artifacts", {})
@@ -1874,7 +1929,8 @@ def _worker(args: argparse.Namespace) -> int:
                 % len(inventory["selected_symbols"])
             )
 
-    stage = _load_stage_benchmark(root)
+    strategy_module = _strategy_module(root)
+    stage = _load_stage_benchmark(root, strategy_module)
     observer = _Observer(root)
     _install_observers(root, observer)
     previous_specs = stage._factor_specs
@@ -1946,7 +2002,6 @@ def _worker(args: argparse.Namespace) -> int:
     source_hashes = stage._source_hashes(example)
     for relative in (
         "backtrader/research/align.py",
-        "backtrader/research/factor_strategy.py",
         "backtrader/research/panel.py",
         "backtrader/research/sink.py",
     ):
@@ -1954,6 +2009,10 @@ def _worker(args: argparse.Namespace) -> int:
         if source_path.is_file():
             source_hashes[relative] = _sha256(source_path)
     source_hashes["diagnostic_factor_research_pipeline.py"] = _sha256(Path(__file__).resolve())
+    source_hashes["benchmark_factor_research_host.py"] = _sha256(
+        Path(__file__).resolve().with_name("benchmark_factor_research.py")
+    )
+    _record_strategy_source(root, strategy_module, origins, source_hashes)
     output = {
         "classification": DIAGNOSTIC_CLASS,
         "runner_api": "existing_stage_benchmark",

@@ -1,0 +1,4 @@
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot rev-parse 27055572ca6fb13302366b938625b01a784aaf22^{commit}
+NOT_ACCEPTED: command failed with exit 128
+fatal: could not open '/dev/null' for reading and writing: Operation not permitted
+ERROR conda.cli.main_run:execute(125): `conda run python scripts/verify_factor_research_installed.py --factor-mode-pair --backtrader-repo /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot --backtrader-commit 27055572ca6fb13302366b938625b01a784aaf22 --fincore-repo /Users/yunjinqi/Documents/new_projects/fincore --fincore-commit 3e9ef205ef2023f92e89fddd1052d46b16429c64 --evidence-dir /private/tmp/iter61-archive-verifier.N07b66/evidence` failed. (See above for error)

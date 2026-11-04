@@ -39,20 +39,50 @@ _TEST_INPUTS = (
     "tests/unit/test_factor_research_representatives.py",
     "tests/fixtures/research/alpha101_dependencies.json",
 )
+_PAIR_SUPPORT_INPUTS = _TEST_INPUTS[2:]
 _FACTOR_MODE_PAIR_TEST_INPUTS = (
+    "tests/unit/test_factor_build_expression.py",
+    "tests/unit/test_iter61_factor_formula_oracles.py",
+)
+_LEGACY_FACTOR_MODE_PAIR_TEST_INPUTS = (
     "tests/unit/test_factor_build_expression.py",
     "tests/unit/test_factor_research_examples.py",
 )
+# Reviewed witness implementations. An altered test requires an explicit review
+# and a new profile fingerprint; a matching filename alone is not evidence.
+_PAIR_PROFILE_BLOBS = {
+    "legacy": (
+        "59b55c55a84478cd9afd34f305be06849c4e4a45",
+        "11f0590d6ecd4d3646b6c1c572b34d6c4d0daa9d",
+    ),
+    "current": (
+        "0f60b022130beefccebb8fc6175630153940aa44",
+        "89b63bbc67166b78f3755a51d893e1c14b0c6b2a",
+    ),
+}
 _ALPHA101_BUILD_PAIR_TEST_INPUTS = (
     "tests/integration/test_alpha101_native_matrix.py",
     "tests/unit/test_factor_single_class_modes.py",
 )
+_INSTALLED_TEST_PATHS = {
+    "legacy": "tests/integration/test_alpha101_native_installed.py",
+    "current": "tests/integration/test_iter61_alpha101_installed.py",
+}
+_MATRIX_TEST_PATHS = {
+    "legacy": "tests/integration/test_alpha101_native_matrix.py",
+    "current": "tests/integration/test_iter61_alpha101_matrix.py",
+}
+_DRIVER_PROFILE_BLOBS = {
+    "legacy": ("fe4593105ebf200d043ae2543dd7ac74c9fcec09", "01fb3d75147d12c0bb3c0c35707313b2691da521"),
+    "current": ("094200c95759d017156b7613123da1ac9fad8bad", "01fb3d75147d12c0bb3c0c35707313b2691da521"),
+}
 _PAIR_SEMANTICS_HELPER = "scripts/verify_factor_research_pair_semantics.py"
 _EXAMPLE_DIRS = (
     "examples/backtest/025_factor_single",
     "examples/backtest/026_factor_multi",
     "examples/backtest/027_alpha003_panel_acceptance",
 )
+_PAIR_EXAMPLE_DIRS = _EXAMPLE_DIRS[:2]
 _ARCHIVE_PATHS = {
     "backtrader": (
         "setup.py",
@@ -77,10 +107,18 @@ _ARCHIVE_PATHS = {
 _OPTIONAL_ARCHIVE_PATHS = frozenset({"backtrader_runtime"})
 _FACTOR_MODE_PAIR_ARCHIVE_PATHS = (
     *_FACTOR_MODE_PAIR_TEST_INPUTS,
-    _PAIR_SEMANTICS_HELPER,
 )
 _ALPHA101_BUILD_PAIR_ARCHIVE_PATHS = _ALPHA101_BUILD_PAIR_TEST_INPUTS
 _PAIR_FORMULA_TEST_CASES = {
+    "Alpha003": (
+        "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",
+        "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle",
+    ),
+    "CloseMA": ("test_close_ma_independent_oracle",),
+    "ROC": ("test_roc_independent_oracle",),
+    "KDJ": ("test_kdj_independent_oracle",),
+}
+_LEGACY_PAIR_FORMULA_TEST_CASES = {
     "Alpha003": ("test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",),
     "CloseMA": ("test_025_close_ma_build_matches_native_and_independent_oracle",),
     "ROC": ("test_026_roc_build_matches_native_and_independent_oracle",),
@@ -129,17 +167,136 @@ class VerificationError(RuntimeError):
     """Raised when an installed artifact or one of its consumers fails."""
 
 
+def _pair_test_inputs(profile: str) -> Tuple[str, ...]:
+    if profile == "legacy":
+        return _LEGACY_FACTOR_MODE_PAIR_TEST_INPUTS
+    if profile == "current":
+        return _FACTOR_MODE_PAIR_TEST_INPUTS
+    raise VerificationError("unknown factor-mode-pair profile: %s" % profile)
+
+
+def _installed_test_inputs(profile: str) -> Tuple[str, ...]:
+    _pair_test_inputs(profile)
+    return tuple(
+        _INSTALLED_TEST_PATHS[profile] if path == _INSTALLED_TEST_PATHS["legacy"] else path
+        for path in _TEST_INPUTS
+    )
+
+
+def _matrix_test_inputs(profile: str) -> Tuple[str, ...]:
+    _pair_test_inputs(profile)
+    return (_MATRIX_TEST_PATHS[profile], _ALPHA101_BUILD_PAIR_TEST_INPUTS[1])
+
+
+def _current_pair_only(profile: str, factor_mode_pair: bool, alpha101_build_pair: bool) -> bool:
+    return profile == "current" and factor_mode_pair and not alpha101_build_pair
+
+
+def _select_default_profile(repo: Path, commit: str) -> str:
+    """Select the default driver by tree presence without imposing new blob pins."""
+    paths = tuple(_INSTALLED_TEST_PATHS.values())
+    present = set(_run(["git", "-C", repo, "ls-tree", "--name-only", commit, "--", *paths]).stdout.splitlines())
+    matches = [profile for profile, path in _INSTALLED_TEST_PATHS.items() if path in present]
+    if len(matches) != 1:
+        raise VerificationError("pinned commit must contain exactly one default installed test driver")
+    return matches[0]
+
+
+def _select_pair_profile(
+    repo: Path, commit: str, *, factor_mode_pair: bool = True, alpha101_build_pair: bool = False
+) -> Mapping[str, Any]:
+    """Select a reviewed witness set solely from the pinned Git tree."""
+    old_strategy = "backtrader/research/factor_strategy.py"
+    new_strategy = "backtrader/strategies/factor_strategy.py"
+    paths = set(_TEST_INPUTS + _LEGACY_FACTOR_MODE_PAIR_TEST_INPUTS + _FACTOR_MODE_PAIR_TEST_INPUTS)
+    paths.update((_PAIR_SEMANTICS_HELPER, old_strategy, new_strategy))
+    paths.update(_INSTALLED_TEST_PATHS.values())
+    paths.update(_MATRIX_TEST_PATHS.values())
+    paths.update(_ALPHA101_BUILD_PAIR_TEST_INPUTS)
+    output = _run(
+        ["git", "-C", repo, "ls-tree", "-r", "--full-tree", commit, "--", *sorted(paths)]
+    ).stdout
+    entries = {}
+    for line in output.splitlines():
+        metadata, path = line.split("\t", 1)
+        mode, kind, blob = metadata.split()
+        if kind != "blob" or mode not in ("100644", "100755"):
+            raise VerificationError("factor-mode-pair input is not a regular Git blob: %s" % path)
+        entries[path] = blob
+    legacy = _INSTALLED_TEST_PATHS["legacy"]
+    current = _INSTALLED_TEST_PATHS["current"]
+    if (
+        legacy in entries and current not in entries
+        and old_strategy in entries and new_strategy not in entries
+    ):
+        profile = "legacy"
+    elif (
+        legacy not in entries and new_strategy in entries and old_strategy not in entries
+        and (current in entries or (factor_mode_pair and not alpha101_build_pair
+                                    and _FACTOR_MODE_PAIR_TEST_INPUTS[1] in entries))
+    ):
+        profile = "current"
+    else:
+        raise VerificationError("unknown, mixed or partial factor-mode-pair Git tree")
+    inputs = _pair_test_inputs(profile)
+    other = "current" if profile == "legacy" else "legacy"
+    if _MATRIX_TEST_PATHS[other] in entries:
+        raise VerificationError("mixed Alpha101 matrix driver profiles")
+    if _pair_test_inputs(other)[1] in entries:
+        raise VerificationError("mixed factor-mode-pair witness profiles")
+    pair_only = _current_pair_only(profile, factor_mode_pair, alpha101_build_pair)
+    if not pair_only and entries[legacy if profile == "legacy" else current] != _DRIVER_PROFILE_BLOBS[profile][0]:
+        raise VerificationError("unreviewed installed Alpha101 driver for %s" % profile)
+    required = set(_PAIR_SUPPORT_INPUTS if pair_only else _installed_test_inputs(profile))
+    if factor_mode_pair or alpha101_build_pair:
+        required.update(inputs)
+        if not pair_only:
+            required.add(_PAIR_SEMANTICS_HELPER)
+    if alpha101_build_pair:
+        required.update(_matrix_test_inputs(profile))
+    missing = sorted(required - entries.keys())
+    if missing:
+        raise VerificationError("factor-mode-pair Git tree lacks required inputs: %r" % missing)
+    if (factor_mode_pair or alpha101_build_pair) and tuple(entries[path] for path in inputs) != _PAIR_PROFILE_BLOBS[profile]:
+        raise VerificationError("unreviewed factor-mode-pair witness blobs for %s" % profile)
+    if alpha101_build_pair and entries[_MATRIX_TEST_PATHS[profile]] != _DRIVER_PROFILE_BLOBS[profile][1]:
+        raise VerificationError("unreviewed Alpha101 matrix driver for %s" % profile)
+    return {
+        "profile": profile,
+        "source_commit": commit,
+        "git_blobs": {path: entries[path] for path in sorted(required)},
+    }
+
+
 def _archive_paths(
-    name: str, *, factor_mode_pair: bool = False, alpha101_build_pair: bool = False
+    name: str,
+    *,
+    factor_mode_pair: bool = False,
+    alpha101_build_pair: bool = False,
+    pair_profile: str | None = None,
 ) -> Tuple[str, ...]:
     try:
         paths = _ARCHIVE_PATHS[name]
     except KeyError as exc:
         raise VerificationError("no bounded archive path set for %s" % name) from exc
+    if pair_profile is None:
+        pair_profile = "current" if factor_mode_pair or alpha101_build_pair else "legacy"
+    if name == "backtrader":
+        if _current_pair_only(pair_profile, factor_mode_pair, alpha101_build_pair):
+            excluded = set(_TEST_INPUTS + _EXAMPLE_DIRS)
+            paths = tuple(path for path in paths if path not in excluded)
+            return (*paths, *_PAIR_SUPPORT_INPUTS, *_pair_test_inputs(pair_profile), *_PAIR_EXAMPLE_DIRS)
+        paths = tuple(
+            _INSTALLED_TEST_PATHS[pair_profile] if path == _INSTALLED_TEST_PATHS["legacy"] else path
+            for path in paths
+        )
     if alpha101_build_pair and name == "backtrader":
-        return (*paths, *_FACTOR_MODE_PAIR_ARCHIVE_PATHS, *_ALPHA101_BUILD_PAIR_ARCHIVE_PATHS)
+        return (
+            *paths, *_pair_test_inputs(pair_profile), _PAIR_SEMANTICS_HELPER,
+            *_matrix_test_inputs(pair_profile),
+        )
     if factor_mode_pair and name == "backtrader":
-        return (*paths, *_FACTOR_MODE_PAIR_ARCHIVE_PATHS)
+        return (*paths, *_pair_test_inputs(pair_profile), _PAIR_SEMANTICS_HELPER)
     return paths
 
 
@@ -150,6 +307,7 @@ def _archive_paths_for_commit(
     *,
     factor_mode_pair: bool = False,
     alpha101_build_pair: bool = False,
+    pair_profile: str = "current",
 ) -> Tuple[str, ...]:
     """Select optional source roots from the exact commit tree being archived.
 
@@ -159,10 +317,13 @@ def _archive_paths_for_commit(
     ``git archive`` for newer commits.
     """
 
+    if name == "backtrader" and not factor_mode_pair and not alpha101_build_pair:
+        pair_profile = _select_default_profile(repo, commit)
     paths = _archive_paths(
         name,
         factor_mode_pair=factor_mode_pair,
         alpha101_build_pair=alpha101_build_pair,
+        pair_profile=pair_profile,
     )
     optional = _OPTIONAL_ARCHIVE_PATHS.intersection(paths)
     if not optional:
@@ -176,7 +337,13 @@ def _archive_paths_for_commit(
     )
 
 
-def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
+def _verify_pair_formula_test_witnesses(
+    junit_xml: Path, *, pair_profile: str = "current"
+) -> Mapping[str, Any]:
+    _pair_test_inputs(pair_profile)
+    formula_cases = (
+        _LEGACY_PAIR_FORMULA_TEST_CASES if pair_profile == "legacy" else _PAIR_FORMULA_TEST_CASES
+    )
     if not junit_xml.is_file():
         raise VerificationError("factor-mode-pair pytest report is missing: %s" % junit_xml)
     try:
@@ -192,9 +359,26 @@ def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
         if isinstance(name, str):
             cases.setdefault(name, []).append(case)
 
+    if pair_profile == "current":
+        for formula, test_names in formula_cases.items():
+            for test_name in test_names:
+                prefix = test_name + "["
+                for node_id in cases:
+                    if node_id == test_name:
+                        raise VerificationError("factor formula test is missing parameter ID: %s" % node_id)
+                    if not node_id.startswith(prefix):
+                        continue
+                    if not node_id.endswith("]"):
+                        raise VerificationError("malformed factor formula parameter ID: %s" % node_id)
+                    tokens = node_id[len(prefix) : -1].replace("_", "-").split("-")
+                    engines = [token for token in tokens if token in _PAIR_ENGINE_MODES]
+                    modes = [token for token in tokens if token in ("native", "build")]
+                    if len(engines) != 1 or (formula != "Alpha003" and len(modes) != 1) or (formula == "Alpha003" and len(modes) > 1):
+                        raise VerificationError("conflicting factor formula mode/engine tokens: %s" % node_id)
+
     witnesses: Dict[str, Any] = {}
     missing = []
-    for formula, test_names in _PAIR_FORMULA_TEST_CASES.items():
+    for formula, test_names in formula_cases.items():
         formula_witnesses = []
         for test_name in test_names:
             for engine in _PAIR_ENGINE_MODES:
@@ -208,6 +392,15 @@ def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
                 if not candidates:
                     missing.append("%s[%s]" % (test_name, engine))
                     continue
+                # Alpha003's test runs both lanes in one case. The other
+                # oracle tests have separate native/build parametrizations.
+                if pair_profile == "current" and formula != "Alpha003":
+                    for mode in ("native", "build"):
+                        if not any(
+                            mode in name[len(prefix) : -1].replace("_", "-").split("-")
+                            for name in candidates
+                        ):
+                            missing.append("%s[%s,%s]" % (test_name, engine, mode))
                 passing = []
                 for node_id, matches in candidates.items():
                     if len(matches) != 1:
@@ -240,7 +433,7 @@ def _verify_pair_formula_test_witnesses(junit_xml: Path) -> Mapping[str, Any]:
             "factor-mode-pair run omitted required formula/engine cases: %s"
             % ", ".join(sorted(missing))
         )
-    if set(witnesses) != set(_PAIR_FORMULA_TEST_CASES):
+    if set(witnesses) != set(formula_cases):
         raise VerificationError("factor-mode-pair run lacks a complete four-formula witness set")
     for formula, formula_witnesses in witnesses.items():
         if {item["engine_mode"] for item in formula_witnesses} != set(_PAIR_ENGINE_MODES):
@@ -893,7 +1086,17 @@ def _extract_archive(
     *,
     factor_mode_pair: bool = False,
     alpha101_build_pair: bool = False,
+    pair_profile: str = "current",
 ) -> Tuple[Path, str]:
+    if name == "backtrader" and not factor_mode_pair and not alpha101_build_pair:
+        pair_profile = _select_default_profile(repo, commit)
+    if name == "backtrader" and (factor_mode_pair or alpha101_build_pair):
+        selected = _select_pair_profile(
+            repo, commit, factor_mode_pair=factor_mode_pair,
+            alpha101_build_pair=alpha101_build_pair,
+        )
+        if selected["profile"] != pair_profile:
+            raise VerificationError("requested factor-mode-pair profile differs from pinned Git tree")
     destination.mkdir(parents=True)
     archive = destination / (name + ".tar")
     archive_paths = _archive_paths_for_commit(
@@ -902,6 +1105,7 @@ def _extract_archive(
         name,
         factor_mode_pair=factor_mode_pair,
         alpha101_build_pair=alpha101_build_pair,
+        pair_profile=pair_profile,
     )
     command = ["git", "-C", str(repo), "archive", "--format=tar", commit, *archive_paths]
     print("+", " ".join(command), ">", archive, flush=True)
@@ -918,22 +1122,28 @@ def _extract_archive(
                 raise VerificationError("unsupported Git archive entry: %s" % member.name)
         bundle.extractall(source)
     if name == "backtrader":
-        missing_files = [relative for relative in _TEST_INPUTS if not (source / relative).is_file()]
+        pair_only = _current_pair_only(pair_profile, factor_mode_pair, alpha101_build_pair)
+        required_inputs = _PAIR_SUPPORT_INPUTS if pair_only else _installed_test_inputs(pair_profile)
+        missing_files = [
+            relative for relative in required_inputs
+            if not (source / relative).is_file()
+        ]
         if factor_mode_pair or alpha101_build_pair:
             missing_files.extend(
                 relative
-                for relative in _FACTOR_MODE_PAIR_TEST_INPUTS
+                for relative in _pair_test_inputs(pair_profile)
                 if not (source / relative).is_file()
             )
-            if not (source / _PAIR_SEMANTICS_HELPER).is_file():
+            if not pair_only and not (source / _PAIR_SEMANTICS_HELPER).is_file():
                 missing_files.append(_PAIR_SEMANTICS_HELPER)
         if alpha101_build_pair:
             missing_files.extend(
                 relative
-                for relative in _ALPHA101_BUILD_PAIR_TEST_INPUTS
+                for relative in _matrix_test_inputs(pair_profile)
                 if not (source / relative).is_file()
             )
-        missing_dirs = [relative for relative in _EXAMPLE_DIRS if not (source / relative).is_dir()]
+        example_dirs = _PAIR_EXAMPLE_DIRS if pair_only else _EXAMPLE_DIRS
+        missing_dirs = [relative for relative in example_dirs if not (source / relative).is_dir()]
         if missing_files or missing_dirs:
             raise VerificationError(
                 "pinned Backtrader archive is missing required acceptance inputs "
@@ -950,6 +1160,7 @@ def _build_wheel(
     *,
     factor_mode_pair: bool = False,
     alpha101_build_pair: bool = False,
+    pair_profile: str = "current",
 ) -> Tuple[Path, Path, str]:
     source, archive_hash = _extract_archive(
         repo,
@@ -958,6 +1169,7 @@ def _build_wheel(
         name,
         factor_mode_pair=factor_mode_pair,
         alpha101_build_pair=alpha101_build_pair,
+        pair_profile=pair_profile,
     )
     wheel_dir = evidence / "wheels"
     wheel_dir.mkdir(exist_ok=True)
@@ -1124,10 +1336,13 @@ def _install_root(args: argparse.Namespace, evidence: Path) -> Tuple[Path, str]:
     return root.resolve(), "target"
 
 
-def _verify_imports(install_root: Path, evidence: Path) -> Mapping[str, Any]:
+def _verify_imports(
+    install_root: Path, evidence: Path, *, pair_profile: str = "legacy"
+) -> Mapping[str, Any]:
     code = r"""
-import importlib, importlib.metadata, json, pathlib, sys
+import importlib, importlib.metadata, importlib.util, inspect, json, pathlib, sys
 root = pathlib.Path(sys.argv[1]).resolve()
+current = sys.argv[2] == "current"
 sys.path.insert(0, str(root))
 import backtrader, fincore
 modules = {
@@ -1136,6 +1351,33 @@ modules = {
     "fincore": fincore,
     "fincore.factor_analysis.research": importlib.import_module("fincore.factor_analysis.research"),
 }
+factor_witness = None
+if current:
+    research = importlib.import_module("backtrader.research")
+    module = importlib.import_module("backtrader.strategies.factor_strategy")
+    cls = module.FactorStrategy
+    expected = "backtrader.strategies.factor_strategy"
+    if cls.__module__ != expected or getattr(module, "FactorStrategy") is not cls:
+        raise SystemExit("FactorStrategy class identity does not match its current module")
+    module_file = pathlib.Path(module.__file__).resolve()
+    expected_file = (root / "backtrader/strategies/factor_strategy.py").resolve()
+    if not module_file.is_relative_to(root) or module_file != expected_file or pathlib.Path(inspect.getfile(cls)).resolve() != module_file:
+        raise SystemExit("FactorStrategy did not load from its current installed module")
+    if hasattr(research, "FactorStrategy"):
+        raise SystemExit("retired research FactorStrategy facade remains available")
+    old_name = "backtrader.research.factor_strategy"
+    if old_name in sys.modules or importlib.util.find_spec(old_name) is not None:
+        raise SystemExit("retired research factor_strategy module remains available")
+    try:
+        importlib.import_module(old_name)
+    except ModuleNotFoundError as exc:
+        if exc.name != old_name:
+            raise
+    else:
+        raise SystemExit("retired research factor_strategy module remains importable")
+    modules[expected] = module
+    factor_witness = {"class_module": cls.__module__, "module_origin": str(module_file),
+                      "old_facade_available": False, "old_module_available": False}
 origins = {name: str(pathlib.Path(module.__file__).resolve()) for name, module in modules.items()}
 for name, origin in origins.items():
     if not pathlib.Path(origin).is_relative_to(root):
@@ -1147,11 +1389,14 @@ versions = {
 module_versions = {"backtrader": backtrader.__version__, "fincore": fincore.__version__}
 if module_versions != versions:
     raise SystemExit("module versions differ from installed wheel metadata: %r != %r" % (module_versions, versions))
-print(json.dumps({"origins": origins, "versions": versions, "module_versions": module_versions}))
+result = {"origins": origins, "versions": versions, "module_versions": module_versions}
+if current:
+    result["factor_strategy"] = factor_witness
+print(json.dumps(result))
 """
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    result = _run([BASE_PYTHON, "-I", "-c", code, install_root], env=env)
+    result = _run([BASE_PYTHON, "-I", "-c", code, install_root, pair_profile], env=env)
     data = json.loads(result.stdout.strip().splitlines()[-1])
     (evidence / "installed-origins.json").write_text(
         json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -1165,12 +1410,14 @@ def _copy_external_tests(
     *,
     factor_mode_pair: bool = False,
     alpha101_build_pair: bool = False,
+    pair_profile: str = "current",
 ) -> None:
-    test_inputs = list(_TEST_INPUTS)
+    pair_only = _current_pair_only(pair_profile, factor_mode_pair, alpha101_build_pair)
+    test_inputs = list(_PAIR_SUPPORT_INPUTS if pair_only else _installed_test_inputs(pair_profile))
     if factor_mode_pair or alpha101_build_pair:
-        test_inputs.extend(_FACTOR_MODE_PAIR_TEST_INPUTS)
+        test_inputs.extend(_pair_test_inputs(pair_profile))
     if alpha101_build_pair:
-        test_inputs.extend(_ALPHA101_BUILD_PAIR_TEST_INPUTS)
+        test_inputs.extend(_matrix_test_inputs(pair_profile))
     for relative in test_inputs:
         source = bt_source / relative
         if not source.is_file():
@@ -1179,9 +1426,11 @@ def _copy_external_tests(
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
     for package in ("tests", "tests/integration", "tests/test_utils", "tests/unit"):
+        (external / package).mkdir(parents=True, exist_ok=True)
         (external / package / "__init__.py").touch(exist_ok=True)
     if factor_mode_pair or alpha101_build_pair:
-        _copy_examples(bt_source, external / "examples", preserve_backtest_layout=True)
+        _copy_examples(bt_source, external / "examples", preserve_backtest_layout=True,
+                       example_dirs=_PAIR_EXAMPLE_DIRS if pair_only else _EXAMPLE_DIRS)
 
 
 def _copy_external_pair_helper(bt_source: Path, external: Path) -> Path:
@@ -1218,6 +1467,53 @@ def _load_pair_semantics_helper(helper_path: Path, external: Path):
     return module
 
 
+def _run_current_factor_pair_tests(external: Path, install_root: Path, evidence: Path) -> Mapping[str, Any]:
+    """Run only the four-formula witnesses, with no Alpha101 batch driver."""
+    code = r"""
+import pathlib, sys
+install_root, external_root, baseline, junit = sys.argv[1:5]
+sys.path[:0] = [install_root, external_root]
+import backtrader, fincore, pytest
+install = pathlib.Path(install_root).resolve()
+for name, package in (("backtrader", backtrader), ("fincore", fincore)):
+    if not pathlib.Path(package.__file__).resolve().is_relative_to(install):
+        raise SystemExit("%s loaded outside installed wheel root" % name)
+tests = [
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle",
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle",
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle",
+    external_root + "/tests/unit/test_factor_build_expression.py::test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle",
+    external_root + "/tests/unit/test_factor_build_expression.py::test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",
+]
+raise SystemExit(pytest.main(["-q", "--disable-warnings", "-p", "no:cacheprovider", "--basetemp", baseline,
+                              "--rootdir", external_root, "--confcutdir", external_root,
+                              "--junitxml", junit, *tests]))
+"""
+    env = os.environ.copy()
+    for key in tuple(env):
+        if key.startswith("BT_ALPHA101_") or key in ("PYTHONPATH", "PYTEST_ADDOPTS", "PYTEST_PLUGINS"):
+            env.pop(key)
+    env.update({"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1", "BT_SKIP_PYTEST_TMP_CLEANUP": "1"})
+    junit = evidence / "factor-mode-pair-tests.xml"
+    result = _run([BASE_PYTHON, "-I", "-B", "-c", code, install_root, external,
+                   evidence / "pytest-basetemp", junit], cwd=evidence, env=env)
+    log = result.stdout
+    print(log, end="" if log.endswith("\n") else "\n")
+    (evidence / "installed-tests.log").write_text(log, encoding="utf-8")
+    witnesses = _verify_pair_formula_test_witnesses(junit, pair_profile="current")
+    cases = list(ET.parse(junit).getroot().iter("testcase"))
+    expected = {name for names in _PAIR_FORMULA_TEST_CASES.values() for name in names}
+    names = [case.get("name") for case in cases]
+    if any(not isinstance(name, str) or name.split("[", 1)[0] not in expected for name in names):
+        raise VerificationError("current factor pair run included an undeclared test")
+    if any(child.tag in {"failure", "error", "skipped"} for case in cases for child in case):
+        raise VerificationError("a current factor pair case did not pass")
+    return {"pytest_log": str((evidence / "installed-tests.log").resolve()),
+            "factor_mode_pair_junit_xml": str(junit.resolve()),
+            "factor_mode_pair_formula_witnesses": witnesses,
+            "test_case_count": len(names)}
+
+
 def _run_installed_tests(
     external: Path,
     install_root: Path,
@@ -1226,6 +1522,7 @@ def _run_installed_tests(
     *,
     factor_mode_pair: bool = False,
     alpha101_build_pair: bool = False,
+    pair_profile: str = "current",
 ) -> Mapping[str, Any]:
     code = r"""
 import sys
@@ -1233,6 +1530,8 @@ import pathlib
 install_root, external_root, baseline, pair_junit = sys.argv[1:5]
 factor_mode_pair = sys.argv[5] == "1"
 alpha101_build_pair = sys.argv[6] == "1"
+pair_test = sys.argv[7]
+installed_test, matrix_test = sys.argv[8:10]
 sys.path[:0] = [install_root, external_root]
 import backtrader, fincore, pytest
 install = pathlib.Path(install_root).resolve()
@@ -1243,17 +1542,17 @@ test_paths = [
     "-q", "--disable-warnings", "--basetemp", baseline,
     "--rootdir", external_root, "--confcutdir", external_root,
     external_root + "/tests/integration/test_factor_research_installed_representatives.py",
-    external_root + "/tests/integration/test_alpha101_native_installed.py",
+    external_root + "/" + installed_test,
 ]
 if factor_mode_pair:
     test_paths.extend([
         external_root + "/tests/unit/test_factor_build_expression.py",
-        external_root + "/tests/unit/test_factor_research_examples.py",
+        external_root + "/" + pair_test,
         "--junitxml", pair_junit,
     ])
 if alpha101_build_pair:
     test_paths.extend([
-        external_root + "/tests/integration/test_alpha101_native_matrix.py::test_alpha101_native_build_pair_graph_matrix[T320]",
+        external_root + "/" + matrix_test + "::test_alpha101_native_build_pair_graph_matrix[T320]",
         external_root + "/tests/unit/test_factor_single_class_modes.py",
     ])
     if "--junitxml" not in test_paths:
@@ -1298,6 +1597,9 @@ raise SystemExit(pytest.main(test_paths))
             junit_xml,
             "1" if factor_mode_pair else "0",
             "1" if alpha101_build_pair else "0",
+            _pair_test_inputs(pair_profile)[1],
+            _INSTALLED_TEST_PATHS[pair_profile],
+            _MATRIX_TEST_PATHS[pair_profile],
         ],
         cwd=evidence,
         env=env,
@@ -1339,7 +1641,7 @@ raise SystemExit(pytest.main(test_paths))
             {
                 "factor_mode_pair_junit_xml": str(junit_xml.resolve()),
                 "factor_mode_pair_formula_witnesses": _verify_pair_formula_test_witnesses(
-                    junit_xml
+                    junit_xml, pair_profile=pair_profile
                 ),
             }
             if factor_mode_pair
@@ -1359,10 +1661,11 @@ raise SystemExit(pytest.main(test_paths))
 
 
 def _copy_examples(
-    bt_source: Path, destination: Path, *, preserve_backtest_layout: bool = False
+    bt_source: Path, destination: Path, *, preserve_backtest_layout: bool = False,
+    example_dirs: Sequence[str] = _EXAMPLE_DIRS,
 ) -> Mapping[str, Path]:
     copied: Dict[str, Path] = {}
-    for relative in _EXAMPLE_DIRS:
+    for relative in example_dirs:
         source = bt_source / relative
         if not source.is_dir():
             raise VerificationError("pinned archive lacks example directory %s" % relative)
@@ -2257,8 +2560,8 @@ def _parser() -> argparse.ArgumentParser:
         "--factor-mode-pair",
         action="store_true",
         help=(
-            "also run the Iteration 47 build-formula profile: four formula pairs, "
-            "both engines, reports, panels, and CSV reevaluation"
+            "run four-formula native/build witnesses on both engines for the current profile; "
+            "historical profiles retain their original reports, panels and CSV reevaluation"
         ),
     )
     parser.add_argument(
@@ -2282,8 +2585,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     factor_mode_pair = args.factor_mode_pair or args.alpha101_build_pair
     try:
         _require_base_python()
-        if args.symbols != 20:
-            raise VerificationError("installed runner acceptance is fixed to exactly 20 symbols")
         bt_repo = args.backtrader_repo.expanduser().resolve()
         fincore_repo = args.fincore_repo.expanduser().resolve()
         data_dir = args.data_dir.expanduser().resolve()
@@ -2294,14 +2595,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         ):
             if not (path / ".git").exists():
                 raise VerificationError("%s is not a Git checkout: %s" % (label, path))
-        if not (data_dir / "_metadata" / "manifest.json").is_file():
-            raise VerificationError("daily source data manifest is absent: %s" % data_dir)
+        bt_commit = _full_commit(bt_repo, args.backtrader_commit, "Backtrader")
+        fincore_commit = _full_commit(fincore_repo, args.fincore_commit, "fincore")
+        pair_source = (
+            _select_pair_profile(
+                bt_repo, bt_commit, factor_mode_pair=True,
+                alpha101_build_pair=args.alpha101_build_pair,
+            )
+            if factor_mode_pair else None
+        )
+        pair_profile = pair_source["profile"] if pair_source else _select_default_profile(bt_repo, bt_commit)
+        pair_only = _current_pair_only(pair_profile, factor_mode_pair, args.alpha101_build_pair)
+        if not pair_only:
+            if args.symbols != 20:
+                raise VerificationError("installed runner acceptance is fixed to exactly 20 symbols")
+            if not (data_dir / "_metadata" / "manifest.json").is_file():
+                raise VerificationError("daily source data manifest is absent: %s" % data_dir)
         if evidence.exists() and any(evidence.iterdir()):
             raise VerificationError("evidence directory must be new or empty: %s" % evidence)
         evidence.mkdir(parents=True, exist_ok=True)
-
-        bt_commit = _full_commit(bt_repo, args.backtrader_commit, "Backtrader")
-        fincore_commit = _full_commit(fincore_repo, args.fincore_commit, "fincore")
         bt_source, bt_wheel, bt_archive_hash = _build_wheel(
             bt_repo,
             bt_commit,
@@ -2309,6 +2621,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             evidence,
             factor_mode_pair=factor_mode_pair,
             alpha101_build_pair=args.alpha101_build_pair,
+            pair_profile=pair_profile,
         )
         fincore_source, fincore_wheel, fincore_archive_hash = _build_wheel(
             fincore_repo, fincore_commit, "fincore", evidence
@@ -2337,13 +2650,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             bt_wheel.name: _verify_wheel_payload(bt_wheel, install_root, bt_source),
             fincore_wheel.name: _verify_wheel_payload(fincore_wheel, install_root, fincore_source),
         }
-        imports = _verify_imports(install_root, evidence)
+        imports = _verify_imports(install_root, evidence, pair_profile=pair_profile)
         versions = imports["versions"]
         provenance = {
             "schema": "iteration46-installed-alpha101-provenance-v1",
             "acceptance_profile": (
                 _SINGLE_CLASS_MODE_PROFILE
                 if args.alpha101_build_pair
+                else "iteration61-four-formula-witnesses"
+                if pair_only
                 else (
                     "iteration47-factor-mode-pair"
                     if factor_mode_pair
@@ -2352,6 +2667,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             "backtrader": {
                 "source_commit": bt_commit,
+                "factor_mode_pair_witness_source": pair_source,
                 "version": versions["backtrader"],
                 "wheel_path": str(bt_wheel.resolve()),
                 "wheel_sha256": _sha256(bt_wheel),
@@ -2377,7 +2693,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             external,
             factor_mode_pair=factor_mode_pair,
             alpha101_build_pair=args.alpha101_build_pair,
+            pair_profile=pair_profile,
         )
+        if pair_only:
+            test_report = _run_current_factor_pair_tests(external, install_root, evidence)
+            final = {
+                "status": "PASS_LOCAL_INSTALLED_FOUR_FORMULA_WITNESSES",
+                "acceptance_profile": "iteration61-four-formula-witnesses",
+                "source_commits": {"backtrader": bt_commit, "fincore": fincore_commit},
+                "witness_source": pair_source,
+                "versions": versions,
+                "install_kind": install_kind,
+                "install_root": str(install_root),
+                "wheel_sha256": {"backtrader": _sha256(bt_wheel), "fincore": _sha256(fincore_wheel)},
+                "wheel_record_payloads": payloads,
+                "module_origins": imports["origins"],
+                "factor_strategy_import": imports["factor_strategy"],
+                "installed_tests": test_report,
+                "scope": "local pinned-wheel four-formula witnesses; not sdist, release, or deployment evidence",
+            }
+            (evidence / "verification-summary.json").write_text(
+                json.dumps(final, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            print(json.dumps(final, indent=2, sort_keys=True))
+            return 0
         pair_helper_path = None
         pair_helper = None
         if factor_mode_pair:
@@ -2390,6 +2729,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             evidence,
             factor_mode_pair=factor_mode_pair,
             alpha101_build_pair=args.alpha101_build_pair,
+            pair_profile=pair_profile,
         )
         copied_examples = _copy_examples(bt_source, evidence / "external-examples")
         example_reports = _run_025_026(
@@ -2426,6 +2766,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "factor_mode_pair": (
                 {
                     "enabled": True,
+                    "witness_source": pair_source,
                     "formulas": ["Alpha003", "CloseMA", "ROC", "KDJ"],
                     "engine_modes": list(_PAIR_ENGINE_MODES),
                     "formula_test_witnesses": test_report["factor_mode_pair_formula_witnesses"],
@@ -2460,6 +2801,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             },
             "wheel_record_payloads": payloads,
             "module_origins": imports["origins"],
+            **({"factor_strategy_import": imports["factor_strategy"]} if pair_profile == "current" else {}),
             "installed_tests": test_report,
             "copied_examples": example_reports,
             "scope": (

@@ -1,0 +1,42 @@
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_example_modes.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_formula_contract_recovery.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_factor_fastpaths.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_report_label_recovery.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_alpha_guide_recovery.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_example_summary_identity.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_formula_edge_recovery.py
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter61_factor_formula_oracles.py::test_single_close_ma_independent_oracle
+
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_factor_build_expression.py::test_alpha003_runonce_pair_panels_use_current_grid_and_warmup_reasons
+
+
+==================================== ERRORS ====================================
+________________________ ERROR collecting test session _________________________
+../../../opt/anaconda3/lib/python3.11/site-packages/pluggy/_hooks.py:512: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/site-packages/pluggy/_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/main.py:426: in pytest_ignore_collect
+    if collection_path.is_dir():
+       ^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/pathlib.py:1250: in is_dir
+    return S_ISDIR(self.stat().st_mode)
+                   ^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/pathlib.py:1013: in stat
+    return os.stat(self, follow_symlinks=follow_symlinks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/.aws'
+---- generated xml file: /private/tmp/iter61-node-evidence.abcnid/junit.xml ----
+=========================== short test summary info ============================
+ERROR ::Users::yunjinqi - PermissionError: [Errno 1] Operation not permitted:...
+1 error in 0.04s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -c /private/tmp/iter61-node-evidence.abcnid/pytest.ini --rootdir=/Users/yunjinqi/Documents/new_projects/backtrader -p no:cacheprovider --basetemp=/private/tmp/iter61-node-evidence.abcnid/tmp/pytest --junitxml=/private/tmp/iter61-node-evidence.abcnid/junit.xml -q tests/unit/test_iter61_example_modes.py tests/unit/test_iter61_formula_contract_recovery.py tests/unit/test_iter61_factor_fastpaths.py tests/unit/test_iter61_report_label_recovery.py tests/unit/test_iter61_alpha_guide_recovery.py tests/unit/test_iter61_example_summary_identity.py tests/unit/test_iter61_formula_edge_recovery.py tests/unit/test_iter61_factor_formula_oracles.py::test_single_close_ma_independent_oracle tests/unit/test_factor_build_expression.py::test_alpha003_runonce_pair_panels_use_current_grid_and_warmup_reasons --tb=short` failed. (See above for error)

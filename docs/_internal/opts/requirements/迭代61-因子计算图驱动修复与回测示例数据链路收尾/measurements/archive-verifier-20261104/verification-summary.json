@@ -1,0 +1,148 @@
+{
+  "acceptance_profile": "iteration61-four-formula-witnesses",
+  "factor_strategy_import": {
+    "class_module": "backtrader.strategies.factor_strategy",
+    "module_origin": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/strategies/factor_strategy.py",
+    "old_facade_available": false,
+    "old_module_available": false
+  },
+  "install_kind": "target",
+  "install_root": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target",
+  "installed_tests": {
+    "factor_mode_pair_formula_witnesses": {
+      "Alpha003": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]"
+          ],
+          "test_case": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]"
+          ],
+          "test_case": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]"
+        },
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]"
+          ],
+          "test_case": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]"
+          ],
+          "test_case": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]"
+        }
+      ],
+      "CloseMA": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_close_ma_independent_oracle[build-runnext]",
+            "test_close_ma_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_close_ma_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_close_ma_independent_oracle[build-runonce]",
+            "test_close_ma_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_close_ma_independent_oracle[build-runonce]"
+        }
+      ],
+      "KDJ": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_kdj_independent_oracle[build-runnext]",
+            "test_kdj_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_kdj_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_kdj_independent_oracle[build-runonce]",
+            "test_kdj_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_kdj_independent_oracle[build-runonce]"
+        }
+      ],
+      "ROC": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_roc_independent_oracle[build-runnext]",
+            "test_roc_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_roc_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_roc_independent_oracle[build-runonce]",
+            "test_roc_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_roc_independent_oracle[build-runonce]"
+        }
+      ]
+    },
+    "factor_mode_pair_junit_xml": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/factor-mode-pair-tests.xml",
+    "pytest_log": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/installed-tests.log",
+    "test_case_count": 16
+  },
+  "module_origins": {
+    "backtrader": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/__init__.py",
+    "backtrader.research.alpha101": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/research/alpha101/__init__.py",
+    "backtrader.strategies.factor_strategy": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/strategies/factor_strategy.py",
+    "fincore": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/fincore/__init__.py",
+    "fincore.factor_analysis.research": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/fincore/factor_analysis/research.py"
+  },
+  "scope": "local pinned-wheel four-formula witnesses; not sdist, release, or deployment evidence",
+  "source_commits": {
+    "backtrader": "27055572ca6fb13302366b938625b01a784aaf22",
+    "fincore": "3e9ef205ef2023f92e89fddd1052d46b16429c64"
+  },
+  "status": "PASS_LOCAL_INSTALLED_FOUR_FORMULA_WITNESSES",
+  "versions": {
+    "backtrader": "1.4.0",
+    "fincore": "0.5.2.dev0"
+  },
+  "wheel_record_payloads": {
+    "back_trader_python-1.4.0-py3-none-any.whl": {
+      "archive_source_payloads": 661,
+      "installed_payloads": 664,
+      "wheel_payloads": 664
+    },
+    "fincore-0.5.2.dev0-py3-none-any.whl": {
+      "archive_source_payloads": 132,
+      "installed_payloads": 139,
+      "wheel_payloads": 139
+    }
+  },
+  "wheel_sha256": {
+    "backtrader": "606bc20df130b3cbc3e39c4003047feeaece2f1f1c1f3a3b2bd078fdd5f4998a",
+    "fincore": "a6e09e2a89c23bea32e2e068400d4ad5300a185fecc393bcb6043ee5593107bb"
+  },
+  "witness_source": {
+    "git_blobs": {
+      "tests/fixtures/research/alpha101_dependencies.json": "da154f11e483f71986a29fefe13667792e3be423",
+      "tests/test_utils/alpha101_full_reference.py": "aa16d4d4ecb8091b3cf1843bfa9ca135520638bb",
+      "tests/test_utils/alpha101_native_harness.py": "eafa184d2af857e462bf0514b2245dacae4f4feb",
+      "tests/test_utils/alpha101_trace_validation.py": "8d6a28c72881b41a91fb506e0278234f7f9527bf",
+      "tests/unit/test_factor_build_expression.py": "0f60b022130beefccebb8fc6175630153940aa44",
+      "tests/unit/test_factor_research_representatives.py": "469c195b5bcb9f92a49f3a15a626eeaf4cbf7b1e",
+      "tests/unit/test_iter61_factor_formula_oracles.py": "89b63bbc67166b78f3755a51d893e1c14b0c6b2a"
+    },
+    "profile": "current",
+    "source_commit": "27055572ca6fb13302366b938625b01a784aaf22"
+  }
+}

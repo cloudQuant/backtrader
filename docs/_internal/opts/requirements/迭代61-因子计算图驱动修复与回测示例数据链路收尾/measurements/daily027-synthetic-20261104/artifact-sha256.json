@@ -1,0 +1,20 @@
+{
+  "build-chunks.log": "60404164301492c7917c44c4071f393729a6aadf893814f0794a1fcc21604b97",
+  "build-chunks/factor_values.csv": "4f21cf46aa4b18710448288d99b6200d749db3c080e7f23bae3188d5faf624fc",
+  "build-chunks/run_summary.json": "c2651d74ff6e08de7ea436f844f775ecc6ed09938595c726ace9b47c62a8a73d",
+  "build.log": "59a1304edd463755d7d746ae68ff1347af2bdab98769333eba5ac0ddc58138a7",
+  "build/factor_values.csv": "4f21cf46aa4b18710448288d99b6200d749db3c080e7f23bae3188d5faf624fc",
+  "build/run_summary.json": "9f6efae2cc9592a2614c03c35e10f1fece386b21038383e9a92561d9990e8331",
+  "input/_metadata/manifest.json": "359b35550458f65beab0fdfc868029e0d27f976b88b6ba573d15e727a384d3b1",
+  "input/_metadata/observed_calendar.csv": "ae6b47fb0d9ecf5998384d6f3d8abe83727ba8fa87e8d83bd37bff65329d61a5",
+  "input/sh600000.csv": "1a02468f5efda7b038b149505967d5675a748a733a650a5df3648a5620db6fcf",
+  "input/sh600001.csv": "dd0960366df438243bbfd8ca6639d6fcf49b0deb57cf00b5867affd51a8d78ef",
+  "input/sh600002.csv": "e99ed1a4d56c0b414fe21a7b0d940347c31ab3f9d2f16bfeb99aa9f2748971be",
+  "input/sh600003.csv": "6cab20bec52c3e6bbe4b3257ba5b68a2ab86ced42fbccda49ba5ba8aa4abe0ab",
+  "native-chunks.log": "60404164301492c7917c44c4071f393729a6aadf893814f0794a1fcc21604b97",
+  "native-chunks/factor_values.csv": "4f21cf46aa4b18710448288d99b6200d749db3c080e7f23bae3188d5faf624fc",
+  "native-chunks/run_summary.json": "0031bac522e61dff4ee40cb4ae1e44172442f0e2be7c005dad22bcb98be70d75",
+  "native.log": "59a1304edd463755d7d746ae68ff1347af2bdab98769333eba5ac0ddc58138a7",
+  "native/factor_values.csv": "4f21cf46aa4b18710448288d99b6200d749db3c080e7f23bae3188d5faf624fc",
+  "native/run_summary.json": "910680217847b36695d8d62e24b7a7f146742f234be986dc16438c1b5827ee05"
+}

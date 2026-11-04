@@ -2,7 +2,7 @@
 
 This leaf contains the parameter search for the 2020–2024 training period and
 the fixed 2025 out-of-sample evaluation. Both scripts read the shared,
-read-only fixture at `examples/data/DOGEUSDT_15m_20200710_20260126.csv`.
+read-only fixture at `tests/datas/DOGEUSDT_15m_20200710_20260126.csv`.
 
 Run from the repository root:
 

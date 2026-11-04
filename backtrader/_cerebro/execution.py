@@ -9,6 +9,7 @@ import logging
 import time
 import traceback
 from contextvars import ContextVar
+from typing import Any, Dict, List
 
 from .. import errors, observers
 from ..metabase import OwnerContext
@@ -228,7 +229,11 @@ class ExecutionMixin:
             except BaseException as exc:
                 record_cleanup_error("store[%d].stop" % index, store, exc)
                 incomplete.append(
-                    ("store[%d].stop" % index, type(store).__name__, "stop raised; state is unknown")
+                    (
+                        "store[%d].stop" % index,
+                        type(store).__name__,
+                        "stop raised; state is unknown",
+                    )
                 )
 
         completed_strategies = {id(strategy) for strategy in startup_attempts["started_strategies"]}
@@ -347,7 +352,9 @@ class ExecutionMixin:
         self._init_stcount()
         # Initialize running strategy as empty list
         self.runningstrats = runstrats = []
-        startup_attempts = {
+        # This is scoped to one run, including reuse of a Cerebro instance.
+        self._factor_research_run_failed = False
+        startup_attempts: Dict[str, List[Any]] = {
             "stores": [],
             "brokers": [],
             "feeds": [],
@@ -512,6 +519,12 @@ class ExecutionMixin:
             # Run the main loop; keep cleanup deterministic, but never turn a
             # strategy/runtime exception into a successful empty backtest.
             try:
+                # All strategy start hooks have now run. Check offline factor
+                # graph ownership before any once/next indicator is driven.
+                for strat in runstrats:
+                    validate_graph = getattr(type(strat), "_validate_research_ownership", None)
+                    if validate_graph is not None:
+                        validate_graph(strat)
                 # If _dopreload and _dorunonce are True
                 if self._dopreload and self._dorunonce:
                     # If old data alignment and sync method, use _runonce_old, otherwise use _runonce
@@ -526,13 +539,35 @@ class ExecutionMixin:
                         self._runnext_old(runstrats)
                     else:
                         self._runnext(runstrats)
-            except Exception as exc:
+            except BaseException as exc:
                 run_exception = exc
-                logger.exception("Unhandled exception in run loop, cleaning up before re-raising")
+                try:
+                    logger.exception(
+                        "Unhandled exception in run loop, cleaning up before re-raising"
+                    )
+                except BaseException:
+                    pass
             finally:
+                self._factor_research_run_failed = run_exception is not None
                 # Iterate strategies and stop running (always runs)
                 for strat in runstrats:
-                    strat._stop()
+                    try:
+                        if run_exception is None:
+                            defer_csv = getattr(type(strat), "_defer_research_csv", None)
+                            if defer_csv is not None:
+                                defer_csv(strat)
+                        strat._stop()
+                    except BaseException as exc:
+                        if run_exception is None:
+                            run_exception = exc
+                            self._factor_research_run_failed = True
+                        else:
+                            try:
+                                logger.warning(
+                                    "strategy cleanup failed after run failure", exc_info=True
+                                )
+                            except BaseException:
+                                pass
         # Capture the final value while the broker is still active.  This is
         # only diagnostic data, so a custom broker may decline the accessor.
         final_value = None
@@ -546,22 +581,44 @@ class ExecutionMixin:
         try:
             try:
                 self.stop_writers(runstrats)
-            except Exception as exc:
+            except BaseException as exc:
                 if run_exception is None:
                     run_exception = exc
+                    self._factor_research_run_failed = True
                 else:
-                    logger.warning("writer report unavailable after failed run")
+                    try:
+                        logger.warning("writer report unavailable after failed run")
+                    except BaseException:
+                        pass
         finally:
-            self._broker.stop()
+            # Retain the first failure while still attempting each cleanup.
+            components = [self._broker]
             if not predata:
-                for data in self.datas:
-                    data.stop()
-            for feed in self.feeds:
-                feed.stop()
-            for store in self.stores:
-                if getattr(store, "_cerebro_managed_lifecycle", True) is False:
-                    continue
-                store.stop()
+                components.extend(self.datas)
+            components.extend(self.feeds)
+            components.extend(self.stores)
+            for component in components:
+                try:
+                    if (
+                        any(component is store for store in self.stores)
+                        and getattr(component, "_cerebro_managed_lifecycle", True) is False
+                    ):
+                        continue
+                    component.stop()
+                except BaseException as exc:
+                    if run_exception is None:
+                        run_exception = exc
+                        self._factor_research_run_failed = True
+                    else:
+                        try:
+                            logger.warning("cleanup failed after run failure", exc_info=True)
+                        except BaseException:
+                            pass
+        if run_exception is None:
+            for strat in runstrats:
+                commit_csv = getattr(type(strat), "_commit_research_csv", None)
+                if commit_csv is not None:
+                    commit_csv(strat)
         if run_exception is None and log_lifecycle:
             if final_value is None or initial_cash is None:
                 pnl = "unavailable"

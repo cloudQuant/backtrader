@@ -16,7 +16,6 @@ from ..errors import (
 from .align import AlignedFeed, align_to_grid, feed_alignment
 from .factor_indicator import FactorIndicator
 from .factor_report import write_factor_report
-from .factor_strategy import FactorStrategy
 from .fincore_adapter import evaluate_frames
 from .live import (
     LiveFactorInput,
@@ -50,7 +49,6 @@ __all__ = (
     "FactorPanel",
     "FactorSink",
     "FactorSpec",
-    "FactorStrategy",
     "FieldPITPolicy",
     "LiveFactorInput",
     "LiveFieldContract",

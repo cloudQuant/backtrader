@@ -129,7 +129,8 @@ def _evaluation_spec(panel):
 def test_twenty_installed_formulas_with_real_labels_and_independent_ic(tmp_path):
     import backtrader as bt
     import fincore
-    from backtrader.research import FactorPanel, FactorStrategy, ResearchSpec, evaluate_frames
+    from backtrader.research import FactorPanel, ResearchSpec, evaluate_frames
+    from backtrader.strategies.factor_strategy import FactorStrategy
     from backtrader.research import alpha101
 
     origins = {"backtrader": _installed(bt), "fincore": _installed(fincore)}

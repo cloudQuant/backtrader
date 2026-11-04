@@ -1,0 +1,12 @@
+Running mixed-mode backtest...
+Initial cash: 100000.00
+Strategy finished: 2 trades
+
+==================================================
+Mixed Mode Backtest Results
+==================================================
+Events processed: 1815
+Trades executed:  2
+Final cash:       100000.20
+Portfolio value:  100000.20
+Local fixtures:   /private/tmp/iter61-example-004-005-023.vuFl6v/output023/tick_demo.csv and /private/tmp/iter61-example-004-005-023.vuFl6v/output023/bar_demo.csv

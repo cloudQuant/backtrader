@@ -1,0 +1,909 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF........                           [100%]
+=================================== FAILURES ===================================
+_ test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot[native] _
+test_live_factor_binding.py:312: in test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot
+    cerebro, cohort, feed, plan, values, clock = _make_inputs(mode=mode)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot[build] _
+test_live_factor_binding.py:312: in test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot
+    cerebro, cohort, feed, plan, values, clock = _make_inputs(mode=mode)
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_____ test_alpha003_history_span_resolves_logical_views_to_physical_panels _____
+test_live_factor_binding.py:375: in test_alpha003_history_span_resolves_logical_views_to_physical_panels
+    cerebro, _cohort, _feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_alpha001_panel_child_bind_inherits_only_the_active_factor_context[native] _
+test_live_factor_binding.py:391: in test_alpha001_panel_child_bind_inherits_only_the_active_factor_context
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_alpha001_panel_child_bind_inherits_only_the_active_factor_context[build] _
+test_live_factor_binding.py:391: in test_alpha001_panel_child_bind_inherits_only_the_active_factor_context
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_nested_live_bind_requires_explicit_factor_name_to_match_parent_context __
+test_live_factor_binding.py:414: in test_nested_live_bind_requires_explicit_factor_name_to_match_parent_context
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=2)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_____ test_old_live_bar_does_not_become_fresh_when_scheduler_time_advances _____
+test_live_factor_binding.py:446: in test_old_live_bar_does_not_become_fresh_when_scheduler_time_advances
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+__ test_future_close_time_exceeding_profile_blocks_readiness_but_keeps_output __
+test_live_factor_binding.py:469: in test_future_close_time_exceeding_profile_blocks_readiness_but_keeps_output
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_future_available_at_exceeding_profile_blocks_readiness __________
+test_live_factor_binding.py:490: in test_future_available_at_exceeding_profile_blocks_readiness
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_history_batch_stays_warmup_after_later_processing_time __________
+test_live_factor_binding.py:513: in test_history_batch_stays_warmup_after_later_processing_time
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_____ test_live_snapshot_fails_closed_when_injected_scheduler_clock_breaks _____
+test_live_factor_binding.py:538: in test_live_snapshot_fails_closed_when_injected_scheduler_clock_breaks
+    cerebro, _cohort, _feed, _plan, _values, clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_____________ test_live_plan_requires_a_finite_positive_bar_age[0] _____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+____________ test_live_plan_requires_a_finite_positive_bar_age[-1] _____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+___________ test_live_plan_requires_a_finite_positive_bar_age[True] ____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+___________ test_live_plan_requires_a_finite_positive_bar_age[None] ____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+____________ test_live_plan_requires_a_finite_positive_bar_age[inf] ____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+____________ test_live_plan_requires_a_finite_positive_bar_age[nan] ____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_____________ test_live_plan_requires_a_finite_positive_bar_age[1] _____________
+test_live_factor_binding.py:560: in test_live_plan_requires_a_finite_positive_bar_age
+    _make_inputs(count=1, max_live_bar_age_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_live_plan_requires_finite_nonnegative_future_skew[-0.1] _________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_live_plan_requires_finite_nonnegative_future_skew[True] _________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_live_plan_requires_finite_nonnegative_future_skew[None] _________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_live_plan_requires_finite_nonnegative_future_skew[inf] __________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_________ test_live_plan_requires_finite_nonnegative_future_skew[nan] __________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+__________ test_live_plan_requires_finite_nonnegative_future_skew[0] ___________
+test_live_factor_binding.py:569: in test_live_plan_requires_finite_nonnegative_future_skew
+    _make_inputs(count=1, max_future_skew_seconds=value)
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_______ test_live_snapshot_uses_normal_datetime_now_utc_scheduler_clock ________
+test_live_factor_binding.py:575: in test_live_snapshot_uses_normal_datetime_now_utc_scheduler_clock
+    cerebro, _cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_schema_registration_without_cerebro_activation_cannot_bind_live_factors _
+test_live_factor_binding.py:594: in test_schema_registration_without_cerebro_activation_cannot_bind_live_factors
+    cerebro, cohort, feed, plan, _values, _clock = _make_inputs(activated=False)
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+____ test_factor_instances_and_snapshots_are_isolated_between_strategy_runs ____
+test_live_factor_binding.py:606: in test_factor_instances_and_snapshots_are_isolated_between_strategy_runs
+    first_cerebro, _first_cohort, _first_feed, _first_plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+___ test_active_live_binding_rejects_public_factor_bind_without_context_name ___
+test_live_factor_binding.py:628: in test_active_live_binding_rejects_public_factor_bind_without_context_name
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_active_live_binding_rejects_strict_or_factor_name_escape[False-scaled_close-requires strict=True] _
+test_live_factor_binding.py:648: in test_active_live_binding_rejects_strict_or_factor_name_escape
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_active_live_binding_rejects_strict_or_factor_name_escape[True-None-non-empty factor_name] _
+test_live_factor_binding.py:648: in test_active_live_binding_rejects_strict_or_factor_name_escape
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_active_live_binding_rejects_strict_or_factor_name_escape[True--non-empty factor_name] _
+test_live_factor_binding.py:648: in test_active_live_binding_rejects_strict_or_factor_name_escape
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_active_live_binding_rejects_strict_or_factor_name_escape[True-   -non-empty factor_name] _
+test_live_factor_binding.py:648: in test_active_live_binding_rejects_strict_or_factor_name_escape
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_active_live_binding_rejects_strict_or_factor_name_escape[True-7-non-empty factor_name] _
+test_live_factor_binding.py:648: in test_active_live_binding_rejects_strict_or_factor_name_escape
+    _cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(count=1)
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause[native] _
+test_live_factor_binding.py:670: in test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause[build] _
+test_live_factor_binding.py:670: in test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_invalid_raw_live_event_is_rejected_before_feed_lines_and_strategy_callback _
+test_live_factor_binding.py:699: in test_invalid_raw_live_event_is_rejected_before_feed_lines_and_strategy_callback
+    cerebro, cohort, feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+________ test_snapshot_treats_an_unknown_operator_reason_as_unavailable ________
+test_live_factor_binding.py:713: in test_snapshot_treats_an_unknown_operator_reason_as_unavailable
+    cerebro, _cohort, _feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+_ test_custom_nan_without_reason_stays_unknown_even_when_inputs_are_live_ready _
+test_live_factor_binding.py:730: in test_custom_nan_without_reason_stays_unknown_even_when_inputs_are_live_ready
+    cerebro, _cohort, _feed, _plan, _values, _clock = _make_inputs(
+test_live_factor_binding.py:242: in _make_inputs
+    pytest.importorskip("bt_api_py", reason="BtApiFeed needs the bt_api_py SDK")
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py:172: in <module>
+    from bt_api_py.bt_api import BtApi
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py:584: in <module>
+    _reg_logger = get_logger("registry")
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py:176: in get_logger
+    logger = _LoggerProxy(SpdLogManager(**manager_kwargs).create_logger())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py:130: in create_logger
+    fh = logging.FileHandler(self.file_name, encoding="utf-8")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1181: in __init__
+    StreamHandler.__init__(self, self._open())
+                                 ^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py:1213: in _open
+    return open_func(self.baseFilename, self.mode,
+E   PermissionError: [Errno 1] Operation not permitted: '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/logs/bt_api_registry.log'
+=============================== warnings summary ===============================
+test_factor_single_class_modes.py:207
+  /private/tmp/iter61-live-binding.8A3GhSo8/test_factor_single_class_modes.py:207: DeprecationWarning: invalid escape sequence '\['
+    with pytest.raises(ResearchConfigError, match="params\['mode'\]"):
+
+../../../Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runnext]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind[runonce]
+  <unknown>:207: DeprecationWarning: invalid escape sequence '\['
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: /private/tmp/iter61-live-binding.8A3GhSo8/junit5.xml ---
+=========================== short test summary info ============================
+FAILED test_live_factor_binding.py::test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot[native]
+FAILED test_live_factor_binding.py::test_ordinary_strategy_binds_real_cohort_feed_and_publishes_bounded_immutable_snapshot[build]
+FAILED test_live_factor_binding.py::test_alpha003_history_span_resolves_logical_views_to_physical_panels
+FAILED test_live_factor_binding.py::test_alpha001_panel_child_bind_inherits_only_the_active_factor_context[native]
+FAILED test_live_factor_binding.py::test_alpha001_panel_child_bind_inherits_only_the_active_factor_context[build]
+FAILED test_live_factor_binding.py::test_nested_live_bind_requires_explicit_factor_name_to_match_parent_context
+FAILED test_live_factor_binding.py::test_old_live_bar_does_not_become_fresh_when_scheduler_time_advances
+FAILED test_live_factor_binding.py::test_future_close_time_exceeding_profile_blocks_readiness_but_keeps_output
+FAILED test_live_factor_binding.py::test_future_available_at_exceeding_profile_blocks_readiness
+FAILED test_live_factor_binding.py::test_history_batch_stays_warmup_after_later_processing_time
+FAILED test_live_factor_binding.py::test_live_snapshot_fails_closed_when_injected_scheduler_clock_breaks
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[0]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[-1]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[True]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[None]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[inf]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[nan]
+FAILED test_live_factor_binding.py::test_live_plan_requires_a_finite_positive_bar_age[1]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[-0.1]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[True]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[None]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[inf]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[nan]
+FAILED test_live_factor_binding.py::test_live_plan_requires_finite_nonnegative_future_skew[0]
+FAILED test_live_factor_binding.py::test_live_snapshot_uses_normal_datetime_now_utc_scheduler_clock
+FAILED test_live_factor_binding.py::test_schema_registration_without_cerebro_activation_cannot_bind_live_factors
+FAILED test_live_factor_binding.py::test_factor_instances_and_snapshots_are_isolated_between_strategy_runs
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_public_factor_bind_without_context_name
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_strict_or_factor_name_escape[False-scaled_close-requires strict=True]
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_strict_or_factor_name_escape[True-None-non-empty factor_name]
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_strict_or_factor_name_escape[True--non-empty factor_name]
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_strict_or_factor_name_escape[True-   -non-empty factor_name]
+FAILED test_live_factor_binding.py::test_active_live_binding_rejects_strict_or_factor_name_escape[True-7-non-empty factor_name]
+FAILED test_live_factor_binding.py::test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause[native]
+FAILED test_live_factor_binding.py::test_ordinary_live_factor_runtime_errors_keep_factor_context_and_cause[build]
+FAILED test_live_factor_binding.py::test_invalid_raw_live_event_is_rejected_before_feed_lines_and_strategy_callback
+FAILED test_live_factor_binding.py::test_snapshot_treats_an_unknown_operator_reason_as_unavailable
+FAILED test_live_factor_binding.py::test_custom_nan_without_reason_stays_unknown_even_when_inputs_are_live_ready
+38 failed, 8 passed, 8 warnings in 6.21s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -c /private/tmp/iter61-live-binding.8A3GhSo8/pytest.ini -p no:cacheprovider --log-file=/private/tmp/iter61-live-binding.8A3GhSo8/pytest-runtime5.log --basetemp=/private/tmp/iter61-live-binding.8A3GhSo8/tmp/pytest5 --junitxml=/private/tmp/iter61-live-binding.8A3GhSo8/junit5.xml -q test_live_factor_binding.py test_factor_single_class_modes.py::test_bound_mode_isolation_survives_multiple_runs_and_direct_bind --tb=short` failed. (See above for error)

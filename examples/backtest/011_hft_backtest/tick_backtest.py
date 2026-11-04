@@ -12,18 +12,11 @@ Usage:
     python examples/backtest/011_hft_backtest/tick_backtest.py
 """
 
-import os
-import sys
-from pathlib import Path
-
-# Add project root to path
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(PROJECT_ROOT))
-
 import backtrader as bt
 from backtrader.channels.tick import TickChannel
 from backtrader.channel import StreamingEventQueue
 from backtrader.brokers.tickbroker import TickBroker
+from backtrader.utils.paths import data_path
 
 
 class SimpleTickStrategy(bt.Strategy):
@@ -105,12 +98,13 @@ def main():
     runs the strategy, and prints results.
     """
     symbol = "BTC/USDT"
-    data_file = PROJECT_ROOT / "tests" / "datas" / "tick_data" / f'tick_{symbol.replace("/", "_")}.csv'
-
-    if not data_file.exists():
-        print(f"Data file not found: {data_file}")
+    fixture = "tests/datas/tick_data/tick_%s.csv" % symbol.replace("/", "_")
+    try:
+        data_file = data_path(fixture)
+    except FileNotFoundError:
+        print(f"BLOCKED: Data file not found: {fixture}")
         print("Generate test data first: python tools/generate_test_data.py --type tick")
-        raise SystemExit(2)
+        raise SystemExit(2) from None
 
     # 1. Create tick channel + event queue
     channel = TickChannel(symbol=symbol, dataname=str(data_file))

@@ -388,6 +388,37 @@ def _origins(bt_root: Path, fc_root: Path, example_module, example_path: Path, p
     return origins
 
 
+def _strategy_module(root: Path):
+    """Load the selected checkout's strategy without installing a compatibility alias."""
+    import importlib
+
+    root = root.resolve()
+    names = ("backtrader.strategies.factor_strategy", "backtrader.research.factor_strategy")
+    paths = {name: root.joinpath(*name.split(".")).with_suffix(".py").resolve() for name in names}
+    for path in paths.values():
+        if not _inside(path, root, strict=False):
+            raise ImportError("FactorStrategy source resolves outside selected root: %s" % path)
+    for package in ("backtrader", "backtrader.research"):
+        origin = getattr(sys.modules.get(package), "__file__", None)
+        if not origin or not _inside(Path(origin).resolve(), root):
+            raise ImportError("%s resolved outside selected root: %s" % (package, origin))
+    loaded = [name for name in names if name in sys.modules]
+    for name in loaded:
+        origin = getattr(sys.modules[name], "__file__", None)
+        if not origin or Path(origin).resolve() != paths[name]:
+            raise ImportError("%s resolved outside selected source: %s" % (name, origin))
+    candidates = loaded or [name for name in names if paths[name].is_file()]
+    if len(candidates) != 1 or not paths[candidates[0]].is_file():
+        raise ImportError("expected exactly one FactorStrategy source in selected root")
+    name = candidates[0]
+    module = importlib.import_module(name)
+    if Path(module.__file__).resolve() != paths[name]:
+        raise ImportError("%s resolved outside selected source: %s" % (name, module.__file__))
+    if getattr(getattr(module, "FactorStrategy", None), "__module__", None) != name:
+        raise ImportError("FactorStrategy is not defined in selected source: %s" % name)
+    return module
+
+
 def _panel_memory_bytes(panel) -> int:
     frames = [panel.get("grid")]
     feeds = panel.get("feeds", {})
@@ -514,7 +545,7 @@ def main(argv=None):
         import backtrader as bt
         import backtrader.feed
         import backtrader.research as research
-        import backtrader.research.factor_strategy as factor_strategy
+        factor_strategy = _strategy_module(bt_root)
         import backtrader.research.sink as sink
         import backtrader.research.operators as operators
         import fincore

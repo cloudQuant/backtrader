@@ -1,0 +1,16 @@
+light=False blocked=() status=0 ok research-first available /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('pandas',) status=0 ok research-first pandas /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('fincore',) status=0 ok research-first fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('pandas', 'fincore') status=0 ok research-first pandas,fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=() status=0 ok strategy-first available /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('pandas',) status=0 ok strategy-first pandas /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('fincore',) status=0 ok strategy-first fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=False blocked=('pandas', 'fincore') status=0 ok strategy-first pandas,fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=() status=0 ok research-first available /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('pandas',) status=0 ok research-first pandas /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('fincore',) status=0 ok research-first fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('pandas', 'fincore') status=0 ok research-first pandas,fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=() status=0 ok strategy-first available /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('pandas',) status=0 ok strategy-first pandas /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('fincore',) status=0 ok strategy-first fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py
+light=True blocked=('pandas', 'fincore') status=0 ok strategy-first pandas,fincore /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py

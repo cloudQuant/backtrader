@@ -19,7 +19,7 @@ import pandas as pd
 import backtrader as bt
 from backtrader.research.alpha101 import ALPHA_REGISTRY, get_alpha
 from backtrader.research.factor_indicator import FactorIndicator
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec, ResearchSpec
 from tests.test_utils.alpha101_full_reference import (
     formula_ids,

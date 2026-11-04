@@ -17,4 +17,4 @@ python examples/backtest/022_cryptohftdata_sma/run.py --run --from-date 2026-07-
 
 The example does not load `.env`, store the key in a file, or write result
 files. If the SDK or key is unavailable, it exits with a clear blocked status
-before making a provider request.
+before making a provider request and exits 2. Running without `--run` also exits 2.

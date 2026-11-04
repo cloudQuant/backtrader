@@ -1,0 +1,18 @@
+{
+  "broker": {
+    "cancel": 0,
+    "submit": 0
+  },
+  "dates": 35,
+  "evaluation_id": "1dd761fb7fa17084a7f7052361e2d0dc2c1d042237d6eae959718bbd03ab6b2b",
+  "evaluation_status": "OK",
+  "factor_calculation": "RAN",
+  "factor_classes": {
+    "close_ma": "close_ma_factor_strategy.CloseMAFactor"
+  },
+  "factor_mode": "native",
+  "output_dir": "/private/tmp/iter61-eval025026.I5g1dG/025-report",
+  "report": "/private/tmp/iter61-eval025026.I5g1dG/025-report/factor_report_close_ma.html",
+  "status": "COMPLETED",
+  "symbols": 4
+}

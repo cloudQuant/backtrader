@@ -9,7 +9,7 @@ import argparse
 
 from backtrader.brokers.hft.binance_bbo_compare import engine_result_to_json, run_binance_bbo_hftbacktest_strategy
 
-from common import add_common_arguments, resolve_paths
+from common import add_common_arguments, missing_data, hftbacktest_blocked, resolve_paths
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -24,7 +24,13 @@ def main() -> int:
         int: Exit code (0 for success).
     """
     args = _build_parser().parse_args()
+    blocked = hftbacktest_blocked()
+    if blocked is not None:
+        return blocked
+
     paths = resolve_paths(args)
+    if missing_data(paths, ("market_data",)):
+        return 2
     result = run_binance_bbo_hftbacktest_strategy(
         strategy_name=args.strategy,
         orderbook_path=paths["orderbook"],

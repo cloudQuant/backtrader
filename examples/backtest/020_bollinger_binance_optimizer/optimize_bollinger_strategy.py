@@ -413,7 +413,7 @@ def run_backtest_with_dict(params, data_dict):
             'close': data_dict['close'],
             'volume': data_dict['volume'],
         })
-        data_df.index = pd.to_datetime(data_dict['dates'], unit='ms')
+        data_df.index = pd.to_datetime(data_dict['dates'], unit=data_dict.get('date_unit', 'ms'))
 
         return run_single_backtest(data_df, params)
     except Exception as e:
@@ -477,7 +477,8 @@ def run_optimization(data_dir: str,
     # Convert data to serializable format (for multiprocessing)
     # Convert DataFrame to dict format for pickle serialization
     data_dict = {
-        'dates': data_df.index.astype('int64').tolist(),  # Convert to unix timestamp
+        'dates': data_df.index.astype('datetime64[ns]').astype('int64').tolist(),
+        'date_unit': 'ns',
         'open': data_df['open'].tolist(),
         'high': data_df['high'].tolist(),
         'low': data_df['low'].tolist(),
@@ -683,12 +684,20 @@ Examples:
     if not 0.1 <= args.cpu_usage <= 1.0:
         parser.error('--cpu-usage must be between 0.1 and 1.0')
 
+    # External input paths are relative to the caller's working directory.
+    data_dir = Path(args.data_dir).expanduser().resolve()
+    if not data_dir.is_dir() or not any(data_dir.glob('*.zip')):
+        print(f"BLOCKED: no ZIP input files in {data_dir}; provide --data-dir containing Binance ZIP files")
+        raise SystemExit(2)
+
     # Run optimization
-    run_optimization(
-        data_dir=args.data_dir,
+    result = run_optimization(
+        data_dir=str(data_dir),
         start_date=args.start_date,
         end_date=args.end_date,
         use_multiprocessing=not args.no_multiprocessing,
         cpu_usage=args.cpu_usage,
         output_dir=args.output_dir,
     )
+    if result is None:
+        raise SystemExit(1)

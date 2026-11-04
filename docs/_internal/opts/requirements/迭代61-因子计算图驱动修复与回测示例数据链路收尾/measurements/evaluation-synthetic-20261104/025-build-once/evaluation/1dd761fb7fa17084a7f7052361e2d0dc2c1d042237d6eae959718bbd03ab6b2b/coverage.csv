@@ -1,0 +1,2 @@
+factor,kind,direction,input_cells,finite_cells,label_cells,evaluable_cells,status
+close_ma,factor,1,140,48,131,42,OK

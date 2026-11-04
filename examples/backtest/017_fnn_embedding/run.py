@@ -47,9 +47,10 @@ except ImportError:  # Direct execution through this directory's run.py.
     from fnn_autoencoder import RollingTrainer  # type: ignore
 
 from backtrader.utils.load_data import load_config, load_mt5_csv
+from backtrader.utils.paths import find_project_root
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parent.parent.parent
+REPO = find_project_root(__file__)
 DEFAULT_CONFIG = HERE / "config.yaml"
 
 ROOT_KEYS = {
@@ -630,7 +631,18 @@ def main(argv=None) -> int:
     )
     args = parser.parse_args(argv)
 
-    cfg = load_yaml_config(Path(args.config))
+    config_path = Path(args.config)
+    try:
+        cfg = load_yaml_config(config_path)
+    except FileNotFoundError as exc:
+        if exc.filename is None or Path(exc.filename) != config_path:
+            raise
+        print(
+            "BLOCKED: configuration file not found: %s; provide an existing --config file"
+            % config_path,
+            file=sys.stderr,
+        )
+        return 2
     mode = args.mode or cfg.get("mode", "backtest")
     started = time.perf_counter()
     try:

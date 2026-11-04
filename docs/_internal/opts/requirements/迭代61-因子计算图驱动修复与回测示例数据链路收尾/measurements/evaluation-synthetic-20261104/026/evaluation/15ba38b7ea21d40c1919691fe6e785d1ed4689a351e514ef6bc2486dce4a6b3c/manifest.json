@@ -1,0 +1,236 @@
+{
+  "api_version": "1.0",
+  "capabilities": {
+    "charts_available": true,
+    "export_formats": [
+      "json",
+      "csv"
+    ]
+  },
+  "counts": {
+    "combinations": 0,
+    "diagnostics": 3,
+    "evaluable_factor_periods": 6,
+    "factors": 3,
+    "ic_observations": 84,
+    "ic_rows": 84,
+    "label_rows": 280,
+    "panel_cells": 140,
+    "signal_rows": 420,
+    "study_dates": 35,
+    "targets": 4
+  },
+  "evaluation_config_schema_version": 1,
+  "evaluation_id": "15ba38b7ea21d40c1919691fe6e785d1ed4689a351e514ef6bc2486dce4a6b3c",
+  "exports": [
+    "signals.csv",
+    "labels.csv",
+    "ic.csv",
+    "ic_summary.csv",
+    "quantile_returns.csv",
+    "turnover.csv",
+    "spreads.csv",
+    "stability.csv",
+    "correlation.csv",
+    "comparisons.csv",
+    "coverage.csv",
+    "diagnostics.csv"
+  ],
+  "inputs": {
+    "factors": "664a1765dea993d7ae77b0494a0c327b4255543cff47ebd0dd3745ae4bb778f2",
+    "grid": "0ff3a35d59ce6168190136ca36abe6f1482d136d8c5c4d34d864f20d0af6a7b6",
+    "groups": {
+      "sh600000": "market",
+      "sh600001": "market",
+      "sh600002": "market",
+      "sh600003": "market"
+    },
+    "precomputed_returns": "none",
+    "prices": {
+      "close": "0b4f308b0358d8cd752ee02e5f108c05099c665bc62ccc3a3657a394a87a43f7",
+      "open": "0555e56f729187fd86fa3edce33dcdce084502cfc31e61a02546a00667c15819"
+    },
+    "universe": "d7e041a0e526bc706c25080a8a8f9f2502e1a535afaa349673cabdd733d50c47"
+  },
+  "label_mode": "next_open_to_open",
+  "labels": [
+    "1D",
+    "5D"
+  ],
+  "result_fingerprint": "667a7cc60aebf6b20861de86648bdba047699aaee0bddde281edc8962d0dad74",
+  "result_schema_version": 1,
+  "spec": {
+    "calendar_id": "synthetic-weekday-v1",
+    "combinations": {},
+    "comparisons": {},
+    "direction_overrides": {},
+    "end": "2025-02-19T07:00:00+00:00",
+    "feed_time_kind": "close_time",
+    "frequency": "1session",
+    "label": "next_open_to_open",
+    "max_loss": 1.0,
+    "min_assets": 1,
+    "min_quantile_assets": 1,
+    "periods": [
+      1,
+      5
+    ],
+    "precomputed_entry": "next_open",
+    "preprocess": "none",
+    "price_basis": "synthetic",
+    "quantiles": 5,
+    "segments": {},
+    "snapshot_id": "synthetic-v1",
+    "source_timezone": "Asia/Shanghai",
+    "stability_lags": [],
+    "start": "2025-01-02T07:00:00+00:00",
+    "targets": [
+      "sh600000",
+      "sh600001",
+      "sh600002",
+      "sh600003"
+    ]
+  },
+  "status": "OK",
+  "tables": {
+    "comparisons": {
+      "columns": [
+        "comparison",
+        "left",
+        "right",
+        "period",
+        "mean_ic",
+        "icir",
+        "mean_ic_left",
+        "mean_ic_right",
+        "icir_left",
+        "icir_right",
+        "n_dates_left",
+        "n_dates_right"
+      ],
+      "rows": 0
+    },
+    "correlation": {
+      "columns": [
+        "factor_left",
+        "factor_right",
+        "mean_correlation",
+        "std_correlation",
+        "n_dates"
+      ],
+      "rows": 3
+    },
+    "coverage": {
+      "columns": [
+        "factor",
+        "kind",
+        "direction",
+        "input_cells",
+        "finite_cells",
+        "label_cells",
+        "evaluable_cells",
+        "status"
+      ],
+      "rows": 3
+    },
+    "diagnostics": {
+      "columns": [
+        "factor",
+        "stage",
+        "severity",
+        "code",
+        "message"
+      ],
+      "rows": 3
+    },
+    "ic": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "ic",
+        "rank_ic",
+        "n_assets"
+      ],
+      "rows": 84
+    },
+    "ic_summary": {
+      "columns": [
+        "factor",
+        "period",
+        "mean_ic",
+        "std_ic",
+        "icir",
+        "mean_rank_ic",
+        "std_rank_ic",
+        "rank_icir",
+        "n_dates"
+      ],
+      "rows": 6
+    },
+    "labels": {
+      "columns": [
+        "time",
+        "asset",
+        "period",
+        "value"
+      ],
+      "rows": 280
+    },
+    "quantile_returns": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "quantile",
+        "mean_return",
+        "n_assets"
+      ],
+      "rows": 262
+    },
+    "signals": {
+      "columns": [
+        "time",
+        "asset",
+        "factor",
+        "direction",
+        "value",
+        "processed_value",
+        "preprocess",
+        "group"
+      ],
+      "rows": 420
+    },
+    "spreads": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "spread",
+        "top_quantile",
+        "bottom_quantile"
+      ],
+      "rows": 84
+    },
+    "stability": {
+      "columns": [
+        "factor",
+        "lag",
+        "mean_rank_autocorrelation",
+        "std_rank_autocorrelation",
+        "n_dates"
+      ],
+      "rows": 0
+    },
+    "turnover": {
+      "columns": [
+        "time",
+        "factor",
+        "period",
+        "quantile",
+        "turnover"
+      ],
+      "rows": 198
+    }
+  }
+}

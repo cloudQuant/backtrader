@@ -13,7 +13,7 @@ import pytest
 
 import backtrader as bt
 from backtrader.research.factor_indicator import FactorIndicator
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.alpha101 import get_alpha
 from tests.test_utils.alpha101_full_reference import formula_metadata, formula_source
 from backtrader.research.specs import FactorSpec, ResearchSpec

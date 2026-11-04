@@ -6,13 +6,14 @@ for Binance BBO alignment comparison strategies.
 from __future__ import annotations
 
 import argparse
+import importlib
 from collections import Counter
 from pathlib import Path
 
 from backtrader.brokers.hft.examples import get_hftbacktest_demo_example_specs
+from backtrader.utils.paths import find_project_root
 
-EXAMPLE_ROOT = Path(__file__).resolve().parent
-DEFAULT_DATA_DIR = EXAMPLE_ROOT / "data"
+DEFAULT_DATA_DIR = find_project_root(__file__) / "tests/datas/binance_bbo_demo"
 DEFAULT_SYMBOL = "ETH/USDT"
 STRATEGY_NAMES = tuple(spec.name for spec in get_hftbacktest_demo_example_specs())
 DEFAULT_STRATEGY = STRATEGY_NAMES[0]
@@ -88,3 +89,31 @@ def fill_counter(fills) -> Counter:
         Counter mapping (side, price, size) to occurrence count.
     """
     return Counter((item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills)
+
+
+def hftbacktest_blocked() -> int | None:
+    """Return the BLOCKED exit code when the optional hftbacktest engine is absent.
+
+    The alignment demo needs a second engine to be meaningful; without the optional
+    package the entrypoints report a blocked result instead of failing on an import.
+    """
+    try:
+        engine = importlib.import_module("hftbacktest")
+        orders = importlib.import_module("hftbacktest.order")
+        for name in ("BacktestAsset", "HashMapMarketDepthBacktest"):
+            getattr(engine, name)
+        for name in ("BUY", "GTX", "LIMIT", "PARTIALLY_FILLED", "SELL"):
+            getattr(orders, name)
+    except (ImportError, AttributeError) as exc:
+        print(f"BLOCKED: optional engine 'hftbacktest' unavailable ({exc}); install a compatible hftbacktest and its dependencies")
+        return 2
+    return None
+
+
+def missing_data(paths, required):
+    """Report missing input files before running either engine."""
+    missing = [paths[name] for name in required if not paths[name].is_file()]
+    if missing:
+        print("BLOCKED: missing data: " + ", ".join(map(str, missing)) + "; supply --data-dir with the required files")
+        return True
+    return False

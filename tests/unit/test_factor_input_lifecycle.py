@@ -50,6 +50,7 @@ def test_collection_consumes_source_frames_only_when_explicit(
     import backtrader as bt
     import backtrader.brokers as brokers
     import backtrader.research as research_api
+    import backtrader.strategies.factor_strategy as strategy_module
     from backtrader.feeds.pandafeed import PandasData
 
     runner = _load_runner(key)
@@ -135,7 +136,7 @@ def test_collection_consumes_source_frames_only_when_explicit(
     monkeypatch.setattr(bt, "Cerebro", FakeCerebro)
     monkeypatch.setattr(brokers, "BackBroker", _BaseBroker)
     monkeypatch.setattr(research_api, "FactorSpec", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(research_api, "FactorStrategy", object)
+    monkeypatch.setattr(strategy_module, "FactorStrategy", object)
     monkeypatch.setattr(research_api, "MemorySink", lambda: None)
     monkeypatch.setattr(research_api, "align_to_grid", tracked_align)
 

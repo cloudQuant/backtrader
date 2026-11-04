@@ -2,7 +2,7 @@ example_id: 026_factor_multi
 factor_mode: native
 
 data:
-  directory: ../../../tests/datas/a_stocks
+  directory: tests/datas/a_stocks
   max_symbols: 500
   group: all_symbols
   snapshot_id: a-stocks-daily-2025

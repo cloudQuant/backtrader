@@ -21,9 +21,10 @@ from matplotlib.ticker import FuncFormatter
 
 import backtrader as bt
 import backtrader.indicators as btind
+from backtrader.utils.paths import data_path, find_project_root
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR.parents[1] / "data" / "113013.csv"
+DATA_FILE = Path("tests/datas/113013.csv")
 OUTPUT_DIR = BASE_DIR / "output"
 
 # Set Chinese font
@@ -249,7 +250,7 @@ def run_strategy(csv_file=DATA_FILE, initial_cash=100000.0, commission=0.0003):
     cerebro.addstrategy(PremiumRateCrossoverStrategy)
 
     # Load data
-    df = load_bond_data(csv_file)
+    df = load_bond_data(resolve_data_path(csv_file))
 
     # Create data feed
     data = ExtendPandasFeed(dataname=df)
@@ -428,20 +429,13 @@ def plot_results(
 
 
 def resolve_data_path(path):
-    """Resolve a caller path or the shared public example data fixture."""
+    """Resolve a caller path: absolute as given, otherwise root-relative."""
     candidate = Path(path).expanduser()
     if candidate.is_absolute():
-        candidates = [candidate]
-    else:
-        candidates = [Path.cwd() / candidate, BASE_DIR / candidate]
-        shared_data = BASE_DIR.parents[1] / "data" / candidate
-        candidates.append(shared_data)
-
-    for item in candidates:
-        if item.is_file():
-            return item.resolve()
-    tried = ", ".join(str(item.resolve()) for item in candidates)
-    raise FileNotFoundError(f"Convertible-bond CSV not found: {path}. Tried: {tried}")
+        if not candidate.is_file():
+            raise FileNotFoundError(f"Convertible-bond CSV not found: {candidate}")
+        return candidate.resolve()
+    return data_path(candidate, root=find_project_root(__file__))
 
 
 def main(argv=None):
@@ -451,7 +445,11 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--no-show", action="store_true", help="save the chart without opening a window")
     args = parser.parse_args(argv)
-    csv_file = resolve_data_path(args.data_file)
+    try:
+        csv_file = resolve_data_path(args.data_file)
+    except FileNotFoundError as exc:
+        print(f"BLOCKED: {exc}; supply --data-file with an existing CSV")
+        return 2
     output_dir = args.output_dir.expanduser().resolve()
 
     cerebro, results, time_return = run_strategy(csv_file=csv_file)

@@ -21,7 +21,7 @@ import backtrader as bt
 from backtrader.research import FactorSpec, LiveFactorPlan, LiveFactorSet
 from backtrader.research.alpha101 import get_alpha
 from backtrader.research.factor_indicator import FactorIndicator, _PresenceLine
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.live_cohort import (
     LiveBarCohort,
     LiveCalendarSlot,

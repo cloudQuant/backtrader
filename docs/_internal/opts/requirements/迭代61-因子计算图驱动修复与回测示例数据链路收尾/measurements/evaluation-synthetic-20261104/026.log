@@ -1,0 +1,4 @@
+/Users/yunjinqi/.matplotlib is not a writable directory
+Matplotlib created a temporary cache directory at /var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/matplotlib-4o8zlwtj because there was an issue with the default path (/Users/yunjinqi/.matplotlib); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.
+026_factor_multi: OK
+RUNNER_EXIT 0

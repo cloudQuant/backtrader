@@ -727,7 +727,8 @@ def _run_factor_strategy(
     try:
         import backtrader as bt
         import pandas as pd
-        from backtrader.research import FactorStrategy, align_to_grid, operators
+        from backtrader.research import align_to_grid, operators
+        from backtrader.strategies.factor_strategy import FactorStrategy
         from backtrader.research.specs import ResearchSpec
     except ImportError:
         _fail("RESEARCH_RUNTIME_UNAVAILABLE")

@@ -109,7 +109,7 @@ def _source_hashes(example: str) -> Dict[str, str]:
         EXAMPLES[example] / "run.py",
         EXAMPLES[example] / "config.yaml",
         REPO_ROOT / "backtrader" / "research" / "__init__.py",
-        REPO_ROOT / "backtrader" / "research" / "factor_strategy.py",
+        REPO_ROOT / "backtrader" / "strategies" / "factor_strategy.py",
         REPO_ROOT / "backtrader" / "research" / "operators.py",
         REPO_ROOT / "backtrader" / "research" / "specs.py",
         REPO_ROOT / "backtrader" / "research" / "inputs.py",
@@ -194,6 +194,13 @@ def _research_spec(example: str, config: Mapping[str, Any], panel: Mapping[str, 
     )
 
 
+def _factor_strategy():
+    """Return the strategy class used by the benchmark's panel runner."""
+    from backtrader.strategies.factor_strategy import FactorStrategy
+
+    return FactorStrategy
+
+
 def _run_panel(
     example: str,
     config: Mapping[str, Any],
@@ -210,7 +217,6 @@ def _run_panel(
     module: Any = None,
 ) -> None:
     import backtrader as bt
-    from backtrader.research import FactorStrategy
     from backtrader.research.align import align_to_grid
     from backtrader.research.sink import MemorySink
 
@@ -233,7 +239,7 @@ def _run_panel(
     resident["align"] = _rss()
     stage_states["align"]["status"] = "OK"
 
-    cerebro.addstrategy(FactorStrategy, research=research, factors=factors, sink=sink)
+    cerebro.addstrategy(_factor_strategy(), research=research, factors=factors, sink=sink)
     stage_states["collect"]["status"] = "RUNNING"
     stage_states["cerebro"]["status"] = "RUNNING"
     started = time.perf_counter()

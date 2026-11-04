@@ -30,6 +30,7 @@ import sys
 import pandas as pd
 import numpy as np
 import backtrader as bt
+from backtrader.utils.paths import data_path
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
@@ -37,7 +38,7 @@ from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_PATH = BASE_DIR.parents[1] / "data" / "DOGEUSDT_15m_20200710_20260126.csv"
+DATA_PATH = data_path("tests/datas/DOGEUSDT_15m_20200710_20260126.csv")
 OUTPUT_DIR = BASE_DIR / "output"
 RESULTS_DIR = OUTPUT_DIR / "training"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)

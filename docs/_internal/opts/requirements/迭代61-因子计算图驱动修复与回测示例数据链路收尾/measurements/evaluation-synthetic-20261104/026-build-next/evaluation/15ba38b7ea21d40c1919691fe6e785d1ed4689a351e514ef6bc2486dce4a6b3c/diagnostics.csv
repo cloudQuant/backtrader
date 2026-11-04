@@ -1,0 +1,4 @@
+factor,stage,severity,code,message
+close_ma,correlation,info,correlation_dates_skipped,factors 'close_ma'/'kdj_j': 19 dates were below min_assets
+close_ma,correlation,info,correlation_dates_skipped,factors 'close_ma'/'roc': 20 dates were below min_assets
+kdj_j,correlation,info,correlation_dates_skipped,factors 'kdj_j'/'roc': 20 dates were below min_assets

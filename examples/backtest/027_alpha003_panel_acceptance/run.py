@@ -10,24 +10,13 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 
+from backtrader.utils.paths import data_path
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SCRIPT_DIR / "config.yaml"
 EXAMPLE_ID = "027_alpha003_panel_acceptance"
 FACTOR_NAME = "alpha003"
 FACTOR_MODES = ("native", "build")
-
-
-def _add_checkout_root() -> None:
-    """Use this checkout in-place; a copied example uses installed Backtrader."""
-    for parent in SCRIPT_DIR.parents:
-        if (parent / "backtrader" / "__init__.py").is_file():
-            root = str(parent)
-            if root not in sys.path:
-                sys.path.insert(0, root)
-            return
-
-
-_add_checkout_root()
 
 
 def _load_config(path: Path = CONFIG_PATH) -> Dict[str, Any]:
@@ -63,7 +52,8 @@ def load_daily_panel(data_config: Mapping[str, Any]) -> Dict[str, Any]:
     directory = data_config.get("directory")
     if not isinstance(directory, str) or not directory:
         raise FileNotFoundError("daily data directory not found: %s" % directory)
-    root = _resolve_path(directory)
+    supplied = Path(directory).expanduser()
+    root = supplied.resolve() if supplied.is_absolute() else data_path(supplied)
     manifest_path = root / "_metadata" / "manifest.json"
     if not manifest_path.is_file():
         raise FileNotFoundError("daily data directory not found: %s" % root)
@@ -126,11 +116,11 @@ def _run_factor(
     from backtrader.brokers import BackBroker
     from backtrader.research import (
         FactorSpec,
-        FactorStrategy,
         ResearchSpec,
         align_to_grid,
     )
     from backtrader.research.alpha101 import get_alpha
+    from backtrader.strategies.factor_strategy import FactorStrategy
 
     data_config = config["data"]
     grid = panel["grid"]
@@ -251,7 +241,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if config.get("factor") != FACTOR_NAME or config.get("operator_profile") != "alpha101-v2":
             raise ValueError("this example fixes factor=alpha003 and operator_profile=alpha101-v2")
         if args.data_dir:
-            config["data"]["directory"] = args.data_dir
+            config["data"]["directory"] = str(Path(args.data_dir).expanduser().resolve())
         if args.max_symbols is not None:
             config["data"]["max_symbols"] = args.max_symbols
         output_dir = _resolve_path(args.output_dir)

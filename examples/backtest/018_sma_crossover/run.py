@@ -5,24 +5,14 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import stat
 import sys
 from typing import List, Optional
 
 import yaml
 
-
-def _add_checkout_root() -> None:
-    """Use the source checkout when run in place; copies use installed Backtrader."""
-
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "backtrader" / "__init__.py").is_file():
-            sys.path.insert(0, str(parent))
-            return
-
-
-_add_checkout_root()
-
 import backtrader as bt
+from backtrader.utils.paths import data_path, find_project_root
 
 from sma_crossover_strategy import MA_CrossOver
 
@@ -46,6 +36,21 @@ def _load_config(path: Path) -> dict:
     return config
 
 
+def _resolve_data_file(value: str, config_path: Path) -> Path:
+    """Resolve bundled fixtures from the checkout and other paths from the config."""
+    supplied = Path(value).expanduser()
+    if supplied.is_absolute():
+        path = supplied
+    elif supplied.parts[:2] == ("tests", "datas"):
+        path = data_path(supplied, root=find_project_root(__file__))
+    else:
+        path = config_path.parent / supplied
+    path = path.resolve()
+    if not stat.S_ISREG(path.stat().st_mode):
+        raise ValueError(f"SMA example input is not a regular file: {path}")
+    return path
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     """Run one deterministic local backtest and print its final portfolio value."""
 
@@ -58,17 +63,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     config_path = args.config.expanduser().resolve()
-    config = _load_config(config_path)
-    data_path = Path(config["data_file"]).expanduser()
-    if not data_path.is_absolute():
-        data_path = config_path.parent / data_path
-    data_path = data_path.resolve()
-    if not data_path.is_file():
-        raise FileNotFoundError(f"SMA example input is missing: {data_path}")
+    try:
+        config = _load_config(config_path)
+    except FileNotFoundError as exc:
+        if exc.filename is None or Path(exc.filename) != config_path:
+            raise
+        print(
+            f"BLOCKED: configuration file not found: {config_path}; "
+            "provide an existing --config file",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        datapath = _resolve_data_file(config["data_file"], config_path)
+    except FileNotFoundError as exc:
+        print(
+            f"BLOCKED: SMA example input is missing: {exc}; "
+            "provide an existing data_file in --config",
+            file=sys.stderr,
+        )
+        return 2
 
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(float(config["cash"]))
-    cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=str(data_path)))
+    cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=str(datapath)))
     cerebro.addstrategy(MA_CrossOver, fast=config["fast"], slow=config["slow"])
     results = cerebro.run()
     print(f"bars: {len(results[0].data)}")

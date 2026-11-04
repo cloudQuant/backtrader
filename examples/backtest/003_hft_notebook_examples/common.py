@@ -6,6 +6,7 @@ for Binance BBO comparison strategies.
 from __future__ import annotations
 
 import argparse
+import importlib
 from collections import Counter
 from pathlib import Path
 
@@ -73,8 +74,6 @@ def default_paths(strategy: str, data_root: Path) -> dict[str, Path]:
     """
     config = STRATEGY_CONFIG[strategy]
     root = Path(data_root) / config["data_subdir"]
-    if strategy == "glft_market_making" and not root.exists():
-        root = EXAMPLE_ROOT.parent / "002_hft_alignment_demo" / "data"
     return {
         "root": root,
         "orderbook": root / config["orderbook_name"],
@@ -151,3 +150,25 @@ def fill_counter(fills) -> Counter:
         Counter mapping (side, price, size) to occurrence count.
     """
     return Counter((item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills)
+
+
+def missing_data(paths, required=("orderbook", "ticks", "market_data")):
+    missing = [paths[name] for name in required if not paths[name].is_file()]
+    if missing:
+        print("BLOCKED: missing data: " + ", ".join(map(str, missing)) + "; prepare local data or select --data-root")
+        return True
+    return False
+
+
+def hftbacktest_blocked():
+    try:
+        engine = importlib.import_module("hftbacktest")
+        orders = importlib.import_module("hftbacktest.order")
+        for name in ("BacktestAsset", "HashMapMarketDepthBacktest"):
+            getattr(engine, name)
+        for name in ("BUY", "GTX", "LIMIT", "PARTIALLY_FILLED", "SELL"):
+            getattr(orders, name)
+    except (ImportError, AttributeError) as exc:
+        print(f"BLOCKED: optional engine 'hftbacktest' unavailable ({exc}); install a compatible hftbacktest and its dependencies")
+        return True
+    return False

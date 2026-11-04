@@ -10,7 +10,7 @@ import pytest
 
 from backtrader.errors import ResearchConfigError
 from backtrader.research.factor_indicator import FactorIndicator
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
 from tests.test_utils.alpha101_native_harness import make_positive_fixture, make_research_spec
 from tests.unit.test_factor_research_representatives import _research_feed

@@ -60,7 +60,7 @@ def main():
     import psutil
     import backtrader as bt
     import backtrader.research as research
-    from backtrader.research.factor_strategy import FactorStrategy
+    from backtrader.strategies.factor_strategy import FactorStrategy
     from backtrader.research.sink import MemorySink
     import fincore
     from fincore.factor_analysis import research as fc_research

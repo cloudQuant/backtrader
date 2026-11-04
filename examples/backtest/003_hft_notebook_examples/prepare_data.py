@@ -10,9 +10,11 @@ import csv
 import io
 import json
 import math
+import os
 import shutil
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -24,7 +26,11 @@ from backtrader.brokers.hft import convert_binance_bbo_zip_pair, generate_latenc
 
 EXAMPLE_ROOT = Path(__file__).resolve().parent
 DEFAULT_DATA_ROOT = EXAMPLE_ROOT / "data"
-DEFAULT_BINANCE_PROJECT_ROOT = Path("J:/binance-public-data")
+_BINANCE_ROOT_ENV = "BINANCE_PUBLIC_DATA_DIR"
+# The historical default is a Windows drive letter; macOS and Linux callers point at
+# their own binance-public-data checkout with BINANCE_PUBLIC_DATA_DIR instead of
+# editing this file.
+DEFAULT_BINANCE_PROJECT_ROOT = Path(os.environ.get(_BINANCE_ROOT_ENV) or "J:/binance-public-data")
 DEFAULT_BINANCE_SOURCE_ROOT = DEFAULT_BINANCE_PROJECT_ROOT / "data"
 BINANCE_DATA_ROOT_URL = "https://data.binance.vision/data"
 _INTERVAL_NS = 100_000_000
@@ -36,10 +42,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Prepare local datasets for migrated hftbacktest notebook strategies from a local binance-public-data checkout")
     parser.add_argument("--data-root", default=str(DEFAULT_DATA_ROOT))
     parser.add_argument("--binance-project-root", default=str(DEFAULT_BINANCE_PROJECT_ROOT))
-    parser.add_argument("--binance-source-root", default=str(DEFAULT_BINANCE_SOURCE_ROOT))
+    parser.add_argument("--binance-source-root", default=None, help="source data directory (default: <binance-project-root>/data)")
     parser.add_argument("--btc-date", default="2024-09-01")
     parser.add_argument("--eth-date", default="2024-01-01")
-    parser.add_argument("--skip-download", action="store_true")
+    downloads = parser.add_mutually_exclusive_group()
+    downloads.add_argument("--download", action="store_true", help="explicitly allow downloading missing source files")
+    downloads.add_argument("--skip-download", action="store_true", help="use local source files only (default)")
     parser.add_argument("--prepare-btc-alpha", action="store_true")
     parser.add_argument("--prepare-glft", action="store_true")
     return parser
@@ -298,7 +306,10 @@ def _ensure_local_futures_daily(source_root: Path, project_root: Path, symbol: s
     if candidate.exists():
         return candidate
     if skip_download:
-        raise FileNotFoundError(f"Missing local futures file: {candidate}")
+        raise FileNotFoundError(
+            "Missing local futures file: %s; point --binance-project-root (or %s) at a "
+            "binance-public-data checkout" % (candidate, _BINANCE_ROOT_ENV)
+        )
     script_name = f"download-futures-um-daily-{data_type}.py"
     try:
         _run_local_downloader(project_root, script_name, symbol, date_text, source_root)
@@ -321,8 +332,16 @@ def _resolve_local_spot_source(source_root: Path, symbol: str, date_text: str, s
                 candidate = _direct_download_spot_daily(source_root, symbol, data_type, date_text)
                 if candidate.exists():
                     return candidate
-            except Exception:
-                pass
+            except urllib.error.HTTPError as exc:
+                # A missing daily archive can legitimately fall back to the
+                # other daily format or a local monthly archive. Other errors
+                # must remain distinguishable from absent input data.
+                if exc.code != 404:
+                    raise
+            except FileNotFoundError as exc:
+                # Do not classify a failed local output write as a missing
+                # source archive in the CLI's missing-data handler.
+                raise RuntimeError("spot download failed while accessing a local file") from exc
     for candidate in _local_spot_monthly_candidates(source_root, symbol, date_text):
         if candidate.exists():
             return candidate
@@ -411,15 +430,20 @@ def main() -> int:
     """
     args = _build_parser().parse_args()
     data_root = Path(args.data_root)
-    source_root = Path(args.binance_source_root)
-    project_root = Path(args.binance_project_root)
+    project_root = Path(args.binance_project_root).expanduser()
+    source_root = Path(args.binance_source_root).expanduser() if args.binance_source_root else project_root / "data"
+    skip_download = not args.download
     prepare_btc_alpha = args.prepare_btc_alpha or (not args.prepare_btc_alpha and not args.prepare_glft)
     prepare_glft = args.prepare_glft or (not args.prepare_btc_alpha and not args.prepare_glft)
     payload = {}
-    if prepare_btc_alpha:
-        payload["btc_alpha"] = _prepare_btc_alpha_dataset(data_root, source_root, project_root, args.btc_date, args.skip_download)
-    if prepare_glft:
-        payload["glft"] = _prepare_glft_dataset(data_root, source_root, project_root, args.eth_date, args.skip_download)
+    try:
+        if prepare_btc_alpha:
+            payload["btc_alpha"] = _prepare_btc_alpha_dataset(data_root, source_root, project_root, args.btc_date, skip_download)
+        if prepare_glft:
+            payload["glft"] = _prepare_glft_dataset(data_root, source_root, project_root, args.eth_date, skip_download)
+    except FileNotFoundError as exc:
+        print(f"BLOCKED: {exc}; provide local source files or explicitly select --download")
+        return 2
     print(json.dumps(payload, indent=2))
     return 0
 

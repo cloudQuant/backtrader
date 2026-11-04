@@ -232,8 +232,8 @@ def pytest_configure(config):
             f"resolved __file__={origin}"
         )
 
-    # Skip cleanup on xdist workers — only the controller should clean up
-    if hasattr(config, "workerinput"):
+    # Skip cleanup on xdist workers, or when the caller explicitly opts out.
+    if hasattr(config, "workerinput") or os.environ.get("BT_SKIP_PYTEST_TMP_CLEANUP") == "1":
         return
 
     root_dir = str(_REPO_ROOT)

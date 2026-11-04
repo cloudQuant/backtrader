@@ -1,0 +1,31 @@
+{
+  "acceptance_profile": "iteration61-four-formula-witnesses",
+  "backtrader": {
+    "factor_mode_pair_witness_source": {
+      "git_blobs": {
+        "tests/fixtures/research/alpha101_dependencies.json": "da154f11e483f71986a29fefe13667792e3be423",
+        "tests/test_utils/alpha101_full_reference.py": "aa16d4d4ecb8091b3cf1843bfa9ca135520638bb",
+        "tests/test_utils/alpha101_native_harness.py": "eafa184d2af857e462bf0514b2245dacae4f4feb",
+        "tests/test_utils/alpha101_trace_validation.py": "8d6a28c72881b41a91fb506e0278234f7f9527bf",
+        "tests/unit/test_factor_build_expression.py": "0f60b022130beefccebb8fc6175630153940aa44",
+        "tests/unit/test_factor_research_representatives.py": "469c195b5bcb9f92a49f3a15a626eeaf4cbf7b1e",
+        "tests/unit/test_iter61_factor_formula_oracles.py": "89b63bbc67166b78f3755a51d893e1c14b0c6b2a"
+      },
+      "profile": "current",
+      "source_commit": "27055572ca6fb13302366b938625b01a784aaf22"
+    },
+    "git_archive_sha256": "40c5eeeaef09bd084070ffea07a02648974166a5fea898f0409f82e627f7e7c4",
+    "source_commit": "27055572ca6fb13302366b938625b01a784aaf22",
+    "version": "1.4.0",
+    "wheel_path": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels/back_trader_python-1.4.0-py3-none-any.whl",
+    "wheel_sha256": "606bc20df130b3cbc3e39c4003047feeaece2f1f1c1f3a3b2bd078fdd5f4998a"
+  },
+  "fincore": {
+    "git_archive_sha256": "29e79d26c264e5399da3db09513fd923342e728c16e61767ca882d7fcda96858",
+    "source_commit": "3e9ef205ef2023f92e89fddd1052d46b16429c64",
+    "version": "0.5.2.dev0",
+    "wheel_path": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels/fincore-0.5.2.dev0-py3-none-any.whl",
+    "wheel_sha256": "a6e09e2a89c23bea32e2e068400d4ad5300a185fecc393bcb6043ee5593107bb"
+  },
+  "schema": "iteration46-installed-alpha101-provenance-v1"
+}

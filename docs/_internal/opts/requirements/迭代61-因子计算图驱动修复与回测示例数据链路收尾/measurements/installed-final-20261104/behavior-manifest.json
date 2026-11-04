@@ -1,0 +1,27 @@
+{
+  "package_evidence": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-jdoqcnve",
+  "head": "0bd833c144b9d3ddcc7c269b5b77e6280b22792f",
+  "files_sha256": {
+    "tests/unit/test_iter61_factor_graph_core.py": "eee16ec09f98ad639b13cf186fee00fa51906a23fee167020941a91d989be5a8",
+    "tests/unit/test_iter61_factor_formula_oracles.py": "cb86bd0476e0c4518a8df160a716bd14d3b4b71a7cf1ea1ae56b13c0ae1617e4",
+    "examples/backtest/025_factor_single/close_ma_factor_strategy.py": "910758794ab31a80b29a58b6d86a40615a1e305785bd5f49ff47be425ea81fbd",
+    "examples/backtest/026_factor_multi/multi_factor_strategy.py": "b795bd5dfa8939210a738c53575de0e18e6327365bcfbbbda6b359d9f6ef9f47",
+    "tests/unit/test_iter61_named_feed_coverage.py": "8c924b045c51ff670e5843959ef2b9d6afe044e2159201f0dff6083d1d4a34d5",
+    "tests/unit/test_iter61_factor_overflow_line.py": "dd6df25ba4b3461e67811da6433ab38f49046947f222b5256917377681314e23",
+    "tests/unit/test_iter61_formula_edge_recovery.py": "a24bfd7dc51594d09c7562fb90a5e3fc9e39d978e64787ebb6314de18b6baadb"
+  },
+  "factor_source_basis": "current factor bytes equal recorded HEAD; examples were not included in package snapshot",
+  "testroot": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-owsoskn1/testroot",
+  "results": {
+    "wheel": {
+      "exit_code": 0,
+      "target": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-jdoqcnve/target-wheel",
+      "log": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-owsoskn1/out/wheel.log"
+    },
+    "sdist": {
+      "exit_code": 0,
+      "target": "/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-package-probe-jdoqcnve/target-sdist",
+      "log": "/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter61-installed-behavior-owsoskn1/out/sdist.log"
+    }
+  }
+}

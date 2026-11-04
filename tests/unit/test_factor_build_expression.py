@@ -17,7 +17,7 @@ from backtrader.research.alpha101 import (
     list_alphas,
 )
 from backtrader.research.factor_indicator import FactorIndicator
-from backtrader.research.factor_strategy import FactorStrategy
+from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec
 from tests.test_utils.alpha101_native_harness import (
     actual_matrix,

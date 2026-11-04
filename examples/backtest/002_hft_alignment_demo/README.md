@@ -1,4 +1,4 @@
-# Binance BBO Alignment Demo
+﻿# Binance BBO Alignment Demo
 
 这个示例把 `backtrader` 和 `hftbacktest` 在同一份 Binance BBO 演示数据上的对齐结果整理成了一个可直接运行的目录。
 
@@ -15,12 +15,13 @@
 
 ## 默认数据
 
-默认使用本目录自带的公开演示数据，复制本目录后路径仍然有效：
+默认使用仓库公共演示数据 `tests/datas/binance_bbo_demo/`（由
+`backtrader.utils.paths.data_path` 解析），本目录不再自带副本：
 
-- `data/orderbook_ETHUSDT_20240101.jsonl`
-- `data/tick_ETHUSDT_20240101.csv`
-- `data/ETHUSDT_20240101.npz`
-- `data/latency_20240101.npz`
+- `orderbook_ETHUSDT_20240101.jsonl`
+- `tick_ETHUSDT_20240101.csv`
+- `ETHUSDT_20240101.npz`
+- `latency_20240101.npz`
 
 可用 `--data-dir` 指定另一组同名文件。2026-10-12 修复复验运行了 Backtrader
 默认数据入口；下文两引擎对齐结果保留为历史记录，本轮未重新验证 hftbacktest。
@@ -80,3 +81,6 @@ python examples/backtest/002_hft_alignment_demo/compare.py --strategy queue_mark
 - 长窗口下同价位重复重挂订单后的 maker / queue 生命周期
 
 也就是说，默认示例建议用 `plain_grid` 来展示已经稳定对齐的结果；`queue_market_making` 则保留为进一步调试 `backtrader` 队列撮合语义的案例。
+
+`--data-dir` 支持绝对路径或相对当前工作目录的路径。缺少输入或可选
+`hftbacktest` 及其依赖时，对应入口以 exit 2 报告 BLOCKED；安装兼容版本或提供所需文件后重试。

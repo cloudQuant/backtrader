@@ -1,0 +1,10 @@
+input identity d49b5802b25526e5466895dfbc3aa8783700222af1afee2cc9578f3e4aec9b8b; loading 4 symbol CSVs
+loaded 4/4 symbol CSVs
+independent full-panel oracle ready: 35 dates x 4 symbols
+cached chunk_0000: 35 grid dates, 0 warmup, 139 source rows
+starting chunk 0000 (2025-01-02..2025-02-19; warmup=0)
+worker 0000 reading chunk_0000.parquet
+worker 0000 running Cerebro for 4 symbols / 35 grid dates
+worker 0000 complete: 140 cells, 94 finite
+verified chunk 0000: max error 4.44e-16
+COMPLETED: 140 cells, 94 finite, max oracle error 4.44e-16

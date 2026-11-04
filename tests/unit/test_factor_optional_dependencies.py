@@ -65,8 +65,10 @@ def test_research_and_alpha_registry_import_without_optional_dependencies(
         """\
         import backtrader.research as research
         import backtrader.research.alpha101 as alpha101
+        from backtrader.strategies.factor_strategy import FactorStrategy
 
-        assert research.FactorStrategy is not None
+        assert FactorStrategy is not None
+        assert not hasattr(research, "FactorStrategy")
         assert len(alpha101.ALPHA_REGISTRY) == 101
         assert alpha101.get_alpha(1) is alpha101.ALPHA_REGISTRY[1]
         assert len(alpha101.list_alphas()) == 101

@@ -1,0 +1,260 @@
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot rev-parse 27055572ca6fb13302366b938625b01a784aaf22^{commit}
++ git -C /Users/yunjinqi/Documents/new_projects/fincore rev-parse 3e9ef205ef2023f92e89fddd1052d46b16429c64^{commit}
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot ls-tree -r --full-tree 27055572ca6fb13302366b938625b01a784aaf22 -- backtrader/research/factor_strategy.py backtrader/strategies/factor_strategy.py scripts/verify_factor_research_pair_semantics.py tests/fixtures/research/alpha101_dependencies.json tests/integration/test_alpha101_native_installed.py tests/integration/test_alpha101_native_matrix.py tests/integration/test_factor_research_installed_representatives.py tests/integration/test_iter61_alpha101_installed.py tests/integration/test_iter61_alpha101_matrix.py tests/test_utils/alpha101_full_reference.py tests/test_utils/alpha101_native_harness.py tests/test_utils/alpha101_trace_validation.py tests/unit/test_factor_build_expression.py tests/unit/test_factor_research_examples.py tests/unit/test_factor_research_representatives.py tests/unit/test_factor_single_class_modes.py tests/unit/test_iter61_factor_formula_oracles.py
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot ls-tree -r --full-tree 27055572ca6fb13302366b938625b01a784aaf22 -- backtrader/research/factor_strategy.py backtrader/strategies/factor_strategy.py scripts/verify_factor_research_pair_semantics.py tests/fixtures/research/alpha101_dependencies.json tests/integration/test_alpha101_native_installed.py tests/integration/test_alpha101_native_matrix.py tests/integration/test_factor_research_installed_representatives.py tests/integration/test_iter61_alpha101_installed.py tests/integration/test_iter61_alpha101_matrix.py tests/test_utils/alpha101_full_reference.py tests/test_utils/alpha101_native_harness.py tests/test_utils/alpha101_trace_validation.py tests/unit/test_factor_build_expression.py tests/unit/test_factor_research_examples.py tests/unit/test_factor_research_representatives.py tests/unit/test_factor_single_class_modes.py tests/unit/test_iter61_factor_formula_oracles.py
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot ls-tree --name-only 27055572ca6fb13302366b938625b01a784aaf22
++ git -C /private/tmp/iter61-archive-verifier.N07b66/bt-snapshot archive --format=tar 27055572ca6fb13302366b938625b01a784aaf22 setup.py pyproject.toml README.md backtrader tests/test_utils/alpha101_full_reference.py tests/test_utils/alpha101_native_harness.py tests/test_utils/alpha101_trace_validation.py tests/unit/test_factor_research_representatives.py tests/fixtures/research/alpha101_dependencies.json tests/unit/test_factor_build_expression.py tests/unit/test_iter61_factor_formula_oracles.py examples/backtest/025_factor_single examples/backtest/026_factor_multi > /private/tmp/iter61-archive-verifier.N07b66/evidence2/archives/backtrader/backtrader.tar
++ /Users/yunjinqi/opt/anaconda3/bin/python3.11 -I -m pip wheel --no-deps --no-build-isolation --no-cache-dir --wheel-dir /private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels /private/tmp/iter61-archive-verifier.N07b66/evidence2/archives/backtrader/source
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: back-trader-python
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=1855480 sha256=606bc20df130b3cbc3e39c4003047feeaece2f1f1c1f3a3b2bd078fdd5f4998a
+  Stored in directory: /private/tmp/iter61-archive-verifier.N07b66/tmp/pip-ephem-wheel-cache-9i7sxdl0/wheels/29/1e/ac/52962d5e6f1c12cb61323583f1709be059fc2c6bc6ca3ca117
+Successfully built back-trader-python
++ git -C /Users/yunjinqi/Documents/new_projects/fincore archive --format=tar 3e9ef205ef2023f92e89fddd1052d46b16429c64 setup.py pyproject.toml README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md THIRD_PARTY_LICENSES/Apache-2.0.txt fincore > /private/tmp/iter61-archive-verifier.N07b66/evidence2/archives/fincore/fincore.tar
++ /Users/yunjinqi/opt/anaconda3/bin/python3.11 -I -m pip wheel --no-deps --no-build-isolation --no-cache-dir --wheel-dir /private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels /private/tmp/iter61-archive-verifier.N07b66/evidence2/archives/fincore/source
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: fincore
+  Building wheel for fincore (pyproject.toml): started
+  Building wheel for fincore (pyproject.toml): finished with status 'done'
+  Created wheel for fincore: filename=fincore-0.5.2.dev0-py3-none-any.whl size=707384 sha256=a6e09e2a89c23bea32e2e068400d4ad5300a185fecc393bcb6043ee5593107bb
+  Stored in directory: /private/tmp/iter61-archive-verifier.N07b66/tmp/pip-ephem-wheel-cache-lwtmui2m/wheels/39/64/99/286441670cd7093747278ac35b9a7f9f3223d18f825915206a
+Successfully built fincore
++ /Users/yunjinqi/opt/anaconda3/bin/python3.11 -I -m pip install --no-deps --no-index --target /private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target /private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels/back_trader_python-1.4.0-py3-none-any.whl /private/tmp/iter61-archive-verifier.N07b66/evidence2/wheels/fincore-0.5.2.dev0-py3-none-any.whl
+WARNING: The directory '/Users/yunjinqi/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+Processing ./wheels/back_trader_python-1.4.0-py3-none-any.whl
+Processing ./wheels/fincore-0.5.2.dev0-py3-none-any.whl
+Installing collected packages: fincore, back-trader-python
+
+Successfully installed back-trader-python-1.4.0 fincore-0.5.2.dev0
++ /Users/yunjinqi/opt/anaconda3/bin/python3.11 -I -c 
+import importlib, importlib.metadata, importlib.util, inspect, json, pathlib, sys
+root = pathlib.Path(sys.argv[1]).resolve()
+current = sys.argv[2] == "current"
+sys.path.insert(0, str(root))
+import backtrader, fincore
+modules = {
+    "backtrader": backtrader,
+    "backtrader.research.alpha101": importlib.import_module("backtrader.research.alpha101"),
+    "fincore": fincore,
+    "fincore.factor_analysis.research": importlib.import_module("fincore.factor_analysis.research"),
+}
+factor_witness = None
+if current:
+    research = importlib.import_module("backtrader.research")
+    module = importlib.import_module("backtrader.strategies.factor_strategy")
+    cls = module.FactorStrategy
+    expected = "backtrader.strategies.factor_strategy"
+    if cls.__module__ != expected or getattr(module, "FactorStrategy") is not cls:
+        raise SystemExit("FactorStrategy class identity does not match its current module")
+    module_file = pathlib.Path(module.__file__).resolve()
+    expected_file = (root / "backtrader/strategies/factor_strategy.py").resolve()
+    if not module_file.is_relative_to(root) or module_file != expected_file or pathlib.Path(inspect.getfile(cls)).resolve() != module_file:
+        raise SystemExit("FactorStrategy did not load from its current installed module")
+    if hasattr(research, "FactorStrategy"):
+        raise SystemExit("retired research FactorStrategy facade remains available")
+    old_name = "backtrader.research.factor_strategy"
+    if old_name in sys.modules or importlib.util.find_spec(old_name) is not None:
+        raise SystemExit("retired research factor_strategy module remains available")
+    try:
+        importlib.import_module(old_name)
+    except ModuleNotFoundError as exc:
+        if exc.name != old_name:
+            raise
+    else:
+        raise SystemExit("retired research factor_strategy module remains importable")
+    modules[expected] = module
+    factor_witness = {"class_module": cls.__module__, "module_origin": str(module_file),
+                      "old_facade_available": False, "old_module_available": False}
+origins = {name: str(pathlib.Path(module.__file__).resolve()) for name, module in modules.items()}
+for name, origin in origins.items():
+    if not pathlib.Path(origin).is_relative_to(root):
+        raise SystemExit("%s loaded outside project wheel install root: %s" % (name, origin))
+versions = {
+    "backtrader": importlib.metadata.version("back-trader-python"),
+    "fincore": importlib.metadata.version("fincore"),
+}
+module_versions = {"backtrader": backtrader.__version__, "fincore": fincore.__version__}
+if module_versions != versions:
+    raise SystemExit("module versions differ from installed wheel metadata: %r != %r" % (module_versions, versions))
+result = {"origins": origins, "versions": versions, "module_versions": module_versions}
+if current:
+    result["factor_strategy"] = factor_witness
+print(json.dumps(result))
+ /private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target current
++ /Users/yunjinqi/opt/anaconda3/bin/python3.11 -I -B -c 
+import pathlib, sys
+install_root, external_root, baseline, junit = sys.argv[1:5]
+sys.path[:0] = [install_root, external_root]
+import backtrader, fincore, pytest
+install = pathlib.Path(install_root).resolve()
+for name, package in (("backtrader", backtrader), ("fincore", fincore)):
+    if not pathlib.Path(package.__file__).resolve().is_relative_to(install):
+        raise SystemExit("%s loaded outside installed wheel root" % name)
+tests = [
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_close_ma_independent_oracle",
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_roc_independent_oracle",
+    external_root + "/tests/unit/test_iter61_factor_formula_oracles.py::test_kdj_independent_oracle",
+    external_root + "/tests/unit/test_factor_build_expression.py::test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle",
+    external_root + "/tests/unit/test_factor_build_expression.py::test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair",
+]
+raise SystemExit(pytest.main(["-q", "--disable-warnings", "-p", "no:cacheprovider", "--basetemp", baseline,
+                              "--rootdir", external_root, "--confcutdir", external_root,
+                              "--junitxml", junit, *tests]))
+ /private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target /private/tmp/iter61-archive-verifier.N07b66/evidence2/external-tests /private/tmp/iter61-archive-verifier.N07b66/evidence2/pytest-basetemp /private/tmp/iter61-archive-verifier.N07b66/evidence2/factor-mode-pair-tests.xml
+................                                                         [100%]
+- generated xml file: /private/tmp/iter61-archive-verifier.N07b66/evidence2/factor-mode-pair-tests.xml -
+16 passed in 3.89s
+{
+  "acceptance_profile": "iteration61-four-formula-witnesses",
+  "factor_strategy_import": {
+    "class_module": "backtrader.strategies.factor_strategy",
+    "module_origin": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/strategies/factor_strategy.py",
+    "old_facade_available": false,
+    "old_module_available": false
+  },
+  "install_kind": "target",
+  "install_root": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target",
+  "installed_tests": {
+    "factor_mode_pair_formula_witnesses": {
+      "Alpha003": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]"
+          ],
+          "test_case": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]"
+          ],
+          "test_case": "test_alpha003_degenerate_recovery_missing_bar_nan_trace_and_reason_pair[runonce]"
+        },
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]"
+          ],
+          "test_case": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]"
+          ],
+          "test_case": "test_alpha003_build_matches_native_trace_values_reasons_and_lifecycle[runonce]"
+        }
+      ],
+      "CloseMA": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_close_ma_independent_oracle[build-runnext]",
+            "test_close_ma_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_close_ma_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_close_ma_independent_oracle[build-runonce]",
+            "test_close_ma_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_close_ma_independent_oracle[build-runonce]"
+        }
+      ],
+      "KDJ": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_kdj_independent_oracle[build-runnext]",
+            "test_kdj_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_kdj_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_kdj_independent_oracle[build-runonce]",
+            "test_kdj_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_kdj_independent_oracle[build-runonce]"
+        }
+      ],
+      "ROC": [
+        {
+          "engine_mode": "runnext",
+          "passed_test_cases": [
+            "test_roc_independent_oracle[build-runnext]",
+            "test_roc_independent_oracle[native-runnext]"
+          ],
+          "test_case": "test_roc_independent_oracle[build-runnext]"
+        },
+        {
+          "engine_mode": "runonce",
+          "passed_test_cases": [
+            "test_roc_independent_oracle[build-runonce]",
+            "test_roc_independent_oracle[native-runonce]"
+          ],
+          "test_case": "test_roc_independent_oracle[build-runonce]"
+        }
+      ]
+    },
+    "factor_mode_pair_junit_xml": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/factor-mode-pair-tests.xml",
+    "pytest_log": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/installed-tests.log",
+    "test_case_count": 16
+  },
+  "module_origins": {
+    "backtrader": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/__init__.py",
+    "backtrader.research.alpha101": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/research/alpha101/__init__.py",
+    "backtrader.strategies.factor_strategy": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/backtrader/strategies/factor_strategy.py",
+    "fincore": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/fincore/__init__.py",
+    "fincore.factor_analysis.research": "/private/tmp/iter61-archive-verifier.N07b66/evidence2/fresh-target/fincore/factor_analysis/research.py"
+  },
+  "scope": "local pinned-wheel four-formula witnesses; not sdist, release, or deployment evidence",
+  "source_commits": {
+    "backtrader": "27055572ca6fb13302366b938625b01a784aaf22",
+    "fincore": "3e9ef205ef2023f92e89fddd1052d46b16429c64"
+  },
+  "status": "PASS_LOCAL_INSTALLED_FOUR_FORMULA_WITNESSES",
+  "versions": {
+    "backtrader": "1.4.0",
+    "fincore": "0.5.2.dev0"
+  },
+  "wheel_record_payloads": {
+    "back_trader_python-1.4.0-py3-none-any.whl": {
+      "archive_source_payloads": 661,
+      "installed_payloads": 664,
+      "wheel_payloads": 664
+    },
+    "fincore-0.5.2.dev0-py3-none-any.whl": {
+      "archive_source_payloads": 132,
+      "installed_payloads": 139,
+      "wheel_payloads": 139
+    }
+  },
+  "wheel_sha256": {
+    "backtrader": "606bc20df130b3cbc3e39c4003047feeaece2f1f1c1f3a3b2bd078fdd5f4998a",
+    "fincore": "a6e09e2a89c23bea32e2e068400d4ad5300a185fecc393bcb6043ee5593107bb"
+  },
+  "witness_source": {
+    "git_blobs": {
+      "tests/fixtures/research/alpha101_dependencies.json": "da154f11e483f71986a29fefe13667792e3be423",
+      "tests/test_utils/alpha101_full_reference.py": "aa16d4d4ecb8091b3cf1843bfa9ca135520638bb",
+      "tests/test_utils/alpha101_native_harness.py": "eafa184d2af857e462bf0514b2245dacae4f4feb",
+      "tests/test_utils/alpha101_trace_validation.py": "8d6a28c72881b41a91fb506e0278234f7f9527bf",
+      "tests/unit/test_factor_build_expression.py": "0f60b022130beefccebb8fc6175630153940aa44",
+      "tests/unit/test_factor_research_representatives.py": "469c195b5bcb9f92a49f3a15a626eeaf4cbf7b1e",
+      "tests/unit/test_iter61_factor_formula_oracles.py": "89b63bbc67166b78f3755a51d893e1c14b0c6b2a"
+    },
+    "profile": "current",
+    "source_commit": "27055572ca6fb13302366b938625b01a784aaf22"
+  }
+}

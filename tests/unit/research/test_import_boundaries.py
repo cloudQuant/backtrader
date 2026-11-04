@@ -73,9 +73,11 @@ def test_default_root_and_research_import_do_not_request_optional_runtime_or_net
 
         import backtrader.research as research
         import backtrader.research.alpha101 as alpha101
+        from backtrader.strategies.factor_strategy import FactorStrategy
 
         assert bt.Cerebro is not None
-        assert research.FactorStrategy is not None
+        assert FactorStrategy is not None
+        assert not hasattr(research, "FactorStrategy")
         assert len(alpha101.ALPHA_REGISTRY) == 101
         assert alpha101.get_alpha(1) is alpha101.ALPHA_REGISTRY[1]
         assert import_attempts == [], import_attempts

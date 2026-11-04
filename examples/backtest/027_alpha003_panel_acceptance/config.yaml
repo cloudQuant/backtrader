@@ -4,7 +4,7 @@ factor: alpha003
 operator_profile: alpha101-v2
 
 data:
-  directory: ../../../tests/datas/a_stocks
+  directory: tests/datas/a_stocks
   max_symbols: 500
   group: all_symbols
   snapshot_id: a-stocks-daily-2025

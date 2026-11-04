@@ -1,0 +1,17 @@
+{
+  "backtrader/_cerebro/execution.py": "4829cccf35f0a63592e489abf40524d7935f29240aa2f9d815b6b5c23fb651b4",
+  "backtrader/linebuffer.py": "9f1b30adf705c55550647ceb2a698ebc08326dd149682014b7558f01b891df24",
+  "backtrader/strategies/factor_strategy.py": "9494e20b3fc653eacdecfbc7383628534886640804a03a2c79f814b7d51d4e00",
+  "examples/backtest/025_factor_single/run.py": "a54b05dbf70d5e8e61fc9d365448f77db6389e9390f8600b55330d5ce421be61",
+  "examples/backtest/026_factor_multi/run.py": "8d10256dd485e9a243e2f60ed3e30cf227b41a0a7e9c0bf3564be0577de0e902",
+  "examples/backtest/027_alpha003_panel_acceptance/run.py": "00665d365fbc04c4ffcc7ec1396b93e28618bf26e2a2490ffea0464c93126ae4",
+  "tests/unit/test_factor_build_expression.py": "a770ae6a70d1ad457d2a5ced6884a0d022012c57697ccb8ca0c95fa469e7c25c",
+  "tests/unit/test_iter61_alpha_guide_recovery.py": "18b057c761539ce1ab07112f89022e35d1936cf84799cd522657856043870e1e",
+  "tests/unit/test_iter61_example_modes.py": "a7ff2a1bd9d1cef9ca4ee8be6ee9aa59e6d4c163bf421e6d2b12892f274805c1",
+  "tests/unit/test_iter61_example_summary_identity.py": "21addc996c6c50ab4d392f11672f9b955c202bfe9f64d0e6eacfccbef0305927",
+  "tests/unit/test_iter61_factor_fastpaths.py": "04672629f42babb3dea028a6f9e3a7ada62bf6afaa4cd8511aed2265c5e028ca",
+  "tests/unit/test_iter61_factor_formula_oracles.py": "cb86bd0476e0c4518a8df160a716bd14d3b4b71a7cf1ea1ae56b13c0ae1617e4",
+  "tests/unit/test_iter61_formula_contract_recovery.py": "8d980eb85a6a1aa247879a944e0b587e2f2f289d2bc9b986de07849aa89429c8",
+  "tests/unit/test_iter61_formula_edge_recovery.py": "1538dcd2f63adabf379299330f68060bc6b2733a0be5aab4f60fd264f6604462",
+  "tests/unit/test_iter61_report_label_recovery.py": "dbecbf2e427fb4cab803c4071c1a8f0c0586fb1c50f456b01221bee3875e7b06"
+}

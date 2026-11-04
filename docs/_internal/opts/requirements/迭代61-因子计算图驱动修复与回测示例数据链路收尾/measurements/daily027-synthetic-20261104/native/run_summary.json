@@ -1,0 +1,72 @@
+{
+  "status": "COMPLETED",
+  "evidence_level": "SOURCE_OBSERVED_DAILY_ALPHA003_PRODUCTION_FACTORSTRATEGY",
+  "acceptance": "ALL_CHUNKS_MATCHED_INDEPENDENT_FULL_PANEL_ORACLE",
+  "run_id": "9f3b7f9a2c399338fcf65131b60df96718a04564905d1d6a157d6258d804ea87",
+  "input_sha256": "d49b5802b25526e5466895dfbc3aa8783700222af1afee2cc9578f3e4aec9b8b",
+  "code_sha256": "42b4a3e0c21d13b6a61783f95fe42c024a5cd6f0c31cc1795283f1068ae74276",
+  "params_sha256": "db500b02f42bdfb82de852f590d6832a668d694dcb4f38aa56e0b2b408321547",
+  "source_path": "/private/tmp/iter61-daily027.bZoa32/input",
+  "source_manifest": "/private/tmp/iter61-daily027.bZoa32/input/_metadata/manifest.json",
+  "source_observed_calendar": "/private/tmp/iter61-daily027.bZoa32/input/_metadata/observed_calendar.csv",
+  "calendar_policy": "source-observed global daily rows; not official exchange calendar",
+  "source_timezone": "Asia/Shanghai",
+  "price_basis": "source prices as provided; no adjustment applied by this run",
+  "source_commit": "0bd833c144b9d3ddcc7c269b5b77e6280b22792f",
+  "factor_class": "backtrader.research.alpha101.alpha003.Alpha003Native",
+  "factor_mode": "native",
+  "factor_strategy_source_path": "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/strategies/factor_strategy.py",
+  "symbol_count": 4,
+  "symbols_sha256": "2d2c709245a6c202db71583fc6ec0075555f4cccd68cce26a10d6cb1b5e76556",
+  "grid_count": 35,
+  "grid_first_date": "2025-01-02",
+  "grid_last_date": "2025-02-19",
+  "panel_cell_count": 140,
+  "source_daily_row_count": 139,
+  "invalid_daily_row_count": 0,
+  "source_csv_schema": "legacy",
+  "finite_factor_count": 94,
+  "first_finite_trade_date": "2025-01-15",
+  "oracle": {
+    "implementation": "independent pandas average-tie row ranks plus batched numpy centered Pearson",
+    "uses_production_operators": false,
+    "period": 10,
+    "finite_mask_matches": true,
+    "max_abs_error": 4.440892098500626e-16,
+    "absolute_tolerance": 5e-12,
+    "factor_range": [
+      -1.0,
+      1.0
+    ]
+  },
+  "broker_submit_count": 0,
+  "broker_cancel_count": 0,
+  "chunk_days": 35,
+  "chunk_count": 1,
+  "actual_chunk_runs_this_invocation": 1,
+  "reused_successful_chunks": 0,
+  "chunks": [
+    {
+      "chunk_index": 0,
+      "study_first_date": "2025-01-02",
+      "study_last_date": "2025-02-19",
+      "grid_first_date": "2025-01-02",
+      "grid_last_date": "2025-02-19",
+      "warmup_grid_rows": 0,
+      "cells": 140,
+      "finite": 94,
+      "max_abs_error": 4.440892098500626e-16,
+      "reused_successful_chunk": false
+    }
+  ],
+  "output_files": [
+    "factor_values.parquet",
+    "factor_values.csv"
+  ],
+  "output_sha256": {
+    "factor_values.parquet": "0b9b7164707477a0883d71e2acbb9b853ff2b06bc648865bfb8aed70462e5d0b",
+    "factor_values.csv": "4f21cf46aa4b18710448288d99b6200d749db3c080e7f23bae3188d5faf624fc"
+  },
+  "factor_source_path": "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/alpha101/alpha003.py",
+  "input_alignment_source_path": "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/research/align.py"
+}

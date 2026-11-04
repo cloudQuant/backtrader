@@ -1,4 +1,4 @@
-# 原生 Alpha101 因子
+﻿# 原生 Alpha101 因子
 
 本文说明如何通过 Backtrader 的研究生命周期运行已提升为原生类的 Alpha101 因子。Alpha101 是公式目录，不是交易策略：这里采集的是每个目标资产、每个研究格点上的原始因子值。
 
@@ -74,12 +74,12 @@ import backtrader as bt
 
 from backtrader.research import (
     FactorSpec,
-    FactorStrategy,
     MemorySink,
     ResearchSpec,
     align_to_grid,
 )
 from backtrader.research.alpha101 import get_alpha
+from backtrader.strategies.factor_strategy import FactorStrategy
 
 
 def all_membership(times, assets):

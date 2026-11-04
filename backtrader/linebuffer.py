@@ -70,16 +70,43 @@ def _factor_context_for_line(line):
     seen = set()
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        context = getattr(current, "_factor_strict_context", None)
-        if context is not None:
-            return context
-        owner = getattr(current, "_owner", None)
-        owner_ref = getattr(owner, "_owner_ref", None) if owner is not None else None
+        try:
+            context = getattr(current, "_factor_strict_context", None)
+            if context is not None:
+                return context
+            owner = getattr(current, "_owner", None)
+            owner_ref = getattr(owner, "_owner_ref", None) if owner is not None else None
+        except ReferenceError:
+            break
         if owner_ref is not None:
             current = owner_ref
         else:
             current = owner
     return _ACTIVE_FACTOR_CONTEXT.get()
+
+
+def _factor_owned_line(line):
+    """Identify factor-owned lines without changing shared feed or strategy lines."""
+    current = line
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        try:
+            owner_class = getattr(current, "__class__", type(current))
+            if getattr(owner_class, "_factor_bound", False) is True:
+                return True
+            owner = getattr(current, "_owner", None)
+            owner_ref = getattr(owner, "_owner_ref", None) if owner is not None else None
+        except ReferenceError:
+            break
+        current = owner_ref if owner_ref is not None else owner
+    return False
+
+
+def _read_infinite_line(line, value):
+    """Preserve strict errors and non-factor compatibility for an infinite read."""
+    _reject_factor_infinity(line, value)
+    return NAN if _factor_owned_line(line) else 0.0
 
 
 def _factor_phase(context, default="next"):
@@ -99,10 +126,9 @@ def _reject_factor_infinity(line, value):
 
 
 def _linebuffer_value(line, value):
-    """Apply the legacy infinity default after the strict-only check."""
+    """Project infinity using the owning line's factor or ordinary policy."""
     if isinstance(value, float) and value in (INF, NEG_INF):
-        _reject_factor_infinity(line, value)
-        return 0.0
+        return _read_infinite_line(line, value)
     return value
 
 
@@ -558,15 +584,13 @@ class LineBuffer(LineSingle, LineRootMixin):
                 if current_idx == self.lencount - 1:
                     value = self.array[current_idx]
                     if value in (INF, NEG_INF):
-                        _reject_factor_infinity(self, value)
-                        return 0.0
+                        return _read_infinite_line(self, value)
                     return value
                 if self.lencount > 0 and current_idx >= self.lencount:
                     current_idx = self.lencount - 1
                 value = self.array[current_idx]
                 if value in (INF, NEG_INF):
-                    _reject_factor_infinity(self, value)
-                    return 0.0
+                    return _read_infinite_line(self, value)
                 return value
             except IndexError:
                 # An unpopulated buffer is an expected EAFP probe. Preserve the
@@ -582,8 +606,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 current_idx = lencount - 1
             value = self.array[current_idx + ago]
             if value in (INF, NEG_INF):
-                _reject_factor_infinity(self, value)
-                return 0.0
+                return _read_infinite_line(self, value)
             return value
         except IndexError:
             # Index out of buffer range is an expected protocol probe; fall
@@ -633,8 +656,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             if getattr(values, "typecode", None) == "d":
                 for idx, value in enumerate(values):
                     if value in (INF, NEG_INF):
-                        _reject_factor_infinity(self, value)
-                        values[idx] = 0.0
+                        values[idx] = _read_infinite_line(self, value)
                 return values
 
         return array.array(
@@ -656,8 +678,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         value = self.array[idx]
         if isinstance(value, float) and (value in (INF, NEG_INF)):
-            _reject_factor_infinity(self, value)
-            return 0.0
+            return _read_infinite_line(self, value)
         return value
 
     # Return data of size starting from idx in the array

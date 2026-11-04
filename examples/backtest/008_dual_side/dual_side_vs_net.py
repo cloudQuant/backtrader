@@ -18,34 +18,10 @@ Usage:
     python examples/dual_side_vs_net.py
 """
 import datetime
-import os
-import sys
-
-PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..")
-sys.path.insert(0, PROJECT_ROOT)
 
 import backtrader as bt
 from backtrader.brokers.bbroker import BackBroker
-
-def resolve_data_path(filename: str) -> str:
-    """Return the folder-local copy of a fixture, falling back to the repository.
-
-    The examples are self-contained: each folder carries a byte-identical copy of
-    the small fixture under ``data/`` so a copy of this directory runs anywhere,
-    while an in-repo checkout still resolves the shared ``tests/datas`` original.
-    A missing input is a hard failure that names the file, never a silent download.
-    """
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = (
-        os.path.join(here, "data", filename),
-        os.path.abspath(os.path.join(here, "..", "..", "data", filename)),
-        os.path.abspath(os.path.join(here, "..", "..", "..", "tests", "datas", filename)),
-    )
-    for candidate in candidates:
-        if os.path.isfile(candidate):
-            return candidate
-    raise SystemExit("missing example input %r; expected one of: %s" % (filename, ", ".join(candidates)))
+from backtrader.utils.paths import data_path
 
 
 class NetModeStrategy(bt.Strategy):
@@ -131,8 +107,8 @@ def run_backtest(strategy_class, position_mode):
     """Run a single backtest and return the strategy result."""
     cerebro = bt.Cerebro()
 
-    datapath = resolve_data_path("2006-day-001.txt")
-    data = bt.feeds.BacktraderCSVData(dataname=datapath)
+    datapath = data_path("tests/datas/2006-day-001.txt")
+    data = bt.feeds.BacktraderCSVData(dataname=str(datapath))
     cerebro.adddata(data)
 
     broker = BackBroker(position_mode=position_mode)

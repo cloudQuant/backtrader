@@ -12,17 +12,12 @@ Usage:
     python examples/backtest/011_hft_backtest/orderbook_backtest.py
 """
 
-import sys
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(PROJECT_ROOT))
-
 import backtrader as bt
 from backtrader.channels.orderbook import OrderBookChannel
 from backtrader.channel import StreamingEventQueue
 from backtrader.brokers.impact_models import LinearImpactModel
 from backtrader.brokers.tickbroker import TickBroker
+from backtrader.utils.paths import data_path
 
 
 class OBSpreadStrategy(bt.Strategy):
@@ -112,12 +107,13 @@ def main():
         SystemExit: If the required data file is not found.
     """
     symbol = "BTC/USDT"
-    ob_file = PROJECT_ROOT / "tests" / "datas" / "tick_data" / f'orderbook_{symbol.replace("/", "_")}.jsonl'
-
-    if not ob_file.exists():
-        print(f"Data file not found: {ob_file}")
+    fixture = "tests/datas/tick_data/orderbook_%s.jsonl" % symbol.replace("/", "_")
+    try:
+        ob_file = data_path(fixture)
+    except FileNotFoundError:
+        print(f"BLOCKED: Data file not found: {fixture}")
         print("Generate test data first: python tools/generate_test_data.py --type orderbook")
-        raise SystemExit(2)
+        raise SystemExit(2) from None
 
     # 1. Create orderbook channel + event queue
     channel = OrderBookChannel(symbol=symbol, dataname=str(ob_file), depth=20)
