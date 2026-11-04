@@ -163,19 +163,50 @@ class StrategyLedgerEventsBrokerMixin:
 # beyond ``retain_acked`` are compacted (see the journal). A crash after an
 # order notification was journaled but before its Trade was journaled replays
 # the order (with its executions) but no Trade.
+#
+# Late fee corrections across a restart (iteration 60, post-acceptance). The
+# journal also keeps an applied-fill index (schema v3): with each order
+# notification it stores, in the same transaction, the order's state and
+# provider fee totals and the fills applied to it (stable fill fact -> booked
+# fee, only for fills identified by a provider or client order id), plus the
+# fee corrections the Broker booked since the last notification (journaled at
+# the Broker, before Cerebro hands the order to the Strategy). The Strategy
+# side stores the Trade each order last updated. When a fill an *earlier
+# process* applied is reported again with a higher fee and no live order can
+# take it (a terminal order, or any order in direct mode after a restart),
+# ``_apply_durable_fill_fee`` books it exactly once: the strategy ledger's
+# per-(intent, currency) fee total moves to the corrected total (compared with
+# ``SqliteStrategyLedger.execution_totals`` first, so a re-delivery is a no-op
+# and a divergence fails closed), then one transaction journals the correction
+# and the corrected order notification and updates the index. The Strategy
+# receives ``notify_fee_correction(order, trade, delta, currency)`` with a
+# read-only ``RecoveredOrder`` (original ref and intent id, last status,
+# executed size/price, corrected commission; ``replayed=False``) and a
+# ``RecoveredTrade`` of the Trade that order last updated (commission and
+# ``pnlcomm`` corrected), or ``None`` when no Trade was recorded for it, then
+# ``notify_order`` with the same order snapshot. Both are acknowledged after
+# the callback returned and replayed after a crash. Only the Strategy is
+# called: analyzers and observers restarted empty, never counted the earlier
+# process's Trades, and Trade refs restart per process. The same correction
+# re-delivered is ignored; a lower fee, another currency or a fill booked
+# without a fee disables trading and freezes openings (``fee_correction_fence``)
+# as in the live path.
 
 import hashlib as _hashlib
 import json as _json
 import math as _math
 import os as _os
 import uuid as _uuid
+from decimal import Decimal as _Decimal
 from pathlib import Path as _Path
 from types import MappingProxyType as _MappingProxyType
 from types import SimpleNamespace as _SimpleNamespace
 
 _PAYLOAD_VERSION = 2
+_INDEX_VERSION = 1
 _ROUTE_DIRECT = "direct"
 _ROUTE_EXPLICIT = "explicit-generation"
+_MAX_CACHE = 8192
 
 
 class StrategyNotificationRecoveryError(RuntimeError):
@@ -230,6 +261,74 @@ def _fee_corrections(order):
     get = getattr(getattr(order, "info", None), "get", None)
     corrections = get("fee_corrections") if callable(get) else None
     return tuple(corrections or ())
+
+
+def _info_int(obj, key):
+    get = getattr(getattr(obj, "info", None), "get", None)
+    value = get(key) if callable(get) else None
+    return value if type(value) is int and value > 0 else 0
+
+
+def _durable(identity):
+    """Whether an order identity survives a restart (not a per-process ref)."""
+    return not identity.startswith("local:")
+
+
+def fill_index_key(trade_key):
+    """The applied-fill index key of a Broker fill dedupe key (order id, data, fill id)."""
+    return _canonical([str(part) for part in trade_key]).decode()
+
+
+def _text_decimal(value):
+    return None if value is None else str(_Decimal(str(value)))
+
+
+def _order_index_record(order, record):
+    """The durable state of ``order`` kept with its journaled notification ``record``."""
+    get = getattr(getattr(order, "info", None), "get", None)
+    totals = (get("provider_fee_totals") if callable(get) else None) or {}
+    return {
+        "v": _INDEX_VERSION,
+        "order": record,
+        "fee_totals": {str(currency): str(total) for currency, total in totals.items()},
+    }
+
+
+def _fill_index_record(trade_key, quantity, price, fee, currency):
+    return {
+        "v": _INDEX_VERSION,
+        "data_name": str(trade_key[1]),
+        "quantity": _text_decimal(quantity),
+        "price": _text_decimal(price),
+        "fee": _text_decimal(fee),
+        "currency": currency if type(currency) is str and currency else None,
+    }
+
+
+class JournaledOrderNotification:
+    """What journaling one order notification produced (``BtApiBroker.notify``)."""
+
+    __slots__ = ("event_id", "replayed", "fee_ids", "fee_created")
+
+    def __init__(self, event_id, replayed, fee_ids=(), fee_created=False):
+        self.event_id = event_id
+        self.replayed = replayed
+        self.fee_ids = tuple(fee_ids)
+        self.fee_created = fee_created
+
+
+class DurableFeeCorrectionDelivery:
+    """Journaled notifications of a fee correction booked without a live order.
+
+    Queued on the Broker like an order notification (``owner`` is the
+    Strategy) so Cerebro hands it over at the usual point; the notification
+    recovery wrapper of ``Strategy._addnotification`` delivers each entry and
+    acknowledges it after the callback returned.
+    """
+
+    def __init__(self, owner, entries):
+        self.owner = owner
+        self.entries = tuple(entries)
 
 
 def _order_record(order, identity):
@@ -305,13 +404,17 @@ class RecoveredOrder:
 
     Not a live ``Order``: it cannot be cancelled or resubmitted and has no
     data feed. Status constants and ``getstatusname()``/``isbuy()``/
-    ``issell()``/``alive()`` match ``Order``.
+    ``issell()``/``alive()`` match ``Order``. ``replayed`` is ``False`` for
+    the first delivery of a fee correction booked after a restart (the order
+    is rebuilt from the journal, the notification itself is new).
     """
 
     recovered = True
     replayed = True
 
-    def __init__(self, record, event_id):
+    def __init__(self, record, event_id, *, replayed=True):
+        if replayed is not True:
+            self.replayed = False
         self.notification_id = event_id
         self.ref = record["ref"]
         self.status = record["status"]
@@ -359,10 +462,12 @@ class RecoveredTrade:
     recovered = True
     replayed = True
 
-    def __init__(self, record, event_id):
+    def __init__(self, record, event_id, *, replayed=True):
         for name, value in record.items():
             if name != "v":
                 setattr(self, name, value)
+        if replayed is not True:
+            self.replayed = False
         self.notification_id = event_id
         self.event_id = event_id
 
@@ -394,6 +499,9 @@ class _NotificationRecovery:
         # ids of such entries met again are kept for the Gateway projection.
         self.session_floor = journal.stats()["next_seq"]
         self.previous_process_ids = set()
+        # Applied-fill index writes already made by this process (skip repeats).
+        self.trade_cache = {}
+        self.link_cache = {}
 
     # -- journal / ack ---------------------------------------------------
 
@@ -402,6 +510,14 @@ class _NotificationRecovery:
         if not created and entry.seq < self.session_floor:
             self.previous_process_ids.add(event_id)
         return entry.acked or not created
+
+    def append_many(self, entries, index=None):
+        """Append ``(event_id, kind, payload[, keep_existing])`` in one transaction."""
+        results = self.journal.append_many(tuple(entries), index=index)
+        for entry, created in results:
+            if not created and entry.seq < self.session_floor:
+                self.previous_process_ids.add(entry.event_id)
+        return results
 
     def fail(self, error, what):
         self.state = "FAILED"
@@ -418,13 +534,11 @@ class _NotificationRecovery:
         except Exception as error:  # fail closed: a duplicate would follow
             self.fail(error, "acknowledgement")
 
-    def journal_order(self, order):
-        """Journal one queued order notification; return ``(id, replayed)``."""
-        identity = _order_identity(order, self.nonce)
-        record = _order_record(order, identity)
-        event_id = _stable_id(
+    @staticmethod
+    def order_event_id(generation, identity, record):
+        return _stable_id(
             "o",
-            self.generation,
+            generation,
             identity,
             record["status"],
             record["executed"]["size"],
@@ -432,9 +546,103 @@ class _NotificationRecovery:
             record["executed"]["comm"],
             record["fee_corrections"],
         )
-        return event_id, self.append(event_id, "order", record)
 
-    def journal_trade(self, trade, order_id, index):
+    def journal_order(self, order):
+        """Journal one queued order notification; return ``(id, replayed)``."""
+        journaled = self.journal_order_notification(order)
+        return journaled.event_id, journaled.replayed
+
+    def _last_trades(self):
+        last = getattr(self.strategy, "_order_last_trade", None)
+        return last() if callable(last) else {}
+
+    def journal_order_notification(self, order, fills=None):
+        """Journal one order notification with its new fee corrections and index state.
+
+        One transaction: the fee corrections the Broker booked on ``order``
+        since its last journaled notification (each before the notification,
+        in sequence order), the order notification, and the applied-fill
+        index (the order's state and fee totals, ``fills``: ``{trade_key:
+        (quantity, price, fee, currency)}`` applied or corrected since).
+        """
+        identity = _order_identity(order, self.nonce)
+        record = _order_record(order, identity)
+        event_id = self.order_event_id(self.generation, identity, record)
+        entries = []
+        corrections = _fee_corrections(order)
+        journaled = _info_int(order, "fee_corrections_journaled")
+        last = journaled
+        if corrections:
+            applied = self.strategy.__dict__.get("_fee_corrections_applied", {}).get(order.ref, 0)
+            trade = self._last_trades().get(order.ref)
+            pending_delta = 0.0
+            for entry in corrections:
+                sequence = entry.get("sequence")
+                if type(sequence) is not int or sequence <= applied:
+                    continue
+                pending_delta += float(entry["delta"])
+                if sequence <= journaled:
+                    continue
+                entries.append(
+                    self._fee_entry(identity, record, entry, trade, pending_delta)
+                )
+                last = max(last, sequence)
+        entries.append((event_id, "order", _canonical(record)))
+        index = None
+        if _durable(identity) and (fills or record["executed"]["size"]):
+            index = self._order_index(order, identity, record, fills or {})
+        results = self.append_many(entries, index=index)
+        if last > journaled:
+            order.addinfo(fee_corrections_journaled=last)
+        entry, created = results[-1]
+        return JournaledOrderNotification(
+            event_id,
+            entry.acked or not created,
+            [item[0] for item in entries[:-1]],
+            any(created for _entry, created in results[:-1]),
+        )
+
+    def _fee_entry(self, identity, record, entry, trade, pending_delta):
+        payload = {
+            "v": _PAYLOAD_VERSION,
+            "sequence": entry["sequence"],
+            "delta": entry["delta"],
+            "cumulative": entry.get("cumulative"),
+            "currency": entry.get("currency"),
+            "order": record,
+            "trade": (
+                None if trade is None else _trade_record(trade, commission_delta=pending_delta)
+            ),
+        }
+        event_id = _stable_id(
+            "f", self.generation, identity, entry["sequence"], entry.get("cumulative")
+        )
+        # The id identifies the correction; a re-application keeps the first snapshot.
+        return event_id, "fee_correction", _canonical(payload), True
+
+    def index_order_fills(self, order, fills):
+        """Index ``fills`` with ``order``'s current (just journaled) state, no notification."""
+        identity = _order_identity(order, self.nonce)
+        if _durable(identity):
+            record = _order_record(order, identity)
+            self.journal.update_index(self._order_index(order, identity, record, fills))
+
+    def _order_index(self, order, identity, record, fills):
+        from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+        return JournalIndexUpdate(
+            orders=((identity, _canonical(_order_index_record(order, record))),),
+            fills=tuple(
+                (
+                    fill_index_key(trade_key),
+                    identity,
+                    _canonical(_fill_index_record(trade_key, *values)),
+                )
+                for trade_key, values in fills.items()
+            ),
+        )
+
+    def _trade_entry(self, trade, order_id, index):
         record = _trade_record(trade)
         record["order_notification_id"] = order_id
         event_id = _stable_id(
@@ -447,66 +655,225 @@ class _NotificationRecovery:
             record["status"],
             record["size"],
         )
+        return event_id, "trade", _canonical(record)
+
+    def journal_trade(self, trade, order_id, index):
+        event_id, kind, payload = self._trade_entry(trade, order_id, index)
+        ((entry, created),) = self.append_many(((event_id, kind, payload),))
         trade.notification_id = event_id
-        trade.replayed = self.append(event_id, "trade", record)
+        trade.replayed = entry.acked or not created
         return event_id
 
+    def _trade_index(self, order):
+        """Index update linking ``order`` to the Trade it last updated (if it changed)."""
+        trade = self._last_trades().get(getattr(order, "ref", None))
+        if trade is None:
+            return None, None
+        identity = _order_identity(order, self.nonce)
+        if not _durable(identity):
+            return None, None
+        from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+        trade_key = f"{self.nonce}:{int(trade.ref)}"
+        record = _canonical(_trade_record(trade))
+        if self.trade_cache.get(trade_key) == record and self.link_cache.get(identity) == trade_key:
+            return None, None
+        update = JournalIndexUpdate(links=((identity, trade_key),), trades=((trade_key, record),))
+        return update, (identity, trade_key, record)
+
+    def remember_trade_index(self, cached):
+        identity, trade_key, record = cached
+        for cache in (self.trade_cache, self.link_cache):
+            if len(cache) >= _MAX_CACHE:
+                cache.clear()
+        self.trade_cache[trade_key] = record
+        self.link_cache[identity] = trade_key
+
     def journal_fee_corrections(self, order):
-        """Journal the corrections the Strategy is about to apply; return ids."""
+        """Journal corrections the Broker did not journal yet; return their ids."""
         corrections = _fee_corrections(order)
         if not corrections:
             return ()
         applied = self.strategy.__dict__.get("_fee_corrections_applied", {}).get(order.ref, 0)
-        trade = self.strategy._order_last_trade().get(order.ref)
+        journaled = _info_int(order, "fee_corrections_journaled")
+        trade = self._last_trades().get(order.ref)
         identity = _order_identity(order, self.nonce)
-        ids = []
+        record = _order_record(order, identity)
+        entries = []
         pending_delta = 0.0
         for entry in corrections:
             sequence = entry.get("sequence")
             if type(sequence) is not int or sequence <= applied:
                 continue
-            delta = float(entry["delta"])
-            pending_delta += delta
-            record = {
-                "v": _PAYLOAD_VERSION,
-                "sequence": sequence,
-                "delta": entry["delta"],
-                "cumulative": entry.get("cumulative"),
-                "currency": entry.get("currency"),
-                "order": _order_record(order, identity),
-                "trade": (
-                    None
-                    if trade is None
-                    else _trade_record(trade, commission_delta=pending_delta)
-                ),
-            }
-            event_id = _stable_id("f", self.generation, identity, sequence, entry.get("cumulative"))
-            self.append(event_id, "fee_correction", record)
-            ids.append(event_id)
-        return tuple(ids)
+            pending_delta += float(entry["delta"])
+            if sequence <= journaled:
+                continue
+            entries.append(self._fee_entry(identity, record, entry, trade, pending_delta))
+        if entries:
+            self.append_many(entries)
+        return tuple(item[0] for item in entries)
 
     # -- wrappers ----------------------------------------------------------
 
     def addnotification(self, order, quicknotify=False, *args, **kwargs):
+        if type(order) is DurableFeeCorrectionDelivery:
+            return self.deliver_durable(order)
         strategy = self.strategy
+        fee_ids = tuple(getattr(order, "fee_correction_ids", ()) or ())
         try:
-            fee_ids = self.journal_fee_corrections(order)
+            fee_ids += self.journal_fee_corrections(order)
         except Exception as error:
             self.fail(error, "journal")
-            fee_ids = ()
         pending = strategy._tradespending
         before = len(pending)
         result = self.original_add(order, quicknotify, *args, **kwargs)
         for event_id in fee_ids:
             self.acknowledge(event_id)
-        if strategy._tradespending is pending:
-            order_id = getattr(order, "notification_id", None)
-            for index, trade in enumerate(pending[before:]):
-                try:
-                    self.journal_trade(trade, order_id, index)
-                except Exception as error:
-                    self.fail(error, "journal")
+        trades = pending[before:] if strategy._tradespending is pending else []
+        try:
+            index, cached = self._trade_index(order)
+        except Exception as error:
+            self.fail(error, "journal")
+            index = cached = None
+        if not trades and index is None:
+            return result
+        order_id = getattr(order, "notification_id", None)
+        entries = [self._trade_entry(trade, order_id, i) for i, trade in enumerate(trades)]
+        try:
+            results = self.append_many(entries, index=index)
+        except Exception as error:
+            self.fail(error, "journal")
+            return result
+        for trade, (event_id, _kind, _payload), (entry, created) in zip(trades, entries, results):
+            trade.notification_id = event_id
+            trade.replayed = entry.acked or not created
+        if cached is not None:
+            self.remember_trade_index(cached)
         return result
+
+    def deliver_durable(self, delivery):
+        """Deliver a fee correction booked without a live order (ACK after each callback)."""
+        for event_id, kind, record in delivery.entries:
+            if kind == "fee_correction":
+                hook = getattr(self.strategy, "notify_fee_correction", None)
+                if callable(hook):
+                    trade = record.get("trade")
+                    hook(
+                        RecoveredOrder(record["order"], event_id, replayed=False),
+                        None if trade is None else RecoveredTrade(trade, event_id, replayed=False),
+                        float(record["delta"]),
+                        record.get("currency"),
+                    )
+            else:
+                self.original_order(RecoveredOrder(record, event_id, replayed=False))
+            self.acknowledge(event_id)
+
+    # -- late fee of a fill an earlier process applied -------------------------
+
+    def durable_fill(self, fill_key):
+        """``(order_key, fill record)`` from the applied-fill index, or ``None``."""
+        found = self.journal.indexed_fill(fill_key)
+        if found is None:
+            return None
+        order_key, record = found
+        return order_key, _json.loads(record)
+
+    def book_durable_correction(self, fill_key, order_key, fill, reported, currency, ledger):
+        """Book one late fee of an indexed fill; return the delivery or a fence reason.
+
+        ``reported`` is the corrected fee of the fill in ``currency`` (higher
+        than the booked fee, same currency: checked by the caller). Ledger
+        first, as ``BtApiBroker.notify`` does for a live order: the intent's
+        fee total in ``currency`` moves to the corrected total unless it is
+        already there; any other ledger total is a divergence (fail closed).
+        Then one journal transaction stores the correction, the corrected
+        order notification and the index update.
+        """
+        from ..execution.strategy_notification_outbox import JournalIndexUpdate
+
+        order_bytes, trade_key, trade_bytes = self.journal.indexed_order(order_key)
+        if order_bytes is None:
+            return "fill_order_state_unavailable"
+        state = _json.loads(order_bytes)
+        record = dict(state["order"])
+        record["executed"] = dict(record["executed"])
+        totals = {name: _Decimal(total) for name, total in state.get("fee_totals", {}).items()}
+        delta = reported - _Decimal(fill["fee"])
+        before = totals.get(currency, _Decimal("0"))
+        target = before + delta
+        intent_id = record.get("strategy_ledger_intent_id")
+        if ledger is not None and intent_id is not None:
+            try:
+                filled, fees = ledger.execution_totals(intent_id)
+                current = fees.get(currency, _Decimal("0"))
+                if current == before:
+                    ledger.apply_execution(
+                        intent_id, cumulative_quantity=filled, fee=target, fee_currency=currency
+                    )
+                elif current != target:
+                    return "ledger_fee_diverged"
+            except Exception as error:
+                _logger.error(
+                    "strategy ledger fee correction failed (%s)",
+                    getattr(error, "code", type(error).__name__),
+                )
+                return "ledger_fee_unavailable"
+        totals[currency] = target
+        comm = record["executed"].get("comm") or 0.0
+        record["executed"]["comm"] = float(_Decimal(str(comm)) + delta)
+        sequence = int(record.get("fee_corrections") or 0) + 1
+        record["fee_corrections"] = sequence
+        trade = None if trade_bytes is None else dict(_json.loads(trade_bytes))
+        if trade is not None:
+            trade.pop("order_notification_id", None)
+            if trade.get("commission") is not None:
+                trade["commission"] = float(_Decimal(str(trade["commission"])) + delta)
+                if trade.get("pnl") is not None:
+                    trade["pnlcomm"] = trade["pnl"] - trade["commission"]
+        correction = {
+            "v": _PAYLOAD_VERSION,
+            "sequence": sequence,
+            "delta": str(delta),
+            "cumulative": str(reported),
+            "currency": currency,
+            "order": record,
+            "trade": trade,
+        }
+        identity = record["identity"]
+        fee_id = _stable_id("f", self.generation, identity, sequence, str(reported))
+        order_id = self.order_event_id(self.generation, identity, record)
+        corrected_fill = dict(fill, fee=str(reported), currency=currency)
+        index = JournalIndexUpdate(
+            orders=(
+                (
+                    order_key,
+                    _canonical(
+                        {
+                            "v": _INDEX_VERSION,
+                            "order": record,
+                            "fee_totals": {name: str(v) for name, v in totals.items()},
+                        }
+                    ),
+                ),
+            ),
+            fills=((fill_key, order_key, _canonical(corrected_fill)),),
+            trades=() if trade is None else ((trade_key, _canonical(trade)),),
+        )
+        results = self.append_many(
+            (
+                (fee_id, "fee_correction", _canonical(correction), True),
+                (order_id, "order", _canonical(record)),
+            ),
+            index=index,
+        )
+        entries = [
+            (event_id, kind, payload)
+            for (event_id, kind, payload), (_entry, created) in zip(
+                ((fee_id, "fee_correction", correction), (order_id, "order", record)), results
+            )
+            if created
+        ]
+        return DurableFeeCorrectionDelivery(self.strategy, entries)
 
     def notify_order(self, order, *args, **kwargs):
         result = self.original_order(order, *args, **kwargs)
@@ -597,6 +964,7 @@ class StrategyNotificationRecoveryBrokerMixin:
         generation=None,
         resync=False,
         retain_acked=1024,
+        retain_fee_orders=10_000,
     ):
         """Journal ``strategy``'s notify_order/notify_trade durably; redeliver pending ones.
 
@@ -611,6 +979,9 @@ class StrategyNotificationRecoveryBrokerMixin:
         callback exception propagates and leaves that notification pending.
         A journal of another generation raises ``RESYNC_REQUIRED`` unless
         ``resync=True`` (the old journal is moved aside, not replayed).
+        ``retain_fee_orders`` bounds the applied-fill index (the most recently
+        updated orders whose late fee corrections are still recognised after
+        a restart).
         """
 
         from ..execution.strategy_notification_outbox import (
@@ -659,7 +1030,9 @@ class StrategyNotificationRecoveryBrokerMixin:
             source_epoch=generation,
         )
         try:
-            journal = StrategyNotificationJournal(path, scope, retain_acked=retain_acked)
+            journal = StrategyNotificationJournal(
+                path, scope, retain_acked=retain_acked, retain_orders=retain_fee_orders
+            )
         except NotificationOutboxError as error:
             if error.code != "RESYNC_REQUIRED":
                 states[id(strategy)] = "FAILED"
@@ -669,7 +1042,9 @@ class StrategyNotificationRecoveryBrokerMixin:
                 raise StrategyNotificationRecoveryError("RESYNC_REQUIRED") from None
             _move_aside(path)
             try:
-                journal = StrategyNotificationJournal(path, scope, retain_acked=retain_acked)
+                journal = StrategyNotificationJournal(
+                    path, scope, retain_acked=retain_acked, retain_orders=retain_fee_orders
+                )
             except NotificationOutboxError as again:
                 states[id(strategy)] = "FAILED"
                 raise StrategyNotificationRecoveryError(again.code) from None
@@ -694,8 +1069,10 @@ class StrategyNotificationRecoveryBrokerMixin:
         return (self._strategy_notification_recovery_states or {}).get(id(strategy))
 
     def _journal_strategy_notification(self, order):
-        """Journal one queued order notification; return ``(id, replayed)`` or ``None``."""
+        """Journal one queued order notification; ``JournaledOrderNotification`` or ``None``."""
 
+        stash = self.__dict__.get("_durable_fill_rows")
+        fills = stash.pop(getattr(order, "ref", None), None) if stash else None
         recoveries = self._strategy_notification_recovery
         owner = getattr(order, "owner", None)
         recovery = recoveries.get(id(owner)) if recoveries else None
@@ -706,12 +1083,145 @@ class StrategyNotificationRecoveryBrokerMixin:
         if order.exectype == order.Historical and not order.histnotify:
             return None  # never delivered to notify_order
         try:
-            return recovery.journal_order(order)
+            return recovery.journal_order_notification(order, fills)
         except Exception as error:  # fail closed: recovery would have a hole
             recovery.fail(error, "journal")
             return None
 
+    def _stash_durable_fill(self, trade_key, order, quantity, price, fee, currency, update):
+        """Keep one applied (or fee-corrected) fill for the order's next journaled notification.
+
+        Only fills identified by a provider or client order id are indexed: a
+        per-process order ref does not identify the fill after a restart.
+        """
+        if not self._strategy_notification_recovery or not trade_key:
+            return
+        if not (self._remote_external_order_id(update) or self._remote_client_order_id(update)):
+            return
+        rows = self.__dict__.setdefault("_durable_fill_rows", {})
+        rows.setdefault(order.ref, {})[trade_key] = (quantity, price, fee, currency)
+
+    def _flush_durable_fills(self, order):
+        """Index stashed fills of ``order`` now (its notification was journaled before)."""
+        stash = self.__dict__.get("_durable_fill_rows")
+        fills = stash.pop(getattr(order, "ref", None), None) if stash else None
+        recoveries = self._strategy_notification_recovery
+        recovery = recoveries.get(id(getattr(order, "owner", None))) if recoveries else None
+        if not fills or recovery is None:
+            return
+        try:
+            recovery.index_order_fills(order, fills)
+        except Exception as error:  # fail closed: a later correction would be missed
+            recovery.fail(error, "index")
+
+    def _mark_fee_corrections_delivered(self, order):
+        """An earlier process delivered (or replayed) ``order``'s corrections."""
+        sequences = [
+            entry.get("sequence")
+            for entry in _fee_corrections(order)
+            if type(entry.get("sequence")) is int
+        ]
+        owner = getattr(order, "owner", None)
+        if sequences and owner is not None:
+            applied = owner.__dict__.setdefault("_fee_corrections_applied", {})
+            applied[order.ref] = max(applied.get(order.ref, 0), max(sequences))
+
+    def fee_correction_fence(self):
+        """Why a late fee correction without a live order fenced trading, or ``None``."""
+        return self.__dict__.get("_durable_fee_correction_fence")
+
+    def _fence_durable_fee(self, reason):
+        self.__dict__["_durable_fee_correction_fence"] = reason
+        self._trading_enabled = False
+        freeze = getattr(getattr(self, "store", None), "freeze_openings", None)
+        if callable(freeze):
+            freeze("fill_fee_correction_unprojectable")
+        _logger.error("late fee correction cannot be projected; trading disabled (%s)", reason)
+        return "fee_fenced"
+
+    def _apply_durable_fill_fee(self, trade_key, update):
+        """A fill an earlier process applied, reported again: at most a fee correction.
+
+        Used when no live order takes the report (``_lookup_order`` found
+        none). Returns ``None`` when no bound journal indexes the fill (the
+        caller keeps its unmatched handling), else ``"ignored"`` (same fee,
+        or another quantity/price/no fee: never a new fill), ``"fee_fenced"``
+        (lower fee, another currency, a fill booked without a fee, or a
+        ledger divergence) or ``"fee_corrected"``.
+        """
+        recoveries = self._strategy_notification_recovery
+        if not recoveries or not trade_key:
+            return None
+        if not (self._remote_external_order_id(update) or self._remote_client_order_id(update)):
+            return None
+        fill_key = fill_index_key(trade_key)
+        misses = self.__dict__.setdefault("_durable_fill_misses", set())
+        if fill_key in misses:
+            return None
+        for recovery in list(recoveries.values()):
+            if recovery.state != "ACTIVE":
+                continue
+            try:
+                found = recovery.durable_fill(fill_key)
+            except Exception as error:  # fail closed: the index cannot be trusted
+                recovery.fail(error, "index")
+                return self._fence_durable_fee("applied_fill_index_unavailable")
+            if found is not None:
+                return self._correct_durable_fill(recovery, fill_key, *found, update)
+        if len(misses) >= _MAX_CACHE:
+            misses.clear()
+        misses.add(fill_key)
+        return None
+
+    def _correct_durable_fill(self, recovery, fill_key, order_key, fill, update):
+        amount, _error = self._normalized_commission(update)
+        if amount is None:
+            return "ignored"
+        value = self._extract_update_value
+        quantity = self._neutral_decimal(value(update, "quantity"), positive=True)
+        price = self._neutral_decimal(value(update, "price"), positive=True)
+        if (
+            fill.get("quantity") is None
+            or quantity != _Decimal(fill["quantity"])
+            or price != _Decimal(fill["price"])
+        ):
+            return "ignored"
+        reported = _Decimal(str(amount))
+        currency = self._extract_update_value(update, "fee_currency")
+        currency = currency if type(currency) is str and currency else None
+        booked = None if fill.get("fee") is None else _Decimal(fill["fee"])
+        if booked is not None and reported == booked and currency == fill.get("currency"):
+            return "ignored"
+        if booked is None or currency is None or currency != fill.get("currency"):
+            return self._fence_durable_fee("fee_currency_or_basis_mismatch")
+        if reported < booked:
+            return self._fence_durable_fee("fee_regressed")
+        try:
+            outcome = recovery.book_durable_correction(
+                fill_key,
+                order_key,
+                fill,
+                reported,
+                currency,
+                getattr(self, "_direct_strategy_ledger", None),
+            )
+        except Exception as error:  # the ledger may have moved: a re-delivery completes it
+            recovery.fail(error, "journal")
+            return self._fence_durable_fee("fee_correction_journal_failed")
+        if type(outcome) is str:
+            return self._fence_durable_fee(outcome)
+        if outcome.entries:
+            self.notifs.append(outcome)
+        return "fee_corrected"
+
     def close_strategy_notification_recovery(self) -> None:
+        notifs = getattr(self, "notifs", None)
+        if notifs:
+            # Journaled and unacknowledged: replayed when recovery is bound again.
+            kept = [n for n in notifs if type(n) is not DurableFeeCorrectionDelivery]
+            if len(kept) != len(notifs):
+                notifs.clear()
+                notifs.extend(kept)
         for recovery in (self._strategy_notification_recovery or {}).values():
             recovery.restore()
             recovery.close()

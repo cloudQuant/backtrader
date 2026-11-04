@@ -45,8 +45,20 @@ v2); the row then has ``fee``/``fee_currency``/``fee_unit`` like a direct fill
 row, and a later event for the same fill with a higher fee is the repeated-fill
 fee correction of the direct path (``notify_fee_correction``). A fill without a
 fee is booked with ``commission_source="unavailable"`` exactly as a fee-less
-direct fill. The terminal order of a previous process is not rebuilt, so a fee
-correction that arrives only after a restart is counted as orphaned.
+direct fill.
+
+Fee corrections after a restart (iteration 60, post-acceptance). Each order
+record also keeps the order's provider fee totals and fee corrections, and
+every applied fill (fill fact -> quantity, price, booked fee) is stored in the
+same transaction as the fact. A rebuilt non-terminal order gets them back, so
+a later correction of a fill the previous process applied is the live
+repeated-fill correction (never a second fill) and new fills keep the
+cumulative fee the strategy ledger already has. A terminal order of a previous
+process is not rebuilt: a correction of one of its fills goes to the
+notification journal's applied-fill index (``_apply_durable_fill_fee``), which
+books the ledger fee once and delivers ``notify_fee_correction`` with a
+rebuilt read-only order and Trade snapshot. Only a fill the index does not
+know (or a new fill of such an order) is still counted as orphaned.
 """
 
 from __future__ import annotations
@@ -173,6 +185,10 @@ class GatewayExecutionProjectionStore:
                 CREATE TABLE IF NOT EXISTS deferred (
                     fact_id TEXT PRIMARY KEY, order_id TEXT NOT NULL, cursor INTEGER NOT NULL,
                     row TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS order_fills (
+                    fill_key TEXT PRIMARY KEY, client_order_id TEXT NOT NULL,
+                    record TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS order_fills_client ON order_fills(client_order_id);
                 """)
             self._db.execute("BEGIN IMMEDIATE")
             row = self._db.execute("SELECT schema, binding FROM meta WHERE id=1").fetchone()
@@ -245,7 +261,7 @@ class GatewayExecutionProjectionStore:
             is not None
         )
 
-    def record_fact(self, fact_id, cursor, outcome, orders=(), undefer=None):
+    def record_fact(self, fact_id, cursor, outcome, orders=(), undefer=None, fills=()):
         statements = [
             (
                 "INSERT OR IGNORE INTO facts VALUES (?, ?, ?)",
@@ -254,9 +270,32 @@ class GatewayExecutionProjectionStore:
             ("DELETE FROM facts WHERE cursor < ?", (cursor - _RETAIN_FACTS,)),
         ]
         statements.extend(self._order_statement(cid, record) for cid, record in orders)
+        statements.extend(
+            (
+                "INSERT INTO order_fills VALUES (?, ?, ?) ON CONFLICT(fill_key) DO UPDATE SET "
+                "client_order_id=excluded.client_order_id, record=excluded.record",
+                (fill_key, cid, json.dumps(record, sort_keys=True)),
+            )
+            for fill_key, cid, record in fills
+        )
+        # A terminal order is never rebuilt: its fills are not needed here any
+        # more (a late fee of one of them goes to the applied-fill index).
+        statements.extend(
+            ("DELETE FROM order_fills WHERE client_order_id=?", (cid,))
+            for cid, record in orders
+            if not record["alive"]
+        )
         if undefer is not None:
             statements.append(("DELETE FROM deferred WHERE fact_id=?", (undefer,)))
         self._write(statements)
+
+    def fills_for(self, client_order_id):
+        """``[(trade_key, record)]`` of the fills applied to one live order."""
+        rows = self._db.execute(
+            "SELECT fill_key, record FROM order_fills WHERE client_order_id=? ORDER BY rowid",
+            (client_order_id,),
+        ).fetchall()
+        return [(tuple(json.loads(key)), json.loads(record)) for key, record in rows]
 
     def defer(self, fact_id, order_id, cursor, row):
         count = self._db.execute("SELECT COUNT(*) FROM deferred").fetchone()[0]
@@ -319,6 +358,14 @@ def _order_record(broker, order, strategy_ref, client_order_id):
                 "offset",
                 "remote_terminal_status",
                 "remote_terminal_filled",
+                # Fee state (post-acceptance): a rebuilt order keeps booking the
+                # cumulative fee the ledger has and numbering its corrections.
+                "provider_fee_totals",
+                "fee_corrections",
+                "fee_corrections_journaled",
+                "commission_source",
+                "actual_commission_known",
+                "pnl_status",
             )
             if info(order, key) is not None
         },
@@ -335,7 +382,7 @@ class _GatewayExecutionBinding:
         self.acknowledge = acknowledge
         self.live = {}
         self.state = "ACTIVE"
-        self.counters = {"applied": 0, "skipped": 0, "orphaned": 0, "deferred": 0}
+        self.counters = {"applied": 0, "skipped": 0, "orphaned": 0, "deferred": 0, "fenced": 0}
 
 
 class GatewayExecutionEventsBrokerMixin:
@@ -566,6 +613,7 @@ class GatewayExecutionEventsBrokerMixin:
                 "applied",
                 orders=[self._gateway_order_snapshot(binding, client_order_id, order)],
                 undefer=fact_id,
+                fills=self._gateway_fill_rows(row, client_order_id),
             )
             binding.counters["applied"] += 1
         self._apply_broker_update_row(
@@ -592,6 +640,17 @@ class GatewayExecutionEventsBrokerMixin:
         )
         order = binding.live.get(client_order_id) if client_order_id is not None else None
         if order is None:
+            if record.order_id is not None and client_order_id is not None:
+                # An order of this Strategy that is not rebuilt (terminal before
+                # a restart): a fill the journal's applied-fill index knows can
+                # still carry a late fee; anything else is only counted.
+                row = trade_update_row(observation, data_name=data_name)
+                outcome = self._apply_durable_fill_fee(self._trade_dedupe_key(row), row)
+                if outcome is not None:
+                    counter = {"fee_corrected": "applied", "fee_fenced": "fenced"}
+                    binding.counters[counter.get(outcome, "skipped")] += 1
+                    binding.store.record_fact(event.event_id, event.cursor, outcome)
+                    return int(outcome == "fee_corrected")
             if record.order_id is None or client_order_id is not None:
                 # No provider order identity, or an order this process cannot
                 # rebuild (terminal or unknown): never applied, only counted.
@@ -606,17 +665,37 @@ class GatewayExecutionEventsBrokerMixin:
             )
             binding.counters["deferred"] += 1
             return 0
-        self._apply_broker_update_row(
-            trade_update_row(observation, data_name=data_name, local_ref=order.ref)
-        )
+        row = trade_update_row(observation, data_name=data_name, local_ref=order.ref)
+        self._apply_broker_update_row(row)
         binding.store.record_fact(
             event.event_id,
             event.cursor,
             "applied",
             orders=[self._gateway_order_snapshot(binding, client_order_id, order)],
+            fills=self._gateway_fill_rows(row, client_order_id),
         )
         binding.counters["applied"] += 1
         return 1
+
+    def _gateway_fill_rows(self, row, client_order_id):
+        """The applied (or fee-corrected) fill of ``row``, stored with its fact."""
+        trade_key = self._trade_dedupe_key(row)
+        applied = (self.__dict__.get("_applied_fill_fees") or {}).get(trade_key)
+        if trade_key is None or applied is None:
+            return ()
+        _order, quantity, price, fee, currency = applied
+        return (
+            (
+                json.dumps(list(trade_key)),
+                client_order_id,
+                {
+                    "quantity": str(quantity),
+                    "price": str(price),
+                    "fee": None if fee is None else str(fee),
+                    "currency": currency,
+                },
+            ),
+        )
 
     def _gateway_order_snapshot(self, binding, client_order_id, order):
         # A terminal order stays in this process's map, as it stays in
@@ -667,8 +746,35 @@ class GatewayExecutionEventsBrokerMixin:
             if external:
                 self._orders_by_external_id[str(external)] = order
             binding.live[client_order_id] = order
+            self._restore_gateway_fills(binding, client_order_id, order)
             rebuilt += 1
         return rebuilt
+
+    def _restore_gateway_fills(self, binding, client_order_id, order):
+        """Give a rebuilt order back its applied fills and delivered fee corrections.
+
+        The fills come from the same transactions as the order record, so a
+        re-read event that was applied but not recorded is applied again onto
+        the same state (and yields the journaled notification ids), while a
+        later report of a recorded fill is a repeated fill: at most a fee
+        correction, never a second fill.
+        """
+        applied = self.__dict__.setdefault("_applied_fill_fees", {})
+        for trade_key, fill in binding.store.fills_for(client_order_id):
+            fee = fill.get("fee")
+            applied[trade_key] = (
+                order,
+                Decimal(fill["quantity"]),
+                Decimal(fill["price"]),
+                None if fee is None else Decimal(fee),
+                fill.get("currency"),
+            )
+            self._seen_trade_ids.add(trade_key)
+        corrections = order.info.get("fee_corrections") or ()
+        if corrections:
+            # Delivered by the previous process (or replayed at bind time).
+            done = binding.strategy.__dict__.setdefault("_fee_corrections_applied", {})
+            done[order.ref] = max(int(entry.get("sequence") or 0) for entry in corrections)
 
     def _gateway_previous_process_duplicate(self, order, event_id):
         """Whether ``event_id`` is a re-applied Gateway event journaled by an earlier process."""

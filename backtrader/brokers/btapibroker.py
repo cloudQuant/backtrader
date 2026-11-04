@@ -3028,10 +3028,14 @@ class BtApiBroker(
         journaled = self._journal_strategy_notification(order)
         if (
             journaled is not None
-            and journaled[1]
-            and self._gateway_previous_process_duplicate(order, journaled[0])
+            and journaled.replayed
+            and not journaled.fee_created
+            and self._gateway_previous_process_duplicate(order, journaled.event_id)
         ):
-            return  # R2-C: a re-applied Gateway event a previous process journaled
+            # R2-C: a re-applied Gateway event a previous process journaled;
+            # its fee corrections were delivered (or replayed) there too.
+            self._mark_fee_corrections_delivered(order)
+            return
         # ``Order.clone`` deliberately clones execution state but retains the
         # original ``info`` mapping.  A later broker update can otherwise
         # rewrite a queued Accepted/UNKNOWN notification before Cerebro
@@ -3041,8 +3045,10 @@ class BtApiBroker(
         snapshot = order.clone()
         snapshot.info = copy(order.info)
         if journaled is not None:
-            snapshot.notification_id, snapshot.replayed = journaled
-            snapshot.addinfo(notification_id=journaled[0])
+            snapshot.notification_id = journaled.event_id
+            snapshot.replayed = journaled.replayed
+            snapshot.fee_correction_ids = journaled.fee_ids  # ACKed after the dispatch
+            snapshot.addinfo(notification_id=journaled.event_id)
         if recovery_receipt_id is not None:
             snapshot.addinfo(service_execution_recovery_receipt_id=recovery_receipt_id)
         if recovery_restore_only:
@@ -5036,6 +5042,10 @@ class BtApiBroker(
 
         order = self._lookup_order(update)
         if order is None:
+            # A fill an earlier process applied (restart): at most a late fee.
+            durable = self._apply_durable_fill_fee(trade_key, update)
+            if durable is not None:
+                return durable
             if defer_unmatched:
                 self._defer_trade_update(update)
             return "unmatched"
@@ -5093,6 +5103,7 @@ class BtApiBroker(
             if trade_key:
                 self._seen_trade_ids.add(trade_key)
                 self._remember_applied_fill(trade_key, order, fill_qty, fill_price, update)
+                self._flush_durable_fills(order)  # its notification was journaled already
             return result
 
         signed_fill = fill_quantity if remote_is_buy else -fill_quantity
@@ -5192,17 +5203,19 @@ class BtApiBroker(
     # -- late fee on an already applied fill (re-verification F5, direct) ------
 
     def _remember_applied_fill(self, trade_key, order, quantity, price, update):
-        """Keep the fee booked for one applied fill, to recognise a late correction."""
+        """Keep the fee booked for one applied fill, to recognise a late correction.
+
+        With notification recovery bound the fill is also indexed durably
+        with the order's next journaled notification, so a correction that
+        reaches a restarted process is still recognised.
+        """
         fills = self.__dict__.setdefault("_applied_fill_fees", {})
         amount, _error = self._normalized_commission(update)
         currency = self._extract_update_value(update, "fee_currency")
-        fills[trade_key] = (
-            order,
-            quantity,
-            price,
-            None if amount is None else Decimal(str(amount)),
-            currency if type(currency) is str and currency else None,
-        )
+        booked = None if amount is None else Decimal(str(amount))
+        currency = currency if type(currency) is str and currency else None
+        fills[trade_key] = (order, quantity, price, booked, currency)
+        self._stash_durable_fill(trade_key, order, quantity, price, booked, currency, update)
 
     def _apply_repeated_fill_fee(self, trade_key, update):
         """Handle a fill id seen before: at most a fee-only correction.
@@ -5259,6 +5272,7 @@ class BtApiBroker(
         self.__dict__["_applied_fill_fees"][trade_key] = (
             order, quantity, price, reported, currency
         )
+        self._stash_durable_fill(trade_key, order, quantity, price, reported, currency, update)
         self.notify(order)
         return "fee_corrected"
 

@@ -82,15 +82,16 @@ def _child(directory, stage):
 
         binding.consumer.read = read_then_die
     if stage == "after_append":
-        real_append = recovery.journal.append
+        real_append = recovery.journal.append_many  # ``append`` delegates to it
 
-        def append_then_die(event_id, kind, payload):
-            entry, created = real_append(event_id, kind, payload)
-            if created and b'"status_name":"Partial"' in payload:
-                os._exit(73)  # journaled; no callback, no fact record, no SDK commit
-            return entry, created
+        def append_then_die(entries, **kwargs):
+            results = real_append(entries, **kwargs)
+            for item, (_entry, created) in zip(entries, results):
+                if created and b'"status_name":"Partial"' in item[2]:
+                    os._exit(73)  # journaled; no callback, no fact record, no SDK commit
+            return results
 
-        recovery.journal.append = append_then_die
+        recovery.journal.append_many = append_then_die
     if stage == "before_commit":
 
         def commit_then_die(page):

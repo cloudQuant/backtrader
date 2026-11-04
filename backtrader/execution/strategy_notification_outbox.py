@@ -9,7 +9,11 @@ provider facts.
 ``StrategyNotificationJournal`` is the hot-path store used by
 ``BtApiBroker.bind_strategy_notification_recovery``: one ordered, at-least-once
 journal per strategy with stable caller-derived event IDs, per-entry digests,
-O(1) append/acknowledge and bounded retention of acknowledged rows.
+O(1) append/acknowledge and bounded retention of acknowledged rows. Since
+schema version 3 it also keeps a bounded applied-fill index (order state, fills
+with their booked fees and the Trade an order last updated) written in the
+same transaction as the notifications, so a late fee correction that reaches a
+restarted process is booked and notified exactly once.
 
 ``StrategyNotificationOutbox`` is the older checkpoint-batch primitive: one
 projection batch atomically stores its checkpoint and notifications; delivery
@@ -41,6 +45,7 @@ from typing import Callable
 
 __all__ = [
     "JournalEntry",
+    "JournalIndexUpdate",
     "NotificationOutboxError",
     "NotificationScope",
     "NotificationSnapshot",
@@ -683,9 +688,9 @@ class StrategyNotificationOutbox(_DedicatedSqliteStore):
 # Bounded notification journal (re-verification G3, hot path)
 # ---------------------------------------------------------------------------
 
-_JOURNAL_VERSION = 2
+_JOURNAL_VERSION = 3
 _JOURNAL_KINDS = ("order", "trade", "fee_correction")
-_JOURNAL_DDL = {
+_JOURNAL_V2_DDL = {
     "journal_meta": (
         "CREATE TABLE journal_meta (id INTEGER PRIMARY KEY CHECK(id=1), "
         "account_ref TEXT NOT NULL, route_ref TEXT NOT NULL, strategy_ref TEXT NOT NULL, "
@@ -701,8 +706,73 @@ _JOURNAL_DDL = {
         "CREATE INDEX journal_pending ON journal_notification(acked, seq)"
     ),
 }
+# Version 3 (iteration 60, post-acceptance): the applied-fill index. It lets a
+# restarted process recognise a late fee correction of a fill an earlier
+# process applied: fill fact -> order identity and booked fee; order identity
+# -> its last journaled order state and fee totals; order -> the Trade it last
+# updated. Written in the same transaction as the notification it belongs to.
+_JOURNAL_INDEX_DDL = {
+    "journal_order": (
+        "CREATE TABLE journal_order (order_key TEXT PRIMARY KEY, seq INTEGER NOT NULL, "
+        "record BLOB NOT NULL, digest TEXT NOT NULL)"
+    ),
+    "journal_order_seq": "CREATE INDEX journal_order_seq ON journal_order(seq)",
+    "journal_fill": (
+        "CREATE TABLE journal_fill (fill_key TEXT PRIMARY KEY, order_key TEXT NOT NULL, "
+        "record BLOB NOT NULL, digest TEXT NOT NULL)"
+    ),
+    "journal_fill_order": "CREATE INDEX journal_fill_order ON journal_fill(order_key)",
+    "journal_link": (
+        "CREATE TABLE journal_link (order_key TEXT PRIMARY KEY, trade_key TEXT NOT NULL)"
+    ),
+    "journal_trade": (
+        "CREATE TABLE journal_trade (trade_key TEXT PRIMARY KEY, record BLOB NOT NULL, "
+        "digest TEXT NOT NULL)"
+    ),
+}
+_JOURNAL_DDL = {**_JOURNAL_V2_DDL, **_JOURNAL_INDEX_DDL}
 _DEFAULT_RETAIN_ACKED = 1024
+_DEFAULT_RETAIN_ORDERS = 10_000
 _COMPACT_EVERY = 256
+_MAX_INDEX_KEY_BYTES = 2048
+
+
+def _schema_objects(ddl: dict) -> set:
+    return {
+        (name, "index" if sql.startswith("CREATE INDEX") else "table", sql)
+        for name, sql in ddl.items()
+    }
+
+
+def _index_key(value: object) -> str:
+    """A bounded, printable index key (fill fact, order identity or trade key)."""
+    if type(value) is not str or not value or value != value.strip():
+        raise NotificationOutboxError("INDEX_KEY_INVALID")
+    try:
+        encoded = value.encode("utf-8", errors="strict")
+    except UnicodeEncodeError:
+        raise NotificationOutboxError("INDEX_KEY_INVALID") from None
+    if len(encoded) > _MAX_INDEX_KEY_BYTES or any(ord(c) < 32 for c in value):
+        raise NotificationOutboxError("INDEX_KEY_INVALID")
+    return value
+
+
+@dataclass(frozen=True)
+class JournalIndexUpdate:
+    """Upserts of the applied-fill index, written with (or without) journal entries.
+
+    ``orders``: ``(order_key, record)``; ``fills``: ``(fill_key, order_key,
+    record)``; ``links``: ``(order_key, trade_key)``; ``trades``:
+    ``(trade_key, record)``. Records are canonical JSON objects (bytes).
+    """
+
+    orders: tuple = ()
+    fills: tuple = ()
+    links: tuple = ()
+    trades: tuple = ()
+
+    def __bool__(self) -> bool:
+        return bool(self.orders or self.fills or self.links or self.trades)
 
 
 @dataclass(frozen=True)
@@ -733,6 +803,22 @@ def _entry_digest(scope: NotificationScope, seq: int, event_id: str, kind: str, 
     ).hexdigest()
 
 
+def _index_digest(scope: NotificationScope, table: str, key: str, payload: bytes) -> str:
+    value = [
+        scope.account_ref,
+        scope.route_ref,
+        scope.strategy_ref,
+        scope.run_id,
+        scope.source_epoch,
+        table,
+        key,
+        payload.hex(),
+    ]
+    return hashlib.sha256(
+        json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
 class StrategyNotificationJournal(_DedicatedSqliteStore):
     """Bounded, ordered at-least-once journal of one strategy's notifications.
 
@@ -756,6 +842,17 @@ class StrategyNotificationJournal(_DedicatedSqliteStore):
     ``RESYNC_REQUIRED``: the old entries belong to another generation and
     are never mapped onto the new one. Any other scope difference raises
     ``SCOPE_MISMATCH``. Scope values are declarations, not credentials.
+
+    Applied-fill index (schema version 3; a version 2 file is upgraded in
+    place when opened). Next to the notifications the journal keeps, per
+    order identity, the last journaled order state with its provider fee
+    totals, the fills applied to it (fill fact -> booked fee) and the Trade it
+    last updated. ``append_many(..., index=...)`` writes them in the same
+    transaction as the notifications they belong to, so a restarted process
+    can book a late fee correction of a fill an earlier process applied
+    exactly once. The index keeps the ``retain_orders`` most recently updated
+    orders with their fills; older ones are compacted in amortized batches (a
+    correction for a compacted order is no longer recognised).
     """
 
     def __init__(
@@ -765,30 +862,41 @@ class StrategyNotificationJournal(_DedicatedSqliteStore):
         *,
         retain_acked: int = _DEFAULT_RETAIN_ACKED,
         max_pending: int = _MAX_PENDING_EVENTS,
+        retain_orders: int = _DEFAULT_RETAIN_ORDERS,
     ) -> None:
         if type(retain_acked) is not int or retain_acked < 0:
             raise NotificationOutboxError("RETENTION_INVALID")
         if type(max_pending) is not int or not 1 <= max_pending <= 1_000_000:
             raise NotificationOutboxError("RETENTION_INVALID")
+        if type(retain_orders) is not int or not 1 <= retain_orders <= 10_000_000:
+            raise NotificationOutboxError("RETENTION_INVALID")
         self._retain_acked = retain_acked
         self._max_pending = max_pending
+        self._retain_orders = retain_orders
         self._acks_since_compaction = 0
+        self._orders_since_compaction = 0
         super().__init__(path, scope)
         with self._lock, self._transaction(immediate=True):
+            if self._db.execute("PRAGMA user_version").fetchone()[0] == 2:
+                for sql in _JOURNAL_INDEX_DDL.values():
+                    self._db.execute(sql)
+                self._db.execute(f"PRAGMA user_version={_JOURNAL_VERSION}")
             self._compact()
+            self._compact_index()
 
     # -- schema --------------------------------------------------------------
 
     def _verify_schema(self) -> None:
         version = self._db.execute("PRAGMA user_version").fetchone()[0]
-        objects = self._db.execute(
-            "SELECT name, type, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-        expected = {
-            (name, "index" if sql.startswith("CREATE INDEX") else "table", sql)
-            for name, sql in _JOURNAL_DDL.items()
-        }
-        if version != _JOURNAL_VERSION or set(objects) != expected:
+        objects = set(
+            self._db.execute(
+                "SELECT name, type, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+        )
+        if (version, objects) not in (
+            (_JOURNAL_VERSION, _schema_objects(_JOURNAL_DDL)),
+            (2, _schema_objects(_JOURNAL_V2_DDL)),
+        ):
             raise NotificationOutboxError("STORE_SCHEMA_INVALID")
 
     def _initialise_new(self, path: str, identity: os.stat_result) -> None:
@@ -899,36 +1007,235 @@ class StrategyNotificationJournal(_DedicatedSqliteStore):
 
     # -- operations ----------------------------------------------------------
 
-    def append(self, event_id: str, kind: str, payload: bytes) -> tuple[JournalEntry, bool]:
+    def append(
+        self,
+        event_id: str,
+        kind: str,
+        payload: bytes,
+        *,
+        keep_existing: bool = False,
+        index: JournalIndexUpdate | None = None,
+    ) -> tuple[JournalEntry, bool]:
         """Durably store one notification; return ``(entry, created)``."""
-        _text(event_id)
-        if type(kind) is not str or kind not in _JOURNAL_KINDS:
-            raise NotificationOutboxError("KIND_INVALID")
-        _json_blob(payload, _MAX_PAYLOAD_BYTES)
+        return self.append_many(((event_id, kind, payload, keep_existing),), index=index)[0]
+
+    def append_many(
+        self, entries, *, index: JournalIndexUpdate | None = None
+    ) -> tuple[tuple[JournalEntry, bool], ...]:
+        """Store notifications and index upserts in ONE transaction, in order.
+
+        ``entries`` are ``(event_id, kind, payload)`` or ``(event_id, kind,
+        payload, keep_existing)``. An existing ``event_id`` with the same kind
+        and payload is returned with ``created=False``; another payload is
+        refused (``EVENT_ID_CONFLICT``) unless ``keep_existing`` is true, in
+        which case the journaled entry is kept unchanged (for entries whose id
+        already identifies the fact, such as a fee correction). Nothing is
+        written when any entry or index update is invalid.
+        """
+        checked = []
+        for item in entries:
+            if type(item) is not tuple or len(item) not in (3, 4):
+                raise NotificationOutboxError("BATCH_INVALID")
+            event_id, kind, payload = item[:3]
+            keep = item[3] if len(item) == 4 else False
+            _text(event_id)
+            if type(kind) is not str or kind not in _JOURNAL_KINDS or type(keep) is not bool:
+                raise NotificationOutboxError("KIND_INVALID")
+            _json_blob(payload, _MAX_PAYLOAD_BYTES)
+            checked.append((event_id, kind, payload, keep))
+        if len({event_id for event_id, *_rest in checked}) != len(checked):
+            raise NotificationOutboxError("EVENT_ID_CONFLICT")
+        statements = self._index_statements(index)
+        results = []
         with self._lock, self._transaction(immediate=True, integrity_code="EVENT_ID_CONFLICT"):
             next_seq, pending, retained = self._meta()
-            existing = self._db.execute(
-                "SELECT seq, event_id, kind, payload, digest, acked FROM journal_notification "
-                "WHERE event_id=?",
-                (event_id,),
+            for event_id, kind, payload, keep in checked:
+                existing = self._db.execute(
+                    "SELECT seq, event_id, kind, payload, digest, acked FROM journal_notification "
+                    "WHERE event_id=?",
+                    (event_id,),
+                ).fetchone()
+                if existing is not None:
+                    entry = self._row(tuple(existing))
+                    if entry.kind != kind or (entry.payload != payload and not keep):
+                        raise NotificationOutboxError("EVENT_ID_CONFLICT")
+                    results.append((entry, False))
+                    continue
+                if pending + 1 > self._max_pending:
+                    raise NotificationOutboxError("PENDING_CAPACITY_EXCEEDED")
+                digest = _entry_digest(self._scope, next_seq, event_id, kind, payload)
+                self._db.execute(
+                    "INSERT INTO journal_notification VALUES (?, ?, ?, ?, ?, 0)",
+                    (next_seq, event_id, kind, payload, digest),
+                )
+                results.append((JournalEntry(next_seq, event_id, kind, payload, False), True))
+                next_seq, pending, retained = next_seq + 1, pending + 1, retained + 1
+            if any(created for _entry, created in results):
+                self._db.execute(
+                    "UPDATE journal_meta SET next_seq=?, pending=?, retained=? WHERE id=1",
+                    (next_seq, pending, retained),
+                )
+            self._write_index(statements, next_seq)
+        return tuple(results)
+
+    # -- applied-fill index ----------------------------------------------------
+
+    def _index_statements(self, index: JournalIndexUpdate | None) -> list:
+        """Validate ``index`` before any write; return ``(table, key, extra, payload)``."""
+        if index is None:
+            return []
+        if type(index) is not JournalIndexUpdate:
+            raise NotificationOutboxError("INDEX_INVALID")
+        statements = []
+        try:
+            for order_key, record in index.orders:
+                statements.append(("order", _index_key(order_key), None, record))
+            for fill_key, order_key, record in index.fills:
+                statements.append(("fill", _index_key(fill_key), _index_key(order_key), record))
+            for order_key, trade_key in index.links:
+                statements.append(("link", _index_key(order_key), _index_key(trade_key), None))
+            for trade_key, record in index.trades:
+                statements.append(("trade", _index_key(trade_key), None, record))
+        except (TypeError, ValueError):
+            raise NotificationOutboxError("INDEX_INVALID") from None
+        for _table, _key, _extra, record in statements:
+            if record is not None:
+                _json_blob(record, _MAX_PAYLOAD_BYTES)
+        return statements
+
+    def _write_index(self, statements: list, seq: int) -> None:
+        db = self._db
+        scope = self._scope
+        orders = 0
+        for table, key, extra, record in statements:
+            if table == "order":
+                orders += 1
+                db.execute(
+                    "INSERT INTO journal_order VALUES (?, ?, ?, ?) ON CONFLICT(order_key) DO "
+                    "UPDATE SET seq=excluded.seq, record=excluded.record, digest=excluded.digest",
+                    (key, seq, record, _index_digest(scope, "order", key, record)),
+                )
+            elif table == "fill":
+                digest = _index_digest(scope, "fill", key, extra.encode() + b"\0" + record)
+                db.execute(
+                    "INSERT INTO journal_fill VALUES (?, ?, ?, ?) ON CONFLICT(fill_key) DO "
+                    "UPDATE SET order_key=excluded.order_key, record=excluded.record, "
+                    "digest=excluded.digest",
+                    (key, extra, record, digest),
+                )
+            elif table == "link":
+                db.execute(
+                    "INSERT INTO journal_link VALUES (?, ?) ON CONFLICT(order_key) DO "
+                    "UPDATE SET trade_key=excluded.trade_key",
+                    (key, extra),
+                )
+            else:
+                db.execute(
+                    "INSERT INTO journal_trade VALUES (?, ?, ?) ON CONFLICT(trade_key) DO "
+                    "UPDATE SET record=excluded.record, digest=excluded.digest",
+                    (key, record, _index_digest(scope, "trade", key, record)),
+                )
+        if orders:
+            self._orders_since_compaction += orders
+            if self._orders_since_compaction >= _COMPACT_EVERY:
+                self._compact_index()
+
+    def update_index(self, index: JournalIndexUpdate) -> None:
+        """Write index upserts without a notification (one transaction)."""
+        statements = self._index_statements(index)
+        if not statements:
+            return
+        with self._lock, self._transaction(immediate=True):
+            next_seq, _pending, _retained = self._meta()
+            self._write_index(statements, next_seq)
+
+    def _compact_index(self) -> None:
+        """Keep the ``retain_orders`` most recently updated orders, their fills and Trades."""
+        db = self._db
+        cut = db.execute(
+            "SELECT seq FROM journal_order ORDER BY seq DESC LIMIT 1 OFFSET ?",
+            (self._retain_orders,),
+        ).fetchone()
+        if cut is not None:
+            db.execute(
+                "DELETE FROM journal_fill WHERE order_key IN "
+                "(SELECT order_key FROM journal_order WHERE seq<=?)",
+                (cut[0],),
+            )
+            db.execute(
+                "DELETE FROM journal_link WHERE order_key IN "
+                "(SELECT order_key FROM journal_order WHERE seq<=?)",
+                (cut[0],),
+            )
+            db.execute("DELETE FROM journal_order WHERE seq<=?", (cut[0],))
+            db.execute(
+                "DELETE FROM journal_trade WHERE trade_key NOT IN "
+                "(SELECT trade_key FROM journal_link)"
+            )
+        self._orders_since_compaction = 0
+
+    def _index_row(self, table: str, key: str, digest_payload: bytes, record, digest) -> bytes:
+        if type(record) is not bytes or digest != _index_digest(
+            self._scope, table, key, digest_payload
+        ):
+            raise NotificationOutboxError("STORE_CORRUPT")
+        try:
+            _json_blob(record, _MAX_PAYLOAD_BYTES)
+        except NotificationOutboxError:
+            raise NotificationOutboxError("STORE_CORRUPT") from None
+        return record
+
+    def indexed_fill(self, fill_key: str) -> tuple[str, bytes] | None:
+        """``(order_key, record)`` of an applied fill, or ``None``."""
+        key = _index_key(fill_key)
+        with self._lock, self._transaction():
+            self._meta()
+            row = self._db.execute(
+                "SELECT order_key, record, digest FROM journal_fill WHERE fill_key=?", (key,)
             ).fetchone()
-            if existing is not None:
-                entry = self._row(tuple(existing))
-                if entry.kind != kind or entry.payload != payload:
-                    raise NotificationOutboxError("EVENT_ID_CONFLICT")
-                return entry, False
-            if pending + 1 > self._max_pending:
-                raise NotificationOutboxError("PENDING_CAPACITY_EXCEEDED")
-            digest = _entry_digest(self._scope, next_seq, event_id, kind, payload)
-            self._db.execute(
-                "INSERT INTO journal_notification VALUES (?, ?, ?, ?, ?, 0)",
-                (next_seq, event_id, kind, payload, digest),
-            )
-            self._db.execute(
-                "UPDATE journal_meta SET next_seq=?, pending=?, retained=? WHERE id=1",
-                (next_seq + 1, pending + 1, retained + 1),
-            )
-            return JournalEntry(next_seq, event_id, kind, payload, False), True
+        if row is None:
+            return None
+        order_key, record, digest = row
+        if type(order_key) is not str:
+            raise NotificationOutboxError("STORE_CORRUPT")
+        payload = record if type(record) is bytes else b""
+        self._index_row("fill", key, order_key.encode() + b"\0" + payload, record, digest)
+        return order_key, record
+
+    def indexed_order(self, order_key: str) -> tuple[bytes | None, str | None, bytes | None]:
+        """``(order record, trade key, Trade record)`` of an order; ``None`` where absent."""
+        key = _index_key(order_key)
+        with self._lock, self._transaction():
+            self._meta()
+            row = self._db.execute(
+                "SELECT record, digest FROM journal_order WHERE order_key=?", (key,)
+            ).fetchone()
+            trade = self._db.execute(
+                "SELECT t.trade_key, t.record, t.digest FROM journal_link AS l JOIN "
+                "journal_trade AS t ON t.trade_key = l.trade_key WHERE l.order_key=?",
+                (key,),
+            ).fetchone()
+        order = None if row is None else self._index_row("order", key, row[0], *row)
+        trade_key = trade_record = None
+        if trade is not None:
+            trade_key, record, digest = trade
+            if type(trade_key) is not str:
+                raise NotificationOutboxError("STORE_CORRUPT")
+            trade_record = self._index_row("trade", trade_key, record, record, digest)
+        return order, trade_key, trade_record
+
+    def index_stats(self) -> dict:
+        """Row counts of the applied-fill index (``orders``, ``fills``, ``trades``)."""
+        with self._lock, self._transaction():
+            self._meta()
+            return {
+                name: self._db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for name, table in (
+                    ("orders", "journal_order"),
+                    ("fills", "journal_fill"),
+                    ("trades", "journal_trade"),
+                )
+            }
 
     def pending(self, limit: int = _MAX_BATCH_EVENTS) -> tuple[JournalEntry, ...]:
         """Return up to ``limit`` unacknowledged entries in append order."""
