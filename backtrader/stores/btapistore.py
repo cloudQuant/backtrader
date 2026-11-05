@@ -741,6 +741,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._managed_runtime_borrowed_api = api
         return None
 
+    @property
     def requires_account_risk(self) -> bool:
         """Return whether startup must establish durable account-loss evidence."""
         return bool(self._sdk_mode and self._sdk_require_account_risk)
