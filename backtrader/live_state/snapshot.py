@@ -31,6 +31,7 @@ run in a live strategy directory from silently clobbering the live snapshot.
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any, Mapping, Optional
 
@@ -98,18 +99,32 @@ class LegacyPositions(dict):
         self.source_path = source_path
 
 
+_QTY_TOLERANCE = 1e-9
+
+
+def _quantity(value: Any) -> bool:
+    """Whole lots (int) or an exact fractional venue quantity (finite float >= 0)."""
+    if is_strict_int(value, minimum=0):
+        return True
+    return type(value) is float and math.isfinite(value) and value >= 0
+
+
 def _side(value: Any, where: str) -> dict:
     if not isinstance(value, Mapping) or set(value) != _SIDE_KEYS:
         raise ValueError(where)
     total = value["total"]
     today = value["today"]
     yesterday = value["yesterday"]
-    if not is_strict_int(total, minimum=0):
+    if not _quantity(total):
         raise ValueError(f"{where}.total")
     for name, part in (("today", today), ("yesterday", yesterday)):
-        if part is not None and not (is_strict_int(part, minimum=0) and part <= total):
+        if part is not None and not (_quantity(part) and part <= total + _QTY_TOLERANCE):
             raise ValueError(f"{where}.{name}")
-    if today is not None and yesterday is not None and today + yesterday != total:
+    if (
+        today is not None
+        and yesterday is not None
+        and abs(today + yesterday - total) > _QTY_TOLERANCE
+    ):
         raise ValueError(f"{where}.split")
     return {"total": total, "today": today, "yesterday": yesterday}
 
@@ -183,7 +198,9 @@ def _normalize(raw: Any, *, writing: bool) -> dict:
         long_side = _side(entry["long"], f"{where}.long")
         short_side = _side(entry["short"], f"{where}.short")
         net = entry["net"]
-        if not is_strict_int(net) or net != long_side["total"] - short_side["total"]:
+        if (type(net) not in (int, float) or isinstance(net, bool)) or abs(
+            net - (long_side["total"] - short_side["total"])
+        ) > _QTY_TOLERANCE:
             raise ValueError(f"{where}.net")
         positions[instrument] = {"long": long_side, "short": short_side, "net": net}
     data["positions"] = positions

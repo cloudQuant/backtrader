@@ -36,7 +36,9 @@ def test_read_missing_returns_none_but_live_read_fails_closed(state):
     [
         lambda s: s["positions"]["rb2601"].update(net=1),
         lambda s: s["positions"]["rb2601"]["long"].update(today=2),
-        lambda s: s["positions"]["rb2601"]["long"].update(total=3.0),
+        lambda s: s["positions"]["rb2601"]["long"].update(total=float("nan")),
+        lambda s: s["positions"]["rb2601"]["long"].update(total=-0.5),
+        lambda s: s["positions"]["rb2601"]["long"].update(total=True),
         lambda s: s["positions"]["rb2601"]["short"].update(total=-1),
         lambda s: s.update(mode="paper"),
         lambda s: s.update(account_hash="123456"),
@@ -180,3 +182,19 @@ def test_write_does_not_create_missing_strategy_dir(tmp_path):
         store.write(snapshot)
     assert info.value.code == "strategy_dir_missing"
     assert not missing.exists()
+
+
+def test_fractional_venue_quantities_round_trip(state):
+    """Crypto venues hold fractional quantities (e.g. 0.002 BTC); never rounded away."""
+    snapshot = live_snapshot(state.strategy_uuid)
+    snapshot["positions"] = {
+        "BTCUSDT": {
+            "long": {"total": 0.002, "today": None, "yesterday": None},
+            "short": {"total": 0, "today": None, "yesterday": None},
+            "net": 0.002,
+        }
+    }
+    state.snapshot.write(snapshot)
+    loaded = state.snapshot.read()
+    assert loaded["positions"]["BTCUSDT"]["long"]["total"] == 0.002
+    assert loaded["positions"]["BTCUSDT"]["net"] == 0.002

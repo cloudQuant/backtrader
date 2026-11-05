@@ -432,3 +432,21 @@ def test_restored_order_after_takeover_is_notified_to_the_bound_strategy(env):
     notified = [order for order in broker.notifs if order.info.get("restored")]
     assert len(notified) == 1
     assert broker.get_restored_orders() == []  # handed over, not kept for takeover
+
+
+def test_fractional_fills_are_kept_in_the_snapshot_across_restarts(env):
+    """Binance demo 2026-11-06: a 0.002 BTC fill was rounded out of the snapshot."""
+    env.init_flat()
+    _marker_id, identity = env.seed_marker("000000000042")
+    env.api.orders = [order_event(identity, "filled", sys_id="4002", qty=0.002, filled=0.002)]
+    env.api.trades = [trade_event("T9", sys_id="4002", qty=0.002, price=76748.5)]
+    env.api.positions = [position("long", 0.002, None, None)]
+    broker = env.start()
+    assert broker.get_direct_reconcile_report()["mismatches"] == []
+    assert broker.getposition(env.feed, side="long").size == pytest.approx(0.002)
+    snapshot = env.state().snapshot.read()
+    assert snapshot["positions"][SYMBOL]["long"]["total"] == pytest.approx(0.002)
+    broker.stop()
+    again = env.start()
+    assert again.get_direct_reconcile_report()["mismatches"] == []
+    assert SYMBOL not in again.direct_writes_blocked()

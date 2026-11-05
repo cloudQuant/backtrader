@@ -117,6 +117,18 @@ def identity_keys(fields: Dict[str, Any], client_order_id: Optional[str]) -> Lis
     return keys
 
 
+def _snapshot_qty(value: Any) -> Any:
+    """Whole lots stay integers; fractional venue quantities are kept exactly.
+
+    CTP lots are integers; OKX contracts and Binance base quantities can be
+    fractional (e.g. 0.002 BTC) and must never be rounded away.
+    """
+    number = round(float(value), 12)
+    if abs(number) < 1e-12:
+        return 0
+    return int(number) if number.is_integer() else number
+
+
 def _leg_fact(fact: Any) -> Any:
     """Map a one-way (``net``) venue position onto the long or short leg."""
     if fact.side in ("long", "short"):
@@ -1270,8 +1282,8 @@ class BtApiDirectModeMixin:
         positions: Dict[str, Any] = {}
         prices: Dict[str, Any] = {}
         for symbol in sorted(set(self.long_positions) | set(self.short_positions)):
-            long_total = int(round(abs(self.long_positions[symbol].size)))
-            short_total = int(round(abs(self.short_positions[symbol].size)))
+            long_total = _snapshot_qty(abs(self.long_positions[symbol].size))
+            short_total = _snapshot_qty(abs(self.short_positions[symbol].size))
             if not long_total and not short_total:
                 continue
             split = self._direct_split_of(symbol)
@@ -1281,8 +1293,8 @@ class BtApiDirectModeMixin:
                 yesterday = split["yesterday"][name]
                 return {
                     "total": total,
-                    "today": None if today is None else int(round(today)),
-                    "yesterday": None if yesterday is None else int(round(yesterday)),
+                    "today": None if today is None else _snapshot_qty(today),
+                    "yesterday": None if yesterday is None else _snapshot_qty(yesterday),
                 }
 
             positions[symbol] = {
