@@ -2988,6 +2988,8 @@ class TradeLogger(Observer):
                 }
 
         snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)
+        if self._snapshot_owned_by_live_state(snapshot_path):
+            return
         try:
             with open(snapshot_path, "w", encoding="utf-8") as f:
                 yaml.dump(
@@ -2997,6 +2999,45 @@ class TradeLogger(Observer):
             logger.debug("Failed to save position snapshot: %s", e)
             if self.p.log_to_console:
                 logger.warning(f"[TradeLogger] Failed to save position snapshot: {e}")
+
+    def _snapshot_owned_by_live_state(self, snapshot_path):
+        """Never overwrite a direct-mode live_state snapshot (iteration 62).
+
+        In BT direct mode ``logs/current_position.yaml`` is the versioned
+        reconciliation entry written atomically by the Broker with each fill.
+        A TradeLogger whose ``log_dir`` points at that ``logs/`` directory keeps
+        its human-readable logs but leaves that file alone.  Decided once per
+        path and run.
+        """
+        cache = getattr(self, "_live_state_snapshot_guard", None)
+        if cache is None:
+            cache = self._live_state_snapshot_guard = {}
+        if snapshot_path in cache:
+            return cache[snapshot_path]
+        owned = False
+        head = ""
+        try:
+            with open(snapshot_path, "r", encoding="utf-8") as handle:
+                head = handle.read()
+            parsed = yaml.safe_load(head) if head else None
+            owned = (
+                isinstance(parsed, dict)
+                and parsed.get("version") == 2
+                and "strategy_uuid" in parsed
+                and parsed.get("mode") in ("live", "backtest")
+            )
+        except FileNotFoundError:
+            owned = False
+        except Exception:
+            # Unreadable content: skip only when it clearly is a live_state file.
+            owned = "strategy_uuid:" in head and "version: 2" in head
+        if owned:
+            logger.warning(
+                "[TradeLogger] %s is a live_state reconciliation snapshot; not overwritten",
+                snapshot_path,
+            )
+        cache[snapshot_path] = owned
+        return owned
 
     def _format_order(self, order):
         """Format order data for logging."""

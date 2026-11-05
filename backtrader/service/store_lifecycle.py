@@ -364,6 +364,12 @@ def start_store(store, data=None, broker=None, *, error_type, gateway_entrypoint
         )
     if data is not None and data not in store._data_feeds:
         store._data_feeds.append(data)
+        attached_broker = broker if broker is not None else getattr(store, "_broker", None)
+        hook = getattr(attached_broker, "data_started", None)
+        if callable(hook):
+            # The broker may hold restored orders waiting for this feed
+            # (iteration 62 direct mode); other brokers ignore the hook.
+            hook(data)
     if data is not None:
         env = getattr(data, "_env", None)
         if env is not None:
@@ -602,6 +608,10 @@ def ensure_store_api_ready(store, *, error_type, gateway_entrypoint, gateway_err
         store._sdk_mode
         and not metadata_probe_requires_market_data_only
         and not store._is_sdk_market_data_only()
+        # Direct mode (iteration 62) has no SDK execution journal: durable
+        # pending markers live in backtrader.live_state and BtApiBroker
+        # reconciles them at start.
+        and not getattr(store, "direct_write_mode", False)
     ):
         # The SDK hook only inspects its durable local journal and can
         # append a terminal event for the exact reservation-only pattern.
@@ -640,7 +650,12 @@ def ensure_store_api_ready(store, *, error_type, gateway_entrypoint, gateway_err
     store._successful_connect_count += 1
     store.emit_runtime_event("store_connected", status="connected")
     try:
-        if store._sdk_mode and len(store._sdk_exchanges) > 1:
+        if store._sdk_mode and getattr(store, "direct_write_mode", False):
+            # Direct mode (iteration 62): BtApiBroker reads funds, positions
+            # and working orders through the SDK direct account facts and
+            # reconciles them with live_state before any write.
+            pass
+        elif store._sdk_mode and len(store._sdk_exchanges) > 1:
             # A multi-route Store has no scalar cash/equity contract.
             # Establish each configured account snapshot independently;
             # getcash/getvalue remain unavailable until a single-route

@@ -23,6 +23,7 @@ from ._btapi_owner_fence import lease_outcome_for_response as _owner_lease_respo
 from ._btapi_gateway_events import GatewayExecutionEventsBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
+from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
 from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
 from ..position import (
     Position,
@@ -66,6 +67,7 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 
 
 class BtApiBroker(
+    BtApiDirectModeMixin,
     AccountOwnerFenceBrokerMixin,
     StrategyLedgerBrokerMixin,
     StrategyNotificationRecoveryBrokerMixin,
@@ -136,7 +138,7 @@ class BtApiBroker(
         ("approval_expires_at_utc", None),
         ("approval_max_order_count", None),
         ("execution_recovery", None),
-    )
+    ) + direct_params()
 
     def __init__(self, **kwargs):
         """Initialize the broker, set up order/position state and freeze position mode.
@@ -157,6 +159,7 @@ class BtApiBroker(
         self.store = self.p.store
         self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()
+        self._direct_init_state()
         self._service_execution_session = None
         self._managed_runtime_session = None
         self._recovery_queued_receipts = set()
@@ -312,6 +315,13 @@ class BtApiBroker(
 
         if self.store is None:
             raise ValueError("BtApiBroker requires a BtApiStore instance")
+
+        if self._direct_active():
+            return
+        if self._direct_selected():
+            # Iteration 62 direct mode: no execution component (see
+            # ``_btapi_direct_mode``); live_state reconciliation gates writes.
+            return self._direct_start()
 
         if self._live_started and self._startup_ready and self.store.is_connected:
             return
@@ -951,6 +961,8 @@ class BtApiBroker(
 
     def stop(self):
         """Run the existing shutdown path and report its result to an owner."""
+        if self._direct_owns_stop():
+            return self._direct_stop()
         session = self._managed_runtime_session
         if session is None:
             session = self._service_execution_session
@@ -1935,18 +1947,24 @@ class BtApiBroker(
 
     def getcash(self) -> float:
         """Return current available cash."""
+        if self._direct_active():
+            return self._cash
         if not self._uses_async_commands():
             self._refresh_account(force=bool(self.p.force_refresh_queries), raise_errors=True)
         return self._cash
 
     def getvalue(self, datas=None) -> float:
         """Return current portfolio value."""
+        if self._direct_active():
+            return self._value
         if not self._uses_async_commands():
             self._refresh_account(force=bool(self.p.force_refresh_queries), raise_errors=True)
         return self._value
 
     def getposition(self, data, clone=True, side=None):
         """Return the cached position for a given data feed."""
+        if self._direct_active():
+            return self._direct_getposition(data, clone=clone, side=side)
         if not self._uses_async_commands():
             self._sync_positions(force=bool(self.p.force_refresh_queries), raise_errors=True)
         if side is not None:
@@ -1999,6 +2017,8 @@ class BtApiBroker(
 
     def submit(self, order):
         """Submit an order through the store."""
+        if self._direct_active():
+            return self._direct_submit(order)
         if getattr(self, "factor_execution_coordinator", None) is not None:
             return self._reject_order(
                 order,
@@ -2233,6 +2253,8 @@ class BtApiBroker(
         """Cancel an existing order through the store."""
         if order is None:
             return None
+        if self._direct_active():
+            return self._direct_cancel(order)
 
         if getattr(self, "factor_execution_coordinator", None) is not None:
             order.addinfo(
@@ -2400,6 +2422,16 @@ class BtApiBroker(
             and response.get("kind") == "command_receipt"
             and response.get("queued") is True
         )
+        # Iteration 62 (62.08): like submit (iteration 60), a managed route
+        # (ServiceExecutionSession, managed runtime) verifies its own typed
+        # cancel result; the direct SDK correlation never exists for it, so
+        # re-checking made every managed cancel UNKNOWN.
+        if (
+            not local_cancelled_before_send
+            and not queued_receipt
+            and bool(getattr(self.store, "managed_execution_active", False))
+        ):
+            return self._apply_managed_cancel_projection(order, response)
         if not local_cancelled_before_send and not queued_receipt:
             correlation = self._order_correlations.get(order.ref)
             if not self._verify_cancel_response(correlation, response):
@@ -2606,6 +2638,8 @@ class BtApiBroker(
 
     def next(self):
         """Refresh cached balances and positions."""
+        if self._direct_active():
+            return self._direct_next()
         session = self._managed_runtime_session
         if session is None:
             session = self._service_execution_session
@@ -2975,6 +3009,7 @@ class BtApiBroker(
         )
         if oco is not None:
             order.addinfo(oco=oco)
+        self._direct_tag_order(order, valid, offset)
         return self.submit(order)
 
     def sell(
@@ -3018,6 +3053,7 @@ class BtApiBroker(
         )
         if oco is not None:
             order.addinfo(oco=oco)
+        self._direct_tag_order(order, valid, offset)
         return self.submit(order)
 
     def notify(
@@ -3075,6 +3111,8 @@ class BtApiBroker(
 
     def data_started(self, data):
         """Hook called when a feed starts."""
+        if self._direct_active():
+            self._direct_data_started(data)
 
     def disable_trading(self, reason="manual"):
         """Disable new order submissions while keeping cancel support available."""
@@ -4732,6 +4770,7 @@ class BtApiBroker(
             value = response.get(key)
             if value is not None:
                 order.addinfo(**{key: value})
+        self._bind_managed_external_order_id(order, response)
         unit = response.get("quantity_unit")
         if type(unit) is str and unit:
             # Fills of this order are bound to the typed route's unit.
@@ -4902,6 +4941,7 @@ class BtApiBroker(
             )
             if self._order_info_get(order, "service_refresh_applied") == fingerprint:
                 continue
+            self._bind_managed_external_order_id(order, projection)
             if self._apply_managed_record(order, projection):
                 order.addinfo(service_refresh_applied=fingerprint)
                 applied.append(getattr(order, "ref", None))
@@ -4914,6 +4954,81 @@ class BtApiBroker(
             order.addinfo(service_refresh_applied=fingerprint)
             applied.append(getattr(order, "ref", None))
         return tuple(applied)
+
+    def _bind_managed_external_order_id(self, order, projection):
+        """Record the provider order id a managed durable record evidences.
+
+        The service projection names it ``external_order_id`` (not the direct
+        SDK ``order_id`` envelope key), and the managed cancel needs it. The
+        first evidenced id is kept; a record never rewrites a bound id.
+        (Iteration 62, 62.08: it was never bound, so every managed cancel was
+        refused with ``managed_cancel_provider_identity_missing``.)
+        """
+        if not isinstance(projection, Mapping):
+            return
+        external_id = projection.get("external_order_id")
+        if type(external_id) is not str or not external_id:
+            return
+        if self._order_info_get(order, "external_order_id") not in (None, ""):
+            return
+        order.addinfo(external_order_id=external_id)
+        self._orders_by_external_id[external_id] = order
+
+    def _apply_managed_cancel_projection(self, order, response):
+        """Project a managed route's cancel result (iteration 62, 62.08).
+
+        The managed adapter has already verified its typed cancel result; it is
+        not re-verified as a direct SDK cancel. A definite rejection leaves the
+        order alive without an active cancel; an UNKNOWN (or an invalid
+        projection) keeps the cancel intent active and the order marked
+        ``execution_unknown``; an accepted request stays pending until the
+        execution owner's durable order record reports the terminal state
+        through ``refresh_managed_orders``. The order is never cancelled
+        locally on the strength of the request alone.
+        """
+        if not isinstance(response, Mapping):
+            response = {
+                "execution_unknown": True,
+                "error_code": "invalid_managed_cancel_projection",
+            }
+        unknown = (
+            response.get("execution_unknown") is True
+            or response.get("service_execution_cancel_state") == "UNKNOWN"
+        )
+        cancel_id = response.get("managed_cancel_intent_id")
+        if isinstance(cancel_id, str) and cancel_id:
+            order.addinfo(managed_cancel_intent_id=cancel_id)
+        if response.get("status") == "rejected" and not unknown:
+            order.addinfo(
+                cancel_requested_remote=False,
+                cancel_execution_unknown=False,
+                cancel_intent_active=False,
+                cancel_error_code=str(response.get("error_code") or "managed_cancel_rejected"),
+                cancel_error_msg="The managed route rejected the cancellation.",
+            )
+            self.notify(order)
+            return order
+        if unknown:
+            order.addinfo(
+                cancel_requested_remote=True,
+                cancel_execution_unknown=True,
+                cancel_intent_active=True,
+                execution_unknown=True,
+                cancel_error_code=str(response.get("error_code") or "cancel_execution_unknown"),
+                cancel_error_msg="Remote cancellation outcome is unknown",
+            )
+            self.orders[order.ref] = order
+            self.notify(order)
+            if self._uses_async_commands():
+                self._request_order_reconcile(order)
+            return order
+        order.addinfo(
+            cancel_requested_remote=True,
+            cancel_execution_unknown=False,
+            cancel_intent_active=True,
+        )
+        self.orders[order.ref] = order
+        return order
 
     def _apply_managed_record(self, order, projection):
         """Project one durable managed-route record of a live order; ``True`` if handled.

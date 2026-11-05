@@ -395,6 +395,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             )
         )
         self._service_read_only_stopped = False
+        # Iteration 62 (D62-01/I62-08): the SDK direct write path is selected
+        # when write admission is enabled for a route and no optional execution
+        # component is configured.  Admission stays the SDK's decision; this
+        # flag only tells BtApiBroker which framework path to run.
+        from bt_api_py.direct_api_assembly import DIRECT_EXECUTION_CONFIG_KEYS as _exec_keys
+
+        admission_config = sdk_options.get("write_admission")
+        self._direct_write_routes = (
+            frozenset(str(name) for name, enabled in admission_config.items() if enabled is True)
+            if isinstance(admission_config, Mapping)
+            else frozenset()
+        )
+        has_execution = "execution_config" in sdk_options or any(
+            key in sdk_options for key in _exec_keys
+        )
+        self._direct_write_mode = bool(
+            self._sdk_mode
+            and not self._service_read_only
+            and self._direct_write_routes
+            and not has_execution
+        )
         configured_exchanges = sdk_options.get("exchange_kwargs")
         if isinstance(configured_exchanges, Mapping):
             self._sdk_direct_exchange_kwargs = dict(configured_exchanges)
@@ -687,6 +708,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 for name in ("async_make_order", "async_cancel_order", "async_query_order")
             )
         )
+
+    @property
+    def direct_write_mode(self) -> bool:
+        """True when BtApiBroker must run the SDK direct write path (iteration 62)."""
+        return bool(getattr(self, "_direct_write_mode", False))
 
     @property
     def sdk_api(self) -> Any:
