@@ -340,6 +340,15 @@ class BackBroker(BrokerBase):
     )
 
     position_mode = ParameterDescriptor(default="net", doc="net | dual_side")
+    strategy_dir = ParameterDescriptor(
+        default=None,
+        doc=(
+            "Optional strategy instance directory (iteration 62, D62-04b2): every "
+            "submitted order draws the strategy-local sequence shared with live "
+            "direct runs of the same directory (info local_seq). None keeps the "
+            "plain backtest; it never touches live snapshots or pending markers."
+        ),
+    )
 
     fundstartval = ParameterDescriptor(
         default=100.0,
@@ -365,6 +374,7 @@ class BackBroker(BrokerBase):
         self._fundshares = 0.0
         self._fundval = None
         self._ocos = {}
+        self._local_sequence = None
         self._pchildren = collections.defaultdict(collections.deque)
         self.submitted: collections.deque = collections.deque()
         self.notifs: collections.deque = collections.deque()
@@ -471,6 +481,32 @@ class BackBroker(BrokerBase):
         """
         super().start()
         self._freeze_position_mode("start()")
+        self._local_sequence = self._open_local_sequence(self.get_param("strategy_dir"))
+
+    @staticmethod
+    def _open_local_sequence(strategy_dir):
+        """Shared strategy-local order sequence of ``strategy_dir`` (D62-04b2).
+
+        The directory's identity is created on first use (no account binding);
+        a live direct run of the same directory later binds its account and
+        still needs its own explicit first initialization.
+        """
+        if not strategy_dir:
+            return None
+        from ..live_state import (
+            LiveStateNotInitialized,
+            SequenceAllocator,
+            initialize_identity,
+            load_identity,
+        )
+
+        try:
+            identity = load_identity(strategy_dir)
+        except LiveStateNotInitialized:
+            identity = initialize_identity(strategy_dir)
+        allocator = SequenceAllocator(strategy_dir, identity.strategy_uuid)
+        allocator.restore_ref_basis()
+        return allocator
 
     def set_param(self, name, value, validate=True):
         """Override :meth:`BrokerBase.set_param` to guard ``position_mode`` changes.
@@ -1332,6 +1368,9 @@ class BackBroker(BrokerBase):
             Order: The submitted order or parent order if part of bracket
         """
         self._freeze_position_mode("first order submission")
+        if self._local_sequence is not None and order.info.get("local_seq") is None:
+            # D62-04b1/b2: reserved for every order, including local rejections.
+            order.addinfo(local_seq=self._local_sequence.allocate(order.ref))
         # Get parent order ID of order or its own ID, if this ID is None, return order itself
         pref = self._take_children(order)
         if pref is None:  # order has not been taken

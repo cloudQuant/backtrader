@@ -258,23 +258,32 @@ class BtApiDirectModeMixin:
                     "first_init_required",
                     "no live state in strategy_dir; start once with first_init=True",
                 ) from None
-            occupied = sorted(
-                {f"{p.symbol}:{p.side}" for p in (facts.positions or ()) if p.total > 0}
-            )
-            if occupied or facts.active_orders:
-                raise DirectModeError(
-                    "first_init_requires_flat_account",
-                    f"positions={len(occupied)} working_orders={len(facts.active_orders or ())}",
-                ) from None
+            self._direct_require_flat_account(facts)
             state = ls.StrategyStateDir.initialize(
                 self.p.strategy_dir, account_binding=binding, check_host_path=check_host
             )
             first = True
         self._direct_state = state
+        # A directory whose identity was created by a backtest (D62-04b2) has
+        # no account binding yet; a live-initialized one always has one.
+        live_bound = state.identity.account_binding is not None
         self._direct_uuid = state.strategy_uuid
         self._direct_account_hash = account_hash
         self._direct_run_lock = state.acquire_run_lock()
         try:
+            if not first and not live_bound and state.snapshot.read() is None:
+                # The directory identity exists (e.g. created by a backtest of
+                # this strategy directory sharing its local sequence, D62-04b2)
+                # but no live snapshot was ever written: this is the first live
+                # start and needs the same explicit, flat-account first init.
+                # Checked before binding the account so a refusal persists nothing.
+                if not self.p.first_init:
+                    raise DirectModeError(
+                        "first_init_required",
+                        "no live snapshot in strategy_dir; start once with first_init=True",
+                    )
+                self._direct_require_flat_account(facts)
+                first = True
             try:
                 ls.bind_account(state.strategy_dir, binding)
             except ls.LiveStateIdentityMismatch as exc:
@@ -311,6 +320,16 @@ class BtApiDirectModeMixin:
             len(self._direct_blocked),
             len(self._direct_restored),
         )
+
+    @staticmethod
+    def _direct_require_flat_account(facts: Any) -> None:
+        """D62-13: an explicit first initialization needs a flat account without orders."""
+        occupied = sorted({f"{p.symbol}:{p.side}" for p in (facts.positions or ()) if p.total > 0})
+        if occupied or facts.active_orders:
+            raise DirectModeError(
+                "first_init_requires_flat_account",
+                f"positions={len(occupied)} working_orders={len(facts.active_orders or ())}",
+            )
 
     def _direct_resolve_exchange(self) -> str:
         routes = list(getattr(self.store, "_sdk_exchanges", {}) or {})
