@@ -132,6 +132,7 @@ def project_store_account_positions(
         ensure_api_ready=store._ensure_api_ready,
         resolve_route_name=store._resolve_sdk_route_name,
         api_is_current=lambda api: store._api is api,
+        timeout_seconds=store._sdk_position_query_timeout(),
     )
     validate_position_read_batch(batch, unavailable=unavailable)
 

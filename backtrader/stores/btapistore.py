@@ -1475,6 +1475,17 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self.get_balance()
         return self._value
 
+    def _sdk_position_query_timeout(self) -> float:
+        """Per-route bound for one SDK position read (``account_position_query_timeout``).
+
+        Defaults to 5 seconds. CTP's position query depends on the throttled
+        instrument catalog (about one request per second) and needs longer.
+        """
+        value = {**self._config, **self._api_kwargs}.get("account_position_query_timeout", 5.0)
+        if type(value) not in (int, float) or not 0 < value <= 120:
+            raise BtApiStoreError("account_position_query_timeout must be in (0, 120] seconds")
+        return float(value)
+
     def get_positions(
         self,
         force: bool = False,
