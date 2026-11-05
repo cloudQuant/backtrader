@@ -1,6 +1,6 @@
 ﻿# AGENTS.md
 
-当前迭代为迭代 60（opts 线）：[统一交易数据容器与多路径接入](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)，共享规则见[公共约定](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/_公共约定.md)。迭代 53 已由用户确认废弃（2026-11-02，未成功），其“重构后停止等待审阅”的约束不再适用；其文档仅作历史参考。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代 60 计划为准。
+当前迭代为迭代 62（opts 线）：[问题修复——SDK 写入准入、direct 直连基础层、BT direct 模式与 007_ctp 示例](docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md)，实施修改见其[计划修改记录](docs/_internal/opts/requirements/迭代62-问题修复/计划修改记录.md)，各步状态为 REVIEW_PENDING，由用户验收。迭代 60（[统一交易数据容器与多路径接入](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)，共享规则见[公共约定](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/_公共约定.md)）的合同仍是接入基础。迭代 53 已由用户确认废弃（2026-11-02，未成功），其“重构后停止等待审阅”的约束不再适用；其文档仅作历史参考。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代 60 计划为准。
 
 ## 先读：职责、现状与证据
 
@@ -110,6 +110,7 @@ bt_api_py 的 SDK 家族职责表（本机为 `/Users/yunjinqi/Documents/new_pro
 - 小轮推进：实现、完成本轮约定的检查、仅暂存接受的文件或 hunks、提交相应 dev、记录范围/结果/仓库/分支/commit；SDK 子包先提交，再更新父仓 gitlink。保留所有无关 dirty 修改与用户文件。
 - 检查历史工作区中与目标相关的已验证工作；不要因成果留在其他 checkout 重复开发。验收失败继续修复，明确源码、fake、安装包及真实账户证据级别。
 - 同一适用策略跨 backtest、replay、shadow、paper、live 复用是架构目标，不表示当前模式全部可用；切换依配置与相应 Feed/Broker/Store，模式名不授予写权限。
+- 迭代 62 按 62.01–62.09 推进：写入准入只在 SDK（默认关闭），execution/risk/gateway/monitor 为可选组件；BT direct 模式在 `BtApiBroker` 内（`brokers/_btapi_direct_mode.py`），策略目录本地状态在 `backtrader/live_state/`；SimNow/demo 证据只说明模拟账户行为，必需项为 GAP/NOT_RUN 时不得声称完成。
 - 迭代 60 按阶段推进（阶段一 60.01–05、阶段二 60.06–07、阶段三 60.08–10）；每步交付说明记录范围、仓库/commit、检查结果和证据等级，最终接受由用户确认。迭代 53 已废弃，不再作为前置或约束。
 
 ## 私密输入与历史限制

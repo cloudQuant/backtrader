@@ -27,10 +27,13 @@ keeping the public API compatible.
 > source tree and prefer `AGENTS.md` for iteration-specific status; neither
 > file's status claims are proof that a capability is accepted.
 
-> Current work is iteration 60 (opts line): unified trading-data containers
-> and direct/Gateway access paths. Plan:
-> `docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md`
-> (shared rules in `_公共约定.md` there). Iteration 53 was abandoned by the
+> Current work is iteration 62 (opts line): SDK write admission, direct base
+> layers (CTP/OKX/Binance), BT direct mode inside `BtApiBroker`
+> (`brokers/_btapi_direct_mode.py`, local state in `backtrader/live_state/`)
+> and the 007_ctp direct/Gateway examples. Plan:
+> `docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md` (change log
+> `计划修改记录.md` there). Iteration 60 (unified containers, direct/Gateway
+> access; plan under `迭代60-统一行情容器与低转换数据链路/`) remains the base. Iteration 53 was abandoned by the
 > user on 2026-11-02; its "stop for review" restriction no longer applies.
 
 ### Branch model
