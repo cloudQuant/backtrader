@@ -6,10 +6,12 @@ from __future__ import annotations
 import collections
 from collections.abc import Mapping
 import copy
+from dataclasses import dataclass
 import datetime as _dt
 import math
 import time as _time
 from types import MappingProxyType, SimpleNamespace
+from typing import Optional, Tuple
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -17,12 +19,15 @@ from ..events import BarEvent
 from ..utils.bar_projection import normalize_bar as _normalize_bar
 from ..utils.redaction import redact_diagnostic as _redact_diagnostic
 from ..utils import date2num
-from ..utils.log_message import get_logger
+from ..utils.log_message import get_logger, throttled_warning
 from .barrier import BarEvidence
 from .livefeed import LiveFeedBase
 from .market_tick_adapter import (
+    MARKET_TICK_QUALIFICATION_REASONS,
     MarketTickAdapterError,
     adapt_market_tick_event,
+    ingest_market_tick_event,
+    qualify_market_tick_event,
 )
 from ._btapi_cohort import (
     LiveBarCohortFeedMixin,
@@ -48,6 +53,66 @@ def _safe_log(level, message, *args):
 _UTC = _dt.timezone.utc
 _TICK_PRICE_FIELDS = ("price", "last_price")
 _MAX_DIAGNOSTIC_TEXT = 128
+
+# Tick quality flags that only concern live-order use of a typed SDK tick
+# admitted by ``ingest_market_tick_event`` (iteration 62, D62-27): clock and
+# freshness evidence, the SDK's execution verdict and the two age limits.
+# They keep such a tick ``execution_eligible=False`` and ``quality="INVALID"``
+# but do not stop its data from entering bars, lines and indicators, and do
+# not by themselves degrade the feed's continuity status.
+_TRADE_ONLY_TICK_FLAGS = frozenset(
+    {
+        "UPSTREAM_EXECUTION_INELIGIBLE",
+        "SOURCE_CLOCK_UNVERIFIED",
+        "RECEIVE_CLOCK_UNVERIFIED",
+        "FRESHNESS_UNVERIFIED",
+        "STREAM_UNREADY",
+        "EVENT_TIME_STALE",
+        "RECEIVE_TIME_STALE",
+    }
+) | MARKET_TICK_QUALIFICATION_REASONS
+
+
+def _separates_trade_qualification(tick):
+    """Whether the tick came from the qualification-separating SDK ingest path."""
+    return type(getattr(tick, "trade_qualified_at_receipt", None)) is bool
+
+
+def _data_quality_flags(tick):
+    """Tick quality flags that describe its data (all flags on other paths)."""
+    flags = _tick_value(tick, "quality_flags", default=()) or ()
+    if not _separates_trade_qualification(tick):
+        return flags
+    return tuple(flag for flag in flags if flag not in _TRADE_ONLY_TICK_FLAGS)
+
+
+def _trade_only_flags(tick):
+    """Trade-only flags of an ingest-path tick (none on other paths)."""
+    if not _separates_trade_qualification(tick):
+        return ()
+    flags = _tick_value(tick, "quality_flags", default=()) or ()
+    return tuple(flag for flag in flags if flag in _TRADE_ONLY_TICK_FLAGS)
+
+
+@dataclass(frozen=True)
+class FeedTradeQualification:
+    """Whether a :class:`BtApiFeed` may back a live order right now (D62-21).
+
+    ``ok`` holds only when the feed is in LIVE status, its last real-time
+    tick was trade-qualified at receipt (source and receive clocks VERIFIED,
+    freshness FRESH, SDK execution eligible, event-to-receive latency within
+    ``event_time_max_age``), no later tick failed ingestion, and the time
+    since that tick's local receipt is within ``receive_time_max_age``.
+    ``reasons`` lists finite codes for every failed condition; LIVE status is
+    reported separately in ``live`` (D62-15b). Times are timezone-aware UTC.
+    """
+
+    ok: bool
+    reasons: Tuple[str, ...]
+    live: bool
+    last_event_time_utc: Optional[_dt.datetime]
+    last_received_at_utc: Optional[_dt.datetime]
+    receive_age_seconds: Optional[float]
 
 
 def _bounded_context_value(value):
@@ -100,11 +165,18 @@ def _tick_mark_source(tick):
     """Valuation source of one Tick-timeframe line value (iteration 60, F6).
 
     Only a typed SDK tick that passed this feed's source and quality gates
-    (``quality == "GOOD"``, no ``LEGACY_SCHEMA``) is a ``market_tick``.
+    (``quality == "GOOD"``, no ``LEGACY_SCHEMA``) is a ``market_tick``. A
+    typed tick admitted with valid data but without trade qualification is
+    ``market_tick_unqualified`` (not a trusted valuation source).
     """
     flags = _tick_value(tick, "quality_flags", default=()) or ()
     if _tick_value(tick, "quality", default=None) == "GOOD" and "LEGACY_SCHEMA" not in flags:
         return "market_tick"
+    if (
+        _separates_trade_qualification(tick)
+        and _tick_value(tick, "data_quality", default=None) == "GOOD"
+    ):
+        return "market_tick_unqualified"
     return "legacy_tick"
 
 
@@ -115,6 +187,9 @@ def _local_bar_source(bar_event):
     flags = getattr(bar_event, "quality_flags", None) or ()
     if "LEGACY_SCHEMA" in flags or getattr(bar_event, "quality", None) != "GOOD":
         return "local_aggregation_legacy"
+    if getattr(bar_event, "trade_qualification_flags", None):
+        # Complete data, but at least one tick was not trade-qualified.
+        return "local_aggregation_unqualified"
     return "local_aggregation"
 
 
@@ -393,6 +468,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         self._history_backfilled = bool(self._cohort_history_source) or bool(self._history)
         self._continuity_degraded = False
         self._session_active = False
+        # (last admitted real-time tick's MarketTickQualification or None,
+        #  ingestion error code seen after it or None). Replaced as one
+        # immutable tuple so a reader on another thread sees a whole pair.
+        self._tick_trade_state = (None, None)
+        self._tick_ingest_errors = collections.Counter()
 
     @property
     def live_bar_cohort(self):
@@ -405,6 +485,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if new_session:
             self._live_notified = False
             self._continuity_degraded = False
+            self._tick_trade_state = (None, None)
         claimed_this_start = False
         try:
             super().start()
@@ -562,6 +643,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._highest_market_scope = None
             self._tick_consumer_claimed = False
             self._session_active = False
+            self._tick_trade_state = (None, None)
             if self._replay_started:
                 self._replay_tick_adapter.close()
                 self._replay_started = False
@@ -681,6 +763,111 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
     def bar_integrity_counts(self):
         """Counts of dropped bars, including unknown and unfinished finality."""
         return dict(self._bar_integrity)
+
+    def tick_ingest_error_counts(self):
+        """Counts of real-time SDK ticks dropped per finite ingestion error code."""
+        return dict(self._tick_ingest_errors)
+
+    def historical_warmup_active(self):
+        """Whether historical bars are still being replayed (D62-15a).
+
+        True while backfilled historical bars are still queued for delivery to
+        the strategy.  A live feed that is merely quiet (closed market, no
+        ticks) is not warming up.
+        """
+        return bool(self._history)
+
+    def trade_qualification(self, now_monotonic_ns=None):
+        """Whether this feed's data may back a live order now (D62-21/27/28).
+
+        Separate from LIVE status (D62-15b) and computed afresh on every call:
+        a quiet market makes the last tick expire. ``now_monotonic_ns``
+        defaults to this feed's monotonic clock (the ``clock`` param when
+        injected, otherwise ``time.monotonic_ns()``); it must be in the same
+        monotonic domain as the ticks' ``received_monotonic_ns``. Never raises
+        for an unusable input: it is reported as a finite reason.
+
+        Returns:
+            FeedTradeQualification: ``ok`` and the finite failure ``reasons``.
+        """
+        qualification, ingest_error = self._tick_trade_state
+        live = bool(
+            self._replay_tick_adapter is None
+            and self._session_active
+            and self._live_notified
+            and not self._continuity_degraded
+        )
+        reasons = []
+        if not live:
+            reasons.append("FEED_NOT_LIVE")
+        if ingest_error is not None:
+            reasons.append(ingest_error)
+        receive_age = None
+        if qualification is None:
+            reasons.append("REALTIME_TICK_UNAVAILABLE")
+        else:
+            reasons.extend(qualification.qualification_reasons)
+            if now_monotonic_ns is None:
+                now_monotonic_ns = self._now_monotonic_ns()
+            if type(now_monotonic_ns) is not int:
+                reasons.append("NOW_MONOTONIC_INVALID")
+            else:
+                age_ns = now_monotonic_ns - qualification.received_monotonic_ns
+                if age_ns < 0:
+                    # ``now`` precedes the receipt: not the same clock domain.
+                    reasons.append("RECEIVE_AGE_INVALID")
+                else:
+                    receive_age = age_ns / 1_000_000_000.0
+                    limit = self.p.receive_time_max_age
+                    try:
+                        limit = None if type(limit) is bool else float(limit)
+                    except (TypeError, ValueError, OverflowError):
+                        limit = None
+                    if limit is None or not math.isfinite(limit) or limit < 0:
+                        reasons.append("RECEIVE_TIME_MAX_AGE_INVALID")
+                    elif receive_age > limit:
+                        reasons.append("RECEIVE_TIME_STALE")
+        return FeedTradeQualification(
+            ok=not reasons,
+            reasons=tuple(reasons),
+            live=live,
+            last_event_time_utc=(
+                qualification.event_time_utc if qualification is not None else None
+            ),
+            last_received_at_utc=(
+                qualification.received_at_utc if qualification is not None else None
+            ),
+            receive_age_seconds=receive_age,
+        )
+
+    def _record_tick_ingest_error(self, event, code):
+        """Drop one SDK tick that cannot enter data lines (D62-27).
+
+        The tick is never projected with a substituted time. The feed stays
+        non-tradable until a later tick is admitted; the drop is counted,
+        closed in Store accounting, and logged through the throttled logger
+        (full message once per code, repeats summarized).
+        """
+        self._tick_ingest_errors[code] += 1
+        self._tick_trade_state = (self._tick_trade_state[0], code)
+        instrument = event.key.instrument
+        self._mark_event_dropped(
+            SimpleNamespace(
+                symbol=instrument.instrument_id, key=event.key, cursor=event.cursor
+            ),
+            code.lower(),
+        )
+        try:
+            throttled_warning(
+                logger,
+                "btapifeed.tick_ingest_error." + code,
+                "btapifeed: dropped real-time tick for %s: %s",
+                _redact_diagnostic(self._dataname),
+                code,
+                exc_info=False,
+            )
+        except Exception:
+            _LOGGING_HEALTH["logging_errors"] += 1
 
     def _publish_bar(self, bar) -> bool:
         final = bar.get("bar_final") if isinstance(bar, Mapping) else getattr(bar, "bar_final", None)
@@ -1020,11 +1207,33 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             if tick is None:
                 break
             if self._replay_tick_adapter is None:
+                event = tick
                 try:
-                    tick = adapt_market_tick_event(tick)
+                    if self._live_bar_cohort is not None:
+                        # The research cohort keeps its strict source boundary:
+                        # an unqualified clock still freezes the epoch.
+                        tick = adapt_market_tick_event(event)
+                        ingest = qualify_market_tick_event(
+                            event, event_time_max_age=self.p.event_time_max_age
+                        )
+                    else:
+                        ingest = ingest_market_tick_event(
+                            event, event_time_max_age=self.p.event_time_max_age
+                        )
+                        tick = ingest.tick
                 except MarketTickAdapterError as error:
                     self._freeze_cohort_source_state(error.code)
                     raise
+                if ingest.error_code is None:
+                    self._tick_trade_state = (ingest.qualification, None)
+                elif self._live_bar_cohort is None:
+                    # D62-27: no substituted time; drop, count, stay non-tradable.
+                    drained_count += 1
+                    self._record_tick_ingest_error(event, ingest.error_code)
+                    continue
+                else:
+                    # The cohort's own gates still decide this strict tick.
+                    self._tick_trade_state = (self._tick_trade_state[0], ingest.error_code)
             expired_after_poll = self._cohort_prepare_deadline_expired(deadline_ns)
             drained = True
             drained_count += 1
@@ -1325,24 +1534,24 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         openinterest = max(openinterest or 0.0, 0.0)
 
         if self._timeframe == TimeFrame.Ticks:
-            self._enqueue_bar_event(
-                BarEvent(
-                    timestamp=tick_ts,
-                    symbol=self._dataname,
-                    exchange=_tick_value(tick, "exchange", "exchange_id", default=""),
-                    asset_type=_tick_value(tick, "asset_type", default="futures"),
-                    local_time=_tick_value(tick, "local_time", default=None),
-                    **_causal_event_kwargs(tick),
-                    open=price,
-                    high=price,
-                    low=price,
-                    close=price,
-                    volume=volume,
-                    openinterest=openinterest,
-                ),
-                tick_dt,
-                bar_source=_tick_mark_source(tick),
+            tick_bar = BarEvent(
+                timestamp=tick_ts,
+                symbol=self._dataname,
+                exchange=_tick_value(tick, "exchange", "exchange_id", default=""),
+                asset_type=_tick_value(tick, "asset_type", default="futures"),
+                local_time=_tick_value(tick, "local_time", default=None),
+                **_causal_event_kwargs(tick),
+                open=price,
+                high=price,
+                low=price,
+                close=price,
+                volume=volume,
+                openinterest=openinterest,
             )
+            trade_flags = _trade_only_flags(tick)
+            if trade_flags:
+                tick_bar.trade_qualification_flags = tuple(sorted(trade_flags))
+            self._enqueue_bar_event(tick_bar, tick_dt, bar_source=_tick_mark_source(tick))
             return
 
         if bucket_start is None:  # same tick_dt: computed above for SDK ticks
@@ -1391,7 +1600,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 current["event_session_date"] = None
                 current["market_factor_event_session_date"] = None
                 current["quality_flags"].add("EVENT_SESSION_DATE_NOT_UNIFORM")
-            current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
+            current["quality_flags"].update(_data_quality_flags(tick))
+            current["trade_qualification_flags"].update(_trade_only_flags(tick))
             self._capture_quote(current, tick)
             return
 
@@ -1451,7 +1661,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             "last_ingest_seq": ingest_seq,
             "trade_count": 1,
             "volume_complete": bool(_tick_value(tick, "volume_complete", default=False)),
-            "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
+            "quality_flags": set(_data_quality_flags(tick)),
+            # Trade-only flags never make a bar incomplete; they mark it as
+            # built from at least one tick that was not trade-qualified.
+            "trade_qualification_flags": set(_trade_only_flags(tick)),
         }
         if replay:
             # Replay-local identity is intentionally disjoint from live stream
@@ -1716,6 +1929,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             "execution_eligible",
             default=None,
         )
+        separate_trade_qualification = typed_market_tick and _separates_trade_qualification(tick)
+        if separate_trade_qualification:
+            # Receipt-time trade qualification stays visible on the tick and
+            # keeps it non-executable; it is not a data-integrity defect.
+            flags.update(_tick_value(tick, "qualification_reasons", default=()) or ())
         if typed_market_tick:
             # ``BtApiFeed`` is a consumer-side quality boundary, not an
             # authority that may promote a hand-built or incomplete V2 quote.
@@ -1834,18 +2052,23 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if typed_market_tick and not volume_complete and delta > 0:
             blocking.add("VOLUME_INCOMPLETE")
             flags.add("VOLUME_INCOMPLETE")
+        # D62-27: on the qualification-separating path only data-integrity
+        # flags stop bar building; every blocking flag still stops execution.
+        data_blocking = (
+            blocking - _TRADE_ONLY_TICK_FLAGS if separate_trade_qualification else blocking
+        )
         # A rejected snapshot can still prove that an already-open bucket is
         # incomplete. Preserve that evidence before _ingest_tick declines to
         # mutate OHLCV. Otherwise a later watermark could publish the earlier
         # trades as a deceptively complete bar after a volume/order/time gap.
-        if bucket_start is not None and blocking and not quote_only:
+        if bucket_start is not None and data_blocking and not quote_only:
             already_closed = (
                 self._last_closed_bucket_end is not None
                 and bucket_end is not None
                 and bucket_end <= self._last_closed_bucket_end
             )
             if not already_closed:
-                self._add_bar_quality_override(bucket_start, *blocking)
+                self._add_bar_quality_override(bucket_start, *data_blocking)
         execution_eligible = (
             (
                 not replay_market_tick
@@ -1854,13 +2077,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             and not blocking
             and all(value is not None and value > 0 for value in (bid, ask, bid_size, ask_size))
         )
-        bar_eligible = not blocking and price is not None and price > 0 and delta > 0
+        bar_eligible = not data_blocking and price is not None and price > 0 and delta > 0
         _set_tick_value(tick, "quality_flags", tuple(sorted(flags)))
         _set_tick_value(
             tick,
             "quality",
             "REPLAY_ONLY" if replay_market_tick else ("GOOD" if not blocking else "INVALID"),
         )
+        if separate_trade_qualification:
+            _set_tick_value(tick, "data_quality", "GOOD" if not data_blocking else "INVALID")
         _set_tick_value(tick, "execution_eligible", execution_eligible)
         _set_tick_value(tick, "bar_eligible", bar_eligible and not replay_binding_invalid)
         if not quote_only:
@@ -1983,6 +2208,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 }
                 if bool(self.p.closed_bar_quote_capture):
                     extensions["quote_events"] = tuple(current.get("quote_events") or ())
+                trade_flags = current.get("trade_qualification_flags")
+                if trade_flags:
+                    # Present only when some tick in the bucket was not
+                    # trade-qualified; the bar's data quality is unaffected.
+                    extensions["trade_qualification_flags"] = tuple(sorted(trade_flags))
                 for name in (
                     "clock_domain_id",
                     "market_factor_calendar_digest",
@@ -2122,12 +2352,22 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
     def _handle_event_health(self, event_data):
         """Emit feed status transitions and tell callers whether data is unsafe."""
-        stale = bool(_tick_value(event_data, "stale", default=False))
         continuity = str(
             _tick_value(event_data, "continuity_status", "continuity", default="unknown")
             or "unknown"
         ).lower()
-        execution_unavailable = getattr(event_data, "execution_eligible", None) is False
+        if _separates_trade_qualification(event_data):
+            # D62-27: an unverified clock, unavailable or stale freshness, or
+            # an SDK execution verdict only withholds trade qualification
+            # (see trade_qualification()). Data defects and provider
+            # continuity problems still degrade the feed as before.
+            stale = False
+            execution_unavailable = (
+                _tick_value(event_data, "data_quality", default=None) != "GOOD"
+            )
+        else:
+            stale = bool(_tick_value(event_data, "stale", default=False))
+            execution_unavailable = getattr(event_data, "execution_eligible", None) is False
         observer_only_orderbook = execution_unavailable and (
             getattr(event_data, "event_type", None) == "orderbook"
             or getattr(getattr(event_data, "key", None), "channel", None) == "orderbook"
