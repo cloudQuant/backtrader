@@ -684,8 +684,24 @@ class BtApiDirectModeMixin:
             blocked.setdefault("*", "write_admission_disabled")
         return blocked
 
-    def get_direct_refresh_counts(self) -> Dict[str, int]:
-        return dict(self._direct_refresh_counts)
+    def get_direct_refresh_counts(self) -> Dict[str, Any]:
+        counts: Dict[str, Any] = dict(self._direct_refresh_counts)
+        catalog = self._direct_catalog_counters()
+        if catalog is not None:
+            counts["instrument_catalog"] = catalog
+        return counts
+
+    def _direct_catalog_counters(self) -> Optional[Dict[str, int]]:
+        """Instrument-catalog query counters of the route's provider (D62-11), if any."""
+        api = getattr(self, "_direct_api", None)
+        if api is None or not self._direct_exchange:
+            return None
+        try:
+            provider = api.direct_writes().provider(self._direct_exchange)
+            counters = getattr(provider, "instrument_catalog_counters", None)
+            return dict(counters()) if callable(counters) else None
+        except Exception:  # report only; never fail a summary
+            return None
 
     # ------------------------------------------------------------------
     # positions, closable view and account values

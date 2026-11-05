@@ -212,3 +212,13 @@ def test_background_poller_reads_funds_only_and_queues_the_result(env):
     assert broker.getcash() == 900_000.0  # applied only on the strategy thread
     broker.next()
     assert broker.getcash() == 4.0 and broker.getvalue() == 5.0
+
+
+def test_refresh_counts_include_the_provider_catalog_counters_when_available(env):
+    broker = env.start(first_init=True)
+    assert "instrument_catalog" not in broker.get_direct_refresh_counts()
+    provider = env.api.direct_writes().provider("CTP___FUTURE")
+    provider.instrument_catalog_counters = lambda: {"full_queries": 1, "memory_hits": 4}
+    counts = broker.get_direct_refresh_counts()
+    assert counts["instrument_catalog"] == {"full_queries": 1, "memory_hits": 4}
+    assert counts["funds"] == 0  # the framework counts are unchanged
