@@ -1,0 +1,39 @@
+# SA (soda ash) on CZCE; common active months are 01, 05 and 09.
+# SA701 is the furthest SA contract SimNow lists as of 2026-11; roll it as it expires.
+symbols:
+- SA701
+contracts:
+  SA701:
+    exchange: CZCE
+    price_tick: 1.0
+    multiplier: 20
+run_timeout_seconds: 0
+ctp:
+  env_profile: set1_group1_vpn      # SimNow standard environment (trading hours only)
+  instrument_environment: demo      # SDK route environment of SimNow (production for a live account)
+  broker_id: "9999"
+  app_id: simnow_client_test
+  auth_code: "0000000000000000"
+  private_topic_mode: restart       # replay today's private returns (deduplicated)
+direct:
+  write_admission: true             # SDK write admission for CTP___FUTURE (D62-01)
+  market_clock_verification: true   # SNTP + venue time qualification of ticks (D62-21)
+broker:
+  position_mode: net
+  direct_funds_refresh_interval: 60      # D62-06a
+  direct_position_audit_interval: 300    # D62-06b
+  waiting_orders: true                   # D62-30: trusted closure -> wait for next session
+  stop_cancel_timeout: 10                # D62-19: cancel own working orders on stop
+feed:
+  timeframe: minutes
+  compression: 1
+  backfill_start: false
+strategy_params:
+  fast_period: 5
+  slow_period: 20
+  order_size: 1
+  price_tick: 1.0
+  slippage_ticks: 2
+  print_log: true
+trade_logger:
+  enabled: true
