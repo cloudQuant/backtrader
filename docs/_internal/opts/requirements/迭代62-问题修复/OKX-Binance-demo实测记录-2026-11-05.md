@@ -36,7 +36,29 @@ direct 分支与写入准入。凭据由会话内的有界读取器按名称模�
 - BT direct 侧为非 CTP 路由补齐：按合约元数据的数量单位（OKX 合约张数 `contracts`）、按策略合约 scope 读取账户事实、
   按场所订单号关联成交、单向持仓 `net` 映射到多/空腿；CTP 的 `exchange_id` 只用于 CTP 路由。
 
-## 3. 未覆盖（NOT_RUN / GAP）
+## 3. 补充：行情、成交事件与 BT 级运行（2026-11-06 00:12–00:28）
 
-- BT 级 OKX/Binance 运行（行情到达 BT 数据线、BT 订单/成交/持仓一致）：待 provider 修复后执行。
+修复后再测（provider 提交 OKX `123926d`、Binance `f9bfe34`，SDK `81a2fa83`）：
+
+- Binance 成交事件：开仓与平仓在 FILLED 之后立即收到 TRADE（成交号 554648119、554648218）。
+- SDK 行情流 tick 通道（两家新增）：OKX 20 s 内 108 笔、Binance 87 笔；SDK 时钟资格 VERIFIED/FRESH，首笔为 gap，
+  其余可交易；场所服务器时间核对一致（差约 110–120 ms，容差约 2.2 s）。
+- 首次接入 BT 时所有 tick 被 Feed 判为数据缺陷（无成交量语义 `VOLUME_SEMANTICS_UNKNOWN`/`DELTA_VOLUME_INVALID`），
+  provider 改为如实携带逐笔成交量（Binance aggTrade、OKX trades，成交号连续性不足时标记 gap）后正常。
+  OKX demo 报价最小变动为 0.01（如 76214.83），BT 合约元数据按此配置。
+- BT 级（`BtApiStore` direct 模式、`BtApiBroker` dual_side、5 秒 bar；脚本 `scratchpad/crypto62/bt_crypto_direct.py`）：
+
+| 步骤 | OKX BTC-USDT-SWAP | Binance BTCUSDT |
+| --- | --- | --- |
+| 首次初始化（全账户空仓） | 通过 | 通过 |
+| Feed LIVE、bar 生成 | 是（成交号缺口时短暂 DELAYED 后恢复） | 同左 |
+| 远价限价买开 → Accepted → 撤单 → Canceled | 是 | 是 |
+| 可成交限价买开 → Completed | 1 张 @ 76783.14 | 0.002 @ 76854.5 |
+| 卖出平多 → Completed | 1 张 @ 76708.0 | 0.002 @ 76806.7 |
+| 停止后账户 / 未决标记 | 空仓、无挂单；标记全部 TERMINAL（2 成交、1 撤单、1 撤单标记） | 同左 |
+
+## 4. 未覆盖（NOT_RUN / GAP）
+
 - 单向持仓（net）账户、多币种保证金、OKX 两小时后历史订单不可查等场景未在 demo 上验证。
+- 成交号连续性：OKX 将 `tradeId == 上一笔 + count` 视为连续，否则按缺口处理（fail closed），导致 Feed 偶发短暂 DELAYED；若 OKX 成交号并非逐笔无缺口，需要用户决定是否改为“连接未中断即连续”。
+- 重启恢复（带持仓/挂单）未在 demo 上验证。

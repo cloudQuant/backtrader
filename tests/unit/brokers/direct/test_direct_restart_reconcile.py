@@ -386,3 +386,49 @@ def test_one_way_net_position_reconciles_against_the_long_or_short_leg():
     assert (short_net.side, short_net.total) == ("short", 1.0)
     assert _leg_fact(position("net", 0)) is None
     assert _leg_fact(position("long", 3)).side == "long"
+
+
+def test_restored_order_is_built_on_the_first_bar_of_a_just_attached_feed(env):
+    """A just-attached live feed has no bar yet: a BT Order needs one (SimNow 2026-11-05)."""
+    import datetime as _dt
+    from types import SimpleNamespace as _NS
+
+    from ._fakes import ListFeed
+
+    env.init_flat()
+    _marker_id, identity = env.seed_marker("000000000034")
+    env.api.active_orders = [order_event(identity, "accepted")]
+    env.store._data_feeds.clear()  # the broker starts before any feed attaches
+    broker = env.start()
+    fresh = ListFeed(dataname=SYMBOL, bars=[(_dt.datetime(2026, 11, 5, 9, 2), 3501.0)])
+    fresh._start()
+    fresh.trade_qualification = lambda: _NS(ok=True, reasons=())
+    env.store._data_feeds.append(fresh)
+    broker.data_started(fresh)  # attached, but no bar has been delivered yet
+    assert len(fresh) == 0
+    broker.next()
+    assert broker.get_restored_orders() == []  # still waiting for a bar
+    assert fresh.load() is True
+    broker.next()
+    restored = broker.get_restored_orders()
+    assert len(restored) == 1 and restored[0].data is fresh
+    assert restored[0].info["restored"] is True
+    assert SYMBOL not in broker.direct_writes_blocked()
+
+
+def test_restored_order_after_takeover_is_notified_to_the_bound_strategy(env):
+    """Restored after strategy.start(): delivered by notification with the restored flag."""
+    env.init_flat()
+    _marker_id, identity = env.seed_marker("000000000035")
+    env.api.active_orders = [order_event(identity, "accepted")]
+    feeds = list(env.store._data_feeds)
+    env.store._data_feeds.clear()
+    broker = env.start()
+    strategy = object()
+    assert broker.take_over_restored_orders(strategy) == []  # nothing restorable yet
+    for feed in feeds:
+        env.store._data_feeds.append(feed)
+        broker.data_started(feed)
+    notified = [order for order in broker.notifs if order.info.get("restored")]
+    assert len(notified) == 1
+    assert broker.get_restored_orders() == []  # handed over, not kept for takeover
