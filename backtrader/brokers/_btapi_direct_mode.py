@@ -1792,6 +1792,15 @@ class BtApiDirectModeMixin:
             venue_order_qty=_num(event.order_qty),
             venue_filled_before=filled_before,
         )
+        position_side = None
+        if self._is_dual_side_mode():
+            # The leg follows from side + offset, as in the trade projection.
+            buy = event.side == "buy"
+            opening = (event.offset or "open") == "open"
+            position_side = (
+                ("long" if buy else "short") if opening else ("short" if buy else "long")
+            )
+            order.addinfo(position_side=position_side)
         order.addcomminfo(self.getcommissioninfo(data))
         order.submit(self)
         order.accept(self)
@@ -1800,7 +1809,7 @@ class BtApiDirectModeMixin:
             "symbol": event.symbol,
             "local_seq": marker.get("local_seq"),
             "offset": event.offset,
-            "position_side": None,
+            "position_side": position_side,
             "valid_intent": {"kind": "day", "value": None},
             "identity": identity,
             "marker_id": marker["marker_id"],

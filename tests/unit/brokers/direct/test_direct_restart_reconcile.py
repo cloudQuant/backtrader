@@ -181,6 +181,39 @@ def test_marker_of_a_working_order_is_restored_and_must_be_taken_over(env):
     assert call.target.fields["order_sys_id"] == "2001"
 
 
+@pytest.mark.parametrize(
+    ("side", "offset", "expected"),
+    [
+        ("buy", "open", "long"),
+        ("sell", "open", "short"),
+        ("sell", "close", "long"),
+        ("buy", "close", "short"),
+    ],
+)
+def test_restored_order_in_dual_side_mode_carries_its_position_side(env, side, offset, expected):
+    """Hedge-mode strategies see the leg of a restored order (OKX demo 2026-11-06)."""
+    env.init_flat()
+    _marker_id, identity = env.seed_marker("000000000021", local_seq=3, bt_ref=7)
+    env.api.active_orders = [
+        order_event(
+            identity, "accepted", sys_id="2001", side=side, qty=1, price=3480.0, offset=offset
+        )
+    ]
+    broker = env.start(position_mode="dual_side")
+    (restored,) = broker.get_restored_orders()
+    assert restored.info["position_side"] == expected
+    assert broker._direct_meta[restored.ref]["position_side"] == expected
+
+
+def test_restored_order_in_net_mode_has_no_position_side(env):
+    env.init_flat()
+    _marker_id, identity = env.seed_marker("000000000021", local_seq=3, bt_ref=7)
+    env.api.active_orders = [order_event(identity, "accepted", sys_id="2001", side="buy", qty=1)]
+    broker = env.start()
+    (restored,) = broker.get_restored_orders()
+    assert restored.info.get("position_side") is None
+
+
 def test_restored_order_without_its_data_feed_blocks_the_symbol(env):
     env.init_flat()
     _marker_id, identity = env.seed_marker("000000000031", symbol="ag2612")
