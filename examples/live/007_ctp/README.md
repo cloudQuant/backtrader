@@ -109,3 +109,45 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 
 这些示例在 SimNow 上运行的记录见迭代 62 的验收文档；没有实际运行或没有触发交易的示例不能当作已验证。
 SimNow 的结果只说明模拟账户上的行为；真实账户使用同一套准入代码路径，但本迭代不提供真实账户证据。
+
+## Gateway 版本（`_gateway`，迭代 62.08）
+
+每个 `_direct` 文件夹都有一个同名的 `_gateway` 文件夹（共 11 个），里面是相同的策略文件、`config.yaml`、
+BT 入口 `run.py` 和 Gateway 进程 `gateway_host.py`，同样自包含。
+
+**当前可运行的组合**：行情来自 Gateway CTP MarketHub，下单走 SDK 直连写入准入（`gateway.orders: direct`，默认）。
+`run.py` 先以子进程启动本目录的 `gateway_host.py`，经进程间管道取得本次运行生成的 CURVE 连接，再运行 Cerebro。
+**订单经 Gateway 托管执行运行时（`gateway.orders: managed`）目前不可用**：`run.py` 在读取凭据前输出
+`BLOCKED`（`managed_gateway_execution_unavailable`）并以退出码 2 结束。
+
+```bash
+python examples/live/007_ctp/sa_dual_ma_gateway/run.py --dry-run
+python examples/live/007_ctp/sa_dual_ma_gateway/gateway_host.py --env-file /path/to/.env --check-seconds 60
+python examples/live/007_ctp/sa_dual_ma_gateway/run.py --first-init --env-file /path/to/.env
+python examples/live/007_ctp/sa_dual_ma_gateway/run.py --env-file /path/to/.env --run-seconds 600
+python examples/live/007_ctp/sa_dual_ma_gateway/gateway_host.py --env-file /path/to/.env --managed-boot-check
+```
+
+### 组成
+
+| 进程 | 组件与配置 |
+| --- | --- |
+| Gateway（`gateway_host.py`） | SDK `ctp_gateway_composition.build_ctp_gateway_market_host`：Gateway 组件角色 `market_hub`、端口 `service.market_source`，SimNow 档案取 `gateway.ctp_profile`；订阅频道 `tick`、合约键环境 `demo`，载荷为中立的 `sdk.market.tick`；行情凭据只在此进程读取 |
+| BT 策略（`run.py`） | SDK `create_gateway_market_runtime` 建立 CURVE 客户端；`BtApiStore(provider="ctp", exchange_kwargs=..., write_admission={"CTP___FUTURE": True}, market_runtime_factory=...)`：SDK facade 的行情订阅全部由 Gateway 提供，不再打开进程内 CTP 行情会话；`store.getbroker(strategy_dir=...)` 走直连 Broker（本目录 `state/`、`logs/current_position.yaml`） |
+| 托管执行（`--managed-boot-check`） | SDK `ctp_gateway_execution.build_ctp_gateway_execution`：托管 CTP 运行时以 bt_api_py 写入准入代替 SimNow 审批白名单（登录、结算单回读/确认、按合约 arm），只做启动核验，不下单 |
+
+### 缺口（托管下单）
+
+- **BT 启动证明**：非直连的 SDK Store 的 `get_reconcile_snapshot()` 恒为不完整，托管路径的 Broker 无法证明首次空仓，任何真实 Store 都不能启动托管会话。
+- **CTP OrderRef 切换依据**：托管运行时第一次预留 OrderRef 需要 `CtpOrderRefSeedProof`，目前没有生产签发方（测试中只有合成种子）。
+- **托管撤单恢复**：运行时的撤单恢复绑定仍依赖 SimNow 凭据绑定，SDK 写入准入下无法配置。
+- **单合约**：托管运行时一个账户只服务一个合约，配对策略（`*_pair_*`）无法经托管路径下单。
+- **启动恢复依据**：带持仓或挂单重启时，没有能证明持仓安全、接管挂单的已验证依据。
+
+### 与直连版本的区别
+
+- 行情：Gateway 进程独占 CTP 行情会话，策略进程通过 CURVE 订阅；tick 保留来源时间和 Gateway 接收时间，
+  本进程按直连同样的 SDK 规则判定时钟资格，无法核验的 tick 不作为下单依据。
+- 凭据：`run.py`（直连交易会话）和 Gateway 子进程（行情会话）各自读取，都不打印。
+- 状态：下单仍是直连，所以对账与恢复规则同直连，但状态属于 `_gateway` 文件夹自己；不要与 `_direct` 文件夹同时交易同一账户的同一合约。
+- 证据：Gateway 路径只有本地模拟（INTEGRATION_SIM）结果，尚无 SimNow 运行记录。

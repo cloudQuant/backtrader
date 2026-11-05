@@ -1,0 +1,66 @@
+# CTP SimNow, Gateway mode (iteration 62, step 62.08): see README.md and ../README.md.
+# Market data comes from the Gateway CTP MarketHub (gateway_host.py); orders use the SDK
+# direct write path (gateway.orders: direct). gateway.orders: managed is BLOCKED for now.
+symbols:
+- rb2701
+- hc2701
+contracts:
+  rb2701:
+    exchange: SHFE
+    price_tick: 1.0
+    multiplier: 10
+  hc2701:
+    exchange: SHFE
+    price_tick: 1.0
+    multiplier: 10
+run_timeout_seconds: 300
+ctp:
+  instrument_environment: demo   # SDK route label of SimNow (Gateway keys too)
+  broker_id: '9999'
+  app_id: simnow_client_test
+  auth_code: '0000000000000000'
+  private_topic_mode: restart
+gateway:
+  ctp_profile: set1_group1_vpn   # SimNow standard environment (trading hours only)
+  orders: direct     # direct (runnable) | managed (BLOCKED, see README)
+  market_check_seconds: 60
+  execution:
+    write_admission: true   # SDK admission of gateway_host.py --managed-boot-check
+direct:
+  write_admission: true
+  market_clock_verification: true
+broker:
+  position_mode: net
+  direct_funds_refresh_interval: 60
+  direct_position_audit_interval: 300
+  waiting_orders: true
+  stop_cancel_timeout: 10
+feed:
+  timeframe: ticks
+  compression: 1
+  backfill_start: false
+strategy_params:
+  symbol_a: rb2701
+  symbol_b: hc2701
+  bar_window: 2
+  bar_source: ticks
+  bar_seconds: 1
+  entry_edge: 0.0
+  exit_edge: 0.0
+  order_size: 1
+  max_roundtrips: 1
+  open_offset: open
+  close_offset: auto
+  stop_after_ticks: 300
+  printlog: true
+  force_entry_after_ticks: 3
+  force_exit_after_ticks: 10
+  cancel_pending_after_ticks: 0
+  order_exectype: limit
+  price_tick: 1.0
+  slippage_ticks: 2
+trade_logger:
+  log_value: false
+  log_positions: false
+  log_position_snapshot: false
+  enabled: true

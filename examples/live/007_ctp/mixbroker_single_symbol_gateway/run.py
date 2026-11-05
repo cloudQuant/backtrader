@@ -1,0 +1,376 @@
+#!/usr/bin/env python
+"""CTP SimNow live runner, Gateway mode: ``SingleSymbolMixStrategy`` (mixbroker_single_symbol).
+
+Gateway mode (iteration 62, step 62.08). ``run.py`` starts the Gateway process
+of this folder (``gateway_host.serve_market_hub``, a spawned child) and then
+runs Cerebro:
+
+* market data: the SDK Gateway CTP MarketHub; ``BtApiStore(...,
+  market_runtime_factory=...)`` makes the SDK facade serve every tick
+  subscription from the Gateway (no in-process CTP market session);
+* orders (``gateway.orders: direct``, the runnable default): the SDK direct
+  write path with bt_api_py write admission, exactly as the ``_direct``
+  sibling, with this folder as the strategy instance (``state/`` and
+  ``logs/current_position.yaml``);
+* ``gateway.orders: managed`` (orders through the Gateway managed execution
+  runtime) is refused with ``managed_gateway_execution_unavailable`` before
+  any credential or process is touched: its startup proof, OrderRef cutover
+  authority and cancel recovery do not exist yet (README.md, "缺口").
+
+Credentials come from ``SIMNOW_USER_ID`` / ``SIMNOW_PASSWORD`` (or the
+lower-case names) in the environment or in ``--env-file``; this process uses
+them for its direct trading session and the Gateway child reads them itself
+for its market session. They are never printed. ``--dry-run`` validates the
+configuration and builds the Gateway profile offline.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import json
+import multiprocessing
+import os
+import threading
+from pathlib import Path
+
+import backtrader as bt
+import yaml
+
+from single_symbol_mix_strategy import SingleSymbolMixStrategy
+
+RUN_DIR = Path(__file__).resolve().parent
+ROUTE = "CTP___FUTURE"
+EXIT_PASS = 0
+EXIT_BLOCKED = 2
+STRATEGY = SingleSymbolMixStrategy
+TITLE = "mixbroker_single_symbol (Gateway)"
+ORDER_MODES = ("direct", "managed")
+#: Missing pieces of the managed (Gateway execution runtime) order path.
+MANAGED_ORDER_GAPS = (
+    "bt_managed_startup_proof_unavailable",
+    "ctp_order_ref_cutover_authority_unavailable",
+    "ctp_managed_cancel_recovery_unavailable",
+    "gateway_startup_recovery_authority_unavailable",
+)
+
+
+def load_config(config_arg, base_dir, default_name):
+    path = Path(config_arg or default_name)
+    if not path.is_absolute():
+        path = (base_dir / path).resolve()
+    with path.open("r", encoding="utf-8") as handle:
+        if path.suffix.lower() in {".yaml", ".yml"}:
+            return yaml.safe_load(handle) or {}, path
+        if path.suffix.lower() == ".json":
+            return json.load(handle), path
+    raise ValueError(f"Unsupported config format: {path}")
+
+
+def parse_timeframe(value):
+    mapping = {
+        "ticks": bt.TimeFrame.Ticks,
+        "seconds": bt.TimeFrame.Seconds,
+        "minutes": bt.TimeFrame.Minutes,
+        "days": bt.TimeFrame.Days,
+    }
+    normalized = str(value or "ticks").strip().lower()
+    if normalized not in mapping:
+        raise ValueError(f"Unsupported timeframe: {value}")
+    return mapping[normalized]
+
+
+def validate_live_config(config):
+    symbols = list(config.get("symbols") or [])
+    if not symbols:
+        raise ValueError("config requires at least one symbol")
+    contracts = dict(config.get("contracts") or {})
+    missing = [
+        symbol
+        for symbol in symbols
+        if not isinstance(contracts.get(symbol), dict)
+        or not contracts[symbol].get("exchange")
+        or not float(contracts[symbol].get("price_tick") or 0) > 0
+    ]
+    if missing:
+        raise ValueError(f"contracts must give exchange and price_tick of: {', '.join(missing)}")
+    parse_timeframe(dict(config.get("feed") or {}).get("timeframe", "ticks"))
+    if not isinstance(config.get("strategy_params") or {}, dict):
+        raise ValueError("strategy_params must be a mapping")
+    if not isinstance(config.get("broker") or {}, dict):
+        raise ValueError("broker must be a mapping")
+    gateway = config.get("gateway")
+    if not isinstance(gateway, dict) or not gateway.get("ctp_profile"):
+        raise ValueError("config requires gateway.ctp_profile")
+    if str(gateway.get("orders", "direct")) not in ORDER_MODES:
+        raise ValueError("gateway.orders must be direct or managed")
+    if str(dict(config.get("ctp") or {}).get("instrument_environment", "demo")) != "demo":
+        # The Gateway SimNow market keys use the SDK route label (I62-10).
+        raise ValueError("Gateway mode needs ctp.instrument_environment: demo")
+    return symbols
+
+
+def load_credentials(env_file):
+    """SimNow credentials from the environment or an env file (never printed)."""
+    names = {"user_id": ("SIMNOW_USER_ID", "simnow_user_id"),
+             "password": ("SIMNOW_PASSWORD", "simnow_password")}
+    values = {}
+    for key, candidates in names.items():
+        for name in candidates:
+            if os.environ.get(name):
+                values[key] = os.environ[name]
+                break
+    if env_file and len(values) < 2:
+        for line in Path(env_file).read_text(encoding="utf-8", errors="replace").splitlines():
+            if "=" not in line or line.lstrip().startswith("#"):
+                continue
+            name, value = line.split("=", 1)
+            name = name.strip().removeprefix("export ").strip()
+            for key, candidates in names.items():
+                if name in candidates and key not in values:
+                    values[key] = value.strip().strip('"').strip("'")
+    if len(values) < 2 or not all(values.values()):
+        raise LookupError("SimNow credentials not found (SIMNOW_USER_ID / SIMNOW_PASSWORD)")
+    return values
+
+
+def start_gateway(config_path, env_file, timeout=90.0):
+    """Spawn the Gateway process of this folder and return it with its connection."""
+    from gateway_host import serve_market_hub
+
+    context = multiprocessing.get_context("spawn")
+    parent, child = context.Pipe(duplex=True)
+    process = context.Process(
+        target=serve_market_hub,
+        args=(child, str(config_path), env_file),
+        name="bt-007-ctp-gateway",
+    )
+    process.start()
+    child.close()
+    if not parent.poll(timeout):
+        stop_gateway(process, parent)
+        raise RuntimeError("gateway_start_timeout")
+    kind, value = parent.recv()
+    if kind != "ready":
+        stop_gateway(process, parent)
+        raise RuntimeError(str(value))
+    return process, parent, value
+
+
+def stop_gateway(process, pipe, timeout=40.0):
+    state = None
+    try:
+        pipe.send("stop")
+        if pipe.poll(timeout):
+            _kind, state = pipe.recv()
+    except (BrokenPipeError, EOFError, OSError):
+        pass
+    process.join(timeout)
+    if process.is_alive():
+        process.kill()
+        process.join(5.0)
+        state = state or "killed"
+    return state
+
+
+def create_store(config, credentials, market_runtime_factory):
+    """Direct-write ``BtApiStore`` whose ticks come from the Gateway MarketHub."""
+    from backtrader.stores.btapistore import BtApiStore
+
+    ctp = dict(config.get("ctp") or {})
+    direct = dict(config.get("direct") or {})
+    exchange_kwargs = {
+        ROUTE: {
+            "broker_id": str(ctp.get("broker_id", "9999")),
+            "user_id": credentials["user_id"],
+            "password": credentials["password"],
+            "app_id": str(ctp.get("app_id", "simnow_client_test")),
+            "auth_code": str(ctp.get("auth_code", "0000000000000000")),
+            "ctp_env_profile": str(dict(config["gateway"]).get("ctp_profile")),
+            "private_topic_mode": str(ctp.get("private_topic_mode", "restart")),
+        }
+    }
+    from bt_api_py.ctp_gateway_composition import ctp_gateway_instrument_key
+
+    contracts = dict(config.get("contracts") or {})
+    contract_metadata = {
+        symbol: {
+            "instrument_key": ctp_gateway_instrument_key(symbol, contracts[symbol]["exchange"]),
+            "price_tick": float(contracts[symbol]["price_tick"]),
+            "multiplier": float(contracts[symbol].get("multiplier") or 1),
+        }
+        for symbol in config["symbols"]
+    }
+    return BtApiStore(
+        provider="ctp",
+        contract_metadata=contract_metadata,
+        exchange_kwargs=exchange_kwargs,
+        write_admission={ROUTE: bool(direct.get("write_admission", True))},
+        market_clock_verification=direct.get("market_clock_verification", True),
+        symbol_routes={symbol: ROUTE for symbol in config["symbols"]},
+        market_runtime_factory=market_runtime_factory,
+    )
+
+
+def create_broker(store, config, first_init):
+    """``BtApiBroker`` (direct path selected by the Store) bound to this directory."""
+    settings = dict(config.get("broker") or {})
+    settings.setdefault("position_mode", "net")
+    broker = store.getbroker(strategy_dir=str(RUN_DIR), first_init=bool(first_init), **settings)
+    for symbol, spec in dict(config.get("contracts") or {}).items():
+        broker.setcommission(
+            commission=0.0, margin=1.0, mult=float(spec.get("multiplier") or 1), name=symbol
+        )
+    return broker
+
+
+def add_feeds(cerebro, store, config):
+    feed_config = dict(config.get("feed") or {})
+    timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
+    compression = int(feed_config.pop("compression", 1))
+    backfill_start = bool(feed_config.pop("backfill_start", False))
+    for symbol in config["symbols"]:
+        data = store.getdata(
+            dataname=symbol,
+            timeframe=timeframe,
+            compression=compression,
+            backfill_start=backfill_start,
+            **feed_config,
+        )
+        cerebro.adddata(data, name=symbol)
+
+
+def attach_trade_logger(cerebro, config, config_path):
+    """Human-readable logs per run; never the reconciliation snapshot."""
+    settings = dict(config.get("trade_logger") or {})
+    if not bool(settings.pop("enabled", True)):
+        return None
+    stamp = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = (config_path.parent / "logs" / config_path.stem / stamp).resolve()
+    for key in ("log_orders", "log_trades", "log_positions", "log_signals", "log_errors",
+                "log_value", "log_system", "log_position_snapshot"):
+        settings.setdefault(key, True)
+    settings.setdefault("log_format", "json")
+    settings.setdefault("log_to_console", False)
+    cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(log_dir), **settings)
+    return log_dir
+
+
+def run_with_timeout(cerebro, seconds):
+    if float(seconds) <= 0:
+        return cerebro.run()
+    timer = threading.Timer(float(seconds), cerebro.runstop)
+    timer.daemon = True
+    timer.start()
+    try:
+        return cerebro.run()
+    finally:
+        timer.cancel()
+
+
+def report(status, **fields):
+    record = {"status": status, **fields}
+    print(json.dumps(record, ensure_ascii=False, sort_keys=True, default=str), flush=True)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=f"Run the {TITLE} live example (CTP SimNow)")
+    parser.add_argument("--config", default="config.yaml", help="config path (relative to here)")
+    parser.add_argument("--dry-run", action="store_true", help="validate the config offline")
+    parser.add_argument("--first-init", action="store_true",
+                        help="explicit first initialization (needs a flat account, D62-13)")
+    parser.add_argument("--env-file", default=None, help="env file with SimNow credentials")
+    parser.add_argument("--orders", choices=ORDER_MODES, default=None,
+                        help="order path (default: gateway.orders in config)")
+    parser.add_argument("--run-seconds", type=float, default=None,
+                        help="stop after N seconds (default: run_timeout_seconds in config)")
+    args = parser.parse_args(argv)
+
+    config, config_path = load_config(args.config, RUN_DIR, "config.yaml")
+    symbols = validate_live_config(config)
+    orders = args.orders or str(config["gateway"].get("orders", "direct"))
+    if args.dry_run:
+        import tempfile
+
+        from gateway_host import build_market_hub
+
+        with tempfile.TemporaryDirectory(prefix="bt-007-gateway-") as directory:
+            profile, connection = build_market_hub(config, directory)
+        print(f"Dry run OK for {config_path}")
+        print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
+        print(f"Market data: Gateway {profile.profile_ref} ({connection.source_ref})")
+        if orders == "managed":
+            print(f"Orders: managed -> unavailable ({', '.join(MANAGED_ORDER_GAPS)})")
+        else:
+            print(f"Orders: direct; state directory: {RUN_DIR / 'state'}")
+        return EXIT_PASS
+
+    if orders == "managed":
+        # Fail closed before credentials or processes (README.md, "缺口").
+        report("BLOCKED", error_code="managed_gateway_execution_unavailable",
+               missing=list(MANAGED_ORDER_GAPS))
+        return EXIT_BLOCKED
+
+    try:
+        credentials = load_credentials(args.env_file)
+    except (LookupError, OSError) as exc:
+        report("BLOCKED", error_code="credentials_unavailable", detail=str(exc))
+        return EXIT_BLOCKED
+
+    from bt_api_py.ctp_gateway_composition import create_gateway_market_runtime
+
+    from backtrader.brokers._btapi_direct_mode import DirectModeError
+
+    try:
+        gateway, pipe, connection = start_gateway(config_path, args.env_file)
+    except RuntimeError as exc:
+        credentials.clear()
+        report("BLOCKED", error_code="gateway_unavailable", detail=str(exc))
+        return EXIT_BLOCKED
+    market_runtime = broker = None
+    status, code = "PASS", EXIT_PASS
+    try:
+        market_runtime, factory = create_gateway_market_runtime(connection)
+        store = create_store(config, credentials, factory)
+        credentials.clear()
+        broker = create_broker(store, config, args.first_init)
+        cerebro = bt.Cerebro(stdstats=False)
+        cerebro.setbroker(broker)
+        add_feeds(cerebro, store, config)
+        cerebro.addstrategy(STRATEGY, **dict(config.get("strategy_params") or {}))
+        log_dir = attach_trade_logger(cerebro, config, config_path)
+        seconds = args.run_seconds
+        if seconds is None:
+            seconds = float(config.get("run_timeout_seconds", 0.0))
+        print(f"Running {TITLE}: symbols={', '.join(symbols)} market=gateway orders=direct "
+              f"logs={log_dir} timeout={seconds:.0f}s", flush=True)
+        try:
+            run_with_timeout(cerebro, seconds)
+        except DirectModeError as exc:
+            status, code = "BLOCKED", EXIT_BLOCKED
+            report(status, error_code=exc.code, detail=exc.detail)
+    finally:
+        credentials.clear()
+        if broker is not None:
+            report(
+                "SUMMARY" if status == "PASS" else status,
+                reconcile=broker.get_direct_reconcile_report(),
+                writes_blocked=broker.direct_writes_blocked() if broker._direct_active() else None,
+                shutdown=getattr(broker, "_shutdown_summary", None),
+                refresh_counts=broker.get_direct_refresh_counts(),
+                cash=broker.getcash(),
+                value=broker.getvalue(),
+            )
+        if market_runtime is not None:
+            try:
+                market_runtime.close()
+            except Exception as exc:
+                report("WARNING", error_code="gateway_client_close_uncertain",
+                       detail=type(exc).__name__)
+        gateway_state = stop_gateway(gateway, pipe)
+        report("GATEWAY", state=gateway_state)
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

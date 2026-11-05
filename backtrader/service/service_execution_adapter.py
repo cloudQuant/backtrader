@@ -738,8 +738,11 @@ def _submission_projection(
         return projection
     if state == "CANCELLED":
         # A cancelled order record is terminal for the framework order; any
-        # late fill is reconciled from the same durable record.
-        projection["status"] = "cancelled"
+        # late fill is reconciled from the same durable record. The Broker's
+        # canonical order vocabulary spells it "canceled"; "cancelled" was
+        # read as "unknown", so every cancelled managed order became UNKNOWN
+        # (iteration 62, 62.08).
+        projection["status"] = "canceled"
         return _mark_replay(projection, state) if replayed else projection
     projection.update(
         {
