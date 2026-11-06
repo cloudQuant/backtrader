@@ -98,3 +98,34 @@ def test_qualified_feed_is_still_sent(env):
     order = _buy(env, broker, env.feed)
     assert order.status == bt.Order.Submitted
     assert len(env.api.place_calls) == 1
+
+
+class _CloneOf:
+    """Like a resampled/replayed ``DataClone``: the source feed is ``.data``."""
+
+    def __init__(self, feed):
+        self.data = feed
+        self._name = feed._name
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getattr__(self, name):
+        if name in ("trade_qualification", "historical_warmup_active"):
+            raise AttributeError(name)
+        return getattr(self.data, name)
+
+
+def test_a_clone_is_qualified_through_its_source_feed(env):
+    broker = env.start(first_init=True)
+    order = _buy(env, broker, _CloneOf(env.feed))
+    assert order.status == bt.Order.Submitted
+    assert len(env.api.place_calls) == 1
+
+
+def test_a_clone_of_an_unqualified_feed_is_refused(env):
+    broker = env.start(first_init=True)
+    not_qualified(env.feed)
+    order = _buy(env, broker, _CloneOf(env.feed))
+    assert order.info["error_code"].startswith("target_data_not_tradable:")
+    assert env.api.place_calls == []

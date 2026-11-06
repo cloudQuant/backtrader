@@ -118,6 +118,21 @@ def _positive_finite(value: Any, *, absolute: bool = False) -> bool:
     return math.isfinite(number) and number > 0
 
 
+def _trade_qualification_reader(data: Any) -> Any:
+    """The ``trade_qualification`` of ``data``, or of the feed it was cloned from.
+
+    A resampled/replayed clone (``DataClone``) keeps its source feed in
+    ``.data`` but has no qualification of its own; the source feed's is the
+    one that proves LIVE status and clock quality. Anything else without the
+    contract (e.g. a strategy placeholder) yields ``None``.
+    """
+    for candidate in (data, getattr(data, "data", None)):
+        reader = getattr(candidate, "trade_qualification", None) if candidate is not None else None
+        if callable(reader):
+            return reader
+    return None
+
+
 def identity_keys(fields: Dict[str, Any], client_order_id: Optional[str]) -> List[tuple]:
     """Lookup keys of one native identity.
 
@@ -1051,8 +1066,8 @@ class BtApiDirectModeMixin:
         warming = getattr(data, "historical_warmup_active", None)
         if callable(warming) and warming():
             return "target_feed_warming_up"  # D62-15a: historical bars still replaying
-        qualify = getattr(data, "trade_qualification", None)
-        if not callable(qualify):
+        qualify = _trade_qualification_reader(data)
+        if qualify is None:
             # No BtApiFeed trade-qualification contract (e.g. a placeholder
             # data object of a strategy): nothing proves LIVE status or clock
             # quality, now or at a later dispatch, so nothing is sent unchecked.
@@ -1749,8 +1764,8 @@ class BtApiDirectModeMixin:
             phase = self._direct_phase(meta["symbol"], now)
             if phase is None or phase.reason or phase.phase.value != "continuous":
                 return  # auction / unknown: no dispatch (D62-34)
-            qualify = getattr(order.data, "trade_qualification", None)
-            qualification = qualify() if callable(qualify) else None
+            qualify = _trade_qualification_reader(order.data)
+            qualification = qualify() if qualify is not None else None
             if qualification is None or not getattr(qualification, "ok", False):
                 # Wait for qualified real-time data in the target session; a
                 # missing qualification is never treated as qualified.
