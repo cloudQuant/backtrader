@@ -30,6 +30,7 @@ import threading
 from pathlib import Path
 
 import backtrader as bt
+from backtrader.live_trading import stop_on_terminate
 import yaml
 
 from sa_dual_ma_strategy import DualMAStrategy
@@ -202,16 +203,23 @@ def attach_trade_logger(cerebro, config, config_path):
     return log_dir
 
 
-def run_with_timeout(cerebro, seconds):
-    if float(seconds) <= 0:
-        return cerebro.run()
-    timer = threading.Timer(float(seconds), cerebro.runstop)
-    timer.daemon = True
-    timer.start()
-    try:
-        return cerebro.run()
-    finally:
-        timer.cancel()
+def run_with_timeout(cerebro, seconds, termination):
+    """Run until ``seconds`` pass (0: no limit) or a SIGTERM arrives; both stop gracefully.
+
+    ``termination`` (``stop_on_terminate``) turns SIGTERM, and SIGBREAK on Windows,
+    into ``cerebro.runstop()`` while the run lasts, so the Broker's stop path runs
+    (README, "停止"). SIGINT (Ctrl+C) is unchanged.
+    """
+    with termination:
+        if float(seconds) <= 0:
+            return cerebro.run()
+        timer = threading.Timer(float(seconds), cerebro.runstop)
+        timer.daemon = True
+        timer.start()
+        try:
+            return cerebro.run()
+        finally:
+            timer.cancel()
 
 
 def report(status, **fields):
@@ -260,8 +268,9 @@ def main(argv=None):
     print(f"Running {TITLE}: symbols={', '.join(symbols)} logs={log_dir} timeout={seconds:.0f}s",
           flush=True)
     status, code = "PASS", EXIT_PASS
+    termination = stop_on_terminate(cerebro)
     try:
-        run_with_timeout(cerebro, seconds)
+        run_with_timeout(cerebro, seconds, termination)
     except DirectModeError as exc:
         status, code = "BLOCKED", EXIT_BLOCKED
         report(status, error_code=exc.code, detail=exc.detail)
@@ -271,6 +280,7 @@ def main(argv=None):
             reconcile=broker.get_direct_reconcile_report(),
             writes_blocked=broker.direct_writes_blocked() if broker._direct_active() else None,
             shutdown=getattr(broker, "_shutdown_summary", None),
+            stop_signal=termination.received,
             refresh_counts=broker.get_direct_refresh_counts(),
             cash=broker.getcash(),
             value=broker.getvalue(),

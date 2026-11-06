@@ -1,5 +1,6 @@
 """Backtrader live-trading module."""
 
+from .graceful_stop import TerminateStop, stop_on_terminate
 from .interface import (
     LiveAccount,
     LiveBroker,
@@ -26,4 +27,6 @@ __all__ = [
     "LivePositionSide",
     "LiveBroker",
     "LiveBrokerFactory",
+    "TerminateStop",
+    "stop_on_terminate",
 ]

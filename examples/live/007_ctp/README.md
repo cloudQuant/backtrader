@@ -146,6 +146,16 @@ direct 模式的启动恢复不依赖私有流重放：恢复订单来自活动�
   可能被拒绝，策略收到拒绝通知后需要用新的订单显式提交 `close_yesterday`。
 - **停止（D62-19）**：正常停止只撤销本策略在场所的挂单并有限等待结果，不自动平仓，不处理别人的订单；
   未发出的待发单保留到下次启动。
+- **SIGTERM 走优雅停止（S-23，2026-11-06）**：`cerebro.run()` 运行期间，`run.py` 把 SIGTERM（Windows 上另加 SIGBREAK）
+  转成与 `run_timeout_seconds` 到时相同的 `cerebro.runstop()`（`backtrader.live_trading.stop_on_terminate`），
+  所以操作系统或进程管理器发出的 SIGTERM 也会走上面的停止流程：撤本策略挂单、等待在途写入
+  （`direct_stop_write_timeout`）、写最终快照、释放运行锁，最后照常输出 JSON 汇总，其中 `stop_signal` 记录收到的信号。
+  运行开始前收到的 SIGTERM 会在运行一开始就生效；停止过程中再收到 SIGTERM 只重复请求，不会中断停止，
+  确需立即结束用 SIGKILL（不撤单、不写快照，下次启动按对账恢复）。运行结束后恢复原来的信号处理；
+  Ctrl+C（SIGINT）行为不变。Windows 的 `TerminateProcess`（包括 `os.kill(pid, signal.SIGTERM)`）无法被捕获，
+  需要优雅停止时向进程组发送 `CTRL_BREAK_EVENT`。`_gateway` 版本的 `gateway_host.py` 子进程仍由 `run.py`
+  结束时停止；如果 SIGTERM 发给整个进程组，它会立即退出（本次未改），之后的撤单仍走 SDK direct。
+  证据：UNIT/FAKE（子进程 + 假 Feed/Broker），没有在 SimNow 上发送过 SIGTERM。
 
 ## 证据说明
 
