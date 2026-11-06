@@ -535,3 +535,62 @@ def test_the_background_poller_runs_the_verification(env):
     report = broker.get_direct_reconcile_report()["trading_day_switch"]
     assert report["status"] == "completed"
     assert _buy(env, broker).status == bt.Order.Submitted
+
+
+# ---------------------------------------------------------------------------
+# routes without venue offsets (OKX/Binance: the trading day is the UTC date)
+# ---------------------------------------------------------------------------
+def test_route_without_offsets_crosses_the_day_with_a_resting_gtc_order(env):
+    """R-3 is CTP-style only: the new day is adopted, nothing frozen, no settlement."""
+    broker = env.start(first_init=True, require_offset=False)
+    quiet(broker)
+    probes = []
+    env.api.provider.trading_day = lambda: probes.append(1) or env.api.trading_day
+    resting = broker.buy(env.strategy, env.feed, 1, price=3500.0, exectype=bt.Order.Limit)
+    call = env.api.place_calls[-1]
+    assert call.request.time_in_force == "GTC"
+    env.api.push(order_event(call.identity, "accepted", sys_id="9901"))
+    broker.next()
+    assert resting.status == bt.Order.Accepted
+
+    env.api.trading_day = TOMORROW  # the UTC date moved; the GTC order rests on
+    env.api.active_orders = [order_event(call.identity, "accepted", sys_id="9901")]
+    broker._direct_facts_results.append(("audit", env.api.direct_account_facts(EXCHANGE)))
+    broker.next()
+    assert broker._direct_trading_day == TOMORROW  # adopted at once
+    assert broker.direct_writes_blocked() == {}
+    assert "trading_day_switch" not in broker.get_direct_reconcile_report()
+    assert broker._direct_day_switch_request is None
+    other = broker.buy(env.strategy, env.other_feed, 1, price=3300.0, exectype=bt.Order.Limit)
+    assert other.status == bt.Order.Submitted  # never frozen
+    assert probes == []  # no per-order provider trading-day check
+
+    # Returns stamped with the new day still belong to the resting order.
+    fields = dict(call.identity.fields, trading_day=TOMORROW, order_sys_id="9901")
+    fill = DirectExecutionEvent(
+        kind=DirectExecutionEventKind.TRADE,
+        exchange_name=EXCHANGE,
+        symbol=SYMBOL,
+        identity=NativeOrderIdentity(
+            exchange_name=EXCHANGE,
+            client_order_id=None,
+            fields={"exchange_id": VENUE, "order_sys_id": "9901", "trading_day": TOMORROW},
+        ),
+        exchange_order_id="9901",
+        side="buy",
+        offset="open",
+        trade_id="T9901",
+        trade_price=3500.0,
+        trade_qty=1.0,
+        trading_day=TOMORROW,
+    )
+    env.api.push(fill)
+    broker.next()
+    assert resting.status == bt.Order.Completed
+    assert broker.getposition(env.feed).size == 1
+    later = native_identity(fields["order_ref"], trading_day=TOMORROW)  # same session triple
+    assert broker._direct_order_for_event(order_event(later, "filled", sys_id="9901")) is resting
+    marker = env.state().pending.get(call.marker_id)
+    assert marker["status"] == "TERMINAL" and marker["facts"]["final_status"] == "filled"
+    assert len(env.api.settlement_calls) == 1  # startup only
+    assert broker.direct_writes_blocked() == {}

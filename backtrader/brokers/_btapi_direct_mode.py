@@ -1430,9 +1430,11 @@ class BtApiDirectModeMixin:
         CTP ``FrontID``/``SessionID``/``OrderRef`` and ``ExchangeID``/
         ``OrderSysID`` are unique within one trading day only; a return of a
         later day carrying a reused value is another order.  Client order ids
-        (``c`` keys) are not day-scoped.  Unknown days keep the match.
+        (``c`` keys) are not day-scoped.  Unknown days keep the match.  Routes
+        without venue offsets (OKX/Binance GTC orders span UTC days) never
+        bind a match to the day.
         """
-        if key[0] == "c":
+        if key[0] == "c" or not self._direct_require_offset:
             return True
         event_day = fields.get("trading_day")
         meta = self._direct_meta.get(ref)
@@ -1950,13 +1952,22 @@ class BtApiDirectModeMixin:
                 self._direct_apply_day_switch(facts)
                 continue
             self._direct_apply_balance(facts.balance)
-            self._direct_note_trading_day(facts.trading_day, kind)
-            if self._direct_day_switch is not None:
-                continue  # R-3: the switch reconciliation replaces this audit
+            if self._direct_require_offset:
+                self._direct_note_trading_day(facts.trading_day, kind)
+                if self._direct_day_switch is not None:
+                    continue  # R-3: the switch reconciliation replaces this audit
             if kind == "audit" and facts.positions is not None and facts.active_orders is not None:
                 self._direct_audit(facts)
 
     def _direct_audit(self, facts: Any) -> None:
+        if (
+            not self._direct_require_offset
+            and facts.trading_day
+            and facts.trading_day != self._direct_trading_day
+        ):
+            # Routes without venue offsets (OKX/Binance: the UTC date; GTC
+            # orders span days) only adopt the new day; R-3 is CTP-style only.
+            self._direct_roll_trading_day(facts.trading_day)
         busy = {
             meta["symbol"]
             for ref, meta in self._direct_meta.items()
@@ -1987,8 +1998,22 @@ class BtApiDirectModeMixin:
                     split["today"][side] = fact.today
                     split["yesterday"][side] = fact.yesterday
 
+    def _direct_roll_trading_day(self, trading_day: str) -> None:
+        """R-3 (minimal): on a new trading day today's positions become history."""
+        self._direct_trading_day = trading_day
+        for symbol in set(self.long_positions) | set(self.short_positions):
+            split = self._direct_split_of(symbol)
+            for side in ("long", "short"):
+                leg = (
+                    self.long_positions[symbol] if side == "long" else self.short_positions[symbol]
+                )
+                split["today"][side] = 0.0
+                split["yesterday"][side] = abs(leg.size)
+        self._direct_write_snapshot()
+
     # ------------------------------------------------------------------
-    # trading-day switch while running (R-3; D62-14/22/29)
+    # trading-day switch while running (R-3; D62-14/22/29), CTP-style
+    # routes only (``_direct_require_offset``)
     # ------------------------------------------------------------------
     # State machine (strategy thread owns ``_direct_day_switch``):
     #   entry   a trusted provider trading day (facts read or the provider
@@ -2017,8 +2042,11 @@ class BtApiDirectModeMixin:
         )
 
     def _direct_day_switch_active(self) -> bool:
-        """A switch is pending; a provider session day other than ours starts one."""
-        if self._direct_day_switch is None and self._direct_on:
+        """A switch is pending; a provider session day other than ours starts one.
+
+        Only routes that send an explicit offset (CTP) probe the provider day.
+        """
+        if self._direct_day_switch is None and self._direct_on and self._direct_require_offset:
             try:
                 _generation, day = self._direct_session_probe()
             except Exception:
@@ -2029,6 +2057,8 @@ class BtApiDirectModeMixin:
 
     def _direct_note_trading_day(self, day: Any, source: str) -> None:
         """Enter (or retarget) the switch when a trusted provider day differs."""
+        if not self._direct_require_offset:
+            return  # R-3 applies to CTP-style routes only (see ``_direct_audit``)
         current = self._direct_trading_day
         if not _valid_trading_day(current) or not _valid_trading_day(day):
             return
