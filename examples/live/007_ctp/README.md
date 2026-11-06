@@ -86,6 +86,41 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 
 只有在场所查询或回报能证明真实终态时才这样处理；“已处理”的声明本身不改变账户事实。
 
+## 启动与查询相关配置（2026-11-06 更新）
+
+下列键写在 `config.yaml` 中。22 个示例（11 个 `_direct`、11 个 `_gateway`）的 `ctp.private_topic_mode` 与
+`broker.direct_facts_timeout` 取值相同；`broker.direct_permission_*` 没有写进示例配置，使用 Broker 缺省值，
+需要调整时加在 `broker:` 下。依据是源码与迭代 62 计划条目（I62-01a、I62-12a、I62-13）；SimNow 上的运行记录见迭代 62
+文档，没有真实账户证据，本节不表示任何验收结论。
+
+| 键 | 示例值 / 缺省 | 作用 |
+| --- | --- | --- |
+| `ctp.private_topic_mode` | 所有示例 `quick`；`run.py` 缺省也是 `quick` | 交易私有流的续传方式。`restart` 为可选配置，见下 |
+| `broker.direct_facts_timeout` | 示例 `60`（秒）；Broker 缺省 `10` | 启动时每个账户事实查询（持仓、活动委托、当日成交、资金）各自的超时 |
+| `broker.direct_permission_check` | 缺省 `true` | 是否在启动时读取一次 CTP 交易权限事实 |
+| `broker.direct_permission_timeout` | 缺省 `5.0`（秒） | 权限事实中每个查询的超时 |
+| `broker.direct_permission_max_duration` | 缺省 `60.0`（秒） | 整次权限事实读取的总时限；到时仍未开始的查询对应的事实记为未知 |
+| `contracts.<symbol>.exchange` | 如 `CZCE`、`SHFE` | 同时是 CTP 报单的 `ExchangeID`，直到场所自己报告交易所为止（见下） |
+
+**私有流模式（I62-01a）**：`quick` 不重放当日私有回报。`restart` 会在登录时重放整个交易日的私有回报；
+SimNow 交易时段内，启动查询要排在这次重放之后，等待 20～90 秒以上（迭代 62 SimNow 实测记录，缺陷 14）。
+direct 模式的启动恢复不依赖私有流重放：恢复订单来自活动委托查询，已应用成交来自当日成交查询，持仓来自持仓查询，
+三者覆盖整个交易日；登录之后到查询快照之间的回报由实时私有流送达并去重；查询覆盖不到的缺口仍按既有规则保持 UNKNOWN。
+`quick` 之外 feed 还接受 `resume`，本目录没有使用也没有验证。
+
+**事实查询超时**：整日的委托与成交会随交易时段增长，SimNow 大约每秒返回 14 行，所以示例把每个启动查询的超时设为 60 秒。
+超时的查询不会被当作“没有数据”：启动事实不完整时 Broker 有限次重试，仍不完整则拒绝启动（`startup_account_facts_incomplete`）。
+
+**交易权限事实（I62-13）**：启动时直连 Broker 只读一次 CTP 交易权限事实：投资者是否有效、每个合约的交易状态、
+每个交易所的投机交易编码、手续费率与保证金率行。查询约每秒一个，例如两个上期所合约共 8 个（1 个投资者、每个合约 3 个、
+每个交易所 1 个）。只有事实完整、属于当前会话和交易日，并且明确为否定时，才在本地拒绝该合约的订单，
+拒绝原因形如 `trading_permission_denied:<原因>`；未知的事实既不拒绝订单，也不证明有交易权限，场所仍是最终判定方。
+读取结果的摘要在运行结束时输出的 JSON 里，位置是 `reconcile.permissions`（不含账号等账户值）。
+
+**交易所（I62-12a）**：报单不再等待合约目录查询来确定交易所。`contracts.<symbol>.exchange` 先作为 `ExchangeID`
+使用，场所通过账户持仓事实报告了该合约的交易所之后，以场所报告的为准。配置错误的交易所由场所拒绝，程序不会据此推断别的东西。
+全量合约目录查询不在下单路径内执行，细节见 bt_api_ctp 的 `docs/instrument-reference-queries.md`。
+
 ## 订单规则
 
 - **显式 offset（D62-26）**：每笔 CTP 订单都要写 `offset`：`open`，或场所允许的 `close` / `close_today` /
@@ -95,6 +130,13 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
   先前已排队的反向开仓可能先于后来重新提交的平仓发出，是否撤销由策略决定。
 - **限价与订单类型（D62-33）**：示例显式给出可成交限价；CTP 只支持限价单，市价单、止损单或无法表示的有效期会被明确拒绝，
   不会被悄悄改成别的类型。`valid` 不填或填 DAY 时按当日有效（GFD）。
+- **限价取价（2026-11-06 更新）**：除 `sa_dual_ma_*` 外的示例策略，限价以最后价格加减 `slippage_ticks` 个最小变动价位：
+  最后价格依次取策略记录的该合约最新 tick 价格、`close[0]`、`close[-1]`，取第一个有限的正数；
+  都没有有效价格时这次信号被跳过并写日志（`no valid price for ...`），不发送订单。tick 回调可能发生在 feed 装载下一行时，
+  那一行的 `close[0]` 还没写入（读到 0），所以不能只用 `close[0]`。`sa_dual_ma_*` 仍直接用 1 分钟 bar 的 `close[0]`。
+- **拒绝后退避（`reject_backoff_seconds`，2026-11-06 更新）**：策略参数（写在 `strategy_params:` 下），缺省 `3.0` 秒，
+  `sa_dual_ma_*` 没有这个参数。某合约的订单被拒绝（`Rejected`）后，该合约的新订单在这段时间内不再提交，
+  被跳过的信号写日志（`refusal backoff for ...`），避免行情数据暂时不合格时每个 tick 都重复提交。
 - **行情资格（D62-15/21）**：目标合约的 feed 还在历史预热或没有进入 `LIVE` 时，订单在本地被拒绝；
   最新报价超过 2 秒（来源时间到接收、接收到下单两个上限）或时钟未经校验时同样拒绝。
   只检查订单目标合约的行情；参与指标计算的其他合约行情可能较旧，策略需要自己判断。
