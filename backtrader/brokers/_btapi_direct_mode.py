@@ -96,6 +96,41 @@ _SETTLEMENT_MANUAL_RESULTS = frozenset(
 )
 # Global blocks a trading-day switch cannot clear by itself (operator restart).
 _DAY_SWITCH_TERMINAL_BLOCKS = frozenset(("trading_day_regressed", "account_binding_mismatch"))
+# Main cause of a target-data refusal (iteration 62 decision 6): the first
+# failed dimension in this order is reported in ``error_code``; every reason
+# goes to ``order.info["refusal_reasons"]`` and the log.  Earlier groups make
+# the later ones unmeasurable or are their cause:
+#   1. invalid limits or clock domain: no age can be measured at all;
+#   2. no admitted real-time tick (none yet, or the latest failed ingestion);
+#   3. clock evidence: an unverified source/receive clock or freshness makes
+#      every latency figure (and the SDK verdict) meaningless;
+#   4. receive staleness: nothing arrived within receive_time_max_age, so the
+#      last tick's receipt-time verdicts are old facts (quiet or stalled feed);
+#   5. event staleness: the latest tick was already late when received (BT's
+#      configured limit first, then the SDK's own FRESHNESS_STALE);
+#   6. the SDK's execution verdict, the least specific (it also covers
+#      continuity); unknown codes come after all known ones, in order.
+# FEED_NOT_LIVE is reported separately as ``target_feed_not_live``.
+_REFUSAL_REASON_PRIORITY = (
+    "RECEIVE_TIME_MAX_AGE_INVALID",
+    "EVENT_TIME_MAX_AGE_INVALID",
+    "NOW_MONOTONIC_INVALID",
+    "RECEIVE_AGE_INVALID",
+    "REALTIME_TICK_UNAVAILABLE",
+    "TICK_EVENT_TIME_UNAVAILABLE",
+    "TICK_RECEIVE_TIME_UNAVAILABLE",
+    "TICK_RECEIVE_MONOTONIC_UNAVAILABLE",
+    "SOURCE_CLOCK_UNVERIFIED",
+    "RECEIVE_CLOCK_UNVERIFIED",
+    "EVENT_TIME_AFTER_RECEIVE",
+    "FRESHNESS_UNAVAILABLE",
+    "FRESHNESS_INVALID",
+    "RECEIVE_TIME_STALE",
+    "EVENT_TIME_STALE",
+    "FRESHNESS_STALE",
+    "UPSTREAM_EXECUTION_INELIGIBLE",
+)
+_REFUSAL_REASON_RANK = {code: rank for rank, code in enumerate(_REFUSAL_REASON_PRIORITY)}
 
 
 class DirectModeError(RuntimeError):
@@ -174,6 +209,19 @@ def _positive_finite(value: Any, *, absolute: bool = False) -> bool:
     if absolute:
         number = abs(number)
     return math.isfinite(number) and number > 0
+
+
+def main_refusal_reason(reasons: Any) -> str:
+    """The main cause among a refused qualification's ``reasons`` (decision 6).
+
+    The highest-priority known code (see ``_REFUSAL_REASON_PRIORITY``), else
+    the first reported code, else ``UNSPECIFIED``.
+    """
+    reasons = tuple(str(reason) for reason in reasons or ())
+    known = [reason for reason in reasons if reason in _REFUSAL_REASON_RANK]
+    if known:
+        return min(known, key=_REFUSAL_REASON_RANK.__getitem__)
+    return reasons[0] if reasons else "UNSPECIFIED"
 
 
 def _trade_qualification_reader(data: Any) -> Any:
@@ -1545,10 +1593,28 @@ class BtApiDirectModeMixin:
         if qualification is None:
             return "target_data_unqualified"
         if "FEED_NOT_LIVE" in reasons:
-            return "target_feed_not_live"  # D62-15a/15b: target not LIVE
+            # D62-15a/15b: target not LIVE
+            return self._direct_note_refusal(order, "target_feed_not_live", reasons)
         if not getattr(qualification, "ok", False):
-            return "target_data_not_tradable:" + ",".join(reasons[:3])
+            # Decision 6: the main cause only; the prefix stays for log consumers.
+            code = "target_data_not_tradable:" + main_refusal_reason(reasons)
+            return self._direct_note_refusal(order, code, reasons)
         return "dispatch"
+
+    def _direct_note_refusal(self, order: Order, code: str, reasons: tuple) -> str:
+        """Keep every reason of a target-data refusal on the order and in the log."""
+        reasons = tuple(str(reason) for reason in reasons)
+        order.addinfo(refusal_reasons=reasons)
+        throttled_warning(
+            _log,
+            "direct_order_refused:" + code,
+            "direct order refused for %s: %s (all reasons: %s)",
+            self._direct_symbol(order.data),
+            code,
+            ",".join(reasons) or "-",
+            exc_info=False,
+        )
+        return code
 
     def _direct_phase(self, symbol: str, at: Optional[_dt.datetime] = None):
         if self._direct_schedule is None:
@@ -1562,7 +1628,13 @@ class BtApiDirectModeMixin:
         meta = self._direct_meta.get(order.ref)
         if meta is not None:
             meta["rejected"] = reason
-        self._reject_order(order, reason, f"direct mode refused the order: {reason}")
+        message = f"direct mode refused the order: {reason}"
+        reasons = order.info.get("refusal_reasons")
+        if reasons and (
+            reason == "target_feed_not_live" or reason.startswith("target_data_not_tradable:")
+        ):
+            message += " (all reasons: " + ",".join(reasons) + ")"
+        self._reject_order(order, reason, message)
         return order
 
     def _direct_dispatch(self, order: Order, meta: Dict[str, Any]) -> Order:
