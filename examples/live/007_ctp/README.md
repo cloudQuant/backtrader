@@ -106,6 +106,7 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 | `feed.receive_time_max_age` | 示例 `2.0`（秒）；Feed 缺省 `2.0` | 本机收到最新一笔合格 tick 之后、下单之前允许停留的时间（D62-28） |
 | `feed.incomplete_volume_bars` | 示例 `lines`；Feed 缺省 `lines` | 只缺成交量核算的 bar 进入数据线（`lines`），或只通过 `notify_bar` 通知（`notify_only`），见下 |
 | `contracts.<symbol>.event_time_max_age`、`receive_time_max_age`、`incomplete_volume_bars` | 不写则沿用 `feed:` | 按合约覆盖上面三个键 |
+| `feed.strict_volume_continuity` | 缺省 `false` | 严格成交量连续性（D62-38 第 3 点，按策略可选）：为 `true` 时，成交量核算不完整、成交量不连续和首笔成交量基准的 tick 重新按数据缺陷阻断（Feed 变 DELAYED、不可交易），即 D62-38 之前的行为 |
 | `direct.market_clock_verification` | 示例 `true` | SNTP 证据与场所时间核对；也可以写成映射调整参数，见下 |
 | `broker.direct_trade_match_window` | 缺省 `5.0`（秒） | 成交回报先于委托回报到达时，等待重新匹配的时间，见下 |
 | `logging.level` | 示例 `INFO`；不写时 `INFO` | `bt_api_ctp` 日志器的级别：前置连接与断开、登录、行情源恢复（重新登录的行带 `reason=…`、`retry_in=…`），见下 |
@@ -142,8 +143,8 @@ incomplete_volume_bars=…`），数值必须是大于 0 的秒数，否则拒�
 并可调整这些键（模板里有注释示例，缺省值如下）：`max_latency_seconds`（2.0，来源到接收的 SDK 上限）、
 `max_error_bound_ms`（500，可接受的 SNTP 误差上界）、`validity_seconds`（900，一次 SNTP 测量的有效期）、
 `refresh_interval_seconds`（300，后台刷新间隔）、`timeout_seconds`（2.0，单次查询超时）、`servers`（NTP 服务器列表，
-缺省 `time.apple.com`、`cn.pool.ntp.org`、`ntp.aliyun.com`）。前两个由 BtApi 取出，其余交给 SDK 的 `ClockVerifier`；
-写入未知键时启动失败（当前为 `TypeError`，不是有限错误码）。缺省仍为 `true`。
+缺省 `time.apple.com`、`cn.pool.ntp.org`、`ntp.aliyun.com`），以及 `max_latency_seconds_by_instrument`（按合约覆盖来源到接收的上限，例如 `{hc2701: 3.0}`，用于稀疏合约；场所时钟核对的容差仍按场所）。`max_latency_seconds`、`max_latency_seconds_by_instrument` 与 `refresh_interval_seconds` 由 BtApi 取出，其余交给 SDK 的 `ClockVerifier`；
+写入未知键时启动失败，错误信息写明未知键和允许的键（SDK `10b7e9cf`）。缺省仍为 `true`。
 
 **行情状态与下单资格（D62-38，2026-11-06）**：feed 的 LIVE/DELAYED 与下单资格只看价格时效、当前连接没有已知的本地丢消息、
 报价有效性和交易时段。订阅、重连或换交易日后的首笔（成交量基线）、成交号跳号、累计量下降、涨跌停时一侧为空的盘口
