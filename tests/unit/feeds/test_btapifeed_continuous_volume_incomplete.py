@@ -119,7 +119,9 @@ def test_continuous_jump_row_keeps_feed_live_and_flags_only_its_bar(feed_with_ba
     assert "VOLUME_INCOMPLETE" in bar.quality_flags
     assert bar.complete is False
     assert bar.quality == "INVALID"
-    assert deliver_lines is False  # incomplete bars stay out of lines, as before
+    # Decision 2 (2026-11-06): volume-incomplete bars enter the lines by default
+    # (incomplete_volume_bars="lines"); see test_btapifeed_incomplete_volume_bars.
+    assert deliver_lines is True
     # The jump row is a normal tick for prices and adds its own size.
     assert (bar.open, bar.high, bar.low, bar.close) == (1500.0, 1502.0, 1500.0, 1501.0)
     assert bar.volume == 3.0 + 4.0 + 3.0

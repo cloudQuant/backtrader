@@ -109,6 +109,13 @@ _BAR_CONSTRUCTION_TICK_FLAGS = frozenset(
     }
 )
 
+# Iteration 62 decision 2: the only flags of a bar that is volume-incomplete
+# rather than invalid (its prices come from healthy ticks).
+_VOLUME_INCOMPLETE_BAR_FLAGS = frozenset(
+    {"VOLUME_INCOMPLETE", "VOLUME_BASELINE", "VOLUME_DISCONTINUITY", "ORDERING_VOLUME_GAP"}
+)
+_INCOMPLETE_VOLUME_BAR_MODES = ("lines", "notify_only")
+
 
 def _separates_trade_qualification(tick):
     """Whether the tick came from the qualification-separating SDK ingest path."""
@@ -193,6 +200,23 @@ def _trade_only_flags(tick):
         return ()
     flags = _tick_value(tick, "quality_flags", default=()) or ()
     return tuple(flag for flag in flags if flag in _TRADE_ONLY_TICK_FLAGS)
+
+
+@dataclass(frozen=True)
+class FeedLineBarQuality:
+    """Quality of the bar at ``[0]`` on a :class:`BtApiFeed`'s lines (iteration 62).
+
+    ``complete`` is False only for a bar that entered the lines with
+    incomplete volume (``incomplete_volume_bars="lines"``); its
+    ``quality_flags`` then name the volume defect(s). ``volume_complete`` is
+    ``None`` when the source did not say (e.g. a provider or history bar).
+    ``source`` is the line source label (see ``valuation_mark_sources``).
+    """
+
+    complete: bool
+    volume_complete: Optional[bool]
+    quality_flags: Tuple[str, ...]
+    source: str
 
 
 @dataclass(frozen=True)
@@ -376,6 +400,13 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # D62-38: consecutive real-time ticks whose exchange time went
         # backwards before the feed degrades; fewer are dropped and counted.
         ("event_time_regression_limit", 3),
+        # Iteration 62 decision 2 (2026-11-06): a closed bar whose only defects
+        # are volume accounting (VOLUME_INCOMPLETE, VOLUME_BASELINE,
+        # VOLUME_DISCONTINUITY, ORDERING_VOLUME_GAP) enters the data lines
+        # ("lines", default) or is only sent to notify_bar ("notify_only").
+        # Its BarEvent keeps complete=False and the flags either way; the line
+        # bar's quality is readable through line_bar_quality().
+        ("incomplete_volume_bars", "lines"),
         ("price_tick", None),
         ("clock", None),
         # Optional bounded per-bucket quote capture for the strict options
@@ -426,6 +457,13 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             raise ValueError("event_time_regression_limit must be an int >= 1")
         self._event_time_regression_limit = regression_limit
         self._event_time_regression_run = 0
+        incomplete_volume_bars = self.p.incomplete_volume_bars
+        if type(incomplete_volume_bars) is not str or incomplete_volume_bars not in (
+            _INCOMPLETE_VOLUME_BAR_MODES
+        ):
+            raise ValueError("incomplete_volume_bars must be 'lines' or 'notify_only'")
+        self._incomplete_volume_bars = incomplete_volume_bars
+        self._line_bar_quality = None
         if self.p.closed_bar_evidence_provider is not None and not callable(
             self.p.closed_bar_evidence_provider
         ):
@@ -1025,6 +1063,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             when = normalized["datetime"]
             # A tick's mark time is its own event time, not a bucket end.
             self._valuation_bar = (date2num(when), normalized["close"], when, source)
+            self._record_line_bar_quality(bar, date2num(when), source)
             return self._load_bar(normalized)
         normalized = _normalize_bar(bar)
         when = normalized["datetime"]
@@ -1042,7 +1081,49 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         self._valuation_bar = (
             date2num(when), normalized["close"], self._get_bucket_end(when), source
         )
+        self._record_line_bar_quality(bar, date2num(when), source)
         return self._load_bar(normalized)
+
+    def _record_line_bar_quality(self, bar, line_time, source):
+        """Remember the quality of the bar about to be written to the lines."""
+        if isinstance(bar, Mapping):
+            complete = bar.get("bar_complete")
+            volume_complete = bar.get("volume_complete")
+            flags = bar.get("quality_flags") or ()
+        else:
+            complete = getattr(bar, "bar_complete", None)
+            volume_complete = getattr(bar, "volume_complete", None)
+            flags = getattr(bar, "quality_flags", None) or ()
+        flags = tuple(flag for flag in flags if type(flag) is str)
+        self._line_bar_quality = (
+            line_time,
+            FeedLineBarQuality(
+                complete=complete if type(complete) is bool else not flags,
+                volume_complete=volume_complete if type(volume_complete) is bool else None,
+                quality_flags=flags,
+                source=source,
+            ),
+        )
+
+    def line_bar_quality(self):
+        """Quality of the bar now at ``[0]`` on this feed's lines (iteration 62).
+
+        Returns a :class:`FeedLineBarQuality`, or ``None`` when no bar was
+        published by this feed or the lines no longer hold the bar it
+        published last. A bar that entered the lines with incomplete volume
+        (``incomplete_volume_bars="lines"``) has ``complete=False``,
+        ``volume_complete=False`` and its volume flags in ``quality_flags``;
+        the same facts are on its BarEvent in ``notify_bar``.
+        """
+        record = self._line_bar_quality
+        if record is None or len(self) == 0:
+            return None
+        try:
+            on_lines = float(self.lines.datetime[0])
+        except (IndexError, TypeError, ValueError):
+            return None
+        line_time, quality = record
+        return quality if on_lines == line_time else None
 
     #: Upper bound in seconds on how old the close of the current bar may be
     #: for :meth:`valuation_mark`; ``None`` means one bar period plus
@@ -1484,22 +1565,36 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         return drained_count if quote_only else drained
 
     def _record_initial_volume_baseline(self, tick):
-        """Remember the first incomplete-volume bucket from neutral tick facts."""
+        """Handle the bucket of a healthy volume-baseline tick (delta 0, incomplete).
+
+        Such a tick (first after subscribe, reconnect or a trading-day change,
+        or a volume reset) carries no volume of its own, so its bucket was only
+        partially observed. An ordinary feed builds that bucket and marks it
+        ``VOLUME_BASELINE`` (iteration 62 decision 2: it then follows
+        ``incomplete_volume_bars``). The live bar cohort keeps skipping the
+        first such bucket of a scope (cold start).
+        """
         event = getattr(tick, "market_tick_event", None)
         if event is None or self._timeframe == TimeFrame.Ticks:
             return False
         data = event.data
-        if data.volume_complete or data.cumulative_volume is None:
+        if data.volume_complete:
             return False
+        cohort = self._live_bar_cohort is not None
         continuity = _tick_continuity(tick)
-        attested = (
-            continuity in _ATTESTED_CONTINUITY
-            if self._live_bar_cohort is None
-            else continuity == "continuous"
-        )
+        attested = continuity == "continuous" if cohort else continuity in _ATTESTED_CONTINUITY
         if attested and (data.delta_volume or 0) > 0:
             # Bar-only incomplete volume on an attested stream (2026-11-06,
             # D62-38) is not a cold-start baseline: its bucket is built and marked.
+            return False
+        moment = getattr(tick, "event_time_utc", None)
+        if not isinstance(moment, _dt.datetime) or moment.tzinfo is None:
+            return False
+        bucket_start = self._get_bucket_start(moment.astimezone(_UTC).replace(tzinfo=None))
+        if not cohort:
+            self._add_bar_quality_override(bucket_start, "VOLUME_BASELINE")
+            return True
+        if data.cumulative_volume is None:
             return False
         trading_date = data.trading_date
         if type(trading_date) is not str or not trading_date:
@@ -1509,10 +1604,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             data.provider_subscription_epoch,
             trading_date,
         )
-        moment = getattr(tick, "event_time_utc", None)
-        if not isinstance(moment, _dt.datetime) or moment.tzinfo is None:
-            return False
-        bucket_start = self._get_bucket_start(moment.astimezone(_UTC).replace(tzinfo=None))
         if self._initial_volume_baseline_scope != scope:
             self._initial_volume_baseline_scope = scope
             self._initial_volume_baseline_start = bucket_start
@@ -1979,6 +2070,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     # eligible closure (or an individual tick event).
                     "bar_final": True,
                     "bar_source": bar_source,
+                    # Read back by line_bar_quality() once on the lines.
+                    "bar_complete": getattr(bar_event, "complete", None),
+                    "volume_complete": getattr(bar_event, "volume_complete", None),
+                    "quality_flags": tuple(getattr(bar_event, "quality_flags", None) or ()),
                 }
             )
 
@@ -2346,6 +2441,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             if force_invalid:
                 flags.add("FORCED_INVALIDATION")
             complete = bool(current["volume_complete"] and not flags.difference({"LEGACY_SCHEMA"}))
+            # Decision 2: volume accounting is the only defect (explicitly
+            # flagged; a forced invalidation adds FORCED_INVALIDATION).
+            volume_only = bool(not complete and flags and flags <= _VOLUME_INCOMPLETE_BAR_FLAGS)
             available_ts = max(deadline, watermark or deadline)
             available_at = _dt.datetime.fromtimestamp(available_ts, _UTC)
             self._bar_sequence += 1
@@ -2424,7 +2522,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     "complete": complete,
                     "quality": "GOOD" if complete else "INVALID",
                     "quality_flags": tuple(sorted(flags)),
-                    "volume_complete": bool(current["volume_complete"]),
+                    # False also when a later tick or override flagged volume.
+                    "volume_complete": bool(
+                        current["volume_complete"] and not flags & _VOLUME_INCOMPLETE_BAR_FLAGS
+                    ),
                     "first_ingest_seq": first_seq,
                     "last_ingest_seq": last_seq,
                     "quote_cutoff_seq": last_seq,
@@ -2476,7 +2577,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                         "_closed_bar_evidence_dispatch_token",
                         self._closed_bar_evidence_dispatch_token,
                     )
-            self._enqueue_bar_event(completed, bucket_start, deliver_lines=complete)
+            if not replay and volume_only and self._incomplete_volume_bars == "lines":
+                self._enqueue_bar_event(
+                    completed,
+                    bucket_start,
+                    deliver_lines=True,
+                    bar_source="local_aggregation_volume_incomplete",
+                )
+            else:
+                self._enqueue_bar_event(completed, bucket_start, deliver_lines=complete)
             del self._bar_builders[bucket_start]
             self._last_closed_bucket_end = bucket_end
             closed += 1
