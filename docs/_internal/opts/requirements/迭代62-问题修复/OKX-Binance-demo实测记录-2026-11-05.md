@@ -44,7 +44,7 @@ direct 分支与写入准入。凭据由会话内的有界读取器按名称模�
 - SDK 行情流 tick 通道（两家新增）：OKX 20 s 内 108 笔、Binance 87 笔；SDK 时钟资格 VERIFIED/FRESH，首笔为 gap，
   其余可交易；场所服务器时间核对一致（差约 110–120 ms，容差约 2.2 s）。
 - 首次接入 BT 时所有 tick 被 Feed 判为数据缺陷（无成交量语义 `VOLUME_SEMANTICS_UNKNOWN`/`DELTA_VOLUME_INVALID`），
-  provider 改为如实携带逐笔成交量（Binance aggTrade、OKX trades，成交号连续性不足时标记 gap）后正常。
+  provider 改为如实携带逐笔成交量（Binance aggTrade、OKX trades，~~成交号连续性不足时标记 gap~~（2026-11-06 23:10 更新：OKX/Binance 成交号跳号不再标记 gap，见 §4））后正常。
   OKX demo 报价最小变动为 0.01（如 76214.83），BT 合约元数据按此配置。
 - BT 级（`BtApiStore` direct 模式、`BtApiBroker` dual_side、5 秒 bar；脚本 `scratchpad/crypto62/bt_crypto_direct.py`）：
 
@@ -70,4 +70,4 @@ direct 分支与写入准入。凭据由会话内的有界读取器按名称模�
 ## 4. 未覆盖（NOT_RUN / GAP）
 
 - 单向持仓（net）账户、多币种保证金、OKX 两小时后历史订单不可查等场景未在 demo 上验证。
-- 成交号连续性：OKX 将 `tradeId == 上一笔 + count` 视为连续，否则按缺口处理（fail closed），导致 Feed 偶发短暂 DELAYED；若 OKX 成交号并非逐笔无缺口，需要用户决定是否改为“连接未中断即连续”。
+- ~~成交号连续性：OKX 将 `tradeId == 上一笔 + count` 视为连续，否则按缺口处理（fail closed），导致 Feed 偶发短暂 DELAYED；若 OKX 成交号并非逐笔无缺口，需要用户决定是否改为“连接未中断即连续”。~~（2026-11-06 23:10 更新：该开放项已由用户 2026-11-06 的决定关闭。OKX 在连接未中断时成交号跳号不再使 tick 成为连续性缺口，只影响该笔成交量（`volume_complete=False`）；首笔、丢帧或畸形帧与恢复路径仍为缺口。Binance 与 OKX 一致（D62-38 第 3 点）。提交：bt_api_okx `6bd5958`、bt_api_binance `2034334`、backtrader `74c48c7e3`。证据：UNIT/FAKE（假 WSS 帧）；成交号规则改动后的 demo 复跑 NOT_RUN。本记录 §1～§3 的 demo 实测是改动前的冻结证据，不改。）
