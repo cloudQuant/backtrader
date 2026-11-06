@@ -1084,10 +1084,14 @@ class BtApiDirectModeMixin:
     def _direct_dispatch(self, order: Order, meta: Dict[str, Any]) -> Order:
         try:
             request = self._direct_request(order, meta)
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, ArithmeticError) as exc:
             # The SDK request DTO refused a field: a local refusal, never an
             # exception into strategy code; nothing was reserved or sent.
-            return self._direct_reject(order, f"request_unrepresentable:{str(exc)[:80]}")
+            # ``ArithmeticError`` covers ``decimal.InvalidOperation``: a price
+            # ``float()`` accepts whose text is no decimal literal (e.g. a
+            # one-element numpy array) fails the ``Decimal`` conversion.
+            detail = str(exc)[:80] or type(exc).__name__
+            return self._direct_reject(order, f"request_unrepresentable:{detail}")
         port = self._direct_state.pending.bind(local_seq=meta["local_seq"], bt_ref=order.ref)
         summary = {
             "local_seq": meta["local_seq"],

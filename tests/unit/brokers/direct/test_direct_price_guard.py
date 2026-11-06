@@ -7,6 +7,7 @@ UNIT/FAKE.
 """
 
 import math
+import warnings
 
 import pytest
 
@@ -55,6 +56,38 @@ def test_a_request_the_sdk_cannot_represent_is_a_local_rejection(env, broker, mo
     later = _limit(env, broker, "buy", 3500.0)
     assert later.status == bt.Order.Submitted
     assert len(env.api.place_calls) == 1
+
+
+class _OneElementPrice:
+    """A price ``float()`` accepts but whose text is no decimal literal.
+
+    Like a one-element numpy array or pandas Series (``str`` gives ``[3500.]``):
+    ``Decimal(str(price))`` raises ``decimal.InvalidOperation``, an
+    ``ArithmeticError`` rather than a ``ValueError``.
+    """
+
+    def __float__(self):
+        return 3500.0
+
+    def __str__(self):
+        return "[3500.]"
+
+
+def test_a_price_whose_text_is_not_a_decimal_is_a_local_rejection(env, broker):
+    order = _limit(env, broker, "buy", _OneElementPrice())
+    assert order.status == bt.Order.Rejected
+    assert order.info["error_code"].startswith("request_unrepresentable:")
+    assert env.api.place_calls == []
+
+
+def test_a_numpy_one_element_price_is_a_local_rejection(env, broker):
+    np = pytest.importorskip("numpy")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)  # numpy ndim>0 -> scalar
+        order = _limit(env, broker, "buy", np.array([3500.0]))
+    assert order.status == bt.Order.Rejected
+    assert order.info["error_code"].startswith("request_unrepresentable:")
+    assert env.api.place_calls == []
 
 
 def test_a_valid_limit_price_is_still_sent(env, broker):
