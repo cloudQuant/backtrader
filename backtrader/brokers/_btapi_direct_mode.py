@@ -73,6 +73,11 @@ _DIRECT_PARAMS = (
     # R-3: seconds between verification attempts of a pending trading-day
     # switch (new orders stay frozen until one attempt verifies everything).
     ("direct_day_switch_retry_interval", 15.0),
+    # Seconds stop() waits for a settlement confirmation the facts poller
+    # committed before stop() began (no poller write starts after it).  Must
+    # exceed the provider's worst case after the commit (CTP: 15 s confirm wait
+    # + 15 s readback, about 31 s); past it the run lock stays with the write.
+    ("direct_stop_write_timeout", 35.0),
 )
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
 # Global blocks a trading-day switch cannot clear by itself (operator restart).
@@ -229,6 +234,40 @@ def capture_valid_intent(valid: Any) -> Dict[str, Any]:
     return {"kind": "absolute", "value": str(valid)}
 
 
+class _StopFencedPort:
+    """Pre-dispatch commit port that refuses the commit once ``stop()`` began.
+
+    The SDK commits the host marker immediately before the native send and
+    sends nothing when the commit is refused, so no settlement confirmation
+    can start after ``stop()`` set ``_direct_stopping`` (checked under the
+    gate ``_direct_stop`` takes).  Everything else is the wrapped port's.
+    """
+
+    __slots__ = ("_port", "_broker")
+
+    def __init__(self, port: Any, broker: Any) -> None:
+        self._port = port
+        self._broker = broker
+
+    @property
+    def store(self) -> Any:
+        return self._port.store
+
+    @property
+    def last_marker_id(self) -> Optional[str]:
+        return self._port.last_marker_id
+
+    def commit(self, record: Any) -> Optional[str]:
+        broker = self._broker
+        with broker._direct_write_gate:
+            if broker._direct_stopping:
+                return None
+            marker_id = self._port.commit(record)
+            if broker._direct_poller_write is not None:
+                broker._direct_poller_write["marker_id"] = marker_id
+            return marker_id
+
+
 class BtApiDirectModeMixin:
     """Direct write lifecycle of ``BtApiBroker`` (see module docstring)."""
 
@@ -281,6 +320,13 @@ class BtApiDirectModeMixin:
         self._direct_day_switch_request: Optional[tuple] = None
         self._direct_day_switch_inflight = False
         self._direct_day_switch_due = 0.0
+        # The facts poller's only venue write (a switch settlement) is fenced
+        # against stop(): ``_direct_stopping`` is set and checked under this
+        # gate; stop() waits on it for a write already in flight.
+        self._direct_write_gate = threading.Condition(threading.Lock())
+        self._direct_poller_write: Optional[Dict[str, Any]] = None  # in flight
+        self._direct_poller_outcome: Optional[Dict[str, Any]] = None  # last ended
+        self._direct_poller_handoff = False  # stop() returned first: the poller finishes
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -742,7 +788,7 @@ class BtApiDirectModeMixin:
         """
         if not self._direct_writes_enabled:
             return None
-        port = self._direct_state.pending.bind()
+        port = _StopFencedPort(self._direct_state.pending.bind(), self)
         try:
             status = self._direct_api.ensure_settlement_confirmed(
                 self._direct_exchange, pre_dispatch_commit=port, host_scope=self._direct_uuid
@@ -1069,29 +1115,36 @@ class BtApiDirectModeMixin:
                 order.addcomminfo(self.getcommissioninfo(order.data))
             self.orders[order.ref] = order
             self._direct_meta[order.ref] = meta
-            reason = self._direct_precheck(order, meta)
+            reason = self._direct_precheck(order, meta, switch_may_wait=True)
             if reason is not None:
                 return self._direct_reject(order, reason)
             route = self._direct_route(order)
             if route == "wait":
+                # D62-30: a trusted closure keeps the order local and durable,
+                # also during a pending switch (the queue is held until then).
                 return self._direct_enqueue_waiting(order, meta)
+            if self._direct_day_switch is not None:
+                return self._direct_reject(order, "trading_day_switch_pending")
             if route != "dispatch":
                 return self._direct_reject(order, route)
             return self._direct_dispatch(order, meta)
 
-    def _direct_precheck(self, order: Order, meta: Dict[str, Any]) -> Optional[str]:
+    def _direct_precheck(
+        self, order: Order, meta: Dict[str, Any], *, switch_may_wait: bool = False
+    ) -> Optional[str]:
         if self._direct_stopping:
             return "broker_stopping"
         if not self._direct_writes_enabled:
             return "write_admission_disabled"
         # R-3: a provider trading day other than the reconciled one freezes
-        # every new order of the route until the new day is re-verified.
+        # every new venue write of the route until the new day is re-verified;
+        # ``switch_may_wait`` leaves the decision to the route (D62-30 wait).
         switching = self._direct_day_switch_active()
         if self._direct_global_block:
             return self._direct_global_block
         if "*" in self._direct_blocked:
             return self._direct_blocked["*"]
-        if switching:
+        if switching and not switch_may_wait:
             return "trading_day_switch_pending"
         if self._direct_restored and self._direct_strategy is None:
             return "restored_orders_not_taken_over"
@@ -1330,11 +1383,10 @@ class BtApiDirectModeMixin:
                 return order
             if meta.get("identity") is None or meta.get("cancel_requested"):
                 return order
-            if meta.get("day_unknown"):
-                # R-3: an unresolved order of a previous trading day takes no
-                # automatic write (its day-scoped venue ids may be reused).
-                order.addinfo(cancel_error="previous_day_pending_unknown")
-                _log.warning("direct cancel of %s refused: previous_day_pending_unknown", order.ref)
+            refusal = self._direct_cancel_refusal(meta)
+            if refusal is not None:
+                order.addinfo(cancel_error=refusal)
+                _log.warning("direct cancel of %s refused: %s", order.ref, refusal)
                 return order
             port = self._direct_state.pending.bind(bt_ref=order.ref)
             try:
@@ -1362,6 +1414,34 @@ class BtApiDirectModeMixin:
                     )
                 meta.setdefault("cancel_markers", []).append(outcome.marker_id)
             return order
+
+    def _direct_cancel_refusal(self, meta: Dict[str, Any]) -> Optional[str]:
+        """Why a venue cancel of this order takes no automatic write (R-3), else ``None``.
+
+        CTP session and venue order ids are unique within one trading day
+        only and may be reused on a later day's session.  An unresolved order
+        of a previous day (``day_unknown``, after a switch was applied) is
+        refused; so is, while a switch is pending, an order whose identity's
+        trading day is not the provider session's current one (unreadable
+        days prove nothing either).  Same-day orders and routes without venue
+        offsets (no switch state) are unaffected.
+        """
+        if meta.get("day_unknown"):
+            return "previous_day_pending_unknown"
+        if not self._direct_require_offset or not self._direct_day_switch_active():
+            return None
+        identity = meta.get("identity")
+        own_day = dict(identity.fields).get("trading_day") if identity is not None else None
+        try:
+            _generation, provider_day = self._direct_session_probe()
+        except Exception:
+            provider_day = None
+        own_day = None if own_day is None else str(own_day)
+        if provider_day is None or not _valid_trading_day(own_day):
+            return "trading_day_switch_pending"
+        if own_day != provider_day:
+            return "previous_day_pending_unknown"
+        return None
 
     def _direct_cancel_identity(self, meta: Dict[str, Any]):
         identity = meta["identity"]
@@ -1872,6 +1952,8 @@ class BtApiDirectModeMixin:
                 # missing qualification is never treated as qualified.
                 return
             reason = self._direct_precheck(order, meta)
+            if reason == "trading_day_switch_pending":
+                return  # R-3: a switch detected just now holds the FIFO queue too
             if reason is not None:
                 if self._direct_state.waiting.transition(
                     meta["waiting_id"], "WAITING", "REJECTED", reason=reason
@@ -2199,7 +2281,10 @@ class BtApiDirectModeMixin:
                 return payload
             if settle:
                 if self._direct_writes_enabled:
-                    outcome = self._direct_settle_call()
+                    outcome = self._direct_poller_settle()
+                    if outcome is None:  # stop() began: it owns any outcome (F3)
+                        payload["reason"] = "broker_stopping"
+                        return payload
                     payload["settlement"] = outcome
                     if _settlement_class(outcome) == "unclear":
                         # Never repeat a confirmation that may have been sent.
@@ -2577,38 +2662,41 @@ class BtApiDirectModeMixin:
     def _direct_stop(self) -> Dict[str, Any]:
         if self._direct_stopping:
             return dict(self._shutdown_summary)  # already stopped: idempotent
-        self._direct_stopping = True
+        with self._direct_write_gate:
+            # No facts-poller venue write starts from here (checked under this gate).
+            self._direct_stopping = True
         self._direct_facts_stop.set()
         if not self._direct_on:
             return self._direct_stop_after_failed_start()
+        started = time.monotonic()
         timeout = max(float(self.p.stop_cancel_timeout or 0.0), 0.0)
         with self._direct_lock:
-            working = [
-                self.orders[ref]
-                for ref, meta in self._direct_meta.items()
-                if ref in self.orders
-                and self.orders[ref].alive()
-                and meta.get("identity") is not None
-                and not meta.get("day_unknown")
-            ]
-            # R-3: unresolved orders of a previous trading day are never
-            # cancelled automatically; they stay UNKNOWN with their identity.
-            day_unknown = [
-                ref
-                for ref, meta in self._direct_meta.items()
-                if ref in self.orders and self.orders[ref].alive() and meta.get("day_unknown")
-            ]
+            working: List[Order] = []
+            # R-3: an order of another trading day than the provider's (unresolved
+            # after a switch, or while one is pending) is never cancelled
+            # automatically; it stays with its original identity (D62-19).
+            refused: Dict[int, str] = {}
+            for ref, meta in self._direct_meta.items():
+                order = self.orders.get(ref)
+                if order is None or not order.alive():
+                    continue
+                if meta.get("identity") is None and not meta.get("day_unknown"):
+                    continue  # local waiting orders are kept
+                refusal = self._direct_cancel_refusal(meta)
+                if refusal is None:
+                    working.append(order)
+                else:
+                    refused[ref] = refusal
+                    order.addinfo(cancel_error=refusal)
             for order in working:
                 self._direct_cancel(order)
-        deadline = time.monotonic() + timeout
+        deadline = started + timeout
         while time.monotonic() < deadline and any(order.alive() for order in working):
             with self._direct_lock:
                 self._direct_drain_events()
             time.sleep(0.05)
-        unresolved = [order.ref for order in working if order.alive()] + day_unknown
-        with self._direct_lock:
-            self._direct_write_snapshot()
-        self._direct_release_lock()
+        unresolved = [order.ref for order in working if order.alive()] + list(refused)
+        in_flight = self._direct_stop_poller_write(started)
         self._direct_on = False
         self._startup_ready = False
         self._live_started = False
@@ -2618,6 +2706,13 @@ class BtApiDirectModeMixin:
             "unresolved_working_orders": len(unresolved),
             "waiting_orders_kept": len(self._direct_state.waiting.waiting()),
         }
+        if refused:
+            summary["cancel_refused"] = dict(collections.Counter(refused.values()))
+        if in_flight is not None:
+            # Not completed: the write's outcome is unknown yet and the run lock
+            # stays held until it ends (then the poller records it, F3).
+            summary["status"] = "STOPPED_WITH_WRITE_IN_FLIGHT"
+            summary["write_in_flight"] = in_flight
         self._shutdown_summary = summary
         if unresolved:
             _log.warning("direct stop left %d working orders unresolved", len(unresolved))
@@ -2662,6 +2757,109 @@ class BtApiDirectModeMixin:
                 lock.release()
             except Exception:
                 _log.warning("direct run lock release failed")
+
+    # ------------------------------------------------------------------
+    # the facts poller's venue write versus stop()
+    # ------------------------------------------------------------------
+    def _direct_poller_settle(self) -> Optional[Dict[str, Any]]:
+        """The facts poller's only venue write (a switch settlement step), fenced by stop().
+
+        ``None`` when ``stop()`` began before the step (nothing committed or
+        sent) or while it ran: then ``_direct_stop``, or this thread once the
+        stop bound passed, records a committed outcome, not the strategy thread.
+        """
+        gate = self._direct_write_gate
+        with gate:
+            if self._direct_stopping:
+                return None
+            self._direct_poller_write = {"operation": "settlement_confirm", "marker_id": None}
+        outcome: Optional[Dict[str, Any]] = None
+        stopping = True
+        try:
+            outcome = self._direct_settle_call()
+        finally:
+            with gate:
+                self._direct_poller_write = None
+                self._direct_poller_outcome = outcome
+                stopping = self._direct_stopping
+                handoff, self._direct_poller_handoff = self._direct_poller_handoff, False
+                gate.notify_all()
+            if handoff:
+                self._direct_finish_handoff()
+        return None if stopping else outcome
+
+    def _direct_stop_poller_write(self, started: float) -> Optional[Dict[str, Any]]:
+        """stop(): bounded wait for a poller write in flight; final snapshot; run lock.
+
+        Only a committed write is waited for: an uncommitted step can no
+        longer commit (``_StopFencedPort``), so it can send nothing.  A
+        committed write still in flight after ``direct_stop_write_timeout``
+        keeps its marker as committed (non-terminal) and the run lock: no other
+        owner may start while it may still reach the venue.  The poller then
+        records the outcome and releases the lock when the write ends; a
+        process exit before that leaves the marker to the next start's
+        reconciliation.  Returns that write (operation, marker id) or ``None``.
+        """
+        bound = max(float(self.p.direct_stop_write_timeout or 0.0), 0.0)
+        gate = self._direct_write_gate
+
+        def committed() -> Optional[Dict[str, Any]]:
+            write = self._direct_poller_write
+            return write if write is not None and write.get("marker_id") else None
+
+        with gate:
+            gate.wait_for(
+                lambda: committed() is None,
+                timeout=max(started + bound - time.monotonic(), 0.0),
+            )
+        with self._direct_lock:
+            self._direct_write_snapshot()
+        with gate:
+            write = committed()
+            in_flight = None if write is None else dict(write)
+            self._direct_poller_handoff = in_flight is not None
+        if in_flight is not None:
+            in_flight["run_lock_held"] = True
+            _log.warning(
+                "direct stop: %s still in flight after %.1f s; the run lock stays held "
+                "until it ends",
+                in_flight["operation"],
+                bound,
+            )
+            return in_flight
+        with self._direct_lock:
+            self._direct_record_poller_outcome()
+        self._direct_release_lock()
+        return None
+
+    def _direct_record_poller_outcome(self) -> Optional[str]:
+        """Record a poller settlement outcome the strategy thread never applied.
+
+        Only a committed marker still undecided is recorded, by the rule of a
+        switch attempt (confirmed: TERMINAL; unclear: UNKNOWN, writes blocked).
+        """
+        with self._direct_write_gate:
+            outcome, self._direct_poller_outcome = self._direct_poller_outcome, None
+        marker_id = (outcome or {}).get("marker_id")
+        if not marker_id:
+            return None  # nothing was committed, hence nothing was sent
+        marker = self._direct_state.pending.get(marker_id)
+        if marker is None or marker.get("status") in ("TERMINAL", "UNKNOWN"):
+            return None  # already recorded
+        return self._direct_day_switch_settlement(outcome)
+
+    def _direct_finish_handoff(self) -> None:
+        """Poller thread: the write stop() left in flight ended; record it, release the lock.
+
+        The shutdown summary stays the report of the moment ``stop()`` returned.
+        """
+        kind: Optional[str] = None
+        try:
+            with self._direct_lock:
+                kind = self._direct_record_poller_outcome()
+        finally:
+            self._direct_release_lock()
+            _log.warning("direct stop: the in-flight write ended (%s); run lock released", kind)
 
     # ------------------------------------------------------------------
     # restored venue orders

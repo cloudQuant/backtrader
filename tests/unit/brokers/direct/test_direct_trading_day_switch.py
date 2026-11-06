@@ -441,7 +441,7 @@ def test_calendar_contradicting_the_new_day_leaves_a_missing_split_unknown(env):
     assert refused.info["error_code"] == "closable_unknown"
 
 
-def test_returns_and_own_cancels_are_processed_during_the_switch(env):
+def test_returns_are_processed_and_old_day_cancels_wait_for_the_switch(env):
     broker = _started(env)
     working, call = _working(env, broker, "7801", size=2)
     _new_day(env, broker)
@@ -450,7 +450,9 @@ def test_returns_and_own_cancels_are_processed_during_the_switch(env):
     assert working.status == bt.Order.Partial
     assert broker.getposition(env.feed, side="long").size == 1
     broker.cancel(working)
-    assert len(env.api.cancel_calls) == 1  # own cancels are not frozen
+    # Day-scoped ids of the old day may be reused on the new day's session.
+    assert env.api.cancel_calls == []
+    assert working.info["cancel_error"] == "previous_day_pending_unknown"
     env.api.active_orders = [
         order_event(call.identity, "partially_filled", sys_id="7801", qty=2, filled=1)
     ]
@@ -465,6 +467,9 @@ def test_returns_and_own_cancels_are_processed_during_the_switch(env):
     env.api.push(trade_event("T7801", sys_id="7801", qty=1))  # replayed return
     broker.next()
     assert broker.getposition(env.feed, side="long").size == 1
+    broker.cancel(working)  # verified working under its identity and day
+    (cancel,) = env.api.cancel_calls
+    assert cancel.target.fields["trading_day"] == TODAY
 
 
 def test_waiting_order_is_held_not_rejected_during_the_switch(env, clock):
