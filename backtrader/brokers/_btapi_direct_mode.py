@@ -1172,8 +1172,9 @@ class BtApiDirectModeMixin:
 
         CTP orders carry an explicit ``ExchangeID``. A venue configured in the
         Store's ``contract_metadata`` (``instrument_key`` or ``exchange``) is
-        used until the venue itself reports one (account facts and order
-        identities overwrite it), so an order never waits for the provider's
+        used until the venue itself reports one (account position facts
+        overwrite it; order identities and trades only fill a missing venue,
+        since their exchange id echoes the request), so an order never waits for the provider's
         instrument-catalog lookup: on SimNow (2026-11-06) the full catalog
         query outlasted its order-path budget and a restored waiting order was
         refused ``ctp_direct_exchange_id_required``. A wrong configured venue
