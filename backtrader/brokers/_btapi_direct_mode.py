@@ -78,8 +78,22 @@ _DIRECT_PARAMS = (
     # exceed the provider's worst case after the commit (CTP: 15 s confirm wait
     # + 15 s readback, about 31 s); past it the run lock stays with the write.
     ("direct_stop_write_timeout", 35.0),
+    # Automatic resolution attempts of an unclear settlement confirmation of
+    # the current trading day (D62-29, user decision 2026-11-06).  Attempts are
+    # spaced by ``direct_day_switch_retry_interval`` doubling up to 8x (15, 30,
+    # 60, then 120 s: 10 attempts span about 15 minutes, enough for a CTP front
+    # reconnect or query throttling; each costs one read-only readback, plus
+    # one confirmation only after a readback proved the earlier one absent).
+    # Then the block stays and the report says ``manual_required``.
+    ("direct_settlement_resolution_attempts", 10),
 )
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
+_SETTLEMENT_BACKOFF_FACTOR_MAX = 8
+_MAX_SETTLEMENT_READBACK_ENTRIES = 20
+# Resolution results no later automatic attempt can change (operator needed).
+_SETTLEMENT_MANUAL_RESULTS = frozenset(
+    ("account_unverified", "readback_unavailable", "write_admission_disabled")
+)
 # Global blocks a trading-day switch cannot clear by itself (operator restart).
 _DAY_SWITCH_TERMINAL_BLOCKS = frozenset(("trading_day_regressed", "account_binding_mismatch"))
 
@@ -310,7 +324,13 @@ class BtApiDirectModeMixin:
         self._direct_facts_results: collections.deque = collections.deque(maxlen=8)
         self._direct_last_funds = 0.0
         self._direct_last_audit = 0.0
-        self._direct_refresh_counts = {"funds": 0, "audit": 0, "failed": 0, "day_switch": 0}
+        self._direct_refresh_counts = {
+            "funds": 0,
+            "audit": 0,
+            "failed": 0,
+            "day_switch": 0,
+            "settlement_resolution": 0,
+        }
         self._direct_lock = threading.RLock()
         # R-3 trading-day switch: state owned by the strategy thread; the
         # request (target day, run settlement) is handed to the facts poller.
@@ -327,6 +347,14 @@ class BtApiDirectModeMixin:
         self._direct_poller_write: Optional[Dict[str, Any]] = None  # in flight
         self._direct_poller_outcome: Optional[Dict[str, Any]] = None  # last ended
         self._direct_poller_handoff = False  # stop() returned first: the poller finishes
+        # Resolution of an unclear settlement confirmation (D62-29): the state
+        # (also the report's ``settlement_resolution``) is owned by the strategy
+        # thread; the trading day under resolution is handed to the facts
+        # poller (request/due/inflight under ``_direct_day_switch_lock``).
+        self._direct_settlement: Optional[Dict[str, Any]] = None
+        self._direct_settlement_request: Optional[str] = None
+        self._direct_settlement_due = 0.0
+        self._direct_settlement_inflight = False
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -718,8 +746,9 @@ class BtApiDirectModeMixin:
     ) -> None:
         """Cancel / settlement markers: the order state is the evidence."""
         if marker.get("status") == "UNKNOWN":
-            if not self._direct_settlement_readback(marker, facts, report):
+            if not self._direct_settlement_resolvable(marker, facts.trading_day):
                 self._direct_blocked["*"] = "pending_unknown"
+            # else: resolved by the startup settlement step (_direct_settle).
             return
         final = "superseded_trading_day"
         if marker.get("trading_day") == facts.trading_day:
@@ -731,81 +760,296 @@ class BtApiDirectModeMixin:
             resolution_evidence="startup_complete_order_query",
         )
 
-    def _direct_settlement_readback(
-        self, marker: Dict[str, Any], facts: Any, report: Optional[Dict[str, Any]]
-    ) -> bool:
-        """D62-29: verify an unclear settlement confirmation of today by a readback.
+    # ------------------------------------------------------------------
+    # resolution of an unclear settlement confirmation (D62-29; user
+    # decision 2026-11-06: read first, then decide, also while running)
+    # ------------------------------------------------------------------
+    # An unclear confirmation (committed, so possibly sent, without a clear
+    # result) of the verified current route and trading day leaves its marker
+    # UNKNOWN and blocks writes (``settlement_unconfirmed``), whether the
+    # startup step or a running switch made it.  Each resolution attempt (the
+    # first one synchronously at startup, later ones on the facts poller with
+    # backoff) reads the provider's settlement state read-only on a session
+    # whose generation and trading day are unchanged across the read, with the
+    # account reference re-checked:
+    #   confirmed    -> the markers TERMINAL (``settlement_readback``), unblocked;
+    #   unconfirmed  -> (complete and definitive: the confirmation did not take
+    #                   effect) the markers TERMINAL
+    #                   (``settlement_readback_unconfirmed``), then the normal SDK
+    #                   settlement step under admission; an unclear result again
+    #                   leaves a new UNKNOWN marker and the loop continues;
+    #   otherwise    -> still blocked, retried after the backoff.
+    # After ``direct_settlement_resolution_attempts`` the loop stops
+    # (``manual_required``, block kept).  Markers of other days, routes or
+    # operations are never touched here (manual resolution).
+    def _direct_settlement_resolvable(self, marker: Dict[str, Any], day: Any) -> bool:
+        """An UNKNOWN settlement confirmation of this route and of trading day ``day``.
 
-        Only an UNKNOWN ``settlement_confirm`` marker of this route and of the
-        verified current trading day qualifies (the strategy directory is
-        bound to this account; a rebind needs an empty pending set).  The
-        provider's read-only settlement state of the current session is read
-        once, with the account reference re-checked and session generation and
-        trading day unchanged around the read.  ``confirmed`` closes the marker
-        (TERMINAL, evidence ``settlement_readback``); anything else keeps it
-        UNKNOWN and the startup confirmation is skipped (no blind retry).
-        Markers of other days or routes are left for manual resolution.
+        The strategy directory is bound to this account (a rebind needs an
+        empty pending set), so the route and day identify the account's
+        settlement the marker stands for.
         """
-        day = facts.trading_day
-        if (
-            marker.get("operation") != "settlement_confirm"
-            or not _valid_trading_day(day)
-            or marker.get("trading_day") != day
-            or marker.get("exchange_name") != self._direct_exchange
-        ):
-            return False
-        result: Dict[str, Any] = {
-            "marker_id": marker["marker_id"],
+        return (
+            marker.get("operation") == "settlement_confirm"
+            and marker.get("status") == "UNKNOWN"
+            and _valid_trading_day(day)
+            and marker.get("trading_day") == day
+            and marker.get("exchange_name") == self._direct_exchange
+        )
+
+    def _direct_resolvable_settlement_markers(self, day: Any) -> List[Dict[str, Any]]:
+        return [
+            marker
+            for marker in self._direct_state.pending.active()
+            if self._direct_settlement_resolvable(marker, day)
+        ]
+
+    def _direct_begin_settlement_resolution(
+        self, day: Any, source: str, *, schedule: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """Block writes and start (or keep) the resolution loop of ``day``."""
+        if self._direct_global_block not in _DAY_SWITCH_TERMINAL_BLOCKS:
+            self._direct_global_block = "settlement_unconfirmed"
+        if not _valid_trading_day(day):
+            return None  # no verifiable day: the block stays for manual resolution
+        current = self._direct_settlement
+        if current is not None and current["status"] == "pending":
+            if current["trading_day"] == day:
+                return current
+            self._direct_end_settlement_resolution(current, "superseded", "trading_day_changed")
+        resolution: Dict[str, Any] = {
+            "status": "pending",
             "trading_day": day,
-            "status": None,
-            "resolved": False,
+            "source": source,
+            "attempts": 0,
+            "max_attempts": max(int(self.p.direct_settlement_resolution_attempts or 0), 0),
+            "last_result": None,
+            "last_settlement": None,
+            "reconfirmations": 0,
+            "started_at_utc": _utc_text(),
+            "updated_at_utc": None,
         }
-        if report is not None:
-            report.setdefault("settlement_readbacks", []).append(result)
-        generation = facts.session_generation
-        session = (generation, day)
+        self._direct_settlement = resolution
+        self._direct_report["settlement_resolution"] = resolution
+        if not resolution["max_attempts"]:
+            self._direct_end_settlement_resolution(resolution, "manual_required", "disabled")
+        elif schedule:
+            self._direct_schedule_settlement_attempt(resolution)
+        return resolution
+
+    def _direct_schedule_settlement_attempt(self, resolution: Dict[str, Any]) -> None:
+        base = max(float(self.p.direct_day_switch_retry_interval or 0.0), 0.0)
+        delay = base * min(2 ** resolution["attempts"], _SETTLEMENT_BACKOFF_FACTOR_MAX)
+        with self._direct_day_switch_lock:
+            self._direct_settlement_request = resolution["trading_day"]
+            self._direct_settlement_due = time.monotonic() + delay
+
+    def _direct_end_settlement_resolution(
+        self, resolution: Dict[str, Any], status: str, reason: Optional[str] = None
+    ) -> None:
+        resolution["status"] = status
+        if reason is not None:
+            resolution["last_result"] = reason
+        resolution["updated_at_utc"] = _utc_text()
+        if self._direct_settlement is resolution:
+            with self._direct_day_switch_lock:
+                self._direct_settlement_request = None
+        if status == "resolved":
+            if self._direct_global_block == "settlement_unconfirmed":
+                self._direct_global_block = None
+            _log.info(
+                "direct settlement of %s verified after %d attempt(s): %s",
+                resolution["trading_day"],
+                resolution["attempts"],
+                resolution["last_result"],
+            )
+        elif status == "manual_required":
+            _log.warning(
+                "direct settlement of %s still unverified after %d attempt(s) (%s): writes "
+                "stay blocked, manual resolution required",
+                resolution["trading_day"],
+                resolution["attempts"],
+                resolution["last_result"],
+            )
+
+    def _direct_close_settlement_marker(
+        self, marker_id: str, day: str, generation: int, outcome: str
+    ) -> bool:
+        """Audited live_state close of one marker by a readback; never after ``stop()`` began.
+
+        Checked under the F3 write gate, so no marker changes once ``stop()``
+        set ``_direct_stopping`` (it writes the final snapshot and releases
+        the run lock afterwards).
+        """
+        with self._direct_write_gate:
+            if self._direct_stopping:
+                return False
+            return self._direct_state.pending.resolve_settlement_readback(
+                marker_id,
+                exchange_name=self._direct_exchange,
+                trading_day=day,
+                session_generation=generation,
+                outcome=outcome,
+            )
+
+    def _direct_settlement_attempt(
+        self, day: str, settle, *, generation: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """One resolution attempt (facts poller, or startup); no Broker state changes.
+
+        ``settle`` runs the SDK settlement step (``_direct_settle_call`` at
+        startup, the stop-fenced ``_direct_poller_settle`` on the poller);
+        ``generation`` additionally pins the session generation (startup:
+        the reconciled one).  Marker transitions are audited live_state
+        operations and never run once ``stop()`` began.
+        """
+        payload: Dict[str, Any] = {
+            "day": day,
+            "result": None,
+            "markers": [],
+            "resolved": [],
+            "closed": [],
+            "settlement": None,
+        }
+        if self._direct_stopping:
+            payload["result"] = "broker_stopping"
+            return payload
         try:
-            if type(generation) is not int or self._direct_session_probe() != session:
-                result["status"] = "session_unverified"
-            elif self._direct_account_reference() != self._direct_account_hash:
-                result["status"] = "account_unverified"
+            markers = self._direct_resolvable_settlement_markers(day)
+            payload["markers"] = [marker["marker_id"] for marker in markers]
+            session = self._direct_session_probe()
+            if (
+                type(session[0]) is not int
+                or session[1] != day
+                or day != self._direct_trading_day
+                or (generation is not None and session[0] != generation)
+            ):
+                payload["result"] = "session_unverified"
+                return payload
+            if self._direct_account_reference() != self._direct_account_hash:
+                payload["result"] = "account_unverified"
+                return payload
+            if not markers:
+                # Proven unconfirmed earlier and no confirmation outstanding (the
+                # last one committed nothing): the SDK step reads first again.
+                payload["result"] = "confirm"
             else:
                 provider = self._direct_api.direct_writes().provider(self._direct_exchange)
                 reader = getattr(provider, "settlement_status", None)
                 if not callable(reader):
-                    result["status"] = "readback_unavailable"
-                else:
-                    status = reader()
-                    result["status"] = str(getattr(status, "value", status))
-                    if self._direct_session_probe() != session:
-                        result["status"] = "session_changed"
+                    payload["result"] = "readback_unavailable"
+                    return payload
+                status = reader()
+                payload["result"] = str(getattr(status, "value", status))
+                if self._direct_session_probe() != session:
+                    payload["result"] = "session_changed"
+                    return payload
+            if self._direct_stopping:
+                # stop() began during the read: nothing changes (the marker
+                # transitions are also fenced); the next start reads again.
+                payload["result"] = "broker_stopping"
+                return payload
+            if payload["result"] == "confirmed":
+                for marker_id in payload["markers"]:
+                    if self._direct_close_settlement_marker(
+                        marker_id, day, session[0], "confirmed"
+                    ):
+                        payload["resolved"].append(marker_id)
+                return payload
+            if payload["result"] not in ("unconfirmed", "confirm"):
+                return payload
+            if not self._direct_writes_enabled:
+                payload["result"] = "write_admission_disabled"
+                return payload
+            for marker_id in payload["markers"]:
+                if self._direct_close_settlement_marker(marker_id, day, session[0], "unconfirmed"):
+                    payload["closed"].append(marker_id)
+            if len(payload["closed"]) != len(payload["markers"]):
+                payload["result"] = "close_failed"
+                return payload
+            # D62-29: not a blind retry, the readback proved the earlier
+            # confirmation absent (CTP's confirmation is idempotent per day).
+            outcome = settle()
+            if outcome is None:
+                payload["result"] = "broker_stopping"
+            payload["settlement"] = outcome
         except Exception as exc:
-            result["status"] = f"readback_failed:{type(exc).__name__}"
-        if result["status"] == "confirmed":
-            result["resolved"] = self._direct_state.pending.resolve_settlement_readback(
-                marker["marker_id"],
-                exchange_name=self._direct_exchange,
-                trading_day=day,
-                session_generation=generation,
-            )
-        if not result["resolved"]:
-            _log.warning(
-                "direct unclear settlement confirmation of %s stays UNKNOWN (readback %s): "
-                "writes blocked, no automatic confirmation",
-                day,
-                result["status"],
-            )
-        return result["resolved"]
+            payload["result"] = f"readback_failed:{type(exc).__name__}"
+        return payload
 
-    def _direct_unclear_settlement_today(self) -> bool:
-        """An unresolved UNKNOWN settlement confirmation of this route and trading day."""
-        return any(
-            marker.get("operation") == "settlement_confirm"
-            and marker.get("status") == "UNKNOWN"
-            and marker.get("trading_day") == self._direct_trading_day
-            and marker.get("exchange_name") == self._direct_exchange
-            for marker in self._direct_state.pending.active()
-        )
+    def _direct_apply_settlement_attempt(self, payload: Dict[str, Any]) -> None:
+        """Strategy thread (or startup): record one resolution attempt and decide."""
+        with self._direct_day_switch_lock:
+            self._direct_settlement_inflight = False
+        outcome = payload.get("settlement")
+        resolution = self._direct_settlement
+        if (
+            resolution is None
+            or resolution["status"] != "pending"
+            or resolution["trading_day"] != payload.get("day")
+        ):
+            if outcome:  # stale attempt: a confirmation it committed is still recorded
+                self._direct_day_switch_settlement(outcome)
+            return
+        resolution["attempts"] += 1
+        resolution["last_result"] = payload["result"]
+        resolution["updated_at_utc"] = _utc_text()
+        entries = self._direct_report.setdefault("settlement_readbacks", [])
+        for marker_id in payload["markers"]:
+            entries.append(
+                {
+                    "marker_id": marker_id,
+                    "trading_day": payload["day"],
+                    "status": payload["result"],
+                    "resolved": marker_id in payload["resolved"],
+                }
+            )
+        del entries[:-_MAX_SETTLEMENT_READBACK_ENTRIES]
+        kind = None
+        if outcome:
+            resolution["reconfirmations"] += 1
+            kind = self._direct_day_switch_settlement(outcome)
+            resolution["last_settlement"] = kind
+        day = resolution["trading_day"]
+        if (payload["result"] == "confirmed" or kind == "confirmed") and not (
+            self._direct_resolvable_settlement_markers(day)
+        ):
+            self._direct_end_settlement_resolution(resolution, "resolved")
+            return
+        if payload["result"] in _SETTLEMENT_MANUAL_RESULTS:
+            self._direct_end_settlement_resolution(resolution, "manual_required")
+            return
+        if resolution["attempts"] >= resolution["max_attempts"]:
+            self._direct_end_settlement_resolution(resolution, "manual_required")
+            return
+        if payload["result"] != "broker_stopping":
+            _log.warning(
+                "direct settlement of %s not verified yet (attempt %d/%d: %s%s); writes "
+                "blocked, retrying",
+                day,
+                resolution["attempts"],
+                resolution["max_attempts"],
+                payload["result"],
+                f", confirmation {kind}" if kind else "",
+            )
+        self._direct_schedule_settlement_attempt(resolution)
+
+    def _direct_settlement_poll(self) -> bool:
+        """Facts poller: run one due resolution attempt (not re-entrant); True if it ran."""
+        with self._direct_day_switch_lock:
+            day = self._direct_settlement_request
+            if (
+                day is None
+                or self._direct_settlement_inflight
+                or time.monotonic() < self._direct_settlement_due
+            ):
+                return False
+            self._direct_settlement_inflight = True
+        payload = self._direct_settlement_attempt(day, self._direct_poller_settle)
+        # Publish before counting: whoever sees the count finds the payload.
+        self._direct_facts_results.append(("settlement_resolution", payload))
+        self._direct_refresh_counts["settlement_resolution"] += 1
+        return True
 
     def _direct_load_local(self, positions, prices, snapshot_day, trading_day) -> None:
         for symbol, entry in positions.items():
@@ -838,28 +1082,33 @@ class BtApiDirectModeMixin:
         return split
 
     def _direct_settle(self) -> None:
-        """Confirm the settlement statement under admission (D62-20/29)."""
-        if self._direct_unclear_settlement_today():
-            # D62-29: today's confirmation may have been sent and its readback
-            # did not prove it; never repeated automatically (writes blocked).
+        """Startup settlement step under admission (D62-20/29): read first, then decide.
+
+        An unclear confirmation of today (an earlier run or switch) gets its
+        first resolution attempt now, before the Broker reports started, and
+        never a second confirmation while its outcome is unclear.  Otherwise
+        the SDK step runs; its unclear outcome leaves the marker UNKNOWN and
+        starts the resolution loop.
+        """
+        day = self._direct_trading_day
+        if self._direct_resolvable_settlement_markers(day):
+            resolution = self._direct_begin_settlement_resolution(day, "restart", schedule=False)
+            if resolution is not None and resolution["status"] == "pending":
+                payload = self._direct_settlement_attempt(
+                    day, self._direct_settle_call, generation=self._direct_session_generation
+                )
+                self._direct_apply_settlement_attempt(payload)
             return
         outcome = self._direct_settle_call()
         if outcome is None:
             return
-        if outcome["error"] is not None:
-            self._direct_global_block = "settlement_unconfirmed"
-            _log.warning("direct settlement confirmation failed: %s", outcome["error"])
-            return
-        value = outcome["value"]
-        if value != "confirmed":
-            self._direct_global_block = "settlement_unconfirmed"
-        marker = outcome["marker_id"]
-        if marker:
-            self._direct_state.pending.mark(
-                marker,
-                "TERMINAL",
-                final_status=str(value),
-                resolution_evidence="settlement_readback",
+        kind = self._direct_day_switch_settlement(outcome)
+        if kind == "unverified":
+            # Nothing was committed, hence nothing sent: blocked for this run.
+            if self._direct_global_block not in _DAY_SWITCH_TERMINAL_BLOCKS:
+                self._direct_global_block = "settlement_unconfirmed"
+            _log.warning(
+                "direct settlement not confirmed: %s", outcome["error"] or outcome["value"]
             )
 
     def _direct_settle_call(self) -> Optional[Dict[str, Any]]:
@@ -2175,6 +2424,16 @@ class BtApiDirectModeMixin:
                     self._direct_refresh_counts["failed"] += 1
                     _log.warning("direct day-switch reads failed: %s", type(exc).__name__)
                 continue
+            if self._direct_settlement_request is not None:
+                # D62-29: a due resolution attempt of an unclear settlement
+                # confirmation replaces this round's funds/audit reads.
+                try:
+                    if self._direct_settlement_poll():
+                        continue
+                except Exception as exc:
+                    self._direct_refresh_counts["failed"] += 1
+                    _log.warning("direct settlement resolution failed: %s", type(exc).__name__)
+                    continue
             now = time.monotonic()
             want_audit = bool(audit_every) and now - self._direct_last_audit >= audit_every
             want_funds = bool(funds_every) and now - self._direct_last_funds >= funds_every
@@ -2201,6 +2460,9 @@ class BtApiDirectModeMixin:
             kind, facts = self._direct_facts_results.popleft()
             if kind == "day_switch":
                 self._direct_apply_day_switch(facts)
+                continue
+            if kind == "settlement_resolution":
+                self._direct_apply_settlement_attempt(facts)
                 continue
             self._direct_apply_balance(facts.balance)
             if self._direct_require_offset:
@@ -2450,7 +2712,24 @@ class BtApiDirectModeMixin:
                 payload["reason"] = "session_changed"
                 return payload
             if settle:
-                if self._direct_writes_enabled:
+                outstanding = [
+                    marker
+                    for marker in self._direct_state.pending.active()
+                    if marker.get("operation") == "settlement_confirm"
+                    and marker.get("status") == "UNKNOWN"
+                    and marker.get("trading_day") == target
+                    and marker.get("exchange_name") == self._direct_exchange
+                ]
+                if outstanding:
+                    # An unclear confirmation of the new day is outstanding: no
+                    # second one (D62-29); the resolution loop reads it back.
+                    payload["settlement"] = {
+                        "value": None,
+                        "error": None,
+                        "marker_id": outstanding[0]["marker_id"],
+                        "outstanding": True,
+                    }
+                elif self._direct_writes_enabled:
                     outcome = self._direct_poller_settle()
                     if outcome is None:  # stop() began: it owns any outcome (F3)
                         payload["reason"] = "broker_stopping"
@@ -2472,8 +2751,15 @@ class BtApiDirectModeMixin:
         return payload
 
     def _direct_day_switch_settlement(self, outcome: Dict[str, Any]) -> str:
-        """Record one settlement step (marker and block); return its class."""
+        """Record one settlement step (marker and block); return its class.
+
+        Used by every settlement step (startup, switch, resolution, stop).
+        An ``outstanding`` step sent nothing: it found an unclear confirmation
+        the resolution loop owns (marker and block already recorded).
+        """
         kind = _settlement_class(outcome)
+        if outcome.get("outstanding"):
+            return kind
         marker = outcome.get("marker_id")
         if kind == "confirmed" and marker:
             self._direct_state.pending.mark(
@@ -2483,11 +2769,19 @@ class BtApiDirectModeMixin:
                 resolution_evidence="settlement_readback",
             )
         elif kind == "unclear":
-            # D62-29: an unclear confirmation keeps its identity for review
-            # and is never retried blindly; trading writes stay blocked.
-            self._direct_state.pending.mark(marker, "UNKNOWN", reason="settlement_outcome_unknown")
-            self._direct_global_block = "settlement_unconfirmed"
-            _log.warning("direct new-day settlement outcome unclear: writes blocked")
+            # D62-29: an unclear confirmation keeps its identity and is never
+            # retried blindly; writes stay blocked until a readback decides.
+            pending = self._direct_state.pending
+            pending.mark(marker, "UNKNOWN", reason="settlement_outcome_unknown")
+            if self._direct_global_block not in _DAY_SWITCH_TERMINAL_BLOCKS:
+                self._direct_global_block = "settlement_unconfirmed"
+            _log.warning("direct settlement outcome unclear: writes blocked")
+            record = pending.get(marker)
+            if record is not None and not self._direct_stopping:
+                # Only an UNKNOWN marker of this route is resolved automatically.
+                day = record.get("trading_day")
+                if self._direct_settlement_resolvable(record, day):
+                    self._direct_begin_settlement_resolution(day, "unclear_outcome")
         return kind
 
     def _direct_apply_day_switch(self, payload: Dict[str, Any]) -> None:
@@ -2562,6 +2856,15 @@ class BtApiDirectModeMixin:
         self._direct_trading_day = to_day
         self._direct_session_generation = generation
         self._direct_report["trading_day"] = to_day
+        resolution = self._direct_settlement
+        if (
+            resolution is not None
+            and resolution["status"] == "pending"
+            and resolution["trading_day"] != to_day
+        ):
+            # Another day's unclear confirmation is never resolved automatically:
+            # its UNKNOWN markers stay for manual resolution (pending_unknown).
+            self._direct_end_settlement_resolution(resolution, "superseded", "trading_day_changed")
         if switch["settlement"] == "confirmed" and self._direct_global_block == (
             "settlement_unconfirmed"
         ):

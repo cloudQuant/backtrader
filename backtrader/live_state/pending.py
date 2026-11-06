@@ -20,7 +20,8 @@ Status model (rank order ``PREPARED < DISPATCHED < ACCEPTED < TERMINAL``):
 * ``UNKNOWN`` is sticky: only :meth:`resolve_manually` (audited, explicit
   operator conclusion) clears it, plus, for a ``settlement_confirm`` marker
   only, :meth:`resolve_settlement_readback` (audited, a verified read-only
-  readback of the same route and trading day, D62-29).  There is no
+  readback of the same route and trading day that found the settlement
+  confirmed, or definitively unconfirmed, D62-29).  There is no
   force-unlock.
 
 ``TERMINAL`` markers leave the active set and are kept in a bounded history
@@ -92,6 +93,11 @@ OPERATIONS = frozenset({"place", "cancel", "settlement_confirm"})
 MANUAL_CONCLUSIONS = frozenset(
     {"terminal_not_sent", "terminal_cancelled", "terminal_filled", "terminal_rejected"}
 )
+# Readback outcome -> evidence of :meth:`PendingCommandStore.resolve_settlement_readback`.
+_READBACK_EVIDENCE = {
+    "confirmed": "settlement_readback",
+    "unconfirmed": "settlement_readback_unconfirmed",
+}
 
 # Facts that name an order and must not silently change once known.
 _IMMUTABLE_FACT_KEYS = frozenset(
@@ -747,21 +753,29 @@ class PendingCommandStore:
         exchange_name: str,
         trading_day: str,
         session_generation: Optional[int] = None,
+        outcome: str = "confirmed",
     ) -> bool:
         """Close one UNKNOWN ``settlement_confirm`` marker proven by a readback (D62-29).
 
         The host read the venue's settlement state read-only, on a verified
         session of the bound account, and found ``exchange_name``'s
-        settlement of ``trading_day`` confirmed.  Only a marker with that
-        operation, status, route and trading day qualifies; any other marker
-        (orders, cancels, other days) still needs :meth:`resolve_manually`.
-        The audit record is written first.  Returns ``False`` (never raises)
-        when nothing matches or anything cannot be written; the marker then
-        stays UNKNOWN.
+        settlement of ``trading_day`` ``outcome``: ``"confirmed"`` (the
+        confirmation took effect; evidence ``settlement_readback``) or a
+        complete, definitive ``"unconfirmed"`` (it did not take effect;
+        evidence ``settlement_readback_unconfirmed``, after which the host may
+        confirm again under admission).  Only a marker with that operation,
+        status, route and trading day qualifies; any other marker (orders,
+        cancels, other days) still needs :meth:`resolve_manually`.  The audit
+        record is written first.  Returns ``False`` (never raises) when
+        nothing matches or anything cannot be written; the marker then stays
+        UNKNOWN.
         """
         if not is_text(exchange_name, max_len=128) or not is_text(trading_day, max_len=32):
             return False
         if session_generation is not None and not is_strict_int(session_generation, minimum=0):
+            return False
+        evidence = _READBACK_EVIDENCE.get(outcome) if type(outcome) is str else None
+        if evidence is None:
             return False
         try:
             with self._lock():
@@ -786,7 +800,8 @@ class PendingCommandStore:
                         "exchange_name": exchange_name,
                         "trading_day": trading_day,
                         "session_generation": session_generation,
-                        "evidence": "settlement_readback",
+                        "outcome": outcome,
+                        "evidence": evidence,
                     },
                 )
                 now = utc_now_iso()
@@ -796,12 +811,10 @@ class PendingCommandStore:
                 )
                 del marker["transitions"][:-_TRANSITIONS_LIMIT]
                 marker["updated_at_utc"] = now
-                marker["facts"].update(
-                    final_status="confirmed", resolution_evidence="settlement_readback"
-                )
+                marker["facts"].update(final_status=outcome, resolution_evidence=evidence)
                 marker["resolution"] = {
-                    "kind": "settlement_readback",
-                    "evidence": ["settlement_readback"],
+                    "kind": evidence,
+                    "evidence": [evidence],
                     "trading_day": trading_day,
                     "session_generation": session_generation,
                     "resolved_at_utc": entry["ts_utc"],

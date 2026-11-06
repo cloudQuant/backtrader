@@ -2,12 +2,17 @@
 
 The switch marks its settlement confirmation UNKNOWN when the outcome is
 unclear.  At the next start, an UNKNOWN ``settlement_confirm`` marker of the
-verified current route and trading day is checked by one read-only settlement
-readback on the current session: ``confirmed`` closes it (TERMINAL, evidence
-``settlement_readback``); anything else keeps it UNKNOWN, keeps every write
-blocked and never confirms again.  Markers of other days are left for manual
-resolution.  Also: the facts poller publishes a verification payload before it
-counts it.
+verified current route and trading day gets the first attempt of the
+settlement resolution loop (user decision 2026-11-06: read first, then decide)
+before the Broker reports started: one read-only settlement readback on the
+current session.  ``confirmed`` closes it (TERMINAL, evidence
+``settlement_readback``); a complete, definitive ``unconfirmed`` closes it
+(evidence ``settlement_readback_unconfirmed``) and confirms again through the
+SDK step; anything else keeps it UNKNOWN, keeps every write blocked
+(``settlement_unconfirmed``) and never confirms while the outcome is unclear;
+the loop retries later (``test_direct_settlement_resolution.py``).  Markers of
+other days are left for manual resolution.  Also: the facts poller publishes a
+verification payload before it counts it.
 
 UNIT/FAKE: fake facade (read-only provider settlement state), real
 ``backtrader.live_state`` in ``tmp_path``.
@@ -72,8 +77,8 @@ def test_unclear_switch_settlement_is_resolved_by_a_confirmed_readback(env):
     assert marker["facts"]["resolution_evidence"] == "settlement_readback"
     assert marker["resolution"]["kind"] == "settlement_readback"
     assert env.api.settlement_reads == [TOMORROW]  # one read on the current session
-    # The usual startup step only read again: nothing new was committed or sent.
-    assert [call.marker_id for call in env.api.settlement_calls[calls:]] == [None]
+    # The readback decided: no further SDK settlement step, nothing committed or sent.
+    assert env.api.settlement_calls[calls:] == []
     (entry,) = again.get_direct_reconcile_report()["settlement_readbacks"]
     assert entry == {
         "marker_id": marker_id,
@@ -87,6 +92,33 @@ def test_unclear_switch_settlement_is_resolved_by_a_confirmed_readback(env):
         if record["event"] == "pending_settlement_readback_resolution"
     ]
     assert audit["marker_id"] == marker_id and audit["trading_day"] == TOMORROW
+    assert audit["outcome"] == "confirmed"
+    resolution = again.get_direct_reconcile_report()["settlement_resolution"]
+    assert resolution["status"] == "resolved" and resolution["attempts"] == 1
+    assert resolution["source"] == "restart" and resolution["last_result"] == "confirmed"
+    assert _buy(env, again).status == bt.Order.Submitted
+
+
+def test_unclear_switch_settlement_proven_absent_at_restart_is_confirmed_again(env):
+    """A complete, definitive ``unconfirmed`` readback: closed, then confirmed once more."""
+    marker_id = _unclear_switch_settlement(env)  # the next confirmation succeeds
+    calls = len(env.api.settlement_calls)
+    again = env.start()  # readback: complete, not confirmed (the fake's default)
+    assert again.direct_writes_blocked() == {}, again.direct_writes_blocked()
+    old = env.state().pending.get(marker_id)
+    assert old["status"] == "TERMINAL"
+    assert old["facts"]["final_status"] == "unconfirmed"
+    assert old["facts"]["resolution_evidence"] == "settlement_readback_unconfirmed"
+    assert old["resolution"]["kind"] == "settlement_readback_unconfirmed"
+    (call,) = env.api.settlement_calls[calls:]  # exactly one new confirmation
+    new = env.state().pending.get(call.marker_id)
+    assert call.marker_id != marker_id and call.trading_day == TOMORROW
+    assert new["status"] == "TERMINAL" and new["facts"]["final_status"] == "confirmed"
+    # Audit-first: the old marker was closed before the new one was committed.
+    assert old["resolution"]["resolved_at_utc"] <= new["committed_at_utc"]
+    resolution = again.get_direct_reconcile_report()["settlement_resolution"]
+    assert resolution["status"] == "resolved" and resolution["last_result"] == "unconfirmed"
+    assert resolution["last_settlement"] == "confirmed" and resolution["reconfirmations"] == 1
     assert _buy(env, again).status == bt.Order.Submitted
 
 
@@ -99,33 +131,46 @@ def _session_moves(api):
 
 
 @pytest.mark.parametrize(
-    "readback, status",
+    "readback, status, resolution_status",
     [
-        (lambda api: None, "unconfirmed"),  # complete readback: not confirmed
-        (lambda api: setattr(api, "settlement_readback", SettlementStatus.UNKNOWN), "unknown"),
+        (
+            lambda api: setattr(api, "settlement_readback", SettlementStatus.UNKNOWN),
+            "unknown",
+            "pending",
+        ),
         (
             lambda api: setattr(api, "settlement_error", TimeoutError("readback timed out")),
             "readback_failed:TimeoutError",
+            "pending",
         ),
-        (lambda api: delattr(api.provider, "settlement_status"), "readback_unavailable"),
-        (_session_moves, "session_changed"),
+        # A provider without the read cannot gain it later: manual at once.
+        (
+            lambda api: delattr(api.provider, "settlement_status"),
+            "readback_unavailable",
+            "manual_required",
+        ),
+        (_session_moves, "session_changed", "pending"),
     ],
-    ids=["unconfirmed", "unknown", "failed", "unavailable", "session_changed"],
+    ids=["unknown", "failed", "unavailable", "session_changed"],
 )
-def test_unclear_switch_settlement_without_a_confirmed_readback_stays_blocked(
-    env, readback, status
+def test_unclear_switch_settlement_without_a_definitive_readback_stays_blocked(
+    env, readback, status, resolution_status
 ):
     marker_id = _unclear_switch_settlement(env)
     readback(env.api)
     calls = len(env.api.settlement_calls)
     again = env.start()
-    assert again.direct_writes_blocked() == {"*": "pending_unknown"}
+    assert again.direct_writes_blocked() == {"*": "settlement_unconfirmed"}
     assert env.state().pending.get(marker_id)["status"] == "UNKNOWN"
-    # Never confirmed again automatically (no blind retry), not even read-first.
+    # Never confirmed again while the outcome is unclear, not even read-first.
     assert len(env.api.settlement_calls) == calls
-    (entry,) = again.get_direct_reconcile_report()["settlement_readbacks"]
+    report = again.get_direct_reconcile_report()
+    (entry,) = report["settlement_readbacks"]
     assert entry["status"] == status and entry["resolved"] is False
-    assert _buy(env, again).info["error_code"] == "pending_unknown"
+    resolution = report["settlement_resolution"]
+    assert resolution["status"] == resolution_status and resolution["attempts"] == 1
+    assert resolution["last_result"] == status
+    assert _buy(env, again).info["error_code"] == "settlement_unconfirmed"
 
 
 def test_unclear_settlement_of_another_day_is_left_for_manual_resolution(env):
@@ -136,7 +181,9 @@ def test_unclear_settlement_of_another_day_is_left_for_manual_resolution(env):
     assert env.api.settlement_reads == []  # no readback can speak for another day
     assert env.state().pending.get(marker_id)["status"] == "UNKNOWN"
     assert again.direct_writes_blocked() == {"*": "pending_unknown"}
-    assert "settlement_readbacks" not in again.get_direct_reconcile_report()
+    report = again.get_direct_reconcile_report()
+    assert "settlement_readbacks" not in report and "settlement_resolution" not in report
+    assert again._direct_settlement_request is None  # no automatic loop for it either
 
 
 # ---------------------------------------------------------------------------

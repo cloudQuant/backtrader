@@ -473,3 +473,29 @@ def test_settlement_readback_audits_a_failed_store(state, monkeypatch):
         "pending_settlement_readback_resolution",
         "pending_settlement_readback_resolution_failed",
     ]
+
+
+def test_settlement_readback_records_a_definitive_unconfirmed_outcome(state):
+    """A complete readback without a confirmation proves the earlier one absent."""
+    store = state.pending
+    marker_id = _settlement_marker(state)
+    for invalid in ("unknown", "CONFIRMED", None, 1):
+        assert _readback(store, marker_id, outcome=invalid) is False
+    assert store.get(marker_id)["status"] == "UNKNOWN"
+    assert _readback(store, marker_id, outcome="unconfirmed", trading_day="20261107") is False
+
+    assert _readback(store, marker_id, outcome="unconfirmed") is True
+    closed = store.get(marker_id)
+    assert closed["status"] == "TERMINAL"
+    assert closed["facts"]["final_status"] == "unconfirmed"
+    assert closed["facts"]["resolution_evidence"] == "settlement_readback_unconfirmed"
+    assert closed["resolution"]["kind"] == "settlement_readback_unconfirmed"
+    assert closed["resolution"]["evidence"] == ["settlement_readback_unconfirmed"]
+    (record,) = [
+        r
+        for r in read_audit(state.strategy_dir)
+        if r["event"] == "pending_settlement_readback_resolution"
+    ]
+    assert record["outcome"] == "unconfirmed"
+    assert record["evidence"] == "settlement_readback_unconfirmed"
+    assert _readback(store, marker_id) is False  # closed once, whatever the outcome

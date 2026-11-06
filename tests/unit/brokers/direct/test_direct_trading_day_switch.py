@@ -299,13 +299,33 @@ def test_settlement_that_sent_nothing_keeps_the_freeze_and_is_retried(env, failu
 
 
 def test_previous_day_unconfirmed_settlement_is_superseded_by_the_new_day(env):
-    env.api.settlement_result = SettlementStatus.UNKNOWN
+    # The startup step committed nothing (its read-first answer was unclear).
+    env.api.settlement_readback = SettlementStatus.UNKNOWN
     broker = _started(env)
     assert broker.direct_writes_blocked() == {"*": "settlement_unconfirmed"}
-    env.api.settlement_result = SettlementStatus.CONFIRMED
+    env.api.settlement_readback = None
     _new_day(env, broker)
     assert run_day_switch(broker)["settlement"] == "confirmed"
     assert broker.direct_writes_blocked() == {}
+
+
+def test_previous_day_unclear_settlement_marker_stays_for_manual_resolution(env):
+    """An unclear confirmation of the old day is never resolved for another day."""
+    env.api.settlement_result = SettlementStatus.UNKNOWN  # committed, outcome unknown
+    broker = _started(env)
+    (startup,) = env.api.settlement_calls
+    assert env.state().pending.get(startup.marker_id)["status"] == "UNKNOWN"
+    assert broker.direct_writes_blocked() == {"*": "settlement_unconfirmed"}
+    env.api.settlement_result = SettlementStatus.CONFIRMED
+    _new_day(env, broker)
+    report = run_day_switch(broker)
+    assert report["status"] == "completed" and report["settlement"] == "confirmed"
+    assert report["unknown_markers"] == [startup.marker_id]
+    assert env.state().pending.get(startup.marker_id)["status"] == "UNKNOWN"  # untouched
+    assert broker.direct_writes_blocked() == {"*": "pending_unknown"}
+    resolution = broker.get_direct_reconcile_report()["settlement_resolution"]
+    assert resolution["status"] == "superseded" and resolution["trading_day"] == TODAY
+    assert broker._direct_settlement_request is None
 
 
 # ---------------------------------------------------------------------------
