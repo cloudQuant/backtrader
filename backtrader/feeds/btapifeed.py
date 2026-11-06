@@ -2174,6 +2174,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # The research cohort keeps its strict source boundary: every flag
         # that blocked before D62-38 still blocks there.
         relaxed = self._live_bar_cohort is None
+        locked = None
         if typed_market_tick and relaxed:
             locked = _limit_locked_side(tick, price, bid, ask, bid_size, ask_size)
             if locked is not None:
@@ -2401,7 +2402,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 and (not typed_market_tick or upstream_execution_eligible is True)
             )
             and not blocking
-            and all(value is not None and value > 0 for value in (bid, ask, bid_size, ask_size))
+            and all(
+                value is not None and value > 0
+                for value in (
+                    # A verified limit lock needs only its quoting side (D62-38).
+                    (bid, bid_size)
+                    if locked == "UP"
+                    else (ask, ask_size) if locked == "DOWN" else (bid, ask, bid_size, ask_size)
+                )
+            )
         )
         bar_eligible = (
             not data_blocking and not bar_only and price is not None and price > 0 and delta > 0
