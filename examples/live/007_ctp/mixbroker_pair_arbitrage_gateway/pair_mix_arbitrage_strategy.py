@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
+import time
 from collections import defaultdict, deque
 
 import backtrader as bt
@@ -124,6 +125,7 @@ BASE_FUTURES_STRATEGY_PARAMS = (
     ("order_exectype", "market"),
     ("price_tick", 1.0),
     ("slippage_ticks", 2),
+    ("reject_backoff_seconds", 3.0),
 )
 
 
@@ -259,6 +261,13 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             self.pending_order_submitted_ticks[order.ref] = int(getattr(self, "_tick_count", 0))
             self.log(f"took over restored order {order.ref} offset={order.info.get('offset')}")
 
+    def _refusal_backoff(self):
+        """Per-instrument monotonic time until which new orders wait after a refusal."""
+        backoff = getattr(self, "_refusal_backoff_until", None)
+        if backoff is None:
+            backoff = self._refusal_backoff_until = {}
+        return backoff
+
     def _limit_price(self, data, side):
         """Marketable limit price: ``slippage_ticks`` ticks through the last price.
 
@@ -344,6 +353,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         """
         quantity = int(round(abs(float(size or 0.0))))
         if quantity <= 0:
+            return None
+        backoff = self._refusal_backoff().get(str(symbol), 0.0) - time.monotonic()
+        if backoff > 0:
+            self.log(f"refusal backoff for {symbol}: {signal_tag} skipped ({backoff:.1f}s left)")
             return None
 
         if not self.p.enable_trading:
@@ -433,6 +446,12 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             error_msg = getattr(order.info, "error_msg", "")
             suffix = f" error={error_msg}" if error_msg else ""
             self.log(f"order {order.ref} {status_name} {symbol}{suffix}")
+            if order.status == order.Rejected:
+                # A refusal (e.g. stale or unqualified data) usually holds for
+                # the next ticks too: pause new orders for this instrument.
+                self._refusal_backoff()[str(symbol)] = time.monotonic() + float(
+                    self.p.reject_backoff_seconds or 0.0
+                )
 
         if not order.alive():
             self.pending_refs.discard(order.ref)
