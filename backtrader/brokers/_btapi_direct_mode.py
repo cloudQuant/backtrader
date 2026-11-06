@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional
 
 from ..order import BuyOrder, Order, SellOrder
 from ..position import Position
-from ..utils.log_message import get_logger
+from ..utils.log_message import get_logger, throttled_warning
 
 _log = get_logger(__name__)
 
@@ -1268,8 +1268,8 @@ class BtApiDirectModeMixin:
         meta["identity"] = outcome.identity
         if outcome.identity is not None:
             fields = dict(outcome.identity.fields)
-            for key in identity_keys(fields, outcome.identity.client_order_id):
-                self._direct_index[key] = order.ref
+            keys = identity_keys(fields, outcome.identity.client_order_id)
+            self._direct_index_order(keys, order.ref, fields.get("trading_day"))
             if fields.get("exchange_id"):
                 self._direct_symbol_venue.setdefault(meta["symbol"], str(fields["exchange_id"]))
         if outcome.sent is True:
@@ -1490,19 +1490,103 @@ class BtApiDirectModeMixin:
             except Exception:
                 _log.exception("direct event projection failed")
 
-    def _direct_order_for_event(self, event: Any) -> Optional[Order]:
+    def _direct_event_keys(self, event: Any) -> tuple:
+        """``(fields, keys)`` of a return: identity keys plus its venue order id."""
         identity = event.identity
-        if identity is None:
-            return None
         fields = dict(identity.fields)
         keys = identity_keys(fields, identity.client_order_id)
         if event.exchange_order_id and fields.get("exchange_id"):
             keys.append(("x", str(fields["exchange_id"]), str(event.exchange_order_id)))
+        return fields, keys
+
+    def _direct_day_keys(self, keys: List[tuple], day: Any) -> List[tuple]:
+        """Index entries binding the day-scoped ``keys`` to trading day ``day`` (R-3).
+
+        On routes with explicit offsets (CTP) the session triple and
+        ``ExchangeID``/``OrderSysID`` restart every trading day: the entry
+        ``("d", day, *key)`` keeps own orders of different days with reused
+        ids apart.  Client order ids, unknown days and routes without offsets
+        (OKX/Binance) have none; they use the plain key only.
+        """
+        if not self._direct_require_offset or not day:
+            return []
+        return [("d", str(day)) + key for key in keys if key[0] != "c"]
+
+    def _direct_index_order(
+        self, keys: List[tuple], ref: int, day: Any, *, replace: bool = True
+    ) -> None:
+        """Index ``ref`` under ``keys`` and their day-bound entries (same write mode)."""
+        for key in list(keys) + self._direct_day_keys(keys, day):
+            if replace:
+                self._direct_index[key] = ref
+            else:
+                self._direct_index.setdefault(key, ref)
+
+    def _direct_order_day(self, ref: Optional[int]) -> Optional[str]:
+        """Trading day of an own order's native identity, if known."""
+        meta = self._direct_meta.get(ref) if ref is not None else None
+        identity = meta.get("identity") if meta is not None else None
+        day = dict(identity.fields).get("trading_day") if identity is not None else None
+        return str(day) if day else None
+
+    def _direct_order_for_event(self, event: Any) -> Optional[Order]:
+        if event.identity is None:
+            return None
+        fields, keys = self._direct_event_keys(event)
+        # R-3: a return of a known trading day resolves to the own order of
+        # that day; the plain keys below never bind a known other day.
+        for key in self._direct_day_keys(keys, fields.get("trading_day")):
+            ref = self._direct_index.get(key)
+            if ref is not None:
+                return self.orders.get(ref)
         for key in keys:
             ref = self._direct_index.get(key)
             if ref is not None and self._direct_same_trading_day(ref, key, fields):
                 return self.orders.get(ref)
         return None
+
+    def _direct_note_other_day_return(self, event: Any) -> None:
+        """R-3: a day-scoped return that names only an own order of another day.
+
+        The venue reused the ids on a new day, so it is not booked there.
+        Like any return without an own order of its day (e.g. a fill ahead of
+        its order return) it stays unmatched, but it is never silent: it is
+        counted under ``other_day_returns`` in the reconcile report and logged.
+        """
+        if not self._direct_require_offset or event.identity is None:
+            return
+        fields, keys = self._direct_event_keys(event)
+        day = fields.get("trading_day")
+        if not day:
+            return
+        for key in keys:
+            ref = self._direct_index.get(key) if key[0] != "c" else None
+            own_day = self._direct_order_day(ref)
+            if own_day is not None and own_day != str(day):
+                break
+        else:
+            return
+        entry = self._direct_report.setdefault("other_day_returns", {"count": 0, "last": None})
+        entry["count"] += 1
+        entry["last"] = {
+            "kind": event.kind.value,
+            "symbol": event.symbol,
+            "exchange_order_id": event.exchange_order_id,
+            "trade_id": getattr(event, "trade_id", None),
+            "trading_day": str(day),
+            "order_trading_day": own_day,
+            "order_local_seq": (self._direct_meta.get(ref) or {}).get("local_seq"),
+        }
+        throttled_warning(
+            _log,
+            "direct_other_day_return",
+            "direct %s return of trading day %s names only an own order of %s "
+            "(ids reused by the venue): not booked",
+            event.kind.value,
+            day,
+            own_day,
+            exc_info=False,
+        )
 
     def _direct_same_trading_day(self, ref: int, key: tuple, fields: Dict[str, Any]) -> bool:
         """A day-scoped key matches only an order of the same trading day (R-3).
@@ -1525,12 +1609,14 @@ class BtApiDirectModeMixin:
     def _direct_process_event(self, event: Any) -> None:
         order = self._direct_order_for_event(event)
         if order is None:
+            self._direct_note_other_day_return(event)
             return  # another client's order: visible to audits, never adopted
         meta = self._direct_meta[order.ref]
         fields = dict(event.identity.fields) if event.identity is not None else {}
         if event.exchange_order_id and fields.get("exchange_id"):
             key = ("x", str(fields["exchange_id"]), str(event.exchange_order_id))
-            self._direct_index.setdefault(key, order.ref)
+            day = self._direct_order_day(order.ref)
+            self._direct_index_order([key], order.ref, day, replace=False)
             learned = meta.setdefault("learned_fields", {})
             learned["order_sys_id"] = str(event.exchange_order_id)
             if fields.get("order_sys_id_raw"):
@@ -2942,13 +3028,14 @@ class BtApiDirectModeMixin:
         if event.offset in _CLOSE_OFFSETS:
             meta["close_side"] = "long" if event.side == "sell" else "short"
         self._direct_meta[order.ref] = meta
-        for key in identity_keys(dict(identity.fields), identity.client_order_id):
-            self._direct_index[key] = order.ref
+        day = self._direct_order_day(order.ref)
+        keys = identity_keys(dict(identity.fields), identity.client_order_id)
+        self._direct_index_order(keys, order.ref, day)
         if event.exchange_order_id and identity.fields.get("exchange_id"):
             # Trade returns carry only ExchangeID + OrderSysID (as learned in
             # ``_direct_process_event`` for live orders).
             venue_key = ("x", str(identity.fields["exchange_id"]), str(event.exchange_order_id))
-            self._direct_index.setdefault(venue_key, order.ref)
+            self._direct_index_order([venue_key], order.ref, day, replace=False)
         self._direct_hand_over(order)
         return True
 
