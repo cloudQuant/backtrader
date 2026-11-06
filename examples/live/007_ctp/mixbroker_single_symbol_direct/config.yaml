@@ -20,6 +20,7 @@ direct:
   write_admission: true
   market_clock_verification: true
 broker:
+  direct_facts_timeout: 60   # per query: whole-day orders/trades (SimNow ~14 rows/s)
   position_mode: net
   direct_funds_refresh_interval: 60
   direct_position_audit_interval: 300

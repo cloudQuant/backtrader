@@ -19,6 +19,7 @@ direct:
   write_admission: true             # SDK write admission for CTP___FUTURE (D62-01)
   market_clock_verification: true   # SNTP + venue time qualification of ticks (D62-21)
 broker:
+  direct_facts_timeout: 60   # per query: whole-day orders/trades (SimNow ~14 rows/s)
   position_mode: net
   direct_funds_refresh_interval: 60      # D62-06a
   direct_position_audit_interval: 300    # D62-06b
