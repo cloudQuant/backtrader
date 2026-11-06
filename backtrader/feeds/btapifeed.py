@@ -86,6 +86,13 @@ def _data_quality_flags(tick):
     return tuple(flag for flag in flags if flag not in _TRADE_ONLY_TICK_FLAGS)
 
 
+def _tick_continuity(tick):
+    """Lower-case provider continuity status of one tick; ``"unknown"`` when absent."""
+    return str(
+        _tick_value(tick, "continuity_status", "continuity", default="unknown") or "unknown"
+    ).lower()
+
+
 def _trade_only_flags(tick):
     """Trade-only flags of an ingest-path tick (none on other paths)."""
     if not _separates_trade_qualification(tick):
@@ -1346,6 +1353,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         data = event.data
         if data.volume_complete or data.cumulative_volume is None:
             return False
+        if _tick_continuity(tick) == "continuous" and (data.delta_volume or 0) > 0:
+            # Bar-only incomplete volume on a continuous stream (2026-11-06) is
+            # not a cold-start baseline: its bucket is built and marked.
+            return False
         trading_date = data.trading_date
         if type(trading_date) is not str or not trading_date:
             return False
@@ -2050,8 +2061,18 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if typed_market_tick and not volume_complete and delta == 0:
             flags.add("VOLUME_BASELINE")
         if typed_market_tick and not volume_complete and delta > 0:
-            blocking.add("VOLUME_INCOMPLETE")
             flags.add("VOLUME_INCOMPLETE")
+            if _tick_continuity(tick) == "continuous":
+                # User decision 2026-11-06 (iteration 62): when the provider
+                # attests an uninterrupted stream (e.g. an OKX trade-id jump on
+                # one connection), incomplete volume is a bar-only flag. The
+                # tick stays healthy and tradable and enters its bar with its
+                # own size; that bar is marked incomplete. Any other continuity
+                # (gap, baseline, recovery, unknown) still blocks.
+                if bucket_start is not None and not quote_only:
+                    self._add_bar_quality_override(bucket_start, "VOLUME_INCOMPLETE")
+            else:
+                blocking.add("VOLUME_INCOMPLETE")
         # D62-27: on the qualification-separating path only data-integrity
         # flags stop bar building; every blocking flag still stops execution.
         data_blocking = (
@@ -2352,10 +2373,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
     def _handle_event_health(self, event_data):
         """Emit feed status transitions and tell callers whether data is unsafe."""
-        continuity = str(
-            _tick_value(event_data, "continuity_status", "continuity", default="unknown")
-            or "unknown"
-        ).lower()
+        continuity = _tick_continuity(event_data)
         if _separates_trade_qualification(event_data):
             # D62-27: an unverified clock, unavailable or stale freshness, or
             # an SDK execution verdict only withholds trade qualification
