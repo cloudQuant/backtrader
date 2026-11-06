@@ -39,9 +39,7 @@ class _UnqualifiableData:
 
 
 def _buy(env, broker, data):
-    return broker.buy(
-        env.strategy, data, 1, price=3500.0, exectype=bt.Order.Limit, offset="open"
-    )
+    return broker.buy(env.strategy, data, 1, price=3500.0, exectype=bt.Order.Limit, offset="open")
 
 
 def test_data_without_trade_qualification_is_refused_locally(env):
