@@ -139,6 +139,7 @@ def validate_live_config(config):
     validate_feed_settings("feed", dict(config.get("feed") or {}))
     for symbol in symbols:
         validate_feed_settings(f"contracts.{symbol}", feed_settings(config, symbol))
+    logging_settings(config)
     if not isinstance(config.get("strategy_params") or {}, dict):
         raise ValueError("strategy_params must be a mapping")
     if not isinstance(config.get("broker") or {}, dict):
@@ -233,6 +234,76 @@ def configure_catalog_cache(config):
         path = (RUN_DIR / path).resolve()
     os.environ["BT_API_CTP_CATALOG_CACHE_DIR"] = str(path)
     return path
+
+
+# Process logging (iteration 62, D62-38 point 7): the bt_api_ctp loggers report front
+# connect/disconnect, login and market-source recovery at INFO (re-login lines carry
+# reason=... and retry_in=...; they never print a user id or a password). Python's
+# last-resort handler shows WARNING and above only, so run.py installs one handler.
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+LOGGING_DEFAULTS = {"level": "INFO", "other_level": "WARNING", "file": None}
+
+
+def logging_settings(config):
+    """The validated ``logging:`` section: bt_api_ctp level, every other logger, file."""
+    section = config.get("logging")
+    section = {} if section is None else section
+    if not isinstance(section, dict):
+        raise ValueError("logging must be a mapping")
+    unknown = sorted(str(key) for key in set(section) - set(LOGGING_DEFAULTS))
+    if unknown:
+        raise ValueError(f"unknown logging keys: {', '.join(unknown)}")
+    settings = {**LOGGING_DEFAULTS, **section}
+    for key in ("level", "other_level"):
+        value = settings[key]
+        if not isinstance(value, str) or value.strip().upper() not in LOG_LEVELS:
+            raise ValueError(f"logging.{key} must be one of {', '.join(LOG_LEVELS)}")
+        settings[key] = value.strip().upper()
+    path = settings["file"]
+    if path is not None:
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError("logging.file must be a file path")
+        path = Path(path.strip()).expanduser()
+        settings["file"] = path if path.is_absolute() else (RUN_DIR / path).resolve()
+    return settings
+
+
+def describe_logging(config):
+    """Effective logging settings, printed by --dry-run and at startup."""
+    settings = logging_settings(config)
+    target = settings["file"] or "stderr"
+    return f"bt_api_ctp={settings['level']} other={settings['other_level']} to={target}"
+
+
+def configure_run_logging(config):
+    """One handler (stderr or ``logging.file``) for the bt_api_ctp lines and the rest.
+
+    ``bt_api_ctp`` loggers use ``logging.level``; every other logger, including
+    backtrader's own (silent until configured), uses ``logging.other_level``.
+    Messages also pass backtrader's credential redaction (a second defence).
+    """
+    import logging
+    import sys
+
+    from backtrader.utils.redaction import redact_diagnostic
+
+    class RedactingFormatter(logging.Formatter):
+        def format(self, record):
+            return redact_diagnostic(super().format(record))
+
+    settings = logging_settings(config)
+    if settings["file"] is not None:
+        settings["file"].parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(settings["file"], encoding="utf-8")
+    else:
+        handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(RedactingFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(settings["other_level"])
+    logging.getLogger("bt_api_ctp").setLevel(settings["level"])
+    bt.configure_logging(level=settings["other_level"], console=False, propagate=True)
+    return describe_logging(config)
 
 
 def create_store(config, credentials, market_runtime_factory):
@@ -371,6 +442,7 @@ def main(argv=None):
         print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
         for symbol in symbols:
             print(f"Feed {symbol}: {describe_feed(config, symbol)}")
+        print(f"Logging: {describe_logging(config)}")
         print(f"Market data: Gateway {profile.profile_ref} ({connection.source_ref})")
         if orders == "managed":
             print(f"Orders: managed -> unavailable ({', '.join(MANAGED_ORDER_GAPS)})")
@@ -384,6 +456,7 @@ def main(argv=None):
                missing=list(MANAGED_ORDER_GAPS))
         return EXIT_BLOCKED
 
+    print(f"Logging: {configure_run_logging(config)}", flush=True)
     try:
         credentials = load_credentials(args.env_file)
     except (LookupError, OSError) as exc:

@@ -80,3 +80,10 @@ trade_logger:
   log_positions: false
   log_position_snapshot: false
   enabled: true
+logging:
+  # Process logs (iteration 62, D62-38 point 7): bt_api_ctp front connect / login /
+  # market-source recovery lines (re-login lines carry reason=... and retry_in=...;
+  # never a user id or a password). Levels: DEBUG | INFO | WARNING | ERROR | CRITICAL.
+  level: INFO            # bt_api_ctp loggers
+  other_level: WARNING   # every other logger (backtrader, bt_api_py, ...)
+  # file: logs/ctp_session.log   # optional; relative to this folder; default: stderr

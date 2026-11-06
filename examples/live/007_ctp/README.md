@@ -108,6 +108,9 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 | `contracts.<symbol>.event_time_max_age`、`receive_time_max_age`、`incomplete_volume_bars` | 不写则沿用 `feed:` | 按合约覆盖上面三个键 |
 | `direct.market_clock_verification` | 示例 `true` | SNTP 证据与场所时间核对；也可以写成映射调整参数，见下 |
 | `broker.direct_trade_match_window` | 缺省 `5.0`（秒） | 成交回报先于委托回报到达时，等待重新匹配的时间，见下 |
+| `logging.level` | 示例 `INFO`；不写时 `INFO` | `bt_api_ctp` 日志器的级别：前置连接与断开、登录、行情源恢复（重新登录的行带 `reason=…`、`retry_in=…`），见下 |
+| `logging.other_level` | 示例 `WARNING`；不写时 `WARNING` | 其余日志器（backtrader、bt_api_py 等）的级别 |
+| `logging.file` | 缺省不配置（输出到 stderr） | 日志文件；相对路径以示例文件夹为基准 |
 
 **私有流模式（I62-01a）**：`quick` 不重放当日私有回报。`restart` 会在登录时重放整个交易日的私有回报；
 SimNow 交易时段内，启动查询要排在这次重放之后，等待 20～90 秒以上（迭代 62 SimNow 实测记录，缺陷 14）。
@@ -165,6 +168,25 @@ Broker 先保留它 `broker.direct_trade_match_window` 秒（缺省 5 秒），�
 到期仍未匹配、缓冲区满（256 笔）或停止时，按以前的规则视为别人的成交，不计入，并在运行结束的 JSON 汇总
 `reconcile.unmatched_trade_returns` 中计数（`trade_match_buffer` 有缓冲统计）。停止后不再计入任何保留的成交，
 下次启动由当日成交查询对账。
+
+**行情断线后的自动重同步（D62-38 第 7 点，2026-11-06）**：CTP 行情前置断开后，bt_api_ctp 重新登录，新的行情会话开始推送后
+声明 `PROVIDER_RESYNC_REQUIRED`。direct 示例的 `BtApiStore` 收到这个声明后自动确认旧会话的数据丢失并重同步
+（绑定到新会话、新的 epoch），每个合约每次重启只写一条 WARNING。重同步失败（提供方仍在恢复）时保持原来的陈旧/缺口状态，
+立即一次之后按 1、2、5、10、30 秒的间隔重试（此后每 30 秒），成功后清零；其他恢复原因一律不自动重同步，
+Store 停止后也不再重同步。feed 把新会话当作新的连接范围：断线前未完成的 bar 作废、不进数据线，
+新会话第一笔新鲜、有效的 tick 就可用于下单。`store.get_stream_health(<合约>)` 的 `tick_sdk_resyncs`、
+`tick_sdk_resync_failures` 记录成功和失败次数；其中的 `stale` 是累计的丢失证据，重同步不清除它，
+feed 的 LIVE 和下单资格只看 tick 本身。从 Gateway MarketHub 取行情的 Store（`_gateway` 示例）不自动重同步，
+仍保持 fail-closed。证据：UNIT/FAKE（真实的 SDK stream owner 与 Store，脚本化的提供方会话），SimNow NOT_RUN。
+
+**进程日志（D62-38 第 7 点，2026-11-06）**：`bt_api_ctp` 的连接、登录和恢复日志是 INFO 级，Python 在没有配置日志时
+只显示 WARNING 及以上，所以以前看不到这些行。`run.py` 启动时在根日志器上装一个输出（stderr，或 `logging.file`），
+`bt_api_ctp` 用 `logging.level`，其余日志器（包括本来静默的 backtrader 日志器）用 `logging.other_level`，并打印
+`Logging: bt_api_ctp=… other=… to=…`；`--dry-run` 只校验并打印，不创建文件。未知键或无效级别拒绝启动。
+这些日志行只含连接代际、交易日、原因码、重试间隔与次数和行情前置地址，不含用户名、密码或认证码；输出还经过
+backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防线。上面的重同步成功行是 backtrader 的 INFO 行，
+要看到它把 `logging.other_level` 设为 `INFO`。`_gateway` 版本的行情会话运行在 `gateway_host.py` 子进程里，
+这个设置不作用于子进程（本次未改），所以 Gateway 的行情连接与恢复行仍看不到；主进程交易会话的行可见。
 
 ## 订单规则
 
