@@ -407,6 +407,12 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # Its BarEvent keeps complete=False and the flags either way; the line
         # bar's quality is readable through line_bar_quality().
         ("incomplete_volume_bars", "lines"),
+        # D62-38 decision 3 (user 2026-11-06): opt-in strict volume continuity
+        # per strategy/feed. When True, volume-accounting defects
+        # (VOLUME_INCOMPLETE, VOLUME_DISCONTINUITY and a VOLUME_BASELINE tick)
+        # block like data defects again, as before D62-38: the feed degrades
+        # and the tick is not tradable. Default False (bar-only flags).
+        ("strict_volume_continuity", False),
         ("price_tick", None),
         ("clock", None),
         # Optional bounded per-bucket quote capture for the strict options
@@ -463,6 +469,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ):
             raise ValueError("incomplete_volume_bars must be 'lines' or 'notify_only'")
         self._incomplete_volume_bars = incomplete_volume_bars
+        if type(self.p.strict_volume_continuity) is not bool:
+            raise ValueError("strict_volume_continuity must be a bool")
+        self._strict_volume_continuity = self.p.strict_volume_continuity
         self._line_bar_quality = None
         if self.p.closed_bar_evidence_provider is not None and not callable(
             self.p.closed_bar_evidence_provider
@@ -2361,8 +2370,12 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # own size, and that bar is marked. Gap/unknown continuity still blocks.
         # The cohort keeps the narrower 2026-11-06 rule (``continuous`` only).
         continuity = _tick_continuity(tick)
+        strict_volume = getattr(self, "_strict_volume_continuity", False)
+        if strict_volume and typed_market_tick and not volume_complete and delta == 0:
+            # Strict mode (decision 3): the volume baseline blocks too.
+            blocking.add("VOLUME_BASELINE")
         volume_flags = blocking & _VOLUME_ACCOUNTING_TICK_FLAGS
-        if volume_flags and (
+        if volume_flags and not strict_volume and (
             continuity in _ATTESTED_CONTINUITY if relaxed else continuity == "continuous"
         ):
             blocking -= volume_flags
