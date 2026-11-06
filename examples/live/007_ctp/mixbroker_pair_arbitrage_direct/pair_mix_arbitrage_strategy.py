@@ -262,15 +262,17 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
     def _limit_price(self, data, side):
         """Marketable limit price: ``slippage_ticks`` ticks through the last price.
 
-        Tick callbacks can run while a feed is loading its next line, whose
-        values are not written yet (``close[0]`` reads 0): the last written
-        line is used then. Returns ``None`` when no valid last price is known.
+        The last price is the strategy's latest tick of the instrument when it
+        tracks one, else the feed line: tick callbacks can run while a feed is
+        loading its next line, whose values are not written yet (``close[0]``
+        reads 0), so the last written line follows. Returns ``None`` when no
+        valid last price is known.
         """
         last = None
-        for ago in (0, -1):
+        for value in self._last_price_candidates(data):
             try:
-                value = float(data.close[ago])
-            except (IndexError, TypeError, ValueError):
+                value = float(value)
+            except (TypeError, ValueError):
                 continue
             if math.isfinite(value) and value > 0:
                 last = value
@@ -280,6 +282,26 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         offset = float(self.p.slippage_ticks) * float(self.p.price_tick)
         price = last + offset if side == "buy" else last - offset
         return price if price > 0 else None
+
+    def _last_price_candidates(self, data):
+        """Most recent first: tracked tick prices, then the feed lines."""
+        symbol = str(getattr(data, "_name", None) or getattr(data, "_dataname", None) or "")
+        latest = getattr(self, "latest_prices", None)
+        if isinstance(latest, dict):
+            yield latest.get(symbol)
+        bars = getattr(self, "_tick_bars", None)
+        if isinstance(bars, dict) and isinstance(bars.get(symbol), dict):
+            yield bars[symbol].get("close")
+        if symbol and symbol == str(getattr(self.p, "symbol", "") or ""):
+            yield getattr(self, "latest_tick_price", None)
+            prices = getattr(self, "prices", None)
+            if prices:
+                yield prices[-1]
+        for ago in (0, -1):
+            try:
+                yield data.close[ago]
+            except (IndexError, TypeError, ValueError):
+                continue
 
     def _close_plan(self, data, side, quantity):
         """Explicit close offsets for ``close_offset="auto"`` (never a fixed close_today).
