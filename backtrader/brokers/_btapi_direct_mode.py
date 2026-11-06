@@ -29,6 +29,7 @@ import hashlib
 import math
 import threading
 import time
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -393,6 +394,7 @@ class BtApiDirectModeMixin:
         }
         prices = dict(snapshot.get("position_prices") or {})
         snapshot_day = snapshot.get("trading_day")
+        self._direct_seed_configured_venues()
         venue: Dict[str, Dict[str, Any]] = {}
         for fact in facts.positions or ():
             fact = _leg_fact(fact)
@@ -1005,6 +1007,30 @@ class BtApiDirectModeMixin:
             ),
             quantity_unit=self._direct_quantity_unit(meta["symbol"]),
         )
+
+    def _direct_seed_configured_venues(self) -> None:
+        """Start from the venues the host configured for its instruments.
+
+        CTP orders carry an explicit ``ExchangeID``. A venue configured in the
+        Store's ``contract_metadata`` (``instrument_key`` or ``exchange``) is
+        used until the venue itself reports one (account facts and order
+        identities overwrite it), so an order never waits for the provider's
+        instrument-catalog lookup: on SimNow (2026-11-06) the full catalog
+        query outlasted its order-path budget and a restored waiting order was
+        refused ``ctp_direct_exchange_id_required``. A wrong configured venue
+        is rejected by the venue, not trusted for anything else.
+        """
+        if not self._direct_require_offset:
+            return  # only CTP-style routes send an exchange id
+        metadata = getattr(self.store, "contract_metadata", None) or {}
+        for symbol, entry in dict(metadata).items():
+            if not isinstance(entry, Mapping):
+                continue
+            key = entry.get("instrument_key")
+            venue = getattr(key, "venue", None) if key is not None else None
+            venue = venue or entry.get("exchange_id") or entry.get("exchange")
+            if isinstance(venue, str) and venue.strip():
+                self._direct_symbol_venue.setdefault(str(symbol), venue.strip().upper())
 
     def _direct_quantity_unit(self, symbol: str) -> str:
         """Order quantity unit of ``symbol`` (``contract_metadata`` ``quantity_unit``).
