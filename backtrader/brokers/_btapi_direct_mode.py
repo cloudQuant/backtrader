@@ -98,6 +98,19 @@ def _num(value: Any) -> float:
     return number if math.isfinite(number) else 0.0
 
 
+def _positive_finite(value: Any, *, absolute: bool = False) -> bool:
+    """``value`` is a finite number above zero (its magnitude when ``absolute``)."""
+    if value is None or isinstance(value, bool):
+        return False
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return False
+    if absolute:
+        number = abs(number)
+    return math.isfinite(number) and number > 0
+
+
 def identity_keys(fields: Dict[str, Any], client_order_id: Optional[str]) -> List[tuple]:
     """Lookup keys of one native identity.
 
@@ -865,6 +878,12 @@ class BtApiDirectModeMixin:
             return self._direct_blocked[symbol]
         if order.exectype not in (Order.Limit, Order.Market):
             return "order_type_unrepresentable"
+        if not _positive_finite(order.size, absolute=True):
+            return "order_size_invalid"
+        if order.exectype == Order.Limit and not _positive_finite(order.price):
+            # e.g. a price computed from a feed line that is not written yet
+            # (SimNow 2026-11-06: 0 + 2 ticks); refused here, never sent.
+            return "limit_price_invalid"
         if meta["valid_intent"].get("kind") not in ("unspecified", "day"):
             return "order_validity_unrepresentable"
         offset = meta["offset"]
@@ -928,7 +947,12 @@ class BtApiDirectModeMixin:
         return order
 
     def _direct_dispatch(self, order: Order, meta: Dict[str, Any]) -> Order:
-        request = self._direct_request(order, meta)
+        try:
+            request = self._direct_request(order, meta)
+        except (TypeError, ValueError) as exc:
+            # The SDK request DTO refused a field: a local refusal, never an
+            # exception into strategy code; nothing was reserved or sent.
+            return self._direct_reject(order, f"request_unrepresentable:{str(exc)[:80]}")
         port = self._direct_state.pending.bind(local_seq=meta["local_seq"], bt_ref=order.ref)
         summary = {
             "local_seq": meta["local_seq"],
