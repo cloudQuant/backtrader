@@ -59,7 +59,9 @@ class _Driver:
         )
         tick = adapt_market_tick_event(event)
         self.feed._prepare_tick(tick)
-        if self.feed._handle_event_health(tick):
+        # A tick behind the latest event time is dropped by the drain loop
+        # (D62-38); any other unhealthy tick stops here as before.
+        if getattr(tick, "event_time_regressed", False) or self.feed._handle_event_health(tick):
             return set(getattr(tick, "quality_flags", ()) or ())
         self.feed._ingest_tick(tick)
         self.feed._flush_ready_bars(reason="tick")

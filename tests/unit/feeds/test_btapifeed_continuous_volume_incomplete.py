@@ -195,7 +195,9 @@ def test_tick_timeframe_line_takes_the_jump_row():
 # -- real gaps are unchanged ---------------------------------------------------
 
 
-@pytest.mark.parametrize("continuity", ["gap", "recovered", "snapshot", "ok", "unknown"])
+# D62-38 (later on 2026-11-06) widened the bar-only rule to every attested
+# continuity (snapshot, ok, recovered): see test_btapifeed_d62_38_feed_health.
+@pytest.mark.parametrize("continuity", ["gap", "unknown"])
 def test_incomplete_volume_without_continuous_continuity_still_blocks(continuity):
     event = _event(9, 11, **JUMP)
     tick = ingest_market_tick_event(event, event_time_max_age=2.0).tick

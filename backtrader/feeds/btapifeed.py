@@ -72,6 +72,43 @@ _TRADE_ONLY_TICK_FLAGS = frozenset(
     }
 ) | MARKET_TICK_QUALIFICATION_REASONS
 
+# Iteration 62, D62-38 (user decision 2026-11-06): feed health (LIVE/DELAYED)
+# and live-order use gate only on price freshness, the current connection
+# without local message loss, quote validity and the trading phase. The flag
+# families below describe other dimensions; on an ordinary (non-cohort) feed
+# they never degrade the feed by themselves.
+#
+# Continuity values with which a provider attests the current connection and
+# no local message loss (the same values that restore LIVE).
+_ATTESTED_CONTINUITY = frozenset({"ok", "continuous", "recovered", "snapshot"})
+# Volume accounting (CTP baseline/reset, OKX/Binance trade-id jumps): only
+# marks the tick's bar when the continuity is attested; it never blocks orders.
+_VOLUME_ACCOUNTING_TICK_FLAGS = frozenset({"VOLUME_INCOMPLETE", "VOLUME_DISCONTINUITY"})
+# Quote-shape warnings: a locked book, an empty side, or a one-sided book at
+# the snapshot's own limit price is a valid quote. Kept on the tick and as the
+# bar's ``quality_warnings``; never a data defect.
+_QUOTE_WARNING_TICK_FLAGS = frozenset(
+    {
+        "LOCKED_BOOK",
+        "ZERO_DEPTH",
+        "BID_DEPTH_ZERO",
+        "ASK_DEPTH_ZERO",
+        "LIMIT_LOCKED_UP",
+        "LIMIT_LOCKED_DOWN",
+    }
+)
+# Bar construction: the tick cannot enter its bar (bucket already closed or
+# behind the event-time watermark, or the first tick of a newer connection or
+# subscription scope, whose open bars were invalidated). Not a feed defect.
+_BAR_CONSTRUCTION_TICK_FLAGS = frozenset(
+    {
+        "BUCKET_ALREADY_CLOSED",
+        "LATE_AFTER_WATERMARK",
+        "CONNECTION_GENERATION_CHANGED",
+        "SUBSCRIPTION_EPOCH_CHANGED",
+    }
+)
+
 
 def _separates_trade_qualification(tick):
     """Whether the tick came from the qualification-separating SDK ingest path."""
@@ -79,11 +116,68 @@ def _separates_trade_qualification(tick):
 
 
 def _data_quality_flags(tick):
-    """Tick quality flags that describe its data (all flags on other paths)."""
+    """Tick quality flags that describe its data (all flags on other paths).
+
+    Quote-shape warnings are never data defects of a bar (D62-38).
+    """
     flags = _tick_value(tick, "quality_flags", default=()) or ()
     if not _separates_trade_qualification(tick):
-        return flags
-    return tuple(flag for flag in flags if flag not in _TRADE_ONLY_TICK_FLAGS)
+        return tuple(flag for flag in flags if flag not in _QUOTE_WARNING_TICK_FLAGS)
+    return tuple(
+        flag
+        for flag in flags
+        if flag not in _TRADE_ONLY_TICK_FLAGS and flag not in _QUOTE_WARNING_TICK_FLAGS
+    )
+
+
+def _quote_warning_flags(tick):
+    """Quote-shape warnings of one tick (D62-38); they never make a bar incomplete."""
+    flags = _tick_value(tick, "quality_flags", default=()) or ()
+    return tuple(flag for flag in flags if flag in _QUOTE_WARNING_TICK_FLAGS)
+
+
+def _limit_locked_side(tick, price, bid, ask, bid_size, ask_size):
+    """``"UP"``/``"DOWN"`` for a one-sided book at the snapshot's own limit (D62-38).
+
+    Limit up: no ask (missing or non-positive price, zero size) and the bid
+    exactly equal to this snapshot's upper limit price; limit down mirrors it.
+    The last price must be positive and inside the limits. Anything else (an
+    unknown limit, a near miss, both sides missing) is not a limit lock, so
+    the missing side's price stays an invalid quote (fail closed).
+    """
+    if price is None or price <= 0:
+        return None
+    upper = _finite_market_number(
+        _tick_value(tick, "upper_limit_price", "upper_limit", default=None)
+    )
+    lower = _finite_market_number(
+        _tick_value(tick, "lower_limit_price", "lower_limit", default=None)
+    )
+    bid_missing = bid is None or bid <= 0
+    ask_missing = ask is None or ask <= 0
+    if (
+        ask_missing
+        and not bid_missing
+        and ask_size == 0
+        and upper is not None
+        and upper > 0
+        and bid == upper
+        and price <= upper
+        and (lower is None or price >= lower)
+    ):
+        return "UP"
+    if (
+        bid_missing
+        and not ask_missing
+        and bid_size == 0
+        and lower is not None
+        and lower > 0
+        and ask == lower
+        and price >= lower
+        and (upper is None or price <= upper)
+    ):
+        return "DOWN"
+    return None
 
 
 def _tick_continuity(tick):
@@ -279,6 +373,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ("bar_watermark_ms", 500),
         ("event_time_max_age", 2.0),
         ("receive_time_max_age", 2.0),
+        # D62-38: consecutive real-time ticks whose exchange time went
+        # backwards before the feed degrades; fewer are dropped and counted.
+        ("event_time_regression_limit", 3),
         ("price_tick", None),
         ("clock", None),
         # Optional bounded per-bucket quote capture for the strict options
@@ -324,6 +421,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 keys are forwarded to the base class unchanged.
         """
         super().__init__(*args, **kwargs)
+        regression_limit = self.p.event_time_regression_limit
+        if type(regression_limit) is not int or regression_limit < 1:
+            raise ValueError("event_time_regression_limit must be an int >= 1")
+        self._event_time_regression_limit = regression_limit
+        self._event_time_regression_run = 0
         if self.p.closed_bar_evidence_provider is not None and not callable(
             self.p.closed_bar_evidence_provider
         ):
@@ -648,6 +750,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._initial_volume_baseline_start = None
             self._last_market_scope = None
             self._highest_market_scope = None
+            self._event_time_regression_run = 0
             self._tick_consumer_claimed = False
             self._session_active = False
             self._tick_trade_state = (None, None)
@@ -772,7 +875,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         return dict(self._bar_integrity)
 
     def tick_ingest_error_counts(self):
-        """Counts of real-time SDK ticks dropped per finite ingestion error code."""
+        """Counts of real-time SDK ticks dropped per finite ingestion error code.
+
+        ``OUT_OF_ORDER_EVENT_TIME`` counts ticks dropped because their exchange
+        time went backwards (D62-38).
+        """
         return dict(self._tick_ingest_errors)
 
     def historical_warmup_active(self):
@@ -864,6 +971,30 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             ),
             code.lower(),
         )
+        try:
+            throttled_warning(
+                logger,
+                "btapifeed.tick_ingest_error." + code,
+                "btapifeed: dropped real-time tick for %s: %s",
+                _redact_diagnostic(self._dataname),
+                code,
+                exc_info=False,
+            )
+        except Exception:
+            _LOGGING_HEALTH["logging_errors"] += 1
+
+    def _drop_regressed_tick(self, tick):
+        """Drop one real-time tick whose exchange time went backwards (D62-38).
+
+        Counted under ``OUT_OF_ORDER_EVENT_TIME`` in
+        :meth:`tick_ingest_error_counts`, closed in Store accounting and logged
+        through the throttled logger. It is not dispatched, does not enter a
+        bar, does not move the event-time watermark and does not replace the
+        last admitted tick's trade qualification.
+        """
+        code = "OUT_OF_ORDER_EVENT_TIME"
+        self._tick_ingest_errors[code] += 1
+        self._mark_event_dropped(tick, code.lower())
         try:
             throttled_warning(
                 logger,
@@ -1213,6 +1344,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._check_cohort_stream_health()
             if tick is None:
                 break
+            previous_trade_state = self._tick_trade_state
             if self._replay_tick_adapter is None:
                 event = tick
                 try:
@@ -1286,6 +1418,12 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 tick,
                 quote_only=quote_only or not market_factor_planned_minute,
             )
+            if _tick_value(tick, "event_time_regressed", default=False) is True:
+                # D62-38: dropped; the last admitted tick keeps deciding trade
+                # qualification (its receipt age keeps growing).
+                self._tick_trade_state = previous_trade_state
+                self._drop_regressed_tick(tick)
+                continue
             expired_after_normalize = self._cohort_prepare_deadline_expired(deadline_ns)
 
             if self._handle_event_health(tick):
@@ -1353,9 +1491,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         data = event.data
         if data.volume_complete or data.cumulative_volume is None:
             return False
-        if _tick_continuity(tick) == "continuous" and (data.delta_volume or 0) > 0:
-            # Bar-only incomplete volume on a continuous stream (2026-11-06) is
-            # not a cold-start baseline: its bucket is built and marked.
+        continuity = _tick_continuity(tick)
+        attested = (
+            continuity in _ATTESTED_CONTINUITY
+            if self._live_bar_cohort is None
+            else continuity == "continuous"
+        )
+        if attested and (data.delta_volume or 0) > 0:
+            # Bar-only incomplete volume on an attested stream (2026-11-06,
+            # D62-38) is not a cold-start baseline: its bucket is built and marked.
             return False
         trading_date = data.trading_date
         if type(trading_date) is not str or not trading_date:
@@ -1562,6 +1706,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             trade_flags = _trade_only_flags(tick)
             if trade_flags:
                 tick_bar.trade_qualification_flags = tuple(sorted(trade_flags))
+            warnings = _quote_warning_flags(tick)
+            if warnings:
+                tick_bar.quality_warnings = tuple(sorted(warnings))
             self._enqueue_bar_event(tick_bar, tick_dt, bar_source=_tick_mark_source(tick))
             return
 
@@ -1613,6 +1760,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 current["quality_flags"].add("EVENT_SESSION_DATE_NOT_UNIFORM")
             current["quality_flags"].update(_data_quality_flags(tick))
             current["trade_qualification_flags"].update(_trade_only_flags(tick))
+            current["quality_warnings"].update(_quote_warning_flags(tick))
             self._capture_quote(current, tick)
             return
 
@@ -1676,6 +1824,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             # Trade-only flags never make a bar incomplete; they mark it as
             # built from at least one tick that was not trade-qualified.
             "trade_qualification_flags": set(_trade_only_flags(tick)),
+            # Quote-shape warnings (D62-38) never make a bar incomplete.
+            "quality_warnings": set(_quote_warning_flags(tick)),
         }
         if replay:
             # Replay-local identity is intentionally disjoint from live stream
@@ -1926,6 +2076,19 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             tick, replay_adapter_available=self._replay_tick_adapter is not None,
             legacy_schema="backtrader.tick.v1",
         )
+        # The research cohort keeps its strict source boundary: every flag
+        # that blocked before D62-38 still blocks there.
+        relaxed = self._live_bar_cohort is None
+        if typed_market_tick and relaxed:
+            locked = _limit_locked_side(tick, price, bid, ask, bid_size, ask_size)
+            if locked is not None:
+                # D62-38 (decision 6b): a one-sided book at this snapshot's own
+                # limit price is a valid quote; the empty side is not invalid.
+                # A crossed-book flag there compares against the empty side's
+                # transported 0.0 (CTP's DBL_MAX sentinel), not a real price.
+                flags.discard("ASK_PRICE_INVALID" if locked == "UP" else "BID_PRICE_INVALID")
+                flags.discard("CROSSED_BOOK")
+                flags.add("LIMIT_LOCKED_" + locked)
 
         price_tick = self._cached_price_tick()
         if typed_market_tick and price_tick is None:
@@ -1977,6 +2140,12 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             bucket_end.replace(tzinfo=_UTC).timestamp() if bucket_end is not None else None
         )
         watermark_delay = max(float(self.p.bar_watermark_ms or 0.0), 0.0) / 1000.0
+        # The exchange event time went backwards (also when the tick is late).
+        regressed = (
+            self._max_event_timestamp is not None
+            and tick_ts is not None
+            and tick_ts < self._max_event_timestamp
+        )
         if (
             self._timeframe != TimeFrame.Ticks
             and prior_watermark is not None
@@ -2041,7 +2210,33 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ):
             flags.add("BUCKET_ALREADY_CLOSED")
 
-        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags and not retired_market_scope:
+        # D62-38 (user decision 2026-11-06): one tick whose exchange time went
+        # backwards (e.g. a front re-delivering an older snapshot) is dropped
+        # by the caller without degrading the feed. ``event_time_regression_
+        # limit`` consecutive ones are a sustained clock problem: from then on
+        # each degrades the feed as before, until a tick that is not behind.
+        # Live Store ticks only; the cohort and replay keep the old handling.
+        drop_regressed = False
+        if scope_flag is not None and scope_flag not in {
+            "MARKET_SCOPE_INVALID",
+            "RETIRED_CONNECTION_SCOPE",
+        }:
+            self._event_time_regression_run = 0  # a newer scope starts a new timeline
+        if regressed and relaxed and self._replay_tick_adapter is None:
+            self._event_time_regression_run += 1
+            if self._event_time_regression_run < self._event_time_regression_limit:
+                drop_regressed = True
+            else:
+                flags.add("OUT_OF_ORDER_EVENT_TIME")
+        elif tick_ts is not None and not regressed:
+            self._event_time_regression_run = 0
+
+        if (
+            tick_ts is not None
+            and "EVENT_TIME_CONFLICT" not in flags
+            and not retired_market_scope
+            and not drop_regressed
+        ):
             if self._max_event_timestamp is None or tick_ts >= self._max_event_timestamp:
                 self._max_event_timestamp = tick_ts
             if not replay_market_tick:
@@ -2062,17 +2257,27 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             flags.add("VOLUME_BASELINE")
         if typed_market_tick and not volume_complete and delta > 0:
             flags.add("VOLUME_INCOMPLETE")
-            if _tick_continuity(tick) == "continuous":
-                # User decision 2026-11-06 (iteration 62): when the provider
-                # attests an uninterrupted stream (e.g. an OKX trade-id jump on
-                # one connection), incomplete volume is a bar-only flag. The
-                # tick stays healthy and tradable and enters its bar with its
-                # own size; that bar is marked incomplete. Any other continuity
-                # (gap, baseline, recovery, unknown) still blocks.
-                if bucket_start is not None and not quote_only:
-                    self._add_bar_quality_override(bucket_start, "VOLUME_INCOMPLETE")
-            else:
-                blocking.add("VOLUME_INCOMPLETE")
+            blocking.add("VOLUME_INCOMPLETE")
+        # D62-38 (user decisions 2026-11-06): volume accounting is a bar-only
+        # flag whenever the provider attests the current connection without
+        # local loss (an OKX/Binance trade-id jump, a CTP baseline or volume
+        # reset): the tick stays healthy and tradable, enters its bar with its
+        # own size, and that bar is marked. Gap/unknown continuity still blocks.
+        # The cohort keeps the narrower 2026-11-06 rule (``continuous`` only).
+        continuity = _tick_continuity(tick)
+        volume_flags = blocking & _VOLUME_ACCOUNTING_TICK_FLAGS
+        if volume_flags and (
+            continuity in _ATTESTED_CONTINUITY if relaxed else continuity == "continuous"
+        ):
+            blocking -= volume_flags
+            if bucket_start is not None and not quote_only:
+                self._add_bar_quality_override(bucket_start, *sorted(volume_flags))
+        # Bar-construction flags keep the tick out of its bar only.
+        bar_only = blocking & _BAR_CONSTRUCTION_TICK_FLAGS if relaxed else frozenset()
+        if relaxed:
+            # Quote-shape warnings never block (D62-38 decision 6b).
+            blocking -= _QUOTE_WARNING_TICK_FLAGS
+            blocking -= bar_only
         # D62-27: on the qualification-separating path only data-integrity
         # flags stop bar building; every blocking flag still stops execution.
         data_blocking = (
@@ -2082,14 +2287,19 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # incomplete. Preserve that evidence before _ingest_tick declines to
         # mutate OHLCV. Otherwise a later watermark could publish the earlier
         # trades as a deceptively complete bar after a volume/order/time gap.
-        if bucket_start is not None and data_blocking and not quote_only:
+        if (
+            bucket_start is not None
+            and (data_blocking or bar_only)
+            and not quote_only
+            and not drop_regressed  # its lost volume is marked ORDERING_VOLUME_GAP
+        ):
             already_closed = (
                 self._last_closed_bucket_end is not None
                 and bucket_end is not None
                 and bucket_end <= self._last_closed_bucket_end
             )
             if not already_closed:
-                self._add_bar_quality_override(bucket_start, *data_blocking)
+                self._add_bar_quality_override(bucket_start, *data_blocking, *bar_only)
         execution_eligible = (
             (
                 not replay_market_tick
@@ -2098,7 +2308,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             and not blocking
             and all(value is not None and value > 0 for value in (bid, ask, bid_size, ask_size))
         )
-        bar_eligible = not data_blocking and price is not None and price > 0 and delta > 0
+        bar_eligible = (
+            not data_blocking and not bar_only and price is not None and price > 0 and delta > 0
+        )
         _set_tick_value(tick, "quality_flags", tuple(sorted(flags)))
         _set_tick_value(
             tick,
@@ -2109,6 +2321,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             _set_tick_value(tick, "data_quality", "GOOD" if not data_blocking else "INVALID")
         _set_tick_value(tick, "execution_eligible", execution_eligible)
         _set_tick_value(tick, "bar_eligible", bar_eligible and not replay_binding_invalid)
+        if drop_regressed:
+            _set_tick_value(tick, "event_time_regressed", True)
+            _set_tick_value(tick, "bar_eligible", False)
         if not quote_only:
             self._prune_bar_quality_overrides()
 
@@ -2234,6 +2449,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     # Present only when some tick in the bucket was not
                     # trade-qualified; the bar's data quality is unaffected.
                     extensions["trade_qualification_flags"] = tuple(sorted(trade_flags))
+                warnings = current.get("quality_warnings")
+                if warnings:
+                    # Present only when some tick in the bucket had a valid but
+                    # unusual quote shape (D62-38); the bar stays complete.
+                    extensions["quality_warnings"] = tuple(sorted(warnings))
                 for name in (
                     "clock_domain_id",
                     "market_factor_calendar_digest",
