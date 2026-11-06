@@ -628,6 +628,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         self._tick_consumer_claimed = False
         self._history_backfilled = bool(self._cohort_history_source) or bool(self._history)
         self._continuity_degraded = False
+        self._stream_recovery_reader = None
         self._session_active = False
         # (last admitted real-time tick's MarketTickQualification or None,
         #  ingestion error code seen after it or None). Replaced as one
@@ -647,6 +648,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._live_notified = False
             self._continuity_degraded = False
             self._tick_trade_state = (None, None)
+        # D62-38 point 7: the Store's reason why its tick channel delivers
+        # nothing (absent on stores without an SDK market stream).
+        self._stream_recovery_reader = getattr(self.store, "tick_stream_recovery_reason", None)
         claimed_this_start = False
         try:
             super().start()
@@ -1438,6 +1442,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 raise
             self._check_cohort_stream_health()
             if tick is None:
+                if self._live_notified and not self._continuity_degraded:
+                    self._note_stream_recovery()
                 break
             previous_trade_state = self._tick_trade_state
             if self._replay_tick_adapter is None:
@@ -2773,7 +2779,37 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         }:
             self._continuity_degraded = False
             self._mark_live()
+            _safe_log("info", "btapifeed: %s LIVE again", self._dataname)
         return False
+
+    def _note_stream_recovery(self):
+        """Leave LIVE while the Store's tick channel is in recovery (D62-38 point 7).
+
+        A disconnected source delivers no tick, so no tick can degrade this
+        feed: SimNow 2026-11-07 showed a feed staying LIVE through a front
+        disconnect. When a poll returns nothing and the Store reports its
+        channel in recovery (e.g. a lost CTP source being replaced), the feed
+        turns DELAYED; the next healthy tick of the resynced channel makes it
+        LIVE again (see ``_handle_event_health``). Called only while LIVE.
+        """
+        reader = self._stream_recovery_reader
+        if reader is None:
+            return
+        try:
+            reason = reader(self._dataname)
+        except Exception:
+            _safe_log("warning", "btapifeed: stream recovery reason unavailable")
+            return
+        if not reason:
+            return
+        stale_reason = "sdk_market_stream_recovery:" + str(reason)
+        self.put_notification(self.DELAYED, stale_reason=stale_reason, event_id="")
+        self._live_notified = False
+        self._continuity_degraded = True
+        try:
+            self._warn_delayed("stream_recovery", stale_reason, ())
+        except Exception:
+            _LOGGING_HEALTH["logging_errors"] += 1
 
     def _log_degraded(self, event_data, continuity, stale):
         """Log at a LIVE -> DELAYED transition why the feed left LIVE.
@@ -2793,19 +2829,25 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             else:
                 cause = "data_not_executable"
             flags = _tick_value(event_data, "quality_flags", default=()) or ()
-            throttled_warning(
-                logger,
-                "btapifeed.feed_delayed." + str(self._dataname),
-                "btapifeed: %s DELAYED (cause=%s, stale_reason=%s, flags=%s, price_tick=%s)",
-                _redact_diagnostic(self._dataname),
-                cause,
-                _redact_diagnostic(_tick_value(event_data, "stale_reason", default="") or "-"),
-                ",".join(str(flag) for flag in flags) or "-",
-                self._cached_price_tick(),
-                exc_info=False,
+            self._warn_delayed(
+                cause, _tick_value(event_data, "stale_reason", default="") or "-", flags
             )
         except Exception:
             _LOGGING_HEALTH["logging_errors"] += 1
+
+    def _warn_delayed(self, cause, stale_reason, flags):
+        """One throttled DELAYED line per feed: cause, reason, quality flags, tick."""
+        throttled_warning(
+            logger,
+            "btapifeed.feed_delayed." + str(self._dataname),
+            "btapifeed: %s DELAYED (cause=%s, stale_reason=%s, flags=%s, price_tick=%s)",
+            _redact_diagnostic(self._dataname),
+            cause,
+            _redact_diagnostic(stale_reason),
+            ",".join(str(flag) for flag in flags) or "-",
+            self._cached_price_tick(),
+            exc_info=False,
+        )
 
     def get_logging_health(self):
         """Return the number of feed log-sink failures observed in this process."""

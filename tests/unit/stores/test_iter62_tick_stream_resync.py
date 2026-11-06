@@ -111,6 +111,7 @@ class _RestartingSession:
         self.resync_calls = 0
         self.inject = None
         self.bootstrap = None
+        self.outage = False
 
     def _binding(self, request, key, token, epoch):
         source = MarketSourceDescriptor(
@@ -149,15 +150,28 @@ class _RestartingSession:
         for channel in self.channels.values():
             channel.payloads.append(payload)
 
+    def lose(self):
+        """The source was lost and is being replaced (bt_api_ctp, SimNow 2026-11-07).
+
+        Every poll fails and nothing is declared until ``restart`` (the SDK
+        owner reports ``PROVIDER_POLL_FAILED``, which is never resynced).
+        """
+        self.outage = True
+        for channel in self.channels.values():
+            channel.payloads.clear()
+
     def restart(self):
         """The provider confirmed a new MD session (CTP: re-login after 4097)."""
         self.generation += 1
         self.restart_pending = True
+        self.outage = False
 
     def poll(self, *, timeout_ms, max_events):
         if self.inject is not None:
             inject, self.inject = self.inject, None
             return inject(self)
+        if self.outage:
+            raise MarketStreamProviderContractError("MARKET_STREAM_PROVIDER_EVENT_INVALID")
         if self.restart_pending:
             self.restart_pending = False
             for channel in self.channels.values():
@@ -608,6 +622,9 @@ class _FeedStore:
     def poll_tick(self, name):
         return self.store.poll_tick(name)
 
+    def tick_stream_recovery_reason(self, name):
+        return self.store.tick_stream_recovery_reason(name)
+
     def poll_live(self, _name):
         return None
 
@@ -678,5 +695,100 @@ def test_feed_drops_the_open_bar_and_trades_on_the_first_fresh_tick_after_resync
         assert [(bar.complete, deliver) for bar, deliver in bars[1:]] == [(True, True)]
         assert session.resync_calls == 1
         assert _health(store)["tick_sdk_resyncs"] == 1
+    finally:
+        feed.stop()
+
+
+# -- an outage before the restart (SimNow 2026-11-07, D62-38 point 7) ----------
+
+
+def test_an_outage_is_reported_and_never_resynced_until_the_restart(env):
+    store, session, _mono, _records = env
+    session.push(_payload(10, generation=1))
+    assert store.poll_tick(SYMBOL) is not None
+    assert store.tick_stream_recovery_reason(SYMBOL) is None
+
+    session.lose()
+    for _ in range(3):
+        assert store.poll_tick(SYMBOL) is None
+        assert store.tick_stream_recovery_reason(SYMBOL) == "PROVIDER_POLL_FAILED"
+    assert session.resync_calls == 0  # an outage has nothing to resync
+
+    session.restart()
+    assert store.poll_tick(SYMBOL) is None  # the restart's failed poll: resynced at once
+    assert session.resync_calls == 1
+    assert store.tick_stream_recovery_reason(SYMBOL) is None
+    session.push(_payload(20, generation=2, **BASELINE))
+    assert store.poll_tick(SYMBOL) is not None
+    assert store.tick_stream_recovery_reason(SYMBOL) is None
+
+
+def test_a_failed_resync_keeps_the_restart_reason_until_it_succeeds(env):
+    store, session, mono, _records = env
+    session.push(_payload(10, generation=1))
+    assert store.poll_tick(SYMBOL) is not None
+    session.resync_failures = 1
+    session.restart()
+    assert store.poll_tick(SYMBOL) is None
+    assert session.resync_calls == 1
+    assert store.tick_stream_recovery_reason(SYMBOL) == "PROVIDER_RESYNC_REQUIRED"
+    mono.now += 60.0  # past the backoff
+    assert store.poll_tick(SYMBOL) is None
+    assert session.resync_calls == 2
+    assert store.tick_stream_recovery_reason(SYMBOL) is None
+
+
+def test_feed_is_delayed_through_an_outage_and_live_on_the_first_fresh_tick(env):
+    store, session, _mono, _records = env
+    clock = _FeedClock()
+    feed = BtApiFeed(
+        dataname=SYMBOL,
+        store=_FeedStore(store),
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+        price_tick=1.0,
+        backfill_start=False,
+        clock=clock,
+        qcheck=0.0,
+    )
+    feed._start()
+
+    def load(second=None, **values):
+        if second is not None:
+            session.push(_payload(second, generation=session.generation, **values))
+            clock.mono = max(clock.mono, MONO0 + int((second + LATENCY) * NS))
+        return feed.load()
+
+    def notifications():
+        return [(status, kwargs) for status, _args, kwargs in feed.get_notifications()]
+
+    try:
+        load(10)
+        assert [status for status, _ in notifications()] == [feed.LIVE]
+
+        # The front disconnects: no tick arrives, the Store reports the outage.
+        session.lose()
+        clock.mono = MONO0 + int(15 * NS)
+        load()
+        delayed = notifications()
+        assert [status for status, _ in delayed] == [feed.DELAYED]
+        assert delayed[0][1]["stale_reason"] == "sdk_market_stream_recovery:PROVIDER_POLL_FAILED"
+        verdict = feed.trade_qualification()
+        assert verdict.live is False and "FEED_NOT_LIVE" in verdict.reasons
+        load()
+        assert notifications() == []  # one transition, not one per poll
+
+        # The provider restarted its MD session: resynced, still no tick.
+        session.restart()
+        load()
+        assert session.resync_calls == 1
+        assert notifications() == []
+        assert feed.trade_qualification().live is False
+
+        # The first tick of the new session is fresh and valid: LIVE and tradable.
+        load(20, **BASELINE)
+        assert [status for status, _ in notifications()] == [feed.LIVE]
+        verdict = feed.trade_qualification()
+        assert (verdict.live, verdict.ok) == (True, True), verdict.reasons
     finally:
         feed.stop()

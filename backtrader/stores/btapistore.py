@@ -540,6 +540,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._tick_stream_resync = TickStreamResyncPolicy(
             enabled=sdk_options.get("market_runtime_factory") is None
         )
+        # D62-38 point 7: why an SDK tick channel delivers nothing (its last
+        # polled result was not ACTIVE), so a Feed can leave LIVE meanwhile.
+        self._tick_stream_recovery: Dict[str, str] = {}
         self._stream_generation = 0
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
@@ -1088,6 +1091,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._sdk_execution_identity_fence.clear_session()
         self._market_delivery_state.reset_generation()
         self._tick_stream_resync.reset()
+        self._tick_stream_recovery.clear()
 
     def _prepare_sdk_start(self) -> None:
         """Check Store-local restart fences through its lifecycle bridge."""
@@ -1765,7 +1769,16 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         resync = self._tick_stream_resync
         if is_active:
             resync.observe_active(symbol)
+            self._tick_stream_recovery.pop(symbol, None)
             return event
+        # D62-38 point 7: remember why this channel delivers nothing, e.g. a
+        # lost source still being replaced (PROVIDER_POLL_FAILED) or a restart
+        # awaiting its resync; the Feed reads it through tick_stream_recovery_reason.
+        self._tick_stream_recovery[symbol] = (
+            "CLEANUP_UNVERIFIED"
+            if cleanup_unverified
+            else str(getattr(result, "recovery_code", None) or "RECOVERY_REQUIRED")
+        )
         # RECOVERY_REQUIRED (CLEANUP_UNVERIFIED is never resynced). Only a
         # provider-declared restart is acknowledged here, with a backoff, and
         # never once this Store was asked to stop (continuity-7).
@@ -1777,6 +1790,19 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         ):
             return self._resync_tick_stream(symbol, route)
         return event
+
+    def tick_stream_recovery_reason(self, dataname: str) -> Optional[str]:
+        """Why this Store's SDK tick channel for ``dataname`` delivers nothing, if so.
+
+        Iteration 62, D62-38 point 7 (DELAYED during a disconnect or a
+        recovery): the recovery code of the last polled result that was not
+        ACTIVE -- ``PROVIDER_POLL_FAILED`` while a lost CTP source is replaced,
+        ``PROVIDER_RESYNC_REQUIRED`` while a restart awaits its resync,
+        ``CLEANUP_UNVERIFIED`` -- and ``None`` once the channel is ACTIVE again
+        or was resynced. A disconnected source delivers no tick that could
+        degrade the Feed, so the Feed reads this when a poll returns nothing.
+        """
+        return self._tick_stream_recovery.get(str(dataname))
 
     def _resync_tick_stream(self, symbol: str, route):
         """Acknowledge one provider-declared tick-stream restart (continuity-7).
@@ -1813,6 +1839,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             )
             return None
         attempts = resync.succeeded(symbol)
+        self._tick_stream_recovery.pop(symbol, None)
         self._market_delivery_state.increment(symbol, "tick_sdk_resyncs")
         _safe_log(
             "info",
