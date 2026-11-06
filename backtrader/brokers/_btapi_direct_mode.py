@@ -86,7 +86,18 @@ _DIRECT_PARAMS = (
     # one confirmation only after a readback proved the earlier one absent).
     # Then the block stays and the report says ``manual_required``.
     ("direct_settlement_resolution_attempts", 10),
+    # Seconds a trade return that matches no own order is held for a re-match
+    # after later order returns (decision 8 of the continuity analysis, user
+    # decision 2026-11-06): a CTP fill can overtake the order return that
+    # carries its OrderSysID when the SDK delivers them in one poll in the
+    # wrong order or across polls.  Both are pushed on one private stream
+    # milliseconds apart, so 5 s covers several event polls and a burst of
+    # throttled returns while a foreign fill is still reported promptly.
+    # Expiry is checked after each event poll, once that poll's returns were
+    # processed; 0 keeps only the same poll.  Then the trade is not ours.
+    ("direct_trade_match_window", 5.0),
 )
+_MAX_BUFFERED_TRADES = 256
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
 _SETTLEMENT_BACKOFF_FACTOR_MAX = 8
 _MAX_SETTLEMENT_READBACK_ENTRIES = 20
@@ -144,6 +155,11 @@ class DirectModeError(RuntimeError):
 
 def _utc_now() -> _dt.datetime:
     return _dt.datetime.now(_dt.timezone.utc)
+
+
+def _monotonic() -> float:
+    """Monotonic seconds of the trade re-match window (patched by tests)."""
+    return time.monotonic()
 
 
 def _utc_text(value: Optional[_dt.datetime] = None) -> str:
@@ -358,6 +374,11 @@ class BtApiDirectModeMixin:
         self._direct_blocked: Dict[str, str] = {}
         self._direct_global_block: Optional[str] = None
         self._direct_foreign_orders: List[Any] = []
+        # Trade returns waiting for their order return (decision 8): key
+        # (trading day, trade key) -> {"event", "deadline"}; strategy thread.
+        self._direct_trade_buffer: "collections.OrderedDict[tuple, Dict[str, Any]]" = (
+            collections.OrderedDict()
+        )
         self._direct_restored: List[Order] = []
         self._direct_deferred_waiting: List[Dict[str, Any]] = []
         self._direct_deferred_restore: List[Any] = []
@@ -435,6 +456,14 @@ class BtApiDirectModeMixin:
         self._direct_stopping = False  # a retry after stop() of a failed start
         if not self.p.strategy_dir:
             raise DirectModeError("strategy_dir_required")
+        window = self.p.direct_trade_match_window
+        if (
+            isinstance(window, bool)
+            or not isinstance(window, (int, float))
+            or not math.isfinite(window)
+            or window < 0
+        ):
+            raise DirectModeError("direct_trade_match_window_invalid")
         store = self.store
         store.start(broker=self)
         self._live_started = True
@@ -1887,12 +1916,16 @@ class BtApiDirectModeMixin:
             )
         except Exception as exc:
             _log.warning("direct event poll failed: %s", type(exc).__name__)
-            return
+            items = ()
         for item in items:
             try:
                 self._direct_process_event(item.event)
             except Exception:
                 _log.exception("direct event projection failed")
+        if self._direct_trade_buffer:
+            # The poll's order returns may have taught the venue order id of a
+            # held fill: re-match first, then release what is past its window.
+            self._direct_expire_buffered_trades()
 
     def _direct_event_keys(self, event: Any) -> tuple:
         """``(fields, keys)`` of a return: identity keys plus its venue order id."""
@@ -1953,9 +1986,10 @@ class BtApiDirectModeMixin:
         """R-3: a day-scoped return that names only an own order of another day.
 
         The venue reused the ids on a new day, so it is not booked there.
-        Like any return without an own order of its day (e.g. a fill ahead of
-        its order return) it stays unmatched, but it is never silent: it is
-        counted under ``other_day_returns`` in the reconcile report and logged.
+        Like any return without an own order of its day it stays unmatched
+        (a fill is first held for ``direct_trade_match_window`` in case its
+        order return follows), but it is never silent: it is counted under
+        ``other_day_returns`` in the reconcile report and logged.
         """
         if not self._direct_require_offset or event.identity is None:
             return
@@ -2013,8 +2047,98 @@ class BtApiDirectModeMixin:
     def _direct_process_event(self, event: Any) -> None:
         order = self._direct_order_for_event(event)
         if order is None:
+            if event.kind.value == "trade":
+                # Possibly ahead of its order return: re-matched for a short
+                # window, then not ours (decision 8).
+                self._direct_buffer_trade(event)
+                return
             self._direct_note_other_day_return(event)
             return  # another client's order: visible to audits, never adopted
+        self._direct_process_matched(order, event)
+
+    # ------------------------------------------------------------------
+    # trade returns ahead of their order return (decision 8, 2026-11-06)
+    # ------------------------------------------------------------------
+    def _direct_trade_buffer_stats(self) -> Dict[str, Any]:
+        return self._direct_report.setdefault(
+            "trade_match_buffer", {"buffered": 0, "matched_late": 0, "expired": 0, "pending": 0}
+        )
+
+    def _direct_buffer_trade(self, event: Any) -> None:
+        """Hold one unmatched trade return; bounded, de-duplicated by trade key."""
+        if event.identity is None:
+            self._direct_unmatched_trade(event, "no_identity")
+            return
+        day = getattr(event, "trading_day", None) or dict(event.identity.fields).get("trading_day")
+        trade_key = self._direct_trade_key(event)
+        key = (str(day or ""), trade_key)
+        if key in self._direct_trade_buffer or trade_key in self._direct_applied_set():
+            return  # a repeated return of a held or already applied fill
+        while len(self._direct_trade_buffer) >= _MAX_BUFFERED_TRADES:
+            _old_key, entry = self._direct_trade_buffer.popitem(last=False)
+            self._direct_unmatched_trade(entry["event"], "buffer_full")
+        window = float(self.p.direct_trade_match_window)
+        self._direct_trade_buffer[key] = {"event": event, "deadline": _monotonic() + window}
+        stats = self._direct_trade_buffer_stats()
+        stats["buffered"] += 1
+        stats["pending"] = len(self._direct_trade_buffer)
+
+    def _direct_retry_buffered_trades(self) -> None:
+        """Apply every held trade that now matches an own order (exactly once)."""
+        for key in list(self._direct_trade_buffer):
+            entry = self._direct_trade_buffer.get(key)
+            if entry is None:
+                continue
+            order = self._direct_order_for_event(entry["event"])
+            if order is None:
+                continue
+            del self._direct_trade_buffer[key]
+            stats = self._direct_trade_buffer_stats()
+            stats["matched_late"] += 1
+            stats["pending"] = len(self._direct_trade_buffer)
+            self._direct_process_matched(order, entry["event"])
+
+    def _direct_expire_buffered_trades(self, *, reason: Optional[str] = None) -> None:
+        """Retry, then release held trades past their window (all, with ``reason``)."""
+        if reason is None:
+            self._direct_retry_buffered_trades()
+        now = _monotonic()
+        for key in list(self._direct_trade_buffer):
+            entry = self._direct_trade_buffer[key]
+            if reason is not None or entry["deadline"] <= now:
+                del self._direct_trade_buffer[key]
+                self._direct_unmatched_trade(entry["event"], reason or "window_expired")
+
+    def _direct_unmatched_trade(self, event: Any, reason: str) -> None:
+        """Today's handling of a fill that is not ours, now counted and logged."""
+        self._direct_note_other_day_return(event)
+        stats = self._direct_trade_buffer_stats()
+        if reason != "no_identity":
+            stats["expired"] += 1
+        stats["pending"] = len(self._direct_trade_buffer)
+        entry = self._direct_report.setdefault(
+            "unmatched_trade_returns", {"count": 0, "reasons": {}, "last": None}
+        )
+        entry["count"] += 1
+        entry["reasons"][reason] = entry["reasons"].get(reason, 0) + 1
+        entry["last"] = {
+            "symbol": event.symbol,
+            "trade_id": getattr(event, "trade_id", None),
+            "exchange_order_id": event.exchange_order_id,
+            "trading_day": getattr(event, "trading_day", None),
+            "reason": reason,
+        }
+        throttled_warning(
+            _log,
+            "direct_unmatched_trade_return",
+            "direct trade return on %s matched no own order (%s): not booked",
+            event.symbol,
+            reason,
+            exc_info=False,
+        )
+
+    def _direct_process_matched(self, order: Order, event: Any) -> None:
+        """Project one return identity-matched to an own order."""
         meta = self._direct_meta[order.ref]
         fields = dict(event.identity.fields) if event.identity is not None else {}
         if event.exchange_order_id and fields.get("exchange_id"):
@@ -3241,6 +3365,10 @@ class BtApiDirectModeMixin:
                 self._direct_drain_events()
             time.sleep(0.05)
         unresolved = [order.ref for order in working if order.alive()] + list(refused)
+        with self._direct_lock:
+            # Nothing held is applied after stop: still unmatched fills are
+            # reported (a restart books ours from the day's trade query).
+            self._direct_expire_buffered_trades(reason="stopped")
         in_flight = self._direct_stop_poller_write(started)
         self._direct_on = False
         self._startup_ready = False

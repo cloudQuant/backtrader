@@ -188,11 +188,12 @@ def test_reused_session_triple_resolves_only_the_order_of_its_trading_day(env):
 
 
 @pytest.mark.parametrize("new_day", [False, True], ids=["same_day", "new_day"])
-def test_fill_before_its_order_return_is_handled_as_on_the_same_day(env, warnings, new_day):
-    """A fill that overtakes its order return stays unmatched, as on the same day.
+def test_fill_before_its_order_return_is_matched_to_its_own_day(env, warnings, new_day):
+    """A fill that overtakes its order return is held, then booked once (decision 8).
 
     On the new day it names the old-day order through the reused OrderSysID:
-    it is not booked there, and it is counted and logged instead of silent.
+    it is never booked there; the day-bound key its order return teaches
+    binds it to the new-day order.
     """
     broker = _started(env)
     old, _old_call = _working(env, broker, "7401")
@@ -203,30 +204,52 @@ def test_fill_before_its_order_return_is_handled_as_on_the_same_day(env, warning
     call = env.api.place_calls[-1]
     env.api.push(_ctp_fill(call.identity, sys_id, "T1"))  # before the order return
     broker.next()
-    assert new.status == bt.Order.Submitted and new.executed.size == 0
+    assert new.status == bt.Order.Submitted and new.executed.size == 0  # held
     assert old.executed.size == 0  # never booked on another order
     assert broker.getposition(env.feed, side="long").size == 0
-    assert broker.getposition(env.other_feed, side="long").size == 0
     env.api.push(order_event(call.identity, "accepted", sys_id=sys_id, qty=2, symbol=OTHER_SYMBOL))
     env.api.push(_ctp_fill(call.identity, sys_id, "T2"))
     broker.next()
-    assert new.status == bt.Order.Partial and new.executed.size == 1
+    assert new.status == bt.Order.Completed and new.executed.size == 2
     assert old.executed.size == 0
+    assert broker.getposition(env.feed, side="long").size == 0
+    assert broker.getposition(env.other_feed, side="long").size == 2
     report = broker.get_direct_reconcile_report()
-    if new_day:
-        other = report["other_day_returns"]
-        assert other["count"] == 1
-        last = other["last"]
-        assert (last["kind"], last["symbol"], last["exchange_order_id"]) == (
-            "trade",
-            OTHER_SYMBOL,
-            "7401",
-        )
-        assert (last["trading_day"], last["order_trading_day"]) == (TOMORROW, TODAY)
-        assert len(warnings) == 1
-    else:
-        assert "other_day_returns" not in report
-        assert warnings == []
+    assert "other_day_returns" not in report
+    assert "unmatched_trade_returns" not in report
+    assert report["trade_match_buffer"]["matched_late"] == 1
+    assert warnings == []
+
+
+def test_held_new_day_fill_naming_only_an_old_day_order_is_counted_at_expiry(
+    env, warnings, monkeypatch
+):
+    """Without its order return the held fill is not ours, as before, and counted."""
+    now = {"value": 1000.0}
+    monkeypatch.setattr(direct_mode, "_monotonic", lambda: now["value"])
+    broker = _started(env)
+    old, _old_call = _working(env, broker, "7401")
+    _switch(env, broker)
+    new = _buy(env, broker, size=2, feed=env.other_feed)
+    call = env.api.place_calls[-1]
+    env.api.push(_ctp_fill(call.identity, "7401", "T1"))
+    broker.next()
+    assert "other_day_returns" not in broker.get_direct_reconcile_report()
+    now["value"] += 5.0  # the window (default 5 s) has passed
+    broker.next()
+    assert new.executed.size == 0 and old.executed.size == 0
+    report = broker.get_direct_reconcile_report()
+    other = report["other_day_returns"]
+    assert other["count"] == 1
+    last = other["last"]
+    assert (last["kind"], last["symbol"], last["exchange_order_id"]) == (
+        "trade",
+        OTHER_SYMBOL,
+        "7401",
+    )
+    assert (last["trading_day"], last["order_trading_day"]) == (TOMORROW, TODAY)
+    assert report["unmatched_trade_returns"]["reasons"] == {"window_expired": 1}
+    assert len(warnings) == 2  # the other-day return and the unmatched fill
 
 
 def test_restored_order_and_a_new_day_order_reusing_its_id_stay_apart(env):
