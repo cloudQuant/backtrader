@@ -109,6 +109,11 @@ _BAR_CONSTRUCTION_TICK_FLAGS = frozenset(
     }
 )
 
+# Provider continuity values that leave the feed's healthy LIVE state.
+_UNHEALTHY_CONTINUITY = frozenset(
+    {"gap", "stale", "disconnected", "checksum_failed", "out_of_order", "invalid"}
+)
+
 # Iteration 62 decision 2: the only flags of a bar that is volume-incomplete
 # rather than invalid (its prices come from healthy ticks).
 _VOLUME_INCOMPLETE_BAR_FLAGS = frozenset(
@@ -2745,14 +2750,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             # Keep unknown book clock/freshness on this event without
             # degrading the Feed's independent tick/bar continuity state.
             return True
-        unhealthy = execution_unavailable or stale or continuity in {
-            "gap",
-            "stale",
-            "disconnected",
-            "checksum_failed",
-            "out_of_order",
-            "invalid",
-        }
+        unhealthy = execution_unavailable or stale or continuity in _UNHEALTHY_CONTINUITY
         if unhealthy:
             if not self._continuity_degraded:
                 self.put_notification(
@@ -2764,6 +2762,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 )
                 # A later verified recovery is a fresh LIVE transition.
                 self._live_notified = False
+                self._log_degraded(event_data, continuity, stale)
             self._continuity_degraded = True
             return True
         if self._continuity_degraded and continuity in {
@@ -2775,6 +2774,38 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._continuity_degraded = False
             self._mark_live()
         return False
+
+    def _log_degraded(self, event_data, continuity, stale):
+        """Log at a LIVE -> DELAYED transition why the feed left LIVE.
+
+        The DELAYED status alone does not say whether the provider's continuity,
+        a stale clock or this feed's own data checks stopped it; e.g. every
+        price off the configured ``price_tick`` grid (a contract configured
+        with the wrong tick) keeps a feed DELAYED with no order ever tried.
+        Throttled per feed: repeated transitions of a flapping source within
+        the throttle window are summarized, not logged one by one.
+        """
+        try:
+            if continuity in _UNHEALTHY_CONTINUITY:
+                cause = "continuity_" + str(continuity)
+            elif stale:
+                cause = "stale"
+            else:
+                cause = "data_not_executable"
+            flags = _tick_value(event_data, "quality_flags", default=()) or ()
+            throttled_warning(
+                logger,
+                "btapifeed.feed_delayed." + str(self._dataname),
+                "btapifeed: %s DELAYED (cause=%s, stale_reason=%s, flags=%s, price_tick=%s)",
+                _redact_diagnostic(self._dataname),
+                cause,
+                _redact_diagnostic(_tick_value(event_data, "stale_reason", default="") or "-"),
+                ",".join(str(flag) for flag in flags) or "-",
+                self._cached_price_tick(),
+                exc_info=False,
+            )
+        except Exception:
+            _LOGGING_HEALTH["logging_errors"] += 1
 
     def get_logging_health(self):
         """Return the number of feed log-sink failures observed in this process."""
