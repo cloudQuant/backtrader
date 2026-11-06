@@ -8,6 +8,7 @@ the live example of the same name carry identical copies of this file.
 from __future__ import annotations
 
 import datetime as _dt
+import math
 from collections import defaultdict, deque
 
 import backtrader as bt
@@ -259,10 +260,26 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             self.log(f"took over restored order {order.ref} offset={order.info.get('offset')}")
 
     def _limit_price(self, data, side):
-        """Marketable limit price: ``slippage_ticks`` ticks through the last price."""
-        last = float(data.close[0])
+        """Marketable limit price: ``slippage_ticks`` ticks through the last price.
+
+        Tick callbacks can run while a feed is loading its next line, whose
+        values are not written yet (``close[0]`` reads 0): the last written
+        line is used then. Returns ``None`` when no valid last price is known.
+        """
+        last = None
+        for ago in (0, -1):
+            try:
+                value = float(data.close[ago])
+            except (IndexError, TypeError, ValueError):
+                continue
+            if math.isfinite(value) and value > 0:
+                last = value
+                break
+        if last is None:
+            return None
         offset = float(self.p.slippage_ticks) * float(self.p.price_tick)
-        return last + offset if side == "buy" else last - offset
+        price = last + offset if side == "buy" else last - offset
+        return price if price > 0 else None
 
     def _close_plan(self, data, side, quantity):
         """Explicit close offsets for ``close_offset="auto"`` (never a fixed close_today).
@@ -328,8 +345,12 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
     def _submit_one(self, side, symbol, data, quantity, offset, signal_tag):
         kwargs = {"data": data, "size": quantity}
         if str(self.p.order_exectype).lower() == "limit":
+            price = self._limit_price(data, side)
+            if price is None:
+                self.log(f"no valid price for {symbol}: {signal_tag} skipped")
+                return None
             kwargs["exectype"] = bt.Order.Limit
-            kwargs["price"] = self._limit_price(data, side)
+            kwargs["price"] = price
         else:
             kwargs["exectype"] = bt.Order.Market
         extra_info = {"offset": offset, "signal_tag": signal_tag}
