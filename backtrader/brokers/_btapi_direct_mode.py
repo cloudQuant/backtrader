@@ -60,7 +60,14 @@ _DIRECT_PARAMS = (
     ("direct_startup_facts_retry_delay", 2.0),
     ("direct_max_events", 256),
     ("check_host_path", True),
+    # Trading-permission facts (D62-25): read once after the startup
+    # reconciliation on routes that need an explicit offset (CTP); an order
+    # is refused locally only on a complete, current, definitive negative.
+    ("direct_permission_check", True),
+    ("direct_permission_timeout", 5.0),
+    ("direct_permission_max_duration", 60.0),
 )
+_MAX_PERMISSION_REPORT_SYMBOLS = 32
 
 
 class DirectModeError(RuntimeError):
@@ -202,6 +209,8 @@ class BtApiDirectModeMixin:
         self._direct_awaiting_bar: List[Any] = []
         self._direct_strategy: Any = None
         self._direct_report: Dict[str, Any] = {}
+        self._direct_permissions: Any = None
+        self._direct_permission_denials: Dict[str, str] = {}
         self._direct_schedule: Any = None
         self._direct_facts_thread: Optional[threading.Thread] = None
         self._direct_facts_stop = threading.Event()
@@ -308,6 +317,7 @@ class BtApiDirectModeMixin:
             if first:
                 self._direct_write_snapshot()
             self._direct_reconcile(facts)
+            self._direct_read_permissions()
             self._direct_settle()
             self._direct_apply_balance(facts.balance)
             try:
@@ -665,6 +675,128 @@ class BtApiDirectModeMixin:
             )
 
     # ------------------------------------------------------------------
+    # trading-permission facts (D62-25, N-1/2, 62.03)
+    # ------------------------------------------------------------------
+    def _direct_read_permissions(self) -> None:
+        """Read the strategy instruments' trading-permission facts once.
+
+        Only on routes that send an explicit offset (CTP); facades or
+        providers without the read leave the Broker unchanged.  The SDK/
+        provider own the facts; the Broker keeps only the definitive
+        negatives of a complete result for :meth:`_direct_precheck` and a
+        bounded, value-free summary under ``report["permissions"]``.  Unknown
+        or incomplete facts never refuse an order (the venue stays
+        authoritative), and they are never treated as a permission either.
+        The BT ``net``/``dual_side`` projection plays no part here.
+        """
+        self._direct_permissions = None
+        self._direct_permission_denials = {}
+        if not self._direct_require_offset or not self.p.direct_permission_check:
+            return
+        reader = getattr(self._direct_api, "direct_trading_permissions", None)
+        if not callable(reader):
+            return
+        symbols = sorted(str(name) for name in (getattr(self.store, "_sdk_routes", None) or {}))
+        if not symbols:
+            return
+        venues = {
+            symbol: self._direct_symbol_venue[symbol]
+            for symbol in symbols
+            if self._direct_symbol_venue.get(symbol)
+        }
+        try:
+            facts = reader(
+                self._direct_exchange,
+                symbols,
+                exchange_ids=venues or None,
+                timeout=float(self.p.direct_permission_timeout),
+                max_duration=float(self.p.direct_permission_max_duration),
+            )
+        except Exception as exc:
+            code = str(getattr(exc, "code", None) or type(exc).__name__)[:80]
+            if code != "capability_not_supported":
+                self._direct_report["permissions"] = {"status": "read_failed", "reason": code}
+                _log.warning("direct trading-permission read failed: %s", code)
+            return
+        try:
+            report = self._direct_permission_report(facts)
+            denials: Dict[str, str] = {}
+            if facts.complete is True and facts.session_consistent is True:
+                for entry in facts.instruments:
+                    reasons = tuple(entry.denial_reasons or ())
+                    if entry.outcome == "known_negative" and reasons:
+                        denials[str(entry.symbol)] = str(reasons[0])
+        except Exception as exc:  # an unreadable result proves nothing
+            self._direct_report["permissions"] = {
+                "status": "unreadable",
+                "reason": type(exc).__name__,
+            }
+            return
+        self._direct_permissions = facts
+        self._direct_permission_denials = denials
+        self._direct_report["permissions"] = report
+        for symbol, reason in sorted(denials.items()):
+            _log.warning("direct orders for %s will be refused: %s", symbol, reason)
+
+    @staticmethod
+    def _direct_permission_report(facts: Any) -> Dict[str, Any]:
+        instruments: Dict[str, Any] = {}
+        for entry in tuple(facts.instruments)[:_MAX_PERMISSION_REPORT_SYMBOLS]:
+            instruments[str(entry.symbol)] = {
+                "venue": entry.venue,
+                "outcome": str(entry.outcome),
+                "denial_reasons": [str(reason) for reason in entry.denial_reasons][:5],
+                "facts": {str(fact.name): f"{fact.status}:{fact.reason}" for fact in entry.facts},
+                "trading_code_kinds": [
+                    str(kind) for kind in getattr(entry, "trading_code_kinds", ())
+                ][:5],
+            }
+        return {
+            "status": "complete" if facts.complete is True else "incomplete",
+            "current": True,
+            "trading_day": facts.trading_day,
+            "session_generation": facts.session_generation,
+            "native_queries": int(getattr(facts, "native_queries", 0) or 0),
+            # Codes only: the bracketed native detail is dropped.
+            "blockers": [str(item).split("[", 1)[0] for item in facts.blockers][:8],
+            "proves_permission": False,
+            "instruments": instruments,
+        }
+
+    def _direct_permissions_current(self) -> bool:
+        """The stored facts belong to the provider's current session and day."""
+        facts = self._direct_permissions
+        if facts is None:
+            return False
+        try:
+            provider = self._direct_api.direct_writes().provider(self._direct_exchange)
+            generation = provider.session_generation()
+            trading_day = provider.trading_day()
+        except Exception:
+            return False
+        return (
+            generation is not None
+            and generation == facts.session_generation
+            and trading_day is not None
+            and str(trading_day) == str(facts.trading_day)
+        )
+
+    def _direct_permission_denial(self, symbol: str) -> Optional[str]:
+        """A definitive negative for ``symbol`` that still applies, else ``None``."""
+        reason = self._direct_permission_denials.get(symbol)
+        if reason is None:
+            return None
+        if not self._direct_permissions_current():
+            # Facts of another session or trading day are unknown now (D62-25).
+            self._direct_permission_denials = {}
+            report = self._direct_report.get("permissions")
+            if isinstance(report, dict):
+                report["current"] = False
+            _log.info("direct trading-permission facts expired with their session")
+            return None
+        return reason
+
+    # ------------------------------------------------------------------
     # strategy takeover of restored orders (R-6/7)
     # ------------------------------------------------------------------
     def take_over_restored_orders(self, strategy: Any) -> List[Order]:
@@ -876,6 +1008,9 @@ class BtApiDirectModeMixin:
         symbol = meta["symbol"]
         if symbol in self._direct_blocked:
             return self._direct_blocked[symbol]
+        denial = self._direct_permission_denial(symbol)
+        if denial is not None:
+            return f"trading_permission_denied:{denial}"
         if order.exectype not in (Order.Limit, Order.Market):
             return "order_type_unrepresentable"
         if not _positive_finite(order.size, absolute=True):
