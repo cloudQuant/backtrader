@@ -1052,7 +1052,12 @@ class BtApiDirectModeMixin:
         if callable(warming) and warming():
             return "target_feed_warming_up"  # D62-15a: historical bars still replaying
         qualify = getattr(data, "trade_qualification", None)
-        qualification = qualify() if callable(qualify) else None
+        if not callable(qualify):
+            # No BtApiFeed trade-qualification contract (e.g. a placeholder
+            # data object of a strategy): nothing proves LIVE status or clock
+            # quality, now or at a later dispatch, so nothing is sent unchecked.
+            return "target_data_unqualified"
+        qualification = qualify()
         reasons = tuple(getattr(qualification, "reasons", ()) or ())
         phase = self._direct_phase(self._direct_symbol(data))
         if phase is not None and not phase.reason and phase.phase.value in ("closed", "auction"):
@@ -1060,9 +1065,11 @@ class BtApiDirectModeMixin:
             # durable waiting order; no fresh quote or LIVE status is required
             # now (both are rechecked before the actual dispatch).
             return "wait" if self.p.waiting_orders else "market_closed"
-        if qualification is not None and "FEED_NOT_LIVE" in reasons:
+        if qualification is None:
+            return "target_data_unqualified"
+        if "FEED_NOT_LIVE" in reasons:
             return "target_feed_not_live"  # D62-15a/15b: target not LIVE
-        if qualification is not None and not getattr(qualification, "ok", False):
+        if not getattr(qualification, "ok", False):
             return "target_data_not_tradable:" + ",".join(reasons[:3])
         return "dispatch"
 
@@ -1744,8 +1751,10 @@ class BtApiDirectModeMixin:
                 return  # auction / unknown: no dispatch (D62-34)
             qualify = getattr(order.data, "trade_qualification", None)
             qualification = qualify() if callable(qualify) else None
-            if qualification is not None and not getattr(qualification, "ok", False):
-                return  # wait for qualified real-time data in the target session
+            if qualification is None or not getattr(qualification, "ok", False):
+                # Wait for qualified real-time data in the target session; a
+                # missing qualification is never treated as qualified.
+                return
             reason = self._direct_precheck(order, meta)
             if reason is not None:
                 if self._direct_state.waiting.transition(
