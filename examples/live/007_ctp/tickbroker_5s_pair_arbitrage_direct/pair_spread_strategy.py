@@ -863,6 +863,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         self._observed_open_pair = False
         self._pair_open_bar_at = None
         self._forced_phase = "idle"
+        self._forced_legs = 2  # orders the forced phase waits for
         self._forced_entry_terminal_refs = set()
         self._forced_exit_terminal_refs = set()
 
@@ -908,6 +909,22 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
             spreads.append(float(bar_a["close"]) - float(bar_b["close"]))
         return sum(spreads) / float(window)
 
+    def _pair_legs_blocked(self, *legs):
+        """Why the pair cannot send every leg now, else ``None``.
+
+        A pair sends its legs together or not at all: a leg skipped alone (its
+        refusal backoff, no valid price) would leave the other leg unhedged and
+        the forced phases waiting for a second order that never comes.
+        """
+        now = time.monotonic()
+        limit = str(self.p.order_exectype).lower() == "limit"
+        for side, symbol in legs:
+            if self._refusal_backoff().get(str(symbol), 0.0) > now:
+                return f"refusal backoff for {symbol}"
+            if limit and self._limit_price(self._resolve_data(symbol), side) is None:
+                return f"no valid price for {symbol}"
+        return None
+
     def _handle_forced_signals(self):
         """Handle forced entry/exit signals based on bar count.
 
@@ -920,6 +937,10 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
             and int(self.p.force_entry_after_bars or 0) > 0
             and current_bar >= int(self.p.force_entry_after_bars)
         ):
+            blocked = self._pair_legs_blocked(("sell", self.p.symbol_a), ("buy", self.p.symbol_b))
+            if blocked:
+                self.log(f"forced pair entry waits: {blocked}")
+                return True
             order_a = self._submit_market(
                 side="sell",
                 symbol=self.p.symbol_a,
@@ -934,8 +955,10 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                 offset=self.p.open_offset,
                 signal_tag="forced_pair_bar_open_long_b",
             )
-            if order_a is not None or order_b is not None:
+            submitted = int(order_a is not None) + int(order_b is not None)
+            if submitted:
                 self._forced_phase = "entry_submitted"
+                self._forced_legs = submitted
             return True
 
         if (
@@ -945,6 +968,10 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
             and current_bar - int(self._pair_open_bar_at) >= int(self.p.force_exit_after_bars)
         ):
             pos_a, pos_b = self._pair_positions()
+            blocked = self._pair_legs_blocked(("buy", self.p.symbol_a), ("sell", self.p.symbol_b))
+            if blocked:
+                self.log(f"forced pair exit waits: {blocked}")
+                return True
             order_a = self._submit_market(
                 side="buy",
                 symbol=self.p.symbol_a,
@@ -959,8 +986,10 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                 offset=self.p.close_offset,
                 signal_tag="forced_pair_bar_close_sell_b",
             )
-            if order_a is not None or order_b is not None:
+            submitted = int(order_a is not None) + int(order_b is not None)
+            if submitted:
                 self._forced_phase = "exit_submitted"
+                self._forced_legs = submitted
             return True
 
         return False
@@ -1004,7 +1033,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         current_spread = float(latest_a["close"]) - float(latest_b["close"])
         spread_edge = current_spread - mean_spread
 
-        if self._pair_is_flat() and spread_edge >= float(self.p.entry_edge):
+        if (
+            self._pair_is_flat()
+            and spread_edge >= float(self.p.entry_edge)
+            and not self._pair_legs_blocked(("sell", self.p.symbol_a), ("buy", self.p.symbol_b))
+        ):
             self._submit_market(
                 side="sell",
                 symbol=self.p.symbol_a,
@@ -1019,7 +1052,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                 offset=self.p.open_offset,
                 signal_tag="pair_bar_open_long_b",
             )
-        elif self._pair_is_open() and spread_edge <= float(self.p.exit_edge):
+        elif (
+            self._pair_is_open()
+            and spread_edge <= float(self.p.exit_edge)
+            and not self._pair_legs_blocked(("buy", self.p.symbol_a), ("sell", self.p.symbol_b))
+        ):
             pos_a, pos_b = self._pair_positions()
             self._submit_market(
                 side="buy",
@@ -1059,7 +1096,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                 if order.status in (order.Canceled, order.Margin, order.Rejected):
                     self._forced_phase = "idle"
                     self._forced_entry_terminal_refs.clear()
-                elif len(self._forced_entry_terminal_refs) >= 2:
+                elif len(self._forced_entry_terminal_refs) >= self._forced_legs:
                     self._observed_open_pair = True
                     self._pair_open_bar_at = self.pair_bar_progress(
                         self.p.symbol_a, self.p.symbol_b
@@ -1074,7 +1111,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                 if order.status in (order.Canceled, order.Margin, order.Rejected):
                     self._forced_phase = "open"
                     self._forced_exit_terminal_refs.clear()
-                elif len(self._forced_exit_terminal_refs) >= 2:
+                elif len(self._forced_exit_terminal_refs) >= self._forced_legs:
                     self.completed_roundtrips += 1
                     self._observed_open_pair = False
                     self._pair_open_bar_at = None

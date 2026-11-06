@@ -590,14 +590,17 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
             and force_entry_after_ticks > 0
             and self._tick_count >= force_entry_after_ticks
         ):
-            self._submit_market(
+            order = self._submit_market(
                 side="buy",
                 symbol=self.p.symbol,
                 size=self.p.order_size,
                 offset=self.p.open_offset,
                 signal_tag="forced_single_entry",
             )
-            self._forced_phase = "entry_submitted"
+            if order is not None:
+                # Only a submitted order advances the phase: a skipped one
+                # (refusal backoff, no valid price) is retried on a later call.
+                self._forced_phase = "entry_submitted"
             return True
 
         if (
@@ -606,14 +609,17 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
             and self._open_tick_at is not None
             and self._tick_count - int(self._open_tick_at) >= force_exit_after_ticks
         ):
-            self._submit_market(
+            order = self._submit_market(
                 side="sell",
                 symbol=self.p.symbol,
                 size=max(abs(position), float(self.p.order_size)),
                 offset=self.p.close_offset,
                 signal_tag="forced_single_exit",
             )
-            self._forced_phase = "exit_submitted"
+            if order is not None:
+                # Only a submitted order advances the phase: a skipped one
+                # (refusal backoff, no valid price) is retried on a later call.
+                self._forced_phase = "exit_submitted"
             return True
 
         return False
