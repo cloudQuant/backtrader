@@ -281,6 +281,11 @@ class FakeApi:
         # or delete them like a provider without the capability).
         self.provider.trading_day = lambda: self.trading_day
         self.provider.session_generation = lambda: self.session_generation
+        # Read-only settlement state of the current session (the SDK
+        # coordinator's read-first step): ``settlement_readback`` when set,
+        # else "still to confirm"; ``settlement_error`` raises.  Never commits.
+        self.provider.settlement_status = self._read_settlement_status
+        self.settlement_reads: List[str] = []
         self.positions: List[DirectPositionFact] = []
         self.active_orders: List[DirectExecutionEvent] = []
         self.orders: List[DirectExecutionEvent] = []  # terminal orders of the day
@@ -348,6 +353,14 @@ class FakeApi:
         except Exception:
             return None
         return marker if type(marker) is str and marker else None
+
+    def _read_settlement_status(self) -> SettlementStatus:
+        self.settlement_reads.append(self.trading_day)
+        if self.settlement_error is not None:
+            raise self.settlement_error
+        if self.settlement_readback is not None:
+            return self.settlement_readback
+        return SettlementStatus.UNCONFIRMED
 
     def ensure_settlement_confirmed(self, exchange_name, *, pre_dispatch_commit, host_scope):
         if self.settlement_error is not None:

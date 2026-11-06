@@ -18,7 +18,10 @@ Status model (rank order ``PREPARED < DISPATCHED < ACCEPTED < TERMINAL``):
   dispatching call returns, and a definitive "not sent" is terminal);
 * any non-terminal marker may move to ``UNKNOWN``;
 * ``UNKNOWN`` is sticky: only :meth:`resolve_manually` (audited, explicit
-  operator conclusion) clears it.  There is no force-unlock.
+  operator conclusion) clears it, plus, for a ``settlement_confirm`` marker
+  only, :meth:`resolve_settlement_readback` (audited, a verified read-only
+  readback of the same route and trading day, D62-29).  There is no
+  force-unlock.
 
 ``TERMINAL`` markers leave the active set and are kept in a bounded history
 (last 500).  Duplicate detection of native identities therefore only covers
@@ -736,6 +739,97 @@ class PendingCommandStore:
                     _log.warning("could not audit failed manual resolution")
                 raise
             return copy.deepcopy(marker)
+
+    def resolve_settlement_readback(
+        self,
+        marker_id: str,
+        *,
+        exchange_name: str,
+        trading_day: str,
+        session_generation: Optional[int] = None,
+    ) -> bool:
+        """Close one UNKNOWN ``settlement_confirm`` marker proven by a readback (D62-29).
+
+        The host read the venue's settlement state read-only, on a verified
+        session of the bound account, and found ``exchange_name``'s
+        settlement of ``trading_day`` confirmed.  Only a marker with that
+        operation, status, route and trading day qualifies; any other marker
+        (orders, cancels, other days) still needs :meth:`resolve_manually`.
+        The audit record is written first.  Returns ``False`` (never raises)
+        when nothing matches or anything cannot be written; the marker then
+        stays UNKNOWN.
+        """
+        if not is_text(exchange_name, max_len=128) or not is_text(trading_day, max_len=32):
+            return False
+        if session_generation is not None and not is_strict_int(session_generation, minimum=0):
+            return False
+        try:
+            with self._lock():
+                state = self._load()
+                marker = state["active"].get(marker_id)
+                if (
+                    marker is None
+                    or marker["status"] != STATUS_UNKNOWN
+                    or marker["operation"] != "settlement_confirm"
+                    or marker["exchange_name"] != exchange_name
+                    or marker["trading_day"] != trading_day
+                ):
+                    return False
+                entry = append_audit(
+                    self.paths.strategy_dir,
+                    {
+                        "event": "pending_settlement_readback_resolution",
+                        "strategy_uuid": self.strategy_uuid,
+                        "marker_id": marker_id,
+                        "previous_status": STATUS_UNKNOWN,
+                        "operation": marker["operation"],
+                        "exchange_name": exchange_name,
+                        "trading_day": trading_day,
+                        "session_generation": session_generation,
+                        "evidence": "settlement_readback",
+                    },
+                )
+                now = utc_now_iso()
+                marker["status"] = STATUS_TERMINAL
+                marker["transitions"].append(
+                    {"from": STATUS_UNKNOWN, "to": STATUS_TERMINAL, "at_utc": now}
+                )
+                del marker["transitions"][:-_TRANSITIONS_LIMIT]
+                marker["updated_at_utc"] = now
+                marker["facts"].update(
+                    final_status="confirmed", resolution_evidence="settlement_readback"
+                )
+                marker["resolution"] = {
+                    "kind": "settlement_readback",
+                    "evidence": ["settlement_readback"],
+                    "trading_day": trading_day,
+                    "session_generation": session_generation,
+                    "resolved_at_utc": entry["ts_utc"],
+                }
+                del state["active"][marker_id]
+                state["history"].append(marker)
+                try:
+                    self._store(state)
+                except BaseException:
+                    try:
+                        append_audit(
+                            self.paths.strategy_dir,
+                            {
+                                "event": "pending_settlement_readback_resolution_failed",
+                                "strategy_uuid": self.strategy_uuid,
+                                "marker_id": marker_id,
+                            },
+                        )
+                    except Exception:
+                        _log.warning("could not audit failed settlement readback resolution")
+                    raise
+            return True
+        except Exception as exc:
+            _log.warning(
+                "settlement readback resolution failed: %s",
+                getattr(exc, "code", type(exc).__name__),
+            )
+            return False
 
 
 class BoundPreDispatchPort:

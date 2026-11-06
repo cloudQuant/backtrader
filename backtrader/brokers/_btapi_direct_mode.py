@@ -573,7 +573,7 @@ class BtApiDirectModeMixin:
         claimed = set()
         for marker in state.pending.active():
             if marker.get("operation") != "place":
-                self._direct_settle_marker_without_order(marker, facts)
+                self._direct_settle_marker_without_order(marker, facts, report)
                 continue
             # live_state stores the SDK identity flat: ``native_identity`` is
             # the venue field mapping; client id / exchange are marker keys.
@@ -713,10 +713,13 @@ class BtApiDirectModeMixin:
                 len(report["unknown_markers"]),
             )
 
-    def _direct_settle_marker_without_order(self, marker: Dict[str, Any], facts: Any) -> None:
+    def _direct_settle_marker_without_order(
+        self, marker: Dict[str, Any], facts: Any, report: Optional[Dict[str, Any]] = None
+    ) -> None:
         """Cancel / settlement markers: the order state is the evidence."""
         if marker.get("status") == "UNKNOWN":
-            self._direct_blocked["*"] = "pending_unknown"
+            if not self._direct_settlement_readback(marker, facts, report):
+                self._direct_blocked["*"] = "pending_unknown"
             return
         final = "superseded_trading_day"
         if marker.get("trading_day") == facts.trading_day:
@@ -726,6 +729,82 @@ class BtApiDirectModeMixin:
             "TERMINAL",
             final_status=final,
             resolution_evidence="startup_complete_order_query",
+        )
+
+    def _direct_settlement_readback(
+        self, marker: Dict[str, Any], facts: Any, report: Optional[Dict[str, Any]]
+    ) -> bool:
+        """D62-29: verify an unclear settlement confirmation of today by a readback.
+
+        Only an UNKNOWN ``settlement_confirm`` marker of this route and of the
+        verified current trading day qualifies (the strategy directory is
+        bound to this account; a rebind needs an empty pending set).  The
+        provider's read-only settlement state of the current session is read
+        once, with the account reference re-checked and session generation and
+        trading day unchanged around the read.  ``confirmed`` closes the marker
+        (TERMINAL, evidence ``settlement_readback``); anything else keeps it
+        UNKNOWN and the startup confirmation is skipped (no blind retry).
+        Markers of other days or routes are left for manual resolution.
+        """
+        day = facts.trading_day
+        if (
+            marker.get("operation") != "settlement_confirm"
+            or not _valid_trading_day(day)
+            or marker.get("trading_day") != day
+            or marker.get("exchange_name") != self._direct_exchange
+        ):
+            return False
+        result: Dict[str, Any] = {
+            "marker_id": marker["marker_id"],
+            "trading_day": day,
+            "status": None,
+            "resolved": False,
+        }
+        if report is not None:
+            report.setdefault("settlement_readbacks", []).append(result)
+        generation = facts.session_generation
+        session = (generation, day)
+        try:
+            if type(generation) is not int or self._direct_session_probe() != session:
+                result["status"] = "session_unverified"
+            elif self._direct_account_reference() != self._direct_account_hash:
+                result["status"] = "account_unverified"
+            else:
+                provider = self._direct_api.direct_writes().provider(self._direct_exchange)
+                reader = getattr(provider, "settlement_status", None)
+                if not callable(reader):
+                    result["status"] = "readback_unavailable"
+                else:
+                    status = reader()
+                    result["status"] = str(getattr(status, "value", status))
+                    if self._direct_session_probe() != session:
+                        result["status"] = "session_changed"
+        except Exception as exc:
+            result["status"] = f"readback_failed:{type(exc).__name__}"
+        if result["status"] == "confirmed":
+            result["resolved"] = self._direct_state.pending.resolve_settlement_readback(
+                marker["marker_id"],
+                exchange_name=self._direct_exchange,
+                trading_day=day,
+                session_generation=generation,
+            )
+        if not result["resolved"]:
+            _log.warning(
+                "direct unclear settlement confirmation of %s stays UNKNOWN (readback %s): "
+                "writes blocked, no automatic confirmation",
+                day,
+                result["status"],
+            )
+        return result["resolved"]
+
+    def _direct_unclear_settlement_today(self) -> bool:
+        """An unresolved UNKNOWN settlement confirmation of this route and trading day."""
+        return any(
+            marker.get("operation") == "settlement_confirm"
+            and marker.get("status") == "UNKNOWN"
+            and marker.get("trading_day") == self._direct_trading_day
+            and marker.get("exchange_name") == self._direct_exchange
+            for marker in self._direct_state.pending.active()
         )
 
     def _direct_load_local(self, positions, prices, snapshot_day, trading_day) -> None:
@@ -760,6 +839,10 @@ class BtApiDirectModeMixin:
 
     def _direct_settle(self) -> None:
         """Confirm the settlement statement under admission (D62-20/29)."""
+        if self._direct_unclear_settlement_today():
+            # D62-29: today's confirmation may have been sent and its readback
+            # did not prove it; never repeated automatically (writes blocked).
+            return
         outcome = self._direct_settle_call()
         if outcome is None:
             return
@@ -2314,8 +2397,9 @@ class BtApiDirectModeMixin:
             self._direct_day_switch_inflight = True
         target, settle = request
         payload = self._direct_day_switch_reads(target, settle=settle)
-        self._direct_refresh_counts["day_switch"] += 1
+        # Publish before counting: whoever sees the count finds the payload.
         self._direct_facts_results.append(("day_switch", payload))
+        self._direct_refresh_counts["day_switch"] += 1
 
     def _direct_day_switch_reads(self, target: str, *, settle: bool = True) -> Dict[str, Any]:
         """Verification reads of a pending switch (facts poller thread).

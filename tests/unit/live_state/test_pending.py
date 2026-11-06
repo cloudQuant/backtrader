@@ -380,3 +380,96 @@ def test_store_rejects_pending_file_of_other_strategy(state):
 def test_unknown_record_keys_are_preserved_not_dropped(state):
     marker_id = state.pending.commit(place_record(state.strategy_uuid, reservation_id="r-1"))
     assert state.pending.get(marker_id)["extra"] == {"reservation_id": "r-1"}
+
+
+# -- settlement readback resolution (D62-29) ----------------------------------
+
+
+def _settlement_marker(state, *, trading_day="20261106", status="UNKNOWN"):
+    record = {
+        "operation": "settlement_confirm",
+        "host_scope": state.strategy_uuid,
+        "exchange_name": "CTP___FUTURE",
+        "trading_day": trading_day,
+        "session_generation": 3,
+    }
+    marker_id = state.pending.commit(record)
+    assert marker_id is not None
+    if status != "PREPARED":
+        assert state.pending.mark(marker_id, status, reason="settlement_outcome_unknown")
+    return marker_id
+
+
+def _readback(store, marker_id, **overrides):
+    kwargs = {"exchange_name": "CTP___FUTURE", "trading_day": "20261106", "session_generation": 4}
+    kwargs.update(overrides)
+    return store.resolve_settlement_readback(marker_id, **kwargs)
+
+
+def test_settlement_readback_closes_only_an_unknown_settlement_marker_of_its_day(state):
+    store = state.pending
+    unknown_place = store.commit(place_record(state.strategy_uuid))
+    assert store.mark(unknown_place, "UNKNOWN")
+    dispatched = _settlement_marker(state, status="DISPATCHED")
+    marker_id = _settlement_marker(state)
+    assert _readback(store, unknown_place, trading_day="20261105") is False  # an order
+    assert _readback(store, dispatched) is False  # not UNKNOWN
+    assert _readback(store, marker_id, trading_day="20261107") is False  # another day
+    assert _readback(store, marker_id, exchange_name="OKX___SWAP") is False  # another route
+    assert _readback(store, marker_id, session_generation=-1) is False
+    assert _readback(store, "no-such-marker") is False
+    assert store.get(unknown_place)["status"] == "UNKNOWN"
+    assert store.get(dispatched)["status"] == "DISPATCHED"
+    assert store.get(marker_id)["status"] == "UNKNOWN"
+    assert not any(
+        r["event"] == "pending_settlement_readback_resolution"
+        for r in read_audit(state.strategy_dir)
+    )
+
+    assert _readback(store, marker_id) is True
+    resolved = store.get(marker_id)
+    assert resolved["status"] == "TERMINAL"
+    assert resolved["facts"]["final_status"] == "confirmed"
+    assert resolved["facts"]["resolution_evidence"] == "settlement_readback"
+    assert resolved["facts"]["reason"] == "settlement_outcome_unknown"  # history kept
+    assert resolved["resolution"]["kind"] == "settlement_readback"
+    assert resolved["resolution"]["trading_day"] == "20261106"
+    assert resolved["resolution"]["session_generation"] == 4
+    assert [t["to"] for t in resolved["transitions"]][-2:] == ["UNKNOWN", "TERMINAL"]
+    assert marker_id not in {m["marker_id"] for m in store.active()}
+    (record,) = [
+        r
+        for r in read_audit(state.strategy_dir)
+        if r["event"] == "pending_settlement_readback_resolution"
+    ]
+    assert record["marker_id"] == marker_id and record["evidence"] == "settlement_readback"
+    assert _readback(store, marker_id) is False  # closed once
+
+
+def test_settlement_readback_changes_nothing_if_audit_fails(state, monkeypatch):
+    marker_id = _settlement_marker(state)
+
+    def broken(*args, **kwargs):
+        raise OSError("audit disk full")
+
+    monkeypatch.setattr(pending_module, "append_audit", broken)
+    assert _readback(state.pending, marker_id) is False
+    monkeypatch.undo()
+    assert state.pending.get(marker_id)["status"] == "UNKNOWN"
+
+
+def test_settlement_readback_audits_a_failed_store(state, monkeypatch):
+    marker_id = _settlement_marker(state)
+
+    def broken(path, obj):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(pending_module, "atomic_write_json", broken)
+    assert _readback(state.pending, marker_id) is False
+    monkeypatch.undo()
+    assert state.pending.get(marker_id)["status"] == "UNKNOWN"
+    events = [r["event"] for r in read_audit(state.strategy_dir)]
+    assert events[-2:] == [
+        "pending_settlement_readback_resolution",
+        "pending_settlement_readback_resolution_failed",
+    ]
