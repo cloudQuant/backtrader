@@ -101,6 +101,12 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 | `broker.direct_permission_timeout` | 缺省 `5.0`（秒） | 权限事实中每个查询的超时 |
 | `broker.direct_permission_max_duration` | 缺省 `60.0`（秒） | 整次权限事实读取的总时限；到时仍未开始的查询对应的事实记为未知 |
 | `contracts.<symbol>.exchange` | 如 `CZCE`、`SHFE` | 同时是 CTP 报单的 `ExchangeID`，直到场所自己报告交易所为止（见下） |
+| `feed.event_time_max_age` | 示例 `2.0`（秒）；Feed 缺省 `2.0` | 行情来源时间到本机接收的上限（D62-28/37），只能收紧 SDK 的 `max_latency_seconds`，两者同时生效 |
+| `feed.receive_time_max_age` | 示例 `2.0`（秒）；Feed 缺省 `2.0` | 本机收到最新一笔合格 tick 之后、下单之前允许停留的时间（D62-28） |
+| `feed.incomplete_volume_bars` | 示例 `lines`；Feed 缺省 `lines` | 只缺成交量核算的 bar 进入数据线（`lines`），或只通过 `notify_bar` 通知（`notify_only`），见下 |
+| `contracts.<symbol>.event_time_max_age`、`receive_time_max_age`、`incomplete_volume_bars` | 不写则沿用 `feed:` | 按合约覆盖上面三个键 |
+| `direct.market_clock_verification` | 示例 `true` | SNTP 证据与场所时间核对；也可以写成映射调整参数，见下 |
+| `broker.direct_trade_match_window` | 缺省 `5.0`（秒） | 成交回报先于委托回报到达时，等待重新匹配的时间，见下 |
 
 **私有流模式（I62-01a）**：`quick` 不重放当日私有回报。`restart` 会在登录时重放整个交易日的私有回报；
 SimNow 交易时段内，启动查询要排在这次重放之后，等待 20～90 秒以上（迭代 62 SimNow 实测记录，缺陷 14）。
@@ -121,6 +127,44 @@ direct 模式的启动恢复不依赖私有流重放：恢复订单来自活动�
 使用，场所通过账户持仓事实报告了该合约的交易所之后，以场所报告的为准。配置错误的交易所由场所拒绝，程序不会据此推断别的东西。
 全量合约目录查询不在下单路径内执行，细节见 bt_api_ctp 的 `docs/instrument-reference-queries.md`。
 
+**行情时效阈值（D62-28，2026-11-06 起“按场所、策略及合约配置”）**：每个示例只连一个场所，所以 `feed:` 段是这个场所和
+策略的缺省值，`contracts.<symbol>` 下的同名键按合约覆盖它（例如冷门合约放宽 `receive_time_max_age`）。`run.py`
+在 `--dry-run` 和启动时逐个合约打印生效值（`Feed <合约>: event_time_max_age=… receive_time_max_age=…
+incomplete_volume_bars=…`），数值必须是大于 0 的秒数，否则拒绝启动。`event_time_max_age` 与 SDK 的
+`max_latency_seconds` 同时生效，所以实际上限取较小者；放宽它不会放宽 SDK 的判断。阈值不证明时钟可信，
+也不替代交易时段检查。
+
+**时钟核验参数（`direct.market_clock_verification`）**：写 `true` 时使用 SDK 缺省值。写成映射时，与 `true` 一样开启核验，
+并可调整这些键（模板里有注释示例，缺省值如下）：`max_latency_seconds`（2.0，来源到接收的 SDK 上限）、
+`max_error_bound_ms`（500，可接受的 SNTP 误差上界）、`validity_seconds`（900，一次 SNTP 测量的有效期）、
+`refresh_interval_seconds`（300，后台刷新间隔）、`timeout_seconds`（2.0，单次查询超时）、`servers`（NTP 服务器列表，
+缺省 `time.apple.com`、`cn.pool.ntp.org`、`ntp.aliyun.com`）。前两个由 BtApi 取出，其余交给 SDK 的 `ClockVerifier`；
+写入未知键时启动失败（当前为 `TypeError`，不是有限错误码）。缺省仍为 `true`。
+
+**行情状态与下单资格（D62-38，2026-11-06）**：feed 的 LIVE/DELAYED 与下单资格只看价格时效、当前连接没有已知的本地丢消息、
+报价有效性和交易时段。订阅、重连或换交易日后的首笔（成交量基线）、成交号跳号、累计量下降、涨跌停时一侧为空的盘口
+（另一侧恰好等于该快照的涨跌停价）、锁盘和零深度都不会让 feed 离开 LIVE；提供方报告的 `gap`、更早连接代际的 tick、
+无效或交叉的报价仍会使 feed 进入 DELAYED。交易所时间倒退的单笔 tick 被丢弃并计数（`tick_ingest_error_counts()` 中的
+`OUT_OF_ORDER_EVENT_TIME`），不降级；连续 3 笔倒退（`event_time_regression_limit`）才按原规则降级。
+
+**成交量不完整的 bar（2026-11-06 决定）**：只因成交量核算不完整（成交号跳号、订阅或重连后的基线、累计量下降、
+被丢弃的倒退 tick）而不完整的 bar，缺省（`incomplete_volume_bars: lines`）照常进入策略数据线，不再留空洞；
+`notify_only` 恢复以前只走 `notify_bar` 的做法。两种方式下这根 bar 的 `notify_bar` 事件都带 `complete=False`、
+`volume_complete=False` 和 `quality_flags`（如 `VOLUME_INCOMPLETE`、`VOLUME_BASELINE`），策略在 `next()` 里可用
+`data.line_bar_quality()` 读取当前 bar 的同样信息。依赖成交量的策略应检查这些标记。价格或时间有问题的 bar 仍不进入数据线。
+
+**拒单原因（2026-11-06 决定）**：目标行情不合格时，`order.info["error_code"]` 是 `target_data_not_tradable:<主因>`，
+完整原因列表在 `order.info["refusal_reasons"]` 和错误信息里，并按主因节流写一次日志。主因按以下顺序取第一个：
+阈值或时钟域无效 → 没有可用的实时 tick → 时钟未经核验 → 接收后停留超时（`RECEIVE_TIME_STALE`）→ 来源到接收超时
+（`EVENT_TIME_STALE`、`FRESHNESS_STALE`）→ SDK 判定不可执行（`UPSTREAM_EXECUTION_INELIGIBLE`）。feed 不是 LIVE 时仍是
+`target_feed_not_live`，同样带完整列表。
+
+**先到的成交回报（2026-11-06 决定）**：CTP 成交回报靠委托回报里的 `OrderSysID` 关联到本策略订单。成交回报先到时，
+Broker 先保留它 `broker.direct_trade_match_window` 秒（缺省 5 秒），每次轮询回报后重新匹配，匹配上就照常计入且只计一次；
+到期仍未匹配、缓冲区满（256 笔）或停止时，按以前的规则视为别人的成交，不计入，并在运行结束的 JSON 汇总
+`reconcile.unmatched_trade_returns` 中计数（`trade_match_buffer` 有缓冲统计）。停止后不再计入任何保留的成交，
+下次启动由当日成交查询对账。
+
 ## 订单规则
 
 - **显式 offset（D62-26）**：每笔 CTP 订单都要写 `offset`：`open`，或场所允许的 `close` / `close_today` /
@@ -138,7 +182,8 @@ direct 模式的启动恢复不依赖私有流重放：恢复订单来自活动�
   `sa_dual_ma_*` 没有这个参数。某合约的订单被拒绝（`Rejected`）后，该合约的新订单在这段时间内不再提交，
   被跳过的信号写日志（`refusal backoff for ...`），避免行情数据暂时不合格时每个 tick 都重复提交。
 - **行情资格（D62-15/21）**：目标合约的 feed 还在历史预热或没有进入 `LIVE` 时，订单在本地被拒绝；
-  最新报价超过 2 秒（来源时间到接收、接收到下单两个上限）或时钟未经校验时同样拒绝。
+  最新报价超过时效上限（来源时间到接收、接收到下单两个上限，缺省各 2 秒，可按合约配置，见上）或时钟未经校验时同样拒绝，
+  拒绝原因的主因与完整列表见上文“拒单原因”。
   只检查订单目标合约的行情；参与指标计算的其他合约行情可能较旧，策略需要自己判断。
 - **休市待发（D62-30/34/35）**：已完成预热、交易日历可信地确认目标合约正在休市时，`buy/sell/close` 创建本地待发单，
   持久保存在 `state/waiting_orders.json`，到下一个连续交易时段并收到合格行情后按创建顺序发出；集合竞价期间不发。

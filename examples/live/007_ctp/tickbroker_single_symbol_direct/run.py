@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import math
 import os
 import threading
 from pathlib import Path
@@ -41,6 +42,45 @@ EXIT_PASS = 0
 EXIT_BLOCKED = 2
 STRATEGY = SingleSymbolTickStrategy
 TITLE = "tickbroker_single_symbol (direct)"
+
+
+# Feed settings a contract may override under contracts.<symbol>: the feed: section is
+# the venue/strategy default (D62-28: per venue, strategy and contract; decision 2 of
+# 2026-11-06 for incomplete_volume_bars). BtApiFeed defaults when a key is absent:
+FEED_DEFAULTS = {
+    "event_time_max_age": 2.0,
+    "receive_time_max_age": 2.0,
+    "incomplete_volume_bars": "lines",
+}
+CONTRACT_FEED_KEYS = tuple(FEED_DEFAULTS)
+
+
+def feed_settings(config, symbol):
+    """The ``feed:`` section with the overrides of ``contracts.<symbol>`` applied."""
+    settings = dict(config.get("feed") or {})
+    contract = dict(config.get("contracts") or {}).get(symbol) or {}
+    settings.update({key: contract[key] for key in CONTRACT_FEED_KEYS if key in contract})
+    return settings
+
+
+def validate_feed_settings(scope, values):
+    for key in ("event_time_max_age", "receive_time_max_age"):
+        value = values.get(key, FEED_DEFAULTS[key])
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0
+        ):
+            raise ValueError(f"{scope}.{key} must be a positive number of seconds")
+    if values.get("incomplete_volume_bars", "lines") not in ("lines", "notify_only"):
+        raise ValueError(f"{scope}.incomplete_volume_bars must be lines or notify_only")
+
+
+def describe_feed(config, symbol):
+    """Effective per-contract feed settings, printed at startup."""
+    settings = feed_settings(config, symbol)
+    return " ".join(f"{key}={settings.get(key, FEED_DEFAULTS[key])}" for key in CONTRACT_FEED_KEYS)
 
 
 def load_config(config_arg, base_dir, default_name):
@@ -83,6 +123,9 @@ def validate_live_config(config):
     if missing:
         raise ValueError(f"contracts must give exchange and price_tick of: {', '.join(missing)}")
     parse_timeframe(dict(config.get("feed") or {}).get("timeframe", "ticks"))
+    validate_feed_settings("feed", dict(config.get("feed") or {}))
+    for symbol in symbols:
+        validate_feed_settings(f"contracts.{symbol}", feed_settings(config, symbol))
     if not isinstance(config.get("strategy_params") or {}, dict):
         raise ValueError("strategy_params must be a mapping")
     if not isinstance(config.get("broker") or {}, dict):
@@ -169,12 +212,13 @@ def create_broker(store, config, first_init):
 
 
 def add_feeds(cerebro, store, config):
-    feed_config = dict(config.get("feed") or {})
-    timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
-    compression = int(feed_config.pop("compression", 1))
-    backfill_start = bool(feed_config.pop("backfill_start", False))
     feeds = []
     for symbol in config["symbols"]:
+        # The feed: section with this contract's overrides (D62-28, README).
+        feed_config = feed_settings(config, symbol)
+        timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
+        compression = int(feed_config.pop("compression", 1))
+        backfill_start = bool(feed_config.pop("backfill_start", False))
         data = store.getdata(
             dataname=symbol,
             timeframe=timeframe,
@@ -243,6 +287,8 @@ def main(argv=None):
     if args.dry_run:
         print(f"Dry run OK for {config_path}")
         print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
+        for symbol in symbols:
+            print(f"Feed {symbol}: {describe_feed(config, symbol)}")
         print(f"State directory: {RUN_DIR / 'state'}")
         return EXIT_PASS
 
@@ -260,6 +306,8 @@ def main(argv=None):
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.setbroker(broker)
     add_feeds(cerebro, store, config)
+    for symbol in symbols:
+        print(f"Feed {symbol}: {describe_feed(config, symbol)}", flush=True)
     cerebro.addstrategy(STRATEGY, **dict(config.get("strategy_params") or {}))
     log_dir = attach_trade_logger(cerebro, config, config_path)
     seconds = args.run_seconds

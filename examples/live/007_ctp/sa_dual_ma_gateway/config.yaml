@@ -4,6 +4,8 @@
 symbols:
 - SA701
 contracts:
+  # A contract may also set event_time_max_age, receive_time_max_age and
+  # incomplete_volume_bars (overrides of feed:), e.g. a quiet one: receive_time_max_age: 10.0
   SA701:
     exchange: CZCE
     price_tick: 1.0
@@ -24,6 +26,15 @@ gateway:
 direct:
   write_admission: true
   market_clock_verification: true
+  # market_clock_verification may also be a mapping: the same as true, with these
+  # SDK keys (defaults shown; an unknown key makes the start fail):
+  # market_clock_verification:
+  #   max_latency_seconds: 2.0        # SDK source->receive limit (D62-28/37)
+  #   max_error_bound_ms: 500         # largest accepted SNTP error bound
+  #   validity_seconds: 900           # lifetime of one SNTP measurement
+  #   refresh_interval_seconds: 300   # background SNTP refresh
+  #   timeout_seconds: 2.0            # per SNTP query
+  #   servers: [time.apple.com, cn.pool.ntp.org, ntp.aliyun.com]
 broker:
   direct_facts_timeout: 60   # per query: whole-day orders/trades (SimNow ~14 rows/s)
   position_mode: net
@@ -35,6 +46,10 @@ feed:
   timeframe: minutes
   compression: 1
   backfill_start: false
+  # Defaults of this venue and strategy (D62-28); contracts.<symbol> may override them.
+  event_time_max_age: 2.0          # source event -> local receipt, seconds (only tightens the SDK limit)
+  receive_time_max_age: 2.0        # local receipt -> order, seconds
+  incomplete_volume_bars: lines    # lines | notify_only: volume-incomplete bars (2026-11-06)
 strategy_params:
   fast_period: 5
   slow_period: 20
