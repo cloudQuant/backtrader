@@ -73,8 +73,9 @@ class _SyntheticMdClient:
         self.subscribed = [item for item in self.subscribed if item not in instruments]
         return True
 
-    def start(self, *, block=False):
+    def start(self, *, block=False, join_observer=True):
         assert block is False
+        assert join_observer is False  # iteration 62 (I62-11): a market stop must be provable
         self.on_login(SimpleNamespace())
         for index, item in enumerate(self.subscribed):
             self.on_subscribe_response(
