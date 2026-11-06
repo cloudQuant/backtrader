@@ -9,7 +9,7 @@ optionally report projection failures through a caller-owned warning sink.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import asdict, is_dataclass
+from dataclasses import fields, is_dataclass
 from decimal import Decimal
 from typing import Any, Callable, Optional, Set
 
@@ -66,7 +66,15 @@ def credential_values(
                 result.update(credential_values(item, sensitive_parent, active))
             return result
         if is_dataclass(value) and not isinstance(value, type):
-            return credential_values(asdict(value), sensitive_parent, active)
+            # Walk the fields in place: ``dataclasses.asdict`` deep-copies every
+            # leaf and fails on values that cannot be copied (a mappingproxy
+            # payload of an SDK market bootstrap, locks, sockets), which turned
+            # a runtime-event redaction into a Store crash (iteration 62).
+            return credential_values(
+                {field.name: getattr(value, field.name, None) for field in fields(value)},
+                sensitive_parent,
+                active,
+            )
         try:
             attributes = vars(value)
         except (TypeError, AttributeError):
