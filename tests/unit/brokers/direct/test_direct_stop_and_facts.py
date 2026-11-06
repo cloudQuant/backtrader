@@ -23,6 +23,8 @@ from ._fakes import (
     native_identity,
     order_event,
     position,
+    quiet,
+    run_day_switch,
     trade_event,
     window,
 )
@@ -168,14 +170,19 @@ def test_audit_skips_symbols_with_in_flight_orders(env):
     assert broker.direct_writes_blocked() == {}
 
 
-def test_audit_on_a_new_trading_day_rolls_today_into_yesterday(env):
+def test_audit_on_a_new_trading_day_freezes_then_adopts_the_venue_split(env):
+    """R-3: the audit only detects the new day; the verified switch rolls it."""
     broker = env.start(first_init=True)
+    quiet(broker)
     _filled(env, broker, "8301", size=2)
     assert broker.get_closable(env.feed, "long")["today"] == 2
     env.api.trading_day = TOMORROW
     env.api.positions = [position("long", 2, 0, 2)]
     broker._direct_facts_results.append(("audit", env.api.direct_account_facts(EXCHANGE)))
     broker.next()
+    assert broker._direct_trading_day != TOMORROW  # nothing adopted before verification
+    assert broker.direct_writes_blocked() == {"*": "trading_day_switch_pending"}
+    run_day_switch(broker)
     assert broker._direct_trading_day == TOMORROW
     view = broker.get_closable(env.feed, "long")
     assert view["today"] == 0 and view["yesterday"] == 2
@@ -185,15 +192,17 @@ def test_audit_on_a_new_trading_day_rolls_today_into_yesterday(env):
     assert snapshot["positions"][SYMBOL]["long"] == {"total": 2, "today": 0, "yesterday": 2}
 
 
-def test_new_trading_day_without_venue_split_still_rolls(env):
+def test_new_trading_day_with_a_venue_total_mismatch_blocks_the_symbol(env):
     broker = env.start(first_init=True)
+    quiet(broker)
     _filled(env, broker, "8401", size=1)
     env.api.trading_day = TOMORROW
-    env.api.positions = []  # mismatch on the new day: rolled, then blocked
+    env.api.positions = []  # mismatch on the new day: switched, then blocked
     broker._direct_facts_results.append(("audit", env.api.direct_account_facts(EXCHANGE)))
     broker.next()
+    run_day_switch(broker)
     assert broker._direct_trading_day == TOMORROW
-    assert broker.direct_writes_blocked() == {SYMBOL: "position_audit_mismatch"}
+    assert broker.direct_writes_blocked() == {SYMBOL: "trading_day_switch_position_mismatch"}
 
 
 def test_background_poller_reads_funds_only_and_queues_the_result(env):

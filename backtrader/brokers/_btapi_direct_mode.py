@@ -13,7 +13,11 @@ lifecycle through this mixin instead of the managed-execution path:
 * startup reconciles that snapshot with a complete read-only account
   observation before any write is allowed (D62-05/13/16/17/22);
 * identity-matched venue returns are projected onto the Broker's own orders,
-  position legs and notifications; nothing is inferred from silence.
+  position legs and notifications; nothing is inferred from silence;
+* a provider trading-day change while running (R-3) freezes new orders until
+  the new day is re-verified: session and account, the new day's settlement
+  (D62-29), one complete account observation, old-day pending markers
+  (verified or UNKNOWN, D62-14) and the venue's today/yesterday split (D62-22).
 
 One strategy instance per strategy directory.  Stopping cancels only this
 strategy's working orders and never flattens (D62-19).  The mixin reuses the
@@ -66,8 +70,13 @@ _DIRECT_PARAMS = (
     ("direct_permission_check", True),
     ("direct_permission_timeout", 5.0),
     ("direct_permission_max_duration", 60.0),
+    # R-3: seconds between verification attempts of a pending trading-day
+    # switch (new orders stay frozen until one attempt verifies everything).
+    ("direct_day_switch_retry_interval", 15.0),
 )
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
+# Global blocks a trading-day switch cannot clear by itself (operator restart).
+_DAY_SWITCH_TERMINAL_BLOCKS = frozenset(("trading_day_regressed", "account_binding_mismatch"))
 
 
 class DirectModeError(RuntimeError):
@@ -103,6 +112,36 @@ def _num(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.0
     return number if math.isfinite(number) else 0.0
+
+
+def _valid_trading_day(value: Any) -> bool:
+    """``YYYYMMDD`` text of a real date (the provider session trading-day form)."""
+    if type(value) is not str or len(value) != 8 or not value.isdigit():
+        return False
+    try:
+        _dt.datetime.strptime(value, "%Y%m%d")
+    except ValueError:
+        return False
+    return True
+
+
+def _settlement_class(outcome: Optional[Dict[str, Any]]) -> str:
+    """Classify one settlement step of a trading-day switch (D62-29).
+
+    ``unclear`` means a confirmation was durably committed (so it may have been
+    sent) without a confirmed result: it is never repeated automatically.
+    ``unverified`` means nothing was committed, hence nothing was sent, and a
+    later read-first attempt is allowed.
+    """
+    if not outcome:
+        return "not_run"
+    if outcome.get("skipped"):
+        return "skipped"
+    if outcome.get("error") is None and outcome.get("value") == "confirmed":
+        return "confirmed"
+    if outcome.get("marker_id"):
+        return "unclear"
+    return "unverified"
 
 
 def _positive_finite(value: Any, *, absolute: bool = False) -> bool:
@@ -232,8 +271,16 @@ class BtApiDirectModeMixin:
         self._direct_facts_results: collections.deque = collections.deque(maxlen=8)
         self._direct_last_funds = 0.0
         self._direct_last_audit = 0.0
-        self._direct_refresh_counts = {"funds": 0, "audit": 0, "failed": 0}
+        self._direct_refresh_counts = {"funds": 0, "audit": 0, "failed": 0, "day_switch": 0}
         self._direct_lock = threading.RLock()
+        # R-3 trading-day switch: state owned by the strategy thread; the
+        # request (target day, run settlement) is handed to the facts poller.
+        self._direct_session_generation: Optional[int] = None
+        self._direct_day_switch: Optional[Dict[str, Any]] = None
+        self._direct_day_switch_lock = threading.Lock()
+        self._direct_day_switch_request: Optional[tuple] = None
+        self._direct_day_switch_inflight = False
+        self._direct_day_switch_due = 0.0
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -284,6 +331,7 @@ class BtApiDirectModeMixin:
         )
         facts = self._direct_read_startup_facts()
         self._direct_trading_day = facts.trading_day
+        self._direct_session_generation = facts.session_generation
         account_hash = self._direct_account_reference()
         binding = {"exchange": self._direct_exchange, "account_hash": account_hash}
         check_host = bool(self.p.check_host_path)
@@ -666,21 +714,17 @@ class BtApiDirectModeMixin:
 
     def _direct_settle(self) -> None:
         """Confirm the settlement statement under admission (D62-20/29)."""
-        if not self._direct_writes_enabled:
+        outcome = self._direct_settle_call()
+        if outcome is None:
             return
-        port = self._direct_state.pending.bind()
-        try:
-            status = self._direct_api.ensure_settlement_confirmed(
-                self._direct_exchange, pre_dispatch_commit=port, host_scope=self._direct_uuid
-            )
-        except Exception as exc:
+        if outcome["error"] is not None:
             self._direct_global_block = "settlement_unconfirmed"
-            _log.warning("direct settlement confirmation failed: %s", type(exc).__name__)
+            _log.warning("direct settlement confirmation failed: %s", outcome["error"])
             return
-        value = getattr(status, "value", status)
+        value = outcome["value"]
         if value != "confirmed":
             self._direct_global_block = "settlement_unconfirmed"
-        marker = getattr(port, "last_marker_id", None)
+        marker = outcome["marker_id"]
         if marker:
             self._direct_state.pending.mark(
                 marker,
@@ -688,6 +732,32 @@ class BtApiDirectModeMixin:
                 final_status=str(value),
                 resolution_evidence="settlement_readback",
             )
+
+    def _direct_settle_call(self) -> Optional[Dict[str, Any]]:
+        """One SDK settlement step (read first, confirm under admission); no Broker state.
+
+        ``None`` when writes are disabled (nothing to confirm).  Otherwise the
+        status ``value``, the exception type as ``error`` and the marker id of
+        a confirmation the SDK committed through the host port.
+        """
+        if not self._direct_writes_enabled:
+            return None
+        port = self._direct_state.pending.bind()
+        try:
+            status = self._direct_api.ensure_settlement_confirmed(
+                self._direct_exchange, pre_dispatch_commit=port, host_scope=self._direct_uuid
+            )
+        except Exception as exc:
+            return {
+                "value": None,
+                "error": type(exc).__name__,
+                "marker_id": getattr(port, "last_marker_id", None),
+            }
+        return {
+            "value": getattr(status, "value", status),
+            "error": None,
+            "marker_id": getattr(port, "last_marker_id", None),
+        }
 
     # ------------------------------------------------------------------
     # trading-permission facts (D62-25, N-1/2, 62.03)
@@ -842,6 +912,8 @@ class BtApiDirectModeMixin:
         blocked = dict(self._direct_blocked)
         if self._direct_global_block:
             blocked["*"] = self._direct_global_block
+        if getattr(self, "_direct_day_switch", None) is not None:
+            blocked.setdefault("*", "trading_day_switch_pending")
         if not self._direct_writes_enabled:
             blocked.setdefault("*", "write_admission_disabled")
         return blocked
@@ -1012,10 +1084,15 @@ class BtApiDirectModeMixin:
             return "broker_stopping"
         if not self._direct_writes_enabled:
             return "write_admission_disabled"
+        # R-3: a provider trading day other than the reconciled one freezes
+        # every new order of the route until the new day is re-verified.
+        switching = self._direct_day_switch_active()
         if self._direct_global_block:
             return self._direct_global_block
         if "*" in self._direct_blocked:
             return self._direct_blocked["*"]
+        if switching:
+            return "trading_day_switch_pending"
         if self._direct_restored and self._direct_strategy is None:
             return "restored_orders_not_taken_over"
         if self._direct_strategy is None and order.owner is not None:
@@ -1253,6 +1330,12 @@ class BtApiDirectModeMixin:
                 return order
             if meta.get("identity") is None or meta.get("cancel_requested"):
                 return order
+            if meta.get("day_unknown"):
+                # R-3: an unresolved order of a previous trading day takes no
+                # automatic write (its day-scoped venue ids may be reused).
+                order.addinfo(cancel_error="previous_day_pending_unknown")
+                _log.warning("direct cancel of %s refused: previous_day_pending_unknown", order.ref)
+                return order
             port = self._direct_state.pending.bind(bt_ref=order.ref)
             try:
                 outcome = self._direct_api.cancel_order(
@@ -1332,16 +1415,30 @@ class BtApiDirectModeMixin:
         if identity is None:
             return None
         fields = dict(identity.fields)
-        for key in identity_keys(fields, identity.client_order_id):
-            ref = self._direct_index.get(key)
-            if ref is not None:
-                return self.orders.get(ref)
+        keys = identity_keys(fields, identity.client_order_id)
         if event.exchange_order_id and fields.get("exchange_id"):
-            key = ("x", str(fields["exchange_id"]), str(event.exchange_order_id))
+            keys.append(("x", str(fields["exchange_id"]), str(event.exchange_order_id)))
+        for key in keys:
             ref = self._direct_index.get(key)
-            if ref is not None:
+            if ref is not None and self._direct_same_trading_day(ref, key, fields):
                 return self.orders.get(ref)
         return None
+
+    def _direct_same_trading_day(self, ref: int, key: tuple, fields: Dict[str, Any]) -> bool:
+        """A day-scoped key matches only an order of the same trading day (R-3).
+
+        CTP ``FrontID``/``SessionID``/``OrderRef`` and ``ExchangeID``/
+        ``OrderSysID`` are unique within one trading day only; a return of a
+        later day carrying a reused value is another order.  Client order ids
+        (``c`` keys) are not day-scoped.  Unknown days keep the match.
+        """
+        if key[0] == "c":
+            return True
+        event_day = fields.get("trading_day")
+        meta = self._direct_meta.get(ref)
+        identity = meta.get("identity") if meta is not None else None
+        own_day = dict(identity.fields).get("trading_day") if identity is not None else None
+        return not (event_day and own_day and str(event_day) != str(own_day))
 
     def _direct_process_event(self, event: Any) -> None:
         order = self._direct_order_for_event(event)
@@ -1761,6 +1858,8 @@ class BtApiDirectModeMixin:
                 return  # FIFO per strategy: later orders may not overtake (D62-35)
             if self._direct_restored and self._direct_strategy is None:
                 return
+            if self._direct_day_switch_active():
+                return  # R-3: hold the FIFO queue (not rejected) until the new day is verified
             phase = self._direct_phase(meta["symbol"], now)
             if phase is None or phase.reason or phase.phase.value != "continuous":
                 return  # auction / unknown: no dispatch (D62-34)
@@ -1814,6 +1913,15 @@ class BtApiDirectModeMixin:
         funds_every = max(float(self.p.direct_funds_refresh_interval or 0.0), 0.0)
         audit_every = max(float(self.p.direct_position_audit_interval or 0.0), 0.0)
         while not self._direct_facts_stop.wait(1.0):
+            if self._direct_day_switch_request is not None:
+                # R-3: the switch verification replaces funds/audit reads (one
+                # query stream per session) until the switch is applied.
+                try:
+                    self._direct_day_switch_poll()
+                except Exception as exc:
+                    self._direct_refresh_counts["failed"] += 1
+                    _log.warning("direct day-switch reads failed: %s", type(exc).__name__)
+                continue
             now = time.monotonic()
             want_audit = bool(audit_every) and now - self._direct_last_audit >= audit_every
             want_funds = bool(funds_every) and now - self._direct_last_funds >= funds_every
@@ -1838,13 +1946,17 @@ class BtApiDirectModeMixin:
     def _direct_consume_facts(self) -> None:
         while self._direct_facts_results:
             kind, facts = self._direct_facts_results.popleft()
+            if kind == "day_switch":
+                self._direct_apply_day_switch(facts)
+                continue
             self._direct_apply_balance(facts.balance)
+            self._direct_note_trading_day(facts.trading_day, kind)
+            if self._direct_day_switch is not None:
+                continue  # R-3: the switch reconciliation replaces this audit
             if kind == "audit" and facts.positions is not None and facts.active_orders is not None:
                 self._direct_audit(facts)
 
     def _direct_audit(self, facts: Any) -> None:
-        if facts.trading_day and facts.trading_day != self._direct_trading_day:
-            self._direct_roll_trading_day(facts.trading_day)
         busy = {
             meta["symbol"]
             for ref, meta in self._direct_meta.items()
@@ -1875,18 +1987,559 @@ class BtApiDirectModeMixin:
                     split["today"][side] = fact.today
                     split["yesterday"][side] = fact.yesterday
 
-    def _direct_roll_trading_day(self, trading_day: str) -> None:
-        """R-3 (minimal): on a new trading day today's positions become history."""
-        self._direct_trading_day = trading_day
-        for symbol in set(self.long_positions) | set(self.short_positions):
+    # ------------------------------------------------------------------
+    # trading-day switch while running (R-3; D62-14/22/29)
+    # ------------------------------------------------------------------
+    # State machine (strategy thread owns ``_direct_day_switch``):
+    #   entry   a trusted provider trading day (facts read or the provider
+    #           session) other than the reconciled one -> new orders refused
+    #           ``trading_day_switch_pending``; returns, own cancels and the
+    #           waiting-order expiry keep running, the waiting queue is held;
+    #   verify  facts poller: session + trading day, account reference, one
+    #           complete account observation of the new day, the new day's
+    #           settlement via the SDK (D62-29), session again;
+    #   apply   strategy thread: settlement result, old-day pending markers
+    #           (verified working/terminal or UNKNOWN + instrument block),
+    #           positions with the venue's today/yesterday split, foreign
+    #           orders, applied trades, then the new day and one snapshot;
+    #   exit    only after an attempt verified everything; transient failures
+    #           keep the freeze and retry, terminal ones keep a global block.
+    def _direct_session_probe(self) -> tuple:
+        """``(session generation, trading day)`` of the provider session (local reads)."""
+        provider = self._direct_api.direct_writes().provider(self._direct_exchange)
+        read_generation = getattr(provider, "session_generation", None)
+        read_day = getattr(provider, "trading_day", None)
+        generation = read_generation() if callable(read_generation) else None
+        day = read_day() if callable(read_day) else None
+        return (
+            generation if type(generation) is int else None,
+            day if _valid_trading_day(day) else None,
+        )
+
+    def _direct_day_switch_active(self) -> bool:
+        """A switch is pending; a provider session day other than ours starts one."""
+        if self._direct_day_switch is None and self._direct_on:
+            try:
+                _generation, day = self._direct_session_probe()
+            except Exception:
+                day = None  # an unreadable session proves no change
+            if day is not None:
+                self._direct_note_trading_day(day, "provider_session")
+        return self._direct_day_switch is not None
+
+    def _direct_note_trading_day(self, day: Any, source: str) -> None:
+        """Enter (or retarget) the switch when a trusted provider day differs."""
+        current = self._direct_trading_day
+        if not _valid_trading_day(current) or not _valid_trading_day(day):
+            return
+        if self._direct_global_block in _DAY_SWITCH_TERMINAL_BLOCKS:
+            return  # already refused for good; an operator restart reconciles
+        switch = self._direct_day_switch
+        if switch is None:
+            if day != current:
+                self._direct_enter_day_switch(day, source)
+            return
+        if day < current:
+            self._direct_global_block = "trading_day_regressed"
+            self._direct_finish_day_switch(switch, "failed", "trading_day_regressed")
+            return
+        if day not in (switch["to_trading_day"], switch["from_trading_day"]):
+            # A further change before the first was verified: verify the newest.
+            _log.warning(
+                "direct trading-day switch retargeted %s -> %s (%s)",
+                switch["to_trading_day"],
+                day,
+                source,
+            )
+            switch["to_trading_day"] = day
+            switch["retargeted"] += 1
+            self._direct_request_day_switch(day, settle=True)
+
+    def _direct_enter_day_switch(self, day: str, source: str) -> None:
+        current = self._direct_trading_day
+        switch: Dict[str, Any] = {
+            "status": "pending",
+            "from_trading_day": current,
+            "to_trading_day": day,
+            "detected_by": source,
+            "detected_at_utc": _utc_text(),
+            "attempts": 0,
+            "retargeted": 0,
+            "last_reason": None,
+            "session_generation": None,
+            "reconnected": None,
+            "settlement": None,
+            "verified_markers": [],
+            "resolved_markers": [],
+            "superseded_markers": [],
+            "unknown_markers": [],
+            "mismatches": [],
+            "unverified_positions": [],
+            "split_sources": {},
+            "calendar": {},
+            "blocked": {},
+            "completed_at_utc": None,
+        }
+        self._direct_report["trading_day_switch"] = switch
+        if day < current:
+            # The venue day never moves backwards in a normal switch.
+            self._direct_global_block = "trading_day_regressed"
+            switch.update(status="failed", last_reason="trading_day_regressed")
+            switch["blocked"] = {"*": "trading_day_regressed"}
+            _log.error("direct trading day regressed %s -> %s: writes blocked", current, day)
+            return
+        self._direct_day_switch = switch
+        self._direct_request_day_switch(day, settle=True)
+        _log.warning(
+            "direct trading-day switch %s -> %s detected (%s): new orders frozen "
+            "until the new day is re-verified",
+            current,
+            day,
+            source,
+        )
+
+    def _direct_request_day_switch(self, day: Optional[str], *, settle: bool = True) -> None:
+        with self._direct_day_switch_lock:
+            self._direct_day_switch_request = None if day is None else (day, bool(settle))
+            self._direct_day_switch_due = 0.0
+
+    def _direct_day_switch_poll(self) -> None:
+        """Facts poller: run one verification attempt when one is due (not re-entrant)."""
+        with self._direct_day_switch_lock:
+            request = self._direct_day_switch_request
+            if (
+                request is None
+                or self._direct_day_switch_inflight
+                or time.monotonic() < self._direct_day_switch_due
+            ):
+                return
+            self._direct_day_switch_inflight = True
+        target, settle = request
+        payload = self._direct_day_switch_reads(target, settle=settle)
+        self._direct_refresh_counts["day_switch"] += 1
+        self._direct_facts_results.append(("day_switch", payload))
+
+    def _direct_day_switch_reads(self, target: str, *, settle: bool = True) -> Dict[str, Any]:
+        """Verification reads of a pending switch (facts poller thread).
+
+        Read-only except the settlement step, which runs only after account,
+        trading day and session were verified (D62-29) and goes through the
+        SDK (read first, confirm under admission, durable marker first).
+        Nothing here changes Broker state; the strategy thread applies it.
+        """
+        payload: Dict[str, Any] = {
+            "target": target,
+            "ok": False,
+            "reason": None,
+            "facts": None,
+            "settlement": None,
+            "generation": None,
+            "observed_day": None,
+        }
+        try:
+            generation, day = self._direct_session_probe()
+            payload.update(generation=generation, observed_day=day)
+            if generation is None:
+                payload["reason"] = "session_unavailable"
+                return payload
+            if day != target:
+                payload["reason"] = "trading_day_unverified"
+                return payload
+            try:
+                account_hash = self._direct_account_reference()
+            except DirectModeError:
+                payload["reason"] = "account_reference_unavailable"
+                return payload
+            if account_hash != self._direct_account_hash:
+                payload["reason"] = "account_binding_mismatch"
+                return payload
+            facts = self._direct_read_facts(trades=True, all_orders=True)
+            payload["facts"] = facts
+            if not facts.complete:
+                payload["reason"] = "account_facts_incomplete"
+                payload["blockers"] = [
+                    str(item).split("[", 1)[0] for item in (facts.blockers or ())
+                ][:8]
+                return payload
+            if facts.trading_day != target:
+                payload.update(reason="trading_day_unverified", observed_day=facts.trading_day)
+                return payload
+            if facts.session_generation is None or facts.session_generation != generation:
+                payload["reason"] = "session_changed"
+                return payload
+            if settle:
+                if self._direct_writes_enabled:
+                    outcome = self._direct_settle_call()
+                    payload["settlement"] = outcome
+                    if _settlement_class(outcome) == "unclear":
+                        # Never repeat a confirmation that may have been sent.
+                        with self._direct_day_switch_lock:
+                            if self._direct_day_switch_request == (target, True):
+                                self._direct_day_switch_request = (target, False)
+                else:
+                    payload["settlement"] = {"skipped": True}
+            if self._direct_session_probe() != (generation, day):
+                payload["reason"] = "session_changed"
+                return payload
+            payload["ok"] = True
+        except Exception as exc:
+            payload["reason"] = f"verification_failed:{type(exc).__name__}"
+        return payload
+
+    def _direct_day_switch_settlement(self, outcome: Dict[str, Any]) -> str:
+        """Record one settlement step (marker and block); return its class."""
+        kind = _settlement_class(outcome)
+        marker = outcome.get("marker_id")
+        if kind == "confirmed" and marker:
+            self._direct_state.pending.mark(
+                marker,
+                "TERMINAL",
+                final_status="confirmed",
+                resolution_evidence="settlement_readback",
+            )
+        elif kind == "unclear":
+            # D62-29: an unclear confirmation keeps its identity for review
+            # and is never retried blindly; trading writes stay blocked.
+            self._direct_state.pending.mark(marker, "UNKNOWN", reason="settlement_outcome_unknown")
+            self._direct_global_block = "settlement_unconfirmed"
+            _log.warning("direct new-day settlement outcome unclear: writes blocked")
+        return kind
+
+    def _direct_apply_day_switch(self, payload: Dict[str, Any]) -> None:
+        """Strategy thread: apply one verification attempt of the pending switch."""
+        retry = max(float(self.p.direct_day_switch_retry_interval or 0.0), 0.0)
+        switch = self._direct_day_switch
+        outcome = payload.get("settlement")
+        if switch is None or payload.get("target") != switch["to_trading_day"]:
+            # Stale attempt (retargeted or already finished): a settlement it
+            # committed is still recorded; nothing else is applied.
+            if outcome:
+                self._direct_day_switch_settlement(outcome)
+            with self._direct_day_switch_lock:
+                self._direct_day_switch_inflight = False
+            return
+        switch["attempts"] += 1
+        reason = payload.get("reason")
+        if outcome:
+            kind = self._direct_day_switch_settlement(outcome)
+            if switch["settlement"] != "unclear":
+                switch["settlement"] = kind
+        if reason == "account_binding_mismatch":
+            self._direct_global_block = "account_binding_mismatch"
+            self._direct_finish_day_switch(switch, "failed", reason)
+            return
+        observed = payload.get("observed_day")
+        if reason == "trading_day_unverified" and _valid_trading_day(observed):
+            if observed < self._direct_trading_day:
+                self._direct_global_block = "trading_day_regressed"
+                self._direct_finish_day_switch(switch, "failed", "trading_day_regressed")
+                return
+            self._direct_note_trading_day(observed, "verification")
+        if not payload.get("ok") or switch["settlement"] not in ("confirmed", "skipped", "unclear"):
+            reason = reason or "settlement_unverified"
+            if reason != switch["last_reason"]:
+                _log.warning(
+                    "direct trading-day switch to %s not verified yet: %s",
+                    switch["to_trading_day"],
+                    reason,
+                )
+            switch["last_reason"] = reason
+            if payload.get("blockers"):
+                switch["blockers"] = list(payload["blockers"])
+            retargeted = switch["to_trading_day"] != payload.get("target")
+            with self._direct_day_switch_lock:
+                self._direct_day_switch_inflight = False
+                self._direct_day_switch_due = 0.0 if retargeted else time.monotonic() + retry
+            return
+        self._direct_complete_day_switch(switch, payload)
+
+    def _direct_complete_day_switch(self, switch: Dict[str, Any], payload: Dict[str, Any]) -> None:
+        facts = payload["facts"]
+        to_day = switch["to_trading_day"]
+        generation = payload["generation"]
+        switch["session_generation"] = generation
+        switch["reconnected"] = (
+            self._direct_session_generation is not None
+            and generation != self._direct_session_generation
+        )
+        # Durable marker decisions first; the snapshot is written last.  A
+        # crash in between restarts into the startup reconciliation, which
+        # re-derives both from the venue (old-day markers -> UNKNOWN).
+        self._direct_day_switch_markers(facts, to_day, switch)
+        self._direct_day_switch_positions(facts, to_day, switch)
+        self._direct_foreign_orders = [
+            event
+            for event in facts.active_orders or ()
+            if event.identity is not None and self._direct_order_for_event(event) is None
+        ]
+        self._direct_report["foreign_working_orders"] = len(self._direct_foreign_orders)
+        self._direct_day_switch_trades(facts, to_day)
+        self._direct_trading_day = to_day
+        self._direct_session_generation = generation
+        self._direct_report["trading_day"] = to_day
+        if switch["settlement"] == "confirmed" and self._direct_global_block == (
+            "settlement_unconfirmed"
+        ):
+            # The previous day's unconfirmed settlement is superseded by the
+            # verified confirmation of the new day.
+            self._direct_global_block = None
+        self._direct_apply_balance(facts.balance)
+        self._direct_write_snapshot()
+        self._direct_last_audit = time.monotonic()
+        self._direct_finish_day_switch(switch, "completed", None)
+
+    def _direct_finish_day_switch(
+        self, switch: Dict[str, Any], status: str, reason: Optional[str]
+    ) -> None:
+        self._direct_day_switch = None
+        self._direct_request_day_switch(None)
+        with self._direct_day_switch_lock:
+            self._direct_day_switch_inflight = False
+        switch["status"] = status
+        if reason is not None:
+            switch["last_reason"] = reason
+        switch["completed_at_utc"] = _utc_text()
+        switch["blocked"] = self.direct_writes_blocked()
+        log = _log.warning if switch["blocked"] or status != "completed" else _log.info
+        log(
+            "direct trading-day switch %s -> %s %s: attempts=%d reconnected=%s settlement=%s "
+            "unknown=%d mismatches=%d blocked=%s",
+            switch["from_trading_day"],
+            switch["to_trading_day"],
+            status,
+            switch["attempts"],
+            switch["reconnected"],
+            switch["settlement"],
+            len(switch["unknown_markers"]),
+            len(switch["mismatches"]),
+            ",".join(f"{key}:{value}" for key, value in sorted(switch["blocked"].items())) or "-",
+        )
+
+    @staticmethod
+    def _direct_day_bound_event(events: Any, keys: List[tuple], day: Any) -> Any:
+        """The event with one of ``keys`` that belongs to trading day ``day``.
+
+        Day-scoped keys (session triple, venue order id) need the event's own
+        trading day to equal ``day``; client order ids only must not conflict.
+        """
+        if not day or not keys:
+            return None
+        wanted = set(keys)
+        for event in events:
+            if event.identity is None:
+                continue
+            fields = dict(event.identity.fields)
+            matched = set(identity_keys(fields, event.identity.client_order_id)) & wanted
+            if not matched:
+                continue
+            event_day = fields.get("trading_day") or event.trading_day
+            if event_day is not None and str(event_day) != str(day):
+                continue
+            if event_day is None and any(key[0] != "c" for key in matched):
+                continue
+            return event
+        return None
+
+    def _direct_day_switch_markers(self, facts: Any, to_day: str, switch: Dict[str, Any]) -> None:
+        """Old-day pending markers: verified by original identity and day, else UNKNOWN.
+
+        A complete order list of the new day does not cover an older day:
+        absence (or a GFD expiry) proves neither an end nor a non-send.
+        """
+        state = self._direct_state
+        working = tuple(facts.active_orders or ())
+        every = tuple(getattr(facts, "orders", None) or ()) + working
+        by_marker = {
+            meta.get("marker_id"): ref
+            for ref, meta in self._direct_meta.items()
+            if meta.get("marker_id")
+        }
+        for marker in state.pending.active():
+            marker_id = marker["marker_id"]
+            fields = dict(marker.get("native_identity") or {})
+            day = fields.get("trading_day") or marker.get("trading_day")
+            operation = marker.get("operation")
+            if operation == "settlement_confirm":
+                if day == to_day:
+                    continue  # this switch's own settlement step
+                if marker.get("status") == "UNKNOWN":
+                    self._direct_blocked["*"] = "pending_unknown"
+                    switch["unknown_markers"].append(marker_id)
+                elif state.pending.mark(
+                    marker_id,
+                    "TERMINAL",
+                    final_status="superseded_trading_day",
+                    resolution_evidence="trading_day_switch",
+                ):
+                    switch["superseded_markers"].append(marker_id)
+                continue
+            if operation != "place" or day == to_day:
+                continue  # cancels follow their order; same-day orders their returns
+            symbol = str(marker.get("symbol"))
+            ref = by_marker.get(marker_id)
+            order = self.orders.get(ref) if ref is not None else None
+            meta = self._direct_meta.get(ref) if ref is not None else None
+            if marker.get("status") == "UNKNOWN":
+                self._direct_blocked.setdefault(symbol, "pending_unknown")
+                switch["unknown_markers"].append(marker_id)
+                continue
+            keys = identity_keys(fields, marker.get("client_order_id"))
+            live = self._direct_day_bound_event(working, keys, day)
+            if live is not None and state.pending.mark(
+                marker_id,
+                "ACCEPTED",
+                resolution_evidence="trading_day_switch_working_order",
+                **({"order_sys_id": live.exchange_order_id} if live.exchange_order_id else {}),
+            ):
+                switch["verified_markers"].append(marker_id)
+                continue
+            ended = self._direct_day_bound_event(every, keys, day)
+            if (
+                ended is not None
+                and live is None
+                and order is not None
+                and meta is not None
+                and order.alive()
+                and self._direct_switch_terminal(order, meta, ended)
+            ):
+                switch["resolved_markers"].append(marker_id)
+                continue
+            state.pending.mark(marker_id, "UNKNOWN", reason="previous_trading_day_unresolved")
+            self._direct_blocked[symbol] = "previous_day_pending_unknown"
+            switch["unknown_markers"].append(marker_id)
+            if meta is not None:
+                meta["day_unknown"] = True
+            if order is not None:
+                order.addinfo(outcome_unknown=True, unresolved_trading_day=day)
+            # A restore still waiting for its feed must not become a live order.
+            self._direct_deferred_restore = [
+                item for item in self._direct_deferred_restore if item[0]["marker_id"] != marker_id
+            ]
+            self._direct_awaiting_bar = [
+                item
+                for item in self._direct_awaiting_bar
+                if not (item[0] == "restore" and item[1]["marker_id"] == marker_id)
+            ]
+
+    def _direct_switch_terminal(self, order: Order, meta: Dict[str, Any], event: Any) -> bool:
+        """Project a verified terminal old-day order whose fills are all applied."""
+        status = event.status.value if event.status is not None else None
+        if status not in ("cancelled", "rejected"):
+            return False
+        if status == "rejected" and order.status not in (Order.Submitted, Order.Accepted):
+            return False
+        known = abs(order.executed.size) + _num(meta.get("venue_filled_before"))
+        if abs(_num(event.filled_qty) - known) > 1e-9:
+            return False  # fills still missing: only a trade record could prove them
+        if status == "cancelled":
+            order.cancel()
+        else:
+            order.addinfo(error_code=str(event.error_code or "venue_rejected"))
+            order.reject(self)
+        self.notify(order)
+        self._direct_mark(
+            meta,
+            "TERMINAL",
+            final_status=status,
+            resolution_evidence="trading_day_switch_order_query",
+        )
+        for marker in meta.pop("cancel_markers", []):
+            self._direct_state.pending.mark(marker, "TERMINAL", final_status="order_" + status)
+        return True
+
+    def _direct_calendar_check(self, symbol: str, to_day: str) -> str:
+        """``match``/``mismatch`` of the venue calendar's trading day now, else ``unknown``."""
+        state = self._direct_phase(symbol)
+        day = getattr(state, "trading_day", None) if state is not None else None
+        if state is None or getattr(state, "reason", None) or not isinstance(day, _dt.date):
+            return "unknown"
+        return "match" if day.strftime("%Y%m%d") == to_day else "mismatch"
+
+    def _direct_day_switch_positions(self, facts: Any, to_day: str, switch: Dict[str, Any]) -> None:
+        """New-day positions: totals per side, then the venue's today/yesterday split (D62-22).
+
+        The venue split is authoritative when reported.  Without it the local
+        conversion (everything becomes yesterday's) is used unless the venue
+        calendar contradicts the new day; otherwise the split stays unknown.
+        """
+        venue: Dict[str, Dict[str, Any]] = {}
+        for fact in facts.positions or ():
+            fact = _leg_fact(fact)
+            if fact is None:
+                continue
+            venue.setdefault(fact.symbol, {})[fact.side] = fact
+            if fact.venue:
+                self._direct_symbol_venue[fact.symbol] = fact.venue
+        busy = {
+            meta["symbol"]
+            for ref, meta in self._direct_meta.items()
+            if ref in self.orders and self.orders[ref].alive() and meta.get("identity") is not None
+        }
+        configured = {str(name) for name in (getattr(self.store, "_sdk_routes", None) or {})}
+        symbols = set(self.long_positions) | set(self.short_positions) | (configured & set(venue))
+        for symbol in sorted(symbols):
             split = self._direct_split_of(symbol)
+            calendar = self._direct_calendar_check(symbol, to_day)
+            sources: Dict[str, str] = {}
             for side in ("long", "short"):
                 leg = (
                     self.long_positions[symbol] if side == "long" else self.short_positions[symbol]
                 )
-                split["today"][side] = 0.0
-                split["yesterday"][side] = abs(leg.size)
-        self._direct_write_snapshot()
+                local_total = abs(leg.size)
+                fact = venue.get(symbol, {}).get(side)
+                venue_total = fact.total if fact is not None else 0.0
+                if abs(venue_total - local_total) > 1e-9:
+                    split["today"][side] = None
+                    split["yesterday"][side] = None
+                    entry = {"symbol": symbol, "side": side, "local": local_total}
+                    entry["venue"] = venue_total
+                    if symbol in busy:
+                        # An in-flight fill may race the read: unknown until
+                        # the next audit, never adopted nor blocked here.
+                        switch["unverified_positions"].append(entry)
+                        sources[side] = "unknown_in_flight"
+                    else:
+                        switch["mismatches"].append(entry)
+                        self._direct_blocked[symbol] = "trading_day_switch_position_mismatch"
+                        sources[side] = "mismatch"
+                    continue
+                if fact is not None and (fact.today is not None or fact.yesterday is not None):
+                    split["today"][side] = fact.today
+                    split["yesterday"][side] = fact.yesterday
+                    sources[side] = "venue"
+                elif not local_total:
+                    split["today"][side] = 0.0
+                    split["yesterday"][side] = 0.0
+                    sources[side] = "flat"
+                elif calendar != "mismatch":
+                    split["today"][side] = 0.0
+                    split["yesterday"][side] = local_total
+                    sources[side] = "local_conversion"
+                else:
+                    split["today"][side] = None
+                    split["yesterday"][side] = None
+                    sources[side] = "unknown"
+            switch["split_sources"][symbol] = sources
+            switch["calendar"][symbol] = calendar
+            self._direct_sync_net(symbol)
+
+    def _direct_day_switch_trades(self, facts: Any, to_day: str) -> None:
+        """Keep the applied-trade keys of the new day's confirmed trades.
+
+        Trades applied before the switch was verified were keyed under the old
+        day; those the venue lists for the new day stay de-duplicated.
+        """
+        applied: set = set()
+        for keys in self._direct_applied.values():
+            applied.update(keys)
+        for meta in self._direct_meta.values():
+            applied.update(meta.get("trade_keys") or ())
+        carried: List[str] = []
+        for trade in facts.trades or ():
+            key = self._direct_trade_key(trade)
+            if key in applied and key not in carried:
+                carried.append(key)
+        self._direct_applied = {to_day: carried}
 
     # ------------------------------------------------------------------
     # stop (D62-19: cancel own working orders, never flatten)
@@ -1906,6 +2559,14 @@ class BtApiDirectModeMixin:
                 if ref in self.orders
                 and self.orders[ref].alive()
                 and meta.get("identity") is not None
+                and not meta.get("day_unknown")
+            ]
+            # R-3: unresolved orders of a previous trading day are never
+            # cancelled automatically; they stay UNKNOWN with their identity.
+            day_unknown = [
+                ref
+                for ref, meta in self._direct_meta.items()
+                if ref in self.orders and self.orders[ref].alive() and meta.get("day_unknown")
             ]
             for order in working:
                 self._direct_cancel(order)
@@ -1914,7 +2575,7 @@ class BtApiDirectModeMixin:
             with self._direct_lock:
                 self._direct_drain_events()
             time.sleep(0.05)
-        unresolved = [order.ref for order in working if order.alive()]
+        unresolved = [order.ref for order in working if order.alive()] + day_unknown
         with self._direct_lock:
             self._direct_write_snapshot()
         self._direct_release_lock()

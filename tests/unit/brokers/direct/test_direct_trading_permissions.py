@@ -228,7 +228,6 @@ def test_investor_and_trading_code_alone_allow_but_prove_nothing(env):
     "change",
     [
         lambda session: session.update(generation=2),  # reconnect
-        lambda session: session.update(day="20261106"),  # trading-day roll
         lambda session: session.update(generation=None),
     ],
 )
@@ -237,6 +236,24 @@ def test_facts_of_another_session_or_trading_day_no_longer_refuse(env, change):
     broker = env.start(first_init=True)
     assert _buy(env, broker).info["error_code"] == DENIED
     change(session)
+    order = _buy(env, broker)
+    assert order.status == bt.Order.Submitted
+    assert broker.get_direct_reconcile_report()["permissions"]["current"] is False
+    assert broker._direct_permission_denials == {}
+
+
+def test_facts_of_the_previous_trading_day_no_longer_refuse_after_the_switch(env):
+    """A trading-day roll first freezes new orders (R-3); then the old facts are stale."""
+    from ._fakes import quiet, run_day_switch
+
+    _reader, session = _install(env, _permissions(_negative(SYMBOL)))
+    broker = env.start(first_init=True)
+    quiet(broker)
+    assert _buy(env, broker).info["error_code"] == DENIED
+    session.update(day="20261106")
+    env.api.trading_day = "20261106"
+    assert _buy(env, broker).info["error_code"] == "trading_day_switch_pending"
+    assert run_day_switch(broker)["status"] == "completed"
     order = _buy(env, broker)
     assert order.status == bt.Order.Submitted
     assert broker.get_direct_reconcile_report()["permissions"]["current"] is False

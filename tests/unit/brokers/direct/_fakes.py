@@ -220,6 +220,7 @@ class FakeSchedule:
         self.phase = phase
         self.next_window = next_window
         self.reason: Optional[str] = None
+        self.trading_day = dt.date(2026, 11, 5)  # the venue calendar's day now
         self.calls: List[tuple] = []
 
     def session_state(self, instrument_id: str, at_utc: dt.datetime) -> TradingSessionState:
@@ -231,7 +232,7 @@ class FakeSchedule:
             instrument_id=instrument_id,
             at_utc=at_utc,
             phase=self.phase,
-            trading_day=dt.date(2026, 11, 5),
+            trading_day=self.trading_day,
             current_window=None,
             next_continuous=self.next_window,
             calendar_ref="fake-calendar",
@@ -275,6 +276,11 @@ class FakeApi:
         self.provider = FakeProvider()
         self._writes = FakeDirectWrites(self.provider)
         self.trading_day = TODAY
+        self.session_generation: Optional[int] = 1
+        # Provider session readers (instance attributes, so tests may replace
+        # or delete them like a provider without the capability).
+        self.provider.trading_day = lambda: self.trading_day
+        self.provider.session_generation = lambda: self.session_generation
         self.positions: List[DirectPositionFact] = []
         self.active_orders: List[DirectExecutionEvent] = []
         self.orders: List[DirectExecutionEvent] = []  # terminal orders of the day
@@ -285,6 +291,10 @@ class FakeApi:
         self.incomplete_reads = 0  # the next N reads come back incomplete
         self.schedule: Optional[FakeSchedule] = FakeSchedule()
         self.settlement_result = SettlementStatus.CONFIRMED
+        # SDK readback answered without any commit (CONFIRMED / UNKNOWN), or an
+        # exception raised before anything was committed.
+        self.settlement_readback: Optional[SettlementStatus] = None
+        self.settlement_error: Optional[Exception] = None
         self.outcomes: collections.deque = collections.deque()
         self.make_order_error: Optional[Exception] = None
         self.cancel_sent: Optional[bool] = True
@@ -309,7 +319,7 @@ class FakeApi:
         return DirectAccountFacts(
             exchange_name=exchange_name,
             trading_day=self.trading_day,
-            session_generation=1,
+            session_generation=self.session_generation,
             observed_at_utc=_utc_text(),
             positions=tuple(self.positions) if sections.get("positions", True) else None,
             active_orders=(
@@ -340,6 +350,16 @@ class FakeApi:
         return marker if type(marker) is str and marker else None
 
     def ensure_settlement_confirmed(self, exchange_name, *, pre_dispatch_commit, host_scope):
+        if self.settlement_error is not None:
+            self.settlement_calls.append(
+                SimpleNamespace(marker_id=None, host_scope=host_scope, trading_day=self.trading_day)
+            )
+            raise self.settlement_error
+        if self.settlement_readback is not None:
+            self.settlement_calls.append(
+                SimpleNamespace(marker_id=None, host_scope=host_scope, trading_day=self.trading_day)
+            )
+            return self.settlement_readback
         record = PreDispatchRecord(
             operation=WriteOperation.SETTLEMENT_CONFIRM,
             host_scope=host_scope,
@@ -349,11 +369,13 @@ class FakeApi:
             target_identity=None,
             request_summary={},
             trading_day=self.trading_day,
-            session_generation=1,
+            session_generation=self.session_generation,
             created_at_utc=_utc_text(),
         )
         marker = self._commit(pre_dispatch_commit, record)
-        self.settlement_calls.append(SimpleNamespace(marker_id=marker, host_scope=host_scope))
+        self.settlement_calls.append(
+            SimpleNamespace(marker_id=marker, host_scope=host_scope, trading_day=self.trading_day)
+        )
         if marker is None:
             return SettlementStatus.UNKNOWN
         return self.settlement_result
@@ -564,6 +586,22 @@ def crash(broker: BtApiBroker) -> None:
     broker._direct_facts_stop.set()
     broker._direct_release_lock()
     broker._direct_on = False
+
+
+def quiet(broker: BtApiBroker) -> None:
+    """Stop the background facts poller so a test drives every read itself."""
+    broker._direct_facts_stop.set()
+    thread = broker._direct_facts_thread
+    if thread is not None:
+        thread.join(timeout=5.0)
+
+
+def run_day_switch(broker: BtApiBroker) -> Dict[str, Any]:
+    """One facts-poller verification attempt of the pending switch, then ``next``."""
+    broker._direct_day_switch_due = 0.0
+    broker._direct_day_switch_poll()
+    broker.next()
+    return dict(broker.get_direct_reconcile_report().get("trading_day_switch") or {})
 
 
 def snap(long=(0, 0, 0), short=(0, 0, 0)) -> Dict[str, Any]:
