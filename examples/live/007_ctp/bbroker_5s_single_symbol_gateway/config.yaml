@@ -14,7 +14,7 @@ ctp:
   broker_id: '9999'
   app_id: simnow_client_test
   auth_code: '0000000000000000'
-  private_topic_mode: restart
+  private_topic_mode: quick   # restart replays the day on login: slow on SimNow in trading hours (I62-01a)
 gateway:
   ctp_profile: set1_group1_vpn   # SimNow standard environment (trading hours only)
   orders: direct     # direct (runnable) | managed (BLOCKED, see README)

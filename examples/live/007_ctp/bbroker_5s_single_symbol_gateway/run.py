@@ -187,7 +187,7 @@ def create_store(config, credentials, market_runtime_factory):
             "app_id": str(ctp.get("app_id", "simnow_client_test")),
             "auth_code": str(ctp.get("auth_code", "0000000000000000")),
             "ctp_env_profile": str(dict(config["gateway"]).get("ctp_profile")),
-            "private_topic_mode": str(ctp.get("private_topic_mode", "restart")),
+            "private_topic_mode": str(ctp.get("private_topic_mode", "quick")),
         }
     }
     from bt_api_py.ctp_gateway_composition import ctp_gateway_instrument_key

@@ -127,7 +127,7 @@ def create_store(config, credentials):
             "app_id": str(ctp.get("app_id", "simnow_client_test")),
             "auth_code": str(ctp.get("auth_code", "0000000000000000")),
             "ctp_env_profile": str(ctp.get("env_profile", "set1_group1_vpn")),
-            "private_topic_mode": str(ctp.get("private_topic_mode", "restart")),
+            "private_topic_mode": str(ctp.get("private_topic_mode", "quick")),
         }
     }
     from bt_api_base.market_protocol import MarketInstrumentKey

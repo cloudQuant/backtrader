@@ -14,7 +14,7 @@ ctp:
   broker_id: "9999"
   app_id: simnow_client_test
   auth_code: "0000000000000000"
-  private_topic_mode: restart       # replay today's private returns (deduplicated)
+  private_topic_mode: quick   # restart replays the day on login: slow on SimNow in trading hours (I62-01a)
 direct:
   write_admission: true             # SDK write admission for CTP___FUTURE (D62-01)
   market_clock_verification: true   # SNTP + venue time qualification of ticks (D62-21)
