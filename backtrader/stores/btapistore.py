@@ -104,6 +104,7 @@ from ..execution.reconciliation_projection import (
 from ._live_bar_queue import StoreLiveBarQueue
 from ._bar_history_cache import StoreBarHistoryCache, history_timeframe
 from ._market_delivery_state import StoreMarketDeliveryState
+from ._tick_stream_resync import TickStreamResyncPolicy
 
 logger = get_logger(__name__)
 
@@ -532,6 +533,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._market_delivery_state = StoreMarketDeliveryState(
             delivery_id_limit=max(int(sdk_options.get("strategy_delivery_id_limit", 8192)), 1),
             drop_record_limit=max(int(sdk_options.get("market_drop_record_limit", 256)), 1),
+        )
+        # Iteration 62 continuity-7: when the Store acknowledges a provider-
+        # declared tick-stream restart by itself (PROVIDER_RESYNC_REQUIRED);
+        # direct provider streams only, never Gateway market runtime ticks.
+        self._tick_stream_resync = TickStreamResyncPolicy(
+            enabled=sdk_options.get("market_runtime_factory") is None
         )
         self._stream_generation = 0
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
@@ -1080,6 +1087,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._account_risk_state.reset_generation()
         self._sdk_execution_identity_fence.clear_session()
         self._market_delivery_state.reset_generation()
+        self._tick_stream_resync.reset()
 
     def _prepare_sdk_start(self) -> None:
         """Check Store-local restart fences through its lifecycle bridge."""
@@ -1326,6 +1334,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def stop(self, timeout: Optional[float] = None):
         """Coordinate shutdown through the Backtrader lifecycle bridge."""
+        resync = getattr(self, "_tick_stream_resync", None)
+        if resync is not None:
+            resync.fence()  # no automatic tick-stream resync once stop began
         return _stop_store(self, timeout, safe_log=_safe_log)
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
@@ -1743,9 +1754,83 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 pump_only=pump_only,
             )
         )
-        return self._market_delivery_state.project_polled_event(
+        event = self._market_delivery_state.project_polled_event(
             symbol, channel, result, route, is_active, cleanup_unverified,
             previous_dropped, pump_only=pump_only,
+            record_queue_state=self._record_market_stream_queue_state,
+            record_drop=self._record_market_drop,
+        )
+        if result is None or channel != "tick" or pump_only:
+            return event
+        resync = self._tick_stream_resync
+        if is_active:
+            resync.observe_active(symbol)
+            return event
+        # RECOVERY_REQUIRED (CLEANUP_UNVERIFIED is never resynced). Only a
+        # provider-declared restart is acknowledged here, with a backoff, and
+        # never once this Store was asked to stop (continuity-7).
+        if (
+            not cleanup_unverified
+            and resync.due(symbol, getattr(result, "recovery_code", None))
+            and self._started
+            and self._connected
+        ):
+            return self._resync_tick_stream(symbol, route)
+        return event
+
+    def _resync_tick_stream(self, symbol: str, route):
+        """Acknowledge one provider-declared tick-stream restart (continuity-7).
+
+        Iteration 62, D62-38 point 7: after a front disconnect the provider
+        declares ``PROVIDER_RESYNC_REQUIRED`` once its new session ticks; the
+        data loss of the lost session is acknowledged and the channel bound to
+        the new session under a new epoch (the Feed treats it as a new scope
+        and invalidates its open bar). A failed attempt (the provider is still
+        recovering) keeps the stale/gap state and is retried after the backoff.
+        """
+        resync = self._tick_stream_resync
+        attempt, warn_now = resync.begin_attempt(symbol)
+        if warn_now:
+            _safe_log(
+                "warning",
+                "btapistore: tick stream %s: provider market source restarted "
+                "(PROVIDER_RESYNC_REQUIRED); acknowledging the data loss and resyncing",
+                symbol,
+            )
+        try:
+            result = self.accept_market_stream_resync(symbol, "tick", acknowledge_data_loss=True)
+        except BtApiStoreError as exc:
+            # The provider is still recovering (or the binding is unusable):
+            # the stale/gap state stays; the restart stays open for a retry.
+            self._market_delivery_state.increment(symbol, "tick_sdk_resync_failures")
+            _safe_log(
+                "debug",
+                "btapistore: tick stream %s resync attempt %s failed (%s); retry_in=%.0fs",
+                symbol,
+                attempt,
+                self._safe_exception_code(exc, "market_stream_resync_unavailable"),
+                resync.retry_in(symbol),
+            )
+            return None
+        attempts = resync.succeeded(symbol)
+        self._market_delivery_state.increment(symbol, "tick_sdk_resyncs")
+        _safe_log(
+            "info",
+            "btapistore: tick stream %s resynced on a new epoch (attempts=%s)",
+            symbol,
+            attempts,
+        )
+        # A recovery event delivered with the resync is the new epoch's first
+        # event; its queue state was recorded by accept_market_stream_resync.
+        return self._market_delivery_state.project_polled_event(
+            symbol,
+            "tick",
+            result,
+            route,
+            True,
+            False,
+            result.dropped_events,
+            pump_only=False,
             record_queue_state=self._record_market_stream_queue_state,
             record_drop=self._record_market_drop,
         )
