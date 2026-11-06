@@ -96,6 +96,7 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 | 键 | 示例值 / 缺省 | 作用 |
 | --- | --- | --- |
 | `ctp.private_topic_mode` | 所有示例 `quick`；`run.py` 缺省也是 `quick` | 交易私有流的续传方式。`restart` 为可选配置，见下 |
+| `ctp.catalog_cache_dir` | 缺省不配置（用系统的用户缓存目录） | CTP 交易日合约目录缓存所在文件夹（I62-12）；相对路径以示例文件夹为基准，Windows、Linux、macOS 通用；`run.py` 在创建 Store 前把它设为 `BT_API_CTP_CATALOG_CACHE_DIR` |
 | `broker.direct_facts_timeout` | 示例 `60`（秒）；Broker 缺省 `10` | 启动时每个账户事实查询（持仓、活动委托、当日成交、资金）各自的超时 |
 | `broker.direct_permission_check` | 缺省 `true` | 是否在启动时读取一次 CTP 交易权限事实 |
 | `broker.direct_permission_timeout` | 缺省 `5.0`（秒） | 权限事实中每个查询的超时 |

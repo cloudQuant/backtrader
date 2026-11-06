@@ -17,6 +17,7 @@ ctp:
   app_id: simnow_client_test
   auth_code: "0000000000000000"
   private_topic_mode: quick   # restart replays the day on login: slow on SimNow in trading hours (I62-01a)
+  # catalog_cache_dir: cache/ctp_catalog   # optional CTP instrument-catalog cache folder (I62-12); relative to this folder; default: the user cache dir
 direct:
   write_admission: true             # SDK write admission for CTP___FUTURE (D62-01)
   market_clock_verification: true   # SNTP + venue time qualification of ticks (D62-21)

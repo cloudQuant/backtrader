@@ -217,8 +217,27 @@ def stop_gateway(process, pipe, timeout=40.0):
     return state
 
 
+def configure_catalog_cache(config):
+    """Point the CTP instrument-catalog cache at ``ctp.catalog_cache_dir`` (I62-12).
+
+    Optional. A relative path is resolved against this folder, so the same
+    ``config.yaml`` works on Windows, Linux and macOS; unset keeps the
+    provider's default (the user cache directory). The provider reads it from
+    ``BT_API_CTP_CATALOG_CACHE_DIR``, set here before the Store is built.
+    """
+    value = dict(config.get("ctp") or {}).get("catalog_cache_dir")
+    if not value:
+        return None
+    path = Path(str(value)).expanduser()
+    if not path.is_absolute():
+        path = (RUN_DIR / path).resolve()
+    os.environ["BT_API_CTP_CATALOG_CACHE_DIR"] = str(path)
+    return path
+
+
 def create_store(config, credentials, market_runtime_factory):
     """Direct-write ``BtApiStore`` whose ticks come from the Gateway MarketHub."""
+    configure_catalog_cache(config)
     from backtrader.stores.btapistore import BtApiStore
 
     ctp = dict(config.get("ctp") or {})
