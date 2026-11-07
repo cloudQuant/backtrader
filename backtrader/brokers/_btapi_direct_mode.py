@@ -96,10 +96,22 @@ _DIRECT_PARAMS = (
     # Expiry is checked after each event poll, once that poll's returns were
     # processed; 0 keeps only the same poll.  Then the trade is not ours.
     ("direct_trade_match_window", 5.0),
+    # Return gap (a same-day provider session change, i.e. a TD reconnect
+    # whose QUICK private flow does not replay the gap, or a provider event
+    # drop): new orders stay blocked until one complete account observation
+    # was reconciled.  Seconds before a retry of an incomplete observation,
+    # doubled per failure up to 8x (2, 4, 8, then 16 s); writes stay blocked.
+    ("direct_return_gap_retry_interval", 2.0),
+    # Seconds the gap's complete order query waits after the last order this
+    # Broker sent, so an insert sent just before the gap had time to reach the
+    # venue's order list (its absence there resolves ``not_found_at_venue``).
+    ("direct_return_gap_quiet_period", 2.0),
 )
 _MAX_BUFFERED_TRADES = 256
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
 _MAX_NOT_FOUND_REPORT = 200
+# Return-gap reconcile retries back off up to this factor of the base interval.
+_RETURN_GAP_BACKOFF_FACTOR_MAX = 8
 _SETTLEMENT_BACKOFF_FACTOR_MAX = 8
 _MAX_SETTLEMENT_READBACK_ENTRIES = 20
 # Resolution results no later automatic attempt can change (operator needed).
@@ -400,6 +412,7 @@ class BtApiDirectModeMixin:
             "failed": 0,
             "day_switch": 0,
             "settlement_resolution": 0,
+            "return_gap": 0,
         }
         self._direct_lock = threading.RLock()
         # R-3 trading-day switch: state owned by the strategy thread; the
@@ -425,6 +438,17 @@ class BtApiDirectModeMixin:
         self._direct_settlement_request: Optional[str] = None
         self._direct_settlement_due = 0.0
         self._direct_settlement_inflight = False
+        # Return gap (same-day session change or provider event drop): the
+        # state (also the report's ``return_gap``) is owned by the strategy
+        # thread; the request (signal sequence) is handed to the facts poller
+        # (request/due/inflight under ``_direct_day_switch_lock``).
+        self._direct_return_gap: Optional[Dict[str, Any]] = None
+        self._direct_gap_seq = 0
+        self._direct_gap_request: Optional[int] = None
+        self._direct_gap_due = 0.0
+        self._direct_gap_inflight = False
+        self._direct_dropped_seen: Optional[int] = None
+        self._direct_last_place_at: Optional[float] = None  # monotonic, last make_order
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -481,6 +505,10 @@ class BtApiDirectModeMixin:
         self._direct_writes_enabled = bool(
             admission is not None and admission.is_enabled(self._direct_exchange)
         )
+        # Baseline of the provider's dropped-return count, read before the
+        # complete startup observation: drops counted later may be missing from
+        # it and open a return gap at the first event drain.
+        self._direct_dropped_seen = self._direct_read_dropped()
         facts = self._direct_read_startup_facts()
         self._direct_trading_day = facts.trading_day
         self._direct_session_generation = facts.session_generation
@@ -1395,6 +1423,8 @@ class BtApiDirectModeMixin:
         blocked = dict(self._direct_blocked)
         if self._direct_global_block:
             blocked["*"] = self._direct_global_block
+        if getattr(self, "_direct_return_gap", None) is not None:
+            blocked.setdefault("*", "return_gap_reconcile")
         if getattr(self, "_direct_day_switch", None) is not None:
             blocked.setdefault("*", "trading_day_switch_pending")
         if not self._direct_writes_enabled:
@@ -1581,6 +1611,9 @@ class BtApiDirectModeMixin:
             return self._direct_global_block
         if "*" in self._direct_blocked:
             return self._direct_blocked["*"]
+        if self._direct_return_gap is not None:
+            # Returns may be missing: no new order until the gap is reconciled.
+            return "return_gap_reconcile"
         if switching and not switch_may_wait:
             return "trading_day_switch_pending"
         if self._direct_restored and self._direct_strategy is None:
@@ -1714,6 +1747,7 @@ class BtApiDirectModeMixin:
             "price": order.price,
             "offset": meta["offset"],
         }
+        self._direct_last_place_at = time.monotonic()  # return-gap quiet period
         try:
             outcome = self._direct_api.make_order(
                 self._direct_exchange,
@@ -1954,6 +1988,8 @@ class BtApiDirectModeMixin:
             # The poll's order returns may have taught the venue order id of a
             # held fill: re-match first, then release what is past its window.
             self._direct_expire_buffered_trades()
+        if not self._direct_stopping:
+            self._direct_check_return_gap()
 
     def _direct_event_keys(self, event: Any) -> tuple:
         """``(fields, keys)`` of a return: identity keys plus its venue order id."""
@@ -2604,6 +2640,8 @@ class BtApiDirectModeMixin:
                 return
             if self._direct_day_switch_active():
                 return  # R-3: hold the FIFO queue (not rejected) until the new day is verified
+            if self._direct_return_gap is not None:
+                return  # hold the FIFO queue (not rejected) until the gap is reconciled
             phase = self._direct_phase(meta["symbol"], now)
             if phase is None or phase.reason or phase.phase.value != "continuous":
                 return  # auction / unknown: no dispatch (D62-34)
@@ -2614,8 +2652,8 @@ class BtApiDirectModeMixin:
                 # missing qualification is never treated as qualified.
                 return
             reason = self._direct_precheck(order, meta)
-            if reason == "trading_day_switch_pending":
-                return  # R-3: a switch detected just now holds the FIFO queue too
+            if reason in ("trading_day_switch_pending", "return_gap_reconcile"):
+                return  # R-3 / return gap: one detected just now holds the FIFO queue too
             if reason is not None:
                 if self._direct_state.waiting.transition(
                     meta["waiting_id"], "WAITING", "REJECTED", reason=reason
@@ -2668,6 +2706,15 @@ class BtApiDirectModeMixin:
                     self._direct_refresh_counts["failed"] += 1
                     _log.warning("direct day-switch reads failed: %s", type(exc).__name__)
                 continue
+            if self._direct_gap_request is not None:
+                # Return gap: its complete observation replaces funds/audit
+                # reads (an audit now would see the missed fills) until applied.
+                try:
+                    self._direct_return_gap_poll()
+                except Exception as exc:
+                    self._direct_refresh_counts["failed"] += 1
+                    _log.warning("direct return-gap reads failed: %s", type(exc).__name__)
+                continue
             if self._direct_settlement_request is not None:
                 # D62-29: a due resolution attempt of an unclear settlement
                 # confirmation replaces this round's funds/audit reads.
@@ -2708,11 +2755,16 @@ class BtApiDirectModeMixin:
             if kind == "settlement_resolution":
                 self._direct_apply_settlement_attempt(facts)
                 continue
+            if kind == "return_gap":
+                self._direct_apply_return_gap(facts)
+                continue
             self._direct_apply_balance(facts.balance)
             if self._direct_require_offset:
                 self._direct_note_trading_day(facts.trading_day, kind)
                 if self._direct_day_switch is not None:
                     continue  # R-3: the switch reconciliation replaces this audit
+            if self._direct_return_gap is not None:
+                continue  # read before the gap was reconciled: its fills may be missing
             if kind == "audit" and facts.positions is not None and facts.active_orders is not None:
                 self._direct_audit(facts)
 
@@ -2767,6 +2819,382 @@ class BtApiDirectModeMixin:
                 split["today"][side] = 0.0
                 split["yesterday"][side] = abs(leg.size)
         self._direct_write_snapshot()
+
+    # ------------------------------------------------------------------
+    # return gap: a same-day session change or a provider event drop
+    # (iteration 63 plan §1.5 items 3-4; user approval 2026-11-07)
+    # ------------------------------------------------------------------
+    # The CTP private flow runs QUICK, so the returns of a same-day TD
+    # reconnect gap are never re-delivered, and the provider's bounded return
+    # queue drops its oldest events when full.  Either signal opens a gap
+    # (strategy thread, after each event drain):
+    #   entry   the provider session generation differs from the reconciled one
+    #           on the same trading day (another day goes to the R-3 switch), or
+    #           the provider's dropped-return count changed since the last
+    #           read -> new orders refused ``return_gap_reconcile``; waiting
+    #           orders held; returns and own cancels keep running; the
+    #           position audit is suspended (it would see the missed fills);
+    #   read    facts poller, ``direct_return_gap_quiet_period`` after the last
+    #           order sent: one complete observation (the day's orders, trades,
+    #           positions) on a session whose generation is unchanged across
+    #           the read, the account reference re-checked;
+    #   apply   strategy thread, only the read of the newest signal: own
+    #           orders' statuses from the complete order list and own trades
+    #           missing from the applied set, both through the live-return
+    #           projection (de-duplicated, notified as live returns); an own
+    #           sent order absent from the list is ``not_found_at_venue``
+    #           (D63-38 a: Rejected, never re-sent), unless the venue had
+    #           acknowledged it (contradiction: symbol blocked); then the
+    #           position audit and one snapshot;
+    #   exit    unblocked after one applied read; an incomplete or unstable read
+    #           keeps the block and retries with a bounded backoff.
+    # Only strong identities match (session triple, venue order id, or the
+    # client order id of venues without a session identity, ``identity_keys``).
+    def _direct_read_dropped(self) -> Optional[int]:
+        """The provider's cumulative dropped-return count, else ``None`` (unknown).
+
+        ``direct_execution_dropped_events`` is optional on the facade: a
+        missing method, a failure or no count gives no gap signal.
+        """
+        reader = getattr(self._direct_api, "direct_execution_dropped_events", None)
+        if not callable(reader):
+            return None
+        try:
+            value = reader(self._direct_exchange)
+        except Exception as exc:
+            throttled_warning(
+                _log,
+                "direct_dropped_events_unreadable",
+                "direct dropped-return count unreadable: %s",
+                type(exc).__name__,
+                exc_info=False,
+            )
+            return None
+        return value if type(value) is int and value >= 0 else None
+
+    def _direct_generation_probe(self) -> Optional[int]:
+        """The provider session generation alone (the per-``next`` check)."""
+        try:
+            provider = self._direct_api.direct_writes().provider(self._direct_exchange)
+            reader = getattr(provider, "session_generation", None)
+            value = reader() if callable(reader) else None
+        except Exception:
+            return None
+        return value if type(value) is int else None
+
+    def _direct_check_return_gap(self) -> None:
+        """After each event drain: open (or renew) a return gap on a new signal."""
+        if (
+            not self._direct_on
+            or self._direct_day_switch is not None
+            or self._direct_global_block in _DAY_SWITCH_TERMINAL_BLOCKS
+        ):
+            # A pending switch makes its own complete read; drops counted
+            # meanwhile are compared (and open a gap) once it ended.
+            return
+        dropped = self._direct_read_dropped()
+        if dropped is not None and dropped != self._direct_dropped_seen:
+            seen, self._direct_dropped_seen = self._direct_dropped_seen, dropped
+            if seen is not None or dropped > 0:
+                # A lower count (a reset provider) cannot prove nothing was lost.
+                increased = seen is None or dropped > seen
+                cause = "dropped_events" if increased else "dropped_events_reset"
+                self._direct_signal_return_gap(cause, dropped_events=dropped)
+        generation = self._direct_generation_probe()
+        if generation is None or generation == self._direct_session_generation:
+            return
+        gap = self._direct_return_gap
+        if gap is not None and gap.get("generation") == generation:
+            return  # this session change already opened the pending gap
+        if self._direct_require_offset:
+            try:
+                _generation, day = self._direct_session_probe()
+            except Exception:
+                day = None  # unreadable: the gap read verifies the day
+            if day is not None and day != self._direct_trading_day:
+                # Another trading day: the R-3 switch verifies it (never both).
+                self._direct_note_trading_day(day, "provider_session")
+                if (
+                    self._direct_day_switch is not None
+                    or self._direct_global_block in _DAY_SWITCH_TERMINAL_BLOCKS
+                ):
+                    return
+        self._direct_signal_return_gap("session_generation_changed", generation=generation)
+
+    def _direct_signal_return_gap(self, cause: str, **facts: Any) -> None:
+        """Enter the gap, or renew it: only a read started after this signal counts."""
+        gap = self._direct_return_gap
+        if gap is None:
+            gap = {
+                "status": "pending",
+                "detected_by": cause,
+                "detected_at_utc": _utc_text(),
+                "causes": [],
+                "trading_day": self._direct_trading_day,
+                "from_generation": self._direct_session_generation,
+                "generation": None,
+                "dropped_events": self._direct_dropped_seen,
+                "seq": 0,
+                "attempts": 0,
+                "failures": 0,
+                "last_reason": None,
+                "projected_orders": 0,
+                "applied_trades": 0,
+                "not_found_at_venue": [],
+                "unverified_orders": [],
+                "completed_at_utc": None,
+            }
+            self._direct_return_gap = gap
+            self._direct_report["return_gap"] = gap
+            _log.warning(
+                "direct return gap detected (%s): new orders blocked until a complete "
+                "account observation is reconciled",
+                cause,
+            )
+        else:
+            throttled_warning(
+                _log,
+                "direct_return_gap_renewed",
+                "direct return gap renewed (%s): the pending reconcile reads again",
+                cause,
+                exc_info=False,
+            )
+        gap["causes"].append(cause)
+        del gap["causes"][:-16]
+        gap.update(facts)
+        self._direct_gap_seq += 1
+        gap["seq"] = self._direct_gap_seq
+        with self._direct_day_switch_lock:
+            self._direct_gap_request = gap["seq"]
+            self._direct_gap_due = 0.0
+
+    def _direct_return_gap_poll(self) -> None:
+        """Facts poller: one due reconcile read of the pending gap (not re-entrant)."""
+        quiet = max(float(self.p.direct_return_gap_quiet_period or 0.0), 0.0)
+        with self._direct_day_switch_lock:
+            seq = self._direct_gap_request
+            now = time.monotonic()
+            if seq is None or self._direct_gap_inflight or now < self._direct_gap_due:
+                return
+            last = self._direct_last_place_at
+            if last is not None and now - last < quiet:
+                self._direct_gap_due = last + quiet  # writes are blocked: it only ages
+                return
+            self._direct_gap_inflight = True
+        payload = self._direct_return_gap_reads(seq)
+        # Publish before counting: whoever sees the count finds the payload.
+        self._direct_facts_results.append(("return_gap", payload))
+        self._direct_refresh_counts["return_gap"] += 1
+
+    def _direct_return_gap_reads(self, seq: int) -> Dict[str, Any]:
+        """Read-only complete observation for gap ``seq`` (facts poller thread)."""
+        payload: Dict[str, Any] = {
+            "seq": seq,
+            "ok": False,
+            "reason": None,
+            "facts": None,
+            "generation": None,
+            "observed_day": None,
+        }
+        try:
+            generation, day = self._direct_session_probe()
+            payload.update(generation=generation, observed_day=day)
+            if generation is None and self._direct_require_offset:
+                payload["reason"] = "session_unavailable"
+                return payload
+            try:
+                account_hash = self._direct_account_reference()
+            except DirectModeError:
+                payload["reason"] = "account_reference_unavailable"
+                return payload
+            if account_hash != self._direct_account_hash:
+                payload["reason"] = "account_binding_mismatch"
+                return payload
+            facts = self._direct_read_facts(trades=True, all_orders=True)
+            payload["facts"] = facts
+            sections = (facts.orders, facts.trades, facts.positions, facts.active_orders)
+            if not facts.complete or any(section is None for section in sections):
+                payload["reason"] = "account_facts_incomplete"
+                payload["blockers"] = [
+                    str(item).split("[", 1)[0] for item in (facts.blockers or ())
+                ][:8]
+                return payload
+            if generation is not None and facts.session_generation != generation:
+                payload["reason"] = "session_changed"
+                return payload
+            if self._direct_session_probe() != (generation, day):
+                payload["reason"] = "session_changed"
+                return payload
+            payload["ok"] = True
+        except Exception as exc:
+            payload["reason"] = f"reconcile_read_failed:{type(exc).__name__}"
+        return payload
+
+    def _direct_apply_return_gap(self, payload: Dict[str, Any]) -> None:
+        """Strategy thread: apply one reconcile read of the pending gap."""
+        with self._direct_day_switch_lock:
+            self._direct_gap_inflight = False
+        gap = self._direct_return_gap
+        if gap is None or payload.get("seq") != gap["seq"]:
+            return  # stale: superseded or ended, or a newer signal requested a new read
+        gap["attempts"] += 1
+        reason = payload.get("reason")
+        facts = payload.get("facts")
+        if reason == "account_binding_mismatch":
+            self._direct_global_block = "account_binding_mismatch"
+            self._direct_end_return_gap("failed", reason)
+            return
+        if reason is None and payload.get("ok"):
+            day = facts.trading_day
+            if self._direct_require_offset:
+                if not _valid_trading_day(day):
+                    reason = "trading_day_unverified"
+                elif day != self._direct_trading_day:
+                    # R-3: another trading day; the switch takes over (ends the gap).
+                    self._direct_note_trading_day(day, "return_gap")
+                    if self._direct_return_gap is None:
+                        return
+                    reason = "trading_day_unverified"
+            elif day and day != self._direct_trading_day:
+                self._direct_roll_trading_day(day)  # routes without offsets: the new day
+        elif reason is None:
+            reason = "reconcile_read_unverified"
+        if reason is not None:
+            self._direct_retry_return_gap(gap, reason, payload.get("blockers"))
+            return
+        self._direct_reconcile_return_gap(facts, gap)
+        if payload.get("generation") is not None:
+            self._direct_session_generation = payload["generation"]
+        self._direct_end_return_gap("completed", None)
+
+    def _direct_retry_return_gap(
+        self, gap: Dict[str, Any], reason: str, blockers: Optional[List[str]]
+    ) -> None:
+        """Keep the block; the next read after a bounded backoff."""
+        gap["failures"] += 1
+        if reason != gap["last_reason"]:
+            _log.warning("direct return gap not reconciled yet: %s (writes stay blocked)", reason)
+        gap["last_reason"] = reason
+        if blockers:
+            gap["blockers"] = list(blockers)
+        base = max(float(self.p.direct_return_gap_retry_interval or 0.0), 0.0)
+        factor = min(2 ** min(gap["failures"] - 1, 16), _RETURN_GAP_BACKOFF_FACTOR_MAX)
+        with self._direct_day_switch_lock:
+            self._direct_gap_due = time.monotonic() + base * factor
+
+    def _direct_reconcile_return_gap(self, facts: Any, gap: Dict[str, Any]) -> None:
+        """Project one complete same-day observation onto own orders (see above)."""
+        listed = set()
+        for event in tuple(facts.orders or ()) + tuple(facts.active_orders or ()):
+            order = self._direct_order_for_event(event)
+            if order is None:
+                continue  # another client's order: visible to audits, never adopted
+            listed.add(order.ref)
+            status = order.status
+            self._direct_process_matched(order, event)  # also learns the venue id
+            if order.status != status:
+                gap["projected_orders"] += 1
+        applied: set = set()
+        for keys in self._direct_applied.values():
+            applied.update(keys)
+        for trade in facts.trades or ():
+            order = self._direct_order_for_event(trade)
+            if order is None:
+                continue  # not ours: the account query lists every client's fills
+            meta = self._direct_meta[order.ref]
+            key = self._direct_trade_key(trade)
+            if key in applied or key in meta["trade_keys"]:
+                continue  # applied before (live return, startup, or an earlier read)
+            self._direct_process_matched(order, trade)
+            if key in meta["trade_keys"]:
+                applied.add(key)
+                gap["applied_trades"] += 1
+        if self._direct_trade_buffer:
+            self._direct_retry_buffered_trades()
+        for ref, meta in list(self._direct_meta.items()):
+            order = self.orders.get(ref)
+            if (
+                order is None
+                or ref in listed
+                or not order.alive()
+                or meta.get("identity") is None
+                or meta.get("day_unknown")
+            ):
+                continue
+            if self._direct_require_offset and self._direct_order_day(ref) != facts.trading_day:
+                continue  # not bound to this day's complete list (R-3)
+            self._direct_gap_order_absent(order, meta, gap)
+        self._direct_audit(facts)
+        self._direct_apply_balance(facts.balance)
+        self._direct_write_snapshot()
+
+    def _direct_gap_order_absent(self, order: Order, meta: Dict[str, Any], gap: Dict[str, Any]):
+        """An own sent order missing from the complete order list of its day."""
+        marker_id = meta.get("marker_id")
+        learned = meta.get("learned_fields") or {}
+        if order.status != Order.Submitted or learned.get("order_sys_id"):
+            # The venue acknowledged this identity before: its absence now is a
+            # contradiction, not proof of anything; kept and blocked (manual).
+            self._direct_blocked[meta["symbol"]] = "return_gap_order_unverified"
+            gap["unverified_orders"].append(marker_id)
+            order.addinfo(outcome_unknown=True)
+            _log.warning(
+                "direct return gap: acknowledged order (local_seq %s, %s) missing from the "
+                "complete order list: kept, instrument blocked",
+                meta.get("local_seq"),
+                meta["symbol"],
+            )
+            return
+        if marker_id:
+            self._direct_state.pending.mark(
+                marker_id,
+                "TERMINAL",
+                final_status="not_found_at_venue",
+                resolution_evidence="return_gap_complete_order_query",
+            )
+            marker = {"marker_id": marker_id, "symbol": meta["symbol"]}
+            marker["local_seq"] = meta.get("local_seq")
+            self._direct_note_not_found(
+                self._direct_report, marker, "return_gap_complete_order_query"
+            )
+            gap["not_found_at_venue"].append(marker_id)
+        for cancel_marker in meta.pop("cancel_markers", []):
+            self._direct_state.pending.mark(
+                cancel_marker, "TERMINAL", final_status="order_not_found_at_venue"
+            )
+        self._direct_resolve_unknown(meta, "rejected")
+        order.addinfo(not_found_at_venue=True)
+        self._direct_reject(order, "not_found_at_venue")
+
+    def _direct_end_return_gap(self, status: str, reason: Optional[str]) -> None:
+        gap = self._direct_return_gap
+        if gap is None:
+            return
+        self._direct_return_gap = None
+        with self._direct_day_switch_lock:
+            self._direct_gap_request = None
+            self._direct_gap_due = 0.0
+        gap["status"] = status
+        if reason is not None:
+            gap["last_reason"] = reason
+        gap["completed_at_utc"] = _utc_text()
+        gap["blocked"] = self.direct_writes_blocked()
+        counts = self._direct_report.setdefault("return_gaps", {})
+        counts[status] = counts.get(status, 0) + 1
+        notable = gap["blocked"] or gap["not_found_at_venue"] or gap["unverified_orders"]
+        log = _log.warning if notable or status != "completed" else _log.info
+        log(
+            "direct return gap %s (%s): attempts=%d applied_trades=%d projected_orders=%d "
+            "not_found=%d unverified=%d blocked=%s",
+            status,
+            gap["detected_by"],
+            gap["attempts"],
+            gap["applied_trades"],
+            gap["projected_orders"],
+            len(gap["not_found_at_venue"]),
+            len(gap["unverified_orders"]),
+            ",".join(f"{key}:{value}" for key, value in sorted(gap["blocked"].items())) or "-",
+        )
 
     # ------------------------------------------------------------------
     # trading-day switch while running (R-3; D62-14/22/29), CTP-style
@@ -2843,6 +3271,10 @@ class BtApiDirectModeMixin:
             self._direct_request_day_switch(day, settle=True)
 
     def _direct_enter_day_switch(self, day: str, source: str) -> None:
+        # A pending return gap of the old day is superseded: the switch makes
+        # its own complete observation (old-day markers verified or UNKNOWN,
+        # positions compared); one reconciliation, never both.
+        self._direct_end_return_gap("superseded", "trading_day_switch")
         current = self._direct_trading_day
         switch: Dict[str, Any] = {
             "status": "pending",
