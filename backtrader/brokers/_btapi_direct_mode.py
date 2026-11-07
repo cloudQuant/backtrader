@@ -298,6 +298,63 @@ def _strong_identity(keys: List[tuple]) -> bool:
     return any(key[0] in ("s", "x") for key in keys)
 
 
+# Fill and position quantities (OKX demo rerun 2026-11-08): binary float sums of
+# fractional venue quantities leave residues (1.0 - 0.13 - 0.01 * 7 - 0.8 is
+# -1.1e-16) that a truthiness or zero check reads as an open quantity, so an
+# order stayed Partial after its last fill and a closed leg kept 1e-16.  Venue
+# quantities arrive as the shortest float of a decimal text: they are summed in
+# decimal, and a residue within the tolerance (1e-9 like the comparisons in this
+# module, relative to the quantity above one unit) is zero.
+_QTY_REL_TOL = 1e-9
+
+
+def _qty_tol(*scale: Any) -> float:
+    """Residue tolerance of quantities of this ``scale``: 1e-9, relative above 1."""
+    return _QTY_REL_TOL * max([1.0] + [abs(float(value)) for value in scale])
+
+
+def _qty_sum(*values: Any) -> float:
+    """Decimal sum of quantities (each its shortest float text) as a float."""
+    total = Decimal(0)
+    for value in values:
+        total += Decimal(repr(float(value)))
+    return float(total)
+
+
+def _exact_execution(order: Order, before: float, size: float) -> None:
+    """Exact ``executed.size``/``remsize`` after ``order.execute`` applied ``size``.
+
+    ``OrderData.addbit`` subtracts in binary floats; the direct path recomputes
+    both from the decimal fill sum and completes a remainder within the
+    tolerance of the order size (backtest ``Order`` semantics are unchanged).
+    """
+    executed = order.executed
+    filled = _qty_sum(before, size)
+    remaining = _qty_sum(order.size, -filled)
+    if abs(remaining) <= _qty_tol(order.size):
+        filled, remaining = float(order.size), 0.0
+    executed.size = filled
+    executed.remsize = remaining
+
+
+def _exact_leg_update(signed: Position, before: float, size: float, result: tuple) -> tuple:
+    """Exact signed leg after ``Position.update(size)``; returns its result tuple.
+
+    A residue of a full close is flat, never a remaining or a reversed
+    position (``Position.update`` reads -1e-16 as a new opposite position).
+    """
+    psize, pprice, opened, closed = result
+    exact = _qty_sum(before, size)
+    if abs(exact) <= _qty_tol(before, size):
+        signed.size, signed.price = 0.0, 0.0
+        signed.upopened, signed.upclosed = 0, size
+        return 0.0, 0.0, 0, size
+    if opened and closed:  # a real reversal: the opened part is the new size
+        opened = signed.upopened = exact
+    signed.size = exact
+    return exact, pprice, opened, closed
+
+
 def _snapshot_qty(value: Any) -> Any:
     """Whole lots stay integers; fractional venue quantities are kept exactly.
 
@@ -817,7 +874,7 @@ class BtApiDirectModeMixin:
                     # day's complete trade list, so the restore base is what it
                     # proves applied, never the bare cumulative; a cumulative
                     # above it is a fill gap and blocks the symbol (T1).
-                    applied = sum(listed.values())
+                    applied = _qty_sum(*listed.values())
                     self._direct_restore_base[marker["marker_id"]] = applied
                     if _num(live_event.filled_qty) > applied + 1e-9:
                         self._direct_open_restart_fill_gap(marker, live_event, applied)
@@ -1703,7 +1760,11 @@ class BtApiDirectModeMixin:
         long_leg = self.long_positions[symbol]
         short_leg = self.short_positions[symbol]
         net = self.positions[symbol]
-        size = abs(long_leg.size) - abs(short_leg.size)
+        long_size, short_size = abs(long_leg.size), abs(short_leg.size)
+        # Both legs held (hedge mode): 0.3 - 0.1 is 0.19999999999999998 in floats.
+        size = (
+            _qty_sum(long_size, -short_size) if long_size and short_size else long_size - short_size
+        )
         price = long_leg.price if size > 0 else (short_leg.price if size < 0 else 0.0)
         net.fix(size, price)
         return net
@@ -1740,25 +1801,31 @@ class BtApiDirectModeMixin:
                 continue
             offset = meta.get("offset")
             if offset in frozen and meta.get("close_side") == side:
-                frozen[offset] += (
-                    abs(order.executed.remsize) if order.executed.size else abs(order.size)
+                frozen[offset] = _qty_sum(
+                    frozen[offset],
+                    abs(order.executed.remsize) if order.executed.size else abs(order.size),
                 )
         for event in self._direct_foreign_orders:
             if event.symbol != symbol or event.offset not in frozen:
                 continue
             if ("long" if event.side == "sell" else "short") == side:
-                frozen[event.offset] += _num(event.remaining_qty)
-        all_frozen = sum(frozen.values())
+                frozen[event.offset] = _qty_sum(frozen[event.offset], _num(event.remaining_qty))
+        all_frozen = _qty_sum(*frozen.values())
         split_venue = self._direct_symbol_venue.get(symbol) in _SPLIT_VENUES
         closable_today = None
         if today is not None:
             closable_today = max(
-                today - frozen["close_today"] - (0.0 if split_venue else frozen["close"]), 0.0
+                _qty_sum(today, -frozen["close_today"], -(0.0 if split_venue else frozen["close"])),
+                0.0,
             )
         closable_yesterday = None
         if yesterday is not None:
             closable_yesterday = max(
-                yesterday - frozen["close_yesterday"] - (frozen["close"] if split_venue else 0.0),
+                _qty_sum(
+                    yesterday,
+                    -frozen["close_yesterday"],
+                    -(frozen["close"] if split_venue else 0.0),
+                ),
                 0.0,
             )
         return {
@@ -1766,7 +1833,7 @@ class BtApiDirectModeMixin:
             "today": today,
             "yesterday": yesterday,
             "frozen_close": all_frozen,
-            "closable": max(total - all_frozen, 0.0),
+            "closable": max(_qty_sum(total, -all_frozen), 0.0),
             "closable_today": closable_today,
             "closable_yesterday": closable_yesterday,
             # CTP ExchangeID (e.g. "SHFE"), None while unknown: SHFE/INE need
@@ -2549,7 +2616,10 @@ class BtApiDirectModeMixin:
         before_price = leg.price
         signed = self._make_signed_position(side, leg)
         size = qty if buy else -qty
-        psize, pprice, opened, closed = signed.update(size, price)
+        before = signed.size
+        psize, pprice, opened, closed = _exact_leg_update(
+            signed, before, size, signed.update(size, price)
+        )
         self._apply_signed_position(side, leg, signed)
         split = self._direct_split_of(symbol)
         venue = dict(event.identity.fields).get("exchange_id") if event.identity else None
@@ -2557,13 +2627,13 @@ class BtApiDirectModeMixin:
             self._direct_symbol_venue.setdefault(symbol, str(venue))
         if offset == "open":
             if split["today"][side] is not None:
-                split["today"][side] += qty
+                split["today"][side] = _qty_sum(split["today"][side], qty)
         elif offset == "close_today":
             if split["today"][side] is not None:
-                split["today"][side] = max(split["today"][side] - qty, 0.0)
+                split["today"][side] = max(_qty_sum(split["today"][side], -qty), 0.0)
         elif offset == "close_yesterday" or venue in _SPLIT_VENUES:
             if split["yesterday"][side] is not None:
-                split["yesterday"][side] = max(split["yesterday"][side] - qty, 0.0)
+                split["yesterday"][side] = max(_qty_sum(split["yesterday"][side], -qty), 0.0)
         else:
             # Which part a plain close consumes is venue specific: unknown
             # until the next venue observation (never assumed).
@@ -2590,6 +2660,7 @@ class BtApiDirectModeMixin:
         pnl = comminfo.profitandloss(-closed, before_price, price) if closed else 0.0
         margin = comminfo.getvaluesize(size, price)
         dt = data.datetime[0] if len(data) else 0.0
+        executed_before = order.executed.size
         order.execute(
             dt,
             size,
@@ -2605,6 +2676,7 @@ class BtApiDirectModeMixin:
             psize,
             pprice,
         )
+        _exact_execution(order, executed_before, size)
         if order.executed.remsize:
             order.partial()
             self.notify(order)
@@ -2648,7 +2720,11 @@ class BtApiDirectModeMixin:
             positions[symbol] = {
                 "long": _side("long", long_total),
                 "short": _side("short", short_total),
-                "net": long_total - short_total,
+                "net": (
+                    _snapshot_qty(_qty_sum(long_total, -short_total))
+                    if long_total and short_total
+                    else long_total - short_total
+                ),
             }
             prices[symbol] = {
                 "long": float(self.long_positions[symbol].price or 0.0),
@@ -3564,7 +3640,7 @@ class BtApiDirectModeMixin:
         key = meta.get("marker_id")
         if venue is None or not key:
             return
-        applied = _num(meta.get("venue_filled_before")) + abs(order.executed.size)
+        applied = _qty_sum(_num(meta.get("venue_filled_before")), abs(order.executed.size))
         entry = self._direct_fill_gaps.get(key)
         if venue > applied + 1e-9:
             if entry is None:
@@ -4560,7 +4636,7 @@ class BtApiDirectModeMixin:
         if base is not None and order_qty > base + 1e-9:
             # CTP-style: the base is what the startup trade list proved applied;
             # a later fill of the cumulative's rest executes on this order.
-            size, filled_before = order_qty - base, base
+            size, filled_before = _qty_sum(order_qty, -base), base
         else:
             size = remaining or order_qty
             filled_before = _num(event.filled_qty) if remaining else 0.0
