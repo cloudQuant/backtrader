@@ -288,6 +288,16 @@ def identity_keys(fields: Dict[str, Any], client_order_id: Optional[str]) -> Lis
     return keys
 
 
+def _strong_identity(keys: List[tuple]) -> bool:
+    """A strong native identity: CTP session triple or ``ExchangeID`` + ``OrderSysID``.
+
+    D63-38 (user decision 2026-11-07) concludes "not at the venue" from a
+    complete same-day order query only for such an identity; a client order
+    id alone (OKX/Binance routes) keeps today's recovery behaviour.
+    """
+    return any(key[0] in ("s", "x") for key in keys)
+
+
 def _snapshot_qty(value: Any) -> Any:
     """Whole lots stay integers; fractional venue quantities are kept exactly.
 
@@ -457,6 +467,10 @@ class BtApiDirectModeMixin:
         # list: marker id -> applied quantity (CTP-style routes).
         self._direct_fill_gaps: Dict[str, Dict[str, Any]] = {}
         self._direct_restore_base: Dict[str, float] = {}
+        # Rejected notices of plain orders not found at the venue (D63-38 a/b):
+        # marker ids queued in this run, and those waiting for their feed.
+        self._direct_notice_ids: set = set()
+        self._direct_deferred_notices: List[Dict[str, Any]] = []
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -725,12 +739,21 @@ class BtApiDirectModeMixin:
             keys = identity_keys(fields, marker.get("client_order_id"))
             marker_day = fields.get("trading_day") or marker.get("trading_day")
             symbol = str(marker.get("symbol"))
-            if marker.get("status") == "UNKNOWN" or (
-                marker_day and marker_day != facts.trading_day
-            ):
-                # Older trading day or already UNKNOWN: the current session
-                # cannot query it; keep it and block the instrument (R-3).
-                if marker.get("status") != "UNKNOWN":
+            unknown = marker.get("status") == "UNKNOWN"
+            # D63-38 c: a same-day UNKNOWN marker is resolved by the complete
+            # order query of its own day when its identity is strong (CTP
+            # session triple or ExchangeID+OrderSysID); client-order-id routes
+            # (OKX/Binance) keep it UNKNOWN as before.
+            queryable = (
+                unknown
+                and _strong_identity(keys)
+                and marker_day == facts.trading_day
+                and getattr(facts, "orders", None) is not None
+            )
+            if (unknown and not queryable) or (marker_day and marker_day != facts.trading_day):
+                # Older trading day, or UNKNOWN without a conclusive query: the
+                # current session cannot prove it; keep it and block (R-3).
+                if not unknown:
                     state.pending.mark(
                         marker["marker_id"], "UNKNOWN", reason="trading_day_not_queryable"
                     )
@@ -744,19 +767,33 @@ class BtApiDirectModeMixin:
                 report["unknown_markers"].append(marker["marker_id"])
                 self._direct_blocked[symbol] = "pending_unverified"
                 continue
+            live_event = None
+            if order_event is not None:
+                live_event = next((working[k] for k in keys if k in working), None)
+            if unknown and not self._direct_resolve_unknown_marker(
+                marker, order_event, live_event, facts.trading_day
+            ):
+                report["unknown_markers"].append(marker["marker_id"])
+                self._direct_blocked[symbol] = "pending_unknown"
+                continue
+            if unknown:
+                report.setdefault("resolved_unknown_markers", []).append(marker["marker_id"])
             if order_event is None:
                 # A complete same-day order query without this identity: the
                 # order is not at the venue (D63-38 a, the reading of D62-14's
                 # "cleared": complete, same trading day, strong identity).  The
                 # instrument is not blocked, but nothing is ever re-sent
                 # automatically: a waiting order of this marker ends REJECTED
-                # (``restart_not_found_at_venue``) and its strategy decides.
-                state.pending.mark(
-                    marker["marker_id"],
-                    "TERMINAL",
-                    final_status="not_found_at_venue",
-                    resolution_evidence="startup_complete_order_query",
-                )
+                # (``restart_not_found_at_venue``), a plain one is handed to
+                # its strategy as a restored Rejected order (after this loop);
+                # the strategy decides.
+                if not unknown:
+                    state.pending.mark(
+                        marker["marker_id"],
+                        "TERMINAL",
+                        final_status="not_found_at_venue",
+                        resolution_evidence="startup_complete_order_query",
+                    )
                 self._direct_note_not_found(report, marker, "startup_complete_order_query")
                 continue
             listed: Dict[str, float] = {}  # the order's fills the complete trade list proves
@@ -773,7 +810,6 @@ class BtApiDirectModeMixin:
                         self._direct_remember_trade(trade)
                         report["applied_missing_trades"] += 1
                     listed[trade_key] = abs(_num(trade.trade_qty))
-            live_event = next((working[k] for k in keys if k in working), None)
             if live_event is not None:
                 claimed.update(k for k in keys if k in working)
                 if self._direct_require_offset:
@@ -787,13 +823,14 @@ class BtApiDirectModeMixin:
                         self._direct_open_restart_fill_gap(marker, live_event, applied)
                 if self._direct_restore_order(marker, live_event):
                     report["restored_orders"] += 1
-                state.pending.mark(
-                    marker["marker_id"],
-                    "ACCEPTED",
-                    resolution_evidence="startup_working_order",
-                    order_sys_id=live_event.exchange_order_id,
-                )
-            else:
+                if not unknown:
+                    state.pending.mark(
+                        marker["marker_id"],
+                        "ACCEPTED",
+                        resolution_evidence="startup_working_order",
+                        order_sys_id=live_event.exchange_order_id,
+                    )
+            elif not unknown:
                 final = order_event.status.value if order_event.status is not None else "terminal"
                 state.pending.mark(
                     marker["marker_id"],
@@ -801,6 +838,10 @@ class BtApiDirectModeMixin:
                     final_status=str(final),
                     resolution_evidence="startup_complete_order_query",
                 )
+        # D63-38 a/b: plain orders not found at the venue (this start or an
+        # earlier one of this trading day) are told to their strategy until
+        # it took them over; waiting orders are told by the waiting path.
+        self._direct_queue_not_found_notices(facts.trading_day, report)
         self._direct_foreign_orders = [
             event
             for event in facts.active_orders or ()
@@ -913,6 +954,169 @@ class BtApiDirectModeMixin:
             marker.get("local_seq"),
             evidence,
         )
+
+    def _direct_resolve_unknown_marker(
+        self, marker: Dict[str, Any], order_event: Any, live_event: Any, day: str
+    ) -> bool:
+        """D63-38 c: resolve a same-day UNKNOWN place marker by the complete order query.
+
+        The caller checked a strong identity, the marker's day and a complete
+        order list.  Working -> ``ACCEPTED``, ended -> ``TERMINAL`` with its
+        status, absent -> ``TERMINAL`` ``not_found_at_venue``; audited by
+        live_state.  ``False`` keeps the marker UNKNOWN (the caller blocks).
+        """
+        if order_event is None:
+            status, facts = "TERMINAL", {"final_status": "not_found_at_venue"}
+            evidence = "startup_complete_order_query"
+        elif live_event is not None:
+            status, facts = "ACCEPTED", {"order_sys_id": live_event.exchange_order_id}
+            evidence = "startup_working_order"
+        else:
+            final = order_event.status.value if order_event.status is not None else "terminal"
+            status, facts = "TERMINAL", {"final_status": str(final)}
+            evidence = "startup_complete_order_query"
+        return self._direct_state.pending.resolve_order_query(
+            marker["marker_id"],
+            exchange_name=self._direct_exchange,
+            trading_day=day,
+            status=status,
+            evidence=evidence,
+            **facts,
+        )
+
+    # ------------------------------------------------------------------
+    # Rejected notices of orders not found at the venue (D63-38 a/b; user
+    # decisions 2026-11-07)
+    # ------------------------------------------------------------------
+    # A plain place marker resolved ``not_found_at_venue`` (strong identity,
+    # same trading day) gets a restored order rebuilt from its request summary
+    # (side, size, price, offset, local_seq, bt_ref), status Rejected, handed
+    # over like every restored order (``take_over_restored_orders``, deferred
+    # until its feed has a bar) and never dispatched.  A restart-rejected
+    # waiting order is told by the waiting path.  Either notice is re-delivered
+    # on every restart of that trading day until the takeover was recorded
+    # durably (``record_takeover``: ``facts.taken_over_at_utc``), so a crash
+    # between the terminal transition and the takeover loses nothing and a
+    # taken-over notice is never delivered twice.  Older days' notices are not
+    # re-delivered: their day orders ended with the day.
+    @staticmethod
+    def _direct_notice_summary(marker: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """The marker's request summary when it can rebuild the order, else ``None``."""
+        summary = marker.get("request_summary") or {}
+        price = summary.get("price")
+        if summary.get("side") not in ("buy", "sell") or not _positive_finite(summary.get("size")):
+            return None
+        if price is not None and not _positive_finite(price):
+            return None
+        return summary
+
+    def _direct_queue_not_found_notices(self, day: Any, report: Dict[str, Any]) -> None:
+        state = self._direct_state
+        waiting_seqs = {
+            record["local_seq"]
+            for record in state.waiting.active()
+            if record["status"] == "DISPATCHING"
+        }
+        waiting_seqs.update(
+            record["local_seq"]
+            for record in state.waiting.history()
+            if record["status"] == "REJECTED"
+            and (record.get("facts") or {}).get("reason") == "restart_not_found_at_venue"
+        )
+        for marker in state.pending.history():
+            facts = marker.get("facts") or {}
+            if (
+                marker.get("operation") != "place"
+                or facts.get("final_status") != "not_found_at_venue"
+                or facts.get("taken_over_at_utc")
+            ):
+                continue
+            fields = dict(marker.get("native_identity") or {})
+            if (fields.get("trading_day") or marker.get("trading_day")) != day:
+                continue
+            if not _strong_identity(identity_keys(fields, marker.get("client_order_id"))):
+                continue  # client-order-id routes keep today's recovery (D63-38 d)
+            if marker.get("local_seq") is not None and marker["local_seq"] in waiting_seqs:
+                continue  # its waiting order is told by the waiting path
+            if self._direct_notice_summary(marker) is None:
+                entries = report.setdefault("not_found_without_notice", [])
+                entries.append(marker["marker_id"])
+                del entries[:-_MAX_NOT_FOUND_REPORT]
+                _log.warning(
+                    "direct place marker %s (%s, local_seq %s): no request summary to rebuild "
+                    "its not_found_at_venue Rejected notice; reported only",
+                    marker["marker_id"],
+                    marker.get("symbol"),
+                    marker.get("local_seq"),
+                )
+                continue
+            self._direct_queue_notice(marker)
+
+    def _direct_queue_notice(self, marker: Dict[str, Any]) -> None:
+        if marker["marker_id"] in self._direct_notice_ids:
+            return
+        self._direct_notice_ids.add(marker["marker_id"])
+        data = self._direct_data_for_symbol(str(marker.get("symbol")))
+        if data is None:
+            self._direct_deferred_notices.append(marker)  # built when its feed starts
+            return
+        self._direct_build_notice(marker, data)
+
+    def _direct_build_notice(self, marker: Dict[str, Any], data) -> None:
+        if not len(data):
+            self._direct_awaiting_bar.append(("notice", marker, data))
+            return
+        summary = self._direct_notice_summary(marker) or {}
+        price = summary.get("price")
+        buy = summary["side"] == "buy"
+        offset = summary.get("offset")
+        order = (BuyOrder if buy else SellOrder)(
+            owner=None,
+            data=data,
+            size=abs(float(summary["size"])),
+            price=price,
+            exectype=Order.Limit if price is not None else Order.Market,
+            valid=None,
+        )
+        order.addinfo(
+            offset=offset,
+            restored=True,
+            local_seq=marker.get("local_seq"),
+            original_ref=marker.get("bt_ref") or summary.get("bt_ref"),
+            marker_id=marker["marker_id"],
+            not_found_at_venue=True,
+            error_code="not_found_at_venue",
+            error_msg="order not found at the venue (complete same-day query); not re-sent",
+            restart_notice=("marker", marker["marker_id"]),
+        )
+        if self._is_dual_side_mode():
+            opening = (offset or "open") == "open"
+            side = ("long" if buy else "short") if opening else ("short" if buy else "long")
+            order.addinfo(position_side=side)
+        order.addcomminfo(self.getcommissioninfo(data))
+        order.submit(self)
+        self.orders[order.ref] = order  # never in ``_direct_meta``: never dispatched
+        order.reject(self)
+        self._direct_hand_over(order)
+
+    def _direct_record_takeover(self, order: Order) -> None:
+        """Durably note that a restart notice reached its strategy (D63-38 a)."""
+        notice = order.info.get("restart_notice")
+        if not notice:
+            return
+        kind, ident = notice
+        state = self._direct_state
+        store = state.waiting if kind == "waiting" else state.pending
+        try:
+            recorded = store.record_takeover(ident)
+        except Exception:
+            recorded = False
+        if not recorded:
+            _log.warning(
+                "direct %s notice %s: takeover not recorded, delivered again after a restart",
+                kind,
+                ident,
+            )
 
     # ------------------------------------------------------------------
     # resolution of an unclear settlement confirmation (D62-29; user
@@ -1423,6 +1627,8 @@ class BtApiDirectModeMixin:
         startup) are notified with ``order.info['restored'] = True`` once
         taken over.  While restored orders exist and no strategy took them
         over, new orders are refused (``restored_orders_not_taken_over``).
+        Rejected notices of orders not found at the venue (D63-38 a) record
+        their takeover durably here, so a later restart does not repeat them.
         """
         with self._direct_lock:
             if self._direct_strategy is not None and self._direct_strategy is not strategy:
@@ -1432,6 +1638,7 @@ class BtApiDirectModeMixin:
             for order in restored:
                 order.owner = strategy
                 self.notify(order)
+                self._direct_record_takeover(order)
             return restored
 
     def get_restored_orders(self) -> List[Order]:
@@ -2504,12 +2711,42 @@ class BtApiDirectModeMixin:
         return order
 
     def _direct_restore_waiting(self) -> None:
-        for record in sorted(self._direct_state.waiting.active(), key=lambda r: r["local_seq"]):
+        # Earlier restarts' rejected waiting orders not taken over yet first
+        # (D63-38 a); the active ones below may add this start's.
+        notices = self._direct_waiting_notices()
+        for record in notices + sorted(
+            self._direct_state.waiting.active(), key=lambda r: r["local_seq"]
+        ):
             data = self._direct_data_for_symbol(record["symbol"])
             if data is None:
                 self._direct_deferred_waiting.append(record)
             else:
                 self._direct_adopt_waiting(record, data)
+
+    def _direct_waiting_notices(self) -> List[Dict[str, Any]]:
+        """Restart-rejected waiting orders of this trading day not taken over yet."""
+        state = self._direct_state
+        day = self._direct_trading_day
+        reason = "restart_not_found_at_venue"
+        notices = []
+        for record in state.waiting.history():
+            facts = record.get("facts") or {}
+            if (
+                record["status"] != "REJECTED"
+                or facts.get("reason") != reason
+                or facts.get("taken_over_at_utc")
+            ):
+                continue
+            marker_id = facts.get("marker_id")
+            marker = state.pending.get(marker_id) if isinstance(marker_id, str) else None
+            marker_day = None
+            if marker is not None:
+                fields = marker.get("native_identity") or {}
+                marker_day = fields.get("trading_day") or marker.get("trading_day")
+            if (marker_day or record["target_session"]["trading_day"]) != day:
+                continue  # another day's order ended with its day
+            notices.append(dict(record, restart_rejected=reason))
+        return notices
 
     def _direct_data_started(self, data) -> None:
         symbol = self._direct_symbol(data)
@@ -2519,6 +2756,9 @@ class BtApiDirectModeMixin:
         for record in [r for r in self._direct_deferred_waiting if r["symbol"] == symbol]:
             self._direct_deferred_waiting.remove(record)
             self._direct_adopt_waiting(record, data)
+        for marker in [m for m in self._direct_deferred_notices if str(m.get("symbol")) == symbol]:
+            self._direct_deferred_notices.remove(marker)
+            self._direct_build_notice(marker, data)
 
     def _direct_adopt_waiting(self, record: Dict[str, Any], data) -> None:
         waiting_store = self._direct_state.waiting
@@ -2606,6 +2846,7 @@ class BtApiDirectModeMixin:
             order.addinfo(
                 error_code=rejected,
                 error_msg="waiting order not found at the venue after restart; not re-sent",
+                restart_notice=("waiting", record["waiting_id"]),
             )
             order.reject(self)
             self._direct_hand_over(order)
@@ -2632,6 +2873,7 @@ class BtApiDirectModeMixin:
             return
         order.owner = strategy
         self.notify(order)
+        self._direct_record_takeover(order)
 
     def _direct_build_awaiting(self) -> None:
         pending, self._direct_awaiting_bar = self._direct_awaiting_bar, []
@@ -2641,6 +2883,8 @@ class BtApiDirectModeMixin:
                 self._direct_awaiting_bar.append(item)
             elif item[0] == "waiting":
                 self._direct_build_waiting_order(item[1], data)
+            elif item[0] == "notice":
+                self._direct_build_notice(item[1], data)
             else:
                 self._direct_restore_order(item[1], item[2])
 
@@ -3245,6 +3489,10 @@ class BtApiDirectModeMixin:
         self._direct_resolve_unknown(meta, "rejected")
         order.addinfo(not_found_at_venue=True)
         self._direct_reject(order, "not_found_at_venue")
+        if marker_id and order.owner is not None:
+            # Its strategy was told now: a restart does not repeat the notice;
+            # if this record fails, a restart of this day re-delivers it.
+            self._direct_state.pending.record_takeover(marker_id)
 
     def _direct_end_return_gap(self, status: str, reason: Optional[str]) -> None:
         gap = self._direct_return_gap

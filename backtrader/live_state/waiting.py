@@ -18,6 +18,9 @@ UNKNOWN path.  A restart whose committed marker was absent from a complete
 same-day order query ends ``DISPATCHING -> REJECTED``
 (``restart_not_found_at_venue``, D63-38 a): it is never re-queued.  ``DISPATCHED``, ``CANCELLED``, ``EXPIRED`` and ``REJECTED`` are
 terminal and move to a bounded history (last 500).
+Such a restart-rejected order is re-notified to its strategy on every
+restart until :meth:`WaitingOrderStore.record_takeover` noted the takeover
+(``facts.taken_over_at_utc``).
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from typing import Any, List, Mapping, Optional
 from ._common import (
     StatePaths,
     ensure_no_secret_keys,
+    get_logger,
     is_finite_number,
     is_strict_int,
     is_text,
@@ -49,6 +53,8 @@ from .atomic import (
 )
 
 __all__ = ("WAITING_STATUSES", "WAITING_VERSION", "WaitingOrderStore")
+
+_log = get_logger(__name__)
 
 WAITING_VERSION = 1
 HISTORY_LIMIT = 500
@@ -358,6 +364,44 @@ class WaitingOrderStore:
                 state["history"].append(order)
             self._store(state)
         return True
+
+    def record_takeover(self, waiting_id: str) -> bool:
+        """Durably note that the strategy took over a restart-rejected waiting order.
+
+        Only a REJECTED order (``restart_not_found_at_venue``, D63-38 a) has
+        a notice the host re-delivers on every restart until this fact
+        (``facts.taken_over_at_utc``) exists.  The first time is kept
+        (idempotent ``True``); ``False`` (never raises) for any other order
+        or when the fact cannot be written.
+        """
+        try:
+            with self._lock():
+                state = self._load()
+                order = next(
+                    (
+                        item
+                        for item in reversed(state["history"])
+                        if item["waiting_id"] == waiting_id
+                    ),
+                    None,
+                )
+                if (
+                    order is None
+                    or order["status"] != "REJECTED"
+                    or order["facts"].get("reason") != "restart_not_found_at_venue"
+                ):
+                    return False
+                if order["facts"].get("taken_over_at_utc"):
+                    return True
+                order["facts"]["taken_over_at_utc"] = utc_now_iso()
+                self._store(state)
+            return True
+        except Exception as exc:
+            _log.warning(
+                "waiting notice takeover not recorded: %s",
+                getattr(exc, "code", type(exc).__name__),
+            )
+            return False
 
     def get(self, waiting_id: str) -> Optional[dict]:
         state = self._load()

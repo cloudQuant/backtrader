@@ -562,10 +562,18 @@ class Env:
         bt_ref: int = 1,
         symbol: str = SYMBOL,
         status: str = "DISPATCHED",
+        summary: Optional[Dict[str, Any]] = None,
+        identity: Optional[NativeOrderIdentity] = None,
     ):
-        """A place marker exactly as the SDK coordinator commits it."""
+        """A place marker exactly as the SDK coordinator commits it.
+
+        ``summary`` adds the Broker's request summary fields (side, size,
+        price, offset, bt_ref); ``identity`` replaces the CTP-like identity
+        (e.g. a client-order-id-only identity of OKX/Binance).
+        """
         state = self.state()
-        identity = native_identity(order_ref, trading_day=trading_day)
+        if identity is None:
+            identity = native_identity(order_ref, trading_day=trading_day)
         record = PreDispatchRecord(
             operation=WriteOperation.PLACE,
             host_scope=state.strategy_uuid,
@@ -573,7 +581,7 @@ class Env:
             symbol=symbol,
             identity=identity,
             target_identity=None,
-            request_summary={"local_seq": local_seq},
+            request_summary=dict(summary or {}, local_seq=local_seq),
             trading_day=trading_day,
             session_generation=1,
             created_at_utc=_utc_text(),

@@ -21,8 +21,16 @@ Status model (rank order ``PREPARED < DISPATCHED < ACCEPTED < TERMINAL``):
   operator conclusion) clears it, plus, for a ``settlement_confirm`` marker
   only, :meth:`resolve_settlement_readback` (audited, a verified read-only
   readback of the same route and trading day that found the settlement
-  confirmed, or definitively unconfirmed, D62-29).  There is no
-  force-unlock.
+  confirmed, or definitively unconfirmed, D62-29), and, for a ``place``
+  marker only, :meth:`resolve_order_query` (audited, a complete order query
+  of the same route and trading day matched by the marker's strong native
+  identity: working -> ``ACCEPTED``, ended or absent -> ``TERMINAL``,
+  D63-38 a).  There is no force-unlock.
+
+A TERMINAL ``not_found_at_venue`` place marker carries a Rejected notice for
+its strategy; :meth:`record_takeover` durably notes that it was taken over
+(``facts.taken_over_at_utc``), so the host re-delivers it until then and never
+twice.
 
 ``TERMINAL`` markers leave the active set and are kept in a bounded history
 (last 500).  Duplicate detection of native identities therefore only covers
@@ -840,6 +848,146 @@ class PendingCommandStore:
         except Exception as exc:
             _log.warning(
                 "settlement readback resolution failed: %s",
+                getattr(exc, "code", type(exc).__name__),
+            )
+            return False
+
+    def resolve_order_query(
+        self,
+        marker_id: str,
+        *,
+        exchange_name: str,
+        trading_day: str,
+        status: str,
+        evidence: str,
+        **facts: Any,
+    ) -> bool:
+        """Resolve one UNKNOWN ``place`` marker from a complete same-day order query.
+
+        D63-38 a (user decision 2026-11-07): the host read the complete order
+        list of the marker's own route and trading day and matched the
+        marker's strong native identity; the host decides those
+        preconditions.  ``status`` is ``ACCEPTED`` (the order is working; it
+        stays active and later returns end it) or ``TERMINAL`` with a
+        ``final_status`` fact (its end state, or ``not_found_at_venue``).
+        Only an UNKNOWN place marker of ``exchange_name`` whose trading day
+        (native identity, else the marker's) equals ``trading_day`` qualifies;
+        anything else still needs :meth:`resolve_manually`.  The audit record
+        is written first.  Returns ``False`` (never raises) when nothing
+        matches, a fact conflicts with the marker's identity, or anything
+        cannot be written; the marker then stays UNKNOWN.
+        """
+        if status not in (STATUS_ACCEPTED, STATUS_TERMINAL):
+            return False
+        if not is_text(exchange_name, max_len=128) or not is_text(trading_day, max_len=32):
+            return False
+        if not is_text(evidence, max_len=200):
+            return False
+        final_status = facts.get("final_status")
+        if status == STATUS_TERMINAL and not is_text(final_status, max_len=128):
+            return False
+        try:
+            cleaned = _clean_facts(
+                {key: value for key, value in facts.items() if value is not None}
+            )
+            cleaned["resolution_evidence"] = evidence
+            with self._lock():
+                state = self._load()
+                marker = state["active"].get(marker_id)
+                if (
+                    marker is None
+                    or marker["status"] != STATUS_UNKNOWN
+                    or marker["operation"] != "place"
+                    or marker["exchange_name"] != exchange_name
+                    or (marker["native_identity"].get("trading_day") or marker["trading_day"])
+                    != trading_day
+                ):
+                    return False
+                if not _merge_facts(marker, cleaned):
+                    return False
+                entry = append_audit(
+                    self.paths.strategy_dir,
+                    {
+                        "event": "pending_order_query_resolution",
+                        "strategy_uuid": self.strategy_uuid,
+                        "marker_id": marker_id,
+                        "previous_status": STATUS_UNKNOWN,
+                        "status": status,
+                        "final_status": final_status,
+                        "evidence": evidence,
+                        "exchange_name": exchange_name,
+                        "trading_day": trading_day,
+                        "symbol": marker["symbol"],
+                        "local_seq": marker["local_seq"],
+                        "bt_ref": marker["bt_ref"],
+                    },
+                )
+                now = utc_now_iso()
+                marker["status"] = status
+                marker["transitions"].append({"from": STATUS_UNKNOWN, "to": status, "at_utc": now})
+                del marker["transitions"][:-_TRANSITIONS_LIMIT]
+                marker["updated_at_utc"] = now
+                marker["resolution"] = {
+                    "kind": "complete_order_query",
+                    "evidence": [evidence],
+                    "trading_day": trading_day,
+                    "resolved_at_utc": entry["ts_utc"],
+                }
+                if status == STATUS_TERMINAL:
+                    del state["active"][marker_id]
+                    state["history"].append(marker)
+                try:
+                    self._store(state)
+                except BaseException:
+                    try:
+                        append_audit(
+                            self.paths.strategy_dir,
+                            {
+                                "event": "pending_order_query_resolution_failed",
+                                "strategy_uuid": self.strategy_uuid,
+                                "marker_id": marker_id,
+                            },
+                        )
+                    except Exception:
+                        _log.warning("could not audit failed order query resolution")
+                    raise
+            return True
+        except Exception as exc:
+            _log.warning(
+                "order query resolution failed: %s", getattr(exc, "code", type(exc).__name__)
+            )
+            return False
+
+    def record_takeover(self, marker_id: str) -> bool:
+        """Durably note that the strategy took over the Rejected notice of a marker.
+
+        Only a TERMINAL ``place`` marker resolved ``not_found_at_venue`` has
+        such a notice (D63-38 a): the host re-delivers it on every restart
+        until this fact (``facts.taken_over_at_utc``) exists.  The first
+        time is kept (idempotent ``True``).  Returns ``False`` (never raises)
+        for any other marker or when the fact cannot be written.
+        """
+        try:
+            with self._lock():
+                state = self._load()
+                marker = next(
+                    (item for item in reversed(state["history"]) if item["marker_id"] == marker_id),
+                    None,
+                )
+                if (
+                    marker is None
+                    or marker["operation"] != "place"
+                    or marker["facts"].get("final_status") != "not_found_at_venue"
+                ):
+                    return False
+                if marker["facts"].get("taken_over_at_utc"):
+                    return True
+                marker["facts"]["taken_over_at_utc"] = utc_now_iso()
+                self._store(state)
+            return True
+        except Exception as exc:
+            _log.warning(
+                "pending notice takeover not recorded: %s",
                 getattr(exc, "code", type(exc).__name__),
             )
             return False

@@ -499,3 +499,125 @@ def test_settlement_readback_records_a_definitive_unconfirmed_outcome(state):
     assert record["outcome"] == "unconfirmed"
     assert record["evidence"] == "settlement_readback_unconfirmed"
     assert _readback(store, marker_id) is False  # closed once, whatever the outcome
+
+
+# -- complete same-day order query resolution of an UNKNOWN place marker -------
+# (D63-38 a, iteration 62 re-review 2026-11-07 §4 item 2c; the Broker decides
+# that the query was complete, of the marker's day and of a strong identity.)
+
+
+def _unknown_place(state, **overrides):
+    marker_id = state.pending.commit(place_record(state.strategy_uuid, **overrides))
+    assert marker_id is not None
+    assert state.pending.mark(marker_id, "UNKNOWN", reason="trading_day_not_queryable")
+    return marker_id
+
+
+def _query(store, marker_id, **overrides):
+    kwargs = {
+        "exchange_name": "CTP___FUTURE",
+        "trading_day": "20261105",
+        "status": "TERMINAL",
+        "evidence": "startup_complete_order_query",
+        "final_status": "not_found_at_venue",
+    }
+    kwargs.update(overrides)
+    return store.resolve_order_query(marker_id, **kwargs)
+
+
+def test_order_query_resolves_only_an_unknown_place_marker_of_its_route_and_day(state):
+    store = state.pending
+    marker_id = _unknown_place(state)
+    dispatched = store.commit(place_record(state.strategy_uuid, client_order_id="000000000002"))
+    assert store.mark(dispatched, "DISPATCHED")
+    settlement = store.commit(
+        {
+            "operation": "settlement_confirm",
+            "host_scope": state.strategy_uuid,
+            "exchange_name": "CTP___FUTURE",
+            "trading_day": "20261105",
+        }
+    )
+    assert store.mark(settlement, "UNKNOWN")
+    assert _query(store, dispatched) is False  # not UNKNOWN: ordinary marks apply
+    assert _query(store, settlement) is False  # not an order
+    assert _query(store, marker_id, trading_day="20261106") is False  # another day
+    assert _query(store, marker_id, exchange_name="OKX___SWAP") is False
+    assert _query(store, marker_id, status="DISPATCHED") is False
+    assert _query(store, marker_id, final_status=None) is False  # TERMINAL needs a status
+    assert _query(store, marker_id, evidence="") is False
+    assert _query(store, "no-such-marker") is False
+    assert store.get(marker_id)["status"] == "UNKNOWN"
+    assert not any(
+        r["event"] == "pending_order_query_resolution" for r in read_audit(state.strategy_dir)
+    )
+
+    assert _query(store, marker_id) is True
+    resolved = store.get(marker_id)
+    assert resolved["status"] == "TERMINAL"
+    assert resolved["facts"]["final_status"] == "not_found_at_venue"
+    assert resolved["facts"]["resolution_evidence"] == "startup_complete_order_query"
+    assert resolved["facts"]["reason"] == "trading_day_not_queryable"  # history kept
+    assert resolved["resolution"]["kind"] == "complete_order_query"
+    assert resolved["resolution"]["trading_day"] == "20261105"
+    assert [t["to"] for t in resolved["transitions"]][-2:] == ["UNKNOWN", "TERMINAL"]
+    (record,) = [
+        r for r in read_audit(state.strategy_dir) if r["event"] == "pending_order_query_resolution"
+    ]
+    assert record["marker_id"] == marker_id and record["status"] == "TERMINAL"
+    assert record["final_status"] == "not_found_at_venue"
+    assert _query(store, marker_id) is False  # resolved once
+
+
+def test_order_query_resolution_to_a_working_order_stays_active(state):
+    store = state.pending
+    marker_id = _unknown_place(state)
+    assert _query(store, marker_id, status="ACCEPTED", final_status=None, order_sys_id="2001")
+    resolved = store.get(marker_id)
+    assert resolved["status"] == "ACCEPTED" and resolved["facts"]["order_sys_id"] == "2001"
+    assert marker_id in {m["marker_id"] for m in store.active()}
+    assert store.mark(marker_id, "TERMINAL", final_status="filled")  # returns go on
+
+
+def test_order_query_resolution_changes_nothing_if_audit_fails(state, monkeypatch):
+    marker_id = _unknown_place(state)
+
+    def broken(*args, **kwargs):
+        raise OSError("audit disk full")
+
+    monkeypatch.setattr(pending_module, "append_audit", broken)
+    assert _query(state.pending, marker_id) is False
+    monkeypatch.undo()
+    assert state.pending.get(marker_id)["status"] == "UNKNOWN"
+
+
+def test_notice_takeover_is_recorded_once_on_a_not_found_place_marker(state):
+    store = state.pending
+    found = store.commit(place_record(state.strategy_uuid))
+    assert store.mark(found, "TERMINAL", final_status="not_found_at_venue")
+    filled = store.commit(place_record(state.strategy_uuid, client_order_id="000000000002"))
+    assert store.mark(filled, "TERMINAL", final_status="filled")
+    active = store.commit(place_record(state.strategy_uuid, client_order_id="000000000003"))
+    assert store.record_takeover(filled) is False  # no notice of its own
+    assert store.record_takeover(active) is False  # not terminal
+    assert store.record_takeover("no-such-marker") is False
+    assert store.record_takeover(found) is True
+    first = store.get(found)["facts"]["taken_over_at_utc"]
+    assert first
+    assert store.record_takeover(found) is True  # idempotent: the first time is kept
+    assert store.get(found)["facts"]["taken_over_at_utc"] == first
+    assert "taken_over_at_utc" not in store.get(filled)["facts"]
+
+
+def test_notice_takeover_never_raises(state, monkeypatch):
+    store = state.pending
+    found = store.commit(place_record(state.strategy_uuid))
+    assert store.mark(found, "TERMINAL", final_status="not_found_at_venue")
+
+    def broken(path, obj):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(pending_module, "atomic_write_json", broken)
+    assert store.record_takeover(found) is False
+    monkeypatch.undo()
+    assert "taken_over_at_utc" not in store.get(found)["facts"]

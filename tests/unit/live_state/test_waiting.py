@@ -127,3 +127,47 @@ def test_history_is_bounded(state):
         assert store.transition(waiting_id, "WAITING", "EXPIRED")
         ids.append(waiting_id)
     assert [o["waiting_id"] for o in store.history()] == ids[-2:]
+
+
+def test_takeover_of_a_restart_rejected_notice_is_recorded_once(state):
+    """D63-38 a: a waiting order rejected at restart is re-notified until taken over."""
+    store = state.waiting
+    rejected = store.add(waiting_order(local_seq=1))
+    assert store.transition(rejected, "WAITING", "DISPATCHING")
+    assert store.transition(
+        rejected, "DISPATCHING", "REJECTED", reason="restart_not_found_at_venue", marker_id="m"
+    )
+    cancelled = store.add(waiting_order(local_seq=2))
+    assert store.transition(cancelled, "WAITING", "CANCELLED", reason="strategy_cancel")
+    waiting = store.add(waiting_order(local_seq=3))
+    dispatched = store.add(waiting_order(local_seq=4))
+    assert store.transition(
+        dispatched, "WAITING", "DISPATCHING", reason="restart_not_found_at_venue"
+    )
+    assert store.transition(dispatched, "DISPATCHING", "DISPATCHED", marker_id="m4")
+    assert store.record_takeover(dispatched) is False  # only a REJECTED order has a notice
+    assert store.record_takeover(cancelled) is False  # nothing to take over
+    assert store.record_takeover(waiting) is False  # not terminal
+    assert store.record_takeover("missing") is False
+    assert store.record_takeover(rejected) is True
+    first = store.get(rejected)["facts"]["taken_over_at_utc"]
+    assert first and store.get(rejected)["facts"]["reason"] == "restart_not_found_at_venue"
+    assert store.record_takeover(rejected) is True
+    assert store.get(rejected)["facts"]["taken_over_at_utc"] == first
+    assert store.get(rejected)["status"] == "REJECTED"
+
+
+def test_takeover_record_never_raises(state, monkeypatch):
+    from backtrader.live_state import waiting as waiting_module
+
+    store = state.waiting
+    rejected = store.add(waiting_order())
+    assert store.transition(rejected, "WAITING", "REJECTED", reason="restart_not_found_at_venue")
+
+    def broken(path, obj):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(waiting_module, "atomic_write_json", broken)
+    assert store.record_takeover(rejected) is False
+    monkeypatch.undo()
+    assert "taken_over_at_utc" not in store.get(rejected)["facts"]
