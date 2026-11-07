@@ -449,6 +449,14 @@ class BtApiDirectModeMixin:
         self._direct_gap_inflight = False
         self._direct_dropped_seen: Optional[int] = None
         self._direct_last_place_at: Optional[float] = None  # monotonic, last make_order
+        # The pending gap read waits for the quiet period (account scope only).
+        self._direct_gap_quiet = True
+        # Fill gaps (re-review 2026-11-07 §4 item 1): own orders whose trusted
+        # venue cumulative exceeds their locally applied fills; marker id ->
+        # entry (strategy thread).  Restore bases proven by the startup trade
+        # list: marker id -> applied quantity (CTP-style routes).
+        self._direct_fill_gaps: Dict[str, Dict[str, Any]] = {}
+        self._direct_restore_base: Dict[str, float] = {}
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -680,6 +688,7 @@ class BtApiDirectModeMixin:
             "applied_missing_trades": 0,
             "foreign_working_orders": 0,
         }
+        self._direct_report = report  # sections added while reconciling (fill gaps) land here
         self._direct_load_local(local_positions, prices, snapshot_day, facts.trading_day)
         orders_by_key: Dict[tuple, Any] = {}
         for event in tuple(getattr(facts, "orders", None) or ()) + tuple(facts.active_orders or ()):
@@ -750,6 +759,7 @@ class BtApiDirectModeMixin:
                 )
                 self._direct_note_not_found(report, marker, "startup_complete_order_query")
                 continue
+            listed: Dict[str, float] = {}  # the order's fills the complete trade list proves
             if order_event.exchange_order_id:
                 sys_key = (
                     "o",
@@ -757,13 +767,24 @@ class BtApiDirectModeMixin:
                     str(order_event.exchange_order_id).strip(),
                 )
                 for trade in trades_by_order.get(sys_key, ()):
-                    if self._direct_trade_key(trade) not in self._direct_applied_set():
+                    trade_key = self._direct_trade_key(trade)
+                    if trade_key not in self._direct_applied_set():
                         self._direct_apply_trade_to_legs(trade)
                         self._direct_remember_trade(trade)
                         report["applied_missing_trades"] += 1
+                    listed[trade_key] = abs(_num(trade.trade_qty))
             live_event = next((working[k] for k in keys if k in working), None)
             if live_event is not None:
                 claimed.update(k for k in keys if k in working)
+                if self._direct_require_offset:
+                    # CTP-style day orders: every fill of the order is in the
+                    # day's complete trade list, so the restore base is what it
+                    # proves applied, never the bare cumulative; a cumulative
+                    # above it is a fill gap and blocks the symbol (T1).
+                    applied = sum(listed.values())
+                    self._direct_restore_base[marker["marker_id"]] = applied
+                    if _num(live_event.filled_qty) > applied + 1e-9:
+                        self._direct_open_restart_fill_gap(marker, live_event, applied)
                 if self._direct_restore_order(marker, live_event):
                     report["restored_orders"] += 1
                 state.pending.mark(
@@ -1423,8 +1444,11 @@ class BtApiDirectModeMixin:
         blocked = dict(self._direct_blocked)
         if self._direct_global_block:
             blocked["*"] = self._direct_global_block
-        if getattr(self, "_direct_return_gap", None) is not None:
+        if self._direct_account_gap_pending():
             blocked.setdefault("*", "return_gap_reconcile")
+        for entry in getattr(self, "_direct_fill_gaps", {}).values():
+            if entry["state"] != "watch":
+                blocked.setdefault(entry["symbol"], self._direct_fill_gap_block(entry["symbol"]))
         if getattr(self, "_direct_day_switch", None) is not None:
             blocked.setdefault("*", "trading_day_switch_pending")
         if not self._direct_writes_enabled:
@@ -1611,7 +1635,7 @@ class BtApiDirectModeMixin:
             return self._direct_global_block
         if "*" in self._direct_blocked:
             return self._direct_blocked["*"]
-        if self._direct_return_gap is not None:
+        if self._direct_account_gap_pending():
             # Returns may be missing: no new order until the gap is reconciled.
             return "return_gap_reconcile"
         if switching and not switch_may_wait:
@@ -1623,6 +1647,10 @@ class BtApiDirectModeMixin:
         symbol = meta["symbol"]
         if symbol in self._direct_blocked:
             return self._direct_blocked[symbol]
+        if self._direct_fill_gaps:
+            reason = self._direct_fill_gap_block(symbol)
+            if reason is not None:
+                return reason
         denial = self._direct_permission_denial(symbol)
         if denial is not None:
             return f"trading_permission_denied:{denial}"
@@ -1990,6 +2018,8 @@ class BtApiDirectModeMixin:
             self._direct_expire_buffered_trades()
         if not self._direct_stopping:
             self._direct_check_return_gap()
+            if self._direct_fill_gaps or self._direct_return_gap is not None:
+                self._direct_check_fill_gaps()
 
     def _direct_event_keys(self, event: Any) -> tuple:
         """``(fields, keys)`` of a return: identity keys plus its venue order id."""
@@ -2224,6 +2254,11 @@ class BtApiDirectModeMixin:
                 self._direct_state.pending.mark(marker, "TERMINAL", final_status="cancel_rejected")
             self.notify(order)
             return
+        if event.filled_qty is not None:
+            # The venue cumulative of this own order (strong identity): a fill
+            # it counts that never reached the legs is a fill gap (T1).
+            meta["venue_filled"] = max(_num(event.filled_qty), meta.get("venue_filled", 0.0))
+            self._direct_fill_progress(order, meta)
         status = event.status.value if event.status is not None else None
         if kind == "order_error":
             status = "rejected"
@@ -2370,6 +2405,8 @@ class BtApiDirectModeMixin:
             order.completed()
             self.notify(order)
             self._direct_mark(meta, "TERMINAL", final_status="filled")
+        if "venue_filled" in meta:
+            self._direct_fill_progress(order, meta)
         if meta.get("pending_terminal") == "cancelled" and order.alive():
             filled = abs(order.executed.size)
             if filled + 1e-9 >= _num(meta.get("pending_filled", filled)):
@@ -2640,7 +2677,7 @@ class BtApiDirectModeMixin:
                 return
             if self._direct_day_switch_active():
                 return  # R-3: hold the FIFO queue (not rejected) until the new day is verified
-            if self._direct_return_gap is not None:
+            if self._direct_account_gap_pending():
                 return  # hold the FIFO queue (not rejected) until the gap is reconciled
             phase = self._direct_phase(meta["symbol"], now)
             if phase is None or phase.reason or phase.phase.value != "continuous":
@@ -2652,8 +2689,14 @@ class BtApiDirectModeMixin:
                 # missing qualification is never treated as qualified.
                 return
             reason = self._direct_precheck(order, meta)
-            if reason in ("trading_day_switch_pending", "return_gap_reconcile"):
-                return  # R-3 / return gap: one detected just now holds the FIFO queue too
+            if reason in (
+                "trading_day_switch_pending",
+                "return_gap_reconcile",
+                "fill_gap_reconcile",
+            ):
+                # R-3 / return gap / a fill gap under reconcile (transient): one
+                # detected just now holds the FIFO queue too.
+                return
             if reason is not None:
                 if self._direct_state.waiting.transition(
                     meta["waiting_id"], "WAITING", "REJECTED", reason=reason
@@ -2848,6 +2891,10 @@ class BtApiDirectModeMixin:
     #           position audit and one snapshot;
     #   exit    unblocked after one applied read; an incomplete or unstable read
     #           keeps the block and retries with a bounded backoff.
+    # A fill gap (see the fill-gap section) uses the same read with scope
+    # ``fill``: only its symbols are blocked, there is no quiet period and no
+    # absent-order conclusion; its fills still missing after a read keep the
+    # gap pending (``fill_gap_unresolved``) with the same backoff.
     # Only strong identities match (session triple, venue order id, or the
     # client order id of venues without a session identity, ``identity_keys``).
     def _direct_read_dropped(self) -> Optional[int]:
@@ -2921,12 +2968,31 @@ class BtApiDirectModeMixin:
                     return
         self._direct_signal_return_gap("session_generation_changed", generation=generation)
 
+    def _direct_account_gap_pending(self) -> bool:
+        """A return gap of account scope is pending (every new order and waiting dispatch waits).
+
+        A gap opened only for fill gaps (scope ``fill``) blocks just their
+        symbols (``_direct_fill_gap_block``).
+        """
+        gap = getattr(self, "_direct_return_gap", None)
+        return gap is not None and gap.get("scope") != "fill"
+
     def _direct_signal_return_gap(self, cause: str, **facts: Any) -> None:
-        """Enter the gap, or renew it: only a read started after this signal counts."""
+        """Enter the gap, or renew it: only a read started after this signal counts.
+
+        ``fill_gap`` opens a gap of scope ``fill`` (only the fill-gap symbols
+        are blocked, no quiet period, no absent-order conclusion) and never
+        renews a pending gap: that gap's read is evaluated for every fill gap.
+        Any other cause makes (or keeps) the gap account-wide.
+        """
+        scope = "fill" if cause == "fill_gap" else "account"
         gap = self._direct_return_gap
+        if gap is not None and scope == "fill":
+            return
         if gap is None:
             gap = {
                 "status": "pending",
+                "scope": scope,
                 "detected_by": cause,
                 "detected_at_utc": _utc_text(),
                 "causes": [],
@@ -2947,11 +3013,13 @@ class BtApiDirectModeMixin:
             self._direct_return_gap = gap
             self._direct_report["return_gap"] = gap
             _log.warning(
-                "direct return gap detected (%s): new orders blocked until a complete "
+                "direct return gap detected (%s): new orders blocked (%s) until a complete "
                 "account observation is reconciled",
                 cause,
+                "fill-gap symbols" if scope == "fill" else "all symbols",
             )
         else:
+            gap["scope"] = "account"
             throttled_warning(
                 _log,
                 "direct_return_gap_renewed",
@@ -2967,6 +3035,7 @@ class BtApiDirectModeMixin:
         with self._direct_day_switch_lock:
             self._direct_gap_request = gap["seq"]
             self._direct_gap_due = 0.0
+            self._direct_gap_quiet = gap["scope"] == "account"
 
     def _direct_return_gap_poll(self) -> None:
         """Facts poller: one due reconcile read of the pending gap (not re-entrant)."""
@@ -2977,7 +3046,7 @@ class BtApiDirectModeMixin:
             if seq is None or self._direct_gap_inflight or now < self._direct_gap_due:
                 return
             last = self._direct_last_place_at
-            if last is not None and now - last < quiet:
+            if last is not None and self._direct_gap_quiet and now - last < quiet:
                 self._direct_gap_due = last + quiet  # writes are blocked: it only ages
                 return
             self._direct_gap_inflight = True
@@ -3065,6 +3134,14 @@ class BtApiDirectModeMixin:
         self._direct_reconcile_return_gap(facts, gap)
         if payload.get("generation") is not None:
             self._direct_session_generation = payload["generation"]
+        if self._direct_fill_gaps_after_read(facts, gap):
+            # The account part (if any) is reconciled; fills still missing from
+            # the complete trade list keep their symbols blocked and read again.
+            gap["scope"] = "fill"
+            with self._direct_day_switch_lock:
+                self._direct_gap_quiet = False
+            self._direct_retry_return_gap(gap, "fill_gap_unresolved", None)
+            return
         self._direct_end_return_gap("completed", None)
 
     def _direct_retry_return_gap(
@@ -3111,7 +3188,10 @@ class BtApiDirectModeMixin:
                 gap["applied_trades"] += 1
         if self._direct_trade_buffer:
             self._direct_retry_buffered_trades()
-        for ref, meta in list(self._direct_meta.items()):
+        # A fill-gap read is taken while other symbols may send: an absent
+        # order may just not be listed yet, so nothing is concluded from it.
+        absent_conclusive = gap.get("scope") != "fill"
+        for ref, meta in list(self._direct_meta.items()) if absent_conclusive else ():
             order = self.orders.get(ref)
             if (
                 order is None
@@ -3195,6 +3275,193 @@ class BtApiDirectModeMixin:
             len(gap["unverified_orders"]),
             ",".join(f"{key}:{value}" for key, value in sorted(gap["blocked"].items())) or "-",
         )
+
+    # ------------------------------------------------------------------
+    # fill gaps (iteration 62 re-review 2026-11-07 §4 item 1; user approval)
+    # ------------------------------------------------------------------
+    # An own order (its returns matched our own identity keys) whose trusted
+    # order return shows a venue cumulative traded volume above the fills
+    # applied locally for it (restore base + executed) has lost a fill, e.g.
+    # one released unmatched after ``direct_trade_match_window`` because its
+    # order return came later.  The pair is watched for one more window (the
+    # fill normally follows its order return), then the symbol is blocked
+    # (``fill_gap_reconcile``) and a return-gap read of scope ``fill`` takes
+    # the complete orders and trades: own missing trades are applied exactly
+    # once by trade key through the order's learned venue identity (never an
+    # unmatched trade by inference; a cumulative number never creates a fill).
+    # Applied == cumulative unblocks; a complete trade list still without the
+    # fill keeps the symbol blocked (``fill_gap_unresolved``) and reads again
+    # with the return-gap backoff.  Only that symbol is blocked.  An order of
+    # another trading day than the read's (CTP-style) cannot be proven by it:
+    # its symbol stays blocked without retries (restart reconciles it).
+    def _direct_fill_gap_stats(self) -> Dict[str, Any]:
+        return self._direct_report.setdefault(
+            "fill_gaps", {"detected": 0, "resolved": 0, "unresolved": 0, "open": {}}
+        )
+
+    def _direct_fill_gap_block(self, symbol: str) -> Optional[str]:
+        """Block reason of ``symbol`` from its fill gaps, else ``None``."""
+        reason = None
+        for entry in self._direct_fill_gaps.values():
+            if entry["symbol"] != symbol or entry["state"] == "watch":
+                continue
+            if entry["state"] == "unresolved":
+                return "fill_gap_unresolved"
+            reason = "fill_gap_reconcile"
+        return reason
+
+    def _direct_fill_progress(self, order: Order, meta: Dict[str, Any]) -> None:
+        """Compare an own order's venue cumulative with its applied fills (cheap)."""
+        venue = meta.get("venue_filled")
+        key = meta.get("marker_id")
+        if venue is None or not key:
+            return
+        applied = _num(meta.get("venue_filled_before")) + abs(order.executed.size)
+        entry = self._direct_fill_gaps.get(key)
+        if venue > applied + 1e-9:
+            if entry is None:
+                self._direct_fill_gaps[key] = {
+                    "symbol": meta["symbol"],
+                    "ref": order.ref,
+                    "marker_id": key,
+                    "local_seq": meta.get("local_seq"),
+                    "venue_filled": venue,
+                    "applied": applied,
+                    "state": "watch",
+                    "deadline": _monotonic() + float(self.p.direct_trade_match_window),
+                    "detected_at_utc": None,
+                }
+            else:
+                entry.update(venue_filled=venue, applied=applied, ref=order.ref)
+                self._direct_publish_fill_gap(key, entry)
+            return
+        if entry is not None:
+            del self._direct_fill_gaps[key]
+            if entry["state"] == "watch":
+                return  # the fill followed within the window: never a gap
+            stats = self._direct_fill_gap_stats()
+            stats["resolved"] += 1
+            stats["open"].pop(key, None)
+            _log.info(
+                "direct fill gap on %s (local_seq %s) resolved: %s applied of venue cumulative %s",
+                entry["symbol"],
+                entry["local_seq"],
+                applied,
+                venue,
+            )
+
+    def _direct_publish_fill_gap(self, key: str, entry: Dict[str, Any]) -> None:
+        if entry["state"] == "watch":
+            return
+        self._direct_fill_gap_stats()["open"][key] = {
+            name: entry[name]
+            for name in ("symbol", "local_seq", "venue_filled", "applied", "state")
+        }
+        self._direct_fill_gap_stats()["open"][key]["detected_at_utc"] = entry["detected_at_utc"]
+
+    def _direct_mark_fill_gap(self, key: str, entry: Dict[str, Any], state: str) -> None:
+        """Move one fill gap to ``reconcile`` or ``unresolved`` (blocks its symbol)."""
+        previous, entry["state"] = entry["state"], state
+        stats = self._direct_fill_gap_stats()
+        if previous == "watch":
+            stats["detected"] += 1
+            entry["detected_at_utc"] = _utc_text()
+        if state == "unresolved" and previous != "unresolved":
+            stats["unresolved"] += 1
+        self._direct_publish_fill_gap(key, entry)
+        if previous != state:
+            _log.warning(
+                "direct fill gap on %s (local_seq %s): venue cumulative %s, applied %s; %s",
+                entry["symbol"],
+                entry["local_seq"],
+                entry["venue_filled"],
+                entry["applied"],
+                (
+                    "symbol blocked, reconciling"
+                    if state == "reconcile"
+                    else "missing from the complete trade list, symbol stays blocked"
+                ),
+            )
+
+    def _direct_check_fill_gaps(self) -> None:
+        """After each event drain: open due fill gaps and ask for their read."""
+        now = _monotonic()
+        opened = False
+        for key, entry in self._direct_fill_gaps.items():
+            if entry["state"] == "watch" and entry["deadline"] <= now:
+                self._direct_mark_fill_gap(key, entry, "reconcile")
+                opened = True
+        gap = self._direct_return_gap
+        if gap is not None:
+            if gap.get("scope") == "fill" and not any(
+                entry["state"] != "watch" for entry in self._direct_fill_gaps.values()
+            ):
+                self._direct_end_return_gap("completed", None)  # resolved by live returns
+            elif opened:
+                with self._direct_day_switch_lock:
+                    self._direct_gap_due = 0.0  # the pending gap's next read is due now
+            return
+        if (
+            not self._direct_on
+            or self._direct_day_switch is not None
+            or self._direct_global_block in _DAY_SWITCH_TERMINAL_BLOCKS
+        ):
+            return  # a pending switch reads first; its entries are asked for after it
+        symbols = sorted(
+            {e["symbol"] for e in self._direct_fill_gaps.values() if e["state"] == "reconcile"}
+        )
+        if symbols:
+            self._direct_signal_return_gap("fill_gap", fill_gap_symbols=symbols)
+
+    def _direct_fill_gaps_after_read(self, facts: Any, gap: Dict[str, Any]) -> bool:
+        """After one applied reconcile read: still short -> unresolved; True retries."""
+        retry = False
+        for key, entry in list(self._direct_fill_gaps.items()):
+            if entry["state"] == "watch":
+                continue  # its window has not passed: the late fill may still come
+            ref = entry.get("ref")
+            order = self.orders.get(ref) if ref is not None else None
+            meta = self._direct_meta.get(ref) if ref is not None else None
+            if order is not None and meta is not None:
+                self._direct_fill_progress(order, meta)
+                if key not in self._direct_fill_gaps:
+                    continue  # applied from the read
+            self._direct_mark_fill_gap(key, entry, "unresolved")
+            if (
+                order is not None
+                and meta is not None
+                and not meta.get("day_unknown")
+                and (
+                    not self._direct_require_offset
+                    or self._direct_order_day(ref) == facts.trading_day
+                )
+            ):
+                retry = True
+        gap["fill_gaps_open"] = sorted(
+            entry["symbol"]
+            for entry in self._direct_fill_gaps.values()
+            if entry["state"] != "watch"
+        )
+        return retry
+
+    def _direct_open_restart_fill_gap(
+        self, marker: Dict[str, Any], event: Any, applied: float
+    ) -> None:
+        """Startup: a working own order whose cumulative exceeds the listed fills (blocked)."""
+        key = marker["marker_id"]
+        entry = {
+            "symbol": str(event.symbol),
+            "ref": None,  # set when the restored order is built
+            "marker_id": key,
+            "local_seq": marker.get("local_seq"),
+            "venue_filled": _num(event.filled_qty),
+            "applied": applied,
+            "state": "watch",
+            "deadline": 0.0,
+            "detected_at_utc": None,
+        }
+        self._direct_fill_gaps[key] = entry
+        self._direct_mark_fill_gap(key, entry, "reconcile")
 
     # ------------------------------------------------------------------
     # trading-day switch while running (R-3; D62-14/22/29), CTP-style
@@ -4040,8 +4307,15 @@ class BtApiDirectModeMixin:
         # Restore the still-working part: fills before the restart are already
         # in the position legs (applied above or in the snapshot).
         remaining = _num(event.remaining_qty)
-        size = remaining or _num(event.order_qty)
-        filled_before = _num(event.filled_qty) if remaining else 0.0
+        order_qty = _num(event.order_qty)
+        base = self._direct_restore_base.pop(marker["marker_id"], None)
+        if base is not None and order_qty > base + 1e-9:
+            # CTP-style: the base is what the startup trade list proved applied;
+            # a later fill of the cumulative's rest executes on this order.
+            size, filled_before = order_qty - base, base
+        else:
+            size = remaining or order_qty
+            filled_before = _num(event.filled_qty) if remaining else 0.0
         order = cls(
             owner=None,
             data=data,
@@ -4094,6 +4368,14 @@ class BtApiDirectModeMixin:
         }
         if event.offset in _CLOSE_OFFSETS:
             meta["close_side"] = "long" if event.side == "sell" else "short"
+        if base is not None:
+            meta["venue_filled"] = _num(event.filled_qty)
+        entry = self._direct_fill_gaps.get(marker["marker_id"])
+        if entry is not None:
+            entry["ref"] = order.ref  # its read can be evaluated (and retried) now
+            if entry["state"] == "unresolved":
+                entry["state"] = "reconcile"
+                self._direct_publish_fill_gap(marker["marker_id"], entry)
         self._direct_meta[order.ref] = meta
         day = self._direct_order_day(order.ref)
         keys = identity_keys(dict(identity.fields), identity.client_order_id)
