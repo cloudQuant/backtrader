@@ -14,7 +14,9 @@ Status machine (compare-and-set under ``state/waiting.lock``)::
 
 ``DISPATCHING -> WAITING`` / ``EXPIRED`` are only for a dispatch attempt that
 definitively did not send; an uncertain send belongs to the pending-marker
-UNKNOWN path.  ``DISPATCHED``, ``CANCELLED``, ``EXPIRED`` and ``REJECTED`` are
+UNKNOWN path.  A restart whose committed marker was absent from a complete
+same-day order query ends ``DISPATCHING -> REJECTED``
+(``restart_not_found_at_venue``, D63-38 a): it is never re-queued.  ``DISPATCHED``, ``CANCELLED``, ``EXPIRED`` and ``REJECTED`` are
 terminal and move to a bounded history (last 500).
 """
 

@@ -99,6 +99,7 @@ _DIRECT_PARAMS = (
 )
 _MAX_BUFFERED_TRADES = 256
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
+_MAX_NOT_FOUND_REPORT = 200
 _SETTLEMENT_BACKOFF_FACTOR_MAX = 8
 _MAX_SETTLEMENT_READBACK_ENTRIES = 20
 # Resolution results no later automatic attempt can change (operator needed).
@@ -646,6 +647,7 @@ class BtApiDirectModeMixin:
             "mismatches": [],
             "other_instruments": [],
             "unknown_markers": [],
+            "not_found_at_venue": [],
             "restored_orders": 0,
             "applied_missing_trades": 0,
             "foreign_working_orders": 0,
@@ -707,13 +709,18 @@ class BtApiDirectModeMixin:
                 continue
             if order_event is None:
                 # A complete same-day order query without this identity: the
-                # venue never held the order (not sent, or refused at the front).
+                # order is not at the venue (D63-38 a, the reading of D62-14's
+                # "cleared": complete, same trading day, strong identity).  The
+                # instrument is not blocked, but nothing is ever re-sent
+                # automatically: a waiting order of this marker ends REJECTED
+                # (``restart_not_found_at_venue``) and its strategy decides.
                 state.pending.mark(
                     marker["marker_id"],
                     "TERMINAL",
                     final_status="not_found_at_venue",
                     resolution_evidence="startup_complete_order_query",
                 )
+                self._direct_note_not_found(report, marker, "startup_complete_order_query")
                 continue
             if order_event.exchange_order_id:
                 sys_key = (
@@ -835,6 +842,27 @@ class BtApiDirectModeMixin:
             "TERMINAL",
             final_status=final,
             resolution_evidence="startup_complete_order_query",
+        )
+
+    @staticmethod
+    def _direct_note_not_found(
+        report: Dict[str, Any], marker: Dict[str, Any], evidence: str
+    ) -> None:
+        """Report and log one place marker resolved ``not_found_at_venue`` (D63-38 a).
+
+        Only the marker id, symbol and local sequence are logged (no account
+        or credential fields); the report keeps the latest marker ids.
+        """
+        entries = report.setdefault("not_found_at_venue", [])
+        entries.append(marker.get("marker_id"))
+        del entries[:-_MAX_NOT_FOUND_REPORT]
+        _log.warning(
+            "direct place marker %s (%s, local_seq %s) not found at the venue (%s): "
+            "resolved not_found_at_venue, never re-sent automatically",
+            marker.get("marker_id"),
+            marker.get("symbol"),
+            marker.get("local_seq"),
+            evidence,
         )
 
     # ------------------------------------------------------------------
@@ -2429,20 +2457,29 @@ class BtApiDirectModeMixin:
                 if marker.get("local_seq") == record["local_seq"]
                 and marker.get("operation") == "place"
             ]
-            proven_unsent = [
+            not_found = [
                 marker
                 for marker in markers
                 if marker.get("status") == "TERMINAL"
                 and (marker.get("facts") or {}).get("final_status") == "not_found_at_venue"
             ]
-            if markers and len(proven_unsent) == len(markers):
-                # Committed but proven never sent (complete same-day order list):
-                # it may wait again inside its original target session.
-                waiting_store.transition(
-                    record["waiting_id"], "DISPATCHING", "WAITING", reason="restart_proven_unsent"
-                )
-                record = dict(record, status="WAITING")
-                markers = []
+            if markers and len(not_found) == len(markers):
+                # Committed, then absent from a complete same-day order list:
+                # not at the venue, but never re-sent automatically (D63-38 a).
+                # The waiting order ends REJECTED (durable first) and its
+                # strategy is told like any restored order; it may re-place.
+                reason = "restart_not_found_at_venue"
+                if waiting_store.transition(
+                    record["waiting_id"],
+                    "DISPATCHING",
+                    "REJECTED",
+                    reason=reason,
+                    marker_id=markers[-1]["marker_id"],
+                ):
+                    self._direct_build_waiting_order(
+                        dict(record, status="REJECTED", restart_rejected=reason), data
+                    )
+                return
             if markers:
                 # A marker was committed: the pending path owns the outcome.
                 waiting_store.transition(
@@ -2489,6 +2526,17 @@ class BtApiDirectModeMixin:
         order.addcomminfo(self.getcommissioninfo(data))
         order.submit(self)
         self.orders[order.ref] = order
+        rejected = record.get("restart_rejected")
+        if rejected:
+            # Already terminal in the waiting store: never queued for dispatch;
+            # handed over (restored, Rejected) so the strategy decides.
+            order.addinfo(
+                error_code=rejected,
+                error_msg="waiting order not found at the venue after restart; not re-sent",
+            )
+            order.reject(self)
+            self._direct_hand_over(order)
+            return
         self._direct_meta[order.ref] = {
             "symbol": record["symbol"],
             "local_seq": record["local_seq"],

@@ -254,8 +254,8 @@ def test_restart_dispatching_with_committed_marker_becomes_dispatched(env, clock
     assert broker.get_restored_orders() == []
 
 
-def test_restart_dispatching_marker_proven_unsent_waits_again(env, clock):
-    """A committed marker absent from the complete same-day order list was never sent."""
+def test_restart_dispatching_marker_not_found_is_rejected_not_requeued(env, clock):
+    """D63-38 a: absent from the complete same-day order list -> REJECTED, never re-sent."""
     first = env.start(first_init=True)
     _closed(env)
     order = _buy(env, first)
@@ -266,10 +266,15 @@ def test_restart_dispatching_marker_proven_unsent_waits_again(env, clock):
 
     broker = env.start()
     record = env.state().waiting.get(waiting_id)
-    assert record["status"] == "WAITING"
-    assert record["facts"]["reason"] == "restart_proven_unsent"
-    restored = broker.get_restored_orders()
-    assert len(restored) == 1 and restored[0].info["waiting_session"] is True
+    assert record["status"] == "REJECTED"
+    assert record["facts"]["reason"] == "restart_not_found_at_venue"
+    (restored,) = broker.get_restored_orders()
+    assert restored.status == bt.Order.Rejected
+    assert restored.info["error_code"] == "restart_not_found_at_venue"
+    _open(env, clock, T0 + HOUR)
+    broker.take_over_restored_orders(env.strategy)
+    broker.next()
+    assert env.api.place_calls == []
 
 
 def test_restart_dispatching_without_marker_returns_to_waiting(env, clock):
