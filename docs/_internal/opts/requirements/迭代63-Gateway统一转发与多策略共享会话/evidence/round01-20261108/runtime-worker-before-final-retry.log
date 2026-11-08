@@ -1,0 +1,36 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.8, pytest-8.4.2, pluggy-1.6.0 -- /Users/yunjinqi/opt/anaconda3/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.8', 'Platform': 'macOS-26.5.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'asyncio': '0.24.0', 'cov': '6.0.0', 'Faker': '37.5.3', 'anyio': '4.11.0', 'flask': '1.3.0', 'doctestplus': '1.6.0', 'html': '4.1.1', 'xdist': '3.8.0', 'time-machine': '2.16.0', 'timeout': '2.4.0', 'metadata': '3.1.1', 'rerunfailures': '14.0', 'playwright': '0.7.0', 'mock': '3.14.1', 'ordering': '0.6', 'sugar': '1.1.1', 'benchmark': '5.1.0', 'allure-pytest': '2.15.2', 'langsmith': '0.4.38', 'base-url': '2.1.0', 'dash': '2.18.2', 'picked': '0.5.1', 'hypothesis': '6.148.5', 'requests-mock': '1.12.1'}, 'Base URL': ''}
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+hypothesis profile 'default'
+rootdir: /Users/yunjinqi/Documents/new_projects/bt_api_py
+configfile: pyproject.toml
+plugins: asyncio-0.24.0, cov-6.0.0, Faker-37.5.3, anyio-4.11.0, flask-1.3.0, doctestplus-1.6.0, html-4.1.1, xdist-3.8.0, time-machine-2.16.0, timeout-2.4.0, metadata-3.1.1, rerunfailures-14.0, playwright-0.7.0, mock-3.14.1, ordering-0.6, sugar-1.1.1, benchmark-5.1.0, allure-pytest-2.15.2, langsmith-0.4.38, base-url-2.1.0, dash-2.18.2, picked-0.5.1, hypothesis-6.148.5, requests-mock-1.12.1
+asyncio: mode=Mode.STRICT, default_loop_scope=function
+collecting ... collected 22 items
+
+tests/unit/test_iter63_service_runtime_thread.py::test_owner_and_snapshot PASSED [  4%]
+tests/unit/test_iter63_service_runtime_thread.py::test_queued_timeout_never_executes_and_running_is_unknown PASSED [  9%]
+tests/unit/test_iter63_service_runtime_thread.py::test_queue_full_close_race_and_argument_snapshot PASSED [ 13%]
+tests/unit/test_iter63_service_runtime_thread.py::test_close_cancels_queued_and_running_timeout_is_not_not_sent PASSED [ 18%]
+tests/unit/test_iter63_service_runtime_thread.py::test_concurrent_calls_and_maintenance_failure PASSED [ 22%]
+tests/unit/test_iter63_service_runtime_thread.py::test_start_timeout_is_cleanup_pending_until_owner_returns PASSED [ 27%]
+tests/unit/test_iter63_service_runtime_thread.py::test_close_failure_retains_owner_for_retry PASSED [ 31%]
+tests/unit/test_iter63_service_runtime_thread.py::test_owner_reentry_is_rejected_without_deadlock PASSED [ 36%]
+tests/unit/test_iter63_service_runtime_thread.py::test_start_failure_reports_cleanup_pending PASSED [ 40%]
+tests/unit/test_iter63_service_runtime_thread.py::test_maintenance_failure_rejects_pending_before_dispatch PASSED [ 45%]
+tests/unit/test_iter63_service_runtime_thread.py::test_forked_child_rejects_before_touching_inherited_locks PASSED [ 50%]
+tests/unit/test_iter63_service_runtime_thread.py::test_inflight_call_cannot_hide_expired_lease PASSED [ 54%]
+tests/unit/test_iter63_service_runtime_thread.py::test_short_lease_is_maintained_before_expiry PASSED [ 59%]
+tests/unit/test_iter63_service_runtime_thread.py::test_timed_out_factory_failure_does_not_claim_cleanup PASSED [ 63%]
+tests/integration/test_iter63_service_runtime_thread.py::test_same_registration_renews_while_caller_does_not_poll PASSED [ 68%]
+tests/integration/test_iter63_service_runtime_thread.py::test_unmanaged_runtime_expires_without_poll_at_40_seconds PASSED [ 72%]
+tests/integration/test_iter63_service_runtime_thread.py::test_real_servicehost_curve_maintains_the_same_market_registration PASSED [ 77%]
+tests/integration/test_iter63_service_runtime_thread.py::test_synthetic_child_exit_leaves_registration_to_expire_on_host PASSED [ 81%]
+tests/unit/test_service_runtime_renewal_retry.py::test_transient_renewal_timeout_is_retried_while_lease_valid PASSED [ 86%]
+tests/unit/test_service_runtime_renewal_retry.py::test_explicit_renewal_rejection_still_fails_closed PASSED [ 90%]
+tests/unit/test_service_runtime_renewal_retry.py::test_lease_that_never_renews_still_fails_at_expiry PASSED [ 95%]
+tests/unit/test_service_runtime_renewal_retry.py::test_healthy_renewal_path_issues_no_extra_requests PASSED [100%]
+
+============================= 22 passed in 10.75s ==============================

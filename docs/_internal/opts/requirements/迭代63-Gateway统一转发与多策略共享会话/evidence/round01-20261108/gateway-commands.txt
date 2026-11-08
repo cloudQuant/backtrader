@@ -1,0 +1,5 @@
+cd /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway
+/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m pip wheel --no-deps --no-build-isolation --no-index --no-cache-dir --wheel-dir /tmp/gateway63-wheel.vNRgpw/wheel .
+cd /tmp
+/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m pip install --no-index --no-deps --target /tmp/gateway63-wheel.vNRgpw/target /tmp/gateway63-wheel.vNRgpw/wheel/bt_api_gateway-0.2.0.dev63-py3-none-any.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -I /tmp/gateway63-wheel.vNRgpw/smoke.py

@@ -1,0 +1,10 @@
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_gateway
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=152506 sha256=6eba82b2058334b759308d56956f4c73ace1e45734474661a96060fb3b9c76f3
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-h661mhil/wheels/4d/f1/5e/a29b980f843f029a90c59ca3d12de89ff3cd7bb359dbf23a53
+Successfully built bt_api_gateway
+

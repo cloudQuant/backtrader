@@ -1,0 +1,616 @@
+{
+  "evidence_level": "UNIT/FAKE; synthetic only",
+  "acceptance": "NOT_RUN: exit 0 means known observations matched, not product acceptance",
+  "known_gaps": [
+    "After a matched late fill, the marker and order notice retain not_found_at_venue.",
+    "After restart following rejection, the original order is not bound and the fill remains buffered."
+  ],
+  "observation_checks_passed": true,
+  "failure": null,
+  "scenarios": {
+    "memory_partial": {
+      "ok": true,
+      "result": {
+        "status": "Partial",
+        "size": 1.0,
+        "position": 1.0,
+        "trade": [
+          {
+            "size": 1.0,
+            "price": 3500.0,
+            "status": 1,
+            "commission": 0.0
+          }
+        ],
+        "events": [
+          [
+            "order",
+            "Submitted",
+            0,
+            1,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1
+            }
+          ],
+          [
+            "checkpoint_rejected",
+            "Rejected",
+            1,
+            {}
+          ],
+          [
+            "order",
+            "Rejected",
+            0,
+            1,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1,
+              "not_found_at_venue": true,
+              "error_code": "not_found_at_venue",
+              "error_msg": "direct mode refused the order: not_found_at_venue"
+            }
+          ],
+          [
+            "order",
+            "Partial",
+            1.0,
+            1,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1,
+              "not_found_at_venue": true,
+              "error_code": "not_found_at_venue",
+              "error_msg": "direct mode refused the order: not_found_at_venue",
+              "position_side": {}
+            }
+          ],
+          [
+            "trade",
+            1,
+            1.0,
+            3500.0,
+            0.0,
+            0.0
+          ],
+          [
+            "checkpoint_replay",
+            "Partial",
+            1.0,
+            1.0
+          ]
+        ],
+        "analyzer": [
+          [
+            "order",
+            "Submitted",
+            0,
+            1
+          ],
+          [
+            "order",
+            "Rejected",
+            0,
+            1
+          ],
+          [
+            "order",
+            "Partial",
+            1.0,
+            1
+          ],
+          [
+            "trade",
+            1,
+            1.0,
+            3500.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "trade_analyzer": {
+          "total": {
+            "total": 1,
+            "open": 1
+          }
+        },
+        "marker": {
+          "bt_ref": 1,
+          "client_order_id": "000000000001",
+          "committed_at_utc": "2026-11-08T07:54:12.192843+00:00",
+          "created_at_utc": "2026-11-08T07:54:12.192809Z",
+          "exchange_name": "CTP___FUTURE",
+          "extra": {},
+          "facts": {
+            "final_status": "not_found_at_venue",
+            "resolution_evidence": "return_gap_complete_order_query",
+            "taken_over_at_utc": "2026-11-08T07:54:12.194536+00:00"
+          },
+          "host_scope": "8b99a5c4-bfb6-4b66-b887-dfb6ef99d4dc",
+          "local_seq": 1,
+          "marker_id": "5e8641aa-c254-46f0-adb8-a783ba012701",
+          "native_identity": {
+            "exchange_id": "SHFE",
+            "front_id": 1,
+            "order_ref": "000000000001",
+            "session_id": 1001,
+            "trading_day": "20261105"
+          },
+          "operation": "place",
+          "request_summary": {
+            "bt_ref": 1,
+            "local_seq": 1,
+            "offset": "open",
+            "price": 3500.0,
+            "side": "buy",
+            "size": 2.0
+          },
+          "resolution": null,
+          "session_generation": 1,
+          "status": "TERMINAL",
+          "symbol": "rb2701",
+          "target_identity": null,
+          "trading_day": "20261105",
+          "transitions": [
+            {
+              "at_utc": "2026-11-08T07:54:12.193439+00:00",
+              "from": "PREPARED",
+              "to": "DISPATCHED"
+            },
+            {
+              "at_utc": "2026-11-08T07:54:12.194069+00:00",
+              "from": "DISPATCHED",
+              "to": "TERMINAL"
+            }
+          ],
+          "updated_at_utc": "2026-11-08T07:54:12.194069+00:00"
+        }
+      }
+    },
+    "memory_full": {
+      "ok": true,
+      "result": {
+        "status": "Completed",
+        "size": 2.0,
+        "position": 2.0,
+        "trade": [
+          {
+            "size": 2.0,
+            "price": 3500.0,
+            "status": 1,
+            "commission": 0.0
+          }
+        ],
+        "events": [
+          [
+            "order",
+            "Submitted",
+            0,
+            2,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1
+            }
+          ],
+          [
+            "checkpoint_rejected",
+            "Rejected",
+            2,
+            {}
+          ],
+          [
+            "order",
+            "Rejected",
+            0,
+            2,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1,
+              "not_found_at_venue": true,
+              "error_code": "not_found_at_venue",
+              "error_msg": "direct mode refused the order: not_found_at_venue"
+            }
+          ],
+          [
+            "order",
+            "Completed",
+            2.0,
+            2,
+            {
+              "offset": "open",
+              "position_mode": "net",
+              "valid_intent": {
+                "kind": "unspecified",
+                "value": null
+              },
+              "offset_explicit": true,
+              "local_seq": 1,
+              "not_found_at_venue": true,
+              "error_code": "not_found_at_venue",
+              "error_msg": "direct mode refused the order: not_found_at_venue",
+              "position_side": {}
+            }
+          ],
+          [
+            "trade",
+            1,
+            2.0,
+            3500.0,
+            0.0,
+            0.0
+          ],
+          [
+            "checkpoint_replay",
+            "Completed",
+            2.0,
+            2.0
+          ]
+        ],
+        "analyzer": [
+          [
+            "order",
+            "Submitted",
+            0,
+            2
+          ],
+          [
+            "order",
+            "Rejected",
+            0,
+            2
+          ],
+          [
+            "order",
+            "Completed",
+            2.0,
+            2
+          ],
+          [
+            "trade",
+            1,
+            2.0,
+            3500.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "trade_analyzer": {
+          "total": {
+            "total": 1,
+            "open": 1
+          }
+        },
+        "marker": {
+          "bt_ref": 2,
+          "client_order_id": "000000000001",
+          "committed_at_utc": "2026-11-08T07:54:12.448305+00:00",
+          "created_at_utc": "2026-11-08T07:54:12.448245Z",
+          "exchange_name": "CTP___FUTURE",
+          "extra": {},
+          "facts": {
+            "final_status": "not_found_at_venue",
+            "resolution_evidence": "return_gap_complete_order_query",
+            "taken_over_at_utc": "2026-11-08T07:54:12.451196+00:00"
+          },
+          "host_scope": "58786209-e384-4568-bb27-4459a78acc32",
+          "local_seq": 1,
+          "marker_id": "78582e36-73f3-4a08-bfd6-21448ce5a9ba",
+          "native_identity": {
+            "exchange_id": "SHFE",
+            "front_id": 1,
+            "order_ref": "000000000001",
+            "session_id": 1001,
+            "trading_day": "20261105"
+          },
+          "operation": "place",
+          "request_summary": {
+            "bt_ref": 2,
+            "local_seq": 1,
+            "offset": "open",
+            "price": 3500.0,
+            "side": "buy",
+            "size": 2.0
+          },
+          "resolution": null,
+          "session_generation": 1,
+          "status": "TERMINAL",
+          "symbol": "rb2701",
+          "target_identity": null,
+          "trading_day": "20261105",
+          "transitions": [
+            {
+              "at_utc": "2026-11-08T07:54:12.449360+00:00",
+              "from": "PREPARED",
+              "to": "DISPATCHED"
+            },
+            {
+              "at_utc": "2026-11-08T07:54:12.450416+00:00",
+              "from": "DISPATCHED",
+              "to": "TERMINAL"
+            }
+          ],
+          "updated_at_utc": "2026-11-08T07:54:12.450416+00:00"
+        }
+      }
+    },
+    "restart_partial": {
+      "ok": true,
+      "result": {
+        "before": {
+          "status": "Rejected",
+          "rejection": "Rejected",
+          "size": 0,
+          "ref": 3
+        },
+        "restored_count": 0,
+        "match_before": false,
+        "position": 0,
+        "notices": [],
+        "applied_trade_keys": [],
+        "report": {
+          "trading_day": "20261105",
+          "snapshot_trading_day": "20261105",
+          "mismatches": [],
+          "other_instruments": [],
+          "unknown_markers": [],
+          "not_found_at_venue": [],
+          "restored_orders": 0,
+          "applied_missing_trades": 0,
+          "foreign_working_orders": 0,
+          "trade_match_buffer": {
+            "buffered": 1,
+            "matched_late": 0,
+            "expired": 0,
+            "pending": 1
+          }
+        },
+        "marker": {
+          "bt_ref": 3,
+          "client_order_id": "000000000001",
+          "committed_at_utc": "2026-11-08T07:54:12.469516+00:00",
+          "created_at_utc": "2026-11-08T07:54:12.469477Z",
+          "exchange_name": "CTP___FUTURE",
+          "extra": {},
+          "facts": {
+            "final_status": "not_found_at_venue",
+            "resolution_evidence": "return_gap_complete_order_query",
+            "taken_over_at_utc": "2026-11-08T07:54:12.471457+00:00"
+          },
+          "host_scope": "78b673d6-ab2f-4c15-be60-9fc350a1f772",
+          "local_seq": 1,
+          "marker_id": "ab80e174-1133-41a6-b9f1-9c8c7c4aa7ed",
+          "native_identity": {
+            "exchange_id": "SHFE",
+            "front_id": 1,
+            "order_ref": "000000000001",
+            "session_id": 1001,
+            "trading_day": "20261105"
+          },
+          "operation": "place",
+          "request_summary": {
+            "bt_ref": 3,
+            "local_seq": 1,
+            "offset": "open",
+            "price": 3500.0,
+            "side": "buy",
+            "size": 2.0
+          },
+          "resolution": null,
+          "session_generation": 1,
+          "status": "TERMINAL",
+          "symbol": "rb2701",
+          "target_identity": null,
+          "trading_day": "20261105",
+          "transitions": [
+            {
+              "at_utc": "2026-11-08T07:54:12.470235+00:00",
+              "from": "PREPARED",
+              "to": "DISPATCHED"
+            },
+            {
+              "at_utc": "2026-11-08T07:54:12.470839+00:00",
+              "from": "DISPATCHED",
+              "to": "TERMINAL"
+            }
+          ],
+          "updated_at_utc": "2026-11-08T07:54:12.470839+00:00"
+        }
+      }
+    },
+    "restart_full": {
+      "ok": true,
+      "result": {
+        "before": {
+          "status": "Rejected",
+          "rejection": "Rejected",
+          "size": 0,
+          "ref": 4
+        },
+        "restored_count": 0,
+        "match_before": false,
+        "position": 0,
+        "notices": [],
+        "applied_trade_keys": [],
+        "report": {
+          "trading_day": "20261105",
+          "snapshot_trading_day": "20261105",
+          "mismatches": [],
+          "other_instruments": [],
+          "unknown_markers": [],
+          "not_found_at_venue": [],
+          "restored_orders": 0,
+          "applied_missing_trades": 0,
+          "foreign_working_orders": 0,
+          "trade_match_buffer": {
+            "buffered": 1,
+            "matched_late": 0,
+            "expired": 0,
+            "pending": 1
+          }
+        },
+        "marker": {
+          "bt_ref": 4,
+          "client_order_id": "000000000001",
+          "committed_at_utc": "2026-11-08T07:54:12.486789+00:00",
+          "created_at_utc": "2026-11-08T07:54:12.486757Z",
+          "exchange_name": "CTP___FUTURE",
+          "extra": {},
+          "facts": {
+            "final_status": "not_found_at_venue",
+            "resolution_evidence": "return_gap_complete_order_query",
+            "taken_over_at_utc": "2026-11-08T07:54:12.488393+00:00"
+          },
+          "host_scope": "19e1322d-6113-4640-88a4-0f1b141061ae",
+          "local_seq": 1,
+          "marker_id": "0f3ee450-f32d-4577-b068-99b5ff9626f1",
+          "native_identity": {
+            "exchange_id": "SHFE",
+            "front_id": 1,
+            "order_ref": "000000000001",
+            "session_id": 1001,
+            "trading_day": "20261105"
+          },
+          "operation": "place",
+          "request_summary": {
+            "bt_ref": 4,
+            "local_seq": 1,
+            "offset": "open",
+            "price": 3500.0,
+            "side": "buy",
+            "size": 2.0
+          },
+          "resolution": null,
+          "session_generation": 1,
+          "status": "TERMINAL",
+          "symbol": "rb2701",
+          "target_identity": null,
+          "trading_day": "20261105",
+          "transitions": [
+            {
+              "at_utc": "2026-11-08T07:54:12.487417+00:00",
+              "from": "PREPARED",
+              "to": "DISPATCHED"
+            },
+            {
+              "at_utc": "2026-11-08T07:54:12.487947+00:00",
+              "from": "DISPATCHED",
+              "to": "TERMINAL"
+            }
+          ],
+          "updated_at_utc": "2026-11-08T07:54:12.487947+00:00"
+        }
+      }
+    },
+    "restart_after_partial_replay": {
+      "ok": true,
+      "result": {
+        "before": {
+          "status": "Partial",
+          "rejection": "Rejected",
+          "size": 1.0,
+          "ref": 5
+        },
+        "restored_count": 0,
+        "match_before": false,
+        "position": 1.0,
+        "notices": [],
+        "applied_trade_keys": [
+          "SHFE|T-LATE-1|buy|7771"
+        ],
+        "report": {
+          "trading_day": "20261105",
+          "snapshot_trading_day": "20261105",
+          "mismatches": [],
+          "other_instruments": [],
+          "unknown_markers": [],
+          "not_found_at_venue": [],
+          "restored_orders": 0,
+          "applied_missing_trades": 0,
+          "foreign_working_orders": 0
+        },
+        "marker": {
+          "bt_ref": 5,
+          "client_order_id": "000000000001",
+          "committed_at_utc": "2026-11-08T07:54:12.501238+00:00",
+          "created_at_utc": "2026-11-08T07:54:12.501209Z",
+          "exchange_name": "CTP___FUTURE",
+          "extra": {},
+          "facts": {
+            "final_status": "not_found_at_venue",
+            "resolution_evidence": "return_gap_complete_order_query",
+            "taken_over_at_utc": "2026-11-08T07:54:12.502658+00:00"
+          },
+          "host_scope": "4648b0d0-0695-4eb3-b02b-ea454fbb475e",
+          "local_seq": 1,
+          "marker_id": "a753cc7f-1ebc-4760-887f-b97f54b9c92d",
+          "native_identity": {
+            "exchange_id": "SHFE",
+            "front_id": 1,
+            "order_ref": "000000000001",
+            "session_id": 1001,
+            "trading_day": "20261105"
+          },
+          "operation": "place",
+          "request_summary": {
+            "bt_ref": 5,
+            "local_seq": 1,
+            "offset": "open",
+            "price": 3500.0,
+            "side": "buy",
+            "size": 2.0
+          },
+          "resolution": null,
+          "session_generation": 1,
+          "status": "TERMINAL",
+          "symbol": "rb2701",
+          "target_identity": null,
+          "trading_day": "20261105",
+          "transitions": [
+            {
+              "at_utc": "2026-11-08T07:54:12.501786+00:00",
+              "from": "PREPARED",
+              "to": "DISPATCHED"
+            },
+            {
+              "at_utc": "2026-11-08T07:54:12.502243+00:00",
+              "from": "DISPATCHED",
+              "to": "TERMINAL"
+            }
+          ],
+          "updated_at_utc": "2026-11-08T07:54:12.502243+00:00"
+        }
+      }
+    }
+  }
+}

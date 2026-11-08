@@ -1,0 +1,8 @@
+Name: bt_api_gateway
+Version: 0.2.0.dev63
+Requires-Dist: bt_api_base>=0.15.8
+Requires-Dist: msgpack>=1.1
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"

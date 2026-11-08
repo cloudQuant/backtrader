@@ -1,0 +1,20 @@
+bt_api_base /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_base/__init__.py runtime= 0.16.0.dev63
+  metadata= 0.16.0.dev63
+bt_api_py /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_py/__init__.py runtime= 0.16.0.dev63
+  metadata= 0.16.0.dev63
+  base requirements= bt_api_base>=0.16.0.dev63, bt_api_base[spdlog]>=0.16.0.dev63; extra == "spdlog" old 0.15.8 rejected
+bt_api_ctp /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_ctp/__init__.py runtime= 2.1.0.dev63
+  metadata= 2.1.0.dev63
+  base requirements= bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+bt_api_okx /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_okx/__init__.py runtime= 0.16.0.dev63
+  metadata= 0.16.0.dev63
+  base requirements= bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+bt_api_binance /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_binance/__init__.py runtime= 2.1.0.dev63
+  metadata= 2.1.0.dev63
+  base requirements= bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+bt_api_base.direct_write_protocol /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_base/direct_write_protocol.py
+bt_api_py.direct_write /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_py/direct_write.py
+bt_api_ctp.direct_write_provider /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_ctp/direct_write_provider.py
+bt_api_okx.direct_write_provider /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_okx/direct_write_provider.py
+bt_api_binance.direct_write_provider /private/tmp/iter63-wheel-uQsTqjgN/target/bt_api_binance/direct_write_provider.py
+PLACE and CANCEL unknown classification: passed
