@@ -1,0 +1,30 @@
+{
+  "bt": {
+    "source_junit": {
+      "tests": 613,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "installed_passed": 613,
+    "installed_exit": 0
+  },
+  "sdk": {
+    "source_junit": {
+      "tests": 135,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "installed_passed": 135,
+    "installed_exit": 0
+  },
+  "quality": {
+    "ruff_E9_F": "PASS for final 8 product/test files",
+    "git_diff_check": "PASS"
+  },
+  "status": "LOCAL_ROUND_PASS / ITERATION_IN_PROGRESS",
+  "true_account": "NOT_RUN",
+  "full_Broker_projection": "GAP",
+  "legacy_wire_to_checkpoint_combined": "NOT_RUN"
+}

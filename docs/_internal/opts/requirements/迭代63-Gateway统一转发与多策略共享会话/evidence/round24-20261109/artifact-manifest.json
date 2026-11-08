@@ -1,0 +1,557 @@
+[
+  {
+    "path": "backtrader-accepted.diff.gz",
+    "bytes": 17734,
+    "sha256": "4cf74baaa1c664d2c99181de6a98f4539d651e9f1f9cb048834e549c8a1e56f3"
+  },
+  {
+    "path": "commits.json",
+    "bytes": 360,
+    "sha256": "e8f9a3929b9197afe6e7194cd7bcef00a35ef05b7fa113ca0d50356f5d86ad4b"
+  },
+  {
+    "path": "doc-validation.json",
+    "bytes": 2031,
+    "sha256": "8457f733e869ff4ce5132bff82d78c3f91289d4913b9bac048d268b6d130792c"
+  },
+  {
+    "path": "installed/SOURCE_FROZEN",
+    "bytes": 87,
+    "sha256": "9b985102342837f212983fbf61661e09c70d34012c07d7ffd52d9c8f6f9545a6"
+  },
+  {
+    "path": "installed/adapt_harness.py",
+    "bytes": 4299,
+    "sha256": "44dd2821247743431f51fac5eb453f4345ebc78ffe1f474a1bae5bc87260018d"
+  },
+  {
+    "path": "installed/allowlists.json",
+    "bytes": 406,
+    "sha256": "7185532d0ffd5ec121c5772fa90390d1ad1d7242415e2fe7d7fcf5f4305753b5"
+  },
+  {
+    "path": "installed/audit_origins.py",
+    "bytes": 921,
+    "sha256": "da5600bc6d4c05a6fbd4d6e27904ce50a6e80d16cc1c5a992c219239335bb3ff"
+  },
+  {
+    "path": "installed/audit_run.py",
+    "bytes": 1309,
+    "sha256": "18db7ff0b4ce20b9c437bcaf4bdc8c4aae10a5b8ec4239387706ffd4fb1713eb"
+  },
+  {
+    "path": "installed/bootstrap/offline_guard.py",
+    "bytes": 5947,
+    "sha256": "2bc1385bec2a95ae7b90813414f9dd1c67880f9f9369130acd4511f185ad8dea"
+  },
+  {
+    "path": "installed/bootstrap/origin_guard.py",
+    "bytes": 2868,
+    "sha256": "4e4c1713ebcc6103aadf623b26e21927c0adde9b89c086ee4b88722d277ad383"
+  },
+  {
+    "path": "installed/bootstrap/sitecustomize.py",
+    "bytes": 165,
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "installed/bt-frozen-final.log.gz",
+    "bytes": 781,
+    "sha256": "577cf984dc01b2f740c35c3a9d46650136f60d5b885282ee399acfb49d848c07"
+  },
+  {
+    "path": "installed/bt-origin-audit.log.gz",
+    "bytes": 235,
+    "sha256": "081024dbef02fac2afac326d6dd5e7f5c66ab52079bc5ac00652ee3830dec08f"
+  },
+  {
+    "path": "installed/build.log.gz",
+    "bytes": 809,
+    "sha256": "702efa55b370e7bacb2ac995747a8d6bb728a953d383c71e10e904752c729a0e"
+  },
+  {
+    "path": "installed/capture-editable-deps.log.gz",
+    "bytes": 428,
+    "sha256": "d260b55819b885273ad651314e08e509c90d2c9bd87329e05d2e694c73224aa9"
+  },
+  {
+    "path": "installed/capture-selectors.log.gz",
+    "bytes": 96,
+    "sha256": "dd913b998b5f64545a5809052bc9c8e6da4249990976a358b6114ec7639b810f"
+  },
+  {
+    "path": "installed/capture_editable_deps.py",
+    "bytes": 2901,
+    "sha256": "ae6c6b0a9f142cf518978e0aac6b94cca2a885409c7b89baaa97c67261ad4778"
+  },
+  {
+    "path": "installed/capture_selectors.py",
+    "bytes": 985,
+    "sha256": "5b9bfb5329e1a3b9f759f4de7bdfbecd82357c4fe7936b6c71dc3897f429f314"
+  },
+  {
+    "path": "installed/editable-deps-manifest.json",
+    "bytes": 14048,
+    "sha256": "4ba97ba1ed796ca2445569b1631b42d6b57f335a72357912f27fbb6c1e2f706f"
+  },
+  {
+    "path": "installed/executions.jsonl.gz",
+    "bytes": 1282,
+    "sha256": "df3e31e6896b048fd5c62a7dbad9ffc604fecd962cb7a4c38a9383fc8bf3e646"
+  },
+  {
+    "path": "installed/fixed-wheels.json",
+    "bytes": 1566,
+    "sha256": "f63ead215e9767cc1a46e149c9495cb58de6b0183b64695b13b83fa1760f9efa"
+  },
+  {
+    "path": "installed/fixed.log.gz",
+    "bytes": 578,
+    "sha256": "40a2f283223086127f1b52709d0f63e3e924ce556bbae1caa9f2938b5eabfd7a"
+  },
+  {
+    "path": "installed/guard-preflight.log.gz",
+    "bytes": 354,
+    "sha256": "5583b968ef3deeec635e450f406e8e33b2541c7f6ce5db5f1928793e235b7716"
+  },
+  {
+    "path": "installed/guard_preflight.py",
+    "bytes": 1852,
+    "sha256": "501deaa724210dc112fd6d3d7436bc3d46c22033065ffdb1802144a0adaf1865"
+  },
+  {
+    "path": "installed/harness-freeze-sha256.txt",
+    "bytes": 1896,
+    "sha256": "f08dfff135cd1918dd3b0063af048fecf88230d37534e51d7da0e9742bc431cc"
+  },
+  {
+    "path": "installed/install.log.gz",
+    "bytes": 601,
+    "sha256": "9573992898435c5a443a1a3356a73bf0789bc3dcb60ad301372c4e632ccaee82"
+  },
+  {
+    "path": "installed/msgpack-wheel-manifest.json",
+    "bytes": 336,
+    "sha256": "b1451554473eae30ca87608cb3a9ab1f4321346c142d2d3cf0895267b5fc65e5"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5430.jsonl.gz",
+    "bytes": 29537,
+    "sha256": "524aa776d7ce08ec3d0a76048072520b8ffda9dcf9e524d528e2cf8ec121b69d"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5437.jsonl.gz",
+    "bytes": 21574,
+    "sha256": "eb28bdcbeacc5250b7ddd461164c08f37da385a05befbcf2cec800022b10d6ec"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5439.jsonl.gz",
+    "bytes": 21574,
+    "sha256": "e9fd52a435692a7bea322568476b967fe3e0be05a728cb95116e032de048579d"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5442.jsonl.gz",
+    "bytes": 21575,
+    "sha256": "e0b936f94fd827be778bd9c2afc016edd399d99a4ab4c4a11dbfe6fdf710ee7a"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5445.jsonl.gz",
+    "bytes": 20291,
+    "sha256": "cd83815edabbaa60ef45b8b9c1c97fa2e205f3ff7ff5490eb7d9c982c5f42f53"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5446.jsonl.gz",
+    "bytes": 20292,
+    "sha256": "100721c87d3f7d06b9068ab28f578c4a54b3b683a4e4095c1a59c235034276a3"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5460.jsonl.gz",
+    "bytes": 16652,
+    "sha256": "4b4e86a8a118336369146556207d427d4088598068308228b56a7e1b451e9627"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5463.jsonl.gz",
+    "bytes": 20291,
+    "sha256": "37b7adaf3fc97b4deeee5044283203187474c56e5d0e9911a3ac3635802550b6"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5464.jsonl.gz",
+    "bytes": 20291,
+    "sha256": "522bc1fbba11822394482ba0b2c5bda32dad3d4e337becbf3888b98f089f9825"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5471.jsonl.gz",
+    "bytes": 20291,
+    "sha256": "1f5e5180033f39e8b8fe9aa05c03f72930009caf3e80d307a8a96bf4195f39a5"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5479.jsonl.gz",
+    "bytes": 20293,
+    "sha256": "25dc2fd38a66aadda68bc9f2834eebfee357132d162b7efd9febb01afb9cc8f3"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5510.jsonl.gz",
+    "bytes": 20291,
+    "sha256": "ba622b9b4b76572cd3e272222c14a87896bf8cf0757a905531fdf76adc60be51"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5511.jsonl.gz",
+    "bytes": 3119,
+    "sha256": "11172a2bc627813dd9af2f6b4666e40b852edf37fbc76a1ea26f375ab408cfe5"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5512.jsonl.gz",
+    "bytes": 3118,
+    "sha256": "79f87b1f5ff723f68012b20458ec0472d67e69abea1eb9160c550300a81679d7"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-5406-1794173625741505000/5513.jsonl.gz",
+    "bytes": 3160,
+    "sha256": "ae49f597c89a88443e356af42c9f2559b9e5002112915910ef84110abef74775"
+  },
+  {
+    "path": "installed/origin-logs/guard-preflight-5345-1794173616698117000/5362.jsonl.gz",
+    "bytes": 3299,
+    "sha256": "488b8a95f12c9c1344dd669be9412b91b3fdb90d96b09528cfc398d3f7c81775"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5428.jsonl.gz",
+    "bytes": 32406,
+    "sha256": "f849007c7182d5f530f274c7d735c7065cc7541c71a9b1120a421b878cdffd1e"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5432.jsonl.gz",
+    "bytes": 5219,
+    "sha256": "1d4643738e01b9da4f89b3d6190a9e3a412483c882b758f2510d9eb4479fe88b"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5435.jsonl.gz",
+    "bytes": 5219,
+    "sha256": "d97ae527a33c675de190ce1dd776361a8ffa41ca819a62942572d98d3fc214cf"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5438.jsonl.gz",
+    "bytes": 5218,
+    "sha256": "d57309610b2ef346d9cae5e43ec89abeb7465b471316a6b5c30ab1b19770e9ee"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5440.jsonl.gz",
+    "bytes": 5219,
+    "sha256": "8fa47329008e48e33cfbf6b0d00b4358960c057a4d500eccf1951a1462e5c56b"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5441.jsonl.gz",
+    "bytes": 5219,
+    "sha256": "738e14bad6fdbc9105affc84f49a9cbd89d349875b975ba0bdf4b9a68a6dd59f"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5444.jsonl.gz",
+    "bytes": 5219,
+    "sha256": "b006ef7897fc8e932aa7dd23f9974911ea9dfa9eaf17bbe3005bb265368082bf"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5447.jsonl.gz",
+    "bytes": 24215,
+    "sha256": "e10e65c04066d48dd2e60e7a8010a701f3e2c79a7b81cfe66516e96be05fbec1"
+  },
+  {
+    "path": "installed/origin-logs/sdk-frozen-final-5404-1794173625741359000/5509.jsonl.gz",
+    "bytes": 2422,
+    "sha256": "b0b1678b0ce836656e4303a12b2871cb70adccd0b9f5961c3aaab61f82ce309c"
+  },
+  {
+    "path": "installed/plans/bt.txt",
+    "bytes": 2021,
+    "sha256": "c8e6ee446404421dd6fe536559270c5ec09f08145157890be62a34323e2121c3"
+  },
+  {
+    "path": "installed/plans/sdk.txt",
+    "bytes": 395,
+    "sha256": "97b604fb125f4a4961e96a7939fca4a8a649e34fb963bf0b171d79c98370c987"
+  },
+  {
+    "path": "installed/prepare-sdk-layout.log.gz",
+    "bytes": 348,
+    "sha256": "2bc3c30e06589e066abe6e32bff64e6a99c39f2f2e8f68337cb099cd6c58ee5a"
+  },
+  {
+    "path": "installed/prepare.py",
+    "bytes": 18073,
+    "sha256": "738a04bfa4cae29bb696777c96b415f908f4787f49e08b8ff704291e23ec2d9f"
+  },
+  {
+    "path": "installed/prepare_sdk_layout.py",
+    "bytes": 1011,
+    "sha256": "4d4f57bbdb66bdb24fc910e1f7f54fcf9a5fdb6f64db3a783a4b25a6fe75c8dc"
+  },
+  {
+    "path": "installed/run.py",
+    "bytes": 5458,
+    "sha256": "d91f679f0a952c8127d420d4c0863a3cae69192bc1eb8848dc0524d83bfde967"
+  },
+  {
+    "path": "installed/run_installed.py",
+    "bytes": 3884,
+    "sha256": "d11a45738a247e8ebd49fd0e87ba42aabd0fd6166b2105a9980020cc2cf6a72c"
+  },
+  {
+    "path": "installed/sdk-frozen-final.log.gz",
+    "bytes": 746,
+    "sha256": "62d0e4ac957689a1b8500d3a29c66b692ebc690021b6d281fb0bf1fd50b253f8"
+  },
+  {
+    "path": "installed/sdk-layout-manifest.json",
+    "bytes": 387,
+    "sha256": "d9caaac245e1767ba12037c632c3655cd7629fcb62a23262ba56057d8469a3e2"
+  },
+  {
+    "path": "installed/sdk-origin-audit.log.gz",
+    "bytes": 213,
+    "sha256": "9d324a696db67aca5d50eab47ffb0a41ca0e4bdae73691641c522541973da386"
+  },
+  {
+    "path": "installed/selectors-draft.json",
+    "bytes": 2756,
+    "sha256": "456c9f387f6a7d9ec338218f52ad03afbb1afdcfbd8b71c76617f4eee21b5a28"
+  },
+  {
+    "path": "installed/selectors.json",
+    "bytes": 2756,
+    "sha256": "456c9f387f6a7d9ec338218f52ad03afbb1afdcfbd8b71c76617f4eee21b5a28"
+  },
+  {
+    "path": "installed/snapshot.log.gz",
+    "bytes": 478,
+    "sha256": "3190ba68d4a4b3f0933db4a1207c24ad7dc906caa6b3c8203d2aa7b0f125a9c6"
+  },
+  {
+    "path": "installed/source-manifest.json",
+    "bytes": 736465,
+    "sha256": "9f0c50121549a56baaafbede47a9537b57be24e267c10db78248c13ec3aec574"
+  },
+  {
+    "path": "installed/stage_source_native.py",
+    "bytes": 2220,
+    "sha256": "4aca0877d807c0b26fe7eb496270a43a07a06ba941edba276dc4ebe94a2acd18"
+  },
+  {
+    "path": "installed/test-manifest.json",
+    "bytes": 43035,
+    "sha256": "fee49fd0c0ffc1e470e61ca9ad55a825b8bc26d9ccb56c0a18974054b0d3776d"
+  },
+  {
+    "path": "installed/tests-copy.log.gz",
+    "bytes": 322,
+    "sha256": "ae9a991247ca51243585883e1719ad01cf07b4d46f3a43c38207b1f6c63cd778"
+  },
+  {
+    "path": "installed/verify-all-rebuilt-payloads.log.gz",
+    "bytes": 166,
+    "sha256": "947ff53c3b0c671de05fe81a0ec2ebbc6648155d76d1863d1e948f2bb0b69b12"
+  },
+  {
+    "path": "installed/verify-final.log.gz",
+    "bytes": 1542,
+    "sha256": "8e4aacf33ad740ed15668c91f42128bad3ef794311ffee99e89b3e7755b4b4fa"
+  },
+  {
+    "path": "installed/verify.log.gz",
+    "bytes": 1534,
+    "sha256": "cd3db36130d169149a1458ac5dc4db2c5dd4db9f9e565bf7b6de146ac1f04506"
+  },
+  {
+    "path": "installed/verify.py",
+    "bytes": 7144,
+    "sha256": "8e7a062118baf55b29321812f45c1357e6fa5ab47b7d132898a4d4e030f5a68d"
+  },
+  {
+    "path": "installed/verify_all_rebuilt_payloads.py",
+    "bytes": 1279,
+    "sha256": "829b617b265a67dd635da5ffd864eff260c7617588d755bd37244891bd60c186"
+  },
+  {
+    "path": "installed/verify_all_rebuilt_payloads.sha256",
+    "bytes": 139,
+    "sha256": "26b882d518f41aa4d49989a15a33972d9f979555c20d55d29a16c3234a05d02c"
+  },
+  {
+    "path": "installed/verify_commits.py",
+    "bytes": 1752,
+    "sha256": "d6a9d461e0aee97d70164037ffa1eb0345aa4b1570bd134f08162c49ca7f384a"
+  },
+  {
+    "path": "primary/all-payloads-verify.log.gz",
+    "bytes": 166,
+    "sha256": "947ff53c3b0c671de05fe81a0ec2ebbc6648155d76d1863d1e948f2bb0b69b12"
+  },
+  {
+    "path": "primary/audit_run.py",
+    "bytes": 1291,
+    "sha256": "33ae0f5d5a66ba6c88bca3fc68bf677316624c6515f2dc3823736c5db1a569da"
+  },
+  {
+    "path": "primary/bt-source-before-migration-test.log.gz",
+    "bytes": 151,
+    "sha256": "8276fb3a16aeca0911fa453de01ba3d6e319637ae6805f3a55be147266c29b12"
+  },
+  {
+    "path": "primary/bt-source-before-migration-test.xml.gz",
+    "bytes": 11953,
+    "sha256": "267a97900b4a93e6bda568b0d798d113a3ea96803f21ea594df0267613eca81b"
+  },
+  {
+    "path": "primary/bt-source.log.gz",
+    "bytes": 152,
+    "sha256": "1172b9edca2a02e895f87e4f67a265fc3a1b51b1fa64f79e2791806ef943257a"
+  },
+  {
+    "path": "primary/bt-source.xml.gz",
+    "bytes": 11929,
+    "sha256": "d3769e37f23fc263b40d06b83232d5140bcf4bcbdb7bc71d97c1a8b82c9fe8bd"
+  },
+  {
+    "path": "primary/commit-verify.log.gz",
+    "bytes": 351,
+    "sha256": "4acd5f0f73a58cb5b598ecb17cd2f7faa34988e031d914a9e78fdb0a3af301c7"
+  },
+  {
+    "path": "primary/final-files.json",
+    "bytes": 1746,
+    "sha256": "abe2a22c808483487854aa1882460758709a26770e2b7a1102c9c5c480cfb634"
+  },
+  {
+    "path": "primary/prepare_msgpack.py",
+    "bytes": 2280,
+    "sha256": "06a0835893b95e946143de0a4ea4d717f18bcb594d76b57a47bf22c75658cf30"
+  },
+  {
+    "path": "primary/run.py",
+    "bytes": 4774,
+    "sha256": "5aa14679faab5990cd85ecdf2e030db4df43fe1858f2f8fa36925330fa4158e4"
+  },
+  {
+    "path": "primary/run_source.py",
+    "bytes": 2833,
+    "sha256": "2f74aa17b3cef108a08744ae5c218d5e534c8b50b1ae438b6169f4090a529408"
+  },
+  {
+    "path": "primary/sdk-source.log.gz",
+    "bytes": 357,
+    "sha256": "9da1308f8f545437dadc8295a9192e3cef916e5cbf85c727f56034da2dc71392"
+  },
+  {
+    "path": "primary/sdk-source.xml.gz",
+    "bytes": 2739,
+    "sha256": "9f9c793ac46fe262c740091c38672bc9e66c9ea0bfaf3d410fad896d35dea140"
+  },
+  {
+    "path": "primary/selectors.json",
+    "bytes": 2756,
+    "sha256": "456c9f387f6a7d9ec338218f52ad03afbb1afdcfbd8b71c76617f4eee21b5a28"
+  },
+  {
+    "path": "primary/wheel-verify.log.gz",
+    "bytes": 1312,
+    "sha256": "1e68b171c39f1db33620bdee919fb8c5c816b7ed3ecca89a347ebc6cf58710b4"
+  },
+  {
+    "path": "results-summary.json",
+    "bytes": 632,
+    "sha256": "5f660beb7cdc6d0bc056a23d4f37ee9dd8e3eda21a74b88ad6085b2d9329fe37"
+  },
+  {
+    "path": "review-findings.json",
+    "bytes": 1704,
+    "sha256": "02061e09859c301b6f27f086ec52d003a4ddd706803b9b220fd854a627a7aa59"
+  },
+  {
+    "path": "review-initial/changes.diff.gz",
+    "bytes": 19325,
+    "sha256": "5679952405293e4a4ef37e2023c206f53f223c9d26410339ce6b623e51dd80d7"
+  },
+  {
+    "path": "review-initial/claims.txt",
+    "bytes": 278,
+    "sha256": "a3d812a2f03c608fcce97a18cee54ccfd23d47c166377bfb35ada51a0ab67a9b"
+  },
+  {
+    "path": "review-initial/manifest.json",
+    "bytes": 1746,
+    "sha256": "22a894cdadcf11f70d2f6a071c0fb71d8c569bb0e8d3eb4fbf4db57345ca7992"
+  },
+  {
+    "path": "sdk-accepted.diff.gz",
+    "bytes": 2654,
+    "sha256": "e0694df03afdbeae832ecb650e9b2f38525bc42d94db0926d4db1fb6414baffa"
+  },
+  {
+    "path": "source-commands.json",
+    "bytes": 1186,
+    "sha256": "42cd07b99948d0dd1c996da227ca5c7d83700142adec96b767f9b4204de37f70"
+  },
+  {
+    "path": "worker/iter63-r24-integration/final.log.gz",
+    "bytes": 51,
+    "sha256": "52de3c9662af999abebe1579a2c93b684802048b798646986cdedde68a59a867"
+  },
+  {
+    "path": "worker/iter63-r24-integration/full-v1.log.gz",
+    "bytes": 51,
+    "sha256": "c6c35e0b79c1318db8ee46436b0eba35ceec7ba1ff8b9e59631c511afa085407"
+  },
+  {
+    "path": "worker/iter63-r24-integration/full-v2.log.gz",
+    "bytes": 51,
+    "sha256": "462d6616ec44521bef13ce639bc1e0762b79b530ab10be58817dac97c45bd391"
+  },
+  {
+    "path": "worker/iter63-r24-integration/initial.log.gz",
+    "bytes": 2665,
+    "sha256": "eb6848400eaa047459707994fc1fac54e124912ccf3015cf7e5838d14f650afe"
+  },
+  {
+    "path": "worker/iter63-r24-integration/late-identity-v1.log.gz",
+    "bytes": 2575,
+    "sha256": "2576c350ddbf4b5964051e84e947cd03f68606a53c75b0a8e7ea75b3e59a1a5d"
+  },
+  {
+    "path": "worker/iter63-r24-integration/late-identity-v2.log.gz",
+    "bytes": 49,
+    "sha256": "31887dcbc50facefd62976aebfc077d5f588f1c0f7675c1fac901f59d6aa7a37"
+  },
+  {
+    "path": "worker/iter63-r24-integration/result-context-final.log.gz",
+    "bytes": 51,
+    "sha256": "a59f606c6921c81fe699d08843bb69ef985204d85ef2053ac88b2949945a9714"
+  },
+  {
+    "path": "worker/iter63-r24-integration/result-context-initial.log.gz",
+    "bytes": 51,
+    "sha256": "f8819ea600b1b5d9fd193eec9d567b04a59b1fc52d047a8c7abeea450b375073"
+  },
+  {
+    "path": "worker/iter63-r24-symbol-blBTMC/live-state.log.gz",
+    "bytes": 73,
+    "sha256": "6db5eb4f4a389c3332b67afea302528f76f148698eb9c6e225e448774e156e45"
+  },
+  {
+    "path": "worker/iter63-r24-v3-migration-VQ0MPI/checkpoint.log.gz",
+    "bytes": 52,
+    "sha256": "bf19166e01d93b8564c3ea8720c214cedce490e999eb38b8dc20007c9a217c19"
+  },
+  {
+    "path": "worker/iter63-r24-worker-hc6ec4/diff-check.log.gz",
+    "bytes": 20,
+    "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837"
+  },
+  {
+    "path": "worker/iter63-r24-worker-hc6ec4/live-state.log.gz",
+    "bytes": 73,
+    "sha256": "be851317366f993b27c8d5ee92a6e3cf60c2c88bc661e0320eae0b10a1d2945f"
+  },
+  {
+    "path": "worker/iter63-r24-worker-hc6ec4/ruff.log.gz",
+    "bytes": 39,
+    "sha256": "7162964741fdb747d7ab27df2d1a1b64fa0636c4b7fe50ea8493de14cb62cbd4"
+  }
+]

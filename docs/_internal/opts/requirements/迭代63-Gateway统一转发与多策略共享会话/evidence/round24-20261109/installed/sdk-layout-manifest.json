@@ -1,0 +1,12 @@
+{
+  "links": [
+    {
+      "link": "/tmp/iter63-r24-install-20261109-fEuNyr35/sdk-tests/bt_api_py",
+      "target": "/private/tmp/iter63-r24-install-20261109-fEuNyr35/install/src/bt_api_py"
+    },
+    {
+      "link": "/tmp/iter63-r24-install-20261109-fEuNyr35/sdk-tests/bt_api/bt_api_base/src",
+      "target": "/private/tmp/iter63-r24-install-20261109-fEuNyr35/install/src"
+    }
+  ]
+}

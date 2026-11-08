@@ -1,0 +1,42 @@
+{
+  "skill": "bmad-code-review",
+  "scope": "R24 explicit eight product/test files and frozen contract section 26",
+  "routing": "User continuous authorization applied; no mandatory finding quota or redundant blind review; existing contract review plus independent edge-case and verification-gap reviews",
+  "findings": [
+    {
+      "id": "I63-E046",
+      "source": "contract-review",
+      "finding": "Actual request after_sequence was not carried to BT",
+      "verdict": "high",
+      "action": "Fixed SDK context and BT result entry; real process wrong-after refusal covered"
+    },
+    {
+      "id": "I63-E047",
+      "source": "primary",
+      "finding": "instrument_id used instead of native_symbol",
+      "verdict": "medium",
+      "action": "Fixed and tested different normalized/native identifiers"
+    },
+    {
+      "id": "R24-V1",
+      "source": "verification-gap",
+      "finding": "Upgrade test had no pre-existing cancel record",
+      "verdict": "medium",
+      "action": "Strengthened original test including plan, record, native identity, markers, history and reopen"
+    },
+    {
+      "id": "R24-V2",
+      "source": "verification-gap",
+      "finding": "Legacy v1/v2 wire through new SDK and BT checkpoint not exercised together",
+      "verdict": "low",
+      "action": "Recorded NOT_RUN; existing base decoding tests and unchanged codec do not replace combined evidence"
+    },
+    {
+      "id": "R24-J1",
+      "source": "contract-review",
+      "finding": "Python equality would merge distinct JSON scalar types",
+      "verdict": "medium",
+      "action": "Already fixed in worker candidate before final review; canonical byte compare and regressions verified"
+    }
+  ]
+}

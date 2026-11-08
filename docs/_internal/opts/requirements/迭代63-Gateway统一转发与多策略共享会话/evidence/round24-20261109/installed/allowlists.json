@@ -1,0 +1,21 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": [
+      "backtrader/live_state/gateway_execution_state.py"
+    ]
+  },
+  "tests": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": [
+      "tests/unit/live_state/test_gateway_execution_checkpoint.py",
+      "tests/unit/live_state/test_gateway_execution_checkpoint_client.py"
+    ]
+  }
+}

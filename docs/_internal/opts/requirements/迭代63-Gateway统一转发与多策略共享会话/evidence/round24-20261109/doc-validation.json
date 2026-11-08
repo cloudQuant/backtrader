@@ -1,0 +1,43 @@
+{
+  "files": [
+    {
+      "path": "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/分轮合同冻结稿-2026-11-08.md",
+      "sha256": "024507f3a74de77abbe30ab5f249907e9ee7e84acb23dcf5a3564ecfbdb6c905",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_characters": 0
+    },
+    {
+      "path": "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发问题记录.md",
+      "sha256": "288d671e277ef61b74a1a75e0f3f7ea006e64ea35861213b8c70f27a563c4853",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_characters": 0
+    },
+    {
+      "path": "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/实施基线与分轮记录-2026-11-08.md",
+      "sha256": "f660c8cbe3956479cdb0c05ce01199f80838361e7be6810261403233ad277c81",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_characters": 0
+    },
+    {
+      "path": "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发验收状态矩阵.md",
+      "sha256": "8191d0d14ae63ccb779918ee579ac6f09bf532157210a63d722dd66b632ae0fc",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_characters": 0
+    },
+    {
+      "path": "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十四轮BT回报持久检查点与请求关联审阅-2026-11-09.md",
+      "sha256": "5085d5443dbeff281e7e9a064cba146b3311195b6df06da8e9c5a7f995eec522",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_characters": 0
+    }
+  ],
+  "local_links": 146,
+  "fragment_anchors": "NOT_RUN",
+  "windows_powershell_5_1_default_read": "NOT_RUN on macOS",
+  "gzip_integrity": "PASS"
+}

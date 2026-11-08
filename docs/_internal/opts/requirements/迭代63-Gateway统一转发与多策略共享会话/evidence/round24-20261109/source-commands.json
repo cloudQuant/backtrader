@@ -1,0 +1,30 @@
+{
+  "python": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python",
+  "bt": {
+    "cwd": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "pytest_args": [
+      "--import-mode=importlib",
+      "-q",
+      "tests/unit/live_state",
+      "tests/unit/brokers/direct"
+    ],
+    "result": "613 passed in 44.53s"
+  },
+  "sdk": {
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "pytest_args": [
+      "--import-mode=importlib",
+      "-q",
+      "tests/unit/test_iter63_gateway_execution_stream_client.py",
+      "tests/unit/test_iter63_gateway_execution_stream_service.py",
+      "tests/integration/test_iter63_gateway_execution_stream_processes.py",
+      "tests/unit/test_iter63_gateway_strategy_client.py",
+      "tests/integration/test_iter63_gateway_strategy_client.py",
+      "tests/unit/test_iter63_gateway_direct_client.py",
+      "tests/integration/test_iter63_strategy_read_session.py"
+    ],
+    "result": "135 passed, 1 warning in 12.18s"
+  },
+  "installation_commands": "installed/executions.jsonl.gz",
+  "source_scope_note": "Local checkout tests; isolated install has separate origin guards. Synthetic fixtures only."
+}
