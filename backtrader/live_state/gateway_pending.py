@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bt_api_base.direct_write_protocol import DirectWriteError, NativeOrderIdentity
+from bt_api_base.gateway_cancel_protocol import GatewayCancelRecord
 from bt_api_base.gateway_direct_protocol import (
     GatewayCommandBinding,
     GatewayCommandRecord,
@@ -21,9 +22,12 @@ from bt_api_py.direct_write import project_direct_strong_identity_keys
 from bt_api_py.gateway_direct_client import (
     gateway_intent_from_mapping,
     gateway_intent_to_mapping,
+    gateway_cancel_plan_from_mapping,
+    gateway_cancel_plan_to_mapping,
     gateway_release_from_mapping,
     gateway_release_to_mapping,
     validate_gateway_record_progress,
+    validate_gateway_cancel_record_progress,
 )
 
 from ._common import is_strict_int, is_uuid4, new_uuid4, strict_equal, utc_now_iso
@@ -152,6 +156,47 @@ def has_unresolved_gateway_intents(state: dict) -> bool:
     return any(_unresolved(state, entry, markers) for entry in state["gateway"]["intents"].values())
 
 
+def has_unresolved_gateway_cancels(state: dict) -> bool:
+    if state["version"] != 3:
+        return False
+    entries = state["gateway"]["intents"]
+    markers = _marker_index(state)
+    for attempt in state["gateway"]["cancel_attempts"].values():
+        record = attempt["record"]
+        if record is None or record["state"] in {"REQUESTED", "DISPATCHING", "UNKNOWN"}:
+            return True
+        if record["state"] == "SENT":
+            marker = markers.get(entries[attempt["plan"]["request_key"]]["marker_id"])
+            if marker is None or marker["status"] != "TERMINAL":
+                return True
+    return False
+
+
+def _cancel_plan(value: object, binding: GatewayCommandBinding, entries: dict):
+    plan = gateway_cancel_plan_from_mapping(value, expected_binding=binding)
+    entry = entries.get(plan.request_key)
+    if entry is None or entry["record"] is None:
+        raise ValueError("GATEWAY_CANCEL_TARGET_MISSING")
+    intent = gateway_intent_from_mapping(entry["intent"], expected_binding=binding)
+    original = _record(entry["record"], binding)
+    if (plan.route != intent.route or plan.reservation_id != original.reservation_id
+            or plan.digest != original.digest or plan.digest != intent.digest
+            or original.native_identity is None):
+        raise ValueError("GATEWAY_CANCEL_TARGET_CONFLICT")
+    return plan
+
+
+def _cancel_record(value: object, binding: GatewayCommandBinding, plan: Any):
+    if type(value) is GatewayCancelRecord:
+        value = value.to_mapping()
+    record = GatewayCancelRecord.from_mapping(value, expected_binding=binding)
+    if (record.operation_id != plan.operation_id or record.request_key != plan.request_key
+            or record.target_reservation_id != plan.reservation_id
+            or record.target_digest != plan.digest):
+        raise ValueError("GATEWAY_CANCEL_RECORD_CONFLICT")
+    return record
+
+
 def has_active_gateway_sequence(state: dict, local_seq: int) -> bool:
     markers = _marker_index(state)
     return any(entry["local_seq"] == local_seq and _unresolved(state, entry, markers)
@@ -159,10 +204,13 @@ def has_active_gateway_sequence(state: dict, local_seq: int) -> bool:
 
 
 def validate_gateway_state(state: dict, path: str) -> None:
-    """Validate v2 and all cross-references before any read or mutation."""
+    """Validate Gateway state and all cross-references before reading or mutation."""
     try:
         gateway = state["gateway"]
-        if type(gateway) is not dict or set(gateway) != {"binding", "max_entries", "intents"}:
+        gateway_keys = {"binding", "max_entries", "intents"}
+        if state["version"] == 3:
+            gateway_keys |= {"max_cancel_entries", "cancel_attempts"}
+        if type(gateway) is not dict or set(gateway) != gateway_keys:
             raise ValueError("gateway_shape")
         binding = _binding_from_mapping(gateway["binding"])
         capacity, entries = gateway["max_entries"], gateway["intents"]
@@ -258,6 +306,20 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
                     raise ValueError("duplicate_local_seq")
                 unresolved_sequences.add(seq)
+        if state["version"] == 3:
+            max_cancels, attempts = gateway["max_cancel_entries"], gateway["cancel_attempts"]
+            if (not is_strict_int(max_cancels, minimum=1) or max_cancels > _MAX_ENTRIES
+                    or type(attempts) is not dict or len(attempts) > max_cancels):
+                raise ValueError("cancel_capacity")
+            for operation_id, attempt in attempts.items():
+                if type(attempt) is not dict or set(attempt) != {"plan", "record"}:
+                    raise ValueError("cancel_attempt")
+                plan = _cancel_plan(attempt["plan"], binding, entries)
+                if operation_id != plan.operation_id:
+                    raise ValueError("cancel_operation")
+                if attempt["record"] is not None:
+                    record = _cancel_record(attempt["record"], binding, plan)
+                    validate_gateway_cancel_record_progress(None, record)
     except Exception as exc:
         if isinstance(exc, LiveStateCorrupt):
             raise
@@ -293,9 +355,90 @@ class GatewayPendingHost:
         return host
 
     def _check_state(self, state: dict) -> dict:
-        if state["version"] != 2 or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+        if state["version"] not in (2, 3) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
             raise ValueError("GATEWAY_BINDING_MISMATCH")
         return state["gateway"]["intents"]
+
+    @classmethod
+    def upgrade_for_cancellation(cls, strategy_dir: Any, strategy_uuid: str,
+                                 binding: GatewayCommandBinding, *, max_cancel_entries: int = 10_000,
+                                 lock_timeout: float = 10.0) -> "GatewayPendingHost":
+        """Explicitly extend a validated v2 file in place; never discard entries."""
+        if not is_strict_int(max_cancel_entries, minimum=1) or max_cancel_entries > _MAX_ENTRIES:
+            raise ValueError("INVALID_GATEWAY_CAPACITY")
+        host = cls(strategy_dir, strategy_uuid, binding, lock_timeout=lock_timeout)
+        with host._store._lock():
+            state = host._store._load()
+            host._check_state(state)
+            if state["version"] == 2:
+                state["version"] = 3
+                state["gateway"]["max_cancel_entries"] = max_cancel_entries
+                state["gateway"]["cancel_attempts"] = {}
+                host._store._store(state, trim_history=False)
+            elif state["gateway"]["max_cancel_entries"] != max_cancel_entries:
+                raise ValueError("GATEWAY_CAPACITY_MISMATCH")
+        return host
+
+    def _cancel_attempts(self, state: dict) -> dict:
+        self._check_state(state)
+        if state["version"] != 3:
+            raise ValueError("GATEWAY_CANCEL_UPGRADE_REQUIRED")
+        return state["gateway"]["cancel_attempts"]
+
+    def save_cancel_plan(self, plan: Any):
+        mapping = gateway_cancel_plan_to_mapping(plan)
+        with self._store._lock():
+            state = self._store._load()
+            attempts = self._cancel_attempts(state)
+            canonical = _cancel_plan(mapping, self._binding, state["gateway"]["intents"])
+            prior = attempts.get(canonical.operation_id)
+            if prior is not None:
+                return _cancel_plan(prior["plan"], self._binding, state["gateway"]["intents"])
+            if len(attempts) >= state["gateway"]["max_cancel_entries"]:
+                raise ValueError("GATEWAY_CANCEL_CAPACITY_EXCEEDED")
+            attempts[canonical.operation_id] = {"plan": mapping, "record": None}
+            self._store._store(state, trim_history=False)
+            return canonical
+
+    def load_cancel_plan(self, operation_id: str):
+        with self._store._lock():
+            state = self._store._load()
+            attempt = self._cancel_attempts(state).get(operation_id)
+            return None if attempt is None else _cancel_plan(
+                attempt["plan"], self._binding, state["gateway"]["intents"]
+            )
+
+    def save_cancel_record(self, operation_id: str, record: GatewayCancelRecord):
+        if type(record) is not GatewayCancelRecord:
+            raise ValueError("INVALID_CANCEL_RECORD")
+        with self._store._lock():
+            state = self._store._load()
+            attempt = self._cancel_attempts(state).get(operation_id)
+            if attempt is None:
+                raise ValueError("GATEWAY_CANCEL_PLAN_REQUIRED")
+            plan = _cancel_plan(attempt["plan"], self._binding, state["gateway"]["intents"])
+            current = _cancel_record(record, self._binding, plan)
+            previous = None if attempt["record"] is None else _cancel_record(
+                attempt["record"], self._binding, plan
+            )
+            if previous is not None and current.version < previous.version:
+                validate_gateway_cancel_record_progress(current, previous)
+                return previous
+            validate_gateway_cancel_record_progress(previous, current)
+            mapping = current.to_mapping()
+            if mapping != attempt["record"]:
+                attempt["record"] = mapping
+                self._store._store(state, trim_history=False)
+            return current
+
+    def load_cancel_record(self, operation_id: str):
+        with self._store._lock():
+            state = self._store._load()
+            attempt = self._cancel_attempts(state).get(operation_id)
+            if attempt is None or attempt["record"] is None:
+                return None
+            plan = _cancel_plan(attempt["plan"], self._binding, state["gateway"]["intents"])
+            return _cancel_record(attempt["record"], self._binding, plan)
 
     def _entry(self, state: dict, request_key: str) -> dict:
         entry = self._check_state(state).get(request_key)

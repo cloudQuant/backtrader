@@ -336,9 +336,10 @@ def _ensure_no_active_state(paths: StatePaths, strategy_uuid: str) -> None:
     if pending.active():
         raise LiveStateError("rebind_blocked_active_state", "pending_markers")
     pending_state = pending._load()
-    if pending_state["version"] == 2:
-        from .gateway_pending import has_unresolved_gateway_intents
-        if has_unresolved_gateway_intents(pending_state):
+    if pending_state["version"] in (2, 3):
+        from .gateway_pending import has_unresolved_gateway_intents, has_unresolved_gateway_cancels
+        if (has_unresolved_gateway_intents(pending_state)
+                or has_unresolved_gateway_cancels(pending_state)):
             raise LiveStateError("rebind_blocked_active_state", "gateway_intents")
     if WaitingOrderStore(paths.strategy_dir, strategy_uuid).active():
         raise LiveStateError("rebind_blocked_active_state", "waiting_orders")
