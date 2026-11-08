@@ -1,0 +1,20 @@
+[
+  {
+    "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/wheels/back_trader_python-1.4.0-py3-none-any.whl",
+    "filename": "back_trader_python-1.4.0-py3-none-any.whl",
+    "sha256": "792bad705c3f14a41c519322e6bee7c2cbae15faf33da622e895d9e2a743b4a7",
+    "provenance": "R18 verified wheel"
+  },
+  {
+    "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/wheels/bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07",
+    "provenance": "R18 verified wheel"
+  },
+  {
+    "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/wheels/bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be",
+    "provenance": "R18 verified wheel"
+  }
+]

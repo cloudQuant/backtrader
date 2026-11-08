@@ -1,0 +1,2098 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/accounts/test_account.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/accounts/test_account.py",
+    "sha256": "8ca5d3ec2bc93d6eddaf23fe4fa3ffeb092dd209873cd7aa582d8b353ef25782",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/accounts/test_account.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/balances/test_balance.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/balances/test_balance.py",
+    "sha256": "2de4c3f0851ab96baf7c82b2b63320a85bbd8240d3a5e5b8fc0f8fa2144ef2d5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/balances/test_balance.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/bars/test_bar.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/bars/test_bar.py",
+    "sha256": "f5c01d82864ffb92a69e7c23bd558627a630141602792b0200fe7160a340aca3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/bars/test_bar.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/fundingrates/test_funding_rate.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/fundingrates/test_funding_rate.py",
+    "sha256": "be8ab702151e883ef54b9e6f9a26010699f8f7c6c27c10f5f16f4fb35157e1ed",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/fundingrates/test_funding_rate.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/greeks/test_greeks.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/greeks/test_greeks.py",
+    "sha256": "a2d69bf5b5fcfafed0793f0da74d3f1b33a69a8710894c6251be0c5e76aaf8ef",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/greeks/test_greeks.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/incomes/test_income.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/incomes/test_income.py",
+    "sha256": "a2ecd8c11c87b3eda335ff83fb8a4786e5f809c334eb4703a1f8ac193802316d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/incomes/test_income.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/liquidations/test_liquidation.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/liquidations/test_liquidation.py",
+    "sha256": "8226fcdf2ee0aeb8573e470367754be964893e1d2feb4b9a3e41ffa7d02decb9",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/liquidations/test_liquidation.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/markprices/test_mark_price.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/markprices/test_mark_price.py",
+    "sha256": "148eff6b8a94b0203bb019adf5713509ffbd9eebc0215d253530a7d7f02c05e3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/markprices/test_mark_price.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/orderbooks/test_orderbook.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/orderbooks/test_orderbook.py",
+    "sha256": "8ae80ac1d71ac2c935b8bfc113640fe4d19f3cd3b71e94dfeb3ef94f24c7087a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/orderbooks/test_orderbook.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/orders/test_order.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/orders/test_order.py",
+    "sha256": "82cdc75f0d924c71071a22ac0a0d5db2934d26cc767bdb241d6af782544ff317",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/orders/test_order.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/orders/test_order_status.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/orders/test_order_status.py",
+    "sha256": "50cf7f4f08368253f0cfcd29d9661de9c1d49596582183d8b868ca5f4d3d160d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/orders/test_order_status.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/positions/test_position.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/positions/test_position.py",
+    "sha256": "4344a41b8fa1d008b88d272be2c7974e5114dd16ae1b858970e51fcae2afd688",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/positions/test_position.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/symbols/test_symbol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/symbols/test_symbol.py",
+    "sha256": "1792114412e3aa3b0907b283ad03efc6b6d8bc826de9f670fcd108dd2078ff82",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/symbols/test_symbol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/test_container_base_classes.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/test_container_base_classes.py",
+    "sha256": "223d2efcc4e996f325d2f8309700f6a29795eee2a511b9c2bba0b09a13972871",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/test_container_base_classes.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/test_container_contract_v1.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/test_container_contract_v1.py",
+    "sha256": "87b18704afb39387a396c9667dbcd7762144e81eb7ceb185be0a3fee650ff361",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/test_container_contract_v1.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/test_market_data_base_classes.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/test_market_data_base_classes.py",
+    "sha256": "9c52612b6e533c57d6a262c31b789fa6f90d6bcd1eec39f4ce4b3b3dc6a7e550",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/test_market_data_base_classes.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/tickers/test_ticker.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/tickers/test_ticker.py",
+    "sha256": "8d9043fcacbdd16f7aec95b5a0c27556f5b328ebce2d1732e09734760c0aafb3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/tickers/test_ticker.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/timers/test_timer.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/timers/test_timer.py",
+    "sha256": "3ddc47c5b13ebb5bef6e0d365d87a56557f941da97da105d5cc6daf31e5dc4ef",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/timers/test_timer.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/trades/test_trade.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/trades/test_trade.py",
+    "sha256": "ff5de74abbec2d10f7f6183988936945a7406606f6f483c188d8affe856cb4c6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/trades/test_trade.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/feeds/test_capability.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/feeds/test_capability.py",
+    "sha256": "2cba87a97fd42733b147242a9e75dbd0cbef39e2036bd53bf3acf83f3cdd9ed9",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/feeds/test_capability.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/feeds/test_connection_mixin.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/feeds/test_connection_mixin.py",
+    "sha256": "a95e8f6d1da9c9f32a456bb8ccf4a3ce9e00bf577e5eebcaa373342b89f2e9fa",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/feeds/test_connection_mixin.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/plugins/test_loader.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/plugins/test_loader.py",
+    "sha256": "b72008776862d4f449ca4e86722d0039ceab055954d0eb36278dae6ce7ea7ff0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/plugins/test_loader.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_account_certification_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_account_certification_protocol.py",
+    "sha256": "e4bba3bb5b70d143ab193ea4584e3eccc8d5670313ce9267bbcb99be20276ea5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_account_certification_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_account_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_account_protocol.py",
+    "sha256": "66e19a173bff102a07664eb432231434ea101791820d7b07233e67a269327ff8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_account_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_async_context.py",
+    "sha256": "95270162682024172de7f18fd15cd476c1d02d3d3cd9ed9e3cc567a3d4741512",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_async_context.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context_quality.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_async_context_quality.py",
+    "sha256": "06237c4224d7c1c55b4a2ecedc6ec914759f30f2e82bcfbcd06d0d1a67d37602",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_async_context_quality.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_error_redaction.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_async_error_redaction.py",
+    "sha256": "fff0b4a008ce43510f60993cfc2802d2685afc42e836f307583df4386eafa5af",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_async_error_redaction.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_auto_init_mixin.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_auto_init_mixin.py",
+    "sha256": "ddf1607e2f2144fed85893c6eb71a85c62fed9f893c91322549d40a50f5df0fc",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_auto_init_mixin.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_cache.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_cache.py",
+    "sha256": "d1e7802426ca7403ba0c76f83d6177eab81e3ee2599f07120fd9904ac8f269b0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_cache.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_calculate_time.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_calculate_time.py",
+    "sha256": "65bff0a48daf43b9d8893e20864cc7d4f9cf5020306a70f2026a02ef4930122c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_calculate_time.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_config_loader_quality.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_config_loader_quality.py",
+    "sha256": "37ddc934fcfd84b21d9695f1707325a3595a398fcdab1441bac09f2a96ea300f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_config_loader_quality.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_dependency_injection.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_dependency_injection.py",
+    "sha256": "cd1a9d616cc9b8d30a6db4c4dcb36bd29b643f7b51c2ddb0bfc38a75706e3238",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_dependency_injection.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_deployment_evidence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_deployment_evidence.py",
+    "sha256": "7df23826ad60518c96c7859a5bc2a34e9088a0d7efbf555ffd986d4d1a76d383",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_deployment_evidence.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_direct_cancel_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_direct_cancel_protocol.py",
+    "sha256": "c19eba21d16531f9eb29f248b2b00a30466cdeadc2534b47bfca22de69fc5194",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_direct_cancel_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_direct_write_error_policy.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_direct_write_error_policy.py",
+    "sha256": "b1f2e6b93794ef0a198f6a1a678695d04c1c91ba4f7b20d1f0ea69f94f283cf7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_direct_write_error_policy.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_error.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_error.py",
+    "sha256": "bcfe1e9738a65f658bcfdf4ff3052d900b690402180e35920ccb156658995604",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_error.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_event_bus.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_event_bus.py",
+    "sha256": "2cddb3fac1ef145f68229670f4af4a10870e1bc07d61d42a5c1a660e02a5a07a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_event_bus.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_exceptions.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_exceptions.py",
+    "sha256": "d84c2b28085fa4186f9be0dd9eac396eeab7bbc49cae7b9704812ae30b18312e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_exceptions.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_exchange_data.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_exchange_data.py",
+    "sha256": "58f74d58e9c65c422ee20fb34399fc0bdeb0cfdeef3c6ce9bc98e99af9eb7ad1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_exchange_data.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_functions_signers_timestamps.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_functions_signers_timestamps.py",
+    "sha256": "4eae167b97fed57bc3c2915da0c666f70d7c3d994196b96adacdc18b1c178540",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_functions_signers_timestamps.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_cancel_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_cancel_protocol.py",
+    "sha256": "e4427da8585532bd97100bfb002ee6f678adaf9390953b33f5af824fb6fbd2d7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_cancel_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_direct_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_direct_protocol.py",
+    "sha256": "9df93096aa1e69b5b76e6e7e2006cd027dc7b7e3d05edd8c61bb2113a9e8b9d7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_direct_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_execution_cancel_attribution.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_execution_cancel_attribution.py",
+    "sha256": "64782b930e257e579f3d20f1615e9bbe4faa69923d3d41fc910d16f34a581e7b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_execution_cancel_attribution.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_execution_place_attribution.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_execution_place_attribution.py",
+    "sha256": "6add59441c31e7ccb7cedd919c84efb61109426b532abfda79b79ad950fb9c81",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_execution_place_attribution.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_execution_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_execution_protocol.py",
+    "sha256": "10f8455dfb4cd4b1adbc47e393bd45c3ba5d814bf09d86610b8a0be4ac27d607",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_execution_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_gateway_execution_stream_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_gateway_execution_stream_protocol.py",
+    "sha256": "48f2e2189b0488c2cc5e87213fb754bcaa1b0dc9cdfc676f19443fc317035f13",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_gateway_execution_stream_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_http_retry.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_http_retry.py",
+    "sha256": "aa5a1e68e9943009b2e56a2f060a679b631e26c03fdc66b3af4d289a61b6e74f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_http_retry.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_instrument.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_instrument.py",
+    "sha256": "7ff51ec94d4d866a4f8735de9ee745cfc52ddda99218cb35afcac867b09b6995",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_instrument.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_iter60_execution_observation_events.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_iter60_execution_observation_events.py",
+    "sha256": "da5bc0b643c4508079d918e3434eae20a8a03cddca64a6692cedd897b942bc38",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_iter60_execution_observation_events.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_iter60_execution_trade_fee_events.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_iter60_execution_trade_fee_events.py",
+    "sha256": "096f461ea83645e516de0d28ccf23700540499817aceb1c9d8947b4dac9711fe",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_iter60_execution_trade_fee_events.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_iter60_strategy_book_cut_identity.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_iter60_strategy_book_cut_identity.py",
+    "sha256": "e14e7ea75c1ebe1e4fea15e95b2d7a623743955c993d4967023a87793599e0d8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_iter60_strategy_book_cut_identity.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_legacy_gateway_retired.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_legacy_gateway_retired.py",
+    "sha256": "80e3becce019fe4e6e4fd1b9bc9c0a74c429ccad42797d6d3cf912e3ec2ae36b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_legacy_gateway_retired.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_logging_factory.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_logging_factory.py",
+    "sha256": "c90befae545b62057134721ec2eb65415e3a6fed12c54b93277a6f66fb500321",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_logging_factory.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_logging_factory_cold_start.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_logging_factory_cold_start.py",
+    "sha256": "5fd45943cb03949bbb111ef6c612a9a780b18862789ca1c21c99369c4fcaff0b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_logging_factory_cold_start.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_market_history_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_market_history_protocol.py",
+    "sha256": "af15fcd68c5bf64f0722b490fd8c04ff0538888ab092dd977fcbbc683b66c33e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_market_history_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_market_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_market_protocol.py",
+    "sha256": "0563a5eb662bf688f1a22780f0a46705915772c80c078c40d49ac431de1d7fa7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_market_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_market_tick_hot_path_equivalence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_market_tick_hot_path_equivalence.py",
+    "sha256": "71449db1a89d751974f56fc2adb4dc3da1a29de6cc737c6d7bea354b306a8f9a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_market_tick_hot_path_equivalence.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_package_metadata.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_package_metadata.py",
+    "sha256": "ed7fa0f7495f5def5dee5326d52299c270620977e5a15a1fa88cbff168807e51",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_package_metadata.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_prepared_cancel_source.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_prepared_cancel_source.py",
+    "sha256": "42b8dc56bfb62b169f9c21b9cf93a75ff9ccc52f8b2b924f217b41972573266f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_prepared_cancel_source.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_prepared_place_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_prepared_place_protocol.py",
+    "sha256": "c9a3fffb00b0644eb6248553d249a5aa85c7d2b2b6ee5df18dc2259497f538fa",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_prepared_place_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_protocol_conformance.py",
+    "sha256": "5e63146a7d25db436c57a98bd052be5906df5ddb576e6a3c55d4084088afb187",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_protocol_conformance.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_quality_batch_v4.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_quality_batch_v4.py",
+    "sha256": "dcf16a2dc62f180ed61925ea839e3725650603db520b6d86df48bb7c28964398",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_quality_batch_v4.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_registry.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_registry.py",
+    "sha256": "0fa681fb1e9dc34a3b947a4fde31607d98fb773bab97994f5a49658c5144b0b5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_registry.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_request_data.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_request_data.py",
+    "sha256": "6c8ba566944c4f412bdffeb27059a6b20c28b41440c7fb6fd2e2b05904383c96",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_request_data.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_security.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_security.py",
+    "sha256": "32af024f9a17bab41fc59cff7e0c25fbd24a60a62dad47c8ba6e5551659fd7a5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_security.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_service_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_service_protocol.py",
+    "sha256": "9ec5fe3038b7adc8b2b1ebac8502ddde9c536e54ea3fc0a132ae784b99ffc97a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_service_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_service_protocol_decode_hot_path.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_service_protocol_decode_hot_path.py",
+    "sha256": "8a9dc9e49676530a07aa2e1dd5b985e1873c06f3f0d5e3a7ea2125bd496dfa60",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_service_protocol_decode_hot_path.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_service_protocol_freeze_equivalence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_service_protocol_freeze_equivalence.py",
+    "sha256": "f240af551ef64846f948b6295b7758cfffdd27023c17adb5f09d288e2046cac1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_service_protocol_freeze_equivalence.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_services.py",
+    "sha256": "b9de0c8152a45e11b65085adc712f3d91289c49dc9ca5f98c51a6300e7233855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_services.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_services_quality.py",
+    "sha256": "6c4dea03e77a2086b716f3bca8312be8b423a49f84781ca865ad03005b205c1b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_services_quality.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_stage0_infrastructure.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_stage0_infrastructure.py",
+    "sha256": "521220e2ad9ceb83aeeef5628b92b6380eb2b7f3256a32fa8ab1b8af9eda6f3c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_stage0_infrastructure.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_telemetry_protocol.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_telemetry_protocol.py",
+    "sha256": "621a4bc4c8084cf88fbf38ce4b1bb6bd5149f10fa92806bbddba1e1b1a40656b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_telemetry_protocol.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_thread_safety.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_thread_safety.py",
+    "sha256": "c3ab6be2da4bd56435b87df353409e5c59085449626aa17c7803fd03e39d0923",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_thread_safety.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_time.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_time.py",
+    "sha256": "7d923d6790219a34ce975831d5ca53931e45f92997bc643c19fe7bb0c2d51798",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_time.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_timer_integration.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_timer_integration.py",
+    "sha256": "e3348a0499576e867b0bf4cecd0aeff9fb40591d3c1c7499f89a4a66083bbc67",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_timer_integration.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_transport_redaction.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_transport_redaction.py",
+    "sha256": "a1eb50e06e6616c2ef256752f2eb6f388503df00d38744e2eddbe4a14cbfa090",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_transport_redaction.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_utils.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_utils.py",
+    "sha256": "ffac32018964a303e1d1979a8906756b765bf8e41b4feaeeaf94b92416609a09",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_utils.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_websocket_stop_lifecycle.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_websocket_stop_lifecycle.py",
+    "sha256": "fdc2d400b977f296b7927f9716bb78ded85074006898808a122b29f89e345441",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_websocket_stop_lifecycle.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_account_codec.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_account_codec.py",
+    "sha256": "dd88716e42d8527d10e9fd146c3e10e6c39d0ffbb7714ef47163e5bac1042630",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_account_codec.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_account_rows.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_account_rows.py",
+    "sha256": "b469fad8c397b450fede34f1f17e698171960fda40bdfa2afd743a9263550e99",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_account_rows.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_codec_v1.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_codec_v1.py",
+    "sha256": "ac2d4689ac827ed8840e1e9adf421d8bac1b0433e1184bff3af3a78fdec86c43",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_codec_v1.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_execution_observations.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_execution_observations.py",
+    "sha256": "fd15c35825fc1faa021afe29f8675c32f0a41e0e72192f962718cb1c05b930b8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_execution_observations.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_exit_gates.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_exit_gates.py",
+    "sha256": "bd1d02e938f3efa1bd5650349297415f6c0bc44e4687390a2c9cf5e56693b9e3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_exit_gates.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_strategy_account_book.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_strategy_account_book.py",
+    "sha256": "537b9b5e09317f7eae2ae6432fe45b6e54ea75d5da3b35f07d0038379f24bb38",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_strategy_account_book.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_strategy_commands.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/test_wire_strategy_commands.py",
+    "sha256": "d607150c7575de3497c7397aba6d8925deb15f97d000c197e625297d813f9de8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/test_wire_strategy_commands.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/conftest.py",
+    "sha256": "8d259330b54b651c136c95b66a289cb29de3c0e4a0d65bd3e5b2d85659e4b502",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/conftest.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_certification.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_certification.py",
+    "sha256": "9bdc125fb0b138596b4825fd55b719fb4c49f6523981604d68f3f7d73787c363",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_certification.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_process.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_process.py",
+    "sha256": "4b9aaa09c5bfe951789b0b365c247f26c0e1d6831c9df1cd4e1a654b78524ed5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_process.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_process_spawn.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_process_spawn.py",
+    "sha256": "d77e366a43ad6ae32eb6531e54b723cc961bc7932ddce556252e12c11e169cf4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_process_spawn.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_read_model.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_read_model.py",
+    "sha256": "334f06cabb67c5a6fb5a69eb1747ef00fbbc8935cd5ee6cd79022436c71d234a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_read_model.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_runtime_revocation_iter60.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_runtime_revocation_iter60.py",
+    "sha256": "14a72a256d2f626085506a5eddced8090d0e60827e65dca814c550fbe145754f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_runtime_revocation_iter60.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_session_worker.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_session_worker.py",
+    "sha256": "7cedf25cc4a9a76bd7a73080b71bf4d4576cdfa5b148cd77c72d64865b6fe27c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_session_worker.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_view_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_view_journal.py",
+    "sha256": "130382bbff36b56e7c85beeeaccde6e22d7cb357c564594c06600aa5d4d97b33",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_view_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_view_projection.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_view_projection.py",
+    "sha256": "34d9605599a6832fe1e65a84bfb968c349443bcab1798056071eb0e137e59bcb",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_view_projection.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_account_worker_views.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_account_worker_views.py",
+    "sha256": "ec5864f1e7f9b19e49b8ddc68bd55a0aa0e5a7e57839c44f226a588f0fdab437",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_account_worker_views.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_action_resolution.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_action_resolution.py",
+    "sha256": "5d2328d44d7c0553cba6b837aad1dfb20318ad4d09561db951b657804282a07e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_action_resolution.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_event_consumer_page_bounds.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_event_consumer_page_bounds.py",
+    "sha256": "56722c3b6c9f86626ce37e69cb09efcd7e02777e63ada0cc71bc9e821ea6c635",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_event_consumer_page_bounds.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_event_consumer_progress.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_event_consumer_progress.py",
+    "sha256": "d286987870f5cacd8b57eba1eb7db9c481ebff6d7d8d8d8edf4a09db534e44f4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_event_consumer_progress.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_event_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_event_journal.py",
+    "sha256": "2e295bb387184215234db0f830f47ce11d8a25b8d8694bdb7a18fd127a56ca70",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_event_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_execution_events_iter60.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_execution_events_iter60.py",
+    "sha256": "de8325f3b9e9dd8a797ef9fe32b0d48f7a158d69365b61c8bad0f78d0c4fa20b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_execution_events_iter60.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_gateway_payload_canonical.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_gateway_payload_canonical.py",
+    "sha256": "c73b209894401ce878e93945d23bf8d622504bea5f78e6524009ece302e83fda",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_gateway_payload_canonical.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_instrument_metadata_capability.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_instrument_metadata_capability.py",
+    "sha256": "852a4253d435c78bf534b029bbe750af0f9aec741da5b59f1fa61b8246cbc62f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_instrument_metadata_capability.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter60_execution_fee_events.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter60_execution_fee_events.py",
+    "sha256": "6e6cef1ebf8870c7d5689441c028172792fd956fb59277f2789fc30fcbb426e2",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter60_execution_fee_events.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_cancel_error_attribution.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_cancel_error_attribution.py",
+    "sha256": "4c2e816700b6ae0beb7407c968d32ba383c6e8cf39164f5e22de043b554fcaeb",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_cancel_error_attribution.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_direct_cancel_dispatch.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_direct_cancel_dispatch.py",
+    "sha256": "8bee8e1ab36295d7cfae3301efe5bfb761c303ff8368cc048aff7e48eedaabd2",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_direct_cancel_dispatch.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_direct_cancel_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_direct_cancel_journal.py",
+    "sha256": "27d9c1f52062aa5b1b238fd58949c4d656e53535981e747e1cb18cc6231caa25",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_direct_cancel_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_direct_command_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_direct_command_journal.py",
+    "sha256": "d0fe824bf459a2253ba93d675173649f462d800ca9a5115586e49a504ce02941",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_direct_command_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_direct_dispatch.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_direct_dispatch.py",
+    "sha256": "2d71174b9636728cd24cccf68afb16b47f9bc75ca34b53b623fab88b06acb22c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_direct_dispatch.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_direct_execution_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_direct_execution_journal.py",
+    "sha256": "9e661320ee91133ff61a19a552512a5f05d78a5092e5fcb806be6633f14dc6b2",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_direct_execution_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_execution_ledger_commit_faults.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_execution_ledger_commit_faults.py",
+    "sha256": "c85a012ab677afcbfca9787c830fb2e9f87749f73390dd7b3eb41c9628c60ef8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_execution_ledger_commit_faults.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_place_error_attribution.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_place_error_attribution.py",
+    "sha256": "e8a7434beb33c6cd49b1321c7e817294efcc8e08749c2a02225ade9c4a4f55ad",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_place_error_attribution.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_reservation_admission_fence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_reservation_admission_fence.py",
+    "sha256": "2a2f944dcb1e40a1a7808f89cf61205c5dff3ae37e49d173161c41d9df3b754d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_reservation_admission_fence.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_iter63_settlement_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_iter63_settlement_journal.py",
+    "sha256": "bab548e8e707b091093b129c98388ec4e67921714c2f74f65cf1770d412e299a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_iter63_settlement_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_market_history_service.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_market_history_service.py",
+    "sha256": "c668c93a66c354151dff23e28014cb472ccd4776650cd98b4b9f409749ac138d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_market_history_service.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_market_hub.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_market_hub.py",
+    "sha256": "d59b30155434cd8cecb094d952d5273759f1ea602ecda2cb8c86bd7311ca2b44",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_market_hub.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_market_hub_runtime_revocation_iter60.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_market_hub_runtime_revocation_iter60.py",
+    "sha256": "a2e2c75cd7a9aad3f88ad1af9c0dc46c90a0724f116927c965508106f7b50c12",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_market_hub_runtime_revocation_iter60.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_quota_admission.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_quota_admission.py",
+    "sha256": "87e2aabda70a6332614aa7ef643fffbd42b1b96e8f643b52a92a5f297813a65c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_quota_admission.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_reconciliation_authority.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_reconciliation_authority.py",
+    "sha256": "452376474a63d1c6df6083d6cb15f92a5df3da6e9f39633e7e644a796741cf49",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_reconciliation_authority.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_router.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_router.py",
+    "sha256": "20ca7f75dcc9b8fe7cd6a9e84dd7d3bbff466cce86d29cf4770c2a7828a0a16a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_router.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_router_storage_binding.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_router_storage_binding.py",
+    "sha256": "4514fae2522bc51edda25ad08ffc81435a66167f710ca08a28b917ea597b5893",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_router_storage_binding.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_service_account_views.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_service_account_views.py",
+    "sha256": "f0ce5a0652af5f890ce0628ff83cda52f50a9f38dba7c29a8e1ded02562a1af3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_service_account_views.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_service_component.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_service_component.py",
+    "sha256": "4ebea9afbc516832e753eca2aae5e93df0c6eea7ee77647805807fa4d53d1c0a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_service_component.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_service_consumer_page_bounds.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_service_consumer_page_bounds.py",
+    "sha256": "09d651836f3b3f19cdbe171ae741778fa8a717d8823df3c8dabf8cbd868620af",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_service_consumer_page_bounds.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_session_guard.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_session_guard.py",
+    "sha256": "5f1cffae371d9b39f2ec96975e8dac0b76ba163c81b1209fbc323fa7112ccf2c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_session_guard.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_session_owner.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_session_owner.py",
+    "sha256": "3b7fc7adb332fac1aa499d09c82b6a1847189014a6acaace2ed16d08e6c2dc5f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_session_owner.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_state_journal.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_state_journal.py",
+    "sha256": "5d34a339c87b97a59f28410cbc4113f2dc048716f638cdc07d9122ebfb8a4d9c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_state_journal.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_typed_account_snapshot.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_typed_account_snapshot.py",
+    "sha256": "7aedc6e894eaa2018707432601ea98706c845d638c290d332e923ae2094a0acf",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_typed_account_snapshot.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_wire_mapping.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_wire_mapping.py",
+    "sha256": "0e62d7c7a074f09c3058050b8220621240667eed2445f32ba08fc909923ac929",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_wire_mapping.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests/test_writer_authority.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-tests/tests/test_writer_authority.py",
+    "sha256": "c708f1815d585e28f5ccaddc7c31611ebfd8cc64a982e74535ab1c8d7c10a128",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "relative": "tests/test_writer_authority.py",
+    "snapshot_head": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_query.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_gateway_return_query.py",
+    "sha256": "5cfbc4a2a62d006fd14ecb0ec3113a75bc429a923980ffb389c1406234d315d5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_gateway_return_query.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_trade_callback_source_fence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_trade_callback_source_fence.py",
+    "sha256": "0a60369c9c9664d86ff576c5f588b20a7388610dfe88a905cede10072a57b228",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_trade_callback_source_fence.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_projection.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_gateway_return_projection.py",
+    "sha256": "5ac9587b66d6f82794c65b6dc244a494d1f4df9b437945c6b88fb428c98b3f3f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_gateway_return_projection.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_session.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_gateway_session.py",
+    "sha256": "67bcc180dab61e21142b0eccef31c8f90a2d469cb6b366278731be1329632b04",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_gateway_session.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_settlement_observation.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_settlement_observation.py",
+    "sha256": "4db816913388b76d5f11c053d73daee495cc1b1bcacd187f5f8d93e34810d9c6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_settlement_observation.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_sdk_configured_pair_gate.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_sdk_configured_pair_gate.py",
+    "sha256": "42e152a5bc07c6781c8a6a294f548b9bedf38b6dcbeba01c6f3308db87808ea7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_sdk_configured_pair_gate.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_account_provider.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_account_provider.py",
+    "sha256": "72c5cf857f2765c0d2ceb5cbe3b7d0b7f6fb081e81e2095340ae33cce1521708",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_account_provider.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_account_provider_execution_observations.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_account_provider_execution_observations.py",
+    "sha256": "3c20438af08b652a2f32527a7211a172d63c4445d17b661942c2bcdfbf40f097",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_account_provider_execution_observations.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_position_evidence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_position_evidence.py",
+    "sha256": "a07debf58a7e578c3c922aeea30459a554845ccb233f342d13a5bcb4002c32bd",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_position_evidence.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_native_query_certificate.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_native_query_certificate.py",
+    "sha256": "a59c8c60987ab4592ed75ef7ea42719c20b935f6b719bb9afa5209979b6b53a6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_native_query_certificate.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_account_facts_real_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter62_account_facts_real_client.py",
+    "sha256": "b4bd88de6b93168e63b04a53eb70a9f216d76ed6d0157689a917b26280ed8de2",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_account_facts_real_client.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_query_slot.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter62_query_slot.py",
+    "sha256": "9b1fc198a800ead6ab9939df3c205251cdff34238c46f5e3c822de6281a3f52d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_query_slot.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_g5_source_unification.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_g5_source_unification.py",
+    "sha256": "c302495b5a817db624dce4c49de1c0fe377606d3d3a429fd7a2345bf192d2c06",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_g5_source_unification.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_callback_ingress_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_callback_ingress_client.py",
+    "sha256": "a0c8e2a49b72adfbaf06a23725616df6853a2e38078ac04ce84932036b1c12f8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_callback_ingress_client.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_native_callback_events.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_native_callback_events.py",
+    "sha256": "b5bcfdee58568ccf3052b09e126f553bcc8e56ebb43ab31575548f9b3fa9ad64",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_native_callback_events.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_join_observer_policy.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_join_observer_policy.py",
+    "sha256": "16c4c7c3d5f5f35bf84ad7566e1b5ba97fc73b6df73ee5de6f7d4392769d63ac",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_join_observer_policy.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_sdk_admission_gate.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter62_sdk_admission_gate.py",
+    "sha256": "0a42e5de63ed6d92cb8750734a2fe4afadd493dc33eeb1c5e68f620ab77495a7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_sdk_admission_gate.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter22_contracts.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter22_contracts.py",
+    "sha256": "83dc4e4dc585e427b3b4ed6e66801d2061ddaccc04826e8c514597d4b4b177c5",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter22_contracts.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_buffer.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_gateway_return_buffer.py",
+    "sha256": "892b83bf2ab71d468eb601410efb08a295f4cb0a3ac9330c96ef71a63d4f6a89",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_gateway_return_buffer.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_gateway_return_source.py",
+    "sha256": "d3412ee217974540555a55fd391731963685b1e0880644795860b504051d263b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_gateway_return_source.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_prepared_cancel.py",
+    "sha256": "83af98b23d1519ba401af230b7c8b21ebd08f74e8832f2e14140424a0fc72d79",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_prepared_cancel.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_ctp_direct_sim_admission.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_ctp_direct_sim_admission.py",
+    "sha256": "cfdf084520b266355b3fdd93ff416c6b8505745f55200cf445b8f77b26dc1671",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_ctp_direct_sim_admission.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_direct_write_provider.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter62_direct_write_provider.py",
+    "sha256": "7ee98a180ce888a6d78dbf8106ef9ed6760f85e7278aa77aea5dd14120a4a7bf",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_direct_write_provider.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter62_settlement_readback_on_write.py",
+    "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_settlement_readback_on_write.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_cancel_readiness.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_cancel_readiness.py",
+    "sha256": "c1b38100802ccdb98805ca41b9d269eb3383133f13f586427af9b35b0a5185f1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_cancel_readiness.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_cancel_return_projection.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_cancel_return_projection.py",
+    "sha256": "6935c88f5c915d24bc8d5aa3d5c0819677fa216573d44b2b9e4b0704452245c8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_cancel_return_projection.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_prepared_place.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_iter63_prepared_place.py",
+    "sha256": "68e6a0c0ea5157b205d66b8f87dadc6c6b334ba35782a35d9198e68b6a5abb04",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_prepared_place.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/conftest.py",
+    "sha256": "a9e9fe2d9481ecf5f969be6bb4dc384fa376794d9e5d54c78c454c9c25705b3f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/conftest.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_dual_ports.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_dual_ports.py",
+    "sha256": "b258771c21b48b4773e8fba0f2507e1938c43527a19a10f552bbd915f357fafd",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_dual_ports.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_dual_ports.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_dual_ports.py",
+    "sha256": "6e585f19ec4403317db56983bfc5aafd7359f392d937a13bc8cbb85f6707fc48",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_dual_ports.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_direct_service.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_direct_service.py",
+    "sha256": "a4d5b9d115d462f3312321c7086e1ffcab0c0567b3de626ee76d27083a7661a3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_direct_service.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_direct_service.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_direct_service.py",
+    "sha256": "a5ccd132901758e88cf232f35b8ab63dfe3bbb5f9f679afbbbda0178073e6359",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_direct_service.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_config.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_config.py",
+    "sha256": "eb8349cda67af57d08c33439e4b33d6e9ad1078dbe0f548fb7417dbf57631071",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_config.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_config_cfg05_acceptance.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_config_cfg05_acceptance.py",
+    "sha256": "4216b956f39bdd223c633663aa97ac5dd63f8ba8461600bbe42d15f471864edf",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_config_cfg05_acceptance.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_host.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_host.py",
+    "sha256": "cd11b789529a2139e7d2af05f9dd9cf5c07d8ae0f179f85e8c2223854cf50d58",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_host.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_host_integration.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_host_integration.py",
+    "sha256": "34fc903c1b008da7cb3d561525b19a6f6c15a406ab2bae23e6dd0b4aef9f7794",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_host_integration.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter63_ctp_gateway_trading.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/test_iter63_ctp_gateway_trading.py",
+    "sha256": "512e21a1aa4c4b1334ff2391ab61bfd95130ee4e60cf2291a840277f345aa201",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/test_iter63_ctp_gateway_trading.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_ctp_gateway_trading.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py",
+    "sha256": "a30efcbdd9ca79798d2b595b361002834eee4e7bbecdb5b680d0ebf9dcf664f0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_ctp_gateway_trading.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_operator_trading_owner.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_operator_trading_owner.py",
+    "sha256": "176a2c29c71a6d677afc50f45676ad6e3b1772980c276931168c0cbfc1e3a3e7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_operator_trading_owner.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_operator_trading_owner.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_operator_trading_owner.py",
+    "sha256": "5aa369b1f615f2d04c28ed7aeee91c6b076d98139f44870b47ed3f9c9199b360",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_correlation_issuer_reopen.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_correlation_issuer_reopen.py",
+    "sha256": "419386bba821826133aaa19e3c2753370b7ec32f8496ae40663798b33259b3ec",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_correlation_issuer_reopen.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter60_venue_safe_correlation_ids.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter60_venue_safe_correlation_ids.py",
+    "sha256": "313397215bce1c98e08669f01f4b2a83ac403ec50ab22d0074d216ec9eef6558",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter60_venue_safe_correlation_ids.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_direct_dispatch.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_direct_dispatch.py",
+    "sha256": "a26014a0cf0ff6efb6d0442c8069c3f3cfb6cb7d24d1bf027617712ed074ec9b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_direct_dispatch.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+    "sha256": "cc21bc920f2add7944b3553b94f134e68c4891d4df8cc16c5e7dce9cf1d6771d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_return_ledger.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_return_ledger.py",
+    "sha256": "b7232fb5e0798bf84ffe1f63d61ad5e54e0e79c3ce1b952295a20b448ca4a6f1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_return_ledger.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+    "sha256": "4f4203f8ec0d900232aa6d2933b496e2efbed0ee3a3662c7599fb5ce8f0b9b21",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_reservation_admission.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_reservation_admission.py",
+    "sha256": "b8653302d6754a4edc651554b5e54b43c7613a8941014e52fee0497487949b01",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_reservation_admission.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+    "sha256": "4ea341988a65f468e2ab0214a51e7296ca070337c181b87a1e24ee075a378f7a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "sha256": "2225a6d4fcef5fbb1fbb95457c690b14b154a9b24c4ae7542ed1c3b3a04f9821",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_execution_stream_service.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_execution_stream_service.py",
+    "sha256": "74e885addce72be1a637d321761bdb4d24003bf53a4abd74e668944570c85fb1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_execution_stream_service.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_execution_stream_processes.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_execution_stream_processes.py",
+    "sha256": "d27bca1cdf7d062778cbdc2b4e3d2f6ed2cb60ecf185f04f1bde4cebead221b4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_execution_stream_processes.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_direct_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_direct_client.py",
+    "sha256": "c24515e3b6603e1d2eea0a9a8e6e89ed2c76fda4a5e74e242616aced16007c90",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_direct_client.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_runtime.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_runtime.py",
+    "sha256": "ffeade7f3ef4fb0597ccdf72b0bbb0228f72ab92aced9353cf9496125bf70f05",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_runtime.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_registry.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_registry.py",
+    "sha256": "6c3b4f93e3c4b25d414e92b9d1e98e3bdf6a94e9bed7dfe567e485c9e01b426c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_registry.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_registry_stop_new.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_registry_stop_new.py",
+    "sha256": "884e84646cacc8a5230a95a384d3e9b4bd500e42a134ce6144323b31282cb652",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_registry_stop_new.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_migration_write_barrier.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_migration_write_barrier.py",
+    "sha256": "efbcf86bba3d233a8c5907836fdb8ae9c34d2dab9f133db193153179bc630f6f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_migration_write_barrier.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_migration_gate.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_migration_gate.py",
+    "sha256": "d0ef6a462e7148f0af21ea4c6abb54bfbddad99abaa5a32768a03507ea5e4708",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_migration_gate.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_prepared_cancel.py",
+    "sha256": "db023508d16833e78a5ba0f87f059306afe398646d903e5cd04d88f7007a59f8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_prepared_cancel.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter62_direct_write.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/test_iter62_direct_write.py",
+    "sha256": "73fddd11b07310720a2cd11f7e30c7e626d2b9854e827149798536eee4db557d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/test_iter62_direct_write.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter63_gateway_direct_owner.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/test_iter63_gateway_direct_owner.py",
+    "sha256": "792e01604befc53395da57076c052bb4d661ca3feb4c5f0337d402ff7e580735",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/test_iter63_gateway_direct_owner.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_owner.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_owner.py",
+    "sha256": "84bc14fba54e786c5ac988f5d7e972089c24a78c69331aaf6b85d507ce560c52",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_owner.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_prepared_cancel.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_prepared_cancel.py",
+    "sha256": "53d8676fb58a20136a87233da9157c305a7b6b9b464c30eb3389095f564f696e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_prepared_cancel.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_event_recovery.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_event_recovery.py",
+    "sha256": "287080ec393f80c24d53f475b2eebe0ad94e866463b8f25d81af7a09949c51d4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_event_recovery.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_admission.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_admission.py",
+    "sha256": "3300c51074944804eb783ad26db13aa5fbf589cf5a3b581facef5fc39c27cad1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_admission.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_client.py",
+    "sha256": "3834613291b7e5ffc80e514bd1ad68e67bc6093f5ca7d56740cb6e9a97dd3e0c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_client.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_service.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_service.py",
+    "sha256": "df1c507726eac3928bf7d7ca7276ef38375d84e047a59408ea05ad55fb02bda8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_service.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_profile.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_profile.py",
+    "sha256": "11eb04b2d4b81b2a1ed173b568f6a9c06957a4f386a5a0e5533522fa825cbe60",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_profile.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_cancel_rpc.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_cancel_rpc.py",
+    "sha256": "20a2d79e9ad0b0d07e58737ff8a7bb6ab2499c6abe7e0ec898890e370c218f2e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_cancel_rpc.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_registry_dispatch_admission.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_registry_dispatch_admission.py",
+    "sha256": "e241f558acc9cdb31213f83f545ed3acc383ce09e250d8e22de4a41087792f90",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_registry_dispatch_admission.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_cancel_error_rpc.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_cancel_error_rpc.py",
+    "sha256": "b0a29acc31bd153d019278872d76e557586dd338ad09511e6905418847086de7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_cancel_error_rpc.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+    "sha256": "6d1c4664a7d0ad482259e9d78d468f2405dddf7c07fb99549976a766b5b5a830",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_config_io.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_config_io.py",
+    "sha256": "5a4c84dc5387c47dc7432ff4e9e4337d6e9ed1896c04dab3d6d79f6e09a89be9",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_config_io.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_service_runtime_thread.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_service_runtime_thread.py",
+    "sha256": "b3a7d9def119e1a9f641175becbd6f751464abccfce8e83d06e3a0e91dfdee57",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_service_runtime_thread.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_service_runtime_thread.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_service_runtime_thread.py",
+    "sha256": "4a72b4faaddbd7301c114c93d6be17c51ce6432f051a605fe51b3b7ef1a1a76b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_service_runtime_thread.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_strategy_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_strategy_client.py",
+    "sha256": "445c6156a5703fb51402cf7f7a0da07f0dbe75021fdb8d52288d3fcac75bc151",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_strategy_client.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_strategy_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_strategy_client.py",
+    "sha256": "501c871483d12e4fcaef39cb75d65135c38e3e55847f55a0a8500b7ec83cded7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_strategy_client.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_prepared_place.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_prepared_place.py",
+    "sha256": "97edf9fb4ab856cd889e1c62b4c92b73e138c1718f41f89c512a8e2247359b70",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_prepared_place.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_place_return_ingestion.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_iter63_gateway_place_return_ingestion.py",
+    "sha256": "aae4058ff2978efff9c5f63194609e3d3cb8361aa73e47c89840911e4a2523a6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_iter63_gateway_place_return_ingestion.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_prepared_place.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_prepared_place.py",
+    "sha256": "ac9fb6bb147c66c7bad654eaa51e41755bc88a95789fc045d8aa34ff4c0b24ad",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_prepared_place.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/__init__.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/conftest.py",
+    "sha256": "73251e36208ad6709c5c3e393aba3bc04c0ce3e25059ba0709934fc1cf45a14f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/conftest.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/conftest_test_data.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/conftest_test_data.py",
+    "sha256": "e692dab018eb1308eaf666db87a06d0049a5fe4b381c399f169c4874b0311244",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/conftest_test_data.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/__init__.py",
+    "sha256": "12e0fbccb521257bcbee12ac880d61f0359165838aa94bed23168e5fffccb526",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/__init__.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_atomic.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_atomic.py",
+    "sha256": "5d67ab60ce97fd2cc3892f520ef24a4bca1b51cb9b1bc530ef8a4eaf7394b2bb",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_atomic.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_gateway_pending.py",
+    "sha256": "769dfee13da4ca7bf81b6fa7dc449e449843bc6359c75ad5b0e76a4a31dfba95",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_cancel.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_gateway_pending_cancel.py",
+    "sha256": "6f4b6617082b83aeab090f6a8e613d0fe85f2584b9bc2fcdd338e6217668e4c3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_cancel.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_client.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_gateway_pending_client.py",
+    "sha256": "89cf402e388f92d69140767ff07a3e42b7a7e5e5cb9c76a3dfa93c63c3173e5a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_client.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_identity.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_identity.py",
+    "sha256": "da5f3a8a0ff1fe365512f3137925454ba19784079eab66a6f2664173c5af8be3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_identity.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_pending.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_pending.py",
+    "sha256": "1e443a6b19d076b67ffb50cf5de2c98f34c7868bee112fc8e5dd70949ecb7df9",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_pending.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_sequence.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_sequence.py",
+    "sha256": "08333868031b95cf2f8d20acefd37f5d04c380eb2cbedd6fa7d71229a2b5c589",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_sequence.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_snapshot.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_snapshot.py",
+    "sha256": "43297d3cd8da48cee9f5b55750ddf5e8b9ed64e6aedd0ccbe7f27897afbd0520",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_snapshot.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_state_dir_and_cli.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_state_dir_and_cli.py",
+    "sha256": "dd4c0984cc83c8020668590eb8a22e3bf01de62d61761d0ba11f20498823f5a7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_state_dir_and_cli.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_waiting.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_waiting.py",
+    "sha256": "421e1d0cb4b840375922d88608b9699d64c3f0fe726a28acf2e1f528c1887b99",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_waiting.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "sha256": "9c123385e9be552ef6499dd8402e3972c3fa4e036873d0d0df11e8d5dd341650",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter62_gateway_command_round_trip.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/test_iter62_gateway_command_round_trip.py",
+    "sha256": "fff69bd7882d4a0a0e7c9b5e6f08eb506d6ee95fa8aaf3c0be975c445c706797",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter62_gateway_command_round_trip.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter62_direct_composition_no_gateway.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/test_iter62_direct_composition_no_gateway.py",
+    "sha256": "45c51686c8a353445aab78d2090850f1a6d69034f5e81e9b1b61ac6ccfc418ef",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter62_direct_composition_no_gateway.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_service_session_cerebro_curve.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/test_iter60_service_session_cerebro_curve.py",
+    "sha256": "512d09a2980b17e1acc2bc267bf68c6a0300a34e2e6eccf461b05cce3ce2a09c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_service_session_cerebro_curve.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "sha256": "85b74429a06dffd8dc2de2c932ff09b35e7d01b2d5d73b42371e5fb08a9d766d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/__init__.py",
+    "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/__init__.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/conftest.py",
+    "sha256": "5cf3aadf76a1ba7147a6f696aabf5f72839eafa6b7495632788ba4c968268404",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/conftest.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/conftest.py",
+    "sha256": "2212a9bbfcd0234764fb633db18cbf7fa9ee46b752b5024d0e455dc6ab7b4970",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/conftest.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/__init__.py",
+    "sha256": "ee3c0783233286f467937cb3f83ffe96b94e5cb9da7053f22a22cc516c7e91a6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/__init__.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/conftest.py",
+    "sha256": "bedc3e920ded0ee8665bac24b350d0caeb3029159fd14833b55945ad6a649e53",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/conftest.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/conftest.py",
+    "sha256": "d86b1f6bb806f56a4008f67b5a40ac8765084372814621230f9ad02b7d2b08b6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "conftest.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/conftest.py",
+    "sha256": "8caf3c1c235cf64322dfb3a617b42fdbae3fd14bb01f53d163113b0bb07e823c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "conftest.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/openinterests/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/openinterests/__init__.py",
+    "sha256": "d6a5a1cb56e8328affcaf88c5a042f6739e8c7a72d13ff8760fcc90d0ede7c5d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/openinterests/__init__.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/pools/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/pools/__init__.py",
+    "sha256": "014b0e9715936740841a55dde414612fff80a1133ef6cc0a18e2f216a22b0be1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/pools/__init__.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/pricelimits/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/pricelimits/__init__.py",
+    "sha256": "30fde19b4462d6ff7b770a6b2f476f91c43a8ff4127069ea1036909f263c8aee",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/pricelimits/__init__.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/timers/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/containers/timers/__init__.py",
+    "sha256": "84add777839691c284614f32df3573f7c1bac18b4effe371d558ba61afccf97d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/timers/__init__.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/r2a_reference/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/__init__.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "sha256": "2c7b4b5757f8c38b4110f8e64369061c6ad2e61503b611c09a5636defb1fabbc",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/service_protocol_62fcb89.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-tests/tests/r2a_reference/service_protocol_62fcb89.py",
+    "sha256": "7bf85b38d8e1bff5b6b3f10cbfecdbc4c11b964e276d15378e6399a59ba5cea6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/service_protocol_62fcb89.py",
+    "snapshot_head": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/iter60_service_ledger_host_support.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/integration/iter60_service_ledger_host_support.py",
+    "sha256": "e54cb30ecab66fcfdb6edfbe704a3a5cddeb450fd88dd326b8aaffaa2e37fb28",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/iter60_service_ledger_host_support.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/__init__.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/__init__.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_helpers.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/_helpers.py",
+    "sha256": "51f6e0a9ddfcbbcd4e7f0d74e3957edfe2e8bb83c407935201f437c25cb76c2b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/_helpers.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_mp_worker.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/_mp_worker.py",
+    "sha256": "b2c0cfa76fd459f9d277cce6a7b49840153ab7c0147e7608b4ed8a6af7de7e2f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/_mp_worker.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/conftest.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/unit/live_state/conftest.py",
+    "sha256": "027b2b3279a98e5a9e21d78b801b834c57e9186d8741ce20127c75b299f9531e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/conftest.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/fixtures/fake_btapi.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-tests/tests/fixtures/fake_btapi.py",
+    "sha256": "ef5d7a4b6970c9fa6277063609914258330b18689d6cfb9f10502ee923d3e0f4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/fixtures/fake_btapi.py",
+    "snapshot_head": "d76a4372d9be0a9949acde64347f3c99e6df4c7f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_service_account_instrument_metadata.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_service_account_instrument_metadata.py",
+    "sha256": "01818d3b78e134fb751e2e9a64ec66287edecc10ed3feb8773003dbf990c68f6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_service_account_instrument_metadata.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_runtime_renewal_retry.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/unit/test_service_runtime_renewal_retry.py",
+    "sha256": "8ebabc797a43ced9ec051dac2b4c8ddfc255d1f0a70dbf3c418a8a78861d9db3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/unit/test_service_runtime_renewal_retry.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter62_gateway_market_runtime_lease.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter62_gateway_market_runtime_lease.py",
+    "sha256": "fa0d5474d6ecadb229440f5bcb1c8581ae4bff15a2d75e78e4555bc2cb86b764",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter62_gateway_market_runtime_lease.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_gateway_operator_ctp_market.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_gateway_operator_ctp_market.py",
+    "sha256": "66e04fc56df7cfc08d00cf4b7050ef3f9aa669d48b76a7b5bd81b9267b2877cd",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_gateway_operator_ctp_market.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter62_gateway_ctp_market_profile.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter62_gateway_ctp_market_profile.py",
+    "sha256": "2a581e8f5b6b0f344ec6b1a36a81cfc40f90c6279d32bfdd9ff00e7994222d86",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter62_gateway_ctp_market_profile.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_gateway_operator_deployment.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_gateway_operator_deployment.py",
+    "sha256": "b6e3e19e77f4f1b2bdf6ff499b6b9f4e40483ea90838e89e9b11b866071e319a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_gateway_operator_deployment.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+    "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter62_settlement_readback_on_write.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_client_processes.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/tests/integration/test_iter63_gateway_client_processes.py",
+    "sha256": "d6a6f5702b1b67c58ee79e98b73c4d65607e9bdbbaba5fa9667ae3bba29f4d52",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "tests/integration/test_iter63_gateway_client_processes.py",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_market_provider.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-tests/tests/test_market_provider.py",
+    "sha256": "40b25816efae96bca4c76c6302b7c7e3816a1d75d56d06f62d6fdc394edb5ec8",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_market_provider.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/bt_api/bt_api_ctp/tests/test_iter63_prepared_cancel.py",
+    "sha256": "83af98b23d1519ba401af230b7c8b21ebd08f74e8832f2e14140424a0fc72d79",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "relative": "tests/test_iter63_prepared_cancel.py",
+    "snapshot_head": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/unconfigured-client.yaml",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/examples/services/unconfigured-client.yaml",
+    "sha256": "588fccd3c0b5ad7e0d42a296aa8359f7b541faeb39e949f2c897bc740b897592",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/unconfigured-client.yaml",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/strategy-readonly.yaml",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/examples/services/strategy-readonly.yaml",
+    "sha256": "1cf4a16c5ea37ab8e6352b5467db8758256a34b3a07ae8f85a6851bf77621aba",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/strategy-readonly.yaml",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/portfolio-analysis-client.yaml",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/examples/services/portfolio-analysis-client.yaml",
+    "sha256": "842ac475818a8ce91fd39e658dc34bc9247b929cf1e4f4009c5e612373a26161",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/portfolio-analysis-client.yaml",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/account-service.yaml",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/examples/services/account-service.yaml",
+    "sha256": "c29c6a518d11612510294f0aedf44b5094af3b27e3ba1f081768ed24b9a9bd3f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/account-service.yaml",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/portfolio-analysis-service.yaml",
+    "copy": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-tests/examples/services/portfolio-analysis-service.yaml",
+    "sha256": "18c550e57bcea91af9a4551b9f2ba7c4c331e4e00d41651c08122aea9d2f5875",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/portfolio-analysis-service.yaml",
+    "snapshot_head": "9a9af12deb626116c238d3268423ebd157970fbb"
+  }
+]

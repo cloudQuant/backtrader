@@ -1,0 +1,5 @@
+[dev f117c0b] feat(gateway): define prepared placement and source-bound insert errors
+ 8 files changed, 641 insertions(+), 29 deletions(-)
+ create mode 100644 src/bt_api_base/direct_place_protocol.py
+ create mode 100644 tests/test_gateway_execution_place_attribution.py
+ create mode 100644 tests/test_prepared_place_protocol.py

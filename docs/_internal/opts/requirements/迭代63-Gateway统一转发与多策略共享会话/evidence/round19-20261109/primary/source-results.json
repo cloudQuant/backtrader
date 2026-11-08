@@ -1,0 +1,32 @@
+{
+  "base": {
+    "summary": "1817 passed, 3 skipped, 1 warning",
+    "seconds": 12.12,
+    "log": "base.log",
+    "exit_code": 0
+  },
+  "gateway": {
+    "summary": "814 passed",
+    "seconds": 13.12,
+    "log": "gateway-final.log",
+    "exit_code": 0
+  },
+  "ctp": {
+    "summary": "1013 passed, 1 warning",
+    "seconds": 21.58,
+    "log": "ctp-final.log",
+    "exit_code": 0
+  },
+  "sdk": {
+    "summary": "875 passed, 2 warnings",
+    "seconds": 44.71,
+    "log": "sdk-final.log",
+    "exit_code": 0
+  },
+  "bt": {
+    "summary": "245 passed, 1 warning",
+    "seconds": 13.88,
+    "log": "bt-final.log",
+    "exit_code": 0
+  }
+}

@@ -1,0 +1,684 @@
+[
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/35930.jsonl",
+    "pid": 35930,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/35935.jsonl",
+    "pid": 35935,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/35951.jsonl",
+    "pid": 35951,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/35952.jsonl",
+    "pid": 35952,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36044.jsonl",
+    "pid": 36044,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36046.jsonl",
+    "pid": 36046,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36062.jsonl",
+    "pid": 36062,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36066.jsonl",
+    "pid": 36066,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36072.jsonl",
+    "pid": 36072,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/base-35930-1794161177870123000/36075.jsonl",
+    "pid": 36075,
+    "run": "base-35930-1794161177870123000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36851.jsonl",
+    "pid": 36851,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36857.jsonl",
+    "pid": 36857,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36858.jsonl",
+    "pid": 36858,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36859.jsonl",
+    "pid": 36859,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36860.jsonl",
+    "pid": 36860,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36864.jsonl",
+    "pid": 36864,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36865.jsonl",
+    "pid": 36865,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36867.jsonl",
+    "pid": 36867,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36868.jsonl",
+    "pid": 36868,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36914.jsonl",
+    "pid": 36914,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36915.jsonl",
+    "pid": 36915,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36917.jsonl",
+    "pid": 36917,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36918.jsonl",
+    "pid": 36918,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36932.jsonl",
+    "pid": 36932,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/bt-36851-1794161306274148000/36940.jsonl",
+    "pid": 36940,
+    "run": "bt-36851-1794161306274148000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/ctp-36852-1794161306275192000/36852.jsonl",
+    "pid": 36852,
+    "run": "ctp-36852-1794161306275192000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/35931.jsonl",
+    "pid": 35931,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/35932.jsonl",
+    "pid": 35932,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/35933.jsonl",
+    "pid": 35933,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/35980.jsonl",
+    "pid": 35980,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/35982.jsonl",
+    "pid": 35982,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36040.jsonl",
+    "pid": 36040,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36050.jsonl",
+    "pid": 36050,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36056.jsonl",
+    "pid": 36056,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36059.jsonl",
+    "pid": 36059,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36065.jsonl",
+    "pid": 36065,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36071.jsonl",
+    "pid": 36071,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36074.jsonl",
+    "pid": 36074,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36076.jsonl",
+    "pid": 36076,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36080.jsonl",
+    "pid": 36080,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-35931-1794161177870095000/36081.jsonl",
+    "pid": 36081,
+    "run": "gateway-35931-1794161177870095000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36853.jsonl",
+    "pid": 36853,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36854.jsonl",
+    "pid": 36854,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36855.jsonl",
+    "pid": 36855,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36913.jsonl",
+    "pid": 36913,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36916.jsonl",
+    "pid": 36916,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36922.jsonl",
+    "pid": 36922,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36924.jsonl",
+    "pid": 36924,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36925.jsonl",
+    "pid": 36925,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36926.jsonl",
+    "pid": 36926,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36928.jsonl",
+    "pid": 36928,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36929.jsonl",
+    "pid": 36929,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36931.jsonl",
+    "pid": 36931,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36933.jsonl",
+    "pid": 36933,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36934.jsonl",
+    "pid": 36934,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/gateway-36853-1794161306277428000/36935.jsonl",
+    "pid": 36935,
+    "run": "gateway-36853-1794161306277428000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36850.jsonl",
+    "pid": 36850,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36861.jsonl",
+    "pid": 36861,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36862.jsonl",
+    "pid": 36862,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36920.jsonl",
+    "pid": 36920,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36923.jsonl",
+    "pid": 36923,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36930.jsonl",
+    "pid": 36930,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36945.jsonl",
+    "pid": 36945,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36946.jsonl",
+    "pid": 36946,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36947.jsonl",
+    "pid": 36947,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36950.jsonl",
+    "pid": 36950,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36951.jsonl",
+    "pid": 36951,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36952.jsonl",
+    "pid": 36952,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36954.jsonl",
+    "pid": 36954,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36955.jsonl",
+    "pid": 36955,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36956.jsonl",
+    "pid": 36956,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36957.jsonl",
+    "pid": 36957,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36962.jsonl",
+    "pid": 36962,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/36974.jsonl",
+    "pid": 36974,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37005.jsonl",
+    "pid": 37005,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37020.jsonl",
+    "pid": 37020,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37021.jsonl",
+    "pid": 37021,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37022.jsonl",
+    "pid": 37022,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37085.jsonl",
+    "pid": 37085,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37094.jsonl",
+    "pid": 37094,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  },
+  {
+    "path": "/tmp/iter63-r19-primary/origin-logs/sdk-36850-1794161306216342000/37135.jsonl",
+    "pid": 37135,
+    "run": "sdk-36850-1794161306216342000",
+    "guard_installed": true,
+    "violations": 0,
+    "exit_audit_present": true
+  }
+]

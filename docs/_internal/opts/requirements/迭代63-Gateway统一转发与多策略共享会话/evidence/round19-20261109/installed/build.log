@@ -1,0 +1,30 @@
+Processing /tmp/iter63-r19-install-20261109-uQ78MEA5/source/base
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r19-install-20261109-uQ78MEA5/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r19-install-20261109-uQ78MEA5/source/ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r19-install-20261109-uQ78MEA5/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_base, bt_api_gateway, bt_api_ctp, bt_api_py
+  Building wheel for bt_api_base (pyproject.toml): started
+  Building wheel for bt_api_base (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_base: filename=bt_api_base-0.16.0.dev63-py3-none-any.whl size=374823 sha256=67f2e489053c06cc154c8edb1f05015aa9ec8be77e9e723e270e9a726072671f
+  Stored in directory: /private/tmp/iter63-r19-install-20261109-uQ78MEA5/tmp/pip-ephem-wheel-cache-cz82s_cx/wheels/ea/84/f4/8e7ed0c95486d006b90d9997147dc08424ff900d2189b02e5b
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=192037 sha256=eca010352ae5bd4d1c9f134a70b5627641bde80d8b8af3add437fa29cfb67a30
+  Stored in directory: /private/tmp/iter63-r19-install-20261109-uQ78MEA5/tmp/pip-ephem-wheel-cache-cz82s_cx/wheels/ed/5c/03/21865e22e47f93f677d683f37d24c170ffb7e5c77d278d8b68
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9367748 sha256=56e9618be0202ea2c935d784179201f5ea9f79b9656398ad83727ad015485134
+  Stored in directory: /private/tmp/iter63-r19-install-20261109-uQ78MEA5/tmp/pip-ephem-wheel-cache-cz82s_cx/wheels/35/71/10/7e7b749af0e6b812037515a5888b70153b6eda4e93f98ea9dd
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2080707 sha256=26fd4ba7edb20460d4326a5c8f4da0beebf530a71139a35abe29a43b7c7e9469
+  Stored in directory: /private/tmp/iter63-r19-install-20261109-uQ78MEA5/tmp/pip-ephem-wheel-cache-cz82s_cx/wheels/57/db/8b/b6fc542c04c9b6849e2c7b8c2f47242a6476cc0240e0ecd85e
+Successfully built bt_api_base bt_api_gateway bt_api_ctp bt_api_py

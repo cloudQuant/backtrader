@@ -1,0 +1,12 @@
+......F
+=================================== FAILURES ===================================
+____________ test_changed_state_after_marker_never_sends[admission] ____________
+tests/unit/test_iter63_gateway_prepared_place.py:131: in test_changed_state_after_marker_never_sends
+    assert result.sent is False and result.marker_id == "marker-a"
+E   AssertionError: assert (True is False)
+E    +  where True = DirectWriteOutcome(sent=True, identity=NativeOrderIdentity(exchange_name='SYNTHETIC', client_order_id='1', fields=mapp...20300101', 'front_id': 1, 'session_id': 2}), session_generation=1), marker_id='marker-a', error_code=None, detail=None).sent
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_gateway_prepared_place.py::test_changed_state_after_marker_never_sends[admission]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 6 passed in 0.43s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -x tests/unit/test_iter63_gateway_prepared_place.py` failed. (See above for error)

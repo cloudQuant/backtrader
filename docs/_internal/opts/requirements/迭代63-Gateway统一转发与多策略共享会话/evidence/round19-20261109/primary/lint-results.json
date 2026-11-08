@@ -1,0 +1,61 @@
+{
+  "sdk": {
+    "ruff": 0,
+    "diff_check": 0,
+    "files": [
+      "bt_api_py/ctp_gateway_return_ingestion.py",
+      "bt_api_py/ctp_gateway_trading.py",
+      "bt_api_py/direct_write.py",
+      "bt_api_py/gateway_direct_dispatch.py",
+      "bt_api_py/gateway_execution_stream_service.py",
+      "tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+      "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "tests/integration/test_iter63_gateway_cancel_error_rpc.py",
+      "tests/integration/test_iter63_gateway_prepared_place.py",
+      "tests/test_iter63_ctp_gateway_trading.py",
+      "tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+      "tests/unit/test_iter63_gateway_place_return_ingestion.py",
+      "tests/unit/test_iter63_gateway_prepared_place.py"
+    ]
+  },
+  "base": {
+    "ruff": 0,
+    "diff_check": 0,
+    "files": [
+      "src/bt_api_base/direct_place_protocol.py",
+      "src/bt_api_base/direct_write_protocol.py",
+      "src/bt_api_base/gateway_execution_protocol.py",
+      "src/bt_api_base/gateway_execution_stream_protocol.py",
+      "tests/test_gateway_execution_cancel_attribution.py",
+      "tests/test_gateway_execution_place_attribution.py",
+      "tests/test_prepared_place_protocol.py"
+    ]
+  },
+  "ctp": {
+    "ruff": 0,
+    "diff_check": 0,
+    "files": [
+      "src/bt_api_ctp/ctp/client.py",
+      "src/bt_api_ctp/direct_write_provider.py",
+      "src/bt_api_ctp/gateway_place_return_projection.py",
+      "src/bt_api_ctp/gateway_place_source.py",
+      "src/bt_api_ctp/gateway_session.py",
+      "tests/test_iter63_prepared_place.py"
+    ]
+  },
+  "gateway": {
+    "ruff": 0,
+    "diff_check": 0,
+    "files": [
+      "src/bt_api_gateway/direct_command_journal.py",
+      "src/bt_api_gateway/direct_dispatch.py",
+      "src/bt_api_gateway/direct_execution_journal.py",
+      "src/bt_api_gateway/direct_place_journal.py",
+      "tests/test_iter63_cancel_error_attribution.py",
+      "tests/test_iter63_direct_cancel_journal.py",
+      "tests/test_iter63_direct_execution_journal.py",
+      "tests/test_iter63_place_error_attribution.py",
+      "tests/test_iter63_settlement_journal.py"
+    ]
+  }
+}

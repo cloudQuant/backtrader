@@ -1,0 +1,5 @@
+[dev 1cb7ac6d] feat(gateway): wire prepared CTP placement and error recovery
+ 17 files changed, 1434 insertions(+), 29 deletions(-)
+ create mode 100644 tests/integration/test_iter63_gateway_prepared_place.py
+ create mode 100644 tests/unit/test_iter63_gateway_place_return_ingestion.py
+ create mode 100644 tests/unit/test_iter63_gateway_prepared_place.py

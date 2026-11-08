@@ -1,0 +1,17 @@
+{
+  "chinese_md_bom_utf8_no_replacement": 6,
+  "local_file_links": 174,
+  "evidence_artifact_hashes": 248,
+  "gzip_raw_hashes": "PASS",
+  "markdown_diff_check": "PASS",
+  "anchors": "NOT_RUN",
+  "windows_powershell_5_1": "NOT_RUN",
+  "files": [
+    "archived/实施第十九轮报单准备与拒单来源归属审阅-2026-11-09.md",
+    "archived/README.md",
+    "实施基线与分轮记录-2026-11-08.md",
+    "计划修改记录.md",
+    "分轮合同冻结稿-2026-11-08.md",
+    "开发问题记录.md"
+  ]
+}

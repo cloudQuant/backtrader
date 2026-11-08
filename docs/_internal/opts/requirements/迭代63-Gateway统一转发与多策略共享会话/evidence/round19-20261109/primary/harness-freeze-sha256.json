@@ -1,0 +1,7 @@
+{
+  "/tmp/iter63-r19-primary/run.py": "18bf74fc6b977eecc94e02140e58392948852f1547d42ac8e142bd01a4211752",
+  "/tmp/iter63-r19-primary/selectors.json": "dfb7ccf4c4357db6e5c0e43a5de4f6feadbf9a1105b7f1a2169c08f7b0637f73",
+  "/tmp/iter63-r19-primary/bootstrap/origin_guard.py": "cd31f7960c702d39d9e01a23207210661184ca7119e98aacc954633f853a8920",
+  "/tmp/iter63-r19-primary/bootstrap/sitecustomize.py": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+  "/tmp/iter63-r19-primary/bootstrap/offline_guard.py": "a812960954c9205e904bd09702c95b26cdc38f33a9d067ae6ac760c73e0793f5"
+}

@@ -1,0 +1,156 @@
+{
+  "overall": "IN_PROGRESS / NOT_ACCEPTED",
+  "round": "R19",
+  "source": {
+    "base": {
+      "summary": "1817 passed, 3 skipped, 1 warning",
+      "seconds": 12.12,
+      "log": "base.log",
+      "exit_code": 0
+    },
+    "gateway": {
+      "summary": "814 passed",
+      "seconds": 13.12,
+      "log": "gateway-final.log",
+      "exit_code": 0
+    },
+    "ctp": {
+      "summary": "1013 passed, 1 warning",
+      "seconds": 21.58,
+      "log": "ctp-final.log",
+      "exit_code": 0
+    },
+    "sdk": {
+      "summary": "875 passed, 2 warnings",
+      "seconds": 44.71,
+      "log": "sdk-final.log",
+      "exit_code": 0
+    },
+    "bt": {
+      "summary": "245 passed, 1 warning",
+      "seconds": 13.88,
+      "log": "bt-final.log",
+      "exit_code": 0
+    }
+  },
+  "installed": {
+    "base": {
+      "summary": "1817 passed, 3 skipped, 1 warning",
+      "seconds": 14.79,
+      "log": "/tmp/iter63-r19-install-20261109-uQ78MEA5/base-frozen-final.log",
+      "exit_code": 0
+    },
+    "gateway": {
+      "summary": "814 passed",
+      "seconds": 14.12,
+      "log": "/tmp/iter63-r19-install-20261109-uQ78MEA5/gateway-frozen-final.log",
+      "exit_code": 0
+    },
+    "ctp": {
+      "summary": "1013 passed",
+      "seconds": 23.38,
+      "log": "/tmp/iter63-r19-install-20261109-uQ78MEA5/ctp-frozen-final.log",
+      "exit_code": 0
+    },
+    "sdk": {
+      "summary": "875 passed, 1 warning",
+      "seconds": 46.02,
+      "log": "/tmp/iter63-r19-install-20261109-uQ78MEA5/sdk-frozen-final.log",
+      "exit_code": 0
+    },
+    "bt": {
+      "summary": "245 passed, 5 warnings",
+      "seconds": 14.47,
+      "log": "/tmp/iter63-r19-install-20261109-uQ78MEA5/bt-frozen-final.log",
+      "exit_code": 0
+    }
+  },
+  "source_final_recorded_processes": 66,
+  "source_final_missing_exit_audit": 9,
+  "installed_recorded_processes": 65,
+  "installed_missing_exit_audit": 9,
+  "source_manifest_rows": 1444,
+  "test_manifest_rows": 262,
+  "source_harness_unchanged": true,
+  "installed_harness_unchanged": true,
+  "independent_install_verify_exit": 0,
+  "independent_commit_verify_exit": 0,
+  "base_minus_s_child": "GAP: sitecustomize/offline/origin guard not installed",
+  "full_resolver": "NOT_RUN; --no-deps",
+  "transport": "external editable bt_api_transport_zmq",
+  "account": "NOT_RUN",
+  "windows_powershell_5_1": "NOT_RUN",
+  "push": "NOT_RUN",
+  "commits": {
+    "base": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+      "branch": "dev",
+      "commit": "f117c0bea16e77bee87451d8c1dbe3ba790f705c",
+      "files": [
+        "README.md",
+        "src/bt_api_base/direct_place_protocol.py",
+        "src/bt_api_base/direct_write_protocol.py",
+        "src/bt_api_base/gateway_execution_protocol.py",
+        "src/bt_api_base/gateway_execution_stream_protocol.py",
+        "tests/test_gateway_execution_cancel_attribution.py",
+        "tests/test_gateway_execution_place_attribution.py",
+        "tests/test_prepared_place_protocol.py"
+      ]
+    },
+    "ctp": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+      "branch": "dev",
+      "commit": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+      "files": [
+        "README.md",
+        "src/bt_api_ctp/ctp/client.py",
+        "src/bt_api_ctp/direct_write_provider.py",
+        "src/bt_api_ctp/gateway_place_return_projection.py",
+        "src/bt_api_ctp/gateway_place_source.py",
+        "src/bt_api_ctp/gateway_session.py",
+        "tests/test_iter63_prepared_place.py"
+      ]
+    },
+    "gateway": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+      "branch": "dev",
+      "commit": "ecb98a0d1f598dc33ae112829dc958a60846058b",
+      "files": [
+        "README.md",
+        "src/bt_api_gateway/direct_command_journal.py",
+        "src/bt_api_gateway/direct_dispatch.py",
+        "src/bt_api_gateway/direct_execution_journal.py",
+        "src/bt_api_gateway/direct_place_journal.py",
+        "tests/test_iter63_cancel_error_attribution.py",
+        "tests/test_iter63_direct_cancel_journal.py",
+        "tests/test_iter63_direct_execution_journal.py",
+        "tests/test_iter63_place_error_attribution.py",
+        "tests/test_iter63_settlement_journal.py"
+      ]
+    },
+    "sdk": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+      "branch": "dev",
+      "commit": "1cb7ac6dcd2f11b8bcf5876ba42bcedb2e1d2270",
+      "files": [
+        "README.md",
+        "bt_api_py/ctp_gateway_return_ingestion.py",
+        "bt_api_py/ctp_gateway_trading.py",
+        "bt_api_py/direct_write.py",
+        "bt_api_py/gateway_direct_dispatch.py",
+        "bt_api_py/gateway_execution_stream_service.py",
+        "tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+        "tests/integration/test_iter63_ctp_gateway_trading.py",
+        "tests/integration/test_iter63_gateway_cancel_error_rpc.py",
+        "tests/integration/test_iter63_gateway_prepared_place.py",
+        "tests/test_iter63_ctp_gateway_trading.py",
+        "tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+        "tests/unit/test_iter63_gateway_place_return_ingestion.py",
+        "tests/unit/test_iter63_gateway_prepared_place.py",
+        "bt_api/bt_api_base",
+        "bt_api/bt_api_ctp",
+        "bt_api/bt_api_gateway"
+      ]
+    }
+  }
+}

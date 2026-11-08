@@ -1,0 +1,31 @@
+........................................................................ [ 45%]
+.....FF..F.............................................................. [ 91%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+______ test_spawned_profile_host_curve_client_dispatches_one_original_key ______
+tests/integration/test_iter63_ctp_gateway_trading.py:325: in test_spawned_profile_host_curve_client_dispatches_one_original_key
+    send_event = events.get(timeout=10)
+                 ^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+_____ test_dual_port_read_uses_owner_and_slow_query_does_not_block_status ______
+tests/integration/test_iter63_ctp_gateway_trading.py:503: in test_dual_port_read_uses_owner_and_slow_query_does_not_block_status
+    sent = events.get(timeout=5)
+           ^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+______ test_failed_write_keeps_entire_offer_and_unsupported_and_gap_block ______
+tests/integration/test_iter63_ctp_gateway_return_maintenance.py:204: in test_failed_write_keeps_entire_offer_and_unsupported_and_gap_block
+    assert m.status()["status"] == "UNSUPPORTED_RETURN"
+E   AssertionError: assert 'CALLBACK_FAILED' == 'UNSUPPORTED_RETURN'
+E     
+E     - UNSUPPORTED_RETURN
+E     + CALLBACK_FAILED
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_ctp_gateway_trading.py::test_spawned_profile_host_curve_client_dispatches_one_original_key
+FAILED tests/integration/test_iter63_ctp_gateway_trading.py::test_dual_port_read_uses_owner_and_slow_query_does_not_block_status
+FAILED tests/integration/test_iter63_ctp_gateway_return_maintenance.py::test_failed_write_keeps_entire_offer_and_unsupported_and_gap_block
+3 failed, 155 passed in 20.21s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q tests/unit/test_iter63_gateway_prepared_place.py tests/unit/test_iter63_gateway_place_return_ingestion.py tests/unit/test_iter63_gateway_cancel_return_ingestion.py tests/unit/test_iter63_gateway_cancel_profile.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_gateway_execution_stream_client.py tests/integration/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_ctp_gateway_return_maintenance.py tests/integration/test_iter63_gateway_direct_dispatch.py tests/integration/test_iter63_gateway_cancel_rpc.py` failed. (See above for error)

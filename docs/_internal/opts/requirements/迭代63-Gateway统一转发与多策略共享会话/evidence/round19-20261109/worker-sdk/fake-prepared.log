@@ -1,0 +1,23 @@
+.....................F.F...................                              [100%]
+=================================== FAILURES ===================================
+_ test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-False] _
+tests/test_iter63_ctp_gateway_trading.py:1076: in test_real_ctp_session_trader_with_synthetic_native
+    assert journal.get(CLIENT_A.actor_ref, "key", CLIENT_A.principal_ref).status == expected, (
+E   AssertionError: []
+E   assert 'RESERVED' == 'SENT'
+E     
+E     - SENT
+E     + RESERVED
+_ test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-True] _
+tests/test_iter63_ctp_gateway_trading.py:1076: in test_real_ctp_session_trader_with_synthetic_native
+    assert journal.get(CLIENT_A.actor_ref, "key", CLIENT_A.principal_ref).status == expected, (
+E   AssertionError: []
+E   assert 'RESERVED' == 'SENT'
+E     
+E     - SENT
+E     + RESERVED
+=========================== short test summary info ============================
+FAILED tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-False]
+FAILED tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-True]
+2 failed, 41 passed in 7.62s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_ctp_gateway_trading.py` failed. (See above for error)

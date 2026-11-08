@@ -1,0 +1,34 @@
+{
+  "runtime": {
+    "base": [
+      "src/bt_api_base/direct_place_protocol.py"
+    ],
+    "gateway": [
+      "src/bt_api_gateway/direct_place_journal.py"
+    ],
+    "ctp": [
+      "src/bt_api_ctp/gateway_place_source.py",
+      "src/bt_api_ctp/gateway_place_return_projection.py"
+    ],
+    "sdk": [],
+    "bt": []
+  },
+  "tests": {
+    "base": [
+      "tests/test_prepared_place_protocol.py",
+      "tests/test_gateway_execution_place_attribution.py"
+    ],
+    "gateway": [
+      "tests/test_iter63_place_error_attribution.py"
+    ],
+    "ctp": [
+      "tests/test_iter63_prepared_place.py"
+    ],
+    "sdk": [
+      "tests/unit/test_iter63_gateway_prepared_place.py",
+      "tests/unit/test_iter63_gateway_place_return_ingestion.py",
+      "tests/integration/test_iter63_gateway_prepared_place.py"
+    ],
+    "bt": []
+  }
+}

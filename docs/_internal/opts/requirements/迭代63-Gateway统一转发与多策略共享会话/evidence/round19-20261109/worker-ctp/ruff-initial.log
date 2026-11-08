@@ -1,0 +1,44 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_iter63_prepared_place.py:3:1
+   |
+ 1 |   """Synthetic prepared place and insert-error matching; no real native I/O."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | import threading
+ 6 | | from dataclasses import replace
+ 7 | | from decimal import Decimal
+ 8 | | from types import MappingProxyType, SimpleNamespace
+ 9 | |
+10 | | import pytest
+11 | | from bt_api_base.direct_place_protocol import PreparedPlaceRequest
+12 | | from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectWriteError
+13 | | from bt_api_base.market_protocol import MarketInstrumentKey
+14 | | from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+15 | |
+16 | | from bt_api_ctp.ctp import ctp_structs_order
+17 | | from bt_api_ctp.gateway_place_return_projection import (
+18 | |     CtpGatewayPlaceReturnError,
+19 | |     gateway_place_error_key,
+20 | |     project_gateway_place_error,
+21 | | )
+22 | | from bt_api_ctp.gateway_return_buffer import CtpGatewayReturnBuffer
+23 | | from bt_api_ctp.registered_sim_session import capture_query_session
+24 | | from test_iter63_prepared_cancel import ObservedLock, Verifier, make_system
+   | |___________________________________________________________________________^
+   |
+help: Organize imports
+
+F401 [*] `test_iter63_prepared_cancel.ObservedLock` imported but unused
+  --> tests/test_iter63_prepared_place.py:24:41
+   |
+22 | from bt_api_ctp.gateway_return_buffer import CtpGatewayReturnBuffer
+23 | from bt_api_ctp.registered_sim_session import capture_query_session
+24 | from test_iter63_prepared_cancel import ObservedLock, Verifier, make_system
+   |                                         ^^^^^^^^^^^^
+   |
+help: Remove unused import: `test_iter63_prepared_cancel.ObservedLock`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --no-fix src/bt_api_ctp/gateway_place_source.py src/bt_api_ctp/gateway_place_return_projection.py tests/test_iter63_prepared_place.py` failed. (See above for error)

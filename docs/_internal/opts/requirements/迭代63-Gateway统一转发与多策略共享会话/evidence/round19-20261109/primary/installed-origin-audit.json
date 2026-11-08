@@ -1,0 +1,475 @@
+[
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37492.jsonl",
+    "pid": 37492,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37505.jsonl",
+    "pid": 37505,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37508.jsonl",
+    "pid": 37508,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37509.jsonl",
+    "pid": 37509,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37512.jsonl",
+    "pid": 37512,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37543.jsonl",
+    "pid": 37543,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37545.jsonl",
+    "pid": 37545,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37552.jsonl",
+    "pid": 37552,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37555.jsonl",
+    "pid": 37555,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37556.jsonl",
+    "pid": 37556,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/base-37492-1794161428857542000/37557.jsonl",
+    "pid": 37557,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37493.jsonl",
+    "pid": 37493,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37502.jsonl",
+    "pid": 37502,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37503.jsonl",
+    "pid": 37503,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37511.jsonl",
+    "pid": 37511,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37513.jsonl",
+    "pid": 37513,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37514.jsonl",
+    "pid": 37514,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37519.jsonl",
+    "pid": 37519,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37520.jsonl",
+    "pid": 37520,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37523.jsonl",
+    "pid": 37523,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37524.jsonl",
+    "pid": 37524,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37527.jsonl",
+    "pid": 37527,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37528.jsonl",
+    "pid": 37528,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37541.jsonl",
+    "pid": 37541,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/bt-37493-1794161428874175000/37550.jsonl",
+    "pid": 37550,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/ctp-37495-1794161428904702000/37495.jsonl",
+    "pid": 37495,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37497.jsonl",
+    "pid": 37497,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37499.jsonl",
+    "pid": 37499,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37525.jsonl",
+    "pid": 37525,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37526.jsonl",
+    "pid": 37526,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37535.jsonl",
+    "pid": 37535,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37536.jsonl",
+    "pid": 37536,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37537.jsonl",
+    "pid": 37537,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37539.jsonl",
+    "pid": 37539,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37542.jsonl",
+    "pid": 37542,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37544.jsonl",
+    "pid": 37544,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37546.jsonl",
+    "pid": 37546,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37547.jsonl",
+    "pid": 37547,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37548.jsonl",
+    "pid": 37548,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/gateway-37497-1794161428896376000/37549.jsonl",
+    "pid": 37549,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/guard-preflight/37371.jsonl",
+    "pid": 37371,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37496.jsonl",
+    "pid": 37496,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37516.jsonl",
+    "pid": 37516,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37533.jsonl",
+    "pid": 37533,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37540.jsonl",
+    "pid": 37540,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37551.jsonl",
+    "pid": 37551,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37562.jsonl",
+    "pid": 37562,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37563.jsonl",
+    "pid": 37563,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37564.jsonl",
+    "pid": 37564,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37565.jsonl",
+    "pid": 37565,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37566.jsonl",
+    "pid": 37566,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37567.jsonl",
+    "pid": 37567,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37572.jsonl",
+    "pid": 37572,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37574.jsonl",
+    "pid": 37574,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37575.jsonl",
+    "pid": 37575,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37576.jsonl",
+    "pid": 37576,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37579.jsonl",
+    "pid": 37579,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37580.jsonl",
+    "pid": 37580,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37581.jsonl",
+    "pid": 37581,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37582.jsonl",
+    "pid": 37582,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37583.jsonl",
+    "pid": 37583,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37584.jsonl",
+    "pid": 37584,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37591.jsonl",
+    "pid": 37591,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": false,
+    "process_check_exit_code": 1,
+    "process_check": ""
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37592.jsonl",
+    "pid": 37592,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  },
+  {
+    "path": "/tmp/iter63-r19-install-20261109-uQ78MEA5/origin-logs/sdk-37496-1794161428896722000/37598.jsonl",
+    "pid": 37598,
+    "guard": true,
+    "violations": 0,
+    "exit_audit": true
+  }
+]

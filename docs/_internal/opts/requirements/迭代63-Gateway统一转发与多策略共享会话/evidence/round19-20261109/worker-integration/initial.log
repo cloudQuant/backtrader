@@ -1,0 +1,20 @@
+E
+==================================== ERRORS ====================================
+_ ERROR at setup of test_prepared_ctp_place_reject_and_late_facts_reach_authenticated_client _
+tests/integration/test_iter63_gateway_prepared_place.py:240: in prepared_stream
+    pytest.fail(f"synthetic owner setup failed: {errors.get(timeout=2)}")
+E   Failed: synthetic owner setup failed: Traceback (most recent call last):
+E     File "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_prepared_place.py", line 228, in owner_factory
+E       guard, journal, ledger, dispatcher, prepared = _seed(tmp_path, monkeypatch)
+E                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_prepared_place.py", line 180, in _seed
+E       assert ingestor.ingest_callbacks(offered, assert_current=_scope_check(buffer, reader)) == 2
+E              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E     File "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_return_ingestion.py", line 340, in ingest_callbacks
+E       raise CtpGatewayReturnIngestionError("PROJECTION_FAILED") from None
+E   bt_api_py.ctp_gateway_return_ingestion.CtpGatewayReturnIngestionError: PROJECTION_FAILED
+=========================== short test summary info ============================
+ERROR tests/integration/test_iter63_gateway_prepared_place.py::test_prepared_ctp_place_reject_and_late_facts_reach_authenticated_client
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 error in 0.77s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/integration/test_iter63_gateway_prepared_place.py -x -q` failed. (See above for error)

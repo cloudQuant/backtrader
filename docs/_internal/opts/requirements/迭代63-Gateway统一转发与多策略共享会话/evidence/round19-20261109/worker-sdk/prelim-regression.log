@@ -1,0 +1,20 @@
+................F....................................................... [ 77%]
+.....................                                                    [100%]
+=================================== FAILURES ===================================
+______ test_unsupported_success_or_insert_does_not_ack[insert_response-1] ______
+tests/unit/test_iter63_gateway_cancel_return_ingestion.py:219: in test_unsupported_success_or_insert_does_not_ack
+    ingestor.ingest_callbacks(batch, assert_current=lambda r: assert_offered(buffer, r))
+bt_api_py/ctp_gateway_return_ingestion.py:340: in ingest_callbacks
+    raise CtpGatewayReturnIngestionError("PROJECTION_FAILED") from None
+E   bt_api_py.ctp_gateway_return_ingestion.CtpGatewayReturnIngestionError: PROJECTION_FAILED
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_gateway_cancel_return_ingestion.py:218: in test_unsupported_success_or_insert_does_not_ack
+    with pytest.raises(CtpGatewayReturnIngestionError, match="UNSUPPORTED_RETURN"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'UNSUPPORTED_RETURN'
+E    Input: 'PROJECTION_FAILED'
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_unsupported_success_or_insert_does_not_ack[insert_response-1]
+1 failed, 92 passed in 2.81s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q tests/unit/test_iter63_gateway_prepared_place.py tests/unit/test_iter63_gateway_cancel_return_ingestion.py tests/integration/test_iter63_gateway_direct_dispatch.py tests/integration/test_iter63_gateway_cancel_rpc.py` failed. (See above for error)

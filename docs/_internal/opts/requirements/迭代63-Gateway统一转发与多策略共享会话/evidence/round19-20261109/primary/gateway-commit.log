@@ -1,0 +1,4 @@
+[dev ecb98a0] feat(gateway): persist prepared placements and insert error attribution
+ 10 files changed, 1214 insertions(+), 17 deletions(-)
+ create mode 100644 src/bt_api_gateway/direct_place_journal.py
+ create mode 100644 tests/test_iter63_place_error_attribution.py

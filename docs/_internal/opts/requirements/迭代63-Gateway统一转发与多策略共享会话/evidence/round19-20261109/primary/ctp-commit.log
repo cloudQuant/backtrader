@@ -1,0 +1,5 @@
+[dev abd8bf3] feat(ctp): prepare placement identity before durable dispatch
+ 7 files changed, 1109 insertions(+), 2 deletions(-)
+ create mode 100644 src/bt_api_ctp/gateway_place_return_projection.py
+ create mode 100644 src/bt_api_ctp/gateway_place_source.py
+ create mode 100644 tests/test_iter63_prepared_place.py
