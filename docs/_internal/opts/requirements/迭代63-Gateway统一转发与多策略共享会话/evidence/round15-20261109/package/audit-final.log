@@ -1,0 +1,42 @@
+RUN base-97767-1794154122872186000
+PID 97767 guard 1 resolved 10 audit 3 violations 0 exit_audit_missing False
+RUN ctp-97856-1794154157377139000
+PID 97856 guard 1 resolved 186 audit 3 violations 0 exit_audit_missing False
+RUN ctp-98932-1794154239013321000
+PID 98932 guard 1 resolved 186 audit 3 violations 0 exit_audit_missing False
+RUN gateway-97768-1794154122872191000
+PID 97768 guard 1 resolved 128 audit 3 violations 0 exit_audit_missing False
+PID 97771 guard 1 resolved 24 audit 2 violations 0 exit_audit_missing False
+PID 97778 guard 1 resolved 23 audit 0 violations 0 exit_audit_missing True
+PID 97779 guard 1 resolved 23 audit 0 violations 0 exit_audit_missing True
+PID 97782 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 97783 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 97784 guard 1 resolved 15 audit 0 violations 0 exit_audit_missing True
+PID 97785 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 97787 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 97788 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 97789 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 97790 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 97791 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 97792 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+RUN guard-preflight
+PID 97671 guard 1 resolved 123 audit 3 violations 0 exit_audit_missing False
+RUN sdk-97769-1794154122872151000
+PID 97769 guard 1 resolved 380 audit 3 violations 0 exit_audit_missing False
+PID 97774 guard 1 resolved 121 audit 2 violations 0 exit_audit_missing False
+PID 97781 guard 1 resolved 213 audit 2 violations 0 exit_audit_missing False
+PID 97786 guard 1 resolved 215 audit 2 violations 0 exit_audit_missing False
+PID 97793 guard 1 resolved 225 audit 2 violations 0 exit_audit_missing False
+PID 97797 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97799 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97800 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97801 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97802 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97805 guard 1 resolved 200 audit 2 violations 0 exit_audit_missing False
+PID 97807 guard 1 resolved 96 audit 2 violations 0 exit_audit_missing False
+PID 97808 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+PID 97809 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 97810 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 97812 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 97817 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 97818 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False

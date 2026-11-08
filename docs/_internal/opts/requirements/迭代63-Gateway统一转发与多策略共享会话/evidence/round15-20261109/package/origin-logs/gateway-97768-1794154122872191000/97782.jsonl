@@ -1,0 +1,16 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 97782}
+{"data": {"mode": "sitecustomize-subprocess", "target": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src"}, "event": "guard-installed", "pid": 97782}
+{"data": {"module": "bt_api_gateway", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/__init__.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.event_journal", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/event_journal.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/__init__.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base._version", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/_version.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base.deployment_evidence", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/deployment_evidence.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base.account_protocol", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/account_protocol.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base.market_protocol", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/market_protocol.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_base.service_protocol", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_base/service_protocol.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.account_view_projection", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/account_view_projection.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.router", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/router.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.database_identity", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/database_identity.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.resolution", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/resolution.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.wire_mapping", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/wire_mapping.py"}, "event": "resolved", "pid": 97782}
+{"data": {"module": "bt_api_gateway.writer_authority", "origin": "/private/tmp/iter63-r15-install-20261109-0CwgPSqi/install/src/bt_api_gateway/writer_authority.py"}, "event": "resolved", "pid": 97782}

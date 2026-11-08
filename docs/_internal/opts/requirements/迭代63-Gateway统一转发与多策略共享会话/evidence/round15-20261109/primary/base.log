@@ -1,0 +1,20 @@
+SOURCE bt_api_base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+SOURCE bt_api_gateway /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/__init__.py
+SOURCE bt_api_ctp /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/__init__.py
+SOURCE bt_api_okx /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_okx/src/bt_api_okx/__init__.py
+SOURCE bt_api_binance /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_binance/src/bt_api_binance/__init__.py
+SOURCE bt_api_transport_zmq /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+SOURCE bt_api_py /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py
+SOURCE backtrader /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/__init__.py
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+...............................................                          [100%]
+=============================== warnings summary ===============================
+../../../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+263 passed, 1 warning in 0.16s

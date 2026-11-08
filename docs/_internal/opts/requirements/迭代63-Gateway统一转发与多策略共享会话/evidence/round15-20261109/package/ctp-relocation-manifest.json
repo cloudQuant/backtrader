@@ -1,0 +1,137 @@
+[
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/selected-tests.txt",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/selected-tests.txt",
+    "sha256": "d084eda2305c53ae09b189f1cc44e364a724714b938e2979bf92e141b4df6991"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/conftest.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/conftest.py",
+    "sha256": "a9e9fe2d9481ecf5f969be6bb4dc384fa376794d9e5d54c78c454c9c25705b3f"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_account_provider.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_account_provider.py",
+    "sha256": "72c5cf857f2765c0d2ceb5cbe3b7d0b7f6fb081e81e2095340ae33cce1521708"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_account_provider_execution_observations.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_account_provider_execution_observations.py",
+    "sha256": "3c20438af08b652a2f32527a7211a172d63c4445d17b661942c2bcdfbf40f097"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_callback_ingress_client.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_callback_ingress_client.py",
+    "sha256": "a0c8e2a49b72adfbaf06a23725616df6853a2e38078ac04ce84932036b1c12f8"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_direct_sim_admission.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_direct_sim_admission.py",
+    "sha256": "cfdf084520b266355b3fdd93ff416c6b8505745f55200cf445b8f77b26dc1671"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_g5_source_unification.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_g5_source_unification.py",
+    "sha256": "c302495b5a817db624dce4c49de1c0fe377606d3d3a429fd7a2345bf192d2c06"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_join_observer_policy.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_join_observer_policy.py",
+    "sha256": "16c4c7c3d5f5f35bf84ad7566e1b5ba97fc73b6df73ee5de6f7d4392769d63ac"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_native_callback_events.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_native_callback_events.py",
+    "sha256": "b5bcfdee58568ccf3052b09e126f553bcc8e56ebb43ab31575548f9b3fa9ad64"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_native_query_certificate.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_native_query_certificate.py",
+    "sha256": "a59c8c60987ab4592ed75ef7ea42719c20b935f6b719bb9afa5209979b6b53a6"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_ctp_position_evidence.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_ctp_position_evidence.py",
+    "sha256": "a07debf58a7e578c3c922aeea30459a554845ccb233f342d13a5bcb4002c32bd"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter22_contracts.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter22_contracts.py",
+    "sha256": "83dc4e4dc585e427b3b4ed6e66801d2061ddaccc04826e8c514597d4b4b177c5"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter62_account_facts_real_client.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter62_account_facts_real_client.py",
+    "sha256": "b4bd88de6b93168e63b04a53eb70a9f216d76ed6d0157689a917b26280ed8de2"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter62_direct_write_provider.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter62_direct_write_provider.py",
+    "sha256": "7ee98a180ce888a6d78dbf8106ef9ed6760f85e7278aa77aea5dd14120a4a7bf"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter62_query_slot.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter62_query_slot.py",
+    "sha256": "9b1fc198a800ead6ab9939df3c205251cdff34238c46f5e3c822de6281a3f52d"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter62_sdk_admission_gate.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter62_sdk_admission_gate.py",
+    "sha256": "0a42e5de63ed6d92cb8750734a2fe4afadd493dc33eeb1c5e68f620ab77495a7"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter62_settlement_readback_on_write.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter62_settlement_readback_on_write.py",
+    "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_gateway_return_buffer.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_gateway_return_buffer.py",
+    "sha256": "892b83bf2ab71d468eb601410efb08a295f4cb0a3ac9330c96ef71a63d4f6a89"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_gateway_return_projection.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_gateway_return_projection.py",
+    "sha256": "5ac9587b66d6f82794c65b6dc244a494d1f4df9b437945c6b88fb428c98b3f3f"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_gateway_return_query.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_gateway_return_query.py",
+    "sha256": "5cfbc4a2a62d006fd14ecb0ec3113a75bc429a923980ffb389c1406234d315d5"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_gateway_return_source.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_gateway_return_source.py",
+    "sha256": "4fc80ef5ecbbca48f93b7f628068c949993d5f6d35d09353d84b4d197a22ca1d"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_gateway_session.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_gateway_session.py",
+    "sha256": "67bcc180dab61e21142b0eccef31c8f90a2d469cb6b366278731be1329632b04"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_prepared_cancel.py",
+    "sha256": "83af98b23d1519ba401af230b7c8b21ebd08f74e8832f2e14140424a0fc72d79"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_sdk_configured_pair_gate.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_sdk_configured_pair_gate.py",
+    "sha256": "42e152a5bc07c6781c8a6a294f548b9bedf38b6dcbeba01c6f3308db87808ea7"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_settlement_observation.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_settlement_observation.py",
+    "sha256": "4db816913388b76d5f11c053d73daee495cc1b1bcacd187f5f8d93e34810d9c6"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_iter63_trade_callback_source_fence.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_iter63_trade_callback_source_fence.py",
+    "sha256": "0a60369c9c9664d86ff576c5f588b20a7388610dfe88a905cede10072a57b228"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/ctp-tests/tests/test_market_provider.py",
+    "copy": "/tmp/iter63-r15-install-20261109-0CwgPSqi/install/tests/test_market_provider.py",
+    "sha256": "40b25816efae96bca4c76c6302b7c7e3816a1d75d56d06f62d6fdc394edb5ec8"
+  }
+]

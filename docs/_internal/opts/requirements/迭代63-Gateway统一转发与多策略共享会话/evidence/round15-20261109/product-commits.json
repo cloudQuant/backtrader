@@ -1,0 +1,59 @@
+{
+  "base": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "branch": "dev",
+    "commit": "58f1cf50e0f1502bd4a75c5c9ab90046d682a2b6",
+    "paths": [
+      "README.md",
+      "src/bt_api_base/direct_write_protocol.py",
+      "src/bt_api_base/direct_cancel_protocol.py",
+      "tests/test_direct_cancel_protocol.py"
+    ]
+  },
+  "ctp": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "branch": "dev",
+    "commit": "d13e9eb7a94492b251935964139cea83d7a5ca69",
+    "paths": [
+      "README.md",
+      "src/bt_api_ctp/ctp/client.py",
+      "src/bt_api_ctp/direct_write_provider.py",
+      "tests/test_iter63_prepared_cancel.py"
+    ]
+  },
+  "gateway": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "branch": "dev",
+    "commit": "b26482486d523a46abb1f39bfd25b4224c2b1806",
+    "paths": [
+      "README.md",
+      "src/bt_api_gateway/direct_command_journal.py",
+      "src/bt_api_gateway/direct_dispatch.py",
+      "src/bt_api_gateway/direct_execution_journal.py",
+      "src/bt_api_gateway/direct_cancel_dispatch.py",
+      "src/bt_api_gateway/direct_cancel_journal.py",
+      "tests/test_iter63_direct_execution_journal.py",
+      "tests/test_iter63_settlement_journal.py",
+      "tests/test_iter63_direct_cancel_dispatch.py",
+      "tests/test_iter63_direct_cancel_journal.py"
+    ]
+  },
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "03f5de076f84be3d1664bece36d1df5b42355ad8",
+    "paths": [
+      "README.md",
+      "bt_api_py/direct_write.py",
+      "bt_api_py/gateway_direct_dispatch.py",
+      "bt_api_py/gateway_direct_owner.py",
+      "tests/integration/test_iter63_gateway_event_recovery.py",
+      "tests/integration/test_iter63_gateway_prepared_cancel.py",
+      "tests/unit/test_iter63_gateway_cancel_owner.py",
+      "tests/unit/test_iter63_prepared_cancel.py",
+      "bt_api/bt_api_base",
+      "bt_api/bt_api_ctp",
+      "bt_api/bt_api_gateway"
+    ]
+  }
+}

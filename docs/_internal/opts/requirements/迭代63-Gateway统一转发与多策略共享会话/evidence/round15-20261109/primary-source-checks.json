@@ -1,0 +1,59 @@
+{
+  "date": "2026-11-09",
+  "status": "LOCAL_SLICE_PASS_ITERATION_IN_PROGRESS",
+  "source": {
+    "base": {
+      "passed": 263,
+      "seconds": 0.16
+    },
+    "gateway": {
+      "passed": 755,
+      "seconds": 10.1
+    },
+    "ctp": {
+      "passed": 898,
+      "seconds": 18.91
+    },
+    "sdk": {
+      "passed": 671,
+      "seconds": 22.36
+    }
+  },
+  "installed": {
+    "base": {
+      "passed": 263,
+      "seconds": 0.17
+    },
+    "gateway": {
+      "passed": 755,
+      "seconds": 10.92
+    },
+    "ctp": {
+      "passed": 898,
+      "seconds": 19.3
+    },
+    "sdk": {
+      "passed": 671,
+      "seconds": 23.53
+    }
+  },
+  "source_manifest_rows": 755,
+  "test_manifest_rows": 117,
+  "package_verifier": "PASS",
+  "commit_verifier": "PASS",
+  "preserved_failures": [
+    "primary/sdk.log: missing explicitly disabled xdist marker plugin; collection failed",
+    "package/ctp-runner-first-failure.log: temporary runner kind omitted ctp; before collection",
+    "package/ctp-frozen-final.log: 897 passed 1 failed; test asserted source layout; frozen tests relocated without assertion changes",
+    "package/commits.log: ran before product commits, 27 entries not in HEAD"
+  ],
+  "limits": [
+    "Source selection is bounded; only Gateway runs all its tests",
+    "Native factories and non-loopback connections blocked; no account calls",
+    "CTP Python/SWIG composition still uses fake native API and synthetic source/capability",
+    "Gateway 8 child processes lack exit origin audits; recorded origin violations 0",
+    "ZMQ remains external editable checkout",
+    "No full dependency resolver, Windows PowerShell 5.1 or cross-platform verification",
+    "No remote cancel RPC/client/profile, async cancel attribution or complete BT integration"
+  ]
+}

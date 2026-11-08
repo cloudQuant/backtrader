@@ -1,0 +1,20 @@
+SOURCE bt_api_base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+SOURCE bt_api_gateway /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/__init__.py
+SOURCE bt_api_ctp /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/__init__.py
+SOURCE bt_api_okx /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_okx/src/bt_api_okx/__init__.py
+SOURCE bt_api_binance /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_binance/src/bt_api_binance/__init__.py
+SOURCE bt_api_transport_zmq /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+SOURCE bt_api_py /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py
+SOURCE backtrader /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 76%]
+........................................................................ [ 85%]
+........................................................................ [ 95%]
+...................................                                      [100%]
+755 passed in 10.10s
