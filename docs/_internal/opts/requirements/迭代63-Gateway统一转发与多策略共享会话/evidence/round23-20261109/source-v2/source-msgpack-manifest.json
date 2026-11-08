@@ -1,0 +1,48 @@
+{
+  "wheel": "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/dependency-wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl",
+  "wheel_sha256": "a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50",
+  "version": "1.2.4",
+  "target": "/tmp/iter63-r23-primary-v2/dependencies",
+  "argv": [
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "python",
+    "-m",
+    "pip",
+    "install",
+    "--no-index",
+    "--no-deps",
+    "--no-cache-dir",
+    "--target",
+    "/tmp/iter63-r23-primary-v2/dependencies",
+    "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/dependency-wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl"
+  ],
+  "exit_code": 0,
+  "start_ns": 1794171382026083000,
+  "end_ns": 1794171383427534000,
+  "members": [
+    {
+      "relative": "msgpack/__init__.py",
+      "sha256": "f9b156b52ef0e411c42e717246cc1fcc3f9166d6b946217c64fe0abd2523a038"
+    },
+    {
+      "relative": "msgpack/_cmsgpack.cpython-311-darwin.so",
+      "sha256": "9b527c086ae6af35ecd6f484ae879e45a3427d347b7817f032453d056fc7a97f"
+    },
+    {
+      "relative": "msgpack/exceptions.py",
+      "sha256": "7424d67a2f1da64accb100dc8d093be004e5f47b08047d326edf3338f36a3187"
+    },
+    {
+      "relative": "msgpack/fallback.py",
+      "sha256": "e861056d09e61f2dcecd8afb2aa1d81a8f0ca1a8ffb597efc6471f7a6a4652f4"
+    },
+    {
+      "relative": "msgpack/ext.py",
+      "sha256": "eade5f893bb1d3e65335b4c9bd580fca77bf498600aaeefd17087eb2bc201e9e"
+    }
+  ]
+}

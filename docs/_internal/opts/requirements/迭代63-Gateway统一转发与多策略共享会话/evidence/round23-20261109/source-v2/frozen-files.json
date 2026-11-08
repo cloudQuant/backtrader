@@ -1,0 +1,142 @@
+[
+  {
+    "kind": "gateway",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "path": "README.md",
+    "snapshot_head": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6",
+    "sha256": "fff6738e0b021f596d1bbde84f94b073510760d932f5e6b59af8292cea4ab32d"
+  },
+  {
+    "kind": "gateway",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "path": "src/bt_api_gateway/market_hub.py",
+    "snapshot_head": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6",
+    "sha256": "393db9483b65925b3be2d5e902b37cd49e57d7a754741b1befef4cbb4b9b4ff4"
+  },
+  {
+    "kind": "gateway",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "path": "tests/test_iter63_async_market_bootstrap.py",
+    "snapshot_head": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6",
+    "sha256": "25f984c2f78c15bf7eb79b193c4f337e88e61197a7afd6c798fb961833a4e1b6"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "README.md",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "d8e00d1a4311689f9e861c9573717f2e0b11e27f125ae6ade03868e2381884f3"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/gateway_direct_service.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "113add3650a7b1421a688b4f8538d6dc9b790376671074d41afe4531e365dd1d"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/gateway_owner_market.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "a33a6fd97330218389cdd845a4d026ba29531dfb870ae7b8a36c02e40561f122"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/gateway_strategy_market.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "8b6ba0ad4100c8d325ca295759a09c70c32e82a064cb698bc402a71fceb2a243"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/service_components.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "8f096d9bc77c707a4d4f61c2f3a87b6ca826a439a9ea9023c705136398e1df43"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/service_host.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "d241769d44e6c2485c3b6f4ff6a5809fca2d811f15a0c819e27d35a3f9d34fff"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/service_market.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "5b219a1e308035329f2ced98a4d8572a97ec387840aa4f819c51cdbcb04d5d27"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/service_runtime.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "d81524a71375ca0e5d9ff21d598196f029ce3357bf1b501367a0ec673690519b"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "bt_api_py/service_runtime_thread.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "760fe32cc2a013ea4771ed8767a7ba03d936f1f04ff8489f98153c4bfcf0d077"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/integration/test_iter63_ctp_gateway_joint_service.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "af5afa6c9cc2a883ed21e54aedc96353356e8d1e73cc5d4389d1d3327fd17635"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_gateway_strategy_market.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "1f619fbab843417dbdb17505392dc14172da8ab1fe58ab0f8b6d9cb79a4ed45c"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_iter63_ctp_gateway_market_profile.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "74cf2d5e332cdce143c116a42a1648e4cf00c9e3e0ed6135f9d74ebd5c80bdc4"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_iter63_gateway_operator_three_ports.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "1e7af246d31e624021dd3638c80cddddad366eb7bbd66f981b601fc0f1b03772"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/integration/test_iter63_async_market_bootstrap_service.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "1e7f955d47f593ed6dc31e0c453160eb4131da14098180a3b0ce7aa4a954b41d"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_iter63_async_market_client.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "02bfc44e0b69e81047d7174ec6138af15c91981c4216b78281951653e4689f93"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_iter63_gateway_owner_market_acquisition.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "3883033567376906fa8b4c7aa6c3bb1a8c807e21fa98b34c40195fc6b8f28662"
+  },
+  {
+    "kind": "sdk",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "path": "tests/unit/test_iter63_owner_continuation.py",
+    "snapshot_head": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+    "sha256": "0e2404ec05b727d35e05a7e254b9566f146122041385cb966e05287f46c87a95"
+  }
+]

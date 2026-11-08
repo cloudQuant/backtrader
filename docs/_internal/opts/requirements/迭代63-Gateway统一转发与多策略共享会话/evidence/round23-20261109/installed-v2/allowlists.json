@@ -1,0 +1,23 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": []
+  },
+  "tests": {
+    "base": [],
+    "gateway": [
+      "tests/test_iter63_async_market_bootstrap.py"
+    ],
+    "ctp": [],
+    "sdk": [
+      "tests/unit/test_iter63_async_market_client.py",
+      "tests/unit/test_iter63_gateway_owner_market_acquisition.py",
+      "tests/unit/test_iter63_owner_continuation.py",
+      "tests/integration/test_iter63_async_market_bootstrap_service.py"
+    ],
+    "bt": []
+  }
+}

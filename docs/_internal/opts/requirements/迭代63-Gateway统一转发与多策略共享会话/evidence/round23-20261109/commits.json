@@ -1,0 +1,20 @@
+{
+  "gateway": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "branch": "dev",
+    "commit": "152497e4f9a88fdbca528b28b006e0deecdaf2c2",
+    "pushed": false
+  },
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "4dd4dcbb362160492cb45b4611e3804cdae76270",
+    "pushed": false
+  },
+  "bt": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "scope": "documentation and selected public evidence only; enclosing commit identifies this report",
+    "product_changed": false,
+    "pushed": false
+  }
+}

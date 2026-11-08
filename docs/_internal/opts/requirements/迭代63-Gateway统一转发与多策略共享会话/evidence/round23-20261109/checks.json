@@ -1,0 +1,96 @@
+{
+  "round": "R23",
+  "status": "LOCAL_SCOPE_PASS; ITERATION_IN_PROGRESS_NOT_ACCEPTED",
+  "selector_sha256": "0a73c502cb2ed563e46a746e2f0ec4a94a8ea85c8c3109ea81239d6ccddadf95",
+  "source": {
+    "gateway": {
+      "revision": "v1 unchanged in v2",
+      "passed": 853,
+      "seconds": 12.13,
+      "log": "source-v1/gateway-source.log.gz"
+    },
+    "sdk": {
+      "revision": "v2",
+      "files": 54,
+      "passed": 711,
+      "seconds": 89.16,
+      "warnings": 2,
+      "log": "source-v2/sdk-source.log.gz"
+    }
+  },
+  "installed": {
+    "gateway": {
+      "revision": "v1 reused after source/build/README SHA check",
+      "passed": 853,
+      "seconds": 12.54,
+      "log": "installed-v1/gateway-frozen-final.log.gz"
+    },
+    "sdk": {
+      "revision": "v2",
+      "files": 54,
+      "passed": 711,
+      "seconds": 90.09,
+      "warnings": 1,
+      "log": "installed-v2/sdk-frozen-final.log.gz"
+    }
+  },
+  "retained_failure": {
+    "source_v1": "702 passed / 8 failed",
+    "installed_v1": "702 passed / 8 failed",
+    "causes": [
+      "7 explicit synchronous settings rejected by new required ops",
+      "1 local test context lacked mandatory reply budget checker"
+    ],
+    "v1_verify_final": "worktree changed after initial successful verifier; retained drift result, not accepted as final"
+  },
+  "process_scope": "one Gateway child process, two parent strategy clients; real Python CTP/Registry/CURVE with synthetic native TD/MD; active lease_deadline advancement, not original TTL crossing",
+  "primary_independent_checks": [
+    "final source suites",
+    "package/readme/payload verifier",
+    "1448 source and 88 SDK helper commit hashes",
+    "46 Gateway helper commit hashes",
+    "20 changed file commit hashes"
+  ],
+  "origin_audit": {
+    "gateway_source": [
+      14,
+      8
+    ],
+    "gateway_installed": [
+      14,
+      8
+    ],
+    "sdk_source_v2": [
+      42,
+      2
+    ],
+    "sdk_installed_v2": [
+      42,
+      2
+    ],
+    "format": "[recorded_processes,missing_exit_audits]",
+    "recorded_violations": 0
+  },
+  "limitations": [
+    "whole iteration not accepted",
+    "no native account operations",
+    "no three independent strategy processes",
+    "no complete BT wiring",
+    "-I child no sitecustomize audit gap",
+    "Monitor and ZMQ remain editable",
+    "fixed wheels with --no-deps not full dependency resolver",
+    "not cross-platform, not performance acceptance",
+    "PowerShell 5.1 NOT_RUN",
+    "guards are not a sandbox",
+    "raw scripts refer to original temporary directories"
+  ],
+  "wheels": {
+    "gateway": "52a4ac9f1b3c671eada2b3314f7a1766afccef78051109d02070e7b820abe685",
+    "sdk": "29a6c07450b393dca45f671f1e62d799eec50543e9579fcf21b4f348f5709027",
+    "msgpack_1.2.4": "a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50"
+  },
+  "open_formal_steps": {
+    "GAP": 13,
+    "NOT_RUN": 1
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "files": [
+    {
+      "path": "开发验收状态矩阵.md",
+      "utf8_bom": true,
+      "replacement_char": false,
+      "local_links_checked": 9,
+      "sha256": "2d4c61984a9cf31cf1e9fd8f6dc0a17507131079346a1b896ff13c18bf08c20e"
+    },
+    {
+      "path": "开发问题记录.md",
+      "utf8_bom": true,
+      "replacement_char": false,
+      "local_links_checked": 22,
+      "sha256": "84f720f1baff1bd1b4a77bbc5738baf1716429a48436e5624bd090a25e0df4d8"
+    },
+    {
+      "path": "实施基线与分轮记录-2026-11-08.md",
+      "utf8_bom": true,
+      "replacement_char": false,
+      "local_links_checked": 94,
+      "sha256": "323d27d1a8e334bf2d4a1f6212fd3887bd1c83482fc03fb1b3787fe17c8bd71a"
+    },
+    {
+      "path": "分轮合同冻结稿-2026-11-08.md",
+      "utf8_bom": true,
+      "replacement_char": false,
+      "local_links_checked": 1,
+      "sha256": "c6e2558aea5853f3f1d71f91ab41346a12bca0f27da9bfdc3b647dbc24e86c83"
+    },
+    {
+      "path": "archived/实施第二十三轮异步行情引导与租约续办审阅-2026-11-09.md",
+      "utf8_bom": true,
+      "replacement_char": false,
+      "local_links_checked": 7,
+      "sha256": "0758c9d36c11efbb922e465b5762e5b8e2adf872f61a425a593d5bf15b1b24a0"
+    }
+  ],
+  "failures": [],
+  "anchors": "NOT_RUN",
+  "windows_powershell_5_1_default_read": "NOT_RUN macOS"
+}
