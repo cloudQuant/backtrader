@@ -1,6 +1,6 @@
 ﻿# AGENTS.md
 
-当前迭代为迭代 62（opts 线）：[问题修复——SDK 写入准入、direct 直连基础层、BT direct 模式与 007_ctp 示例](docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md)，实施修改见其[计划修改记录](docs/_internal/opts/requirements/迭代62-问题修复/计划修改记录.md)，各步状态为 REVIEW_PENDING，由用户验收。迭代 60（[统一交易数据容器与多路径接入](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)，共享规则见[公共约定](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/_公共约定.md)）的合同仍是接入基础。迭代 53 已由用户确认废弃（2026-11-02，未成功），其“重构后停止等待审阅”的约束不再适用；其文档仅作历史参考。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代 60 计划为准。
+当前 opts 开发为[迭代 63：Gateway 统一转发与多策略共享会话](docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/迭代计划.md)，已获持续开发与验收授权，整期 IN_PROGRESS / 未验收；局部实现和证据见[分轮记录](docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/实施基线与分轮记录-2026-11-08.md)。Gateway 独立于策略进程，策略通过 config.yaml 连接；本地 SDK/Gateway 存储及回环切片不能当作完整服务已可用。迭代 62（opts 线）：[问题修复——SDK 写入准入、direct 直连基础层、BT direct 模式与 007_ctp 示例](docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md)，实施修改见其[计划修改记录](docs/_internal/opts/requirements/迭代62-问题修复/计划修改记录.md)，各步状态为 REVIEW_PENDING，由用户验收。迭代 60（[统一交易数据容器与多路径接入](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/迭代计划.md)，共享规则见[公共约定](docs/_internal/opts/requirements/迭代60-统一行情容器与低转换数据链路/_公共约定.md)）的合同仍是接入基础。迭代 53 已由用户确认废弃（2026-11-02，未成功），其“重构后停止等待审阅”的约束不再适用；其文档仅作历史参考。逐项迁移位置、破坏性变更及未验收事项以职责规范和迭代 60 计划为准。
 
 ## 先读：职责、现状与证据
 

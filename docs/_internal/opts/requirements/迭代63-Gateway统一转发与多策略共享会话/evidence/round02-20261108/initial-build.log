@@ -1,0 +1,27 @@
+Processing ./bt_api/bt_api_gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_gateway
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=156662 sha256=221b7ec5cc8051f0d243de3df614c9df1d2e245ba4e4c6e61d1cdd32ff28e84e
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-3lfkcafp/wheels/4d/f1/5e/a29b980f843f029a90c59ca3d12de89ff3cd7bb359dbf23a53
+Successfully built bt_api_gateway
+Processing ./bt_api/bt_api_ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_ctp
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9336840 sha256=32865a7862fcf9febfc1107d0fac3ac776dc0548652fb80cfc87a5f5816fb964
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-mygfa7z6/wheels/eb/6a/6d/34682c5b27845cdc35c33927f4ff6d251fdac97607a3be0880
+Successfully built bt_api_ctp
+Processing ./.
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2189309 sha256=189801364d4c926f49cb003f0436724a82a9e2fbcb6f5bc5583afe930e3b82f9
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-zf3trfh2/wheels/58/60/2b/ab7619b48a1e7a8c4b2a89ac5303e71b14e449452ec18882d2
+Successfully built bt_api_py

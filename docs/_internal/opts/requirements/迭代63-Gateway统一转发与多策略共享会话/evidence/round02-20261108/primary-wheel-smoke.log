@@ -1,0 +1,18 @@
+PACKAGE bt_api_py /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_py/__init__.py runtime= 0.16.0.dev63 metadata= 0.16.0.dev63
+PYTHON_SET_COUNTS bt_api_py 280 280 280
+PYTHON_SOURCE_MATCH bt_api_py 280
+PACKAGE bt_api_gateway /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_gateway/__init__.py runtime= None metadata= 0.2.0.dev63
+PYTHON_SET_COUNTS bt_api_gateway 21 21 21
+PYTHON_SOURCE_MATCH bt_api_gateway 21
+PACKAGE bt_api_ctp /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_ctp/__init__.py runtime= 2.1.0.dev63 metadata= 2.1.0.dev63
+PYTHON_SET_COUNTS bt_api_ctp 171 171 171
+PYTHON_SOURCE_MATCH bt_api_ctp 171
+MODULE bt_api_py.gateway_direct_dispatch /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_py/gateway_direct_dispatch.py
+MODULE bt_api_py.gateway_direct_service /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_py/gateway_direct_service.py
+MODULE bt_api_gateway.direct_dispatch /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_gateway/direct_dispatch.py
+MODULE bt_api_gateway.direct_command_journal /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_gateway/direct_command_journal.py
+MODULE bt_api_ctp.trusted_flow /private/tmp/iter63-packaging-pHDcpsk5/final-target/bt_api_ctp/trusted_flow.py
+DEPENDENCY_FROM_CONDA_OR_EDITABLE /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+GATEWAY_REQUIREMENT bt_api_gateway<1.0,>=0.2.0.dev63; extra == "gateway" old 0.1.0 rejected, no implicit ZMQ
+CTP_FLOW_TD_MD_ISOLATED /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter63-package-smoke-6o5g7i5p/flow/50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575/td /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter63-package-smoke-6o5g7i5p/flow/50a5ee17cb005388e7f31e1ed28043dda745bb3d2b65d8042afaead6fd4af575/md
+SQLITE_GUARD_CANONICAL_DISPATCH_IDEMPOTENT_TTL_RECOVERY passed

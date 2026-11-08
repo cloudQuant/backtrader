@@ -1,0 +1,9 @@
+Processing /tmp/iter63-packaging-pHDcpsk5/clean-source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2022255 sha256=1afb84a58f0abf69b7eb73cd365820b4ae7566cdd52514ad268e972871070a7d
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-fk2xzp9g/wheels/ec/c3/ba/5690604590eab2ac444325bd632bab14eb5484eed66ebb5067
+Successfully built bt_api_py

@@ -1,0 +1,26 @@
+........................................................................ [ 21%]
+........................................................................ [ 43%]
+........................................................................ [ 65%]
+..........................................F............................. [ 87%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+__________ test_monitor_requires_query_and_treats_control_as_optional __________
+tests/unit/test_service_deployment.py:403: in test_monitor_requires_query_and_treats_control_as_optional
+    control_only = _service("monitor-only-control", "service.monitor_control")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_service_deployment.py:123: in _service
+    return parse_service_config(config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:542: in parse_service_config
+    parsed, role = _parse_component(component_name, component_raw)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:996: in _parse_component
+    _fail("PORT_ROLE_MISMATCH", f"{path}.settings.bind_ports")
+bt_api_py/service_config.py:1460: in _fail
+    raise ServiceConfigError(code, path)
+E   bt_api_py.service_config.ServiceConfigError: PORT_ROLE_MISMATCH at $.components.monitor.settings.bind_ports
+----------- generated xml file: /tmp/iter63_round02_sdk_primary.xml ------------
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_deployment.py::test_monitor_requires_query_and_treats_control_as_optional
+1 failed, 327 passed in 2.45s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/integration/test_iter63_gateway_direct_dispatch.py tests/test_iter63_direct_identity_keys.py tests/test_iter63_direct_error_policy.py tests/test_iter62_direct_write.py tests/unit/test_iter63_gateway_direct_service.py tests/integration/test_iter63_gateway_direct_service.py tests/unit/test_service_config.py tests/unit/test_service_deployment.py tests/unit/test_service_registry.py tests/unit/test_service_runtime.py --junitxml=/tmp/iter63_round02_sdk_primary.xml` failed. (See above for error)

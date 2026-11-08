@@ -1,0 +1,6 @@
+PACKAGE bt_api_py /private/tmp/iter63-packaging-pHDcpsk5/target/bt_api_py/__init__.py runtime= 0.16.0.dev63 metadata= 0.16.0.dev63
+Traceback (most recent call last):
+  File "/tmp/iter63-packaging-pHDcpsk5/smoke.py", line 35, in <module>
+    assert original.is_file(), ('missing source', original)
+AssertionError: ('missing source', PosixPath('/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_compat.py'))
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-packaging-pHDcpsk5/smoke.py` failed. (See above for error)

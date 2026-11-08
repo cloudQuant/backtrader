@@ -1,0 +1,127 @@
+import hashlib
+import importlib
+import importlib.metadata as metadata
+import json
+import os
+import pathlib
+import sqlite3
+import sys
+import tempfile
+from decimal import Decimal
+
+from packaging.requirements import Requirement
+from packaging.version import Version
+
+target = pathlib.Path('/tmp/iter63-packaging-pHDcpsk5/final-target').resolve()
+root = pathlib.Path('/Users/yunjinqi/Documents/new_projects/bt_api_py').resolve()
+sys.path.insert(0, str(target))
+modules = {
+    'bt_api_py': (root / 'bt_api_py', '0.16.0.dev63'),
+    'bt_api_gateway': (root / 'bt_api/bt_api_gateway/src/bt_api_gateway', '0.2.0.dev63'),
+    'bt_api_ctp': (root / 'bt_api/bt_api_ctp/src/bt_api_ctp', '2.1.0.dev63'),
+}
+for name, (source, version) in modules.items():
+    module = importlib.import_module(name)
+    path = pathlib.Path(module.__file__).resolve()
+    dist = metadata.distribution(name)
+    print('PACKAGE', name, path, 'runtime=', getattr(module, '__version__', None), 'metadata=', dist.version)
+    assert path.is_relative_to(target)
+    assert pathlib.Path(dist._path).resolve().is_relative_to(target)
+    assert dist.version == version
+    assert getattr(module, '__version__', version) == version
+    snapshot_root = pathlib.Path('/tmp/iter63-packaging-pHDcpsk5/clean-source')
+    snapshot = {'bt_api_py': snapshot_root / 'sdk/bt_api_py', 'bt_api_gateway': snapshot_root / 'gateway/src/bt_api_gateway', 'bt_api_ctp': snapshot_root / 'ctp/src/bt_api_ctp'}[name]
+    installed_set = {p.relative_to(target / name) for p in (target / name).rglob('*.py')}
+    snapshot_set = {p.relative_to(snapshot) for p in snapshot.rglob('*.py')}
+    current_set = {p.relative_to(source) for p in source.rglob('*.py') if '__pycache__' not in p.parts}
+    print('PYTHON_SET_COUNTS', name, len(installed_set), len(snapshot_set), len(current_set))
+    assert installed_set == snapshot_set == current_set, ('set mismatch', name, sorted(map(str, installed_set - snapshot_set)), sorted(map(str, snapshot_set - installed_set)), sorted(map(str, current_set - snapshot_set)), sorted(map(str, snapshot_set - current_set)))
+    for relative in sorted(installed_set):
+        installed = target / name / relative
+        assert installed.read_bytes() == (snapshot / relative).read_bytes() == (source / relative).read_bytes(), ('source mismatch', name, str(relative))
+    print('PYTHON_SOURCE_MATCH', name, len(installed_set))
+
+for name in ('bt_api_py.gateway_direct_dispatch', 'bt_api_py.gateway_direct_service', 'bt_api_gateway.direct_dispatch', 'bt_api_gateway.direct_command_journal', 'bt_api_ctp.trusted_flow'):
+    module = importlib.import_module(name)
+    print('MODULE', name, module.__file__)
+    assert pathlib.Path(module.__file__).resolve().is_relative_to(target)
+
+import bt_api_base
+print('DEPENDENCY_FROM_CONDA_OR_EDITABLE', bt_api_base.__file__)
+requirements = [Requirement(v) for v in metadata.distribution('bt_api_py').requires or ()]
+gateway = [r for r in requirements if r.name.lower().replace('-', '_') == 'bt_api_gateway']
+assert len(gateway) == 1 and gateway[0].marker.evaluate({'extra': 'gateway'})
+assert Version('0.1.0') not in gateway[0].specifier and Version('0.2.0.dev63') in gateway[0].specifier
+assert not gateway[0].marker.evaluate({'extra': 'transport-zmq'})
+zmq = [r for r in requirements if r.name.lower().replace('-', '_') == 'bt_api_transport_zmq']
+assert len(zmq) == 1 and zmq[0].marker.evaluate({'extra': 'transport-zmq'})
+assert not zmq[0].marker.evaluate({'extra': 'gateway'})
+print('GATEWAY_REQUIREMENT', gateway[0], 'old 0.1.0 rejected, no implicit ZMQ')
+
+from bt_api_ctp.trusted_flow import TrustedFlow
+work = pathlib.Path(tempfile.mkdtemp(prefix='iter63-package-smoke-')).resolve()
+flow_root = work / 'flow'
+flow_root.mkdir(mode=0o700)
+flow = TrustedFlow(flow_root, 'synthetic-account')
+td, md = pathlib.Path(flow.native_path('td')), pathlib.Path(flow.native_path('md'))
+assert td != md and td.parent == md.parent and td.is_dir() and md.is_dir()
+(td / 'synthetic').write_text('trader')
+assert not (md / 'synthetic').exists()
+print('CTP_FLOW_TD_MD_ISOLATED', td, md)
+
+from bt_api_base.direct_write_protocol import DirectOrderReservation, DirectSubmitResult, DirectWriteErrorPolicy, NativeOrderIdentity, WriteOperation
+from bt_api_gateway.direct_command_journal import GatewayDirectCommandJournal
+from bt_api_gateway.session_guard import LocalAccountSessionGuard
+from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+from bt_api_py.direct_write import DirectWriteCoordinator
+from bt_api_py.gateway_direct_dispatch import compose_gateway_direct_dispatcher
+from bt_api_py.gateway_direct_service import recovery_requested_operations
+from bt_api_py.write_admission import WriteAdmission
+
+route = 'SYNTHETIC'
+account = 'synthetic-account'
+guards = work / 'guards'
+guards.mkdir(mode=0o700)
+guard = LocalAccountSessionGuard(guards, account, 'synthetic-owner')
+generation = guard.acquire()
+now = [100.0]
+dbfile = work / 'journal.sqlite'
+journal = GatewayDirectCommandJournal.create(dbfile, account, generation=generation, clock=lambda: now[0])
+class Provider:
+    execution_ids_trading_day_scoped = True
+    direct_write_error_policy = DirectWriteErrorPolicy(frozenset(), frozenset())
+    def __init__(self): self.refs, self.sends = [], []
+    def reserve_order(self, request):
+        assert type(request) is OrderRequest
+        ref = f'{len(self.refs) + 1:012d}'
+        self.refs.append(ref)
+        identity = NativeOrderIdentity(route, ref, {'trading_day': '20300101', 'front_id': 1, 'session_id': 7}, 1)
+        return DirectOrderReservation(identity, request.symbol, ref)
+    def release_reservation(self, reservation): pass
+    def session_generation(self): return 1
+    def submit_order(self, reservation, request, grant, verifier):
+        with sqlite3.connect(dbfile) as db:
+            status, payload = db.execute('SELECT status, payload_json FROM direct_journal_commands WHERE request_key=?', ('k',)).fetchone()
+        assert status == 'DISPATCHING' and request.to_dict() == json.loads(payload)
+        verifier.consume(grant, exchange_name=route, operation=WriteOperation.PLACE, session_generation=1)
+        self.sends.append(reservation.identity.client_order_id)
+        return DirectSubmitResult(True, reservation.identity)
+provider = Provider()
+coordinator = DirectWriteCoordinator(WriteAdmission({route: True}), lambda _: provider)
+dispatcher = compose_gateway_direct_dispatcher(coordinator, route, journal, guard, lambda _: True, expected_local_provider=provider)
+request = OrderRequest('X', Side.BUY, OrderType.LIMIT, Decimal('1.25'), account, 'cid', price=Decimal('120.50'))
+row = journal.reserve('strategy', 'k', 'principal', request.to_dict())
+observation = journal.observe('strategy', 'k', 'principal')
+assert observation.record == row and observation.generation_current and observation.remaining_ttl_seconds == 10.0
+now[0] = 104.0
+assert journal.observe('strategy', 'k', 'principal').remaining_ttl_seconds == 6.0
+args = (row.strategy_scope, row.request_key, row.principal, row.reservation_id, row.digest, row.version)
+result = dispatcher.dispatch(*args)
+assert result.status == 'SENT' and dispatcher.dispatch(*args) == result
+assert provider.refs == provider.sends == ['000000000001']
+assert journal.observe('strategy', 'k', 'principal').remaining_ttl_seconds is None
+page = journal.recovery_page(limit=10)
+assert len(page.records) == 1 and page.records[0] == result
+assert recovery_requested_operations()['broker.direct_write'] == frozenset({'direct.command_status', 'direct.release'})
+guard.release()
+print('SQLITE_GUARD_CANONICAL_DISPATCH_IDEMPOTENT_TTL_RECOVERY passed')

@@ -1,0 +1,27 @@
+{
+  "source_commits": {
+    "sdk": "496011f5",
+    "gateway": "e36c663",
+    "ctp": "5e22b2e"
+  },
+  "wheel_location": "/tmp/iter63-packaging-pHDcpsk5/clean-wheels",
+  "artifacts": [
+    {
+      "name": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "00e4d74f520e00c419c6bf76bc875aa03a509156f01597d759b65bca9c4e0270",
+      "bytes": 9327248
+    },
+    {
+      "name": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "221b7ec5cc8051f0d243de3df614c9df1d2e245ba4e4c6e61d1cdd32ff28e84e",
+      "bytes": 156662
+    },
+    {
+      "name": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "1afb84a58f0abf69b7eb73cd365820b4ae7566cdd52514ad268e972871070a7d",
+      "bytes": 2022255
+    }
+  ],
+  "dependency_environment": "Existing Anaconda base and editable Base; not clean dependency resolution",
+  "native_calls": 0
+}

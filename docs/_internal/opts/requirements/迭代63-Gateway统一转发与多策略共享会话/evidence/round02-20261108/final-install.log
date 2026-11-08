@@ -1,0 +1,6 @@
+Processing /tmp/iter63-packaging-pHDcpsk5/clean-wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl
+Processing /tmp/iter63-packaging-pHDcpsk5/clean-wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-packaging-pHDcpsk5/clean-wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl
+Installing collected packages: bt-api-py, bt-api-gateway, bt-api-ctp
+
+Successfully installed bt-api-ctp-2.1.0.dev63 bt-api-gateway-0.2.0.dev63 bt-api-py-0.16.0.dev63

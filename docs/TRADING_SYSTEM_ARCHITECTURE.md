@@ -81,7 +81,7 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 | 事实或状态 | 所有者/来源 | 其他组件的职责 |
 |---|---|---|
 | 交易所订单、成交与账户事实 | 交易所或券商的可验证观察 | Adapter 翻译，Gateway/Execution/Backtrader 消费和投影；没有结果不等于零或失败 |
-| 本地订单意图、派发、恢复与 UNKNOWN | `bt_api_execution` 的对应执行记录 | 拟议 Runtime 协调对账、Monitor 观察；同一账户范围只能有明确的派发 owner |
+| 本地订单意图、派发、恢复与 UNKNOWN | 直接模式的策略标记与 SDK/provider；经 Gateway 的基础预留/派发归 Gateway；显式 Execution 执行算法/母子单记录归 Execution | 各层按原身份衔接，不假定跨库原子；Gateway/Execution 都不能把本地记录当场所受理证明。63 的本地切片未构成完整交易 owner |
 | 风险许可、预留与冻结 | `bt_api_risk` | 执行路径按合同验证许可；从可信来源获得账户、持仓及行情事实 |
 | 账户/行情共享读模型 | `bt_api_gateway` 的本地状态，来源绑定 provider | 它不自动代表交易所原子快照或完整账户 |
 | Backtrader Order/Position/Observer 投影 | Backtrader | 框架 session projection journal 记录该运行实例如何消费事实，与 Execution 的订单日志不同 |
@@ -91,7 +91,7 @@ SDK 是集成框架，不是 Backtrader 的第二套策略引擎。插件加载�
 
 ## 7. 当前迁移边界
 
-按用户最新要求，先实施[迭代 53：实盘直连与 Store 职责重构](_internal/opts/requirements/迭代53-实盘直连与Store职责重构/迭代计划.md)，完成结构重构后暂停供用户审查，再处理功能修复与验收。目标是：只安装并选择 Backtrader、bt_api_py 与所需交易所适配时，可走受支持的 direct 下单/撤单路径；Gateway、Risk、Execution、Monitor 和 Runtime 是显式选用的增强组件。所选插件失败时不得静默退回 direct。当前源码中，Store 保留 BT Order、状态机和通知，SDK 定义中立关联订单合同；各 provider 的 direct 订单实现及注册仍待完成，尚不能宣称 CTP 或其他场所的 direct 下单/撤单路径已恢复。真实账户证据另需验收。
+2026-11-08：迭代 53 已废弃，当前按用户授权推进[迭代 63](_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/迭代计划.md)。Gateway 独立进程持有账户会话，策略通过 config.yaml 连接；基础两阶段命令与 SDK 组合已有离线切片，完整 owner、远端 provider、BT 接线、账本、控制与账户验收尚未完成。历史源码描述以当前分轮记录核对。目标是：只安装并选择 Backtrader、bt_api_py 与所需交易所适配时，可走受支持的 direct 下单/撤单路径；Gateway、Risk、Execution、Monitor 和 Runtime 是显式选用的增强组件。所选插件失败时不得静默退回 direct。当前源码中，Store 保留 BT Order、状态机和通知，SDK 定义中立关联订单合同；各 provider 的 direct 订单实现及注册仍待完成，尚不能宣称 CTP 或其他场所的 direct 下单/撤单路径已恢复。真实账户证据另需验收。
 
 各项目统一采用四种交易模式：`replay`、`shadow`、`paper`（外部模拟账户）和 `live`（生产账户）。定义、权限边界及迭代 52 范围见[交易运行模式标准](source/advanced/architecture/trading-modes_zh.md)；模式名称本身不授予账户写权限。
 
