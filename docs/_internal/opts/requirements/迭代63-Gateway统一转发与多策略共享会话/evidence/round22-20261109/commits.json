@@ -1,0 +1,9 @@
+{
+  "branch": "dev",
+  "pushed": false,
+  "commits": {
+    "Gateway": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6",
+    "SDK": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f"
+  },
+  "sdk_scope": "Gateway gitlink only"
+}

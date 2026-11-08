@@ -1,0 +1,316 @@
+{
+  "copied": [
+    {
+      "source": "SOURCE_FROZEN",
+      "archived": "install/SOURCE_FROZEN",
+      "original_sha256": "f339d119a92e1906f1b0178661edf028cb75c5f8187e46e6854fdeba81e78f65",
+      "archived_sha256": "f339d119a92e1906f1b0178661edf028cb75c5f8187e46e6854fdeba81e78f65"
+    },
+    {
+      "source": "audit_run.py",
+      "archived": "install/audit_run.py",
+      "original_sha256": "2ec9800755c22f61b82a9c561d7029893aa576014436f234c2ae8be8d554a1b3",
+      "archived_sha256": "2ec9800755c22f61b82a9c561d7029893aa576014436f234c2ae8be8d554a1b3"
+    },
+    {
+      "source": "bootstrap/offline_guard.py",
+      "archived": "install/bootstrap/offline_guard.py",
+      "original_sha256": "fed6cfe3c889f030282909197135fe70a32ef3cb5fc80f7e582318fcd08dc709",
+      "archived_sha256": "fed6cfe3c889f030282909197135fe70a32ef3cb5fc80f7e582318fcd08dc709"
+    },
+    {
+      "source": "bootstrap/origin_guard.py",
+      "archived": "install/bootstrap/origin_guard.py",
+      "original_sha256": "ccee2f3d26802992dc54c5c5db22430271a3bb837ed878738cebec003f78f1a8",
+      "archived_sha256": "ccee2f3d26802992dc54c5c5db22430271a3bb837ed878738cebec003f78f1a8"
+    },
+    {
+      "source": "bootstrap/sitecustomize.py",
+      "archived": "install/bootstrap/sitecustomize.py",
+      "original_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "archived_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+    },
+    {
+      "source": "build.log",
+      "archived": "install/build.log.gz",
+      "original_sha256": "e680bb4fe754fb5afb07b244c669dfdf8ce647141e6b9477a22a93b72ed74be3",
+      "archived_sha256": "59bdd462b3f743f2ccfd9da6a647ac56bf52c412b9e1000249a0535be2a6cc00"
+    },
+    {
+      "source": "download_msgpack.py",
+      "archived": "install/download_msgpack.py",
+      "original_sha256": "026208e3f1c2c02c3d28a3f8f6c65807d491f982e2f52390cee87d8f2be7897d",
+      "archived_sha256": "026208e3f1c2c02c3d28a3f8f6c65807d491f982e2f52390cee87d8f2be7897d"
+    },
+    {
+      "source": "executions.jsonl",
+      "archived": "install/executions.jsonl.gz",
+      "original_sha256": "fb0b96784fd6b2aea8ef97d18eb599cca271cbbb22f9905fdc878e0c4fe17934",
+      "archived_sha256": "14ed33f731e939d7c71d7eb152c2f84eef233a73c3569f28d857a72f97c3912e"
+    },
+    {
+      "source": "fixed-wheel.json",
+      "archived": "install/fixed-wheel.json",
+      "original_sha256": "ec17f8e3a8af77d6a9c3f9b08484b15fc9f2fbc85467cfce4eee4a3eddcdd09e",
+      "archived_sha256": "ec17f8e3a8af77d6a9c3f9b08484b15fc9f2fbc85467cfce4eee4a3eddcdd09e"
+    },
+    {
+      "source": "global-msgpack-after.log",
+      "archived": "install/global-msgpack-after.log.gz",
+      "original_sha256": "627ea6e2abf80bc2c25fb0d0e96595ad68bc6e2c6d98cd177f84553176caafc4",
+      "archived_sha256": "b8bbbee741416bfd458c94c07c68832bbac19bacc1c0628c750dcc421d138721"
+    },
+    {
+      "source": "harness-freeze-sha256.txt",
+      "archived": "install/harness-freeze-sha256.txt",
+      "original_sha256": "04f1c2c6386dd92a6d40b8a2c45f9cd817b86951c50904daeba5d53701e2dd4e",
+      "archived_sha256": "04f1c2c6386dd92a6d40b8a2c45f9cd817b86951c50904daeba5d53701e2dd4e"
+    },
+    {
+      "source": "install.log",
+      "archived": "install/install.log.gz",
+      "original_sha256": "10031c7284e18b9992544a011f11f3db1d229bfeda082a82e3eecef189b82736",
+      "archived_sha256": "282b6c21805a54e8f5e2d08c7f42f5f0334d074ab6057e0fee754984f377113c"
+    },
+    {
+      "source": "install_msgpack.py",
+      "archived": "install/install_msgpack.py",
+      "original_sha256": "0d8353ad5c3e3955277a4d17e6847bf5cd6c320e590105354bfa460c99170d48",
+      "archived_sha256": "0d8353ad5c3e3955277a4d17e6847bf5cd6c320e590105354bfa460c99170d48"
+    },
+    {
+      "source": "manifest.json",
+      "archived": "install/manifest.json",
+      "original_sha256": "c92d1e0d42fcb61bd2015bb221df71b3da90b1c62fd97a4d23ca0bcd8bbb5658",
+      "archived_sha256": "c92d1e0d42fcb61bd2015bb221df71b3da90b1c62fd97a4d23ca0bcd8bbb5658"
+    },
+    {
+      "source": "msgpack-download.log",
+      "archived": "install/msgpack-download.log.gz",
+      "original_sha256": "c978d3f4c75b8f2208f359a3bfc4deb5b1a1a576e8eed9f9dc882a88877959c4",
+      "archived_sha256": "75da2db7436633fb4c6dfaa3fc73390096f5f903330a28e9c54856b1fa60703d"
+    },
+    {
+      "source": "msgpack-install.log",
+      "archived": "install/msgpack-install.log.gz",
+      "original_sha256": "3eaf055aac367371d98cfb3aac53320333e35f5bb879eec9ed60db7c5f8307ab",
+      "archived_sha256": "79a4e3afd8b9293086730b89184cf250f5c8422ec1413aa5a6aa1f2e4c6f5a08"
+    },
+    {
+      "source": "msgpack-wheel-manifest.json",
+      "archived": "install/msgpack-wheel-manifest.json",
+      "original_sha256": "cb957eeafdb24800d45fcdff804f83705a2083de686ed342d0d23fc99afa7fbe",
+      "archived_sha256": "cb957eeafdb24800d45fcdff804f83705a2083de686ed342d0d23fc99afa7fbe"
+    },
+    {
+      "source": "origin-audit-msgpack.log",
+      "archived": "install/origin-audit-msgpack.log.gz",
+      "original_sha256": "844ba5398d1f8a9484e17e9e5edaebe3266eea089bc62a016035203c62949c7b",
+      "archived_sha256": "ef7a95ec0ec9f0d3e62b42478b132ab5fbdadf4b99478929ee9af4f3cfed76ae"
+    },
+    {
+      "source": "origin-audit.log",
+      "archived": "install/origin-audit.log.gz",
+      "original_sha256": "83e7773d17a0c9fec9e75e3b13c26535f8b04c43d920d81d5651805fe1b00a19",
+      "archived_sha256": "8198796c26f58121cc200fec66f7c417a42904f68a1599c78758e24feccc6df1"
+    },
+    {
+      "source": "origin-logs/preflight-80520-1794168580975942000/80546.jsonl",
+      "archived": "install/origin-logs/preflight-80520-1794168580975942000/80546.jsonl.gz",
+      "original_sha256": "8cf9a93dd99a6c71ee6ea42da9077bdbffca7377249285024d6be2ab7d2036a3",
+      "archived_sha256": "1c7949c3f50c71f3324f35e5475a7614a460bba2668fc8b3816514a971a84a3f"
+    },
+    {
+      "source": "origin-logs/tests-80521-1794168580975933000/80544.jsonl",
+      "archived": "install/origin-logs/tests-80521-1794168580975933000/80544.jsonl.gz",
+      "original_sha256": "45a86a3f313358b8ae86cb9b85a710306a6fcdd7dadb2c831415ac2a708f7731",
+      "archived_sha256": "96ddeea48876f57007e64bb2bcc5fc9580cb65067b289290621829136f3d6eb1"
+    },
+    {
+      "source": "origin-logs/tests-msgpack-80897-1794168758960614000/80905.jsonl",
+      "archived": "install/origin-logs/tests-msgpack-80897-1794168758960614000/80905.jsonl.gz",
+      "original_sha256": "9a98030f77645786dfc4ca2a10a0be4fb30a2578cdbb7515b29a57d3ba97d639",
+      "archived_sha256": "0a814ad3f2a8c42f385b07ffa77da1e2388452b2875914dded36124ab0c4d22c"
+    },
+    {
+      "source": "origin-logs/verify-80519-1794168580975925000/80545.jsonl",
+      "archived": "install/origin-logs/verify-80519-1794168580975925000/80545.jsonl.gz",
+      "original_sha256": "181e9e11e257b43a37fd0a22a54de65756d1c6852aeeaed6f4d2705216ae747c",
+      "archived_sha256": "b630c3ee5cbacb3b61ba053c8df3229a58d22dc038e27dcc6bc504aaa6c90b3a"
+    },
+    {
+      "source": "origin-logs/verify-final-80963-1794168766711908000/80972.jsonl",
+      "archived": "install/origin-logs/verify-final-80963-1794168766711908000/80972.jsonl.gz",
+      "original_sha256": "1fab97283a3482b900d22218f2f661ca393067cb17d27e1b2309499c23e6c5ac",
+      "archived_sha256": "2de73aeaa19c5c4bc7fa4c090cb09ca4ea5c1e8f9d5092a0fb85a01917e7bd49"
+    },
+    {
+      "source": "preflight.log",
+      "archived": "install/preflight.log.gz",
+      "original_sha256": "81a50ac3e47b6869e3defd98d02d2e63fd7501e604b916ebbacd5d04d25f9a0d",
+      "archived_sha256": "08247deda08268c00e0092ca47894641ed4bf30b2d138177befe3727175dc3ed"
+    },
+    {
+      "source": "preflight.py",
+      "archived": "install/preflight.py",
+      "original_sha256": "bac4acf74f88aa1c23f1425048276efccfef5d25b72e6874ffa1b994d4ad1489",
+      "archived_sha256": "bac4acf74f88aa1c23f1425048276efccfef5d25b72e6874ffa1b994d4ad1489"
+    },
+    {
+      "source": "prepare.py",
+      "archived": "install/prepare.py",
+      "original_sha256": "d37c1ca652e7208f04e545a495dd3b4ae358fee6474ee2198df71484f79cd87f",
+      "archived_sha256": "d37c1ca652e7208f04e545a495dd3b4ae358fee6474ee2198df71484f79cd87f"
+    },
+    {
+      "source": "run.py",
+      "archived": "install/run.py",
+      "original_sha256": "820b38f0b9843f417fc5951004165066221df2906f041e9dce475095d52637a8",
+      "archived_sha256": "820b38f0b9843f417fc5951004165066221df2906f041e9dce475095d52637a8"
+    },
+    {
+      "source": "run_supplement.py",
+      "archived": "install/run_supplement.py",
+      "original_sha256": "52a1daf53ea685da260fa41e5a6403587935b63de9edc1aed261ecb451171ef4",
+      "archived_sha256": "52a1daf53ea685da260fa41e5a6403587935b63de9edc1aed261ecb451171ef4"
+    },
+    {
+      "source": "run_tests.py",
+      "archived": "install/run_tests.py",
+      "original_sha256": "c4676428ef35a5ea183ae6fc252f2650ad9327b8e09d8b126bccfacc26027f9d",
+      "archived_sha256": "c4676428ef35a5ea183ae6fc252f2650ad9327b8e09d8b126bccfacc26027f9d"
+    },
+    {
+      "source": "run_tests_with_dependency.py",
+      "archived": "install/run_tests_with_dependency.py",
+      "original_sha256": "d5edfd79363458e4fba616fd2891ded2af9c0c5fc0507b4e321fd9b58aec55f8",
+      "archived_sha256": "d5edfd79363458e4fba616fd2891ded2af9c0c5fc0507b4e321fd9b58aec55f8"
+    },
+    {
+      "source": "selectors.json",
+      "archived": "install/selectors.json",
+      "original_sha256": "27212b34fd829d81f7eebf8ca72debabb6d014bbe35098d12250b86d4a76dca1",
+      "archived_sha256": "27212b34fd829d81f7eebf8ca72debabb6d014bbe35098d12250b86d4a76dca1"
+    },
+    {
+      "source": "snapshot.log",
+      "archived": "install/snapshot.log.gz",
+      "original_sha256": "c32fa500493e91fb732253dd59763318a4a85403c693a25b155dad6ea4aaf152",
+      "archived_sha256": "073dc2d6169a59ec81abdd6437713ce45cb264b98841987c0bc87c64926dd4f4"
+    },
+    {
+      "source": "supplement-executions.jsonl",
+      "archived": "install/supplement-executions.jsonl.gz",
+      "original_sha256": "36d3722aff83f4e4339d0c2b529971e08bce0f7104bcdb3092f0f8b7de8bb060",
+      "archived_sha256": "1c503bffbee721fbd30220d1214d10dc3a6d2f03652a68a2c7c4af4a772b9237"
+    },
+    {
+      "source": "supplement-harness-sha256.txt",
+      "archived": "install/supplement-harness-sha256.txt",
+      "original_sha256": "06ce6c4d7327ac8bdc3e021757a4fce37cd1d5dec3fa7467e714fdc35ae8cdab",
+      "archived_sha256": "06ce6c4d7327ac8bdc3e021757a4fce37cd1d5dec3fa7467e714fdc35ae8cdab"
+    },
+    {
+      "source": "supplement-readonly-commands.json",
+      "archived": "install/supplement-readonly-commands.json",
+      "original_sha256": "8833e4e63a4b5858db7b7cc0dbb378881999a2d96f0fb9944687512f3490f618",
+      "archived_sha256": "8833e4e63a4b5858db7b7cc0dbb378881999a2d96f0fb9944687512f3490f618"
+    },
+    {
+      "source": "test-origin-audit.json",
+      "archived": "install/test-origin-audit.json",
+      "original_sha256": "25b3cdab47413442523c8d45a04ab7c7209af88e78ccafcdf8005b2f86e8204a",
+      "archived_sha256": "25b3cdab47413442523c8d45a04ab7c7209af88e78ccafcdf8005b2f86e8204a"
+    },
+    {
+      "source": "tests-msgpack.log",
+      "archived": "install/tests-msgpack.log.gz",
+      "original_sha256": "24b24daf7ee489202f608f10f8854b214f8f6c7c65cdff8a7368c97c0502d54f",
+      "archived_sha256": "65f179df7d0c238e4321a582bd8b7fecddf3228c14d67367674573c9d3376613"
+    },
+    {
+      "source": "tests.log",
+      "archived": "install/tests.log.gz",
+      "original_sha256": "f5d55555fca1cadeb0daf430469e4c634f5191577582eb8b73f7200b1e32e694",
+      "archived_sha256": "06531ea9587d1c05764455f9f563b3eb6965ad967a2af572687a27b4d93420ac"
+    },
+    {
+      "source": "verify-all-payload.log",
+      "archived": "install/verify-all-payload.log.gz",
+      "original_sha256": "61e17aa6cf8cc70f40952e95a9b94d64dd8b2121d00cda23bcdb80759613366f",
+      "archived_sha256": "6b707a3c1b0e6aece18c4be35adbf9bb87abd9a0b5beb00aee4e396893c35235"
+    },
+    {
+      "source": "verify-commit.log",
+      "archived": "install/verify-commit.log.gz",
+      "original_sha256": "04410d5c2d4f080a1df5e69470709825afb3336ce5bfb0b9e2097df0a936912f",
+      "archived_sha256": "95022b0ffa4ba411292b5a19c7dd41963aae96092b9cce12d780f496635f4d69"
+    },
+    {
+      "source": "verify-dependency.log",
+      "archived": "install/verify-dependency.log.gz",
+      "original_sha256": "6902ea96d7edd808623dc197c36c018f401a32b52b2403d61ee61a85914321cd",
+      "archived_sha256": "b14a7b34bb87a0c33334cff711b7b08a425e55a7dae6a819858501e3dda7f87e"
+    },
+    {
+      "source": "verify-final.log",
+      "archived": "install/verify-final.log.gz",
+      "original_sha256": "42af6892fc6cbe0dd97eddcee4378b7a20d5dec73e8d2485e4e641db7b9d242e",
+      "archived_sha256": "0a8055b395d2c4c75ac3412a6a61e81efd1742c3083f7e93fea0e4a0a7723b10"
+    },
+    {
+      "source": "verify.log",
+      "archived": "install/verify.log.gz",
+      "original_sha256": "0c5c9ea439c76a0424952a583d514754d02d3b99edb1d4a7d848e206b2b3aa36",
+      "archived_sha256": "7864b40d1693b033cec855a1f7a755bf9d23799562ca67e2379820024628d763"
+    },
+    {
+      "source": "verify.py",
+      "archived": "install/verify.py",
+      "original_sha256": "1a88f58e3b350fb5e80598a9c364de8b3f689b6ae50345a23f7b9fe641687062",
+      "archived_sha256": "1a88f58e3b350fb5e80598a9c364de8b3f689b6ae50345a23f7b9fe641687062"
+    },
+    {
+      "source": "verify_all_gateway_payload.py",
+      "archived": "install/verify_all_gateway_payload.py",
+      "original_sha256": "9779f7992b18bf0c477b2ff66c49cccb405ae6aa66f7af55185dc45eb1ce467d",
+      "archived_sha256": "9779f7992b18bf0c477b2ff66c49cccb405ae6aa66f7af55185dc45eb1ce467d"
+    },
+    {
+      "source": "verify_all_gateway_payload.sha256",
+      "archived": "install/verify_all_gateway_payload.sha256",
+      "original_sha256": "0a73d57f5827dc37be352fe256db5fba0d373d0ab89da892ba72b927af707f39",
+      "archived_sha256": "0a73d57f5827dc37be352fe256db5fba0d373d0ab89da892ba72b927af707f39"
+    },
+    {
+      "source": "verify_commit.py",
+      "archived": "install/verify_commit.py",
+      "original_sha256": "e859ba2fd0688dc15d0847e80497f234b28ed3d620f602f236f4af6b7380b5cb",
+      "archived_sha256": "e859ba2fd0688dc15d0847e80497f234b28ed3d620f602f236f4af6b7380b5cb"
+    },
+    {
+      "source": "verify_commit.sha256",
+      "archived": "install/verify_commit.sha256",
+      "original_sha256": "e809530d7003f6ab39ef1e8a73175156043141e284ce2c019ccce7de02b7e6c8",
+      "archived_sha256": "e809530d7003f6ab39ef1e8a73175156043141e284ce2c019ccce7de02b7e6c8"
+    },
+    {
+      "source": "verify_msgpack.py",
+      "archived": "install/verify_msgpack.py",
+      "original_sha256": "e03f2855928090df558f55f5d84864142c5a5275b5f9238a9a701cce934b1111",
+      "archived_sha256": "e03f2855928090df558f55f5d84864142c5a5275b5f9238a9a701cce934b1111"
+    }
+  ],
+  "excluded_wheel_bodies": [
+    {
+      "relative": "dependency-wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50",
+      "size": 90187
+    },
+    {
+      "relative": "wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "686f15343997ad4687ef1860ce9ae3f4af71d37dd2aba250fdade32ea7be3e59",
+      "size": 192423
+    }
+  ]
+}

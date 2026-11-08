@@ -1,0 +1,39 @@
+{
+  "documents": [
+    {
+      "file": "archived/实施第二十二轮行情重授权快照隔离审阅-2026-11-09.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "local_links_checked": 7,
+      "sha256": "8f0969809ea8dfd13eaa1566720fd99dc5eee1d7e457b09a6e9d4c1e6962e8ae"
+    },
+    {
+      "file": "开发问题记录.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "local_links_checked": 20,
+      "sha256": "253e90ce468bb870c3d8faa09230d15add0e528a526397f577e563fc242b7be3"
+    },
+    {
+      "file": "实施基线与分轮记录-2026-11-08.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "local_links_checked": 93,
+      "sha256": "26b185a6fd542890c290d187eb93eac6ff31c8b1f2c6fb87ae88a5c790dd4440"
+    },
+    {
+      "file": "开发验收状态矩阵.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "local_links_checked": 8,
+      "sha256": "3e9a87ac165b287a5f50fb0f9cd5bc2767b0874c6076bb200d5e8a101f1e2692"
+    }
+  ],
+  "PowerShell_5_1": "NOT_RUN on macOS",
+  "fragment_anchors": "NOT_RUN",
+  "initial_validation": "The report linked this generated result before it existed. Precreated the output then validated again; no source or product test changed."
+}

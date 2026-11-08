@@ -1,0 +1,5 @@
+{
+  "src/bt_api_gateway/market_hub.py": "87dc1d6095149faa3413de08793dfc02ce12904f37089dda2ad7f8e52c33a09a",
+  "tests/test_iter63_bootstrap_regrant_floor.py": "2a1478665dde6ec7266d6747c0831be0b21f1617ef8135cda222f823796392e7",
+  "tests/test_market_hub.py": "10fab88349569c9c94724dc9a201daa0833b4f0d9bfaece031aaad4288d7ee63"
+}

@@ -1,0 +1,64 @@
+[
+  {
+    "stage": "verify-all-gateway-payload",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/verify_all_gateway_payload.py"
+    ],
+    "exit_code": 0,
+    "log": "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/verify-all-payload.log"
+  },
+  {
+    "stage": "origin-audit-first",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/audit_run.py",
+      "tests-80521-1794168580975933000"
+    ],
+    "exit_code": 0,
+    "log": "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/origin-audit.log"
+  },
+  {
+    "stage": "origin-audit-final",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/audit_run.py",
+      "tests-msgpack-80897-1794168758960614000"
+    ],
+    "exit_code": 0,
+    "log": "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/origin-audit-msgpack.log"
+  },
+  {
+    "stage": "verify-commit",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/verify_commit.py"
+    ],
+    "exit_code": 0,
+    "log": "/tmp/iter63-r22-e044-install-20261109-K3FbuXsv/verify-commit.log"
+  }
+]

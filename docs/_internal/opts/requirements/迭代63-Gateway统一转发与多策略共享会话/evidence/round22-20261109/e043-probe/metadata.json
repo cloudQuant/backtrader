@@ -1,0 +1,23 @@
+{
+  "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-e043-probe/probe.py",
+  "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+  "exit_code": 0,
+  "meaning": "successful reproduction; not a passing responsiveness test",
+  "sdk_commit": "cfdccd03bdfeaeb68e94ab95de28020171a4b23f",
+  "gateway_commit": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6",
+  "fixtures": {
+    "tests/integration/test_iter63_ctp_gateway_joint_service.py": "c1b1683848c0b83d0f5e4a0723248a614bc3f84f4754860070d16c3fcb12c215",
+    "tests/integration/test_iter63_gateway_direct_service.py": "a5ccd132901758e88cf232f35b8ab63dfe3bbb5f9f679afbbbda0178073e6359",
+    "tests/integration/test_service_account_instrument_metadata.py": "01818d3b78e134fb751e2e9a64ec66287edecc10ed3feb8773003dbf990c68f6",
+    "tests/unit/test_iter63_gateway_direct_client.py": "c24515e3b6603e1d2eea0a9a8e6e89ed2c76fda4a5e74e242616aced16007c90",
+    "tests/unit/test_iter63_gateway_direct_service.py": "a4d5b9d115d462f3312321c7086e1ffcab0c0567b3de626ee76d27083a7661a3"
+  },
+  "primary_review": "read probe source and confirmed raw log; did not independently rerun",
+  "limits": [
+    "one batch item only",
+    "does not establish 20-item multiplier",
+    "does not establish lease expiry",
+    "synthetic native boundary, no account evidence",
+    "not isolated installation or complete per-process module origin audit"
+  ]
+}

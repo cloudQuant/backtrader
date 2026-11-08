@@ -1,0 +1,7 @@
+[
+  "tests/test_iter63_bootstrap_regrant_floor.py",
+  "tests/test_iter63_market_hub_confirmed_owner_close.py",
+  "tests/test_market_hub.py",
+  "tests/test_market_hub_runtime_revocation_iter60.py",
+  "tests/test_market_history_service.py"
+]

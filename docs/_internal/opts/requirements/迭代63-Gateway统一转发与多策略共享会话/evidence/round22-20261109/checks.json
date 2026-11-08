@@ -1,0 +1,52 @@
+{
+  "scope": "E044 principal-aware bootstrap snapshot; E043 remains OPEN",
+  "primary_source": {
+    "command": "PYTHONPATH=src:../bt_api_base/src /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest tests -q",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "exit_code": 0,
+    "result": "830 passed in 11.37s",
+    "evidence_level": "local synthetic package regression; source run did not inject the R21 network/source audit guard"
+  },
+  "primary_lint": {
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m ruff check src/bt_api_gateway/market_hub.py tests/test_iter63_bootstrap_regrant_floor.py tests/test_market_hub.py --select E9,F",
+    "exit_code": 0
+  },
+  "primary_diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  },
+  "independent_review": "review_cursor read-only review; no new substantive findings; did not execute tests",
+  "not_run": [
+    "real account",
+    "native venue operations",
+    "full SDK/CTP/BT regression",
+    "Windows PowerShell 5.1",
+    "full dependency resolver",
+    "E043 asynchronous bootstrap implementation"
+  ],
+  "installed": {
+    "result": "85 passed in 0.10s",
+    "exit_code": 0,
+    "selector_files": 5,
+    "msgpack": "1.2.4",
+    "origin_run_id": "tests-msgpack-80897-1794168758960614000",
+    "recorded_processes": 1,
+    "missing_exit_audits": 0,
+    "source_origin_violations": 0,
+    "agent_run": true,
+    "primary_reviewed_raw_log_and_runner": true
+  },
+  "primary_artifact_verification": {
+    "command": "Anaconda base python verify_all_gateway_payload.py and python -I verify_msgpack.py",
+    "exit_code": 0,
+    "gateway_package_payloads": 27,
+    "msgpack_payloads": 5,
+    "source_copy_commit_manifest_rows": 35,
+    "commit": "091d72fcae1c6fe6ac3dacdf6db4619f2c5b87a6"
+  },
+  "initial_dependency_gap": {
+    "msgpack": "1.0.3",
+    "status": "does not meet declared >=1.1; initial log retained; rerun in temporary target with 1.2.4 passed",
+    "global_environment_changed": false
+  }
+}
