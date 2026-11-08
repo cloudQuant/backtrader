@@ -1,0 +1,3 @@
+GAP: test_lightweight_import_and_validation_do_not_load_native_or_feed uses Python -I -c, so sitecustomize and the normal origin/offline guard are not injected. The test passes an install/src path derived from the relocated test, inserts it into the child sys.path, and asserts child exit 0. The child has its own import hook blocking bt_api_ctp.ctp.client, bt_api_ctp.feeds*, and openctp_ctp*; this is not a general native/network sandbox or independent child origin audit.
+copied_test_sha256=a8e5e57d5d35de42308458b1f7b87a1e66a352c6764c38d29fbf40bb8c024a49
+isolated_script_sha256=1a14c0d05ffeb97053ea9766e9bbfeb9b79ddf41336194476845f7d8eb830ea2

@@ -1,0 +1,35 @@
+[
+  {
+    "status": "fulfilled",
+    "value": {
+      "kind": "sdk",
+      "chunk_id": "a75b43",
+      "wall_time_seconds": 1.272188334,
+      "exit_code": 1,
+      "original_token_count": 270,
+      "output": "F401 [*] `.service_runtime.ServiceClientRuntime` imported but unused\n  --> bt_api_py/gateway_operator.py:32:30\n   |\n30 | from .service_config import ServiceConfig\n31 | from .service_host import ServiceHost, TrustedServiceAuthority, TrustedServiceClients\n32 | from .service_runtime import ServiceClientRuntime\n   |                              ^^^^^^^^^^^^^^^^^^^^\n33 |\n34 | _SAFE_REF = re.compile(r\"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$\")\n   |\nhelp: Remove unused import: `.service_runtime.ServiceClientRuntime`\n\nFound 1 error.\n[*] 1 fixable with the `--fix` option.\nERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --select E9,F bt_api_py/gateway_direct_owner.py bt_api_py/gateway_owner_market.py bt_api_py/ctp_gateway_trading.py bt_api_py/gateway_operator.py tests/unit/test_iter63_gateway_owner_service_calls.py tests/unit/test_iter63_gateway_owner_market.py tests/unit/test_iter63_ctp_gateway_market_profile.py tests/unit/test_iter63_gateway_operator_three_ports.py tests/integration/test_iter63_ctp_gateway_joint_service.py` failed. (See above for error)\n"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "kind": "ctp",
+      "chunk_id": "ef76af",
+      "wall_time_seconds": 1.2757229159999999,
+      "exit_code": 0,
+      "original_token_count": 5,
+      "output": "All checks passed!\n"
+    }
+  },
+  {
+    "status": "fulfilled",
+    "value": {
+      "kind": "gateway",
+      "chunk_id": "1f74b4",
+      "wall_time_seconds": 1.283359291,
+      "exit_code": 0,
+      "original_token_count": 5,
+      "output": "All checks passed!\n"
+    }
+  }
+]

@@ -1,0 +1,59 @@
+[
+  {
+    "kind": "gateway",
+    "run_id": "gateway-frozen-final-75858-1794167496457638000",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r21-install-20261109-QD2dgx3G/audit_run.py",
+      "gateway-frozen-final-75858-1794167496457638000"
+    ],
+    "exit_code": 0,
+    "stdout_stderr": "/tmp/iter63-r21-install-20261109-QD2dgx3G/gateway-origin-audit.log",
+    "files": 14,
+    "missing_exit_audits": 8
+  },
+  {
+    "kind": "ctp",
+    "run_id": "ctp-frozen-final-75857-1794167496457719000",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r21-install-20261109-QD2dgx3G/audit_run.py",
+      "ctp-frozen-final-75857-1794167496457719000"
+    ],
+    "exit_code": 0,
+    "stdout_stderr": "/tmp/iter63-r21-install-20261109-QD2dgx3G/ctp-origin-audit.log",
+    "files": 1,
+    "missing_exit_audits": 0
+  },
+  {
+    "kind": "sdk",
+    "run_id": "sdk-frozen-final-75856-1794167496452110000",
+    "argv": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-I",
+      "/tmp/iter63-r21-install-20261109-QD2dgx3G/audit_run.py",
+      "sdk-frozen-final-75856-1794167496452110000"
+    ],
+    "exit_code": 0,
+    "stdout_stderr": "/tmp/iter63-r21-install-20261109-QD2dgx3G/sdk-origin-audit.log",
+    "files": 83,
+    "missing_exit_audits": 3
+  }
+]

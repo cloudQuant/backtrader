@@ -1,0 +1,36 @@
+{
+  "scope": "R21 local source/install validation; full iteration IN_PROGRESS",
+  "source": {
+    "gateway": 829,
+    "ctp": 1067,
+    "sdk": 1263
+  },
+  "installed": {
+    "gateway": 829,
+    "ctp": 1067,
+    "sdk": 1263
+  },
+  "selectors_sha256": "c2eca4dfc9202a584d06aa9bbe2712adf7a6b180ecbbc674704d12ff41941180",
+  "file_counts": {
+    "frozen": 18,
+    "source": 1448,
+    "tests_and_helpers": 197
+  },
+  "commits": {
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "f407b72225c7a451acf2879fc134e003c4bbbf29",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "7a4cc1dbb23ac94d1d606e158015c9728cb38a90",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "ce8765c82338876da3c1b12ddd51082f6221e89e"
+  },
+  "known_gaps": [
+    "E043 batch bootstrap wait amplification",
+    "BT wiring and projection/ACK",
+    "real-account and cross-platform acceptance",
+    "SDK baseline F401",
+    "source and installed Gateway 8 / SDK 3 missing child exit audits",
+    "SDK and CTP -I subprocess guard gaps",
+    "editable Monitor/ZMQ; no full dependency resolver",
+    "T0 observation cannot guarantee T2 live source"
+  ],
+  "native": "R19 native payload reused; no compilation or real native/account calls",
+  "archive_policy": "public logs, scripts, manifests only; source/test snapshots, install tree and wheels excluded; historical precommit allowlist excluded"
+}

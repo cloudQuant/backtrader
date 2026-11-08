@@ -1,0 +1,516 @@
+[
+  {
+    "kind": "gateway",
+    "run_id": "gateway-75346-1794167436755733000",
+    "files": 14,
+    "missing_exit_audits": 8,
+    "processes": [
+      {
+        "pid": 75346,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75383,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75540,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75543,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75576,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75580,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75582,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75583,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75585,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75588,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75589,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75591,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75592,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75593,
+        "guard": true,
+        "exit_audit": true
+      }
+    ]
+  },
+  {
+    "kind": "ctp",
+    "run_id": "ctp-75350-1794167436796173000",
+    "files": 1,
+    "missing_exit_audits": 0,
+    "processes": [
+      {
+        "pid": 75350,
+        "guard": true,
+        "exit_audit": true
+      }
+    ]
+  },
+  {
+    "kind": "sdk",
+    "run_id": "sdk-75349-1794167436796145000",
+    "files": 83,
+    "missing_exit_audits": 3,
+    "processes": [
+      {
+        "pid": 75349,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75528,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75577,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75584,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75594,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75601,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75612,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75617,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75623,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75626,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75630,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75634,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75636,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75637,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75638,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75640,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75643,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75644,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75647,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75657,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75658,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75721,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75742,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75759,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75760,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75761,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75764,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75775,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75780,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75785,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75787,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75789,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75790,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75791,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75795,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75796,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75797,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75798,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75799,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75800,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75803,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75806,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75808,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75809,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75810,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75811,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75812,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75813,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75814,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75815,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75816,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75817,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75821,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75829,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75849,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75893,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75896,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75897,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75899,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75901,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75902,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75903,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75906,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75908,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75909,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75913,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75914,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75916,
+        "guard": true,
+        "exit_audit": false
+      },
+      {
+        "pid": 75918,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75923,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75925,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75929,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75933,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75939,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75940,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 75942,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76031,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76032,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76033,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76034,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76035,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76068,
+        "guard": true,
+        "exit_audit": true
+      },
+      {
+        "pid": 76074,
+        "guard": true,
+        "exit_audit": true
+      }
+    ]
+  }
+]

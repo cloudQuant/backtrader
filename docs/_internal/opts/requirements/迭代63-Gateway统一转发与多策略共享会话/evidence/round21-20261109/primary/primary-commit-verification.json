@@ -1,0 +1,17 @@
+{
+  "files": 18,
+  "commits": {
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "f407b72225c7a451acf2879fc134e003c4bbbf29",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "7a4cc1dbb23ac94d1d606e158015c9728cb38a90",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "ce8765c82338876da3c1b12ddd51082f6221e89e"
+  },
+  "result": "PASS",
+  "baseline_lint_gap": {
+    "file": "bt_api_py/gateway_operator.py",
+    "line": 32,
+    "rule": "F401",
+    "symbol": "ServiceClientRuntime",
+    "baseline": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "occurrences_before_and_after": 1
+  }
+}

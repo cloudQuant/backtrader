@@ -1,0 +1,128 @@
+[
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "README.md",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "be1e113b9dd1dcf257e1b0f2d58cc22818dddce3bc80e3d113c0d8a35bfdb8fe"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "bt_api_py/ctp_gateway_trading.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "65dff5eeb50f9fea72bc50392658621af351ef4fdf11d48e02c342b4cc7e5798"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "bt_api_py/gateway_direct_owner.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "31eb38630a56f12c43ce81729c35dc56f9eb998d2d4117604363a40407eee500"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "bt_api_py/gateway_operator.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "24d0c55b6814bc8f4f183673f70f8101ddbbe93efc194c333bb79b5658ad6903"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "bt_api_py/gateway_owner_market.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "c953a722c4d1d67f20b8ce7f1e66dfc4deaabf69625729877da594671eb322a1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "tests/integration/test_iter63_ctp_gateway_joint_service.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "c1b1683848c0b83d0f5e4a0723248a614bc3f84f4754860070d16c3fcb12c215"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "tests/unit/test_iter63_ctp_gateway_market_profile.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "518b761bfc7b3335c7014f13c00c8c358bf1e89b90afbf78a4f64131f2bd75b9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "tests/unit/test_iter63_gateway_operator_three_ports.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "89ce1d42e782bf16c5800538b2ac59a45a9d59339792aee6b601ad5b36604738"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "tests/unit/test_iter63_gateway_owner_market.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "a21a0cac8958b86a305a88ac950fd8731ad6334f3ce478a2c4935b808f052811"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "kind": "sdk",
+    "path": "tests/unit/test_iter63_gateway_owner_service_calls.py",
+    "snapshot_head": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "sha256": "caf4cfbf0cc9a2c812704f00d216bcc2c7b87e2aa22d1024c4fe8e95859617c3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "kind": "gateway",
+    "path": "README.md",
+    "snapshot_head": "ecb98a0d1f598dc33ae112829dc958a60846058b",
+    "sha256": "3022fb2f2622bc4c66767180954ecc2847ea37c33b539c818c03395890c9c689"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "kind": "gateway",
+    "path": "src/bt_api_gateway/market_hub.py",
+    "snapshot_head": "ecb98a0d1f598dc33ae112829dc958a60846058b",
+    "sha256": "411a4e1a627ec6246cae47499878b88073b496a2e8f81c6ab3755dd1746c46a8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "kind": "gateway",
+    "path": "tests/test_iter63_market_hub_confirmed_owner_close.py",
+    "snapshot_head": "ecb98a0d1f598dc33ae112829dc958a60846058b",
+    "sha256": "b95b092a6cfcc5918c48483049d67dd905d87a4b7cbd22013dadf9df0f7a18d3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "kind": "ctp",
+    "path": "README.md",
+    "snapshot_head": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+    "sha256": "a748f39b5c64a2f454a4d8ba10c74a0e1ce78f4f21fd006443e018210987d44e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "kind": "ctp",
+    "path": "src/bt_api_ctp/market_provider.py",
+    "snapshot_head": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+    "sha256": "c7424be2c46cc11dec130943972b3a22c17001f1bb851efb6c5175ac7c5e0e78"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "kind": "ctp",
+    "path": "src/bt_api_ctp/market_key_contract.py",
+    "snapshot_head": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+    "sha256": "252e3748fa5ab3a5b81e6d97ccce89ab9b0c94de2f7a123ea415b69ad380364d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "kind": "ctp",
+    "path": "tests/test_iter63_retained_market_delivery.py",
+    "snapshot_head": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+    "sha256": "fcd623a8b2ce2e7698e59246f44d6bc31081d4d55f72419a740ec3e81a0551ba"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "kind": "ctp",
+    "path": "tests/test_market_key_contract.py",
+    "snapshot_head": "abd8bf320f396ea271f974cf59659bfd0190a78c",
+    "sha256": "a8e5e57d5d35de42308458b1f7b87a1e66a352c6764c38d29fbf40bb8c024a49"
+  }
+]

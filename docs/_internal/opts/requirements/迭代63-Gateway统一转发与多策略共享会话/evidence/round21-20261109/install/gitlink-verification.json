@@ -1,0 +1,20 @@
+[
+  {
+    "path": "bt_api/bt_api_base",
+    "sdk_head_gitlink": "f117c0bea16e77bee87451d8c1dbe3ba790f705c",
+    "subrepo_head": "f117c0bea16e77bee87451d8c1dbe3ba790f705c",
+    "match": true
+  },
+  {
+    "path": "bt_api/bt_api_ctp",
+    "sdk_head_gitlink": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "subrepo_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "match": true
+  },
+  {
+    "path": "bt_api/bt_api_gateway",
+    "sdk_head_gitlink": "7a4cc1dbb23ac94d1d606e158015c9728cb38a90",
+    "subrepo_head": "7a4cc1dbb23ac94d1d606e158015c9728cb38a90",
+    "match": true
+  }
+]

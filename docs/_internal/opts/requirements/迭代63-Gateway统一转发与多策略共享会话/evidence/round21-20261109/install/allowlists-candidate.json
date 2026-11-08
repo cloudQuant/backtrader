@@ -1,0 +1,31 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [
+      "src/bt_api_ctp/market_key_contract.py"
+    ],
+    "sdk": [
+      "bt_api_py/gateway_owner_market.py"
+    ],
+    "bt": []
+  },
+  "tests": {
+    "base": [],
+    "gateway": [
+      "tests/test_iter63_market_hub_confirmed_owner_close.py"
+    ],
+    "ctp": [
+      "tests/test_market_key_contract.py",
+      "tests/test_iter63_retained_market_delivery.py"
+    ],
+    "sdk": [
+      "tests/unit/test_iter63_gateway_owner_service_calls.py",
+      "tests/unit/test_iter63_gateway_owner_market.py",
+      "tests/unit/test_iter63_gateway_operator_three_ports.py",
+      "tests/unit/test_iter63_ctp_gateway_market_profile.py",
+      "tests/integration/test_iter63_ctp_gateway_joint_service.py"
+    ],
+    "bt": []
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "frozen_files": 18,
+  "manifest_counts": {
+    "source-manifest.json": 1448,
+    "test-manifest.json": 197
+  },
+  "rebuilt_wheel_sha256": {
+    "bt_api_gateway-0.2.0.dev63-py3-none-any.whl": "ab5ec86e3bd80263dd064d51c6c7b3fd08bd7f45590c16d19af5237d1ecab907",
+    "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl": "74b01167b703b5b8e57418ef8dd9ce680b40bac35f1aa0d60a50f0bbe3e1d619",
+    "bt_api_py-0.16.0.dev63-py3-none-any.whl": "011a234821c79351c113d46215f043d2837b4ed334b55e31dd8ad6afff01267a"
+  },
+  "result": "PASS",
+  "scope": "current/frozen/copy bytes and every changed runtime Python file in wheel/install"
+}
