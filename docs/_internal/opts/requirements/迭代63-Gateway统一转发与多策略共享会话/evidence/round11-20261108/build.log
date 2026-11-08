@@ -1,0 +1,16 @@
+Processing /tmp/iter63-r11-packaging-CoU48Q7B/source/base
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r11-packaging-CoU48Q7B/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_base, bt_api_gateway
+  Building wheel for bt_api_base (pyproject.toml): started
+  Building wheel for bt_api_base (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_base: filename=bt_api_base-0.16.0.dev63-py3-none-any.whl size=362367 sha256=a74daa6e87af457eba125ba3c80d27457e0f4de6f3118d7631f80e4f7df80d18
+  Stored in directory: /private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pip-ephem-wheel-cache-4ztolfyf/wheels/5e/8a/7c/589b1e0778550901c81dc53e35c32abe26229d386f50c3cf62
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=174230 sha256=58da9982bb0aeb34f10e6c60a3e5a10df6a2685f3bc43c814bf151fe49b32a21
+  Stored in directory: /private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pip-ephem-wheel-cache-4ztolfyf/wheels/70/91/84/032f4553653226243a300d638f8e9f506e1f4fe522ddd8f9e1
+Successfully built bt_api_base bt_api_gateway

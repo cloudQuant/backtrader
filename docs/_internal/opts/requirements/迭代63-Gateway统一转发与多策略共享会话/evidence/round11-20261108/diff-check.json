@@ -1,0 +1,237 @@
+{
+  "product_and_markdown_whitespace": "PASS",
+  "raw_log_whitespace_preserved": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 25,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 37,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 38,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 41,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 115,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 116,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 123,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 174,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 175,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/gateway-installed-initial-failure.log",
+      "line": 182,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 34,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 63,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 64,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 71,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 124,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 130,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 132,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 147,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 153,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 173,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 177,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 186,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 192,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 196,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 205,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 208,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 215,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 217,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 235,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 291,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 321,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 327,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 329,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 344,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 350,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 370,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 374,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 383,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 389,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 393,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 402,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 405,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 412,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 414,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 432,
+      "reason": "trailing whitespace."
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round11-20261108/sdk-installed-initial-failure.log",
+      "line": 488,
+      "reason": "trailing whitespace."
+    }
+  ],
+  "exit_code": 2,
+  "policy": "Only unchanged raw captured log whitespace is excepted; no product or Markdown exception."
+}

@@ -1,0 +1,4 @@
+tests/test_gateway_execution_protocol.py
+tests/test_gateway_direct_protocol.py
+tests/test_direct_write_error_policy.py
+tests/test_market_protocol.py

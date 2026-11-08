@@ -1,0 +1,967 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/LICENSE",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/LICENSE",
+    "sha256": "378db8314110649fdd9519398a5df044a29d16778507be92acfec025eaac00a2"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/README.md",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/README.md",
+    "sha256": "d76b24c659e6333d38cc9e6bd4598c349249e4564e89a379ce8a5a4f9dcfe6fa"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/pyproject.toml",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/pyproject.toml",
+    "sha256": "ced985420cc8102a404cf172f839989c47a7e5f052602029af5c0018f3ac1609"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/__init__.py",
+    "sha256": "db6d46bcc43662b65ddbb34ee4386a25410927c55cf426b940bf70b1397ea580"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/_compat.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/_compat.py",
+    "sha256": "1774a7fa74cf579f6f86a8c1396a83b70ad4f2f36439c2a81bb8035436957e69"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/_plugin_shims.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/_plugin_shims.py",
+    "sha256": "5dc77358812959dce26674f3189f7034ec4d500cef73d88e64d659ea1d3709c8"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/_version.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/_version.py",
+    "sha256": "e2ea4c4a317266701a22e46a24bdf58146fe7fda04080f7ca25a96d54c903e7c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_balance_snapshot_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_balance_snapshot_protocol.py",
+    "sha256": "d34cb4ad86f78ae6462a2b60ef04a16c5ec70148c289b068023c1ca96868247c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_book_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_book_protocol.py",
+    "sha256": "e9e13278e15ad8e7baf24b144254499e88f9c411277288254d83c9edefefc62f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_certification_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_certification_protocol.py",
+    "sha256": "5bf274561a4b8b5f48feabda8d0075910f056de7c268a16e47b5a499bf20be20"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_execution_snapshot_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_execution_snapshot_protocol.py",
+    "sha256": "bac099a66b670e0cc379df1abfef1c13a761199c5dfeb86d4a62127bd0414c63"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_permission_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_permission_projection.py",
+    "sha256": "6d96b9d7b16559d6fcab1b1178a581eb68950c2285748232e1fb99361c61994b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_position_snapshot_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_position_snapshot_protocol.py",
+    "sha256": "0586cf5fe0e06797110e262d649a8f8a0a9c7b96c657ef366606602881919097"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_protocol.py",
+    "sha256": "58e9bcf864ec88ebd753644a51f89bfd8963f7755179d6756bc094ddc69bde50"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_risk_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_risk_protocol.py",
+    "sha256": "47d712d085236e3d0f228443ba21b655f48b7d4504cbea9156f1cf9dc52f00f6"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_risk_source_policy.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_risk_source_policy.py",
+    "sha256": "461ef15016e5f433e655edcf5cc2d7aa8f8f946097e869cf4ebc9640b69d7232"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_row_observation_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_row_observation_protocol.py",
+    "sha256": "d65f27383a31f60581a2ada106ca548e46658ff8800811cecfe83355d9d9e1d0"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_session_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_session_protocol.py",
+    "sha256": "71236277aa9db0a5dc8be2e8c131d37657db2ff8e0d10e7401146ff0437d07c4"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/account_session_registry_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/account_session_registry_protocol.py",
+    "sha256": "4da92fa3c599ba59ed1ca9d9da3adb8568ee88251edec2c7936dde9779de1125"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/auth_config.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/auth_config.py",
+    "sha256": "5722124358fb6abef8e3ea741cf3bc5ac276d4ea48705c3502cdaa0b1a0fa986"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/balance_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/balance_projection.py",
+    "sha256": "a5b7c5291f2778055878bd02f49584dcf508a8bb936ca1b1655e021fbe7e2002"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/balance_utils.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/balance_utils.py",
+    "sha256": "cce93cca82d7686914dd497982690f7b5c62b59a111f0f634f75f21025aa4420"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/cache.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/cache.py",
+    "sha256": "570378c7d81b771cacf7347db1f316de1839682c31638243491159fea8848592"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/config_loader.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/config_loader.py",
+    "sha256": "c7b5c843e4bb44917c758ed43300ade898f04a77ce57ec1464700e818ee87d4b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/connection_pool.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/connection_pool.py",
+    "sha256": "c0f90a8fe6251f6593127c037505b6f3d2353aa1448e2998ed6ef62265d5948b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/__init__.py",
+    "sha256": "d0fb3497e7d4b64e45f925fdfd8ca855081b4f50cb5bcd5213a51d7c12b90af8"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/accounts/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/accounts/__init__.py",
+    "sha256": "ef9a0b561832fd193a761b551ff0bc3c775f6ff22698227d447b19d52e0f6b64"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/accounts/account.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/accounts/account.py",
+    "sha256": "14a403d07e106438e25d16f5bf2b209adf0374bd1ecfa53e153a1a1d8dfa6d50"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/auto_init_mixin.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/auto_init_mixin.py",
+    "sha256": "485ff960c3a03352e69431a1112da739511dd7f5f5994d88f182c33738150bb3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/balances/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/balances/__init__.py",
+    "sha256": "ec0dd1c1e31a6ed546991f63b1288594d419900d50630059b03b5145a85762f1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/balances/balance.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/balances/balance.py",
+    "sha256": "fdca4237ebe0b82437db1a493b633a46d0a7be5daeeb4b3e1dc4cc96a7631e77"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/bars/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/bars/__init__.py",
+    "sha256": "470eb47b950c999cdce22444aa38b36fd12a8ee3faf57d462d75ae56cf07e1c5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/bars/bar.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/bars/bar.py",
+    "sha256": "f71b5811846d179b7c5e8e9c78947a749d4fbab84e30900d0999a644da0c0f5f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/exchanges/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/exchanges/__init__.py",
+    "sha256": "8fd87e19ebe25868f5cd5d03ed4c7dbeb1c0f06feb9cac4f82becc2f52beec46"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/exchanges/exchange_data.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/exchanges/exchange_data.py",
+    "sha256": "a7e627c5b4e34ff43b80c483df31f9698a106f7f3d6e5568abbb7570660d49ff"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/fundingrates/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/fundingrates/__init__.py",
+    "sha256": "e41a4fccd0b137131030e868688de2302fa499c81472de6bfdf37dfb538b81a4"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/fundingrates/funding_rate.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/fundingrates/funding_rate.py",
+    "sha256": "434acac9cdf9ab98170974bfe927a8b8e5b70ed608ba273696c0c74d3f7ac7b3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/greeks/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/greeks/__init__.py",
+    "sha256": "f0fef9798a82ef1fcdd0eab9fc3a23bee80e2b0f55356e4dcc9fe0ffe0675652"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/greeks/greeks.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/greeks/greeks.py",
+    "sha256": "36b16cfe8c4f7b5f259f94f34c10ba63efe05dbba557ac3cf13d05894538be4a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/incomes/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/incomes/__init__.py",
+    "sha256": "48ac24cb8557b843a5190fa5bc2d0164e63c55e4663cc0c9085ccd30c2599db1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/incomes/income.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/incomes/income.py",
+    "sha256": "307ca01a54f164eaa8bfa5457ad0b21a775f352760a64b5b33424d6313c93c0a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/instrument.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/instrument.py",
+    "sha256": "52edcf378ef3fd078dfa1d0126534ceb772471e6bd0d7015dce69062038bc32b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/liquidations/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/liquidations/__init__.py",
+    "sha256": "674e68a54f763e007b39a260c891f5c44a93481c926935331c6f108266779069"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/liquidations/liquidation.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/liquidations/liquidation.py",
+    "sha256": "16c67ce2dc3f74c34faf381d5c43797442191c77a221d42286e016d6f202e84c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/markprices/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/markprices/__init__.py",
+    "sha256": "723b8f2f3b9415b437fd9774b112a5a8f5a88f9afdb5c80e37ae70eb1274ebcb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/markprices/mark_price.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/markprices/mark_price.py",
+    "sha256": "847a83042f927e0af3acff6fca4f366e62450e0e8469c3771aba7c8d1be73e31"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/orderbooks/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/orderbooks/__init__.py",
+    "sha256": "8d0006f7dfa95a86a40613ab4290fb71cfa800919440a234049a33334a43775d"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/orderbooks/orderbook.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/orderbooks/orderbook.py",
+    "sha256": "42c2da2745d49afcd805b85406930f5fa2e77f057b0cf4a22d6749b65fe406db"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/orders/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/orders/__init__.py",
+    "sha256": "ab750e365d17144a1d961e5d44b11835c6021e3fdb08e92486d314ad17a2c62c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/orders/order.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/orders/order.py",
+    "sha256": "4f0da003507872746c5f340307b62cf42e2bc7ff4fd48f7ffba6cf58c281b1a4"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/positions/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/positions/__init__.py",
+    "sha256": "5af7f9b8bf045ecc81ad3867a51b18983c7cdf9cd5ab23b340474842b7bd11ca"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/positions/position.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/positions/position.py",
+    "sha256": "2b46f5bb4f3c01d85ea67fa1e59f381c53d8526233967eeda7c2355553cf4a60"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/requestdatas/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/requestdatas/__init__.py",
+    "sha256": "8b2da1398da899139f74f5084017a22f8c70e618c39d7013ab8c96ea76567535"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/requestdatas/request_data.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/requestdatas/request_data.py",
+    "sha256": "c66566c0e37558fa92b52cb49b5f64346fb17fda3590c57b953bea132a0f1546"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/semantics.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/semantics.py",
+    "sha256": "7e813cf5bee3df9bb62c6f278fa21751712814a6cdb1d14354a75f2b05535733"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/symbols/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/symbols/__init__.py",
+    "sha256": "c52a55863320364d86b0bc376c134078415e7bde55d54358bdad21dbe6ea2fd9"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/symbols/symbol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/symbols/symbol.py",
+    "sha256": "b3a24d075332dd7250802b14acdba47d65b2df1b3f81f196365bd6d86f411369"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/tickers/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/tickers/__init__.py",
+    "sha256": "79799a2072673630d1de968ca422553cd38bbf7c61b47bf8bd13723c2b4c6148"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/tickers/ticker.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/tickers/ticker.py",
+    "sha256": "f22e1b37ae94743279ee804681503b762103f9d10c3bdd4e20d30eec37f80bfe"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/timers/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/timers/__init__.py",
+    "sha256": "7f8d81477a63d08d9ec256c8dc1c629f71791ca912dfd5433af87cb4689a885f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/timers/timer.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/timers/timer.py",
+    "sha256": "fb2b449b41cabaf00ad2eb50e6c9ce780eb9555c803357ad6499a1e32c1f65bf"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/trades/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/trades/__init__.py",
+    "sha256": "16a2d79eb8074856f5739f083e3d59bf35382d20f45fb9fcd1f116b1175ad6a7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/containers/trades/trade.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/containers/trades/trade.py",
+    "sha256": "74f895f09858e3c7d76a09c8d73b5f3ec1f350ad555aaae65537e30d2d7406cc"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/contract_errors.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/contract_errors.py",
+    "sha256": "82798174a789052819b188e817ed33d6faa8904fa647fa9e1fe3cc59f4697757"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/core/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/core/__init__.py",
+    "sha256": "3c369463b6b7acb786366862d1b1b5db7564619e2ffabe7cac58ec8276d16b6d"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/core/async_context.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/core/async_context.py",
+    "sha256": "cd08805ffbcf6d9a0ac4cb0077789c54c2536ef12569cc470f29531987e69ccd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/core/dependency_injection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/core/dependency_injection.py",
+    "sha256": "9c250590660547a86d355f8039068c137fd5a8f54db138cd4ac2a4bf39ea3099"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/core/interfaces.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/core/interfaces.py",
+    "sha256": "df436fb4f16ff65accfaa7de5c0311af51c5cae14c6bdde868c6a2abf48d0617"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/core/services.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/core/services.py",
+    "sha256": "fbda5b5de8fff9c923fadaa92901e2e7c333aa93c3af8a4f5996b539d0e620ce"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/deployment_evidence.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/deployment_evidence.py",
+    "sha256": "755418506fdfb43e0a720264f3d1d8adcc4243c2611e752b6f1b44d8846e9e45"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/direct_write_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/direct_write_protocol.py",
+    "sha256": "27f63e3f497c4754ca79010aed72f1da1c2d20457c16b07a8109c879254b4bdb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/error.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/error.py",
+    "sha256": "b99400ee90e49b497fa10eadd7bf01e25e03cf18061bd3742f754c6c3602c35f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/event_bus.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/event_bus.py",
+    "sha256": "91fe6b094f03e1a395251bd786e8115709de8bd03343f669fa9b2ca2a2c89966"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/event_clock.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/event_clock.py",
+    "sha256": "4138d1586c2a7c51ced6d712d8a2542b937f70cacbc225fd80dcb3350b04c688"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/exceptions.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/exceptions.py",
+    "sha256": "95269b9029f201f2554c1fb78ad45747b1b1364c8622046cba4fb066bb81b43f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_capacity_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_capacity_protocol.py",
+    "sha256": "f5781ad5b6f00a8b4d4dc7f26fddc7d5586a84ebb4c971e9cac26d95fcd2eb57"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_command_wire_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_command_wire_protocol.py",
+    "sha256": "eb9741a1ee91cda3bafc8d6154f610e53473c4282354940a091acc8891192945"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_configuration_policy.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_configuration_policy.py",
+    "sha256": "ed7a07a8829d02d0224d9731dbb39abcd50b58cbf06e2e69a7cdc7d465405e1f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_correlation_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_correlation_protocol.py",
+    "sha256": "c4e208e3c6d084f56b3fe816807d3614940ab44105fadc8f8ea1a449dc188f37"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_economics_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_economics_protocol.py",
+    "sha256": "2257c00fe6a1bf466794939a2b81e16714cbcaacd003702c87fd4b372fe245c7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_identity_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_identity_projection.py",
+    "sha256": "ca26446f69c66e72958efa4415eeae495f838a2c09b697b7041651efe4573034"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_identity_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_identity_protocol.py",
+    "sha256": "140a9953718f0e14a730b34893db0818468ff3a261244f2e199e8e9af177b87d"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_ledger_identity_policy.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_ledger_identity_policy.py",
+    "sha256": "ec13e93ecac97c500dd416de4f316cae78982708f31d3c54e70c40033728700a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_query_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_query_protocol.py",
+    "sha256": "6afdd90a85c279823f2ad18b687b30eecac75bc831b7bcd9831f61353722ad56"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_request_receipt_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_request_receipt_protocol.py",
+    "sha256": "febaee046cc040a06c5a994cd60ec9860930bce8dcdada086d0da1b0d5eda2ee"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_row_observation_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_row_observation_protocol.py",
+    "sha256": "f55e84884fc6453aa2c98bc33b53c7d3d75ffb701f5c9bd4c33da9bc9d2f915c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/execution_rules_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/execution_rules_protocol.py",
+    "sha256": "6b00fe42a56e4159c3c65110245f2a35d4601d7620aaf9eb6bb6636e7d76a25e"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/fee_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/fee_projection.py",
+    "sha256": "26ec5c3b928e40541929304d90dd22b0ac4052f44716e57f3b3335dfa79743da"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/__init__.py",
+    "sha256": "eb46d51c9623154bc3bf726a4bd2c70d75a180ad019eb9bc8e62f20fdb12a20e"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/abstract_feed.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/abstract_feed.py",
+    "sha256": "15537c26945cbb2a7d8362e0cfb6c84fbec5fd7fdfa78a11b966c3c85abea9cb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/base_stream.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/base_stream.py",
+    "sha256": "58caf56e7880e43545d2d12bbf167e05cea76c3c9e5d37acd15a6cc59b6d8bc6"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/capability.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/capability.py",
+    "sha256": "83f9f6b43ad407379998a5b95c9ad707461ec992116c0443f45835941eb78358"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/connection_mixin.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/connection_mixin.py",
+    "sha256": "91fac238d55fad5efa464c438cd5d86b66e154fa6c94a65d4fcadfbc75223e8a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/feed.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/feed.py",
+    "sha256": "cd3ab1a2cb0a9c97c8d875268aab0e36ecb9e53386e7d61f5f5b2f6eba91d74f"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/http_client.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/http_client.py",
+    "sha256": "6aa2cc6236de31f7908c89b36e9a74603c22505946d7dc926030e2f61582e637"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/my_websocket_app.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/my_websocket_app.py",
+    "sha256": "bee2c32323b0042244480aee9f58fbdde3cff54bcd6c3f7f8a3f8892d774a0c2"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/feeds/transport_safety.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/feeds/transport_safety.py",
+    "sha256": "2078ba69c5306f92573263c1d8ecd37d13d22c1d65ca4c40f9fea695b8c455e3"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/__init__.py",
+    "sha256": "dc374680220fd0cd5fadcaf7a09825943192bf41bb6f04ac4ecb70a00f1f9378"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/async_base.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/async_base.py",
+    "sha256": "fef7f7300d710192d528b24361f74ed1281645f3f595ca3c8731d5b5ff9f69d8"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/calculate_time.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/calculate_time.py",
+    "sha256": "eb0174a00f608a066f057b3708b53e82abe9566ae169cba8e3995c497265b31b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/log_message.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/log_message.py",
+    "sha256": "b7510bb9fa5e7c6ec2a139c7ec48dbf72c289c8b01650bd680254587ee7ea8f7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/rate_limiters.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/rate_limiters.py",
+    "sha256": "4134cbfcaf04974ae1a3ce36c590854cc2dbe5057de8ea6a5d448833a5b609b1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/signers.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/signers.py",
+    "sha256": "32ce9b58815f1999a3464ba7de57342faa806df663129740b47040aaf3d23eb1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/timestamps.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/timestamps.py",
+    "sha256": "3b1db4601b23d573a43dd7796c9eb9355b569a8ab5e8cb7c6096c28bec00f7df"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/functions/utils.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/functions/utils.py",
+    "sha256": "99be102e5b67bf86fde17572daf81d963024d2fc417bfdbcfba7fb855fc393a5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/futures_eod_ranking_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/futures_eod_ranking_protocol.py",
+    "sha256": "b94ec25ce761caee89981d488f26cb961e4fd3e36185930f512c21de058442fd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/futures_expected_calendar_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/futures_expected_calendar_protocol.py",
+    "sha256": "39062705f010151a75dccd750367bdaa77d4176a082176ce1a6e72edfe9517b4"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/futures_market_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/futures_market_protocol.py",
+    "sha256": "87a38d4a8ddf873e4dd5b6818bfdc5a8279b9c8d17bd7512ef9f67b78e694021"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/gateway_direct_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/gateway_direct_protocol.py",
+    "sha256": "18d821a05e5c477b8c1559a8eec3dd18e926a421e8d23ed7e87516eb282a6153"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/gateway_execution_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/gateway_execution_protocol.py",
+    "sha256": "c1cb5c1bb0aedcf436e4084c38fa8ba4cf30f124ddd9a760c39e8535ad39ac07"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/instrument_manager.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/instrument_manager.py",
+    "sha256": "5c0a9f7d62cdd778225a82c7fded5c63d3973063f6ee8a66b4918cefdf3f4de9"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/instrument_metadata_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/instrument_metadata_projection.py",
+    "sha256": "6d6b6119360b3b53e2be9da041593081ce0d1ea05dc80ef01641492d858ffe3a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_context.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/logging_context.py",
+    "sha256": "f1af9b335d56300fe8c219f5d82911eaaa68314aa3b95ae1f3a8022bdab2114a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_factory.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/logging_factory.py",
+    "sha256": "979a2fdc85965a157202a617c1ccc7695512f22ec52ee9c5e03b5a7a693fe947"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/logging_setup.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/logging_setup.py",
+    "sha256": "a1db4603e096bac5bd5f78862b5bc2036cdc1c77f2f1aaf73d34e39d670196e2"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/managed_execution_runtime_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/managed_execution_runtime_protocol.py",
+    "sha256": "2293592eb419f2bda0e733269796d4efb9b844615076f364288cbdfb62c690a8"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/managed_runtime_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/managed_runtime_protocol.py",
+    "sha256": "9b5b6543f300ea889171b9812ead6a555ecf0008fc5fd1b2cf27a0f48df9fa17"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_history_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_history_protocol.py",
+    "sha256": "21096e58d14ebfb05554cf76012793de25846e9f2474b1c42d149edaf6b469ae"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_history_provider_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_history_provider_protocol.py",
+    "sha256": "efa44c600d049c69b55e3c8d32d5e01b66a2a7934095187355b1769bf594279c"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_observation_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_observation_protocol.py",
+    "sha256": "fd3a85080f6ac795becbffee5ce6c0812fc2f83ec9532049432097efad7d5c82"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_orderbook_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_orderbook_protocol.py",
+    "sha256": "0935ce28b42caf7daed9f7bf4bbc3ce6627518c752eb3ab6a844bd4c10d79855"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_protocol.py",
+    "sha256": "0d3ac9dfa896293448b4b1e8a37b5828412c353d6d952abe9b538f70b74fad72"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_session_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_session_protocol.py",
+    "sha256": "892b888b7032fbab32b14e4dd114edf5b68b78d94523c820570668b0be3a1346"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_stream_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_stream_protocol.py",
+    "sha256": "7b5cc1caf27f26bba791ecf6a183ebf2a3ea9cf2033880d03109f8526c07598a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_stream_provider_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_stream_provider_protocol.py",
+    "sha256": "0464baf0a3e4118699765a705f9592aa9809252af1ffb214aae1db42bc7d3918"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_tick_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_tick_protocol.py",
+    "sha256": "3c72bf5cbed6d079e9f21bb4139b352b775c0b764dbca26a21d25ab413acb219"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/market_tick_provider_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/market_tick_provider_protocol.py",
+    "sha256": "92602dd386013a61d0e90916cdc15924ddc0c04fa2b8a6c82ea11f1fcf1e59c5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/normalization_policy.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/normalization_policy.py",
+    "sha256": "07839476b1fa04a790f3f1e0fe74013aaab3a0442d1920e1bc063ca71660758a"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_identity_fields.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_identity_fields.py",
+    "sha256": "9295b3503fa7040c4c645ee76258589a27c0c13a6d52276b1e75aa24cceb68ba"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_identity_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_identity_projection.py",
+    "sha256": "702acbfb57c7d38ddeb7777d52c63a296bbafe7e9c3594e81ee4dc8b8174494e"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_intent.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_intent.py",
+    "sha256": "1c82654120d372b1a2576f8ad58e2a99634a88e9717cedd4a18965ed2ec51957"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_observation_contracts.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_observation_contracts.py",
+    "sha256": "ad87ad0b8d8a9093022f0a92637a68452e2b6704aaf3dee1d2b0c0a8340a05b1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_position_evidence_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_position_evidence_protocol.py",
+    "sha256": "612299e6c87dda06205d574c50fa75dcfdae86da1c7f5e31871626e645a71f5b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_provenance_fields.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_provenance_fields.py",
+    "sha256": "b35111d0ad7915c73af175860e1406dacf7d1bc4e5ed6373216d12d60e7b1f94"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_provenance_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_provenance_projection.py",
+    "sha256": "cc29d52f30c23e84549d84bca2429c5b77c4f8ca4f1a1582b0ab8a2115372933"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_quantity_units.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_quantity_units.py",
+    "sha256": "4600b80801be303999eee444156a6642ddb964b027ddeb42ad0f1abadc64a247"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_request_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_request_projection.py",
+    "sha256": "2d37f05ad6230271306e2d84ac7bbc669a31297995eded718fd86e09a20cf837"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/order_side_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/order_side_projection.py",
+    "sha256": "0158a6e69785d81c8c07a496f8b4be44e379436c6aea805fba24f95af993c9f5"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/paper_fill_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/paper_fill_protocol.py",
+    "sha256": "e23f1754f88068349b57b62e462225ed95808e1648fb918b4575a35d23255e00"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/plugins/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/plugins/__init__.py",
+    "sha256": "d2aaaa22452c898ed078159d2826aa2eaf44ead7f38fd84c14290d195d78ab90"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/plugins/errors.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/plugins/errors.py",
+    "sha256": "ea865cb2d9ff65dd211975da93b72d4e2c83ecb0c3329bc77cdc1d3c29d29b75"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/plugins/loader.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/plugins/loader.py",
+    "sha256": "02327f16f42c59f59f225bd2d32c7aceb3f7b757b81a6e4c0f33027ac6b3e6e7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/plugins/protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/plugins/protocol.py",
+    "sha256": "eae454ba5ca7eac01666c2592b11729ec79b0bf7da6d768610eac62aae6e1f19"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/position_bootstrap_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/position_bootstrap_protocol.py",
+    "sha256": "494cb2ac1471e49f27b07a4803088f362fba13429bc4834ac2b3027fdd6c9890"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/position_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/position_projection.py",
+    "sha256": "c6995f042a6c04150d1a4157f7af230d8fef2aae147b1fc3c7f8b1ca12d395ad"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/provider_configuration_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/provider_configuration_protocol.py",
+    "sha256": "5d4323029b1dcae789c19a32d5c59f27ad5db903effc17d18a061d38c96227ad"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/provider_order_source_aliases.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/provider_order_source_aliases.py",
+    "sha256": "6de8eea3ac39ecc39b55dd80a11569db3dd58fabc6c7759926e8c089a79ce9f6"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/query_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/query_protocol.py",
+    "sha256": "4acb90e78a8af96c8e40d57cc912de2dd2f7d45174e64bc19b5ba446c6841b14"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/query_provider_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/query_provider_protocol.py",
+    "sha256": "4f59f2513eb0cac18e258cc63dc7b1b3114d5da65bad5b15ff82db94037911a1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/rate_limiter.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/rate_limiter.py",
+    "sha256": "0332ed05a1b9366921e4151879cb875573763c6f0ef1427f639c1b0f4ed67955"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/reconciliation_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/reconciliation_protocol.py",
+    "sha256": "2aa787fab6982ed20815b23b28779ed9ccc0c2808310ee80c57e3da4572f212b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/registry.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/registry.py",
+    "sha256": "4bf53c13d228de94b2cf7c5c7a4df0256da815200d4cbedd39c83ede917b2434"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/replay_market_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/replay_market_protocol.py",
+    "sha256": "4d4cc96c146de3ca213731b8a8b388ec7e46584dd665d033118c11361350dafb"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/risk_dispatch_evidence.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/risk_dispatch_evidence.py",
+    "sha256": "6ba988eb65445a47ed5d72ec4562b14e51350259663d3a21369b7a4b20c329fd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/security.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/security.py",
+    "sha256": "f973c8dd55a0de7c405a909579152d6cc7f08b24df7112002b1d6f8ec3f54b12"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/service_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/service_protocol.py",
+    "sha256": "973b8de2028a66928e6f4356dce937902c07cfc7f79fbff5e8e5d67d9f795810"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/telemetry_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/telemetry_protocol.py",
+    "sha256": "fc7f2e1907f4bc733f3919a45e7fce189e0d9d03b342872c41289294142987ec"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/testing/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/testing/__init__.py",
+    "sha256": "df4f2da215811bf6ccc7fcf71c5a900223c0a2fc1d97e7f4b47efa2f1ee879af"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/testing/fixtures.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/testing/fixtures.py",
+    "sha256": "4b763d66b43663f2afb8f28994dbec90dd39b06a4e2244bb06f71e9f345169a9"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/trading_session_protocol.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/trading_session_protocol.py",
+    "sha256": "745ff1a574b9369d69a2ce3867a0ed2c24807f6cb62b98fd6f4bedee5fc348b1"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/utils/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/utils/__init__.py",
+    "sha256": "6815755ee6e1198f1ebfdd3fb8b102fa9d6c565041712cec64154aa4d8138665"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/utils/time.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/utils/time.py",
+    "sha256": "45bda4c5cfc0847107c695f8433ba19890f12da80828b5110160ca47ddfa70ae"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/websocket/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/websocket/__init__.py",
+    "sha256": "2bd32ce7ba3d94c2291d0033212c5bca2802b02c3e03e81ed989bb7f2222583b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/websocket/exchange_adapters.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/websocket/exchange_adapters.py",
+    "sha256": "400f338fd41e23654ca26f8b6b41727a0b4b60bdf5aea4bfbcf3593e3aa896c4"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/websocket_manager.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/websocket_manager.py",
+    "sha256": "679f929f944425b346c4010c14c40805886b9be4b0880c21a331a688f1bb50ec"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/wire_codec_v1.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/base/src/bt_api_base/wire_codec_v1.py",
+    "sha256": "033a287ca4d91914946752fa6b0c225f59d0c293e91f797f50b627e5e9668fda"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/LICENSE",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/LICENSE",
+    "sha256": "378db8314110649fdd9519398a5df044a29d16778507be92acfec025eaac00a2"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/README.md",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/README.md",
+    "sha256": "1c8e14b5aa5461fa32f78703e31752bc6dcea781e34f017ff8676ad0554cbc94"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/pyproject.toml",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/pyproject.toml",
+    "sha256": "a28615d6959456e4cf042d86d2c4d203e34bb528d2c289878f3f43eefa1d2f42"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/__init__.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/__init__.py",
+    "sha256": "c772784c83ba6019d403633bc735c9ff26391d92885678dddc0f287e89db5cc7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_certification.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_certification.py",
+    "sha256": "189f31a49ef8a5312931292ab5a46cef3023e08f96c423af8ffdd7606d3e4f1b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_position_snapshot.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_position_snapshot.py",
+    "sha256": "c67d104f0f8e4d823b786095f60711d8c2dda98c8a05178520f23530d3861a08"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_process.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_process.py",
+    "sha256": "00d995e87455741bec763fb94698b860475ab9033f245252e98f8ed1a1dbb970"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_read_model.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_read_model.py",
+    "sha256": "8434d9d4fbaa10f108f961e76aa5f7e548918ab21a522b3089a88a3add0beeaa"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_session_worker.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_session_worker.py",
+    "sha256": "dae4fa7199b8e5cdfa42493e52f2933a42b13047baac5db979951e4fc143aa4b"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/account_view_projection.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/account_view_projection.py",
+    "sha256": "8243e06e38952eb50df093a48e51da960cd28b4756d6099bc46e2fa3c009a409"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/database_identity.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/database_identity.py",
+    "sha256": "8c27ba3d0ba2e2429bf3179f4974504bfa937fd9b60341363d35a7a9d1702458"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/direct_command_journal.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/direct_command_journal.py",
+    "sha256": "22778cfd009c87d32157b4f4ce41158cd6c283202d4aa4a49e79bd290518200e"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/direct_dispatch.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/direct_dispatch.py",
+    "sha256": "cbef247ecc36efe09cec02849734f39a9a1bf25a42c17d6bef1b23c62e427245"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/direct_execution_journal.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/direct_execution_journal.py",
+    "sha256": "d82145a870eeef90e4ee3147987062794642c21229c0e979ab3b7b8bc4337c14"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/event_journal.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/event_journal.py",
+    "sha256": "2702e7a83b25eea8fc19e7f137a5a490683da172a390bb39a8f70d2395829b4d"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/execution_event_publisher.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/execution_event_publisher.py",
+    "sha256": "332a37da68ba431674521ce4dae834d15c4cea89d2a70c320ca2ba2a37a115b2"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/market_hub.py",
+    "sha256": "58ece5e2c92dbba2bab455fdae901eb5fc923f9da2c84acd14aa6f3e2f54d656"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/py.typed",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/py.typed",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/quota_admission.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/quota_admission.py",
+    "sha256": "76b08176f78a6cf6826d8958c4e7609b73199a53d63277566aba493b38595311"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/reconciliation_authority.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/reconciliation_authority.py",
+    "sha256": "d99b96a747abccc184e62479acd4a02d59223a6122ea600fe18bbdbeed3d3ac7"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/resolution.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/resolution.py",
+    "sha256": "24f41a67497a98c353c2b515d0de4b5c104c5d5db7628df4c5c71f576b417ed6"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/router.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/router.py",
+    "sha256": "be87d0fc9886844bb8ccecf679353060ea182756d130e5a9aaf08c1f55425b93"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/service_component.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/service_component.py",
+    "sha256": "5f1cae151dc56a37a2cd877f96b32586b12d89cb2282db9424399c79dd00bb64"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/session_guard.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/session_guard.py",
+    "sha256": "c40b53b748af89b6f77a45e3ee87004c46cfe48ebca488fe27772ef304879ac6"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/session_owner.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/session_owner.py",
+    "sha256": "5d0e0429629129b51a9d5fc1d3fe76af07e659ad6957e42cd16b1a798716998d"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/wire_mapping.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/wire_mapping.py",
+    "sha256": "d1a9e4c057311f17a72bdcc46ec5825486aa528ca30f1f9d512a9de1753eefab"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/writer_authority.py",
+    "copy": "/tmp/iter63-r11-packaging-CoU48Q7B/source/gateway/src/bt_api_gateway/writer_authority.py",
+    "sha256": "1f0c59a7c66537e95769be9bc5154befa56320aed24857abcb03a5f66c8cf011"
+  }
+]

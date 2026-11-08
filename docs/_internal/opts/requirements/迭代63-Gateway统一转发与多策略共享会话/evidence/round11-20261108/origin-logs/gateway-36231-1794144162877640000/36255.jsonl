@@ -1,0 +1,4 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 36255}
+{"data": {"mode": "multiprocessing-spawn-main", "target": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src"}, "event": "guard-installed", "pid": 36255}
+{"data": {}, "event": "audit-ok", "pid": 36255}
+{"data": {}, "event": "audit-ok", "pid": 36255}

@@ -1,0 +1,32 @@
+[
+  {
+    "suite": "base",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/test_gateway_execution_protocol.py tests/test_gateway_direct_protocol.py tests/test_direct_write_error_policy.py tests/test_market_protocol.py",
+    "passed": 219,
+    "seconds": 0.45,
+    "exit_code": 0,
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  },
+  {
+    "suite": "gateway",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests",
+    "passed": 705,
+    "seconds": 9.71,
+    "exit_code": 0,
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  },
+  {
+    "suite": "sdk",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/unit/test_iter63_gateway_dual_ports.py tests/integration/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_gateway_direct_service.py tests/integration/test_iter63_gateway_direct_service.py tests/unit/test_service_config.py tests/unit/test_service_config_cfg05_acceptance.py tests/unit/test_service_host.py tests/unit/test_service_host_integration.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_ctp_gateway_trading.py tests/unit/test_iter63_gateway_operator_trading_owner.py tests/integration/test_iter63_gateway_operator_trading_owner.py tests/unit/test_iter63_correlation_issuer_reopen.py tests/unit/test_iter60_venue_safe_correlation_ids.py tests/integration/test_iter63_gateway_direct_dispatch.py tests/integration/test_iter63_gateway_direct_dispatch_rpc.py tests/integration/test_iter63_gateway_return_ledger.py",
+    "passed": 310,
+    "seconds": 13.02,
+    "exit_code": 0,
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  }
+]

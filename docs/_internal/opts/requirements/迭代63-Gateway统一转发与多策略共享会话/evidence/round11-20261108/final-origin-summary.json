@@ -1,0 +1,276 @@
+{
+  "recorded_processes": [
+    {
+      "suite": "base",
+      "run": "base-37089-1794144384650384000",
+      "pid": "37089",
+      "guard": 1,
+      "resolved": 652,
+      "exit_audit": 3,
+      "violations": 0
+    },
+    {
+      "suite": "base",
+      "run": "base-37089-1794144384650384000",
+      "pid": "37090",
+      "guard": 1,
+      "resolved": 5,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37087",
+      "guard": 1,
+      "resolved": 670,
+      "exit_audit": 3,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37092",
+      "guard": 1,
+      "resolved": 24,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37119",
+      "guard": 1,
+      "resolved": 20,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37122",
+      "guard": 1,
+      "resolved": 20,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37129",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37131",
+      "guard": 1,
+      "resolved": 15,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37132",
+      "guard": 1,
+      "resolved": 15,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37133",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37134",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37136",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37137",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37138",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37139",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37140",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "sdk",
+      "run": "sdk-37088-1794144384650316000",
+      "pid": "37088",
+      "guard": 1,
+      "resolved": 751,
+      "exit_audit": 3,
+      "violations": 0
+    },
+    {
+      "suite": "sdk",
+      "run": "sdk-37088-1794144384650316000",
+      "pid": "37098",
+      "guard": 1,
+      "resolved": 148,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "sdk",
+      "run": "sdk-37088-1794144384650316000",
+      "pid": "37127",
+      "guard": 1,
+      "resolved": 203,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "sdk",
+      "run": "sdk-37088-1794144384650316000",
+      "pid": "37130",
+      "guard": 1,
+      "resolved": 205,
+      "exit_audit": 2,
+      "violations": 0
+    },
+    {
+      "suite": "sdk",
+      "run": "sdk-37088-1794144384650316000",
+      "pid": "37135",
+      "guard": 1,
+      "resolved": 220,
+      "exit_audit": 2,
+      "violations": 0
+    }
+  ],
+  "unrecorded_processes_not_audited": true,
+  "missing_exit_audit": [
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37119",
+      "guard": 1,
+      "resolved": 20,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37122",
+      "guard": 1,
+      "resolved": 20,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37129",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37132",
+      "guard": 1,
+      "resolved": 15,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37134",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37136",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37137",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    },
+    {
+      "suite": "gateway",
+      "run": "gateway-37087-1794144384650345000",
+      "pid": "37138",
+      "guard": 1,
+      "resolved": 14,
+      "exit_audit": 0,
+      "violations": 0
+    }
+  ],
+  "runner_frozen_before_all_final_runs": true,
+  "runner_sha256": {
+    "run_installed.py": "1ded1af4eba393befc71432253dfd63b39280515615b7cedcd6a03422baa42cc",
+    "bootstrap/origin_guard.py": "4037db4e0d353bb2895a91a8b8894698c686df89b774d27c6f06d11f8ac103d3",
+    "bootstrap/fake_native.py": "cc7d2936742ea8a0cbbcdff888bddd171843297ccc04690bcc86b79f9c5fda9c",
+    "bootstrap/sitecustomize.py": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+    "bootstrap/offline_guard.py": "05589f38c429beec5dc4526313bb6b8336d5c48a7dfdb5954daa29b3947d0d1b"
+  }
+}

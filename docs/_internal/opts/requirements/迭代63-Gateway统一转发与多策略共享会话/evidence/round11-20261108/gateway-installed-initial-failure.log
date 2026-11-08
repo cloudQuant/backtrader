@@ -1,0 +1,216 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r11-packaging-CoU48Q7B/origin-logs/gateway-36231-1794144162877640000
+GUARDS Python socket/zmq loopback only; CTP native extension blocked
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_binance/__init__.py
+.............................F.......................................... [ 10%]
+........................................................................ [ 20%]
+........................................................................ [ 30%]
+........................................................................ [ 40%]
+........................................................................ [ 51%]
+..................FF.................................................... [ 61%]
+........................................................................ [ 71%]
+........................................................................ [ 81%]
+........................................................................ [ 91%]
+.........................................................                [100%]
+=================================== FAILURES ===================================
+________________ test_synthetic_spawn_account_process_roundtrip ________________
+
+    def test_synthetic_spawn_account_process_roundtrip() -> None:
+        """Exercises one local synthetic child; no venue SDK or credentials."""
+    
+        provider = GatewayAccountSessionProcessProvider(
+            account_key=_KEY,
+            profile_ref=_PROFILE_REF,
+            child_target=_synthetic_child_entry,
+            close_timeout_seconds=2.0,
+        )
+        primary: BaseException | None = None
+        try:
+>           assert provider.connect(account_key=_KEY, generation=_GENERATION, timeout=5.0) is None
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_account_process_spawn.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/account_process.py:327: in connect
+    bootstrap = self._issue(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bt_api_gateway.account_process.GatewayAccountSessionProcessProvider object at 0x143193710>
+operation = 'bootstrap'
+payload = {'profile_ref': 'synthetic.gateway.read-only.v1', 'read_only': True}
+deadline = 571925.816777125
+
+    def _issue(
+        self, operation: str, payload: dict[str, object], deadline: float
+    ) -> dict[str, object]:
+        if self._pending is not None:
+            raise GatewayAccountSessionProcessError("PROCESS_REQUEST_ALREADY_PENDING")
+        connection = self._connection
+        generation = self._generation
+        if connection is None or generation is None or self._poisoned:
+            raise GatewayAccountSessionProcessError("PROCESS_TRANSPORT_UNAVAILABLE")
+        request_id = uuid.uuid4().hex
+        request = _envelope(
+            message_type="request",
+            request_id=request_id,
+            generation=generation,
+            operation=operation,
+            status="request",
+            payload=payload,
+        )
+        self._pending = _PendingRequest(request_id, operation, generation)
+        try:
+            encoded = _encode_frame(request)
+            connection.send_bytes(encoded)
+        except Exception:
+            self._poisoned = True
+            self._state = "unknown"
+            raise GatewayAccountSessionProcessError("PROCESS_SEND_UNCERTAIN") from None
+        response = self._receive_pending(deadline)
+        if response is None:
+            self._state = "unknown"
+>           raise GatewayAccountSessionProcessError("PROCESS_RESPONSE_TIMEOUT")
+E           bt_api_gateway.account_process.GatewayAccountSessionProcessError: PROCESS_RESPONSE_TIMEOUT
+E           synthetic account child cleanup remained uncertain
+
+iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/account_process.py:641: GatewayAccountSessionProcessError
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'iter63-r11-packaging-CoU48Q7B'
+_ test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover[before_commit-71] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pytest-of-yunjinqi/pytest-1/test_process_exit_sqlite_atomi0')
+stage = 'before_commit', exit_code = 71
+
+    @pytest.mark.parametrize("stage,exit_code", [("before_commit", 71), ("after_commit", 72)])
+    def test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover(
+        tmp_path, stage, exit_code
+    ):
+        """New isolated guard tests storage only; the crashed guard is not recovered."""
+        (tmp_path / "writer-guard").mkdir()
+        (tmp_path / "reader-guard").mkdir()
+        context = multiprocessing.get_context("spawn")
+        parent, child_end = context.Pipe()
+        child = context.Process(target=_crash_writer, args=(str(tmp_path), stage, child_end))
+        child.start()
+        child_end.close()
+        reader = None
+        try:
+            assert parent.poll(15), "synthetic child failed to initialize"
+>           ready = parent.recv()
+                    ^^^^^^^^^^^^^
+
+iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_iter63_execution_ledger_commit_faults.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:250: in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:430: in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.connection.Connection object at 0x142b9c3d0>, size = 4
+read = <built-in function read>
+
+    def _recv(self, size, read=_read):
+        buf = io.BytesIO()
+        handle = self._handle
+        remaining = size
+        while remaining > 0:
+            chunk = read(handle, remaining)
+            n = len(chunk)
+            if n == 0:
+                if remaining == size:
+>                   raise EOFError
+E                   EOFError
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:399: EOFError
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'iter63-r11-packaging-CoU48Q7B'
+_ test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover[after_commit-72] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pytest-of-yunjinqi/pytest-1/test_process_exit_sqlite_atomi1')
+stage = 'after_commit', exit_code = 72
+
+    @pytest.mark.parametrize("stage,exit_code", [("before_commit", 71), ("after_commit", 72)])
+    def test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover(
+        tmp_path, stage, exit_code
+    ):
+        """New isolated guard tests storage only; the crashed guard is not recovered."""
+        (tmp_path / "writer-guard").mkdir()
+        (tmp_path / "reader-guard").mkdir()
+        context = multiprocessing.get_context("spawn")
+        parent, child_end = context.Pipe()
+        child = context.Process(target=_crash_writer, args=(str(tmp_path), stage, child_end))
+        child.start()
+        child_end.close()
+        reader = None
+        try:
+            assert parent.poll(15), "synthetic child failed to initialize"
+>           ready = parent.recv()
+                    ^^^^^^^^^^^^^
+
+iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_iter63_execution_ledger_commit_faults.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:250: in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:430: in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.connection.Connection object at 0x142c0cf50>, size = 4
+read = <built-in function read>
+
+    def _recv(self, size, read=_read):
+        buf = io.BytesIO()
+        handle = self._handle
+        remaining = size
+        while remaining > 0:
+            chunk = read(handle, remaining)
+            n = len(chunk)
+            if n == 0:
+                if remaining == size:
+>                   raise EOFError
+E                   EOFError
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:399: EOFError
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'iter63-r11-packaging-CoU48Q7B'
+=========================== short test summary info ============================
+FAILED iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_account_process_spawn.py::test_synthetic_spawn_account_process_roundtrip
+FAILED iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_iter63_execution_ledger_commit_faults.py::test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover[before_commit-71]
+FAILED iter63-r11-packaging-CoU48Q7B/gateway-tests/tests/test_iter63_execution_ledger_commit_faults.py::test_process_exit_sqlite_atomicity_with_isolated_guard_not_guard_takeover[after_commit-72]
+3 failed, 702 passed in 10.11s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r11-packaging-CoU48Q7B/run_installed.py` failed. (See above for error)

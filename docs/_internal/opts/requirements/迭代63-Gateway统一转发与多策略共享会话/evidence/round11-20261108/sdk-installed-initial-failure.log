@@ -1,0 +1,509 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r11-packaging-CoU48Q7B/origin-logs/sdk-36233-1794144162877606000
+GUARDS Python socket/zmq loopback only; CTP native extension blocked
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_binance/__init__.py
+........................................................................ [ 23%]
+........................................................................ [ 46%]
+.F.................F.F.................................................. [ 69%]
+........................................................................ [ 92%]
+......................                                                   [100%]
+=================================== FAILURES ===================================
+_ test_spawned_curve_host_serves_four_sqlite_read_adapters_and_closes_normally _
+
+tmp_path = PosixPath('/private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pytest-of-yunjinqi/pytest-0/test_spawned_curve_host_serves0')
+
+    def test_spawned_curve_host_serves_four_sqlite_read_adapters_and_closes_normally(
+        tmp_path,
+    ) -> None:
+        paths = {
+            name: str(tmp_path / f"{name}.sqlite3")
+            for name in ("gateway", "monitor", "risk", "execution")
+        }
+        _seed_local_databases(paths)
+        unchanged_before = {
+            name: _sqlite_rows(paths[name]) for name in ("gateway", "monitor", "execution")
+        }
+        risk_gate_before = DurableRiskGate(paths["risk"], _RISK_POLICY, clock=lambda: _EVENT_TIME)
+        risk_snapshot_before = risk_gate_before.snapshot(_RISK_ACCOUNT_SCOPE)
+        risk_gate_before.close()
+    
+        server_public, server_secret = zmq.curve_keypair()
+        client_public, client_secret = zmq.curve_keypair()
+        service_config = _service_config(_available_tcp_endpoint())
+        context = multiprocessing.get_context("spawn")
+        parent, child = context.Pipe(duplex=True)
+        process = context.Process(
+            target=_service_host_process,
+            args=(
+                child,
+                service_config,
+                str(tmp_path / "service-registry.sqlite3"),
+                paths,
+                server_public,
+                server_secret,
+                client_public,
+            ),
+        )
+        strategy_runtime = None
+        application_runtime = None
+        direct_transport = None
+        shutdown = None
+        process.start()
+        child.close()
+        try:
+            assert parent.poll(20), "spawned service did not report startup"
+>           startup = parent.recv()
+                      ^^^^^^^^^^^^^
+
+iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/unit/test_service_host_integration.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:250: in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:430: in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.connection.Connection object at 0x136bcd250>, size = 4
+read = <built-in function read>
+
+    def _recv(self, size, read=_read):
+        buf = io.BytesIO()
+        handle = self._handle
+        remaining = size
+        while remaining > 0:
+            chunk = read(handle, remaining)
+            n = len(chunk)
+            if n == 0:
+                if remaining == size:
+>                   raise EOFError
+E                   EOFError
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/connection.py:399: EOFError
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'iter63-r11-packaging-CoU48Q7B'
+_ test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-False] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pytest-of-yunjinqi/pytest-0/test_real_ctp_session_trader_w2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x16070d190>
+enabled = True, admitted = True, confirm_ok = True, expected = 'SENT'
+disconnect = False
+
+    @pytest.mark.parametrize(
+        "enabled,admitted,confirm_ok,expected,disconnect",
+        [
+            (False, True, True, "RESERVED", False),
+            (True, False, True, "RESERVED", False),
+            (True, True, True, "SENT", False),
+            (True, True, False, "RESERVED", False),
+            (True, True, True, "SENT", True),
+        ],
+    )
+    def test_real_ctp_session_trader_with_synthetic_native(
+        tmp_path, monkeypatch, enabled, admitted, confirm_ok, expected, disconnect
+    ):
+        """Exercise the real Python CTP path; the native boundary is fully synthetic."""
+        import importlib
+        import sqlite3
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+    
+        from bt_api_ctp.ctp.client import CtpNativeStopReceipt, TraderClient
+        from bt_api_ctp.direct_write_provider import CtpDirectWriteProvider
+        from bt_api_ctp.feeds.live_ctp_feed import CtpRequestDataFuture
+        from bt_api_ctp.gateway_session import CtpGatewaySession
+        from bt_api_gateway.session_guard import LocalAccountSessionGuard, LocalAccountSessionGuardError
+    
+        from tests.unit.test_iter63_gateway_direct_service import _order
+    
+        ctp_tests = Path(__file__).resolve().parents[1] / "bt_api" / "bt_api_ctp" / "tests"
+        monkeypatch.syspath_prepend(str(ctp_tests))
+        helper = importlib.import_module("test_iter62_settlement_readback_on_write")
+        real_loader = module._load_ctp_types
+        key = AccountKey("ctp", "simnow", "simnow", "account", "9999")
+        _, settings, config, authority, grants, _ = make(
+            tmp_path, monkeypatch, write_enabled=enabled, gate=lambda _: admitted, account_key=key
+        )
+        settings = replace(settings, connect_timeout_seconds=0.5, close_timeout_seconds=0.5)
+        grants = {CLIENT_A.principal_ref: GatewayDirectGrant(CLIENT_A.actor_ref, frozenset({"rb2612"}))}
+        monkeypatch.setattr(module, "_load_ctp_types", real_loader)
+        feeds, natives, events, marker, dispatch_errors = [], [], [], [], []
+        allow_stop = threading.Event()
+        queries = threading.Event()
+    
+        class Native(helper._NativeApi):
+            def ReqQrySettlementInfoConfirm(self, field, request_id):
+                events.append(("query", threading.get_ident()))
+                queries.set()
+                return super().ReqQrySettlementInfoConfirm(field, request_id)
+    
+            def ReqSettlementInfoConfirm(self, field, request_id):
+                events.append(("confirm", threading.get_ident()))
+                with sqlite3.connect(settings.journal_path) as db:
+                    row = db.execute(
+                        "SELECT status,marker_id,account_binding,trading_day,initial_observation_id "
+                        "FROM direct_journal_settlement"
+                    ).fetchone()
+                marker.append(row)
+                self.calls.append("confirm_settlement")
+                if not confirm_ok:
+                    return 1
+                self.confirmation_day = helper.TODAY
+                self.client._spi.OnRspSettlementInfoConfirm(
+                    SimpleNamespace(BrokerID="9999", InvestorID="account", ConfirmDate=helper.TODAY),
+                    SimpleNamespace(ErrorID=0, ErrorMsg=""),
+                    request_id,
+                    True,
+                )
+                return 0
+    
+            def ReqOrderInsert(self, field, request_id):
+                events.append(("insert", threading.get_ident()))
+                return super().ReqOrderInsert(field, request_id)
+    
+        def start(trader, **_kwargs):
+            events.append(("start", threading.get_ident()))
+            native = Native()
+            native.client = trader
+            native.confirmation_day = "20261105"
+            trader._api = native
+            helper._login(trader, native, session_id=19)
+            natives.append(native)
+    
+        def stop(trader, *, timeout):
+            events.append(("stop", threading.get_ident()))
+            return CtpNativeStopReceipt(
+                trader.connection_generation, False, True, allow_stop.is_set(), False, False
+            )
+    
+        monkeypatch.setattr(TraderClient, "start", start)
+        monkeypatch.setattr(TraderClient, "stop_and_wait", stop)
+        submit = CtpDirectWriteProvider.submit_order
+    
+        def traced_submit(self, *args, **kwargs):
+            try:
+                result = submit(self, *args, **kwargs)
+                dispatch_errors.append(result.error_code)
+                return result
+            except Exception as exc:
+                dispatch_errors.append(repr(exc))
+                raise
+    
+        monkeypatch.setattr(CtpDirectWriteProvider, "submit_order", traced_submit)
+        refresh = CtpGatewaySession.refresh_session
+    
+        def traced_refresh(self):
+            try:
+                return refresh(self)
+            except Exception:
+                events.append(("refresh_failed", threading.get_ident()))
+                raise
+    
+        monkeypatch.setattr(CtpGatewaySession, "refresh_session", traced_refresh)
+    
+        def feed():
+            result = CtpRequestDataFuture(
+                None,
+                broker_id="9999",
+                user_id="account",
+                password="synthetic",
+                td_front="tcp://offline-neutral-td.invalid:30001",
+                md_front="tcp://offline-neutral-md.invalid:30011",
+                auto_settlement_confirm=False,
+                ctp_env_profile="config_front_pair",
+                ctp_environment="simnow",
+                trusted_flow_root=str(settings.trusted_flow_root),
+                flow_account_scope=key.account_key_id,
+            )
+            result._connect_timeout = 0.05
+            feeds.append(result)
+            return result
+    
+        profile = build_ctp_gateway_trading_profile(
+            config,
+            authority,
+            tmp_path / "real-registry.sqlite",
+            profile_ref="real-ctp-test",
+            settings=settings,
+            grants=grants,
+            request_feed_factory=feed,
+            market_stream_factory=lambda *_: pytest.fail("market must remain lazy"),
+            assert_admitted=lambda _: admitted,
+        )
+        assert feeds == [] and events == []
+        try:
+            resources = _resources(profile, authority)
+        except ServiceResourceConstructionError as exc:
+            allow_stop.set()
+            exc.resources.close()
+            raise
+        try:
+            assert queries.wait(5)
+            journal, owner = resources.values["binding"]._journal, resources.values["binding"]._owner
+            if enabled:
+                _wait(lambda: len(marker) == 1)
+                _wait(lambda: journal.settlement_get(module.ROUTE, helper.TODAY).status != "ATTEMPTING")
+            else:
+                _wait(lambda: len([e for e in events if e[0] == "query"]) >= 3)
+                assert marker == []
+            _wait(lambda: len([e for e in events if e[0] == "query"]) >= 3)
+            payload = _order(key="key", symbol="rb2612", account=settings.account_scope)
+            payload.update(exchange_id="SHFE", offset="open", time_in_force="GFD")
+            row = journal.reserve(
+                CLIENT_A.actor_ref,
+                "key",
+                CLIENT_A.principal_ref,
+                payload,
+            )
+            done = threading.Event()
+            command = GatewayDispatchCommand(
+                row.strategy_scope,
+                row.request_key,
+                row.principal,
+                row.reservation_id,
+                row.digest,
+                row.version,
+            )
+            assert (
+                owner.enqueue(command, request_fence=lambda _: nullcontext(), finalize=done.set)
+                == "QUEUED"
+            )
+            assert done.wait(5)
+>           assert journal.get(CLIENT_A.actor_ref, "key", CLIENT_A.principal_ref).status == expected, (
+                dispatch_errors
+            )
+E           AssertionError: ["DirectWriteError('ctp_execution_gate_sim_measurement_unavailable: ctp_execution_gate_sim_measurement_unavailable')"]
+E           assert 'NOT_SENT' == 'SENT'
+E             
+E             - SENT
+E             + NOT_SENT
+
+iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/test_iter63_ctp_gateway_trading.py:756: AssertionError
+_ test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-True] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r11-packaging-CoU48Q7B/tmp/pytest-of-yunjinqi/pytest-0/test_real_ctp_session_trader_w4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x136d96d10>
+enabled = True, admitted = True, confirm_ok = True, expected = 'SENT'
+disconnect = True
+
+    @pytest.mark.parametrize(
+        "enabled,admitted,confirm_ok,expected,disconnect",
+        [
+            (False, True, True, "RESERVED", False),
+            (True, False, True, "RESERVED", False),
+            (True, True, True, "SENT", False),
+            (True, True, False, "RESERVED", False),
+            (True, True, True, "SENT", True),
+        ],
+    )
+    def test_real_ctp_session_trader_with_synthetic_native(
+        tmp_path, monkeypatch, enabled, admitted, confirm_ok, expected, disconnect
+    ):
+        """Exercise the real Python CTP path; the native boundary is fully synthetic."""
+        import importlib
+        import sqlite3
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+    
+        from bt_api_ctp.ctp.client import CtpNativeStopReceipt, TraderClient
+        from bt_api_ctp.direct_write_provider import CtpDirectWriteProvider
+        from bt_api_ctp.feeds.live_ctp_feed import CtpRequestDataFuture
+        from bt_api_ctp.gateway_session import CtpGatewaySession
+        from bt_api_gateway.session_guard import LocalAccountSessionGuard, LocalAccountSessionGuardError
+    
+        from tests.unit.test_iter63_gateway_direct_service import _order
+    
+        ctp_tests = Path(__file__).resolve().parents[1] / "bt_api" / "bt_api_ctp" / "tests"
+        monkeypatch.syspath_prepend(str(ctp_tests))
+        helper = importlib.import_module("test_iter62_settlement_readback_on_write")
+        real_loader = module._load_ctp_types
+        key = AccountKey("ctp", "simnow", "simnow", "account", "9999")
+        _, settings, config, authority, grants, _ = make(
+            tmp_path, monkeypatch, write_enabled=enabled, gate=lambda _: admitted, account_key=key
+        )
+        settings = replace(settings, connect_timeout_seconds=0.5, close_timeout_seconds=0.5)
+        grants = {CLIENT_A.principal_ref: GatewayDirectGrant(CLIENT_A.actor_ref, frozenset({"rb2612"}))}
+        monkeypatch.setattr(module, "_load_ctp_types", real_loader)
+        feeds, natives, events, marker, dispatch_errors = [], [], [], [], []
+        allow_stop = threading.Event()
+        queries = threading.Event()
+    
+        class Native(helper._NativeApi):
+            def ReqQrySettlementInfoConfirm(self, field, request_id):
+                events.append(("query", threading.get_ident()))
+                queries.set()
+                return super().ReqQrySettlementInfoConfirm(field, request_id)
+    
+            def ReqSettlementInfoConfirm(self, field, request_id):
+                events.append(("confirm", threading.get_ident()))
+                with sqlite3.connect(settings.journal_path) as db:
+                    row = db.execute(
+                        "SELECT status,marker_id,account_binding,trading_day,initial_observation_id "
+                        "FROM direct_journal_settlement"
+                    ).fetchone()
+                marker.append(row)
+                self.calls.append("confirm_settlement")
+                if not confirm_ok:
+                    return 1
+                self.confirmation_day = helper.TODAY
+                self.client._spi.OnRspSettlementInfoConfirm(
+                    SimpleNamespace(BrokerID="9999", InvestorID="account", ConfirmDate=helper.TODAY),
+                    SimpleNamespace(ErrorID=0, ErrorMsg=""),
+                    request_id,
+                    True,
+                )
+                return 0
+    
+            def ReqOrderInsert(self, field, request_id):
+                events.append(("insert", threading.get_ident()))
+                return super().ReqOrderInsert(field, request_id)
+    
+        def start(trader, **_kwargs):
+            events.append(("start", threading.get_ident()))
+            native = Native()
+            native.client = trader
+            native.confirmation_day = "20261105"
+            trader._api = native
+            helper._login(trader, native, session_id=19)
+            natives.append(native)
+    
+        def stop(trader, *, timeout):
+            events.append(("stop", threading.get_ident()))
+            return CtpNativeStopReceipt(
+                trader.connection_generation, False, True, allow_stop.is_set(), False, False
+            )
+    
+        monkeypatch.setattr(TraderClient, "start", start)
+        monkeypatch.setattr(TraderClient, "stop_and_wait", stop)
+        submit = CtpDirectWriteProvider.submit_order
+    
+        def traced_submit(self, *args, **kwargs):
+            try:
+                result = submit(self, *args, **kwargs)
+                dispatch_errors.append(result.error_code)
+                return result
+            except Exception as exc:
+                dispatch_errors.append(repr(exc))
+                raise
+    
+        monkeypatch.setattr(CtpDirectWriteProvider, "submit_order", traced_submit)
+        refresh = CtpGatewaySession.refresh_session
+    
+        def traced_refresh(self):
+            try:
+                return refresh(self)
+            except Exception:
+                events.append(("refresh_failed", threading.get_ident()))
+                raise
+    
+        monkeypatch.setattr(CtpGatewaySession, "refresh_session", traced_refresh)
+    
+        def feed():
+            result = CtpRequestDataFuture(
+                None,
+                broker_id="9999",
+                user_id="account",
+                password="synthetic",
+                td_front="tcp://offline-neutral-td.invalid:30001",
+                md_front="tcp://offline-neutral-md.invalid:30011",
+                auto_settlement_confirm=False,
+                ctp_env_profile="config_front_pair",
+                ctp_environment="simnow",
+                trusted_flow_root=str(settings.trusted_flow_root),
+                flow_account_scope=key.account_key_id,
+            )
+            result._connect_timeout = 0.05
+            feeds.append(result)
+            return result
+    
+        profile = build_ctp_gateway_trading_profile(
+            config,
+            authority,
+            tmp_path / "real-registry.sqlite",
+            profile_ref="real-ctp-test",
+            settings=settings,
+            grants=grants,
+            request_feed_factory=feed,
+            market_stream_factory=lambda *_: pytest.fail("market must remain lazy"),
+            assert_admitted=lambda _: admitted,
+        )
+        assert feeds == [] and events == []
+        try:
+            resources = _resources(profile, authority)
+        except ServiceResourceConstructionError as exc:
+            allow_stop.set()
+            exc.resources.close()
+            raise
+        try:
+            assert queries.wait(5)
+            journal, owner = resources.values["binding"]._journal, resources.values["binding"]._owner
+            if enabled:
+                _wait(lambda: len(marker) == 1)
+                _wait(lambda: journal.settlement_get(module.ROUTE, helper.TODAY).status != "ATTEMPTING")
+            else:
+                _wait(lambda: len([e for e in events if e[0] == "query"]) >= 3)
+                assert marker == []
+            _wait(lambda: len([e for e in events if e[0] == "query"]) >= 3)
+            payload = _order(key="key", symbol="rb2612", account=settings.account_scope)
+            payload.update(exchange_id="SHFE", offset="open", time_in_force="GFD")
+            row = journal.reserve(
+                CLIENT_A.actor_ref,
+                "key",
+                CLIENT_A.principal_ref,
+                payload,
+            )
+            done = threading.Event()
+            command = GatewayDispatchCommand(
+                row.strategy_scope,
+                row.request_key,
+                row.principal,
+                row.reservation_id,
+                row.digest,
+                row.version,
+            )
+            assert (
+                owner.enqueue(command, request_fence=lambda _: nullcontext(), finalize=done.set)
+                == "QUEUED"
+            )
+            assert done.wait(5)
+>           assert journal.get(CLIENT_A.actor_ref, "key", CLIENT_A.principal_ref).status == expected, (
+                dispatch_errors
+            )
+E           AssertionError: ["DirectWriteError('ctp_execution_gate_sim_measurement_unavailable: ctp_execution_gate_sim_measurement_unavailable')"]
+E           assert 'NOT_SENT' == 'SENT'
+E             
+E             - SENT
+E             + NOT_SENT
+
+iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/test_iter63_ctp_gateway_trading.py:756: AssertionError
+=============================== warnings summary ===============================
+iter63-r11-packaging-CoU48Q7B/install/src/bt_api_ctp/ctp/_ctp_base.py:174
+  /private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_ctp/ctp/_ctp_base.py:174: RuntimeWarning: CTP C++ extension (_ctp) failed to load; matching extension failed to load. matching=_ctp.cpython-311-darwin.so; expected=_ctp.cpython-311-darwin.so, _ctp.abi3.so, _ctp.so; available=_ctp.cpython-311-darwin.so; import_error=R11_OFFLINE_CTP_NATIVE_BLOCKED. All CTP operations will silently no-op.
+    _warnings.warn(
+
+iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/integration/test_service_account_instrument_metadata.py:318
+  /private/tmp/iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/integration/test_service_account_instrument_metadata.py:318: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/unit/test_service_host_integration.py::test_spawned_curve_host_serves_four_sqlite_read_adapters_and_closes_normally
+FAILED iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-False]
+FAILED iter63-r11-packaging-CoU48Q7B/sdk-tests/tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-True]
+3 failed, 307 passed, 2 warnings in 10.81s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r11-packaging-CoU48Q7B/run_installed.py` failed. (See above for error)

@@ -1,0 +1,2 @@
+# Every tracked public tests/test_*.py plus the explicitly approved new R11 test.
+tests/

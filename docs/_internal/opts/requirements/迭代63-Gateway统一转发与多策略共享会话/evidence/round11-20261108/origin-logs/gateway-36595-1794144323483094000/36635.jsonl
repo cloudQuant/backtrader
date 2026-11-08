@@ -1,0 +1,22 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 36635}
+{"data": {"mode": "multiprocessing-spawn-main", "target": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src"}, "event": "guard-installed", "pid": 36635}
+{"data": {"module": "bt_api_base", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/__init__.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base._version", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/_version.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.deployment_evidence", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/deployment_evidence.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.direct_write_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/direct_write_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.gateway_execution_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/gateway_execution_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.gateway_direct_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/gateway_direct_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.market_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/market_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.service_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/service_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/__init__.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.event_journal", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/event_journal.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_base.account_protocol", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_base/account_protocol.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.account_view_projection", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/account_view_projection.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.router", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/router.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.database_identity", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/database_identity.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.resolution", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/resolution.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.wire_mapping", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/wire_mapping.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.writer_authority", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/writer_authority.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.direct_command_journal", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/direct_command_journal.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.direct_execution_journal", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/direct_execution_journal.py"}, "event": "resolved", "pid": 36635}
+{"data": {"module": "bt_api_gateway.session_guard", "origin": "/private/tmp/iter63-r11-packaging-CoU48Q7B/install/src/bt_api_gateway/session_guard.py"}, "event": "resolved", "pid": 36635}

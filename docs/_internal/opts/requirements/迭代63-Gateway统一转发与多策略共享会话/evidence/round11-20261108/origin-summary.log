@@ -1,0 +1,61 @@
+RUN base-36232-1794144162877643000
+PID 36232 guard 1 resolved 652 audit 3 violations 0 exit_audit_missing False
+PID 36241 guard 1 resolved 5 audit 2 violations 0 exit_audit_missing False
+RUN base-37089-1794144384650384000
+PID 37089 guard 1 resolved 652 audit 3 violations 0 exit_audit_missing False
+PID 37090 guard 1 resolved 5 audit 2 violations 0 exit_audit_missing False
+RUN gateway-36231-1794144162877640000
+PID 36231 guard 1 resolved 670 audit 3 violations 0 exit_audit_missing False
+PID 36246 guard 1 resolved 0 audit 2 violations 0 exit_audit_missing False
+PID 36255 guard 1 resolved 0 audit 2 violations 0 exit_audit_missing False
+PID 36257 guard 1 resolved 0 audit 2 violations 0 exit_audit_missing False
+PID 36261 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 36262 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 36263 guard 1 resolved 15 audit 0 violations 0 exit_audit_missing True
+PID 36264 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 36265 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 36266 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 36267 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 36268 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 36269 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 36270 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+RUN gateway-36595-1794144323483094000
+PID 36595 guard 1 resolved 670 audit 3 violations 0 exit_audit_missing False
+PID 36612 guard 1 resolved 24 audit 2 violations 0 exit_audit_missing False
+PID 36630 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+PID 36635 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+RUN gateway-37087-1794144384650345000
+PID 37087 guard 1 resolved 670 audit 3 violations 0 exit_audit_missing False
+PID 37092 guard 1 resolved 24 audit 2 violations 0 exit_audit_missing False
+PID 37119 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+PID 37122 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+PID 37129 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 37131 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 37132 guard 1 resolved 15 audit 0 violations 0 exit_audit_missing True
+PID 37133 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 37134 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 37136 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 37137 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 37138 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 37139 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 37140 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+RUN guard-selftest
+PID 33796 guard 1 resolved 0 audit 2 violations 0 exit_audit_missing False
+RUN sdk-36233-1794144162877606000
+PID 36233 guard 1 resolved 750 audit 3 violations 0 exit_audit_missing False
+PID 36249 guard 1 resolved 0 audit 2 violations 0 exit_audit_missing False
+PID 36253 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 36256 guard 1 resolved 204 audit 2 violations 0 exit_audit_missing False
+PID 36258 guard 1 resolved 219 audit 2 violations 0 exit_audit_missing False
+RUN sdk-36596-1794144323483111000
+PID 36596 guard 1 resolved 748 audit 3 violations 0 exit_audit_missing False
+PID 36632 guard 1 resolved 148 audit 2 violations 0 exit_audit_missing False
+RUN sdk-37088-1794144384650316000
+PID 37088 guard 1 resolved 751 audit 3 violations 0 exit_audit_missing False
+PID 37098 guard 1 resolved 148 audit 2 violations 0 exit_audit_missing False
+PID 37127 guard 1 resolved 203 audit 2 violations 0 exit_audit_missing False
+PID 37130 guard 1 resolved 205 audit 2 violations 0 exit_audit_missing False
+PID 37135 guard 1 resolved 220 audit 2 violations 0 exit_audit_missing False
+RUN sdk-37182-1794144403924434000
+PID 37182 guard 1 resolved 748 audit 3 violations 0 exit_audit_missing False
+PID 37184 guard 1 resolved 148 audit 2 violations 0 exit_audit_missing False

@@ -1,0 +1,27 @@
+{
+  "repos": {
+    "base": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+      "branch": "dev",
+      "commit": "b590fa5da3f71bd4e9faea5f1533ab9634fe4850"
+    },
+    "gateway": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+      "branch": "dev",
+      "commit": "c46c26a8ddde5ed1c707a0fdb7bae5b8a5d3bbdc"
+    },
+    "ctp": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+      "branch": "dev",
+      "commit": "9593397956e39e5d7600ae099c9692fb447e5aff"
+    },
+    "sdk": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+      "branch": "dev",
+      "commit": "1742505afe6d8b9041f6431f70000248d6e1f7c4"
+    }
+  },
+  "pushed_by_this_round": false,
+  "source_blobs": 193,
+  "test_blobs": 66
+}

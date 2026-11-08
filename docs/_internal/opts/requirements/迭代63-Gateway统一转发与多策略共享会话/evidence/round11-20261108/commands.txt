@@ -1,0 +1,19 @@
+# Preparation only. Do not execute the commands below until the primary confirms Base/Gateway source and test freeze.
+# The marker records that authorization; no source copy or build runs without it.
+mkdir -p /tmp/iter63-r11-packaging-CoU48Q7B/tmp
+export TMPDIR=/tmp/iter63-r11-packaging-CoU48Q7B/tmp
+export PIP_NO_CACHE_DIR=1
+export PYTHONDONTWRITEBYTECODE=1
+printf '%s\n' 'Primary confirmed R11 Base/Gateway source and tests frozen.' > /tmp/iter63-r11-packaging-CoU48Q7B/SOURCE_FROZEN
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r11-packaging-CoU48Q7B/prepare.py snapshot > /tmp/iter63-r11-packaging-CoU48Q7B/snapshot.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r11-packaging-CoU48Q7B/prepare.py fixed > /tmp/iter63-r11-packaging-CoU48Q7B/fixed.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r11-packaging-CoU48Q7B/prepare.py tests > /tmp/iter63-r11-packaging-CoU48Q7B/tests-copy.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-index --no-deps --no-build-isolation --wheel-dir /tmp/iter63-r11-packaging-CoU48Q7B/wheels /tmp/iter63-r11-packaging-CoU48Q7B/source/base /tmp/iter63-r11-packaging-CoU48Q7B/source/gateway > /tmp/iter63-r11-packaging-CoU48Q7B/build.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --no-index --no-deps --target /tmp/iter63-r11-packaging-CoU48Q7B/install/src /tmp/iter63-r11-packaging-CoU48Q7B/wheels/*.whl > /tmp/iter63-r11-packaging-CoU48Q7B/install.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/verify.py > /tmp/iter63-r11-packaging-CoU48Q7B/verify.log 2>&1
+# Test invocations must have cwd /tmp, with each result captured independently.
+R11_TEST_KIND=base /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/run_installed.py > /tmp/iter63-r11-packaging-CoU48Q7B/base-installed.log 2>&1
+R11_TEST_KIND=gateway /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/run_installed.py > /tmp/iter63-r11-packaging-CoU48Q7B/gateway-installed.log 2>&1
+R11_TEST_KIND=sdk /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/run_installed.py > /tmp/iter63-r11-packaging-CoU48Q7B/sdk-installed.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/audit_origins.py > /tmp/iter63-r11-packaging-CoU48Q7B/origin-summary.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r11-packaging-CoU48Q7B/verify.py > /tmp/iter63-r11-packaging-CoU48Q7B/verify-final.log 2>&1
