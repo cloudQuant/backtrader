@@ -1,0 +1,130 @@
+[
+  {
+    "lens": "adversarial",
+    "id": "A01",
+    "location": "计划 §3.16；64 计划 §4.1/5.3",
+    "trigger_condition": "Risk 在转发前拒绝却被写成经 Gateway 返回",
+    "guard_snippet": "改为 Risk→SDK→BT，Gateway 拒绝单列",
+    "potential_consequence": "会误建不存在的 Gateway 拒绝记录"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A02",
+    "location": "计划 §3.6；设计 §4",
+    "trigger_condition": "休市待发的取消与 Rejected 映射混杂",
+    "guard_snippet": "明确停止本地待发、通知 Rejected、不发场所撤单",
+    "potential_consequence": "同一输入产生不同状态/通知"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A03",
+    "location": "qwen QW63-05；计划 §3.11c",
+    "trigger_condition": "旧报告建议不可证明重建记录进入 external",
+    "guard_snippet": "不采纳；保留未归属和缺失证据",
+    "potential_consequence": "掩盖本系统迟到成交及归属缺口"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A04",
+    "location": "计划 §3.5；设计 §3/4.1",
+    "trigger_condition": "direct.release 只有名称没有状态/权限合同",
+    "guard_snippet": "补充 §1 的转换表、墓碑和竞争用例",
+    "potential_consequence": "提前释放占用或重复派发"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A05",
+    "location": "计划 §3.11；设计 §5.2",
+    "trigger_condition": "数量恒等式与金额公式缺数值精度约定",
+    "guard_snippet": "补充 §4 区分精确数量、金额规则和 BT 投影",
+    "potential_consequence": "幻影持仓、误报差额或掩盖真实短缺"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A06",
+    "location": "计划 §3.11d 与 INV63-02",
+    "trigger_condition": "旧 writer 退出要求与协作锁覆盖范围不对应",
+    "guard_snippet": "实施准备 §2 明确可证范围，不擅用未接线旧租约",
+    "potential_consequence": "接管后旧 writer 仍能双写"
+  },
+  {
+    "lens": "adversarial",
+    "id": "A07",
+    "location": "计划开头和初始 Git 状态",
+    "trigger_condition": "规范上游设计/共同合同未跟踪",
+    "guard_snippet": "本目录规范与报告统一作为文档交付范围",
+    "potential_consequence": "只交计划会丢失决定依据"
+  },
+  {
+    "lens": "edge-case-hunter",
+    "id": "E01",
+    "location": "计划 §3.8",
+    "trigger_condition": "调用超时但原生查询仍在途",
+    "guard_snippet": "补充 §2 定义终包/终止与请求代际隔离",
+    "potential_consequence": "旧结果污染下一请求并误报完整"
+  },
+  {
+    "lens": "edge-case-hunter",
+    "id": "E02",
+    "location": "计划 §1.3/3.7/3.12",
+    "trigger_condition": "消费者离线跨过压缩或保留边界",
+    "guard_snippet": "补充 §3 显式 gap、完整快照与增量衔接",
+    "potential_consequence": "静默漏成交、费用和占用"
+  },
+  {
+    "lens": "edge-case-hunter",
+    "id": "E03",
+    "location": "设计 §3/4",
+    "trigger_condition": "禁止订单数据写日志与持久恢复要求冲突",
+    "guard_snippet": "区分普通日志与受保护交易 journal",
+    "potential_consequence": "缺失恢复事实或泄露订单载荷"
+  },
+  {
+    "lens": "structure",
+    "id": "S01",
+    "location": "计划 §0/4.1/5",
+    "trigger_condition": "已决混入待决且 63.01 要求所有候选确认",
+    "guard_snippet": "分步门槛和基础集合集中到实施准备 §2",
+    "potential_consequence": "无关待决拖住基础冻结或被默认为已批"
+  },
+  {
+    "lens": "structure",
+    "id": "S02",
+    "location": "计划/设计/共同合同开头",
+    "trigger_condition": "多份文档重复合同却未标各自维护职责",
+    "guard_snippet": "新增现行文档入口和冲突处理原则",
+    "potential_consequence": "修改一处后其他规范继续漂移"
+  },
+  {
+    "lens": "structure",
+    "id": "S03",
+    "location": "原复核清单 §8–11",
+    "trigger_condition": "归档会连有效待办一起移走",
+    "guard_snippet": "先迁移待决与冻结出口再归档",
+    "potential_consequence": "开发找不到尚未解决的事项"
+  },
+  {
+    "lens": "structure",
+    "id": "S04",
+    "location": "综合/专项报告及相邻迭代入链",
+    "trigger_condition": "移动层级改变全部相对路径",
+    "guard_snippet": "重算移动文件出链与仓库内入链",
+    "potential_consequence": "历史证据和跨迭代引用断裂"
+  },
+  {
+    "lens": "structure",
+    "id": "S05",
+    "location": "现行计划/设计引用原复核清单",
+    "trigger_condition": "历史复核兼任当前交接入口",
+    "guard_snippet": "历史链接保留，新增现行实施准备入口",
+    "potential_consequence": "历史候选可能被当当前规范"
+  },
+  {
+    "lens": "structure",
+    "id": "S06",
+    "location": "设计 §5",
+    "trigger_condition": "5.0a/5.0b/5.0/5.0c 阅读次序不直观",
+    "guard_snippet": "保留旧章节定位并添加主题导航",
+    "potential_consequence": "直接重编号会使外部引用漂移"
+  }
+]
