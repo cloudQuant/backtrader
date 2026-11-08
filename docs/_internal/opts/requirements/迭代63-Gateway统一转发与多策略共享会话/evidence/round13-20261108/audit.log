@@ -1,0 +1,23 @@
+RUN ctp-75896-1794149671985327000
+PID 75896 guard 1 resolved 711 audit 3 violations 0 exit_audit_missing False
+RUN gateway-75912-1794149692058489000
+PID 75912 guard 1 resolved 670 audit 3 violations 0 exit_audit_missing False
+PID 75915 guard 1 resolved 24 audit 2 violations 0 exit_audit_missing False
+PID 75919 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+PID 75920 guard 1 resolved 20 audit 0 violations 0 exit_audit_missing True
+PID 75921 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 75922 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 75923 guard 1 resolved 15 audit 0 violations 0 exit_audit_missing True
+PID 75924 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 75925 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 75926 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 75927 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 75928 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 75929 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 75930 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+RUN sdk-75941-1794149704010750000
+PID 75941 guard 1 resolved 757 audit 3 violations 0 exit_audit_missing False
+PID 75943 guard 1 resolved 148 audit 2 violations 0 exit_audit_missing False
+PID 75955 guard 1 resolved 209 audit 2 violations 0 exit_audit_missing False
+PID 75956 guard 1 resolved 211 audit 2 violations 0 exit_audit_missing False
+PID 75957 guard 1 resolved 223 audit 2 violations 0 exit_audit_missing False

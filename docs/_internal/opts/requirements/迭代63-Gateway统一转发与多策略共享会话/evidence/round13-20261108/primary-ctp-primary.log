@@ -1,0 +1,349 @@
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 67%]
+........................................................................ [ 76%]
+........................................................................ [ 86%]
+........................................................................ [ 95%]
+......EEEEEEEEEEEEEEEEEEEEEEEEEE                                         [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_same_trader_captures_during_start_and_reader_matches_source _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 22
+  def test_same_trader_captures_during_start_and_reader_matches_source(prepared, monkeypatch):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:22
+___________ ERROR at setup of test_callback_rows_and_error_metadata ____________
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 46
+  def test_callback_rows_and_error_metadata(prepared):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:46
+_______ ERROR at setup of test_source_failures_leave_sticky_gap[old_spi] _______
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 71
+  @pytest.mark.parametrize("change", ["old_spi", "same_spi", "getter", "invalid"])
+  def test_source_failures_leave_sticky_gap(prepared, change):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:71
+______ ERROR at setup of test_source_failures_leave_sticky_gap[same_spi] _______
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 71
+  @pytest.mark.parametrize("change", ["old_spi", "same_spi", "getter", "invalid"])
+  def test_source_failures_leave_sticky_gap(prepared, change):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:71
+_______ ERROR at setup of test_source_failures_leave_sticky_gap[getter] ________
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 71
+  @pytest.mark.parametrize("change", ["old_spi", "same_spi", "getter", "invalid"])
+  def test_source_failures_leave_sticky_gap(prepared, change):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:71
+_______ ERROR at setup of test_source_failures_leave_sticky_gap[invalid] _______
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 71
+  @pytest.mark.parametrize("change", ["old_spi", "same_spi", "getter", "invalid"])
+  def test_source_failures_leave_sticky_gap(prepared, change):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:71
+___________ ERROR at setup of test_reader_reconnect_and_owner_checks ___________
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 103
+  def test_reader_reconnect_and_owner_checks(prepared):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:103
+_______ ERROR at setup of test_offered_record_identity_and_relogin_fence _______
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 126
+  def test_offered_record_identity_and_relogin_fence(prepared):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:126
+_______ ERROR at setup of test_actual_provider_order_struct_is_captured ________
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 149
+  def test_actual_provider_order_struct_is_captured(prepared):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:149
+________ ERROR at setup of test_failed_start_keeps_early_unacked_record ________
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 166
+  def test_failed_start_keeps_early_unacked_record(prepared, monkeypatch):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:166
+_ ERROR at setup of test_error_return_without_nonzero_error_is_gap[None-OnErrRtnOrderInsert] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 183
+  @pytest.mark.parametrize("callback", ["OnErrRtnOrderInsert", "OnErrRtnOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_error_return_without_nonzero_error_is_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:183
+_ ERROR at setup of test_error_return_without_nonzero_error_is_gap[None-OnErrRtnOrderAction] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 183
+  @pytest.mark.parametrize("callback", ["OnErrRtnOrderInsert", "OnErrRtnOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_error_return_without_nonzero_error_is_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:183
+_ ERROR at setup of test_error_return_without_nonzero_error_is_gap[info1-OnErrRtnOrderInsert] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 183
+  @pytest.mark.parametrize("callback", ["OnErrRtnOrderInsert", "OnErrRtnOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_error_return_without_nonzero_error_is_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:183
+_ ERROR at setup of test_error_return_without_nonzero_error_is_gap[info1-OnErrRtnOrderAction] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 183
+  @pytest.mark.parametrize("callback", ["OnErrRtnOrderInsert", "OnErrRtnOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_error_return_without_nonzero_error_is_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:183
+_ ERROR at setup of test_successful_response_with_no_error_does_not_create_gap[None-OnRspOrderInsert] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 195
+  @pytest.mark.parametrize("callback", ["OnRspOrderInsert", "OnRspOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_successful_response_with_no_error_does_not_create_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:195
+_ ERROR at setup of test_successful_response_with_no_error_does_not_create_gap[None-OnRspOrderAction] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 195
+  @pytest.mark.parametrize("callback", ["OnRspOrderInsert", "OnRspOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_successful_response_with_no_error_does_not_create_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:195
+_ ERROR at setup of test_successful_response_with_no_error_does_not_create_gap[info1-OnRspOrderInsert] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 195
+  @pytest.mark.parametrize("callback", ["OnRspOrderInsert", "OnRspOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_successful_response_with_no_error_does_not_create_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:195
+_ ERROR at setup of test_successful_response_with_no_error_does_not_create_gap[info1-OnRspOrderAction] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 195
+  @pytest.mark.parametrize("callback", ["OnRspOrderInsert", "OnRspOrderAction"])
+  @pytest.mark.parametrize("info", [None, SimpleNamespace(ErrorID=0)])
+  def test_successful_response_with_no_error_does_not_create_gap(prepared, callback, info):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:195
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnRtnOrder-order-args0-kwargs0] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnRtnTrade-trade-args1-kwargs1] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnRspOrderInsert-insert_response-args2-kwargs2] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnErrRtnOrderInsert-insert_error-args3-kwargs3] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnRspOrderAction-action_response-args4-kwargs4] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_capture_accepts_native_keyword_and_mixed_arguments[OnErrRtnOrderAction-action_error-args5-kwargs5] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 207
+  @pytest.mark.parametrize("callback,kind,args,kwargs", [
+      ("OnRtnOrder", "order", (), {"pOrder": row()}),
+      ("OnRtnTrade", "trade", (), {"pTrade": row()}),
+      ("OnRspOrderInsert", "insert_response", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9), "nRequestID": 101, "bIsLast": True}),
+      ("OnErrRtnOrderInsert", "insert_error", (row(),),
+       {"pRspInfo": SimpleNamespace(ErrorID=9)}),
+      ("OnRspOrderAction", "action_response", (),
+       {"pInputOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9),
+        "nRequestID": 102, "bIsLast": False}),
+      ("OnErrRtnOrderAction", "action_error", (),
+       {"pOrderAction": row(), "pRspInfo": SimpleNamespace(ErrorID=9)}),
+  ])
+  def test_capture_accepts_native_keyword_and_mixed_arguments(prepared, callback, kind, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:207
+_ ERROR at setup of test_invalid_callback_arguments_mark_gap_and_retain_python_error[args0-kwargs0] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 235
+  @pytest.mark.parametrize("args,kwargs", [((row(),), {"pOrder": row()}), ((), {})])
+  def test_invalid_callback_arguments_mark_gap_and_retain_python_error(prepared, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:235
+_ ERROR at setup of test_invalid_callback_arguments_mark_gap_and_retain_python_error[args1-kwargs1] _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py, line 235
+  @pytest.mark.parametrize("args,kwargs", [((row(),), {"pOrder": row()}), ((), {})])
+  def test_invalid_callback_arguments_mark_gap_and_retain_python_error(prepared, args, kwargs):
+E       fixture 'prepared' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_instrument_catalog_cache_dir, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, is_chromium, is_firefox, is_webkit, launch_browser, live_server, metadata, mocker, module_mocker, monkeypatch, new_context, no_cover, output_path, package_mocker, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, session_mocker, testrun_uid, tests/test_iter63_gateway_return_source.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter63_gateway_return_source.py:235
+=========================== short test summary info ============================
+ERROR tests/test_iter63_gateway_return_source.py::test_same_trader_captures_during_start_and_reader_matches_source
+ERROR tests/test_iter63_gateway_return_source.py::test_callback_rows_and_error_metadata
+ERROR tests/test_iter63_gateway_return_source.py::test_source_failures_leave_sticky_gap[old_spi]
+ERROR tests/test_iter63_gateway_return_source.py::test_source_failures_leave_sticky_gap[same_spi]
+ERROR tests/test_iter63_gateway_return_source.py::test_source_failures_leave_sticky_gap[getter]
+ERROR tests/test_iter63_gateway_return_source.py::test_source_failures_leave_sticky_gap[invalid]
+ERROR tests/test_iter63_gateway_return_source.py::test_reader_reconnect_and_owner_checks
+ERROR tests/test_iter63_gateway_return_source.py::test_offered_record_identity_and_relogin_fence
+ERROR tests/test_iter63_gateway_return_source.py::test_actual_provider_order_struct_is_captured
+ERROR tests/test_iter63_gateway_return_source.py::test_failed_start_keeps_early_unacked_record
+ERROR tests/test_iter63_gateway_return_source.py::test_error_return_without_nonzero_error_is_gap[None-OnErrRtnOrderInsert]
+ERROR tests/test_iter63_gateway_return_source.py::test_error_return_without_nonzero_error_is_gap[None-OnErrRtnOrderAction]
+ERROR tests/test_iter63_gateway_return_source.py::test_error_return_without_nonzero_error_is_gap[info1-OnErrRtnOrderInsert]
+ERROR tests/test_iter63_gateway_return_source.py::test_error_return_without_nonzero_error_is_gap[info1-OnErrRtnOrderAction]
+ERROR tests/test_iter63_gateway_return_source.py::test_successful_response_with_no_error_does_not_create_gap[None-OnRspOrderInsert]
+ERROR tests/test_iter63_gateway_return_source.py::test_successful_response_with_no_error_does_not_create_gap[None-OnRspOrderAction]
+ERROR tests/test_iter63_gateway_return_source.py::test_successful_response_with_no_error_does_not_create_gap[info1-OnRspOrderInsert]
+ERROR tests/test_iter63_gateway_return_source.py::test_successful_response_with_no_error_does_not_create_gap[info1-OnRspOrderAction]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnRtnOrder-order-args0-kwargs0]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnRtnTrade-trade-args1-kwargs1]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnRspOrderInsert-insert_response-args2-kwargs2]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnErrRtnOrderInsert-insert_error-args3-kwargs3]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnRspOrderAction-action_response-args4-kwargs4]
+ERROR tests/test_iter63_gateway_return_source.py::test_capture_accepts_native_keyword_and_mixed_arguments[OnErrRtnOrderAction-action_error-args5-kwargs5]
+ERROR tests/test_iter63_gateway_return_source.py::test_invalid_callback_arguments_mark_gap_and_retain_python_error[args0-kwargs0]
+ERROR tests/test_iter63_gateway_return_source.py::test_invalid_callback_arguments_mark_gap_and_retain_python_error[args1-kwargs1]
+726 passed, 26 errors in 15.72s
+ERROR conda.cli.main_run:execute(125): `conda run python -c import pathlib, pytest; raise SystemExit(pytest.main(["-q", *pathlib.Path("/tmp/iter63-r12-primary-QuDCHp/ctp.txt").read_text().splitlines(), "tests/test_iter63_gateway_return_buffer.py", "tests/test_iter63_gateway_return_source.py"]))` failed. (See above for error)

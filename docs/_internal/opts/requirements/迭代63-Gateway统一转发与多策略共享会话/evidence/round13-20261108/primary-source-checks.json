@@ -1,0 +1,73 @@
+{
+  "python": [
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "python"
+  ],
+  "pytest_flags": [
+    "-q"
+  ],
+  "selectors": {
+    "ctp": [
+      "tests/test_iter63_gateway_return_query.py",
+      "tests/test_iter63_trade_callback_source_fence.py",
+      "tests/test_iter63_gateway_return_projection.py",
+      "tests/test_iter63_gateway_session.py",
+      "tests/test_iter63_settlement_observation.py",
+      "tests/test_iter63_sdk_configured_pair_gate.py",
+      "tests/test_account_provider.py",
+      "tests/test_account_provider_execution_observations.py",
+      "tests/test_ctp_position_evidence.py",
+      "tests/test_ctp_native_query_certificate.py",
+      "tests/test_iter62_account_facts_real_client.py",
+      "tests/test_iter62_query_slot.py",
+      "tests/test_ctp_g5_source_unification.py",
+      "tests/test_ctp_callback_ingress_client.py",
+      "tests/test_ctp_native_callback_events.py",
+      "tests/test_ctp_join_observer_policy.py",
+      "tests/test_iter62_sdk_admission_gate.py",
+      "tests/test_iter22_contracts.py::test_spi_user_callbacks_do_not_hold_query_state_lock",
+      "tests/test_iter63_gateway_return_buffer.py",
+      "tests/test_iter63_gateway_return_source.py"
+    ],
+    "gateway": [
+      "tests/"
+    ],
+    "sdk": [
+      "tests/unit/test_iter63_gateway_dual_ports.py",
+      "tests/integration/test_iter63_gateway_dual_ports.py",
+      "tests/unit/test_iter63_gateway_direct_service.py",
+      "tests/integration/test_iter63_gateway_direct_service.py",
+      "tests/unit/test_service_config.py",
+      "tests/unit/test_service_config_cfg05_acceptance.py",
+      "tests/unit/test_service_host.py",
+      "tests/unit/test_service_host_integration.py",
+      "tests/test_iter63_ctp_gateway_trading.py",
+      "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "tests/unit/test_iter63_gateway_operator_trading_owner.py",
+      "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+      "tests/unit/test_iter63_correlation_issuer_reopen.py",
+      "tests/unit/test_iter60_venue_safe_correlation_ids.py",
+      "tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+      "tests/integration/test_iter63_gateway_return_ledger.py",
+      "tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+      "tests/unit/test_iter63_gateway_reservation_admission.py",
+      "tests/integration/test_iter63_ctp_gateway_return_maintenance.py"
+    ]
+  },
+  "final_counts": {
+    "ctp": 762,
+    "gateway": 723,
+    "sdk": 342
+  },
+  "earlier_ctp_collection_failure": {
+    "passed": 726,
+    "errors": 26,
+    "reason": "explicit imported fixture required when original module collected first"
+  },
+  "no_account_calls": true
+}

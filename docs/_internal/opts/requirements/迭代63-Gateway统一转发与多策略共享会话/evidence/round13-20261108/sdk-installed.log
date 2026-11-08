@@ -1,0 +1,23 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r13-packaging-gjjgT6GX/origin-logs/sdk-75941-1794149704010750000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION loaded for structs/measurement
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r13-packaging-gjjgT6GX/install/src/bt_api_binance/__init__.py
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+........................................................................ [ 63%]
+........................................................................ [ 84%]
+......................................................                   [100%]
+=============================== warnings summary ===============================
+tests/integration/test_service_account_instrument_metadata.py:318
+  /private/tmp/iter63-r13-packaging-gjjgT6GX/sdk-tests/tests/integration/test_service_account_instrument_metadata.py:318: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+342 passed, 1 warning in 13.90s
+PARENT_ORIGIN_AUDIT_OK

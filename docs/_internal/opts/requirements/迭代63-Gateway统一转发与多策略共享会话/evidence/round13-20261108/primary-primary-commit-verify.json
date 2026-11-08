@@ -1,0 +1,17 @@
+{
+  "commits": {
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "296428da526e988f6a6b93108294d796254eecad",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "bde53235bea347bd0ab36f19f623008a9b58244e",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "2072c6fc09b06238e494aa0a93e595a7002ccbf4"
+  },
+  "manifests": {
+    "source-manifest.json": {
+      "count": 578,
+      "failures": []
+    },
+    "test-manifest.json": {
+      "count": 89,
+      "failures": []
+    }
+  }
+}
