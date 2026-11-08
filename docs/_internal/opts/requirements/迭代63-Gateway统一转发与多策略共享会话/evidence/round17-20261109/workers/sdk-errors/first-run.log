@@ -1,0 +1,18 @@
+E
+==================================== ERRORS ====================================
+_ ERROR at setup of test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay _
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 63
+  def test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay(system):
+file /Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_ctp_gateway_return_ingestion.py, line 160
+  @pytest.fixture
+  def system(tmp_path, owner_guard):
+E       fixture 'owner_guard' not found
+>       available fixtures: _artifacts_recorder, _configure_application, _isolated_execution_ledger_registry, _monkeypatch_response_class, _push_request_context, _pw_artifacts_folder, _session_event_loop, _session_faker, _verify_url, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, benchmark, benchmark_weave, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, connect_options, context, cov, dash_br, dash_duo, dash_duo_mp, dash_multi_process_server, dash_process_server, dash_thread_server, dashjl, dashjl_server, dashr, dashr_server, delete_output_dir, device, diskcache_manager, doctest_namespace, empty_json_data, empty_strings_data, event_loop, event_loop_policy, extra, extras, extreme_precision_data, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, invalid_numeric_data, is_chromium, is_firefox, is_webkit, launch_browser, live_server, malformed_json_data, max_price_data, metadata, missing_fields_data, mock_api_response, mocker, module_mocker, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, new_context, no_cover, okx_order_data, okx_ticker_data, output_path, package_mocker, page, playwright, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, requests_mock, reset_environment, scientific_notation_data, session_mocker, shared_test_config, system, test_data_dir, testrun_uid, tests/integration::<event_loop>, tests/unit/test_iter63_gateway_cancel_return_ingestion.py::<event_loop>, time_machine, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_ctp_gateway_return_ingestion.py:160
+=========================== short test summary info ============================
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 error in 0.64s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -x tests/unit/test_iter63_gateway_cancel_return_ingestion.py tests/integration/test_iter63_gateway_cancel_error_rpc.py` failed. (See above for error)

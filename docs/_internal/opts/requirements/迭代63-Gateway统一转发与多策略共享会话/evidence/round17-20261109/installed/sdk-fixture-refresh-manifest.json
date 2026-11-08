@@ -1,0 +1,8 @@
+{
+  "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+  "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+  "sha256": "4d621562764a75fc7791e6074cdf939eb4ccdc1690b578a4fe608a282cd8afec",
+  "old_copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests-before-fixture/tests/unit/test_iter63_gateway_cancel_return_ingestion.py",
+  "old_sha256": "a34e17a4655b1948207604af2458d1807e507dccf4e89bfd59ef07a38da285ab",
+  "old_manifest": "/tmp/iter63-r17-install-20261109-oNtWsjp3/test-manifest-before-sdk-fixture.json"
+}

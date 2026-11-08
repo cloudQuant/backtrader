@@ -1,0 +1,11 @@
+.F...........................                                            [100%]
+=================================== FAILURES ===================================
+____ test_separate_attempts_with_same_order_error_have_distinct_fact_digest ____
+tests/test_iter63_cancel_return_projection.py:98: in test_separate_attempts_with_same_order_error_have_distinct_fact_digest
+    assert a.fact.digest() != b.fact.digest()
+           ^^^^^^^^^^^^^
+E   AttributeError: 'GatewayReturnFact' object has no attribute 'digest'
+=========================== short test summary info ============================
+FAILED tests/test_iter63_cancel_return_projection.py::test_separate_attempts_with_same_order_error_have_distinct_fact_digest
+1 failed, 28 passed in 0.96s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/test_iter63_cancel_return_projection.py --tb=short` failed. (See above for error)

@@ -1,0 +1,24 @@
+F401 [*] `queue` imported but unused
+ --> tests/unit/live_state/test_gateway_pending_cancel.py:4:8
+  |
+2 | import json
+3 | import multiprocessing
+4 | import queue
+  |        ^^^^^
+5 | from dataclasses import replace
+  |
+help: Remove unused import: `queue`
+
+F401 [*] `tests.unit.live_state.test_gateway_pending.inputs` imported but unused
+  --> tests/unit/live_state/test_gateway_pending_cancel.py:15:68
+   |
+13 | from backtrader.live_state import pending as pending_module
+14 | from backtrader.live_state.gateway_pending import GatewayPendingHost
+15 | from tests.unit.live_state.test_gateway_pending import data, host, inputs, observe
+   |                                                                    ^^^^^^
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_pending.inputs`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check tests/unit/live_state/test_gateway_pending_cancel.py` failed. (See above for error)

@@ -1,0 +1,37 @@
+Processing /tmp/iter63-r17-install-20261109-oNtWsjp3/source/base
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r17-install-20261109-oNtWsjp3/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r17-install-20261109-oNtWsjp3/source/ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r17-install-20261109-oNtWsjp3/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r17-install-20261109-oNtWsjp3/source/bt
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_base, bt_api_gateway, bt_api_ctp, bt_api_py, back-trader-python
+  Building wheel for bt_api_base (pyproject.toml): started
+  Building wheel for bt_api_base (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_base: filename=bt_api_base-0.16.0.dev63-py3-none-any.whl size=371927 sha256=0a0cd2c19c4873d1a866589794cade29116fa503d0d9341bc8be1dcb66e5a187
+  Stored in directory: /private/tmp/iter63-r17-install-20261109-oNtWsjp3/tmp/pip-ephem-wheel-cache-hcu3h_7y/wheels/9c/7c/05/5a19fc7932a3c215e8d2c7fb3e2d5462d99fb495ca89d189b6
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=188290 sha256=6e62c242317527892d7bb8dadc511f13d733863eb8e477e810d25be108d63159
+  Stored in directory: /private/tmp/iter63-r17-install-20261109-oNtWsjp3/tmp/pip-ephem-wheel-cache-hcu3h_7y/wheels/b5/0b/77/827156a48d01abcc9e58e987487ee8cb69f551fa9c1aef6b51
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9361763 sha256=9a55436a1b392e5957675bfdcd2ee37239d3860b948f1931f13290c995c56402
+  Stored in directory: /private/tmp/iter63-r17-install-20261109-oNtWsjp3/tmp/pip-ephem-wheel-cache-hcu3h_7y/wheels/bf/94/0c/cfd46f72e240fd088455586fe2511a05e5a1adcb28e72c2bd3
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2076193 sha256=e28a61e40644de8e4b045a20397e2957ac09bba5de6e0fec68f7edb3f4b9493d
+  Stored in directory: /private/tmp/iter63-r17-install-20261109-oNtWsjp3/tmp/pip-ephem-wheel-cache-hcu3h_7y/wheels/54/1d/9a/78f01ab9f420b5bf0d614a32da60dafa7d8099cfa2e06125ef
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=1997660 sha256=23e1b1781d93c1dace8c64c2587da5260d54cabd4988f7623bc50be0ae75c8b4
+  Stored in directory: /private/tmp/iter63-r17-install-20261109-oNtWsjp3/tmp/pip-ephem-wheel-cache-hcu3h_7y/wheels/54/06/78/22703abf6c2aec7a12d4ba23a41819594fa888a67f3d61258a
+Successfully built bt_api_base bt_api_gateway bt_api_ctp bt_api_py back-trader-python

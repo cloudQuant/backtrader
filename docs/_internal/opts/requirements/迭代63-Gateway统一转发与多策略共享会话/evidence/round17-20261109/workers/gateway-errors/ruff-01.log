@@ -1,0 +1,27 @@
+F401 [*] `json` imported but unused
+ --> tests/test_iter63_cancel_error_attribution.py:3:8
+  |
+1 | """Offline cancellation-error association in the original command database."""
+2 |
+3 | import json
+  |        ^^^^
+4 | import sqlite3
+5 | from dataclasses import replace
+  |
+help: Remove unused import: `json`
+
+F401 [*] `bt_api_gateway.direct_cancel_journal.GatewayDirectCancelJournal` imported but unused
+  --> tests/test_iter63_cancel_error_attribution.py:13:50
+   |
+11 | from bt_api_base.market_protocol import MarketInstrumentKey
+12 |
+13 | from bt_api_gateway.direct_cancel_journal import GatewayDirectCancelJournal
+   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 | from bt_api_gateway.direct_command_journal import (
+15 |     DirectCommandJournalError,
+   |
+help: Remove unused import: `bt_api_gateway.direct_cancel_journal.GatewayDirectCancelJournal`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --select E9,F src/bt_api_gateway/direct_cancel_journal.py src/bt_api_gateway/direct_execution_journal.py src/bt_api_gateway/direct_command_journal.py tests/test_iter63_cancel_error_attribution.py tests/test_iter63_direct_cancel_journal.py tests/test_iter63_direct_execution_journal.py tests/test_iter63_settlement_journal.py` failed. (See above for error)

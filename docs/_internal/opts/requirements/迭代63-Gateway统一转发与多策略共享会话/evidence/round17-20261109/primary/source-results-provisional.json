@@ -1,0 +1,26 @@
+{
+  "harness": "harness-freeze-sha256-v2.json",
+  "base": {
+    "passed": 1786,
+    "skipped": 3,
+    "seconds": 14.05
+  },
+  "gateway": {
+    "passed": 786,
+    "seconds": 13.41
+  },
+  "ctp": {
+    "passed": 955,
+    "seconds": 21.2
+  },
+  "bt": {
+    "passed": 237,
+    "seconds": 14.14
+  },
+  "sdk": {
+    "passed": 773,
+    "setup_errors": 8,
+    "seconds": 28.97,
+    "status": "TEST_FIXTURE_FIX_IN_PROGRESS"
+  }
+}

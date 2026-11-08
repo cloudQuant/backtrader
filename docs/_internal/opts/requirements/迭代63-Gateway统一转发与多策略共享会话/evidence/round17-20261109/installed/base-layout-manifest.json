@@ -1,0 +1,26 @@
+{
+  "src_link": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/src",
+  "resolved_target": "/private/tmp/iter63-r17-install-20261109-oNtWsjp3/install/src",
+  "files": [
+    {
+      "source": "/tmp/iter63-r17-install-20261109-oNtWsjp3/source/base/pyproject.toml",
+      "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/pyproject.toml",
+      "sha256": "ced985420cc8102a404cf172f839989c47a7e5f052602029af5c0018f3ac1609"
+    },
+    {
+      "source": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/sitecustomize.py",
+      "copy": "/private/tmp/iter63-r17-install-20261109-oNtWsjp3/install/src/sitecustomize.py",
+      "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+    },
+    {
+      "source": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/origin_guard.py",
+      "copy": "/private/tmp/iter63-r17-install-20261109-oNtWsjp3/install/src/origin_guard.py",
+      "sha256": "6d4e91a4c1e2f7d2b7605bee5a30ef5b3566681629fc510286135e26ca29a84e"
+    },
+    {
+      "source": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/offline_guard.py",
+      "copy": "/private/tmp/iter63-r17-install-20261109-oNtWsjp3/install/src/offline_guard.py",
+      "sha256": "5f72ab1594cb50f0f967c1d19719d079b1f99afb230e996e34c3ae158664646a"
+    }
+  ]
+}

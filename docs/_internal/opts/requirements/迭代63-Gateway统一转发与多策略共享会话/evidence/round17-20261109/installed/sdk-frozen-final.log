@@ -1,0 +1,93 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r17-install-20261109-oNtWsjp3/origin-logs/sdk-20213-1794158032049506000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 46%]
+........................................................................ [ 55%]
+........................................................................ [ 64%]
+........................................................................ [ 73%]
+........................................................................ [ 82%]
+........................................................................ [ 92%]
+.....................................................EEEEEEEE            [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay _
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 166
+  def test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay(system):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:166
+_ ERROR at setup of test_batch_projection_failure_precedes_all_writes_and_does_not_ack _
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 192
+  def test_batch_projection_failure_precedes_all_writes_and_does_not_ack(system):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:192
+_ ERROR at setup of test_unsupported_success_or_insert_does_not_ack[action_response-0] _
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 206
+  @pytest.mark.parametrize("kind,code", [("action_response", 0), ("insert_response", 1)])
+  def test_unsupported_success_or_insert_does_not_ack(system, kind, code):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:206
+_ ERROR at setup of test_unsupported_success_or_insert_does_not_ack[insert_response-1] _
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 206
+  @pytest.mark.parametrize("kind,code", [("action_response", 0), ("insert_response", 1)])
+  def test_unsupported_success_or_insert_does_not_ack(system, kind, code):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:206
+__ ERROR at setup of test_stale_source_in_commit_rolls_back_and_keeps_ticket ___
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 219
+  def test_stale_source_in_commit_rolls_back_and_keeps_ticket(system):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:219
+___ ERROR at setup of test_legacy_prepared_cancel_is_explicitly_unsupported ____
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 241
+  def test_legacy_prepared_cancel_is_explicitly_unsupported(system):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:241
+___ ERROR at setup of test_unknown_cancel_request_key_does_not_mutate_or_ack ___
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 255
+  def test_unknown_cancel_request_key_does_not_mutate_or_ack(system):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:255
+_ ERROR at setup of test_lost_second_commit_reports_prefix_then_replay_is_idempotent _
+file /private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py, line 270
+  def test_lost_second_commit_reports_prefix_then_replay_is_idempotent(system, monkeypatch):
+E       fixture 'system' not found
+>       available fixtures: _isolated_execution_ledger_registry, binance_balance_data, binance_order_data, binance_request_ticker_data, binance_spot_ticker_data, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, empty_json_data, empty_strings_data, extreme_precision_data, invalid_numeric_data, malformed_json_data, max_price_data, missing_fields_data, mock_api_response, monkeypatch, multi_exchange_tickers, negative_price_data, nested_json_data, okx_order_data, okx_ticker_data, project_root_path, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, reset_environment, scientific_notation_data, shared_test_config, test_data_dir, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unicode_symbol_data, worker_id, zero_price_data
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/private/tmp/iter63-r17-install-20261109-oNtWsjp3/sdk-tests/tests/unit/test_iter63_gateway_cancel_return_ingestion.py:270
+=========================== short test summary info ============================
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_batch_projection_failure_precedes_all_writes_and_does_not_ack
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_unsupported_success_or_insert_does_not_ack[action_response-0]
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_unsupported_success_or_insert_does_not_ack[insert_response-1]
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_stale_source_in_commit_rolls_back_and_keeps_ticket
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_legacy_prepared_cancel_is_explicitly_unsupported
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_unknown_cancel_request_key_does_not_mutate_or_ack
+ERROR tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_lost_second_commit_reports_prefix_then_replay_is_idempotent
+773 passed, 8 errors in 29.36s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r17-install-20261109-oNtWsjp3/run_installed.py` failed. (See above for error)

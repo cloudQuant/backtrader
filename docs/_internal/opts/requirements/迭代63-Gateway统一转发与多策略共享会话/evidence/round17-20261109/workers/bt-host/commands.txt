@@ -1,0 +1,3 @@
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest tests/unit/live_state/test_gateway_pending.py -q
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest tests/unit/live_state/test_gateway_pending_cancel.py -q
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest tests/unit/live_state -q

@@ -1,0 +1,12 @@
+[
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/wheels/bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07"
+  },
+  {
+    "source": "/tmp/iter63-r15-install-20261109-0CwgPSqi/wheels/bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be"
+  }
+]

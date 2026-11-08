@@ -1,0 +1,102 @@
+{
+  "iteration_status": "IN_PROGRESS / NOT_ACCEPTED",
+  "round": "R17",
+  "date": "2026-11-09",
+  "source": {
+    "base": {
+      "passed": 1786,
+      "skipped": 3,
+      "log": "primary/base-frozen-v2.log"
+    },
+    "gateway": {
+      "passed": 786,
+      "skipped": 0,
+      "log": "primary/gateway-frozen-v2.log"
+    },
+    "ctp": {
+      "passed": 955,
+      "skipped": 0,
+      "log": "primary/ctp-frozen-v2.log"
+    },
+    "sdk": {
+      "passed": 781,
+      "skipped": 0,
+      "log": "primary/sdk-fixture-final.log"
+    },
+    "bt": {
+      "passed": 237,
+      "skipped": 0,
+      "log": "primary/bt-frozen-v2.log"
+    }
+  },
+  "installed": {
+    "base": {
+      "passed": 1786,
+      "skipped": 3,
+      "log": "installed/base-installed-after-helpers.log"
+    },
+    "gateway": {
+      "passed": 786,
+      "skipped": 0,
+      "log": "installed/gateway-frozen-final.log"
+    },
+    "ctp": {
+      "passed": 955,
+      "skipped": 0,
+      "log": "installed/ctp-frozen-final.log"
+    },
+    "sdk": {
+      "passed": 781,
+      "skipped": 0,
+      "log": "installed/sdk-installed-after-fixture.log"
+    },
+    "bt": {
+      "passed": 237,
+      "skipped": 0,
+      "log": "installed/bt-frozen-final.log"
+    }
+  },
+  "commits": {
+    "base": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+      "branch": "dev",
+      "commit": "1b08a6a0124b89df6024968a2a9f8f0351831028"
+    },
+    "ctp": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+      "branch": "dev",
+      "commit": "1f3d00eab6c53a4ae6e6a72f932dd191d06a64f5"
+    },
+    "gateway": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+      "branch": "dev",
+      "commit": "fc54afc8893e9fd9ca009c183999baa4811a9ff3"
+    },
+    "sdk": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+      "branch": "dev",
+      "commit": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+    },
+    "bt": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+      "branch": "dev",
+      "commit": "58f004b1e563e0919c9ad07453c6dfb8acf730dd"
+    }
+  },
+  "verification": {
+    "source_build_inputs": 1439,
+    "test_helper_inputs": 239,
+    "copy_worktree_commit_sha_match": true,
+    "five_wheels_and_installed_files_match": true,
+    "final_frozen_harness_entries": 22
+  },
+  "gaps": [
+    "Gateway: 8 subprocesses missing exit origin audit",
+    "Base installed python -S child: no injected origin or offline audit",
+    "Base source cold-start child replaces PYTHONPATH and does not inherit guard",
+    "ZMQ external editable; no full dependency resolver",
+    "Windows and PowerShell 5.1 NOT_RUN",
+    "No real account or complete iteration acceptance",
+    "BT rebind versus independent writer concurrency OPEN; approval pending"
+  ]
+}

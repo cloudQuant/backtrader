@@ -1,0 +1,43 @@
+UP035 [*] Import from `collections.abc` instead: `Mapping`
+  --> src/bt_api_ctp/gateway_cancel_return_projection.py:14:1
+   |
+12 | from dataclasses import dataclass
+13 | from types import MappingProxyType
+14 | from typing import Mapping
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |
+16 | from bt_api_base.direct_cancel_protocol import PreparedCancelRequest
+   |
+help: Import from `collections.abc`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_iter63_cancel_return_projection.py:3:1
+   |
+ 1 |   """Synthetic prepared cancel/source matching; never opens a native connection."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from dataclasses import replace
+ 6 | | from types import MappingProxyType
+ 7 | |
+ 8 | | import pytest
+ 9 | | from bt_api_base.direct_cancel_protocol import PreparedCancelRequest
+10 | | from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+11 | | from bt_api_base.market_protocol import MarketInstrumentKey
+12 | |
+13 | | from bt_api_ctp.gateway_cancel_return_projection import (
+14 | |     CtpGatewayCancelReturnError,
+15 | |     gateway_cancel_error_key,
+16 | |     project_gateway_cancel_error,
+17 | | )
+18 | | from bt_api_ctp.gateway_cancel_source import cancel_attempt_key
+19 | | from bt_api_ctp.gateway_return_buffer import CtpGatewayReturnBuffer
+20 | | from bt_api_ctp.registered_sim_session import capture_query_session
+21 | | from test_iter63_prepared_cancel import Verifier, make_system, target
+   | |_____________________________________________________________________^
+   |
+help: Organize imports
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --no-fix src/bt_api_ctp/gateway_cancel_source.py src/bt_api_ctp/gateway_cancel_return_projection.py tests/test_iter63_cancel_return_projection.py` failed. (See above for error)

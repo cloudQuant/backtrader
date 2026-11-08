@@ -1,0 +1,37 @@
+F...FEE                                                                  [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_errors_are_separate_authenticated_events_replay_and_ack_restart _
+tests/integration/test_iter63_gateway_cancel_error_rpc.py:88: in cancel_stream
+    pytest.fail(f"synthetic owner failed: {errors.get(timeout=2)!r}")
+E   Failed: synthetic owner failed: CtpGatewayReturnIngestionError('PROJECTION_FAILED')
+___ ERROR at setup of test_malformed_cancel_association_does_not_offer_page ____
+tests/integration/test_iter63_gateway_cancel_error_rpc.py:88: in cancel_stream
+    pytest.fail(f"synthetic owner failed: {errors.get(timeout=2)!r}")
+E   Failed: synthetic owner failed: CtpGatewayReturnIngestionError('PROJECTION_FAILED')
+=================================== FAILURES ===================================
+____ test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay ____
+tests/unit/test_iter63_gateway_cancel_return_ingestion.py:72: in test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay
+    assert ingestor.ingest_callbacks(batch, assert_current=lambda r: assert_offered(buffer, r)) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/ctp_gateway_return_ingestion.py:301: in ingest_callbacks
+    raise CtpGatewayReturnIngestionError("PROJECTION_FAILED") from None
+E   bt_api_py.ctp_gateway_return_ingestion.CtpGatewayReturnIngestionError: PROJECTION_FAILED
+___________ test_stale_source_in_commit_rolls_back_and_keeps_ticket ____________
+tests/unit/test_iter63_gateway_cancel_return_ingestion.py:127: in test_stale_source_in_commit_rolls_back_and_keeps_ticket
+    ingestor.ingest_callbacks(batch, assert_current=current)
+bt_api_py/ctp_gateway_return_ingestion.py:301: in ingest_callbacks
+    raise CtpGatewayReturnIngestionError("PROJECTION_FAILED") from None
+E   bt_api_py.ctp_gateway_return_ingestion.CtpGatewayReturnIngestionError: PROJECTION_FAILED
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_gateway_cancel_return_ingestion.py:126: in test_stale_source_in_commit_rolls_back_and_keeps_ticket
+    with pytest.raises(CtpGatewayReturnIngestionError, match="SOURCE_STALE") as exc:
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'SOURCE_STALE'
+E    Input: 'PROJECTION_FAILED'
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_two_cancel_errors_same_order_same_code_remain_distinct_and_replay
+FAILED tests/unit/test_iter63_gateway_cancel_return_ingestion.py::test_stale_source_in_commit_rolls_back_and_keeps_ticket
+ERROR tests/integration/test_iter63_gateway_cancel_error_rpc.py::test_errors_are_separate_authenticated_events_replay_and_ack_restart
+ERROR tests/integration/test_iter63_gateway_cancel_error_rpc.py::test_malformed_cancel_association_does_not_offer_page
+2 failed, 3 passed, 2 errors in 0.85s

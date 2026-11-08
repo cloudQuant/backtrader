@@ -1,0 +1,683 @@
+........................................................................ [ 31%]
+....FF.................................................................. [ 63%]
+........................................................................ [ 94%]
+............                                                             [100%]
+=================================== FAILURES ===================================
+__________ test_gateway_client_with_bt_pending_host_recovery[run-old] __________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe0')
+
+    @contextmanager
+    def _gateway(tmp_path):
+        endpoint = _endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        scope = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref)
+        resource = ResourceGrant("gateway-a", "service.direct_write", "scope-a", scope, OPS)
+        authority = TrustedServiceAuthority(
+            identity=SERVICE,
+            scope=WireScope(DOMAIN),
+            scope_ref="scope-a",
+            scope_version="scope-v1",
+            security_ref="security-a",
+            security_version="security-v1",
+            registration_policy_ref="direct-policy-v1",
+            registration_policy_version="direct-policy-v1",
+            service_requirements_ref="direct-requirements-v1",
+            service_requirements_version="direct-requirements-v1",
+            curve_public_key=server_keys[0],
+            curve_secret_key=server_keys[1],
+            principals={client_keys[0]: CLIENT.principal_ref},
+            grants={CLIENT.principal_ref: (PrincipalGrant(CLIENT, (resource,)),)},
+        )
+        guard_dir = tmp_path / "guard"
+        guard_dir.mkdir()
+        ready, sends = queue.Queue(), queue.Queue()
+        stop = threading.Event()
+    
+        def serve():
+            owner = host = None
+            try:
+                journals = []
+    
+                def owner_factory():
+                    guard = LocalAccountSessionGuard(guard_dir, ACCOUNT, "synthetic-owner")
+                    generation = guard.acquire()
+                    journal = GatewayDirectCommandJournal.create(
+                        tmp_path / "journal.sqlite", ACCOUNT, generation=generation
+                    )
+                    journals.append(journal)
+    
+                    def native(payload, port, host_scope):
+                        key = payload["idempotency_key"]
+                        identity = NativeOrderIdentity(
+                            "TEST", "native-" + key, {"inst_id": "rb", "trading_day": "20300101"}, 1
+                        )
+                        record = PreDispatchRecord(
+                            operation=WriteOperation.PLACE,
+                            host_scope=host_scope,
+                            exchange_name="TEST",
+                            symbol=payload["symbol"],
+                            identity=identity,
+                            target_identity=None,
+                            request_summary=payload,
+                            trading_day="20300101",
+                            session_generation=1,
+                            created_at_utc="synthetic",
+                        )
+                        marker = port.commit(record)
+                        if marker is None:
+                            return NativeDispatchOutcome(False, identity, None)
+                        sends.put(key)
+                        return NativeDispatchOutcome(True, identity, marker)
+    
+                    dispatcher = GatewayDirectDispatcher(
+                        journal,
+                        "TEST",
+                        guard,
+                        native,
+                        lambda identity: ("TEST:" + identity.client_order_id,),
+                        lambda _: True,
+                    )
+                    return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
+    
+                owner = GatewayDirectOwner(
+                    owner_factory, queue_size=8, max_queue_wait_seconds=10, busy_timeout_seconds=10
+                )
+                if not owner.start(10):
+                    raise RuntimeError("OWNER_START_FAILED")
+                journal = journals[0]
+                binding = GatewayDirectServiceBinding(
+                    journal,
+                    {CLIENT.principal_ref: GatewayDirectGrant(CLIENT.actor_ref, frozenset({"rb"}))},
+                    owner=owner,
+                )
+                host = ServiceHost(
+                    _service_config(endpoint),
+                    authority,
+                    tmp_path / "registry.sqlite",
+                    lambda *_: ComponentResources.borrowed({"binding": binding}, ready=lambda: True),
+                )
+                host.start()
+                ready.put(("ready", journal.journal_id))
+                while not stop.is_set():
+                    host.serve_once(10)
+            except BaseException as exc:
+                ready.put(("error", type(exc).__name__, getattr(exc, "code", None)))
+            finally:
+                try:
+                    if host is not None and host.state == "started":
+                        host.close()
+                    if owner is not None and not owner.close(10):
+                        raise RuntimeError("OWNER_CLOSE_FAILED")
+                    ready.put(("closed",))
+                except BaseException as exc:
+                    ready.put(("cleanup_error", type(exc).__name__))
+    
+        thread = threading.Thread(target=serve, name="synthetic-gateway")
+        thread.start()
+        runtimes = []
+        dropped = set()
+        try:
+            result = ready.get(timeout=15)
+>           assert result[0] == "ready", result
+E           AssertionError: ('error', 'RuntimeError', None)
+E           assert 'error' == 'ready'
+E             
+E             - ready
+E             + error
+
+tests/unit/live_state/test_gateway_pending_client.py:241: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe0')
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x164d70410>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x165012f50>
+recovery_run = 'run-old'
+
+    @pytest.mark.parametrize("recovery_run", ["run-old", "run-new"])
+    def test_gateway_client_with_bt_pending_host_recovery(tmp_path, state, monkeypatch, recovery_run):
+        """Reply loss and failed local writes retain durable original identities."""
+        import json
+    
+        import backtrader.live_state.pending as pending_module
+    
+>       with _gateway(tmp_path) as (binding, connect, sends, dropped):
+
+tests/unit/live_state/test_gateway_pending_client.py:343: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../opt/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe0')
+
+    @contextmanager
+    def _gateway(tmp_path):
+        endpoint = _endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        scope = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref)
+        resource = ResourceGrant("gateway-a", "service.direct_write", "scope-a", scope, OPS)
+        authority = TrustedServiceAuthority(
+            identity=SERVICE,
+            scope=WireScope(DOMAIN),
+            scope_ref="scope-a",
+            scope_version="scope-v1",
+            security_ref="security-a",
+            security_version="security-v1",
+            registration_policy_ref="direct-policy-v1",
+            registration_policy_version="direct-policy-v1",
+            service_requirements_ref="direct-requirements-v1",
+            service_requirements_version="direct-requirements-v1",
+            curve_public_key=server_keys[0],
+            curve_secret_key=server_keys[1],
+            principals={client_keys[0]: CLIENT.principal_ref},
+            grants={CLIENT.principal_ref: (PrincipalGrant(CLIENT, (resource,)),)},
+        )
+        guard_dir = tmp_path / "guard"
+        guard_dir.mkdir()
+        ready, sends = queue.Queue(), queue.Queue()
+        stop = threading.Event()
+    
+        def serve():
+            owner = host = None
+            try:
+                journals = []
+    
+                def owner_factory():
+                    guard = LocalAccountSessionGuard(guard_dir, ACCOUNT, "synthetic-owner")
+                    generation = guard.acquire()
+                    journal = GatewayDirectCommandJournal.create(
+                        tmp_path / "journal.sqlite", ACCOUNT, generation=generation
+                    )
+                    journals.append(journal)
+    
+                    def native(payload, port, host_scope):
+                        key = payload["idempotency_key"]
+                        identity = NativeOrderIdentity(
+                            "TEST", "native-" + key, {"inst_id": "rb", "trading_day": "20300101"}, 1
+                        )
+                        record = PreDispatchRecord(
+                            operation=WriteOperation.PLACE,
+                            host_scope=host_scope,
+                            exchange_name="TEST",
+                            symbol=payload["symbol"],
+                            identity=identity,
+                            target_identity=None,
+                            request_summary=payload,
+                            trading_day="20300101",
+                            session_generation=1,
+                            created_at_utc="synthetic",
+                        )
+                        marker = port.commit(record)
+                        if marker is None:
+                            return NativeDispatchOutcome(False, identity, None)
+                        sends.put(key)
+                        return NativeDispatchOutcome(True, identity, marker)
+    
+                    dispatcher = GatewayDirectDispatcher(
+                        journal,
+                        "TEST",
+                        guard,
+                        native,
+                        lambda identity: ("TEST:" + identity.client_order_id,),
+                        lambda _: True,
+                    )
+                    return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
+    
+                owner = GatewayDirectOwner(
+                    owner_factory, queue_size=8, max_queue_wait_seconds=10, busy_timeout_seconds=10
+                )
+                if not owner.start(10):
+                    raise RuntimeError("OWNER_START_FAILED")
+                journal = journals[0]
+                binding = GatewayDirectServiceBinding(
+                    journal,
+                    {CLIENT.principal_ref: GatewayDirectGrant(CLIENT.actor_ref, frozenset({"rb"}))},
+                    owner=owner,
+                )
+                host = ServiceHost(
+                    _service_config(endpoint),
+                    authority,
+                    tmp_path / "registry.sqlite",
+                    lambda *_: ComponentResources.borrowed({"binding": binding}, ready=lambda: True),
+                )
+                host.start()
+                ready.put(("ready", journal.journal_id))
+                while not stop.is_set():
+                    host.serve_once(10)
+            except BaseException as exc:
+                ready.put(("error", type(exc).__name__, getattr(exc, "code", None)))
+            finally:
+                try:
+                    if host is not None and host.state == "started":
+                        host.close()
+                    if owner is not None and not owner.close(10):
+                        raise RuntimeError("OWNER_CLOSE_FAILED")
+                    ready.put(("closed",))
+                except BaseException as exc:
+                    ready.put(("cleanup_error", type(exc).__name__))
+    
+        thread = threading.Thread(target=serve, name="synthetic-gateway")
+        thread.start()
+        runtimes = []
+        dropped = set()
+        try:
+            result = ready.get(timeout=15)
+            assert result[0] == "ready", result
+            binding = GatewayCommandBinding(result[1], ACCOUNT, CLIENT.actor_ref, CLIENT.principal_ref)
+    
+            def connect(run_id, *, recovery=False):
+                route = GatewayClientRoute(
+                    "broker.direct_write",
+                    SERVICE.actor_ref,
+                    "gateway-a",
+                    "scope-a",
+                    WireScope(
+                        DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref, run_id=run_id
+                    ),
+                    CLIENT,
+                )
+    
+                def factory():
+                    raw = ZmqTransportFactory(
+                        {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                    )
+    
+                    class Drop:
+                        def __init__(self, wrapped):
+                            self.wrapped = wrapped
+    
+                        def request(self, request, *, timeout):
+                            response = self.wrapped.request(request, timeout=timeout)
+                            operation = request.header.operation
+                            if operation in dropped:
+                                dropped.remove(operation)
+                                raise TimeoutError("synthetic lost response")
+                            return response
+    
+                        def close(self):
+                            self.wrapped.close()
+    
+                    return ServiceClientRuntime(
+                        _client_config(endpoint),
+                        identity=CLIENT,
+                        scope_resolver=lambda _: WireScope(DOMAIN, account_ref=ACCOUNT),
+                        peer_resolver=lambda _: SERVICE,
+                        transport_factory=lambda *args: Drop(raw(*args)),
+                        run_id=run_id,
+                        requested_operations=recovery_requested_operations() if recovery else None,
+                    )
+    
+                runtime = ThreadedServiceClientRuntime(factory)
+                runtimes.append(runtime)
+                runtime.start(timeout_seconds=10)
+                return runtime, route
+    
+            yield binding, connect, sends, dropped
+        finally:
+            errors = []
+            for runtime in reversed(runtimes):
+                try:
+                    runtime.close(timeout_seconds=10)
+                except Exception as exc:
+                    errors.append(type(exc).__name__)
+            stop.set()
+            thread.join(15)
+            if thread.is_alive():
+                errors.append("host thread did not stop")
+            else:
+                try:
+                    closed = ready.get(timeout=3)
+                    if closed != ("closed",):
+                        errors.append(str(closed))
+                except queue.Empty:
+                    errors.append("missing cleanup confirmation")
+>           assert not errors, errors
+E           AssertionError: ["('cleanup_error', 'RuntimeError')"]
+E           assert not ["('cleanup_error', 'RuntimeError')"]
+
+tests/unit/live_state/test_gateway_pending_client.py:310: AssertionError
+__________ test_gateway_client_with_bt_pending_host_recovery[run-new] __________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe1')
+
+    @contextmanager
+    def _gateway(tmp_path):
+        endpoint = _endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        scope = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref)
+        resource = ResourceGrant("gateway-a", "service.direct_write", "scope-a", scope, OPS)
+        authority = TrustedServiceAuthority(
+            identity=SERVICE,
+            scope=WireScope(DOMAIN),
+            scope_ref="scope-a",
+            scope_version="scope-v1",
+            security_ref="security-a",
+            security_version="security-v1",
+            registration_policy_ref="direct-policy-v1",
+            registration_policy_version="direct-policy-v1",
+            service_requirements_ref="direct-requirements-v1",
+            service_requirements_version="direct-requirements-v1",
+            curve_public_key=server_keys[0],
+            curve_secret_key=server_keys[1],
+            principals={client_keys[0]: CLIENT.principal_ref},
+            grants={CLIENT.principal_ref: (PrincipalGrant(CLIENT, (resource,)),)},
+        )
+        guard_dir = tmp_path / "guard"
+        guard_dir.mkdir()
+        ready, sends = queue.Queue(), queue.Queue()
+        stop = threading.Event()
+    
+        def serve():
+            owner = host = None
+            try:
+                journals = []
+    
+                def owner_factory():
+                    guard = LocalAccountSessionGuard(guard_dir, ACCOUNT, "synthetic-owner")
+                    generation = guard.acquire()
+                    journal = GatewayDirectCommandJournal.create(
+                        tmp_path / "journal.sqlite", ACCOUNT, generation=generation
+                    )
+                    journals.append(journal)
+    
+                    def native(payload, port, host_scope):
+                        key = payload["idempotency_key"]
+                        identity = NativeOrderIdentity(
+                            "TEST", "native-" + key, {"inst_id": "rb", "trading_day": "20300101"}, 1
+                        )
+                        record = PreDispatchRecord(
+                            operation=WriteOperation.PLACE,
+                            host_scope=host_scope,
+                            exchange_name="TEST",
+                            symbol=payload["symbol"],
+                            identity=identity,
+                            target_identity=None,
+                            request_summary=payload,
+                            trading_day="20300101",
+                            session_generation=1,
+                            created_at_utc="synthetic",
+                        )
+                        marker = port.commit(record)
+                        if marker is None:
+                            return NativeDispatchOutcome(False, identity, None)
+                        sends.put(key)
+                        return NativeDispatchOutcome(True, identity, marker)
+    
+                    dispatcher = GatewayDirectDispatcher(
+                        journal,
+                        "TEST",
+                        guard,
+                        native,
+                        lambda identity: ("TEST:" + identity.client_order_id,),
+                        lambda _: True,
+                    )
+                    return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
+    
+                owner = GatewayDirectOwner(
+                    owner_factory, queue_size=8, max_queue_wait_seconds=10, busy_timeout_seconds=10
+                )
+                if not owner.start(10):
+                    raise RuntimeError("OWNER_START_FAILED")
+                journal = journals[0]
+                binding = GatewayDirectServiceBinding(
+                    journal,
+                    {CLIENT.principal_ref: GatewayDirectGrant(CLIENT.actor_ref, frozenset({"rb"}))},
+                    owner=owner,
+                )
+                host = ServiceHost(
+                    _service_config(endpoint),
+                    authority,
+                    tmp_path / "registry.sqlite",
+                    lambda *_: ComponentResources.borrowed({"binding": binding}, ready=lambda: True),
+                )
+                host.start()
+                ready.put(("ready", journal.journal_id))
+                while not stop.is_set():
+                    host.serve_once(10)
+            except BaseException as exc:
+                ready.put(("error", type(exc).__name__, getattr(exc, "code", None)))
+            finally:
+                try:
+                    if host is not None and host.state == "started":
+                        host.close()
+                    if owner is not None and not owner.close(10):
+                        raise RuntimeError("OWNER_CLOSE_FAILED")
+                    ready.put(("closed",))
+                except BaseException as exc:
+                    ready.put(("cleanup_error", type(exc).__name__))
+    
+        thread = threading.Thread(target=serve, name="synthetic-gateway")
+        thread.start()
+        runtimes = []
+        dropped = set()
+        try:
+            result = ready.get(timeout=15)
+>           assert result[0] == "ready", result
+E           AssertionError: ('error', 'RuntimeError', None)
+E           assert 'error' == 'ready'
+E             
+E             - ready
+E             + error
+
+tests/unit/live_state/test_gateway_pending_client.py:241: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe1')
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x165011b90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x165034690>
+recovery_run = 'run-new'
+
+    @pytest.mark.parametrize("recovery_run", ["run-old", "run-new"])
+    def test_gateway_client_with_bt_pending_host_recovery(tmp_path, state, monkeypatch, recovery_run):
+        """Reply loss and failed local writes retain durable original identities."""
+        import json
+    
+        import backtrader.live_state.pending as pending_module
+    
+>       with _gateway(tmp_path) as (binding, connect, sends, dropped):
+
+tests/unit/live_state/test_gateway_pending_client.py:343: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../opt/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3792/test_gateway_client_with_bt_pe1')
+
+    @contextmanager
+    def _gateway(tmp_path):
+        endpoint = _endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        scope = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref)
+        resource = ResourceGrant("gateway-a", "service.direct_write", "scope-a", scope, OPS)
+        authority = TrustedServiceAuthority(
+            identity=SERVICE,
+            scope=WireScope(DOMAIN),
+            scope_ref="scope-a",
+            scope_version="scope-v1",
+            security_ref="security-a",
+            security_version="security-v1",
+            registration_policy_ref="direct-policy-v1",
+            registration_policy_version="direct-policy-v1",
+            service_requirements_ref="direct-requirements-v1",
+            service_requirements_version="direct-requirements-v1",
+            curve_public_key=server_keys[0],
+            curve_secret_key=server_keys[1],
+            principals={client_keys[0]: CLIENT.principal_ref},
+            grants={CLIENT.principal_ref: (PrincipalGrant(CLIENT, (resource,)),)},
+        )
+        guard_dir = tmp_path / "guard"
+        guard_dir.mkdir()
+        ready, sends = queue.Queue(), queue.Queue()
+        stop = threading.Event()
+    
+        def serve():
+            owner = host = None
+            try:
+                journals = []
+    
+                def owner_factory():
+                    guard = LocalAccountSessionGuard(guard_dir, ACCOUNT, "synthetic-owner")
+                    generation = guard.acquire()
+                    journal = GatewayDirectCommandJournal.create(
+                        tmp_path / "journal.sqlite", ACCOUNT, generation=generation
+                    )
+                    journals.append(journal)
+    
+                    def native(payload, port, host_scope):
+                        key = payload["idempotency_key"]
+                        identity = NativeOrderIdentity(
+                            "TEST", "native-" + key, {"inst_id": "rb", "trading_day": "20300101"}, 1
+                        )
+                        record = PreDispatchRecord(
+                            operation=WriteOperation.PLACE,
+                            host_scope=host_scope,
+                            exchange_name="TEST",
+                            symbol=payload["symbol"],
+                            identity=identity,
+                            target_identity=None,
+                            request_summary=payload,
+                            trading_day="20300101",
+                            session_generation=1,
+                            created_at_utc="synthetic",
+                        )
+                        marker = port.commit(record)
+                        if marker is None:
+                            return NativeDispatchOutcome(False, identity, None)
+                        sends.put(key)
+                        return NativeDispatchOutcome(True, identity, marker)
+    
+                    dispatcher = GatewayDirectDispatcher(
+                        journal,
+                        "TEST",
+                        guard,
+                        native,
+                        lambda identity: ("TEST:" + identity.client_order_id,),
+                        lambda _: True,
+                    )
+                    return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
+    
+                owner = GatewayDirectOwner(
+                    owner_factory, queue_size=8, max_queue_wait_seconds=10, busy_timeout_seconds=10
+                )
+                if not owner.start(10):
+                    raise RuntimeError("OWNER_START_FAILED")
+                journal = journals[0]
+                binding = GatewayDirectServiceBinding(
+                    journal,
+                    {CLIENT.principal_ref: GatewayDirectGrant(CLIENT.actor_ref, frozenset({"rb"}))},
+                    owner=owner,
+                )
+                host = ServiceHost(
+                    _service_config(endpoint),
+                    authority,
+                    tmp_path / "registry.sqlite",
+                    lambda *_: ComponentResources.borrowed({"binding": binding}, ready=lambda: True),
+                )
+                host.start()
+                ready.put(("ready", journal.journal_id))
+                while not stop.is_set():
+                    host.serve_once(10)
+            except BaseException as exc:
+                ready.put(("error", type(exc).__name__, getattr(exc, "code", None)))
+            finally:
+                try:
+                    if host is not None and host.state == "started":
+                        host.close()
+                    if owner is not None and not owner.close(10):
+                        raise RuntimeError("OWNER_CLOSE_FAILED")
+                    ready.put(("closed",))
+                except BaseException as exc:
+                    ready.put(("cleanup_error", type(exc).__name__))
+    
+        thread = threading.Thread(target=serve, name="synthetic-gateway")
+        thread.start()
+        runtimes = []
+        dropped = set()
+        try:
+            result = ready.get(timeout=15)
+            assert result[0] == "ready", result
+            binding = GatewayCommandBinding(result[1], ACCOUNT, CLIENT.actor_ref, CLIENT.principal_ref)
+    
+            def connect(run_id, *, recovery=False):
+                route = GatewayClientRoute(
+                    "broker.direct_write",
+                    SERVICE.actor_ref,
+                    "gateway-a",
+                    "scope-a",
+                    WireScope(
+                        DOMAIN, account_ref=ACCOUNT, strategy_ref=CLIENT.actor_ref, run_id=run_id
+                    ),
+                    CLIENT,
+                )
+    
+                def factory():
+                    raw = ZmqTransportFactory(
+                        {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                    )
+    
+                    class Drop:
+                        def __init__(self, wrapped):
+                            self.wrapped = wrapped
+    
+                        def request(self, request, *, timeout):
+                            response = self.wrapped.request(request, timeout=timeout)
+                            operation = request.header.operation
+                            if operation in dropped:
+                                dropped.remove(operation)
+                                raise TimeoutError("synthetic lost response")
+                            return response
+    
+                        def close(self):
+                            self.wrapped.close()
+    
+                    return ServiceClientRuntime(
+                        _client_config(endpoint),
+                        identity=CLIENT,
+                        scope_resolver=lambda _: WireScope(DOMAIN, account_ref=ACCOUNT),
+                        peer_resolver=lambda _: SERVICE,
+                        transport_factory=lambda *args: Drop(raw(*args)),
+                        run_id=run_id,
+                        requested_operations=recovery_requested_operations() if recovery else None,
+                    )
+    
+                runtime = ThreadedServiceClientRuntime(factory)
+                runtimes.append(runtime)
+                runtime.start(timeout_seconds=10)
+                return runtime, route
+    
+            yield binding, connect, sends, dropped
+        finally:
+            errors = []
+            for runtime in reversed(runtimes):
+                try:
+                    runtime.close(timeout_seconds=10)
+                except Exception as exc:
+                    errors.append(type(exc).__name__)
+            stop.set()
+            thread.join(15)
+            if thread.is_alive():
+                errors.append("host thread did not stop")
+            else:
+                try:
+                    closed = ready.get(timeout=3)
+                    if closed != ("closed",):
+                        errors.append(str(closed))
+                except queue.Empty:
+                    errors.append("missing cleanup confirmation")
+>           assert not errors, errors
+E           AssertionError: ["('cleanup_error', 'RuntimeError')"]
+E           assert not ["('cleanup_error', 'RuntimeError')"]
+
+tests/unit/live_state/test_gateway_pending_client.py:310: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/live_state/test_gateway_pending_client.py::test_gateway_client_with_bt_pending_host_recovery[run-old]
+FAILED tests/unit/live_state/test_gateway_pending_client.py::test_gateway_client_with_bt_pending_host_recovery[run-new]
+2 failed, 226 passed in 26.25s
+/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/tmpk781vawh: line 3: 15566 Terminated: 15          python -m pytest tests/unit/live_state -q
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/live_state -q` failed. (See above for error)

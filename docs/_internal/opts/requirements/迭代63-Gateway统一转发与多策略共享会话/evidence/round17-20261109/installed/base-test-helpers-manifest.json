@@ -1,0 +1,58 @@
+[
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/openinterests/__init__.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/openinterests/__init__.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/containers/openinterests/__init__.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "d6a5a1cb56e8328affcaf88c5a042f6739e8c7a72d13ff8760fcc90d0ede7c5d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/pools/__init__.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/pools/__init__.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/containers/pools/__init__.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "014b0e9715936740841a55dde414612fff80a1133ef6cc0a18e2f216a22b0be1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/pricelimits/__init__.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/pricelimits/__init__.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/containers/pricelimits/__init__.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "30fde19b4462d6ff7b770a6b2f476f91c43a8ff4127069ea1036909f263c8aee"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/containers/timers/__init__.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/containers/timers/__init__.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/containers/timers/__init__.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "84add777839691c284614f32df3573f7c1bac18b4effe371d558ba61afccf97d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/__init__.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/__init__.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/r2a_reference/__init__.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/r2a_reference/market_tick_protocol_62fcb89.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "2c7b4b5757f8c38b4110f8e64369061c6ad2e61503b611c09a5636defb1fabbc"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "relative": "tests/r2a_reference/service_protocol_62fcb89.py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/r2a_reference/service_protocol_62fcb89.py",
+    "copy": "/tmp/iter63-r17-install-20261109-oNtWsjp3/base-tests/tests/r2a_reference/service_protocol_62fcb89.py",
+    "snapshot_head": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "sha256": "7bf85b38d8e1bff5b6b3f10cbfecdbc4c11b964e276d15378e6399a59ba5cea6"
+  }
+]

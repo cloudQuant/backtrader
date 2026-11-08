@@ -1,0 +1,730 @@
+SOURCE_ROOT base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base SELECTORS /tmp/iter63-r17-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+BASE_TEST_NAMESPACE_ROOT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+............................................FFFFFFFFFFFFFF.............. [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+s.ss.................................................................... [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+.............................................................            [100%]
+=================================== FAILURES ===================================
+________________ test_standalone_gateway_has_no_runtime_modules ________________
+
+    def test_standalone_gateway_has_no_runtime_modules() -> None:
+        package_root = Path(next(iter(bt_api_base.__path__)))
+        gateway_root = package_root / "gateway"
+        assert not tuple(gateway_root.rglob("*.py"))
+    
+        try:
+>           package = importlib.import_module("bt_api_base.gateway")
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_legacy_gateway_retired.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.adapters.base] _
+
+module_name = 'bt_api_base.gateway.adapters.base'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.adapters.plugin_adapter] _
+
+module_name = 'bt_api_base.gateway.adapters.plugin_adapter'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+__ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.config] __
+
+module_name = 'bt_api_base.gateway.config'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+__ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.health] __
+
+module_name = 'bt_api_base.gateway.health'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+__ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.models] __
+
+module_name = 'bt_api_base.gateway.models'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.order_identity_map] _
+
+module_name = 'bt_api_base.gateway.order_identity_map'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.order_ref_allocator] _
+
+module_name = 'bt_api_base.gateway.order_ref_allocator'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.protocol] _
+
+module_name = 'bt_api_base.gateway.protocol'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.registrar] _
+
+module_name = 'bt_api_base.gateway.registrar'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.runtime] __
+
+module_name = 'bt_api_base.gateway.runtime'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.runtime_remote] _
+
+module_name = 'bt_api_base.gateway.runtime_remote'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.storage.tick_writer] _
+
+module_name = 'bt_api_base.gateway.storage.tick_writer'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+_ test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.subscription_manager] _
+
+module_name = 'bt_api_base.gateway.subscription_manager'
+
+    @pytest.mark.parametrize("module_name", _RETIRED_SUBMODULES)
+    def test_legacy_gateway_modules_cannot_be_imported(module_name: str) -> None:
+        with pytest.raises(ModuleNotFoundError):
+>           importlib.import_module(module_name)
+
+tests/test_legacy_gateway_retired.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1126: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:241: in _call_with_frames_removed
+    ???
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1138: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:1078: in _find_spec
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <origin_guard.SourceFinder object at 0x1037c9510>
+fullname = 'bt_api_base.gateway'
+path = ['/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base']
+target = None
+
+    def find_spec(self, fullname, path=None, target=None):
+        root=owner(fullname)
+        if root is None:
+            return None
+        spec=importlib.machinery.PathFinder.find_spec(fullname,path)
+        if spec is None:
+>           raise ImportError('source module unavailable: '+fullname)
+E           ImportError: source module unavailable: bt_api_base.gateway
+
+/tmp/iter63-r17-primary/bootstrap/origin_guard.py:43: ImportError
+=============================== warnings summary ===============================
+tests/test_exchange_data.py::TestExchangeData::test_raise_proxy_error
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/raises.py:624: PytestWarning: matching against an empty string will *always* pass. If you want to check for an empty message you need to pass '^$'. If you don't want to match you should pass `None` or leave out the parameter.
+    super().__init__(match=match, check=check)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_legacy_gateway_retired.py::test_standalone_gateway_has_no_runtime_modules
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.adapters.base]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.adapters.plugin_adapter]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.config]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.health]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.models]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.order_identity_map]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.order_ref_allocator]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.protocol]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.registrar]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.runtime]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.runtime_remote]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.storage.tick_writer]
+FAILED tests/test_legacy_gateway_retired.py::test_legacy_gateway_modules_cannot_be_imported[bt_api_base.gateway.subscription_manager]
+14 failed, 1772 passed, 3 skipped, 1 warning in 12.89s
+BASE_TEST_HELPER_ORIGINS {"tests.test_wire_strategy_account_book": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_strategy_account_book.py"}
+SOURCE_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r17-primary/run.py` failed. (See above for error)

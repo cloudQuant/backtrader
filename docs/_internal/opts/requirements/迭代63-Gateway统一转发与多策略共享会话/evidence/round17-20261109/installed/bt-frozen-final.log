@@ -1,0 +1,31 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r17-install-20261109-oNtWsjp3/origin-logs/bt-20214-1794158032133438000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 91%]
+.....................                                                    [100%]
+=============================== warnings summary ===============================
+../install/src/backtrader/feeds/__init__.py:56
+  /private/tmp/iter63-r17-install-20261109-oNtWsjp3/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+tests/integration/test_iter60_service_session_cerebro_curve.py:248
+  /private/tmp/iter63-r17-install-20261109-oNtWsjp3/bt-tests/tests/integration/test_iter60_service_session_cerebro_curve.py:248: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests/integration/test_iter62_gateway_command_round_trip.py:86
+  /private/tmp/iter63-r17-install-20261109-oNtWsjp3/bt-tests/tests/integration/test_iter62_gateway_command_round_trip.py:86: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests/integration/test_iter62_direct_composition_no_gateway.py:134
+  /private/tmp/iter63-r17-install-20261109-oNtWsjp3/bt-tests/tests/integration/test_iter62_direct_composition_no_gateway.py:134: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests/integration/test_iter62_direct_composition_no_gateway.py:142
+  /private/tmp/iter63-r17-install-20261109-oNtWsjp3/bt-tests/tests/integration/test_iter62_direct_composition_no_gateway.py:142: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+237 passed, 5 warnings in 13.56s
+PARENT_ORIGIN_AUDIT_OK

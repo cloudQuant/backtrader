@@ -1,0 +1,88 @@
+RUN base-20218-1794158032215117000
+PID 20218 guard 1 resolved 98 audit 3 violations 0 exit_audit_missing False
+RUN base-20626-1794158118791997000
+PID 20626 guard 1 resolved 155 audit 3 violations 0 exit_audit_missing False
+PID 20629 guard 1 resolved 6 audit 2 violations 0 exit_audit_missing False
+PID 20630 guard 1 resolved 7 audit 2 violations 0 exit_audit_missing False
+PID 20631 guard 1 resolved 7 audit 2 violations 0 exit_audit_missing False
+PID 20632 guard 1 resolved 5 audit 2 violations 0 exit_audit_missing False
+PID 20669 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20670 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20672 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20673 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20676 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20678 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+RUN bt-20214-1794158032133438000
+PID 20214 guard 1 resolved 703 audit 3 violations 0 exit_audit_missing False
+PID 20249 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20250 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20256 guard 1 resolved 476 audit 2 violations 0 exit_audit_missing False
+PID 20260 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20261 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20267 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20268 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 20287 guard 1 resolved 142 audit 2 violations 0 exit_audit_missing False
+PID 20288 guard 1 resolved 142 audit 2 violations 0 exit_audit_missing False
+PID 20289 guard 1 resolved 145 audit 2 violations 0 exit_audit_missing False
+PID 20290 guard 1 resolved 109 audit 2 violations 0 exit_audit_missing False
+PID 20307 guard 1 resolved 109 audit 2 violations 0 exit_audit_missing False
+RUN ctp-20217-1794158032158128000
+PID 20217 guard 1 resolved 188 audit 3 violations 0 exit_audit_missing False
+RUN gateway-20215-1794158032133072000
+PID 20215 guard 1 resolved 129 audit 3 violations 0 exit_audit_missing False
+PID 20246 guard 1 resolved 24 audit 2 violations 0 exit_audit_missing False
+PID 20291 guard 1 resolved 24 audit 0 violations 0 exit_audit_missing True
+PID 20292 guard 1 resolved 24 audit 0 violations 0 exit_audit_missing True
+PID 20302 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 20304 guard 1 resolved 15 audit 2 violations 0 exit_audit_missing False
+PID 20305 guard 1 resolved 15 audit 0 violations 0 exit_audit_missing True
+PID 20306 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 20308 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 20309 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 20311 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 20312 guard 1 resolved 14 audit 0 violations 0 exit_audit_missing True
+PID 20313 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+PID 20314 guard 1 resolved 14 audit 2 violations 0 exit_audit_missing False
+RUN guard-preflight
+PID 20068 guard 1 resolved 124 audit 3 violations 0 exit_audit_missing False
+RUN guard-semantics-preflight
+RUN sdk-20213-1794158032049506000
+PID 20213 guard 1 resolved 383 audit 3 violations 0 exit_audit_missing False
+PID 20258 guard 1 resolved 121 audit 2 violations 0 exit_audit_missing False
+PID 20297 guard 1 resolved 214 audit 2 violations 0 exit_audit_missing False
+PID 20303 guard 1 resolved 216 audit 2 violations 0 exit_audit_missing False
+PID 20310 guard 1 resolved 227 audit 2 violations 0 exit_audit_missing False
+PID 20336 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20337 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20338 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20339 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20340 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20341 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20343 guard 1 resolved 97 audit 2 violations 0 exit_audit_missing False
+PID 20344 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+PID 20345 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 20346 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 20351 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20354 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20355 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20399 guard 1 resolved 204 audit 2 violations 0 exit_audit_missing False
+RUN sdk-20747-1794158145508143000
+PID 20747 guard 1 resolved 383 audit 3 violations 0 exit_audit_missing False
+PID 20751 guard 1 resolved 121 audit 2 violations 0 exit_audit_missing False
+PID 20760 guard 1 resolved 214 audit 2 violations 0 exit_audit_missing False
+PID 20763 guard 1 resolved 216 audit 2 violations 0 exit_audit_missing False
+PID 20764 guard 1 resolved 227 audit 2 violations 0 exit_audit_missing False
+PID 20769 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20770 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20771 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20777 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20778 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20779 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 20781 guard 1 resolved 97 audit 2 violations 0 exit_audit_missing False
+PID 20782 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+PID 20783 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 20784 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 20786 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20787 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20788 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 20790 guard 1 resolved 204 audit 2 violations 0 exit_audit_missing False

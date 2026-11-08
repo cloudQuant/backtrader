@@ -1,0 +1,14 @@
+.....F
+=================================== FAILURES ===================================
+_____ test_errors_are_separate_authenticated_events_replay_and_ack_restart _____
+tests/integration/test_iter63_gateway_cancel_error_rpc.py:188: in test_errors_are_separate_authenticated_events_replay_and_ack_restart
+    assert resumed.read_after().page.events == ()
+E   AssertionError: assert (GatewayExecu...f391943736'))) == ()
+E     
+E     Left contains 4 more items, first extra item: GatewayExecutionStreamEvent(sequence=1, request_key='key-a', reservation_id='6f87cfdd-a7d9-4839-bc0a-28fedeca2290', co..., limit_price='100', trade_quantity=None, trade_price=None, trade_time=None, error_code=None), cancel_attribution=None)
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_cancel_error_rpc.py::test_errors_are_separate_authenticated_events_replay_and_ack_restart
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 5 passed in 0.80s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -x tests/unit/test_iter63_gateway_cancel_return_ingestion.py tests/integration/test_iter63_gateway_cancel_error_rpc.py` failed. (See above for error)

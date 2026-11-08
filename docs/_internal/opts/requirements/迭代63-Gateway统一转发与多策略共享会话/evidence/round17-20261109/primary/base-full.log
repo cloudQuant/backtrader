@@ -1,0 +1,151 @@
+SOURCE_ROOT base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base SELECTORS /tmp/iter63-r17-primary/selectors-prelim.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+
+==================================== ERRORS ====================================
+_______ ERROR collecting tests/test_iter60_strategy_book_cut_identity.py _______
+ImportError while importing test module '/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_iter60_strategy_book_cut_identity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../../../opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_iter60_strategy_book_cut_identity.py:26: in <module>
+    from tests.test_wire_strategy_account_book import _STREAM, _book
+E   ModuleNotFoundError: No module named 'tests.test_wire_strategy_account_book'
+=============================== warnings summary ===============================
+../../../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_async_context.py:19
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:19: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context.py:31
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:31: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context.py:40
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:40: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context.py:57
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:57: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context.py:68
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:68: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context.py:89
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context.py:89: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context_quality.py:54
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context_quality.py:54: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context_quality.py:77
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context_quality.py:77: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context_quality.py:92
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context_quality.py:92: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_async_context_quality.py:104
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_async_context_quality.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_protocol_conformance.py:277
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py:277: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_protocol_conformance.py:284
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py:284: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_protocol_conformance.py:291
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py:291: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_protocol_conformance.py:306
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py:306: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_protocol_conformance.py:313
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_protocol_conformance.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:26
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:38
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:38: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:58
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:58: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:78
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:78: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:121
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:121: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:134
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:134: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:146
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:146: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:246
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:246: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:268
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:268: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services.py:294
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services.py:294: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:11
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:11: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:27
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:27: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:46
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:46: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:59
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:59: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:72
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:72: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/test_services_quality.py:81
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_services_quality.py:81: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_iter60_strategy_book_cut_identity.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+32 warnings, 1 error in 0.61s
+SOURCE_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r17-primary/run.py` failed. (See above for error)

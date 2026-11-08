@@ -1,0 +1,41 @@
+SOURCE_ROOT base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base SELECTORS /tmp/iter63-r17-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+BASE_TEST_NAMESPACE_ROOT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests
+........................................................................ [  4%]
+........................................................................ [  8%]
+........................................................................ [ 12%]
+........................................................................ [ 16%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+s.ss.................................................................... [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+.............................................................            [100%]
+=============================== warnings summary ===============================
+tests/test_exchange_data.py::TestExchangeData::test_raise_proxy_error
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/raises.py:624: PytestWarning: matching against an empty string will *always* pass. If you want to check for an empty message you need to pass '^$'. If you don't want to match you should pass `None` or leave out the parameter.
+    super().__init__(match=match, check=check)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_stage0_infrastructure.py:441: BinanceErrorTranslator requires bt_api_binance plugin
+SKIPPED [1] tests/test_stage0_infrastructure.py:494: CTPErrorTranslator not implemented in bt_api_base.error
+SKIPPED [1] tests/test_stage0_infrastructure.py:507: BinanceErrorTranslator requires bt_api_binance plugin
+1786 passed, 3 skipped, 1 warning in 14.05s
+BASE_TEST_HELPER_ORIGINS {"tests.test_wire_strategy_account_book": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_strategy_account_book.py"}
+SOURCE_ORIGIN_AUDIT_OK

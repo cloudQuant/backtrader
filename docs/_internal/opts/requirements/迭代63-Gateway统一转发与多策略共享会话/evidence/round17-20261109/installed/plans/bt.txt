@@ -1,0 +1,5 @@
+tests/unit/live_state
+tests/unit/brokers/direct/test_trade_logger_live_state_guard.py
+tests/integration/test_iter62_gateway_command_round_trip.py
+tests/integration/test_iter62_direct_composition_no_gateway.py
+tests/integration/test_iter60_service_session_cerebro_curve.py

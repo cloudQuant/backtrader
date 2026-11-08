@@ -1,0 +1,7 @@
+SOURCE_ROOT base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base SELECTORS /tmp/iter63-r17-primary/selectors-guard-v2-preflight.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+BASE_TEST_NAMESPACE_ROOT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests
+..............................                                           [100%]
+30 passed in 0.14s
+BASE_TEST_HELPER_ORIGINS {"tests.test_wire_strategy_account_book": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests/test_wire_strategy_account_book.py"}
+SOURCE_ORIGIN_AUDIT_OK

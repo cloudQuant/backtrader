@@ -1,0 +1,90 @@
+[
+  {
+    "path": "/tmp/iter63-r17-primary/selectors.json",
+    "sha256": "71bd7368d69960bfe7e104a1c13d7d97c3ab066f229cd330d41c427a120734d3"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/selectors-expanded.json",
+    "sha256": "1465a4e2867a9638a50085702ed6a6f17a66425427fd8e7e1f935523c1d601d7"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/run.py",
+    "sha256": "15171744373735c44fb608d452f123db51d861098b1a463d89c7e6a840e8463d"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/guard_preflight.py",
+    "sha256": "7ef21d1ba054d7bb3dd9163f80e5037d3a2ac719220363dafdb346ef294f9f20"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/bootstrap/offline_guard.py",
+    "sha256": "5f72ab1594cb50f0f967c1d19719d079b1f99afb230e996e34c3ae158664646a"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/bootstrap/origin_guard.py",
+    "sha256": "1a19980d36bcf552b2ed8cc256b4328d36910ecd2b9e067cf14d16d49b9f6ae9"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/audit_origins.py",
+    "sha256": "f6294bc33a947f5ea8084e437624555d2e41d23c073d700373ecf85f73deb2fa"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/capture_selectors.py",
+    "sha256": "a52431d4be87a53ab2829193b61e6a130f4b6b9bbe803d027a566b8bcdbe8ba7"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/guard_preflight.py",
+    "sha256": "dbb5bf3d4411a6b75abca35a20a2b4c791c81189203a3289328df73e9de11e76"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/prepare.py",
+    "sha256": "3e40973d1c8dcf501c3f87c4ed7f015b15836e68fa136b99b5011cfde34b4578"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/prepare_base_layout.py",
+    "sha256": "e2280c119cde978ea9c955067ca6c9d4463694245145ec41f38f5e9c7098f65e"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/relocate_ctp_tests.py",
+    "sha256": "c06162d344d793c6f0432bc2bf24c58dc0cbfa304beeb9c05d0bf4d5ba16aba7"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/run.py",
+    "sha256": "26aeb530f0eb0cdbfb06b7b143e92e7059d6909b2eea9c1386bf17a2fcd5a22b"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/run_installed.py",
+    "sha256": "f8897fbdfaa651ce650e8fd6aa3eef6c183fb3eda7df0119713778ff39b03ffb"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/verify.py",
+    "sha256": "d541002c6d8df73c52bde63210a826b7625981c7c4bdd40d6c7b5ef29bcc1145"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/verify_commits.py",
+    "sha256": "3af143f7cdf6c04c381e422741353841c227873f999ae3592d037bfbceb45638"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/offline_guard.py",
+    "sha256": "5f72ab1594cb50f0f967c1d19719d079b1f99afb230e996e34c3ae158664646a"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/origin_guard.py",
+    "sha256": "6d4e91a4c1e2f7d2b7605bee5a30ef5b3566681629fc510286135e26ca29a84e"
+  },
+  {
+    "path": "/tmp/iter63-r17-install-20261109-oNtWsjp3/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/guard_semantics_preflight.py",
+    "sha256": "f0497822176ba2fbaf3734d1799234078564d0477c1bb539c2b7a42c5ac7a622"
+  },
+  {
+    "path": "/tmp/iter63-r17-primary/selectors-guard-v2-preflight.json",
+    "sha256": "402610dc429aed0a37c8d05785169f332c7e1e6ae2e3dbdae9bfbe46f0967070"
+  }
+]
