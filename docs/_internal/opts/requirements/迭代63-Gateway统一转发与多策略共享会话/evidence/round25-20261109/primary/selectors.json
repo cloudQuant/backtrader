@@ -1,0 +1,19 @@
+[
+  "tests/unit/live_state",
+  "tests/unit/brokers/direct",
+  "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+  "tests/unit/core/test_order.py",
+  "tests/unit/core/test_order_edge_cases.py",
+  "tests/unit/core/test_position.py",
+  "tests/unit/core/test_position_modes.py",
+  "tests/unit/core/test_trade.py",
+  "tests/unit/brokers/test_comminfo.py",
+  "tests/unit/brokers/test_comminfo_detailed.py",
+  "tests/unit/brokers/test_comminfo_fillers_edge_cases.py",
+  "tests/unit/brokers/test_comminfo_refactor.py",
+  "tests/unit/brokers/test_maker_taker_commission.py",
+  "tests/unit/brokers/test_setcommission.py",
+  "tests/unit/brokers/test_detailed_setcommission.py",
+  "tests/unit/brokers/test_iter60_durable_fee_index.py",
+  "tests/unit/test_iter60_scoped_financial_notifications.py"
+]

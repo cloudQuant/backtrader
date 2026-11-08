@@ -1,0 +1,30 @@
+{
+  "run_id": "bt-installed-final-13851-1794176015030371000",
+  "pytest_parent_pid": 13859,
+  "test_copy": "/tmp/iter63-r25-install-20261109-jsTH40Ui/bt-tests/tests/unit/live_state/test_gateway_framework_checkpoint.py",
+  "test_sha256": "9a77afd2f3517d036867f433c3b55caf99645fb1015343f9a4b812f47898386c",
+  "observed_children": [
+    {
+      "pid": 13867,
+      "parent_pid": 13859,
+      "guard_modes": [
+        "sitecustomize-subprocess"
+      ],
+      "projection_origin_observed": true,
+      "exit_audit": true,
+      "origin_log": "/tmp/iter63-r25-install-20261109-jsTH40Ui/origin-logs/bt-installed-final-13851-1794176015030371000/13867.jsonl"
+    },
+    {
+      "pid": 13868,
+      "parent_pid": 13859,
+      "guard_modes": [
+        "sitecustomize-subprocess"
+      ],
+      "projection_origin_observed": true,
+      "exit_audit": true,
+      "origin_log": "/tmp/iter63-r25-install-20261109-jsTH40Ui/origin-logs/bt-installed-final-13851-1794176015030371000/13868.jsonl"
+    }
+  ],
+  "association": "inference: two same-parent guarded subprocesses loading projection align with the two passing runpy cases; captured test stdout does not expose child PIDs for direct node-to-PID binding",
+  "boundary": "absence of log is not evidence of a guarded process; guard is not a native sandbox"
+}

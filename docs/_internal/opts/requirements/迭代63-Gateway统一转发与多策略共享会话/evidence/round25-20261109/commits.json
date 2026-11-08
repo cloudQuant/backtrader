@@ -1,0 +1,11 @@
+{
+  "backtrader_product_tests": "8b6b35503e5b48ab40788006336153240398c604",
+  "branch": "dev",
+  "pushed": false,
+  "sdk_reused": "64eeeb5c881bfeb4fe84b98300919d14a6a7ae62",
+  "code_files": {
+    "backtrader/brokers/_btapi_gateway_projection.py": "78cdc512c548e08be3c9d5aa37f2a420167fb2583035a6e30e9c6129afb8bc77",
+    "tests/unit/brokers/test_iter63_gateway_framework_projection.py": "3a4d913771a6edfc75eaf475881f921f977a07ecec3f59b8457a44ab34eb216e",
+    "tests/unit/live_state/test_gateway_framework_checkpoint.py": "9a77afd2f3517d036867f433c3b55caf99645fb1015343f9a4b812f47898386c"
+  }
+}

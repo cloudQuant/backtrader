@@ -1,0 +1,11 @@
+{
+  "source": "primary tool output, not a reconstructed raw log",
+  "ruff_E9_F": "All checks passed!",
+  "ruff_format_check": "3 files already formatted",
+  "git_diff_cached_check": "exit 0",
+  "scope": [
+    "backtrader/brokers/_btapi_gateway_projection.py",
+    "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "tests/unit/live_state/test_gateway_framework_checkpoint.py"
+  ]
+}

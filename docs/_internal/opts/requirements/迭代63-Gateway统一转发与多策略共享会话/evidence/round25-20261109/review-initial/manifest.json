@@ -1,0 +1,17 @@
+[
+  {
+    "path": "backtrader/brokers/_btapi_gateway_projection.py",
+    "sha256": "63f9db3948655214af1c6d67c45c6dc1b191de85a1aef1ab9310bfb19df0ec9c",
+    "lines": 770
+  },
+  {
+    "path": "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "sha256": "38ca7a7c846bd91aa52d5a27bf5411caceff2d1cdee73e15d22fb7fb7bfcd8d5",
+    "lines": 113
+  },
+  {
+    "path": "tests/unit/live_state/test_gateway_framework_checkpoint.py",
+    "sha256": "4ef03771d3973a2d5b3d8665b0928d35bdc6a74c33446996d0a9b2a92a66c5df",
+    "lines": 224
+  }
+]

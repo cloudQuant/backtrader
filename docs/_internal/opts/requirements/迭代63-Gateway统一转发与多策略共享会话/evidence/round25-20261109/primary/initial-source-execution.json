@@ -1,0 +1,41 @@
+{
+  "command": [
+    "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "-m",
+    "pytest",
+    "--import-mode=importlib",
+    "-q",
+    "--junitxml=/tmp/iter63-r25-primary/bt-source.xml",
+    "tests/unit/live_state",
+    "tests/unit/brokers/direct",
+    "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "tests/unit/core/test_order.py",
+    "tests/unit/core/test_order_edge_cases.py",
+    "tests/unit/core/test_position.py",
+    "tests/unit/core/test_position_modes.py",
+    "tests/unit/core/test_trade.py",
+    "tests/unit/brokers/test_comminfo.py",
+    "tests/unit/brokers/test_comminfo_detailed.py",
+    "tests/unit/brokers/test_comminfo_fillers_edge_cases.py",
+    "tests/unit/brokers/test_comminfo_refactor.py",
+    "tests/unit/brokers/test_maker_taker_commission.py",
+    "tests/unit/brokers/test_setcommission.py",
+    "tests/unit/brokers/test_detailed_setcommission.py",
+    "tests/unit/brokers/test_iter60_durable_fee_index.py",
+    "tests/unit/test_iter60_scoped_financial_notifications.py"
+  ],
+  "cwd": "/Users/yunjinqi/Documents/new_projects/backtrader",
+  "returncode": 0,
+  "duration_seconds": 50.399,
+  "before": {
+    "backtrader/brokers/_btapi_gateway_projection.py": "78cdc512c548e08be3c9d5aa37f2a420167fb2583035a6e30e9c6129afb8bc77",
+    "tests/unit/brokers/test_iter63_gateway_framework_projection.py": "585d7a7ef6abe7b8a4dd24ef4814858d66ca05ecd9f124a4332524c1617acb64",
+    "tests/unit/live_state/test_gateway_framework_checkpoint.py": "9a77afd2f3517d036867f433c3b55caf99645fb1015343f9a4b812f47898386c"
+  },
+  "after": {
+    "backtrader/brokers/_btapi_gateway_projection.py": "78cdc512c548e08be3c9d5aa37f2a420167fb2583035a6e30e9c6129afb8bc77",
+    "tests/unit/brokers/test_iter63_gateway_framework_projection.py": "585d7a7ef6abe7b8a4dd24ef4814858d66ca05ecd9f124a4332524c1617acb64",
+    "tests/unit/live_state/test_gateway_framework_checkpoint.py": "9a77afd2f3517d036867f433c3b55caf99645fb1015343f9a4b812f47898386c"
+  },
+  "source_unchanged": true
+}

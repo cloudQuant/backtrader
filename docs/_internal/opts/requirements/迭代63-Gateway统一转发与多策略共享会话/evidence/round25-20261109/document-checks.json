@@ -1,0 +1,62 @@
+{
+  "files": [
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/分轮合同冻结稿-2026-11-08.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 5,
+      "sha256": "13fbe33dd879a2beba76a1d8ae5979e18dfe9bfdcc02da321c16ab5238c39e9d"
+    },
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发问题记录.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 26,
+      "sha256": "e5178cbcd201027300bf8265d60f0ea6f93e9a89505ba587c629241fd277e219"
+    },
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发验收状态矩阵.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 11,
+      "sha256": "045938f22e546b4dc8dd56274869b6c34a10b76280b70fb0e3cc36850ff945e8"
+    },
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/实施基线与分轮记录-2026-11-08.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 96,
+      "sha256": "d4a91bea4ce1c98a67e23cf1224ec4778ddab300e4406e1b443ae863e02f8113"
+    },
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/Backtrader-Gateway通知持久化钩子调整申请-2026-11-09.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 0,
+      "sha256": "393a7d5c7696c47fb01d96b6190b563e5ae2c978707281e063c7c7d7431b28d4"
+    },
+    {
+      "file": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十五轮真实框架对象快照与恢复审阅-2026-11-09.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 18,
+      "sha256": "bdb356c5dab56aaf28a96c0bdc61310b6587a4729bff83850bb67952cff346c8"
+    },
+    {
+      "file": "docs/source/developer-guide/repository-responsibilities_zh.md",
+      "bom": true,
+      "strict_utf8": true,
+      "replacement_character": false,
+      "checked_local_links": 1,
+      "sha256": "55336fe98377f5a8cb9a18a7f21ea7d89d21e0184d71b683aaefda3e5b2a9e3a"
+    }
+  ],
+  "broken_links": [],
+  "windows_powershell_5_1": "NOT_RUN on macOS"
+}

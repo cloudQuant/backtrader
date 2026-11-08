@@ -1,0 +1,119 @@
+[
+  {
+    "id": 1,
+    "source": "primary+runtime-object-audit",
+    "title": "Broker notification info copies and restricted object aliases rejected",
+    "verdict": "high",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "BtApiBroker.notify uses copy(order.info); OCO stores exact Order and direct waiting notice stores tuple. Initial same-ref signature includes info group."
+  },
+  {
+    "id": 2,
+    "source": "runtime-object-audit",
+    "title": "Known fee notification field rejected",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "journaled notification sets fee_correction_ids, consumed after callback; cannot drop the field."
+  },
+  {
+    "id": 3,
+    "source": "blind-hunter",
+    "title": "Commission configuration not bound on restore",
+    "verdict": "high",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Only bool persisted; resolver can change normalized rates, multiplier, effective caches and sharing; Trade uses order.comminfo."
+  },
+  {
+    "id": 4,
+    "source": "blind-hunter",
+    "title": "Unbound order broker becomes bound on restore",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "capture accepts broker=None; restore always injects broker, changing brokerstatus behavior."
+  },
+  {
+    "id": 5,
+    "source": "edge-case-hunter",
+    "title": "Unbound order broker becomes bound on restore",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "duplicate_of_4",
+    "evidence": "Independent confirmation of same None-to-broker change."
+  },
+  {
+    "id": 6,
+    "source": "edge-case-hunter",
+    "title": "Same-ref notification deque groups must always be equal",
+    "verdict": "false",
+    "route": "rejected",
+    "status": "reviewed",
+    "evidence": "Codec preserves supplied object alias graph. Independent execution snapshots are permitted; requiring equality would merge or reject them. No consumer loss demonstrated. Normal clone shared deque is separately preserved and tested."
+  },
+  {
+    "id": 7,
+    "source": "verification-gap",
+    "title": "Timezone and DST fold not tested",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Initial tests use tz=None and fixed UTC only; feed-anchored region timezone path untested."
+  },
+  {
+    "id": 8,
+    "source": "verification-gap",
+    "title": "Short and actual trade close economics not tested",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Initial sell order unexecuted; cancel/completed Order not Trade closure; only positive fills covered."
+  },
+  {
+    "id": 9,
+    "source": "verification-gap",
+    "title": "Standalone codec sensitive keys and bounds not tested",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Outer checkpoint guards cannot demonstrate capture itself rejects secret keys, node/depth/byte overrun."
+  },
+  {
+    "id": 10,
+    "source": "verification-gap-other",
+    "title": "Same-ref Trade accepts contradictory known long direction",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Initial same-ref signature ignores long; true/false contradict invariant. Initial None-to-known state remains allowed."
+  },
+  {
+    "id": 11,
+    "source": "primary",
+    "title": "Independent interpreter restore not yet tested",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_covered_by_final_source_and_install_runs",
+    "evidence": "Same-process new objects cannot establish fresh-interpreter reference allocation behavior."
+  },
+  {
+    "id": 12,
+    "source": "primary",
+    "title": "Cached info aliases bypass logical depth",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "fixed_and_tested",
+    "evidence": "Final codec checks subtree height on each root/reference; shared-info DAG test covers capture and restore."
+  },
+  {
+    "id": 13,
+    "source": "primary",
+    "title": "Node/depth tests rejected by unrelated schema field",
+    "verdict": "medium",
+    "route": "patch",
+    "status": "tests_strengthened",
+    "evidence": "Final tests contain valid info nodes and tradeid tuples; disabling only _bounded permits restore, proving the boundary. Product SHA unchanged."
+  }
+]

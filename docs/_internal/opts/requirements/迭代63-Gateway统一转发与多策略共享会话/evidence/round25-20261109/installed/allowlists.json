@@ -1,0 +1,21 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": [
+      "backtrader/brokers/_btapi_gateway_projection.py"
+    ]
+  },
+  "tests": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": [
+      "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+      "tests/unit/live_state/test_gateway_framework_checkpoint.py"
+    ]
+  }
+}

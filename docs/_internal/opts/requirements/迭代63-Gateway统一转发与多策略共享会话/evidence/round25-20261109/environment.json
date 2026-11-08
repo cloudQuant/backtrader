@@ -1,0 +1,8 @@
+{
+  "python": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "pandas": "3.0.3",
+  "pytest": "8.4.2",
+  "note": "Anaconda base; no environment variable values collected"
+}

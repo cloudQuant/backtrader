@@ -1,0 +1,497 @@
+[
+  {
+    "path": "commits.json",
+    "bytes": 592,
+    "sha256": "8070d90d3010802afce025abe54dd5f70bbbb660371cfc46595f76d7917c4fe6"
+  },
+  {
+    "path": "document-checks.json",
+    "bytes": 2553,
+    "sha256": "917fb85e8bbf2e05798e6dda7f1bf145d51ad4a000afffd7aeb94283803b9f37"
+  },
+  {
+    "path": "environment.json",
+    "bytes": 278,
+    "sha256": "af578f86d684c0e0fddba481c4360e07397cf3b6ba831f3b9c19165fe77613ea"
+  },
+  {
+    "path": "installed/SOURCE_FROZEN",
+    "bytes": 85,
+    "sha256": "ad330c158e04ed314aa4476fcd1f6f0dd532395971d2ae94fc780be08ec80a91"
+  },
+  {
+    "path": "installed/allowlists.json",
+    "bytes": 402,
+    "sha256": "49cacc0a85eb0a7a6980e9f22c8bc2d4f2db4829801e8c00d4bd3589d1e6674e"
+  },
+  {
+    "path": "installed/audit_origins.py",
+    "bytes": 921,
+    "sha256": "58ff77fcf0d50548459aa3d937bc8daad1a2603180c43081f7830b3fc61e2fda"
+  },
+  {
+    "path": "installed/audit_run.py",
+    "bytes": 1309,
+    "sha256": "08ae9f517310dc78ba401c13be31696e01968e6bf0619901abfa1a0c35cd0654"
+  },
+  {
+    "path": "installed/bootstrap/offline_guard.py",
+    "bytes": 5947,
+    "sha256": "199d8676a2494ec03c3aa062789887fa0ad0485735c0a4db52a7ad16f830d241"
+  },
+  {
+    "path": "installed/bootstrap/origin_guard.py",
+    "bytes": 2868,
+    "sha256": "a83bc529e65b347a449b4b536662379b73e2ed82a49e0ce758105adc6046a0b0"
+  },
+  {
+    "path": "installed/bootstrap/sitecustomize.py",
+    "bytes": 165,
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "installed/bt-frozen-final.log.gz",
+    "bytes": 1090,
+    "sha256": "28cfc3ab8b79d84e6ec42be835c98b6af424b869715319a6de237d43514341a9"
+  },
+  {
+    "path": "installed/bt-installed-final.log.gz",
+    "bytes": 785,
+    "sha256": "6fbf6647693c1522842037cb156b8a57f809ed2f22ece22528dbee941836ead6"
+  },
+  {
+    "path": "installed/bt-installed-initial.log.gz",
+    "bytes": 1090,
+    "sha256": "28cfc3ab8b79d84e6ec42be835c98b6af424b869715319a6de237d43514341a9"
+  },
+  {
+    "path": "installed/bt-origin-audit.log.gz",
+    "bytes": 247,
+    "sha256": "a03624d497409f399abc1fe137142acbfb77c5457ef463df67ab80680a858bf5"
+  },
+  {
+    "path": "installed/build.log.gz",
+    "bytes": 660,
+    "sha256": "cbdfec044ba3b3ec86e8d3a27504703f8bf4c8efaadfdaef58190ab265e9ae89"
+  },
+  {
+    "path": "installed/capture-editable-deps.log.gz",
+    "bytes": 431,
+    "sha256": "f601086e5d9aa49d9ea97b7254df93fc4950bd779af4864e868756b923dddce1"
+  },
+  {
+    "path": "installed/capture-selectors.log.gz",
+    "bytes": 96,
+    "sha256": "5f2aef28a953a3f48ebc96458e28b1451907785fdc3c08091983e42df1e4049a"
+  },
+  {
+    "path": "installed/capture_editable_deps.py",
+    "bytes": 2901,
+    "sha256": "1bcefd6ab1e4d4feedb80d510c25ec13c90633727beeb8907c050e5fae333a83"
+  },
+  {
+    "path": "installed/capture_selectors.py",
+    "bytes": 1072,
+    "sha256": "5d4e2963cdf38288a62fddb04b5e78631b240112413bc87558fa00006d12e996"
+  },
+  {
+    "path": "installed/copy-testcommon.log.gz",
+    "bytes": 63,
+    "sha256": "41d4553b59277236b5033150f5ed151f15c231186119b35a033de8a1928dd36e"
+  },
+  {
+    "path": "installed/copy_testcommon_fixtures.py",
+    "bytes": 1482,
+    "sha256": "0a7a7dec1767e69a6bed55a0332df615faadd21aeab95bb39f799199a8168d69"
+  },
+  {
+    "path": "installed/copy_testcommon_fixtures.sha256",
+    "bytes": 136,
+    "sha256": "2c184b2a68a6f907176bd2c2bb6723e9d1a9cb59947fe92930fc18ab88adee43"
+  },
+  {
+    "path": "installed/editable-deps-manifest.json.gz",
+    "bytes": 2898,
+    "sha256": "27593703d3b75ba74bafdf57df6a664d9ba76108b4fa31f89fb7f1cdf4bf9feb"
+  },
+  {
+    "path": "installed/executions-initial.jsonl.gz",
+    "bytes": 1138,
+    "sha256": "2a4c62e8d4adb733dd7aede87a319d42e1532190e87e206788ee7b7a5274bdb0"
+  },
+  {
+    "path": "installed/executions.jsonl.gz",
+    "bytes": 1245,
+    "sha256": "1e84d89fd0cdcd5bef052d36f4269a5ad3a69828beac22c96f2fd7c3c1ee91c6"
+  },
+  {
+    "path": "installed/fixed-wheels.json",
+    "bytes": 1865,
+    "sha256": "bc9ee21d67c62149af4db30e7462d12c6dbc5c10cbb43cd510e67668f4fb2f54"
+  },
+  {
+    "path": "installed/fixed.log.gz",
+    "bytes": 640,
+    "sha256": "0066da646d175d6f4fb777ec8269e8e256f15c933555376e07c5dae63bbe877d"
+  },
+  {
+    "path": "installed/guard-preflight.log.gz",
+    "bytes": 355,
+    "sha256": "8e806ef00f5bd50d267fe91b02780c4d31bca5eb932eb9583f2d4f59de227755"
+  },
+  {
+    "path": "installed/guard_preflight.py",
+    "bytes": 1852,
+    "sha256": "b6c0b0a68d7d7b8f775e35be02f97c9d26b083077b38cf5069cc3421c1ae2449"
+  },
+  {
+    "path": "installed/harness-freeze-sha256.txt",
+    "bytes": 1766,
+    "sha256": "826a2950837be0252fed571b2785b1575051d4bfc89df921aa554e6a466c20ee"
+  },
+  {
+    "path": "installed/install.log.gz",
+    "bytes": 604,
+    "sha256": "fa8e190d5bca662610684bc33c341d6c2f1adac8f39c4cd7ece1c9eac9e306a1"
+  },
+  {
+    "path": "installed/msgpack-wheel-manifest.json.gz",
+    "bytes": 239,
+    "sha256": "6e8625b3b45929c3a7e9f5bfcac354bb7e84f4079d8c5aded232e8ac4ea2fd3d"
+  },
+  {
+    "path": "installed/origin-logs/bt-frozen-final-13716-1794175945931291000/13731.jsonl.gz",
+    "bytes": 28377,
+    "sha256": "c182cf92086ca2414bb912a10f9037c37ebdffe250ea2f51062c8a1569e6c7cf"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13859.jsonl.gz",
+    "bytes": 30166,
+    "sha256": "989d702a4b012f203bb8737e16d3b5b56727d7ce37eab764c25a24a31ab2a9b2"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13863.jsonl.gz",
+    "bytes": 21596,
+    "sha256": "cb778dcdd4c62e8ba43f97c4fd8b1a713a77c91afbd4ae727a88783bfae81fb2"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13864.jsonl.gz",
+    "bytes": 21597,
+    "sha256": "958b550adca470cd8332a96bee2e5e2c2cc71d919d35864d3cad4bf6c909841d"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13866.jsonl.gz",
+    "bytes": 21597,
+    "sha256": "e4f248e98307bb4f1e3aeb28649a51f0136ef28c68a9c968bf4fd2e29c83f015"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13867.jsonl.gz",
+    "bytes": 20437,
+    "sha256": "a9d2c3f31cc2c280290d411c0d8bc90ef8e592e9906f03247a3e8c834a7ffc58"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13868.jsonl.gz",
+    "bytes": 20435,
+    "sha256": "8d8d5bb1ce4736269d4e1eef9b9564bc65baf937411e1b03868b54c7e471ea0d"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13870.jsonl.gz",
+    "bytes": 20313,
+    "sha256": "c3c00e05d0dcaeea6f6cfc5d5626d7c2778a66e5735e191b5f26ba8744caa8b1"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13871.jsonl.gz",
+    "bytes": 20313,
+    "sha256": "4bc25c06bcd69415edcafb527cebab08ce61a7f9ca92ede81ebfd4c88c63196c"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13872.jsonl.gz",
+    "bytes": 16675,
+    "sha256": "6f4572d4ec9188ad56c9dd63eb97b27aa42416cb622165aca7bb22ac8e087fbb"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13874.jsonl.gz",
+    "bytes": 20311,
+    "sha256": "00a68c029591c7400f5e4520d75ede0b0e732005b6e3a9fa9b8c8836fd63605c"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13875.jsonl.gz",
+    "bytes": 20311,
+    "sha256": "00b899e1aefb82e1db8444d1b95231976afabc55b61a2d52db56a967b0533039"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13876.jsonl.gz",
+    "bytes": 20311,
+    "sha256": "d83bde55a59b47c90dce0de19d7a7c867b17570817f5ea344c1da05f7129e27c"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13877.jsonl.gz",
+    "bytes": 20311,
+    "sha256": "e36b1ecebcbeb48356a7279c31ca6067813f050c7d6265159e55ac283ab3fc90"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13881.jsonl.gz",
+    "bytes": 20310,
+    "sha256": "d4696a2079f0b4dcf678d88dc0ff6ed719a18296195adb01d303e4bd6ed76fb8"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13883.jsonl.gz",
+    "bytes": 3125,
+    "sha256": "f04b07db88b3848075d2109a1ce3cdd62e11a16c4f6f20f20002205af73b922d"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13884.jsonl.gz",
+    "bytes": 3125,
+    "sha256": "329431efd911a6aa2b74cf29fe277c5927d4ad49d4639a17823f9012a62b4eb7"
+  },
+  {
+    "path": "installed/origin-logs/bt-installed-final-13851-1794176015030371000/13885.jsonl.gz",
+    "bytes": 3174,
+    "sha256": "2d80315aa47dd36719511e55d9128a77cd255310a58e901c7744dbae5647dc9a"
+  },
+  {
+    "path": "installed/origin-logs/guard-preflight-13677-1794175937104597000/13685.jsonl.gz",
+    "bytes": 3311,
+    "sha256": "5b9e53025062ee32e6337da20e5d2bc98653958098eadb388c0e0de1254e9e3d"
+  },
+  {
+    "path": "installed/prepare.py",
+    "bytes": 19723,
+    "sha256": "b3d2cf34efb177dc4787062b3f9de73329c8d0dd718e845f25f94bbbd379d376"
+  },
+  {
+    "path": "installed/primary-selectors.json",
+    "bytes": 803,
+    "sha256": "e4ce0a4a1e9a1ed998eaf0aa73bb4b52e8c2bb50a3f7318032a45fa76231cfcf"
+  },
+  {
+    "path": "installed/run.py",
+    "bytes": 5298,
+    "sha256": "b1fe23b32c322bac3397564e3c0f4c8d2ebfe3490906bbebe14208798a5d30ec"
+  },
+  {
+    "path": "installed/run_installed.py",
+    "bytes": 3884,
+    "sha256": "a6cf33e8ecfd2287454bc9eeba9d62e2172c8ecd6343b07089de45767e64a8e4"
+  },
+  {
+    "path": "installed/runpy-child-observations.json",
+    "bytes": 1297,
+    "sha256": "08b1d4c02012615dca791d397b1b7256b265adef5c81fda87bde9d832a0ec810"
+  },
+  {
+    "path": "installed/selectors.json",
+    "bytes": 851,
+    "sha256": "ee0c5fa8197238341a1b8d7cdc64e777d531b62ec3b659e186621912f7a8b403"
+  },
+  {
+    "path": "installed/snapshot.log.gz",
+    "bytes": 478,
+    "sha256": "d36bbaef33018d594f05036500436bfff43e092c4feda15439d5220032360f6d"
+  },
+  {
+    "path": "installed/source-manifest.json.gz",
+    "bytes": 85589,
+    "sha256": "5f538a3b1c5ae71dd5e3dd2d682f8e07332889de10daf38f322bcdad2239095c"
+  },
+  {
+    "path": "installed/test-manifest-before-testcommon.json.gz",
+    "bytes": 4585,
+    "sha256": "905d40ae5858da6983ddec7f986317da086d4674f7c127cf64aac044a5b94152"
+  },
+  {
+    "path": "installed/test-manifest-initial.json.gz",
+    "bytes": 4585,
+    "sha256": "905d40ae5858da6983ddec7f986317da086d4674f7c127cf64aac044a5b94152"
+  },
+  {
+    "path": "installed/test-manifest.json.gz",
+    "bytes": 4777,
+    "sha256": "496a9fa4a92486a37539739641515bd1884d5e4384611054d72d9209690fe8ed"
+  },
+  {
+    "path": "installed/testcommon-fixtures-manifest.json.gz",
+    "bytes": 408,
+    "sha256": "91baa720ee31982b98113c46122fe05a5c30a3460e7d76a5003350fbee45ec99"
+  },
+  {
+    "path": "installed/tests-copy.log.gz",
+    "bytes": 323,
+    "sha256": "a02ae33561adbf84f82e431cfce447ea27583d3338430b33a327d3927eee91e0"
+  },
+  {
+    "path": "installed/verify-bt-all-payload.log.gz",
+    "bytes": 119,
+    "sha256": "671a262e497b038382c6ec6af9df30e4bb78f603510cee3d29b09e086218bfb8"
+  },
+  {
+    "path": "installed/verify-final.log.gz",
+    "bytes": 1510,
+    "sha256": "eb124c74b1daaacc09740377a2bfc88a8bdd98e1b647db5d91d26e2de98b8fb1"
+  },
+  {
+    "path": "installed/verify.log.gz",
+    "bytes": 1508,
+    "sha256": "84c61a18b241a26eb0f35b9b55824023d4f4d176e01fe16abd2ef0baa50c0316"
+  },
+  {
+    "path": "installed/verify.py",
+    "bytes": 6802,
+    "sha256": "0cf9564113625d5359919b93c3369039e49c156328e7d014a3c53259de9196dd"
+  },
+  {
+    "path": "installed/verify_bt_all_payload.py",
+    "bytes": 1133,
+    "sha256": "0633e60f1135f1f7561b559a3843b9c9c5dcfc8fad01f5264dcfb45dd73dde5f"
+  },
+  {
+    "path": "installed/verify_bt_all_payload.sha256",
+    "bytes": 133,
+    "sha256": "2e6fe589ca2e41b852fc3eda965f387d4c8a26731b6af9c397283652a5b07db1"
+  },
+  {
+    "path": "installed/verify_commits.py",
+    "bytes": 1752,
+    "sha256": "203b68f85b29aa204178866bded90123bc9d3fc97c91401653fa76234caa8ad8"
+  },
+  {
+    "path": "primary/accepted.diff.gz",
+    "bytes": 20101,
+    "sha256": "bcd92fa17178adcf83fdc66f3578900258ab56f69e73fa0f9145f4010a3baa66"
+  },
+  {
+    "path": "primary/bt-source.log.gz",
+    "bytes": 154,
+    "sha256": "85cbf1c97f8cd5906e6428d3a0dbb60b6389653dab3dd25dee9e6fb5f7153ab6"
+  },
+  {
+    "path": "primary/bt-source.xml.gz",
+    "bytes": 14368,
+    "sha256": "7cad940f23fa1db3a1008e96e833990caf80488032d73005fed9672407120417"
+  },
+  {
+    "path": "primary/commit-verify.log.gz",
+    "bytes": 349,
+    "sha256": "527a2badef4eb9832082c396ff9e278ae070e9ae7b7b46f399a2aeb02b20d05f"
+  },
+  {
+    "path": "primary/initial-bt-source.log.gz",
+    "bytes": 155,
+    "sha256": "0b6077e0a9ec83b22fdc5e9c537f6e36c55ec4e7a72038137b6764afa4b3e625"
+  },
+  {
+    "path": "primary/initial-bt-source.xml.gz",
+    "bytes": 14362,
+    "sha256": "62080b56e4d79beea1f050859f60b42888daefb97950c1e7360a61d929493bcd"
+  },
+  {
+    "path": "primary/initial-source-execution.json",
+    "bytes": 1989,
+    "sha256": "489fb4dcc567aa8cc8a232095bfc78876a5000eae281f6027111561258f7e108"
+  },
+  {
+    "path": "primary/payload-verify.log.gz",
+    "bytes": 318,
+    "sha256": "7d9e6ca825d40075838083e45e008a51fd76ce644a4336cb99b71634aff53dc5"
+  },
+  {
+    "path": "primary/run_source.py",
+    "bytes": 1220,
+    "sha256": "a181036900c935c154d760cfafd98efdff2a7f29f600d9a780f4a4626359b5e8"
+  },
+  {
+    "path": "primary/selectors.json",
+    "bytes": 803,
+    "sha256": "e4ce0a4a1e9a1ed998eaf0aa73bb4b52e8c2bb50a3f7318032a45fa76231cfcf"
+  },
+  {
+    "path": "primary/source-execution.json",
+    "bytes": 1989,
+    "sha256": "5fade30b92b206f3eddcc6a831c13810a80915422daf6a2b1e1e08af4060a6a9"
+  },
+  {
+    "path": "primary/verify_payloads.py",
+    "bytes": 1194,
+    "sha256": "7da75a830b1bc571edf0ddb8612cf9c04b046fbb6f84bbbdec96f686e350d429"
+  },
+  {
+    "path": "quality-checks.json",
+    "bytes": 401,
+    "sha256": "9b1e127f19e74580cf31097097e8bcfb7b614173e2dd62a1ba2d4e3d53ce69fb"
+  },
+  {
+    "path": "review-findings.json",
+    "bytes": 4665,
+    "sha256": "1d0edc4a0a9d0e8c1c2a734bae2aa2281c12136bfe2a52db57347802ae12b766"
+  },
+  {
+    "path": "review-initial/claims.md.gz",
+    "bytes": 2593,
+    "sha256": "a094ce02d8de348698cde78eb9bac6473902a9d05aa0b5e420ba60b7072b5cb3"
+  },
+  {
+    "path": "review-initial/initial.diff.gz",
+    "bytes": 12395,
+    "sha256": "8e1343ef3545d1615d7ea86520e6f6362662273976c2e125dcf8996df2ad616e"
+  },
+  {
+    "path": "review-initial/manifest.json",
+    "bytes": 541,
+    "sha256": "623d2dee5e4bdff7db4044fff400549df5f14b0ca5ba8298a90bd5858512fe78"
+  },
+  {
+    "path": "worker/codec/boundary-revision.log.gz",
+    "bytes": 52,
+    "sha256": "36d093224b9d23873a9aa237f2ae398fa836c5298098d850227c068575ccdc29"
+  },
+  {
+    "path": "worker/codec/unit-final.log.gz",
+    "bytes": 52,
+    "sha256": "77b3eab465beab5e52c2f7018d0fa787e52245d3f68411791aed341111520d07"
+  },
+  {
+    "path": "worker/framework-integration/alias-v1.log.gz",
+    "bytes": 50,
+    "sha256": "f88b22b51c11d55920f1a4ae1ac83f17a3fd83aa974679954d1b23bdf3866712"
+  },
+  {
+    "path": "worker/framework-integration/collect.log.gz",
+    "bytes": 155,
+    "sha256": "a927cc672080dd03e194f53d84fa439290d756190a4b54f262cf596e63eebc24"
+  },
+  {
+    "path": "worker/framework-integration/commission-candidate.log.gz",
+    "bytes": 50,
+    "sha256": "86e405ef34050fae3e1e6c166a69d049d91ffba83c69736e5f43a4d10b0abb7f"
+  },
+  {
+    "path": "worker/framework-integration/final.log.gz",
+    "bytes": 50,
+    "sha256": "d50c3a6c05174257f60d16880020f361bc583baac05cb8661aa68442c50fa4be"
+  },
+  {
+    "path": "worker/framework-integration/fixture.log.gz",
+    "bytes": 53,
+    "sha256": "2fd10df97c45fcec015f10e1a25d920eb02646bb67f81443225db4c73dc82075"
+  },
+  {
+    "path": "worker/framework-integration/initial.log.gz",
+    "bytes": 50,
+    "sha256": "4437b323e4a0190cf7eaa6c9227b01a7b2e4601c82731c391d0e32543c854e7e"
+  },
+  {
+    "path": "worker/framework-integration/maps-v1.log.gz",
+    "bytes": 50,
+    "sha256": "c543f2297c92cf14c39b6196ab59294e8e471eef1876414de88b54d83ae4d15e"
+  },
+  {
+    "path": "worker/framework-integration/subprocess-initial.log.gz",
+    "bytes": 50,
+    "sha256": "91580c7e31f8b7e6f218570f688a7ebe1e7f9ee3c209dba7b9e78d1d922c1999"
+  },
+  {
+    "path": "worker/framework-integration/values-v1.log.gz",
+    "bytes": 50,
+    "sha256": "df1e055c3dc7577c06b0384b5c1fd084cf8178bb1bb2466e6505ff300a90e20f"
+  }
+]
