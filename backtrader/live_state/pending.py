@@ -180,8 +180,9 @@ def _invalid(detail: str) -> LiveStateError:
     return LiveStateError("pending_record_invalid", detail)
 
 
-def _check_marker(marker: Any, path: str, *, terminal: bool) -> None:
-    if not isinstance(marker, dict) or set(marker) != _MARKER_KEYS:
+def _check_marker(marker: Any, path: str, *, terminal: bool, gateway: bool = False) -> None:
+    keys = _MARKER_KEYS | ({"gateway_ref"} if gateway else set())
+    if not isinstance(marker, dict) or set(marker) != keys:
         raise LiveStateCorrupt(path, "invalid_marker")
     if not is_uuid4(marker["marker_id"]):
         raise LiveStateCorrupt(path, "invalid_marker_id")
@@ -192,32 +193,56 @@ def _check_marker(marker: Any, path: str, *, terminal: bool) -> None:
         raise LiveStateCorrupt(path, "active_status_invalid")
     if marker["operation"] not in OPERATIONS:
         raise LiveStateCorrupt(path, "invalid_operation")
+    if not is_uuid4(marker["host_scope"]):
+        raise LiveStateCorrupt(path, "invalid_host_scope")
+    if any(value is not None and not is_strict_int(value, minimum=1)
+           for value in (marker["local_seq"], marker["bt_ref"])):
+        raise LiveStateCorrupt(path, "invalid_local_facts")
+    if marker["operation"] in ("place", "cancel") and not is_text(marker["symbol"], max_len=128):
+        raise LiveStateCorrupt(path, "invalid_symbol")
+    if not gateway and not is_text(marker["exchange_name"], max_len=128):
+        raise LiveStateCorrupt(path, "invalid_exchange")
     for key in ("native_identity", "request_summary", "facts", "extra"):
         if not isinstance(marker[key], dict):
             raise LiveStateCorrupt(path, f"invalid_field:{key}")
     if not isinstance(marker["transitions"], list):
         raise LiveStateCorrupt(path, "invalid_field:transitions")
+    if (not gateway and marker["operation"] == "place"
+            and marker["client_order_id"] is None and not marker["native_identity"]):
+        raise LiveStateCorrupt(path, "invalid_identity")
 
 
 def validate_pending_state(raw: Any, path: str, strategy_uuid: Optional[str]) -> dict:
     if not isinstance(raw, dict):
         raise LiveStateCorrupt(path, "not_a_mapping")
-    if set(raw) != {"version", "strategy_uuid", "active", "history"}:
-        raise LiveStateCorrupt(path, "unexpected_keys")
-    if type(raw["version"]) is not int or raw["version"] != PENDING_VERSION:
+    version = raw.get("version")
+    if type(version) is not int or version not in (1, 2):
         raise LiveStateCorrupt(path, "version_unsupported")
+    keys = {"version", "strategy_uuid", "active", "history"}
+    if version == 2:
+        keys.add("gateway")
+    if set(raw) != keys:
+        raise LiveStateCorrupt(path, "unexpected_keys")
     if not is_uuid4(raw["strategy_uuid"]):
         raise LiveStateCorrupt(path, "invalid_field:strategy_uuid")
     if not isinstance(raw["active"], dict) or not isinstance(raw["history"], list):
         raise LiveStateCorrupt(path, "invalid_structure")
+    seen_marker_ids = set()
     for marker_id, marker in raw["active"].items():
-        _check_marker(marker, path, terminal=False)
-        if marker["marker_id"] != marker_id:
+        _check_marker(marker, path, terminal=False, gateway=version == 2 and isinstance(marker, dict) and "gateway_ref" in marker)
+        if marker["marker_id"] != marker_id or marker["host_scope"] != raw["strategy_uuid"]:
             raise LiveStateCorrupt(path, "marker_key_mismatch")
+        seen_marker_ids.add(marker_id)
     for marker in raw["history"]:
-        _check_marker(marker, path, terminal=True)
+        _check_marker(marker, path, terminal=True, gateway=version == 2 and isinstance(marker, dict) and "gateway_ref" in marker)
+        if marker["marker_id"] in seen_marker_ids or marker["host_scope"] != raw["strategy_uuid"]:
+            raise LiveStateCorrupt(path, "marker_key_mismatch")
+        seen_marker_ids.add(marker["marker_id"])
     if strategy_uuid is not None and raw["strategy_uuid"] != strategy_uuid:
         raise LiveStateIdentityMismatch("strategy_uuid_mismatch", "pending.json")
+    if version == 2:
+        from .gateway_pending import validate_gateway_state
+        validate_gateway_state(raw, path)
     return raw
 
 
@@ -226,7 +251,8 @@ def is_pristine_pending(raw: Any, path: str) -> bool:
         state = validate_pending_state(raw, path, None)
     except LiveStateError:
         return False
-    return not state["active"] and not state["history"]
+    # A v2 binding itself is durable state, even before its first intent.
+    return state["version"] == 1 and not state["active"] and not state["history"]
 
 
 def _enum_text(value: Any) -> Any:
@@ -507,10 +533,21 @@ class PendingCommandStore:
             raise LiveStateNotInitialized(self.paths.pending) from None
         return validate_pending_state(raw, self.paths.pending, self.strategy_uuid)
 
-    def _store(self, state: dict) -> None:
-        overflow = len(state["history"]) - self.history_limit
-        if overflow > 0:
-            del state["history"][:overflow]
+    def _store(self, state: dict, *, trim_history: bool = True) -> None:
+        if not trim_history:
+            pass
+        elif state["version"] == 1:
+            overflow = len(state["history"]) - self.history_limit
+            if overflow > 0:
+                del state["history"][:overflow]
+        else:
+            old = [m for m in state["history"] if "gateway_ref" not in m]
+            remove = {id(m) for m in old[:-self.history_limit]}
+            state["history"][:] = [m for m in state["history"] if id(m) not in remove]
+        if state["version"] == 2:
+            # All writers, including the legacy mutation API, share the same
+            # cross-reference contract before the atomic replacement.
+            validate_pending_state(state, self.paths.pending, self.strategy_uuid)
         atomic_write_json(self.paths.pending, state)
 
     # -- commit port -------------------------------------------------------
@@ -558,6 +595,10 @@ class PendingCommandStore:
         if marker["local_seq"] is not None:
             for other in state["active"].values():
                 if other["operation"] == "place" and other["local_seq"] == marker["local_seq"]:
+                    raise LiveStateError("pending_duplicate_local_seq")
+            if state["version"] == 2:
+                from .gateway_pending import has_active_gateway_sequence
+                if has_active_gateway_sequence(state, marker["local_seq"]):
                     raise LiveStateError("pending_duplicate_local_seq")
 
     # -- status ------------------------------------------------------------

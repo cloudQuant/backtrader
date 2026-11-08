@@ -1,0 +1,18 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r08-packaging-j8KrE0I2/origin-logs/bt-4916-1794138204938465000
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r08-packaging-j8KrE0I2/target/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_binance/__init__.py
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 39%]
+........................................................................ [ 52%]
+........................................................................ [ 65%]
+........................................................................ [ 78%]
+........................................................................ [ 92%]
+...........................................                              [100%]
+547 passed in 37.89s
+PARENT_ORIGIN_AUDIT_OK

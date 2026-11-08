@@ -1,0 +1,16 @@
+# All commands use conda base; execute from /tmp unless otherwise specified.
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r08-packaging-j8KrE0I2/snapshot.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-index --no-deps --no-build-isolation --wheel-dir /tmp/iter63-r08-packaging-j8KrE0I2/wheels /tmp/iter63-r08-packaging-j8KrE0I2/source/bt /tmp/iter63-r08-packaging-j8KrE0I2/source/sdk
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r08-packaging-j8KrE0I2/copy_fixed.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --no-index --no-deps --target /tmp/iter63-r08-packaging-j8KrE0I2/target /tmp/iter63-r08-packaging-j8KrE0I2/wheels/*.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r08-packaging-j8KrE0I2/prepare_tests.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r08-packaging-j8KrE0I2/verify.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r08-packaging-j8KrE0I2/check_test_manifest.py
+# SDK: cwd /tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests
+R08_TEST_KIND=sdk /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r08-packaging-j8KrE0I2/run_installed.py
+# BT: cwd /tmp/iter63-r08-packaging-j8KrE0I2/bt-tests
+R08_TEST_KIND=bt /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r08-packaging-j8KrE0I2/run_installed.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r08-packaging-j8KrE0I2/audit_origins.py
+# Corrected BT mirror import path; first runner lacked tests/unit for spawn.
+# cwd /tmp/iter63-r08-packaging-j8KrE0I2/bt-tests
+R08_TEST_KIND=bt /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r08-packaging-j8KrE0I2/run_installed_v2.py

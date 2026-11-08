@@ -1,0 +1,16 @@
+Processing /tmp/iter63-r08-packaging-j8KrE0I2/source/bt
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r08-packaging-j8KrE0I2/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: back-trader-python, bt_api_py
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=1996565 sha256=458945e6b3b218f797a16b5e92df4da6f804f9646f5e20569bd2ec5ab0da4c42
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-mv464wky/wheels/79/5a/92/f397d11d29cb7619714b5992dcf18a9e95e1426d2a4d22d27f
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2049190 sha256=1cac7f93bbdab3c1e6a06b2702eb54f46a24292de8cd79037477c432fc80c34e
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-mv464wky/wheels/b5/ad/fb/f112dceb86d1a54a13ec1c78317ad51e0fe30ee80f048836f2
+Successfully built back-trader-python bt_api_py

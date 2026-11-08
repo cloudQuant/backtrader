@@ -1,0 +1,17 @@
+{
+  "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r08-packaging-j8KrE0I2/verify.py",
+  "cwd": "/tmp",
+  "exit_code": 0,
+  "bt_python_files": 676,
+  "sdk_python_files": 285,
+  "source_snapshot_target_bytes_equal": true,
+  "readme_metadata_equal": true,
+  "fixed_wheels": [
+    "bt_api_base",
+    "bt_api_gateway",
+    "bt_api_ctp",
+    "bt_api_okx",
+    "bt_api_binance"
+  ],
+  "transport": "existing editable; not a clean dependency resolver"
+}

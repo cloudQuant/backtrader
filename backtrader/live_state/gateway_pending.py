@@ -1,0 +1,485 @@
+"""Explicit, durable Gateway client host sharing the local pending journal.
+
+The binding and observations are labels supplied by trusted callers, not
+proof of venue state or authority. Ordinary version-one pending paths never
+import this optional integration.
+"""
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+from dataclasses import dataclass
+from typing import Any
+
+from bt_api_base.direct_write_protocol import DirectWriteError, NativeOrderIdentity
+from bt_api_base.gateway_direct_protocol import (
+    GatewayCommandBinding,
+    GatewayCommandRecord,
+)
+from bt_api_py.direct_write import project_direct_strong_identity_keys
+from bt_api_py.gateway_direct_client import (
+    gateway_intent_from_mapping,
+    gateway_intent_to_mapping,
+    gateway_release_from_mapping,
+    gateway_release_to_mapping,
+    validate_gateway_record_progress,
+)
+
+from ._common import is_strict_int, is_uuid4, new_uuid4, strict_equal, utc_now_iso
+from .atomic import LiveStateCorrupt
+from .pending import PendingCommandStore, STATUS_PREPARED, _identity_key, _identity_view
+
+_BINDING_FIELDS = ("journal_id", "account_scope", "strategy_scope", "principal")
+_ENTRY_KEYS = {"intent", "record", "marker_id", "release", "local_seq", "bt_ref"}
+_MAX_ENTRIES = 100_000
+
+
+@dataclass(frozen=True)
+class GatewayPendingContext:
+    marker_id: str | None
+    local_seq: int | None
+    bt_ref: int | None
+
+
+def _binding_mapping(binding: GatewayCommandBinding) -> dict:
+    if type(binding) is not GatewayCommandBinding:
+        raise ValueError("INVALID_BINDING")
+    binding = GatewayCommandBinding(*(getattr(binding, name) for name in _BINDING_FIELDS))
+    return {name: getattr(binding, name) for name in _BINDING_FIELDS}
+
+
+def _binding_from_mapping(value: object) -> GatewayCommandBinding:
+    if type(value) is not dict or set(value) != set(_BINDING_FIELDS):
+        raise ValueError("INVALID_BINDING")
+    return GatewayCommandBinding(*(value[name] for name in _BINDING_FIELDS))
+
+
+def _record(value: object, binding: GatewayCommandBinding) -> GatewayCommandRecord:
+    if type(value) is GatewayCommandRecord:
+        value = value.to_mapping()
+    return GatewayCommandRecord.from_mapping(value, expected_binding=binding)
+
+
+def _positive_or_none(value: object) -> bool:
+    return value is None or is_strict_int(value, minimum=1)
+
+
+def _json_equal(left: object, right: object) -> bool:
+    options = {"sort_keys": True, "separators": (",", ":"), "allow_nan": False}
+    return json.dumps(left, **options) == json.dumps(right, **options)
+
+
+def _check_native_marker_facts(marker: dict, identity: Any) -> None:
+    known = dict(identity.fields)
+    known["client_order_id"] = identity.client_order_id
+    if any(key in marker["facts"] and marker["facts"][key] is not None
+           and not strict_equal(marker["facts"][key], value) for key, value in known.items()):
+        raise ValueError("GATEWAY_NATIVE_CONFLICT")
+
+
+def _legacy_identity_candidates(marker: dict) -> tuple[set[str], set[str]]:
+    """Project both possible SDK scopes; neither projection establishes scope."""
+    native = dict(marker["native_identity"])
+    facts = marker["facts"]
+    for key, value in native.items():
+        if key in facts and facts[key] is not None and not strict_equal(facts[key], value):
+            raise ValueError("LEGACY_IDENTITY_FACT_CONFLICT")
+    for key in ("client_order_id", "exchange_name", "session_generation"):
+        if (key in facts and facts[key] is not None and marker[key] is not None
+                and not strict_equal(facts[key], marker[key])):
+            raise ValueError("LEGACY_IDENTITY_FACT_CONFLICT")
+    view = _identity_view(marker)
+    fields = {key: value for key, value in view.items()
+              if key not in ("exchange_name", "client_order_id", "session_generation")}
+    top_day, field_day = marker["trading_day"], fields.get("trading_day")
+    if top_day is not None and field_day is not None and not strict_equal(top_day, field_day):
+        raise ValueError("LEGACY_IDENTITY_DAY_CONFLICT")
+    day = top_day if top_day is not None else field_day
+    if day is not None:
+        fields["trading_day"] = day
+    if "client_order_id" in native:
+        raise ValueError("LEGACY_IDENTITY_INVALID")
+    generation = marker["session_generation"]
+    if generation is None:
+        generation = facts.get("session_generation")
+    client_order_id = view.get("client_order_id")
+    identity = NativeOrderIdentity(marker["exchange_name"], client_order_id,
+                                   fields, generation)
+    candidates: set[str] = set()
+    for scoped in ((False, True) if day is not None else (False,)):
+        try:
+            keys = project_direct_strong_identity_keys(identity, day_scoped_ids=scoped)
+        except DirectWriteError as exc:
+            if exc.code == "direct_identity_strong_key_unavailable":
+                continue
+            raise ValueError("LEGACY_IDENTITY_INVALID") from None
+        candidates.update(hashlib.sha256(key.encode("utf-8")).hexdigest() for key in keys)
+    original_fields = dict(native)
+    if day is not None:
+        original_fields["trading_day"] = day
+    original = NativeOrderIdentity(marker["exchange_name"], client_order_id,
+                                   original_fields, generation)
+    options = {"sort_keys": True, "separators": (",", ":"), "allow_nan": False}
+    exact = {json.dumps(identity.to_dict(), **options), json.dumps(original.to_dict(), **options)}
+    return exact, candidates
+
+
+def _marker_for(state: dict, marker_id: str | None) -> dict | None:
+    if marker_id is None:
+        return None
+    found = state["active"].get(marker_id)
+    if found is not None:
+        return found
+    return next((m for m in state["history"] if m["marker_id"] == marker_id), None)
+
+
+def _marker_index(state: dict) -> dict:
+    return {m["marker_id"]: m for m in list(state["active"].values()) + state["history"]}
+
+
+def _unresolved(state: dict, entry: dict, markers: dict | None = None) -> bool:
+    marker = (_marker_for(state, entry["marker_id"]) if markers is None
+              else markers.get(entry["marker_id"]))
+    if marker is not None:
+        return marker["status"] != "TERMINAL"
+    record = entry["record"]
+    return record is None or record["state"] not in {"NOT_SENT", "RELEASED", "EXPIRED"}
+
+
+def has_unresolved_gateway_intents(state: dict) -> bool:
+    markers = _marker_index(state)
+    return any(_unresolved(state, entry, markers) for entry in state["gateway"]["intents"].values())
+
+
+def has_active_gateway_sequence(state: dict, local_seq: int) -> bool:
+    markers = _marker_index(state)
+    return any(entry["local_seq"] == local_seq and _unresolved(state, entry, markers)
+               for entry in state["gateway"]["intents"].values())
+
+
+def validate_gateway_state(state: dict, path: str) -> None:
+    """Validate v2 and all cross-references before any read or mutation."""
+    try:
+        gateway = state["gateway"]
+        if type(gateway) is not dict or set(gateway) != {"binding", "max_entries", "intents"}:
+            raise ValueError("gateway_shape")
+        binding = _binding_from_mapping(gateway["binding"])
+        capacity, entries = gateway["max_entries"], gateway["intents"]
+        if not is_strict_int(capacity, minimum=1) or capacity > _MAX_ENTRIES:
+            raise ValueError("capacity")
+        if type(entries) is not dict or len(entries) > capacity:
+            raise ValueError("intents")
+        markers = list(state["active"].values()) + state["history"]
+        marker_ids = [m["marker_id"] for m in markers]
+        if len(set(marker_ids)) != len(marker_ids):
+            raise ValueError("duplicate_marker")
+        gateway_markers = {m["marker_id"]: m for m in markers if "gateway_ref" in m}
+        markers_by_id = {m["marker_id"]: m for m in markers}
+        seen_markers, strong_keys, native_keys, native_exchanges = set(), set(), set(), set()
+        for key, entry in entries.items():
+            if type(entry) is not dict or set(entry) != _ENTRY_KEYS:
+                raise ValueError("entry")
+            intent = gateway_intent_from_mapping(entry["intent"], expected_binding=binding)
+            if type(key) is not str or key != intent.request_key:
+                raise ValueError("intent_key")
+            if not all(_positive_or_none(entry[name]) for name in ("local_seq", "bt_ref")):
+                raise ValueError("facts")
+            record = None if entry["record"] is None else _record(entry["record"], binding)
+            if record is not None:
+                validate_gateway_record_progress(None, record)
+                if record.request_key != key or record.digest != intent.digest:
+                    raise ValueError("record_identity")
+                for digest in record.strong_identity_key_digests:
+                    if digest in strong_keys:
+                        raise ValueError("strong_identity_duplicate")
+                    strong_keys.add(digest)
+                if record.native_identity is not None:
+                    native_exchanges.add(record.native_identity.exchange_name)
+                    native = json.dumps(record.native_identity.to_dict(), sort_keys=True, separators=(",", ":"))
+                    if native in native_keys:
+                        raise ValueError("identity_duplicate")
+                    native_keys.add(native)
+            release = None if entry["release"] is None else gateway_release_from_mapping(entry["release"])
+            if release is not None and (record is None or release.request_key != key
+                    or release.reservation_id != record.reservation_id or release.digest != intent.digest):
+                raise ValueError("release_identity")
+            if (release is not None and record.release_operation_id is not None
+                    and (release.operation_id != record.release_operation_id
+                         or release.expected_version != record.release_expected_version)):
+                raise ValueError("release_operation")
+            marker_id = entry["marker_id"]
+            if marker_id is not None:
+                if not is_uuid4(marker_id) or marker_id in seen_markers or record is None:
+                    raise ValueError("marker_id")
+                marker = gateway_markers.get(marker_id)
+                if marker is None or marker["gateway_ref"] != {"request_key": key}:
+                    raise ValueError("marker_link")
+                if marker["local_seq"] != entry["local_seq"] or marker["bt_ref"] != entry["bt_ref"]:
+                    raise ValueError("marker_facts")
+                if marker["host_scope"] != state["strategy_uuid"]:
+                    raise ValueError("marker_scope")
+                payload = json.loads(intent.canonical_payload)
+                if (marker["operation"] != "place" or marker["symbol"] != payload["symbol"]
+                        or marker["request_summary"] != payload):
+                    raise ValueError("marker_payload")
+                identity = record.native_identity
+                if identity is None:
+                    if (marker["native_identity"] != {} or marker["client_order_id"] is not None
+                            or marker["exchange_name"] is not None or marker["session_generation"] is not None
+                            or marker["trading_day"] is not None):
+                        raise ValueError("marker_identity")
+                elif (not _json_equal(marker["native_identity"], dict(identity.fields))
+                      or not strict_equal(marker["client_order_id"], identity.client_order_id)
+                      or not strict_equal(marker["exchange_name"], identity.exchange_name)
+                      or not strict_equal(marker["session_generation"], identity.session_generation)
+                      or not strict_equal(marker["trading_day"], identity.fields.get("trading_day"))):
+                    raise ValueError("marker_identity")
+                if identity is not None:
+                    _check_native_marker_facts(marker, identity)
+                seen_markers.add(marker_id)
+        if seen_markers != set(gateway_markers):
+            raise ValueError("orphan_marker")
+        for marker in markers:
+            if ("gateway_ref" in marker or marker["operation"] != "place"
+                    or marker["exchange_name"] not in native_exchanges):
+                continue
+            exact, digests = _legacy_identity_candidates(marker)
+            if exact & native_keys or digests & strong_keys:
+                raise ValueError("legacy_native_identity_conflict")
+        unresolved_sequences = set()
+        active_sequences = {}
+        for marker in state["active"].values():
+            if marker["local_seq"] is not None:
+                active_sequences.setdefault(marker["local_seq"], set()).add(marker["marker_id"])
+        for entry in entries.values():
+            seq = entry["local_seq"]
+            if seq is not None and _unresolved(state, entry, markers_by_id):
+                if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
+                    raise ValueError("duplicate_local_seq")
+                unresolved_sequences.add(seq)
+    except Exception as exc:
+        if isinstance(exc, LiveStateCorrupt):
+            raise
+        raise LiveStateCorrupt(path, "gateway_invalid") from None
+
+
+class GatewayPendingHost:
+    """Seven-method SDK host port with process-safe single-file commits."""
+
+    def __init__(self, strategy_dir: Any, strategy_uuid: str, binding: GatewayCommandBinding,
+                 *, lock_timeout: float = 10.0) -> None:
+        self._binding = GatewayCommandBinding(**_binding_mapping(binding))
+        self._store = PendingCommandStore(strategy_dir, strategy_uuid, lock_timeout=lock_timeout)
+
+    @classmethod
+    def upgrade_for_gateway(cls, strategy_dir: Any, strategy_uuid: str,
+                            binding: GatewayCommandBinding, *, max_entries: int = 10_000,
+                            lock_timeout: float = 10.0) -> "GatewayPendingHost":
+        if not is_strict_int(max_entries, minimum=1) or max_entries > _MAX_ENTRIES:
+            raise ValueError("INVALID_GATEWAY_CAPACITY")
+        host = cls(strategy_dir, strategy_uuid, binding, lock_timeout=lock_timeout)
+        with host._store._lock():
+            state = host._store._load()
+            if state["version"] == 1:
+                state["version"] = 2
+                state["gateway"] = {"binding": _binding_mapping(binding),
+                                    "max_entries": max_entries, "intents": {}}
+                host._store._store(state, trim_history=False)
+            else:
+                host._check_state(state)
+                if state["gateway"]["max_entries"] != max_entries:
+                    raise ValueError("GATEWAY_CAPACITY_MISMATCH")
+        return host
+
+    def _check_state(self, state: dict) -> dict:
+        if state["version"] != 2 or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+            raise ValueError("GATEWAY_BINDING_MISMATCH")
+        return state["gateway"]["intents"]
+
+    def _entry(self, state: dict, request_key: str) -> dict:
+        entry = self._check_state(state).get(request_key)
+        if entry is None:
+            raise ValueError("GATEWAY_INTENT_NOT_FOUND")
+        return entry
+
+    def save_intent(self, intent: Any, *, local_seq: int | None = None,
+                    bt_ref: int | None = None) -> None:
+        mapping = gateway_intent_to_mapping(intent)
+        canonical = gateway_intent_from_mapping(mapping, expected_binding=self._binding)
+        if not _positive_or_none(local_seq) or not _positive_or_none(bt_ref):
+            raise ValueError("GATEWAY_FACT_INVALID")
+        with self._store._lock():
+            state = self._store._load()
+            entries = self._check_state(state)
+            entry = entries.get(canonical.request_key)
+            if entry is None:
+                if len(entries) >= state["gateway"]["max_entries"]:
+                    raise ValueError("GATEWAY_CAPACITY_EXCEEDED")
+                entry = {"intent": mapping, "record": None, "marker_id": None,
+                         "release": None, "local_seq": local_seq, "bt_ref": bt_ref}
+                entries[canonical.request_key] = entry
+                changed = True
+            else:
+                old = entry["intent"]
+                if {k: v for k, v in old.items() if k != "ttl_seconds"} != {
+                    k: v for k, v in mapping.items() if k != "ttl_seconds"
+                }:
+                    raise ValueError("GATEWAY_INTENT_CONFLICT")
+                changed = False
+                for name, value in (("local_seq", local_seq), ("bt_ref", bt_ref)):
+                    if value is not None and entry[name] is not None and value != entry[name]:
+                        raise ValueError("GATEWAY_FACT_CONFLICT")
+                    if value is not None and entry[name] is None:
+                        entry[name] = value
+                        marker = _marker_for(state, entry["marker_id"])
+                        if marker is not None:
+                            marker[name] = value
+                        changed = True
+            markers = _marker_index(state)
+            if entry["local_seq"] is not None and _unresolved(state, entry, markers):
+                seq = entry["local_seq"]
+                if any(other is not entry and other["local_seq"] == seq and _unresolved(state, other, markers)
+                       for other in entries.values()):
+                    raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
+                if any(marker["local_seq"] == seq and marker["marker_id"] != entry["marker_id"]
+                       for marker in state["active"].values()):
+                    raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
+            if changed:
+                self._store._store(state)
+
+    def load_intent(self, request_key: str):
+        with self._store._lock():
+            entries = self._check_state(self._store._load())
+            entry = entries.get(request_key)
+            return None if entry is None else gateway_intent_from_mapping(entry["intent"], expected_binding=self._binding)
+
+    def list_intents(self) -> tuple:
+        with self._store._lock():
+            entries = self._check_state(self._store._load())
+            return tuple(gateway_intent_from_mapping(item["intent"], expected_binding=self._binding)
+                         for item in entries.values())
+
+    def load_context(self, request_key: str) -> GatewayPendingContext | None:
+        with self._store._lock():
+            entry = self._check_state(self._store._load()).get(request_key)
+            if entry is None:
+                return None
+            return GatewayPendingContext(entry["marker_id"], entry["local_seq"], entry["bt_ref"])
+
+    def load_record(self, request_key: str):
+        with self._store._lock():
+            entries = self._check_state(self._store._load())
+            entry = entries.get(request_key)
+            return None if entry is None or entry["record"] is None else _record(entry["record"], self._binding)
+
+    def save_record(self, request_key: str, record: GatewayCommandRecord) -> None:
+        current = _record(record, self._binding)
+        with self._store._lock():
+            state = self._store._load()
+            entry = self._entry(state, request_key)
+            intent = gateway_intent_from_mapping(entry["intent"], expected_binding=self._binding)
+            previous = None if entry["record"] is None else _record(entry["record"], self._binding)
+            if current.request_key != request_key or current.digest != intent.digest:
+                raise ValueError("GATEWAY_RECORD_CONFLICT")
+            validate_gateway_record_progress(previous, current)
+            if (previous is not None and previous.native_identity is not None
+                    and (current.native_identity is None
+                         or not _json_equal(previous.native_identity.to_dict(),
+                                            current.native_identity.to_dict()))):
+                raise ValueError("GATEWAY_NATIVE_CONFLICT")
+            if entry["release"] is not None and current.release_operation_id is not None:
+                plan = gateway_release_from_mapping(entry["release"])
+                if (plan.operation_id != current.release_operation_id
+                        or plan.expected_version != current.release_expected_version):
+                    raise ValueError("GATEWAY_RELEASE_CONFLICT")
+            for other in self._check_state(state).values():
+                if other is entry or other["record"] is None:
+                    continue
+                other_record = _record(other["record"], self._binding)
+                if (set(current.strong_identity_key_digests) & set(other_record.strong_identity_key_digests)
+                        or (current.native_identity is not None and other_record.native_identity is not None
+                            and _json_equal(current.native_identity.to_dict(), other_record.native_identity.to_dict()))):
+                    raise ValueError("GATEWAY_NATIVE_CONFLICT")
+            marker = _marker_for(state, entry["marker_id"])
+            if marker is not None and current.native_identity is not None:
+                identity = current.native_identity
+                new_fields = copy.deepcopy(dict(identity.fields))
+                _check_native_marker_facts(marker, identity)
+                for name, value in (("exchange_name", identity.exchange_name),
+                                    ("client_order_id", identity.client_order_id),
+                                    ("session_generation", identity.session_generation),
+                                    ("native_identity", new_fields)):
+                    if marker[name] not in (None, {}) and not _json_equal(marker[name], value):
+                        raise ValueError("GATEWAY_NATIVE_CONFLICT")
+                    marker[name] = value
+                day = new_fields.get("trading_day")
+                if day is not None:
+                    if type(day) is not str or not day or (marker["trading_day"] is not None and marker["trading_day"] != day):
+                        raise ValueError("GATEWAY_NATIVE_CONFLICT")
+                    marker["trading_day"] = day
+                for other in list(state["active"].values()) + state["history"]:
+                    if other is not marker and other["operation"] == "place" and _identity_key(other) == _identity_key(marker):
+                        raise ValueError("GATEWAY_NATIVE_CONFLICT")
+            mapping = current.to_mapping()
+            if entry["record"] != mapping:
+                entry["record"] = mapping
+                self._store._store(state)
+
+    def commit_pre_dispatch(self, request_key: str, record: GatewayCommandRecord) -> str:
+        current = _record(record, self._binding)
+        with self._store._lock():
+            state = self._store._load()
+            entry = self._entry(state, request_key)
+            if entry["record"] is None:
+                raise ValueError("GATEWAY_RESERVATION_REQUIRED")
+            previous = _record(entry["record"], self._binding)
+            validate_gateway_record_progress(previous, current)
+            if (current.request_key != request_key or current.state != "RESERVED"
+                    or previous.state != "RESERVED" or current.version != previous.version):
+                raise ValueError("GATEWAY_RESERVATION_REQUIRED")
+            if entry["marker_id"] is not None:
+                marker = state["active"].get(entry["marker_id"])
+                if marker is None or marker["status"] != STATUS_PREPARED:
+                    raise ValueError("GATEWAY_MARKER_NOT_PREPARED")
+                return entry["marker_id"]
+            intent = gateway_intent_from_mapping(entry["intent"], expected_binding=self._binding)
+            payload = json.loads(intent.canonical_payload)
+            now = utc_now_iso()
+            marker_id = new_uuid4()
+            marker = {"marker_id": marker_id, "status": STATUS_PREPARED, "operation": "place",
+                      "host_scope": state["strategy_uuid"], "local_seq": entry["local_seq"],
+                      "bt_ref": entry["bt_ref"], "exchange_name": None, "symbol": payload["symbol"],
+                      "client_order_id": None, "native_identity": {}, "target_identity": None,
+                      "request_summary": payload, "trading_day": None, "session_generation": None,
+                      "created_at_utc": None, "committed_at_utc": now, "updated_at_utc": now,
+                      "facts": {}, "transitions": [], "extra": {}, "resolution": None,
+                      "gateway_ref": {"request_key": request_key}}
+            state["active"][marker_id] = marker
+            entry["marker_id"] = marker_id
+            self._store._store(state)
+            return marker_id
+
+    def save_release(self, plan: Any) -> None:
+        mapping = gateway_release_to_mapping(plan)
+        plan = gateway_release_from_mapping(mapping)
+        with self._store._lock():
+            state = self._store._load()
+            entry = self._entry(state, plan.request_key)
+            intent = gateway_intent_from_mapping(entry["intent"], expected_binding=self._binding)
+            record = None if entry["record"] is None else _record(entry["record"], self._binding)
+            if record is None or plan.reservation_id != record.reservation_id or plan.digest != intent.digest:
+                raise ValueError("GATEWAY_RELEASE_CONFLICT")
+            if entry["release"] is not None:
+                if entry["release"] != mapping:
+                    raise ValueError("GATEWAY_RELEASE_CONFLICT")
+                return
+            if plan.expected_version != record.version:
+                raise ValueError("GATEWAY_RELEASE_CONFLICT")
+            entry["release"] = mapping
+            self._store._store(state)
+
+    def load_release(self, request_key: str):
+        with self._store._lock():
+            entry = self._check_state(self._store._load()).get(request_key)
+            return None if entry is None or entry["release"] is None else gateway_release_from_mapping(entry["release"])

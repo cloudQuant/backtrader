@@ -1,0 +1,4 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 4489}
+{"data": {"mode": "multiprocessing-spawn-main", "target": "/private/tmp/iter63-r08-packaging-j8KrE0I2/target"}, "event": "guard-installed", "pid": 4489}
+{"data": {}, "event": "audit-ok", "pid": 4489}
+{"data": {}, "event": "audit-ok", "pid": 4489}

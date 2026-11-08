@@ -1,0 +1,20 @@
+{
+  "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+  "args": [
+    "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/unit/test_iter63_gateway_host_contracts.py",
+    "tests/unit/test_iter63_gateway_direct_client.py",
+    "tests/unit/test_iter63_direct_identity_projection.py",
+    "tests/test_iter63_direct_identity_keys.py",
+    "tests/test_iter62_direct_write.py",
+    "tests/test_iter63_direct_error_policy.py",
+    "tests/integration/test_iter63_gateway_direct_dispatch.py",
+    "tests/integration/test_iter63_gateway_client_processes.py",
+    "--tb=short",
+    "--junitxml=/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round08-20261108/sdk-source-tests.xml"
+  ],
+  "exit_code": 0
+}

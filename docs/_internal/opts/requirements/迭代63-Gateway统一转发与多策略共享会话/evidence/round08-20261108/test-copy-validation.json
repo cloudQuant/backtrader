@@ -1,0 +1,286 @@
+{
+  "count": 56,
+  "all_equal": true,
+  "files": [
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_not_found_at_venue.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_not_found_at_venue.py",
+      "sha256": "01b48829b57ef5cf3a478fee86e5c31f88af7645007cff76611b420c91aea1b6"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/conftest.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/conftest.py",
+      "sha256": "027b2b3279a98e5a9e21d78b801b834c57e9186d8741ce20127c75b299f9531e"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_sequence.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_sequence.py",
+      "sha256": "08333868031b95cf2f8d20acefd37f5d04c380eb2cbedd6fa7d71229a2b5c589"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/integration/__init__.py",
+      "sha256": "12e0fbccb521257bcbee12ac880d61f0359165838aa94bed23168e5fffccb526"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_host_contracts.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/unit/test_iter63_gateway_host_contracts.py",
+      "sha256": "1c0a7282f91813d633cef146d232c69279b753c6edb3442a1d30dc54dfa3d270"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_pending.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_pending.py",
+      "sha256": "1e443a6b19d076b67ffb50cf5de2c98f34c7868bee112fc8e5dd70949ecb7df9"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/conftest.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/conftest.py",
+      "sha256": "2212a9bbfcd0234764fb633db18cbf7fa9ee46b752b5024d0e455dc6ab7b4970"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_fill_gap.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_fill_gap.py",
+      "sha256": "264de42e69392d263e50b920a8f27c18a06b60cf22d1007a88485bf57a3b3cf4"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_restart_reconcile.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_restart_reconcile.py",
+      "sha256": "289f1fc3fce86010a2a738e2aced64bd1ec76eff24f51b5862ded47a98c4083d"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/__init__.py",
+      "sha256": "28bfce4c0d4b88a0a2910345a16b64efbf4ad75879407695b6e9e22140e71048"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_unqualified_data.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_unqualified_data.py",
+      "sha256": "2e11d05b304e2a260dac3410486068a54b7998437df54b958e8a03aa97ee151b"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/_fakes.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/_fakes.py",
+      "sha256": "2ed816935ea2dc57e4deb9e4a0d1c14e5fefed67b339d4575b73417cf7d588fa"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_selection_and_first_init.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_selection_and_first_init.py",
+      "sha256": "379389a625ca6e31dc434222167931122a418f2480c2b50e3c8fb8922df51e98"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_start_failure_and_retry.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_start_failure_and_retry.py",
+      "sha256": "3f61f2e86e5019e6889a1bcce4d515b49c8f4e54bb6305e0bb605ce11eeb7a3b"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_waiting.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_waiting.py",
+      "sha256": "421e1d0cb4b840375922d88608b9699d64c3f0fe726a28acf2e1f528c1887b99"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_snapshot.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_snapshot.py",
+      "sha256": "43297d3cd8da48cee9f5b55750ddf5e8b9ed64e6aedd0ccbe7f27897afbd0520"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_price_guard.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_price_guard.py",
+      "sha256": "4bf38dfda934b1f18ac9765b4f8962535342068bbda61b92d7de1638bb9b617b"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_fractional_fills.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_fractional_fills.py",
+      "sha256": "50accbafa985a3783064bd7dea284b7297e80583f11f60204f38aa188a721493"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/__init__.py",
+      "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_helpers.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/_helpers.py",
+      "sha256": "51f6e0a9ddfcbbcd4e7f0d74e3957edfe2e8bb83c407935201f437c25cb76c2b"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/conftest.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/conftest.py",
+      "sha256": "5cf3aadf76a1ba7147a6f696aabf5f72839eafa6b7495632788ba4c968268404"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_atomic.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_atomic.py",
+      "sha256": "5d67ab60ce97fd2cc3892f520ef24a4bca1b51cb9b1bc530ef8a4eaf7394b2bb"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_refusal_reasons.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_refusal_reasons.py",
+      "sha256": "65ae65a6d1d24b89e384fc7ce149edcdf8bcfb790985649ec1e53475f480b781"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_configured_venue.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_configured_venue.py",
+      "sha256": "6684005a727abf4fc6356cc3186305568e2a664e5ad959e9f96a1cb51901f7a1"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trading_permissions.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_trading_permissions.py",
+      "sha256": "683dddc1ff137a7abfb20fdb3b503faae4b731b72b8f650d68f677bda4c6afee"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trading_day_switch.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_trading_day_switch.py",
+      "sha256": "694c7e1323da8af2385091525e6106e75d4ebdc6828be314ceea6c0c6b641db0"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_shared_sequence.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_shared_sequence.py",
+      "sha256": "6f93174db4aea566d47d560da0e053760eedb4b027a5ee218bb0893ed871a1da"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/conftest.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/conftest.py",
+      "sha256": "73251e36208ad6709c5c3e393aba3bc04c0ce3e25059ba0709934fc1cf45a14f"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter62_direct_write.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/test_iter62_direct_write.py",
+      "sha256": "73fddd11b07310720a2cd11f7e30c7e626d2b9854e827149798536eee4db557d"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_gateway_pending.py",
+      "sha256": "769dfee13da4ca7bf81b6fa7dc449e449843bc6359c75ad5b0e76a4a31dfba95"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_return_gap.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_return_gap.py",
+      "sha256": "7b12141538c98e8a9e272fcb9b5ec9c64947b76f0714c37a8fcfe6bf2b5069ea"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_direct_identity_projection.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/unit/test_iter63_direct_identity_projection.py",
+      "sha256": "84e713ae3487b754d7d7d1ca92a3a624586e88ee4b5da49a69a2551495154aa9"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/conftest.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/conftest.py",
+      "sha256": "851cebea4e963c1c8554a59b0ef11d3dcafaa37ab779d4601b00669f4dd5fa07"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_client.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_gateway_pending_client.py",
+      "sha256": "89cf402e388f92d69140767ff07a3e42b7a7e5e5cb9c76a3dfa93c63c3173e5a"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+      "sha256": "9c123385e9be552ef6499dd8402e3972c3fa4e036873d0d0df11e8d5dd341650"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "sha256": "a26014a0cf0ff6efb6d0442c8069c3f3cfb6cb7d24d1bf027617712ed074ec9b"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_switch_settlement_readback.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_switch_settlement_readback.py",
+      "sha256": "b0882bef708240ca2db6532e2c27a62874db29b07ab78796d05af4c2f3fb505d"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_mp_worker.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/_mp_worker.py",
+      "sha256": "b2c0cfa76fd459f9d277cce6a7b49840153ab7c0147e7608b4ed8a6af7de7e2f"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_waiting_orders.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_waiting_orders.py",
+      "sha256": "b5885097b1df1676b5a585908d6dff2227ef906e93fddee1e9490e656488d269"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trade_rematch.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_trade_rematch.py",
+      "sha256": "c23402aa928333fa2bd8e71be727e3d4bf24b2750cb76cb0dfe2ff5cf6f43ba0"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_direct_client.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/unit/test_iter63_gateway_direct_client.py",
+      "sha256": "c24515e3b6603e1d2eea0a9a8e6e89ed2c76fda4a5e74e242616aced16007c90"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_day_switch_write_fences.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_day_switch_write_fences.py",
+      "sha256": "ce0564071917105fb63b4494c7305a21f0e0ed8c0d7b05e2c38b12729691f1a1"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_client_processes.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/integration/test_iter63_gateway_client_processes.py",
+      "sha256": "d6a6f5702b1b67c58ee79e98b73c4d65607e9bdbbaba5fa9667ae3bba29f4d52"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_settlement_resolution.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_settlement_resolution.py",
+      "sha256": "d9ccdecdf3386066b9541949b0e48594ad41ac1a38b006cc7b02b0ca06aa7062"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_identity.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_identity.py",
+      "sha256": "da5f3a8a0ff1fe365512f3137925454ba19784079eab66a6f2664173c5af8be3"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_state_dir_and_cli.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/test_state_dir_and_cli.py",
+      "sha256": "dd4c0984cc83c8020668590eb8a22e3bf01de62d61761d0ba11f20498823f5a7"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_stop_and_facts.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_stop_and_facts.py",
+      "sha256": "dd89cf069e1172702dea8a80c028811057a07f76fef519152f7786d667ab83ae"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_submit.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_submit.py",
+      "sha256": "ddc6b5477757f710df2fae81064d70b25f3b649c6e16a5fe9cdb052e04d19faa"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/live_state/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/__init__.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/conftest_test_data.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/conftest_test_data.py",
+      "sha256": "e692dab018eb1308eaf666db87a06d0049a5fe4b381c399f169c4874b0311244"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_not_found_notices.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_not_found_notices.py",
+      "sha256": "ee5c34eacb4aee6b282003a80d0b66d1f2f1ec6f5a80f9355dac6a4e313faf78"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter63_direct_identity_keys.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/test_iter63_direct_identity_keys.py",
+      "sha256": "f9224b020402b3d68d0b890f7adc232c75dfdb02e5ffa07dd34213d461ccd9d3"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/test_iter63_direct_error_policy.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/test_iter63_direct_error_policy.py",
+      "sha256": "fec214a33c776794cfeebe71f98781d6326fd2ee75dda59a9e409da33588899f"
+    },
+    {
+      "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_day_scoped_returns.py",
+      "copy": "/tmp/iter63-r08-packaging-j8KrE0I2/bt-tests/tests/unit/brokers/direct/test_direct_day_scoped_returns.py",
+      "sha256": "ff9c80c4c3efaafd464d0f68e73ec8f78495853d7255c58b510e0a29c31f9c53"
+    }
+  ]
+}

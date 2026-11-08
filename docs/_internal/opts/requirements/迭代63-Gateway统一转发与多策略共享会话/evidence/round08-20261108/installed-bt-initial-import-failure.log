@@ -1,0 +1,191 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r08-packaging-j8KrE0I2/origin-logs/bt-4482-1794138048608182000
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r08-packaging-j8KrE0I2/target/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_binance/__init__.py
+....................F................................................... [ 13%]
+..............................................................F......... [ 26%]
+........................................................................ [ 39%]
+........................................................................ [ 52%]
+........................................................................ [ 65%]
+........................................................................ [ 78%]
+........................................................................ [ 92%]
+...........................................                              [100%]
+=================================== FAILURES ===================================
+__________________ test_two_process_hosts_commit_same_marker ___________________
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x11e072cd0>
+inputs = (GatewayCommandBinding(journal_id='journal-a', account_scope='account-a', strategy_scope='strategy-a', principal='prin...cipal_ref='principal-a', actor_ref='strategy-a', delegate_ref=None)), <function inputs.<locals>.intent at 0x11de5e2a0>)
+
+    def test_two_process_hosts_commit_same_marker(state, inputs):
+        import multiprocessing
+    
+        binding, _, make = inputs
+        host(state, binding)
+        intent = make()
+        ctx = multiprocessing.get_context("spawn")
+        queue = ctx.Queue()
+        processes = [ctx.Process(target=_race_commit,
+            args=(state.strategy_dir, state.strategy_uuid, binding, intent, queue)) for _ in range(2)]
+        for process in processes:
+            process.start()
+>       outcomes = [queue.get(timeout=15) for _ in processes]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/live_state/test_gateway_pending.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/live_state/test_gateway_pending.py:186: in <listcomp>
+    outcomes = [queue.get(timeout=15) for _ in processes]
+                ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.queues.Queue object at 0x11e12ba50>, block = True
+timeout = 14.999992875033058
+
+    def get(self, block=True, timeout=None):
+        if self._closed:
+            raise ValueError(f"Queue {self!r} is closed")
+        if block and timeout is None:
+            with self._rlock:
+                res = self._recv_bytes()
+            self._sem.release()
+        else:
+            if block:
+                deadline = time.monotonic() + timeout
+            if not self._rlock.acquire(block, timeout):
+                raise Empty
+            try:
+                if block:
+                    timeout = deadline - time.monotonic()
+                    if not self._poll(timeout):
+>                       raise Empty
+E                       _queue.Empty
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: Empty
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'live_state'
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'live_state'
+_______________ test_two_spawned_processes_never_share_a_number ________________
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x11dff2a10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11e083c50>
+
+    def test_two_spawned_processes_never_share_a_number(state, monkeypatch):
+        monkeypatch.setenv("BACKTRADER_LIGHT_IMPORT", "1")
+        ctx = multiprocessing.get_context("spawn")
+        barrier = ctx.Barrier(2)
+        results = ctx.Queue()
+        procs = [
+            ctx.Process(
+                target=allocate_many,
+                args=(state.strategy_dir, state.strategy_uuid, 50, barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for proc in procs:
+            proc.start()
+        collected = []
+        try:
+            for _ in procs:
+>               collected.append(results.get(timeout=90))
+                                 ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/live_state/test_sequence.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.queues.Queue object at 0x11d928710>, block = True
+timeout = 89.99998712493107
+
+    def get(self, block=True, timeout=None):
+        if self._closed:
+            raise ValueError(f"Queue {self!r} is closed")
+        if block and timeout is None:
+            with self._rlock:
+                res = self._recv_bytes()
+            self._sem.release()
+        else:
+            if block:
+                deadline = time.monotonic() + timeout
+            if not self._rlock.acquire(block, timeout):
+                raise Empty
+            try:
+                if block:
+                    timeout = deadline - time.monotonic()
+                    if not self._poll(timeout):
+>                       raise Empty
+E                       _queue.Empty
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: Empty
+
+During handling of the above exception, another exception occurred:
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x11dff2a10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11e083c50>
+
+    def test_two_spawned_processes_never_share_a_number(state, monkeypatch):
+        monkeypatch.setenv("BACKTRADER_LIGHT_IMPORT", "1")
+        ctx = multiprocessing.get_context("spawn")
+        barrier = ctx.Barrier(2)
+        results = ctx.Queue()
+        procs = [
+            ctx.Process(
+                target=allocate_many,
+                args=(state.strategy_dir, state.strategy_uuid, 50, barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for proc in procs:
+            proc.start()
+        collected = []
+        try:
+            for _ in procs:
+                collected.append(results.get(timeout=90))
+        except queue.Empty:  # pragma: no cover - diagnostic path
+>           pytest.fail("spawned allocator did not report")
+E           Failed: spawned allocator did not report
+
+tests/unit/live_state/test_sequence.py:121: Failed
+----------------------------- Captured stderr call -----------------------------
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "<string>", line 1, in <module>
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/spawn.py", line 132, in _main
+    self = reduction.pickle.load(from_parent)
+    self = reduction.pickle.load(from_parent)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'live_state'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'live_state'
+=========================== short test summary info ============================
+FAILED tests/unit/live_state/test_gateway_pending.py::test_two_process_hosts_commit_same_marker
+FAILED tests/unit/live_state/test_sequence.py::test_two_spawned_processes_never_share_a_number
+2 failed, 545 passed in 142.69s (0:02:22)
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r08-packaging-j8KrE0I2/run_installed.py` failed. (See above for error)

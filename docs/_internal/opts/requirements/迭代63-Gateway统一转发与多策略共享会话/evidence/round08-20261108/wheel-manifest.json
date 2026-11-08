@@ -1,0 +1,49 @@
+{
+  "scope": "R08 installed fake/offline verification; no release or live-account acceptance",
+  "changed_wheels": [
+    {
+      "filename": "back_trader_python-1.4.0-py3-none-any.whl",
+      "sha256": "458945e6b3b218f797a16b5e92df4da6f804f9646f5e20569bd2ec5ab0da4c42"
+    },
+    {
+      "filename": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "1cac7f93bbdab3c1e6a06b2702eb54f46a24292de8cd79037477c432fc80c34e"
+    }
+  ],
+  "fixed_wheels_source": "/tmp/iter63-r07-final-packaging-5t99PHD1/artifact.json",
+  "fixed_wheels": [
+    {
+      "filename": "bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "1d119c696ffc1398ab08d9bde61e7610f1d5a266e6d6e44a92c137e3804cb49b"
+    },
+    {
+      "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+      "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be"
+    },
+    {
+      "filename": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "a2bf4abc2b5e7d3367fcae3ed5638cce2591540bb6bfa48bc79ba80bf105acc3"
+    },
+    {
+      "filename": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "b5d4f5e3b889d923497e03086bc0ff5891912ea958f2628b118393c73041f76e"
+    },
+    {
+      "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07"
+    }
+  ],
+  "bt_result": "547 passed / 37.89s",
+  "sdk_result": "274 passed / 6.28s; 1 unknown integration mark warning",
+  "first_bt_attempt": "545 passed, 2 failed; spawn mirror path missing; retained bt-installed.log",
+  "verification": "verify.log; source/snapshot/target Python sets and bytes and metadata README match",
+  "origins": "origin-summary.log; all recorded parent, spawn and subprocess guard-installed and audit-ok, zero violations",
+  "test_manifest": "test-manifest.txt; 56 entries source and mirror hashes verified",
+  "target": "/tmp/iter63-r08-packaging-j8KrE0I2/target",
+  "commands": "/tmp/iter63-r08-packaging-j8KrE0I2/commands.txt",
+  "limitations": [
+    "transport_zmq from existing editable checkout",
+    "full dependency resolver not run",
+    "native live account acceptance not run"
+  ]
+}

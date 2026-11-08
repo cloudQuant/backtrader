@@ -1,0 +1,20 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r08-packaging-j8KrE0I2/origin-logs/sdk-4483-1794138048608182000
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r08-packaging-j8KrE0I2/target/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r08-packaging-j8KrE0I2/target/bt_api_binance/__init__.py
+........................................................................ [ 26%]
+........................................................................ [ 52%]
+........................................................................ [ 78%]
+..........................................................               [100%]
+=============================== warnings summary ===============================
+tests/integration/test_service_account_instrument_metadata.py:318
+  /private/tmp/iter63-r08-packaging-j8KrE0I2/sdk-tests/tests/integration/test_service_account_instrument_metadata.py:318: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+274 passed, 1 warning in 6.28s
+PARENT_ORIGIN_AUDIT_OK
