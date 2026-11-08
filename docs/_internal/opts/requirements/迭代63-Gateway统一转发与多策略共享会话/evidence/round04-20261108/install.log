@@ -1,0 +1,5 @@
+Processing /tmp/iter63-r04-packaging-w5zTzEpH/bt_api_gateway-0.2.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r04-packaging-w5zTzEpH/bt_api_py-0.16.0.dev63-py3-none-any.whl
+Installing collected packages: bt-api-py, bt-api-gateway
+
+Successfully installed bt-api-gateway-0.2.0.dev63 bt-api-py-0.16.0.dev63

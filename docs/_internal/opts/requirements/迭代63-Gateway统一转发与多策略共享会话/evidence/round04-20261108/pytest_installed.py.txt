@@ -1,0 +1,22 @@
+import os
+import pathlib
+import sys
+os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD'] = '1'
+target = pathlib.Path('/tmp/iter63-r04-packaging-w5zTzEpH/target').resolve()
+sys.path.insert(0, str(target))
+import bt_api_py
+import bt_api_gateway
+import bt_api_base
+import pytest
+for module in (bt_api_py, bt_api_gateway):
+    path = pathlib.Path(module.__file__).resolve()
+    print('INSTALLED_TEST_PACKAGE', module.__name__, path, flush=True)
+    assert path.is_relative_to(target)
+print('INSTALLED_TEST_BASE', bt_api_base.__file__, flush=True)
+result = pytest.main(['-q', '/tmp/iter63-r04-packaging-w5zTzEpH/tests'])
+for name, module in tuple(sys.modules.items()):
+    if (name == 'bt_api_py' or name.startswith('bt_api_py.') or name == 'bt_api_gateway' or name.startswith('bt_api_gateway.')) and getattr(module, '__file__', None):
+        path = pathlib.Path(module.__file__).resolve()
+        assert path.is_relative_to(target), ('source contamination', name, str(path))
+print('INSTALLED_MODULE_ORIGINS_MATCH_TARGET', flush=True)
+raise SystemExit(result)

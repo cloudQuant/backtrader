@@ -1,0 +1,96 @@
+import hashlib
+import importlib
+import importlib.metadata
+import json
+import pathlib
+import sys
+import tempfile
+import threading
+from contextlib import contextmanager
+
+tmp = pathlib.Path('/tmp/iter63-r04-packaging-w5zTzEpH')
+target = (tmp / 'target').resolve()
+root = pathlib.Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+sys.path.insert(0, str(target))
+packages = {
+    'bt_api_py': (tmp / 'source/sdk/bt_api_py', root / 'bt_api_py', tmp / 'source/sdk/README.md', root / 'README.md'),
+    'bt_api_gateway': (tmp / 'source/gateway/src/bt_api_gateway', root / 'bt_api/bt_api_gateway/src/bt_api_gateway', tmp / 'source/gateway/README.md', root / 'bt_api/bt_api_gateway/README.md'),
+}
+for name, (snapshot, source, snapshot_readme, current_readme) in packages.items():
+    module = importlib.import_module(name)
+    dist = importlib.metadata.distribution(name)
+    print('PACKAGE', name, module.__file__, 'METADATA', dist.version, dist._path)
+    assert pathlib.Path(module.__file__).resolve().is_relative_to(target)
+    assert pathlib.Path(dist._path).resolve().is_relative_to(target)
+    paths = (target / name, snapshot, source)
+    sets = [{p.relative_to(path) for p in path.rglob('*.py')} for path in paths]
+    print('PYTHON_SET_COUNTS', name, *(len(s) for s in sets))
+    assert sets[0] == sets[1] == sets[2], ('set mismatch', name, [sorted(map(str, sets[i] - sets[0])) for i in (1, 2)])
+    for rel in sets[0]:
+        assert (paths[0] / rel).read_bytes() == (paths[1] / rel).read_bytes() == (paths[2] / rel).read_bytes(), (name, rel)
+    readme = current_readme.read_text(encoding='utf-8')
+    assert snapshot_readme.read_text(encoding='utf-8') == readme
+    assert dist.metadata.get_payload().rstrip('\n') == readme.rstrip('\n')
+    print('README_MATCH', name, hashlib.sha256(readme.encode('utf-8')).hexdigest())
+for name in ('bt_api_py.gateway_direct_owner', 'bt_api_py.gateway_direct_service', 'bt_api_py.gateway_direct_dispatch', 'bt_api_gateway.direct_dispatch', 'bt_api_gateway.direct_command_journal'):
+    module = importlib.import_module(name)
+    print('MODULE', name, module.__file__)
+    assert pathlib.Path(module.__file__).resolve().is_relative_to(target)
+import bt_api_base
+import bt_api_transport_zmq
+print('EXTERNAL_BASE', bt_api_base.__file__)
+print('EXTERNAL_TRANSPORT', bt_api_transport_zmq.__file__)
+
+from bt_api_base.direct_write_protocol import NativeOrderIdentity, PreDispatchRecord, WriteOperation
+from bt_api_gateway.direct_command_journal import GatewayDirectCommandJournal
+from bt_api_gateway.direct_dispatch import GatewayDirectDispatcher, NativeDispatchOutcome
+from bt_api_gateway.session_guard import LocalAccountSessionGuard
+from bt_api_py.gateway_direct_owner import GatewayDirectOwner, GatewayDirectOwnerResources, GatewayDispatchCommand
+from bt_api_py.gateway_direct_service import _public
+
+work = pathlib.Path(tempfile.mkdtemp(prefix='r04-wheel-smoke-')).resolve()
+(work / 'guards').mkdir(mode=0o700)
+shared, native_calls, fence_calls = {}, [], []
+finalized = threading.Event()
+def factory():
+    guard = LocalAccountSessionGuard(work / 'guards', 'synthetic-account', 'owner')
+    gen = guard.acquire()
+    journal = GatewayDirectCommandJournal.create(work / 'journal.sqlite', 'synthetic-account', generation=gen)
+    def native(payload, port, scope):
+        identity = NativeOrderIdentity('TEST', 'ref1', {'trading_day': '20300101', 'front_id': 1}, 1)
+        record = PreDispatchRecord(WriteOperation.PLACE, scope, 'TEST', 'X', identity, None, payload, '20300101', 1, 'synthetic')
+        marker = port.commit(record)
+        native_calls.append(marker)
+        return NativeDispatchOutcome(True, identity, marker)
+    dispatcher = GatewayDirectDispatcher(journal, 'TEST', guard, native, lambda _: ('strong-key',), lambda _: True)
+    shared['journal'] = journal
+    return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
+owner = GatewayDirectOwner(factory, queue_size=2, max_queue_wait_seconds=3, busy_timeout_seconds=3)
+assert owner.start(3)
+journal = shared['journal']
+assert owner.is_bound_to(journal)
+row = journal.reserve('strategy', 'key', 'principal', {'symbol': 'X', 'qty': '1'})
+command = GatewayDispatchCommand(row.strategy_scope, row.request_key, row.principal, row.reservation_id, row.digest, row.version)
+@contextmanager
+def fence(row):
+    fence_calls.append(('enter', row.request_key))
+    yield lambda: fence_calls.append(('recheck', row.request_key))
+    fence_calls.append(('exit', row.request_key))
+assert owner.enqueue(command, request_fence=fence, finalize=finalized.set) == 'QUEUED'
+assert finalized.wait(3)
+result = journal.get('strategy', 'key', 'principal')
+assert result.status == 'SENT' and native_calls == [row.reservation_id]
+public = _public(journal.observe('strategy', 'key', 'principal'), journal)
+assert public['record']['native_identity']['client_order_id'] == 'ref1'
+assert public['record']['strong_identity_key_digests'] == [hashlib.sha256(b'strong-key').hexdigest()]
+assert public['record']['reservation_generation'] == public['record']['owner_generation'] == row.generation
+again = threading.Event()
+assert owner.enqueue(command, request_fence=fence, finalize=again.set) == 'QUEUED'
+assert again.wait(3)
+assert native_calls == [row.reservation_id]
+assert sum(kind == 'enter' for kind, _ in fence_calls) == 2
+assert sum(kind == 'recheck' for kind, _ in fence_calls) == 1
+assert owner.close(3) and not owner.status().thread_alive
+print('OWNER_QUEUE_DISPATCH_FENCE_STATUS_DUPLICATE_CLEANUP passed')
+for wheel in sorted(tmp.glob('*.whl')):
+    print('WHEEL_SHA256', wheel.name, hashlib.sha256(wheel.read_bytes()).hexdigest())

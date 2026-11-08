@@ -1,6 +1,6 @@
 ﻿# 仓库目录与文件职责规范
 
-> 2026-11-08 迭代 63 开发：Gateway 拥有基础两阶段命令日志与本地耐久派发桥，SDK 拥有其服务认证上下文接线、规范 OrderRequest 校验、native coordinator 组合和独立租约线程，CTP provider 拥有受信 flow 目录映射。Gateway 以独立服务进程运行，策略仅配置连接；本轮 storage RPC 只发布 reserve/release/status，尚未接成完整交易 owner、远端 provider、BT Gateway 模式或策略账本。局部离线与回环证据及未通过项见迭代 63 分轮记录，不把类名或端口名当作账户能力已通过。
+> 2026-11-08 迭代 63 开发：Gateway 拥有两阶段命令日志、本地耐久派发桥和事务内准入复核挂点；SDK 拥有认证上下文、延后派发准入、规范 OrderRequest 校验、native coordinator 组合、独立租约线程及有界账户 owner 队列，CTP provider 拥有受信 flow 目录映射。Gateway 的目标部署为独立服务进程，默认使用 bt_api_transport_zmq，策略仅配置连接；storage RPC 默认发布 reserve/release/status，显式 dispatch_enabled 且匹配 owner 时增加派发排队。尚未接成完整交易 owner、远端 provider、BT Gateway 模式或策略账本。局部离线与回环证据及未通过项见迭代 63 分轮记录，不把类名、排队回执或端口名当作账户能力已通过。
 
 > 当前 SDK 工作树的直连范围保留 Base、CTP、OKX、Binance，其余 17 个子仓整体迁入 `bt_api/deperated/`，仍是 Git 子模块且未卸载发行包。旧路径的部分历史验收和治理基线待单独审阅；本次目录迁移不证明直连或安装行为通过。
 

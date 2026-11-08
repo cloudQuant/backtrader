@@ -1,0 +1,22 @@
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+destination = Path('/tmp/iter63-r04-packaging-w5zTzEpH/source')
+for name, source, paths in (
+    ('sdk', root, ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'bt_api_py']),
+    ('gateway', root / 'bt_api/bt_api_gateway', ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'src']),
+):
+    data = subprocess.check_output(['git', '-C', str(source), 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', *paths])
+    count = 0
+    for path in sorted(set(p for p in data.decode().split('\0') if p)):
+        src = source / path
+        if src.name in ('.env', 'config.yaml') or not (src.is_file() or src.is_symlink()): continue
+        dst = destination / name / path
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_symlink(): os.symlink(os.readlink(src), dst)
+        else: shutil.copy2(src, dst)
+        count += 1
+    print(name, 'files', count)

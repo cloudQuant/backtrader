@@ -1,0 +1,7 @@
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_BASE /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+........................................................................ [ 52%]
+.................................................................        [100%]
+137 passed in 1.32s
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET

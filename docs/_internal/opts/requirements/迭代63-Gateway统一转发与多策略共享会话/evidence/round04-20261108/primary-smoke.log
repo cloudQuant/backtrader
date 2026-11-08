@@ -1,0 +1,16 @@
+PACKAGE bt_api_py /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_py 281 281 281
+README_MATCH bt_api_py b3dead69270c07b7f423343341ac1267903119d91d6fb14523b65bcc27bd08a5
+PACKAGE bt_api_gateway /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_gateway/__init__.py METADATA 0.2.0.dev63 /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_gateway-0.2.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_gateway 21 21 21
+README_MATCH bt_api_gateway 88367d4aa55a8e445a508472dcb08a743b1a120a645f01629e366350490995de
+MODULE bt_api_py.gateway_direct_owner /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py/gateway_direct_owner.py
+MODULE bt_api_py.gateway_direct_service /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py/gateway_direct_service.py
+MODULE bt_api_py.gateway_direct_dispatch /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_py/gateway_direct_dispatch.py
+MODULE bt_api_gateway.direct_dispatch /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_gateway/direct_dispatch.py
+MODULE bt_api_gateway.direct_command_journal /private/tmp/iter63-r04-packaging-w5zTzEpH/target/bt_api_gateway/direct_command_journal.py
+EXTERNAL_BASE /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+EXTERNAL_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+OWNER_QUEUE_DISPATCH_FENCE_STATUS_DUPLICATE_CLEANUP passed
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl b12f5c0c131316d2dc1c05638b19689168be337533f876fb5838dd83fd1e420f
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl 760ec88388d5a75a67ace2a1dce077ace5ab7c6adfd53f1d924811548810b7b0

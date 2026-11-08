@@ -1,0 +1,26 @@
+{
+  "evidence": "PACKAGE/local-synthetic",
+  "sdk_commit": "9a762e67",
+  "gateway_commit": "4e05fe1",
+  "base_and_transport": "existing editable checkouts",
+  "artifact_directory": "/tmp/iter63-r04-packaging-w5zTzEpH",
+  "python_source_file_counts": {
+    "bt_api_py": 281,
+    "bt_api_gateway": 21
+  },
+  "installed_tests": {
+    "passed": 137,
+    "failed": 0,
+    "seconds": 1.32
+  },
+  "wheels": [
+    {
+      "name": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "b12f5c0c131316d2dc1c05638b19689168be337533f876fb5838dd83fd1e420f"
+    },
+    {
+      "name": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "760ec88388d5a75a67ace2a1dce077ace5ab7c6adfd53f1d924811548810b7b0"
+    }
+  ]
+}
