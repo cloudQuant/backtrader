@@ -1,0 +1,42 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r12-packaging-1ObacjUG/origin-logs/ctp-58580-1794147293727949000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION loaded for structs/measurement
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_binance/__init__.py
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 32%]
+........................................................................ [ 42%]
+....................................F................................... [ 53%]
+........................................................................ [ 64%]
+........................................................................ [ 74%]
+........................................................................ [ 85%]
+........................................................................ [ 96%]
+..........................                                               [100%]
+=================================== FAILURES ===================================
+__ test_production_feed_rejects_completed_preconnection_generation_zero_stop ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x137b4e1d0>
+
+    def test_production_feed_rejects_completed_preconnection_generation_zero_stop(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        source_package = Path(__file__).resolve().parents[1] / "src" / "bt_api_ctp"
+>       assert Path(ctp_client_module.__file__).resolve() == source_package / "ctp" / "client.py"
+E       AssertionError: assert PosixPath('/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py') == ((PosixPath('/private/tmp/iter63-r12-packaging-1ObacjUG/ctp-tests/src/bt_api_ctp') / 'ctp') / 'client.py')
+E        +  where PosixPath('/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py') = resolve()
+E        +    where resolve = PosixPath('/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py').resolve
+E        +      where PosixPath('/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py') = Path('/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py')
+E        +        where '/private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/ctp/client.py' = ctp_client_module.__file__
+
+tests/test_account_provider.py:689: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_account_provider.py::test_production_feed_rejects_completed_preconnection_generation_zero_stop
+1 failed, 673 passed in 14.67s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r12-packaging-1ObacjUG/run_installed.py` failed. (See above for error)

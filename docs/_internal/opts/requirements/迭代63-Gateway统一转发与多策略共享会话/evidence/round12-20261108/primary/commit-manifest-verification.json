@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "manifest": "source-manifest.json",
+      "count": 576,
+      "commit_blob_and_copy_sha_match": true
+    },
+    {
+      "manifest": "test-manifest.json",
+      "count": 86,
+      "commit_blob_and_copy_sha_match": true
+    }
+  ],
+  "commits": {
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "00f34b13c4d0811a45e7f1c0c9a69270e6440918",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "36253bfe36e202e8b9297607469e1eb62d7c6da9",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "8e1f46f5cde51df4291eafbe75417bb42229713a"
+  }
+}

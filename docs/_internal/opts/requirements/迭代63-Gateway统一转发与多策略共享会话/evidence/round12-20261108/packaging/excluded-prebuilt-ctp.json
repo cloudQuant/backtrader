@@ -1,0 +1,8 @@
+[
+  "src/bt_api_ctp/ctp/_ctp.cpython-310-darwin.so",
+  "src/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+  "src/bt_api_ctp/ctp/_ctp.cpython-312-darwin.so",
+  "src/bt_api_ctp/ctp/_ctp.cpython-313-darwin.so",
+  "src/bt_api_ctp/ctp/_ctp.cpython-314-darwin.so",
+  "src/bt_api_ctp/ctp/_ctp.cpython-39-darwin.so"
+]

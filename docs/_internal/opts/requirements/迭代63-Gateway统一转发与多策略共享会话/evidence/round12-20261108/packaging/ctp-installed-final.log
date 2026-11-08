@@ -1,0 +1,22 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r12-packaging-1ObacjUG/origin-logs/ctp-58837-1794147345083316000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION loaded for structs/measurement
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r12-packaging-1ObacjUG/install/src/bt_api_binance/__init__.py
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 32%]
+........................................................................ [ 42%]
+........................................................................ [ 53%]
+........................................................................ [ 64%]
+........................................................................ [ 74%]
+........................................................................ [ 85%]
+........................................................................ [ 96%]
+..........................                                               [100%]
+674 passed in 15.60s
+PARENT_ORIGIN_AUDIT_OK

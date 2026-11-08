@@ -1,0 +1,101 @@
+FF..                                                                     [100%]
+=================================== FAILURES ===================================
+_________ test_late_trade_never_inherits_replacement_session[api_spi] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15b04f950>
+change = 'api_spi'
+
+    @pytest.mark.parametrize("change", ["api_spi", "same_spi_relogin"])
+    def test_late_trade_never_inherits_replacement_session(monkeypatch, change):
+        client, old_api, old_spi = _client()
+        entered = threading.Event()
+        resume = threading.Event()
+        events, callbacks = [], []
+        client.add_execution_listener(lambda kind, payload: events.append((kind, payload)))
+        client.on_trade = callbacks.append
+        original = client._push_trade_event
+    
+        def pause(field, **kwargs):
+            entered.set()
+            assert resume.wait(2)
+            return original(field, **kwargs)
+    
+        monkeypatch.setattr(client, "_push_trade_event", pause)
+        thread = threading.Thread(target=old_spi.OnRtnTrade, args=(_trade(),), daemon=True)
+        thread.start()
+        try:
+            assert entered.wait(1)
+            with client._query_state_lock:
+                if change == "api_spi":
+                    replacement = object()
+                    client._api = replacement
+                    client._spi = _TraderSpi(client, replacement)
+                else:
+                    assert client._api is old_api and client._spi is old_spi
+                client._connection_generation = 8
+                client._trading_day = "20261109"
+                client._front_id = 5
+                client._session_id = 6
+        finally:
+            resume.set()
+            thread.join(2)
+        assert not thread.is_alive()
+>       assert events == [] and callbacks == []
+E       AssertionError: assert ([('trade', {'...on': 8, ...})] == []
+E         
+E         Left contains one more item: ('trade', {'InstrumentID': 'rb2701', 'TradeID': 'trade-old', 'Volume': 1, '_connection_generation': 8, ...})
+E         Use -v to get more diff)
+
+tests/test_iter63_trade_callback_source_fence.py:63: AssertionError
+_____ test_late_trade_never_inherits_replacement_session[same_spi_relogin] _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15b142790>
+change = 'same_spi_relogin'
+
+    @pytest.mark.parametrize("change", ["api_spi", "same_spi_relogin"])
+    def test_late_trade_never_inherits_replacement_session(monkeypatch, change):
+        client, old_api, old_spi = _client()
+        entered = threading.Event()
+        resume = threading.Event()
+        events, callbacks = [], []
+        client.add_execution_listener(lambda kind, payload: events.append((kind, payload)))
+        client.on_trade = callbacks.append
+        original = client._push_trade_event
+    
+        def pause(field, **kwargs):
+            entered.set()
+            assert resume.wait(2)
+            return original(field, **kwargs)
+    
+        monkeypatch.setattr(client, "_push_trade_event", pause)
+        thread = threading.Thread(target=old_spi.OnRtnTrade, args=(_trade(),), daemon=True)
+        thread.start()
+        try:
+            assert entered.wait(1)
+            with client._query_state_lock:
+                if change == "api_spi":
+                    replacement = object()
+                    client._api = replacement
+                    client._spi = _TraderSpi(client, replacement)
+                else:
+                    assert client._api is old_api and client._spi is old_spi
+                client._connection_generation = 8
+                client._trading_day = "20261109"
+                client._front_id = 5
+                client._session_id = 6
+        finally:
+            resume.set()
+            thread.join(2)
+        assert not thread.is_alive()
+>       assert events == [] and callbacks == []
+E       AssertionError: assert ([('trade', {'...on': 8, ...})] == []
+E         
+E         Left contains one more item: ('trade', {'InstrumentID': 'rb2701', 'TradeID': 'trade-old', 'Volume': 1, '_connection_generation': 8, ...})
+E         Use -v to get more diff)
+
+tests/test_iter63_trade_callback_source_fence.py:63: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_iter63_trade_callback_source_fence.py::test_late_trade_never_inherits_replacement_session[api_spi]
+FAILED tests/test_iter63_trade_callback_source_fence.py::test_late_trade_never_inherits_replacement_session[same_spi_relogin]
+2 failed, 2 passed in 0.47s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/test_iter63_trade_callback_source_fence.py` failed. (See above for error)

@@ -1,0 +1,12 @@
+# Do not create this marker until primary explicitly says R12 freeze and provides final plans.
+printf '%s\n' 'Primary confirmed R12 source and test freeze.' > /tmp/iter63-r12-packaging-1ObacjUG/SOURCE_FROZEN
+# Primary fills plans/{ctp,gateway,sdk}.txt with exact files first. Gateway supports one line: tests/
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py snapshot
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py fixed
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py tests-copy
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py build
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py install
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py verify
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py tests
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py audit
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r12-packaging-1ObacjUG/run.py verify-final

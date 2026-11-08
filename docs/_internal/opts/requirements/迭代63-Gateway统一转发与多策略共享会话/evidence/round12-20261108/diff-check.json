@@ -1,0 +1,18 @@
+{
+  "exit_code": 2,
+  "frozen_log_trailing_whitespace_count": 11,
+  "warnings": [
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-read-ttl-red.log:9: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-read-ttl-red.log:16: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-read-ttl-red.log:21: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-read-ttl-red.log:26: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-read-ttl-red.log:30: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:17: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:22: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:45: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:64: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:69: trailing whitespace.",
+    "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round12-20261108/development/r12-ctp-trade-red.log:92: trailing whitespace."
+  ],
+  "product_and_markdown_errors": 0
+}

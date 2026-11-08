@@ -1,0 +1,23 @@
+Processing /tmp/iter63-r12-packaging-1ObacjUG/source/ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r12-packaging-1ObacjUG/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r12-packaging-1ObacjUG/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_ctp, bt_api_gateway, bt_api_py
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9347197 sha256=b6ca18e393244a972ade745cb7ffe2040fe224d1c276cea4a951bd32e391d0f0
+  Stored in directory: /private/tmp/iter63-r12-packaging-1ObacjUG/tmp/pip-ephem-wheel-cache-z0iml4nj/wheels/0b/9a/76/0c267fecf65ccb211839f92f4bb0a5d7cb73b18c4193429b1b
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=174860 sha256=9cfafc2d241b43b22522198b05edafcb3352efb27a5bdd9813a0be3ff5e8123d
+  Stored in directory: /private/tmp/iter63-r12-packaging-1ObacjUG/tmp/pip-ephem-wheel-cache-z0iml4nj/wheels/f6/be/ab/f92844eec7c5899b55c90369f9f7b7d9a9cc52edb7d37ad19c
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2057117 sha256=74b6c2e4efc28fe7d0ea917dff7f4c7cdd2aef344acdf8f31fab106a225841fe
+  Stored in directory: /private/tmp/iter63-r12-packaging-1ObacjUG/tmp/pip-ephem-wheel-cache-z0iml4nj/wheels/f0/a0/a3/887d81dd79618e57cb8bb63e0f795d0132f80254b0400ad9b2
+Successfully built bt_api_ctp bt_api_gateway bt_api_py
