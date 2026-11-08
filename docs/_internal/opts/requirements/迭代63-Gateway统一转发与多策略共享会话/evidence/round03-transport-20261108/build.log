@@ -1,0 +1,9 @@
+Processing /tmp/iter63-gateway-zmq-whgtXutr/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2022353 sha256=ef074979f680fa2857ff44c1e4b72354c49e4603c477cf1e62edb0abae7ff102
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-1lcl_9w_/wheels/45/42/24/237e17420f04baa1378597b2d1af151fd67384011eaece6178
+Successfully built bt_api_py

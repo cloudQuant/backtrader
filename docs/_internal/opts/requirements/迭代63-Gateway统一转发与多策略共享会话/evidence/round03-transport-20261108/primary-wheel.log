@@ -1,0 +1,9 @@
+SDK_PACKAGE /private/tmp/iter63-gateway-zmq-whgtXutr/readme-target/bt_api_py/__init__.py
+FACTORY_MODULE /private/tmp/iter63-gateway-zmq-whgtXutr/readme-target/bt_api_py/service_runtime.py
+TRANSPORT_DEPENDENCY /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/service_v2.py
+GATEWAY_EXTRA bt_api_gateway<1.0,>=0.2.0.dev63; extra == "gateway"
+GATEWAY_EXTRA bt_api_transport_zmq>=0.1.0; extra == "gateway"
+PYTHON_MODULES_MATCH 280
+CORE_DOES_NOT_REQUIRE_GATEWAY_OR_TRANSPORT passed
+README_WHEEL_METADATA_MATCH eab43fafd28f202d1feee124285fe0c5e63a1b57a8cde9a51251954fd2d4f20f
+SDK_WHEEL_SHA256 ef074979f680fa2857ff44c1e4b72354c49e4603c477cf1e62edb0abae7ff102

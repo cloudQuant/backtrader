@@ -1,0 +1,49 @@
+import importlib.metadata
+from pathlib import Path
+import sys
+from packaging.requirements import Requirement
+from packaging.version import Version
+
+target = Path('/tmp/iter63-gateway-zmq-whgtXutr/readme-target').resolve()
+snapshot = Path('/tmp/iter63-gateway-zmq-whgtXutr/sdk/bt_api_py')
+source = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py')
+sys.path.insert(0, str(target))
+import bt_api_py
+import bt_api_py.service_runtime as runtime
+import bt_api_transport_zmq.service_v2 as transport
+from bt_api_py.service_runtime import ZmqTransportFactory
+assert Path(bt_api_py.__file__).resolve().is_relative_to(target)
+assert Path(runtime.__file__).resolve().is_relative_to(target)
+assert ZmqTransportFactory.__module__ == 'bt_api_py.service_runtime'
+assert isinstance(ZmqTransportFactory({}), ZmqTransportFactory)
+print('SDK_PACKAGE', bt_api_py.__file__)
+print('FACTORY_MODULE', runtime.__file__)
+print('TRANSPORT_DEPENDENCY', transport.__file__)
+dist = importlib.metadata.distribution('bt_api_py')
+assert Path(dist._path).resolve().is_relative_to(target) and dist.version == '0.16.0.dev63'
+requirements = [Requirement(s) for s in dist.requires or ()]
+for name in ('bt_api_gateway', 'bt_api_transport_zmq'):
+    found = [r for r in requirements if r.name.lower().replace('-', '_') == name]
+    selected = [r for r in found if r.marker.evaluate({'extra': 'gateway'})]
+    assert len(selected) == 1 and all(not r.marker.evaluate({'extra': ''}) for r in found)
+    print('GATEWAY_EXTRA', selected[0])
+    if name == 'bt_api_gateway': assert Version('0.1.0') not in selected[0].specifier
+    if name == 'bt_api_transport_zmq':
+        assert any(r.marker.evaluate({'extra': 'transport-zmq'}) for r in found)
+        assert Version('0.1.0') in selected[0].specifier
+sets = [{p.relative_to(root) for p in root.rglob('*.py')} for root in (target / 'bt_api_py', snapshot, source)]
+assert sets[0] == sets[1] == sets[2], ('python module set mismatch', [len(s) for s in sets])
+for path in sets[0]:
+    assert (target / 'bt_api_py' / path).read_bytes() == (snapshot / path).read_bytes() == (source / path).read_bytes(), path
+print('PYTHON_MODULES_MATCH', len(sets[0]))
+print('CORE_DOES_NOT_REQUIRE_GATEWAY_OR_TRANSPORT passed')
+
+import hashlib
+readme = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py/README.md').read_text(encoding='utf-8')
+snapshot_readme = Path('/tmp/iter63-gateway-zmq-whgtXutr/sdk/README.md').read_text(encoding='utf-8')
+description = dist.metadata.get_payload()
+assert snapshot_readme == readme
+assert description.rstrip('\n') == readme.rstrip('\n')
+print('README_WHEEL_METADATA_MATCH', hashlib.sha256(readme.encode('utf-8')).hexdigest())
+wheel = next(Path('/tmp/iter63-gateway-zmq-whgtXutr').glob('bt_api_py-*.whl'))
+print('SDK_WHEEL_SHA256', hashlib.sha256(wheel.read_bytes()).hexdigest())

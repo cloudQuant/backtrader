@@ -1,0 +1,10 @@
+SDK_PACKAGE /private/tmp/iter63-gateway-zmq-whgtXutr/target/bt_api_py/__init__.py
+FACTORY_MODULE /private/tmp/iter63-gateway-zmq-whgtXutr/target/bt_api_py/service_runtime.py
+TRANSPORT_DEPENDENCY /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/service_v2.py
+GATEWAY_EXTRA bt_api_gateway<1.0,>=0.2.0.dev63; extra == "gateway"
+Traceback (most recent call last):
+  File "/tmp/iter63-gateway-zmq-whgtXutr/verify.py", line 27, in <module>
+    assert len(found) == 1 and found[0].marker.evaluate({'extra': 'gateway'})
+           ^^^^^^^^^^^^^^^
+AssertionError
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-gateway-zmq-whgtXutr/verify.py` failed. (See above for error)

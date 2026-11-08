@@ -1,0 +1,10 @@
+{
+  "wheel": "/tmp/iter63-gateway-zmq-whgtXutr/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+  "sha256": "ef074979f680fa2857ff44c1e4b72354c49e4603c477cf1e62edb0abae7ff102",
+  "version": "0.16.0.dev63",
+  "default_gateway_dependencies": [
+    "bt_api_gateway>=0.2.0.dev63,<1.0",
+    "bt_api_transport_zmq>=0.1.0"
+  ],
+  "dependency_installation": "Existing editable transport/Base plus Anaconda dependencies; not a clean resolver test"
+}

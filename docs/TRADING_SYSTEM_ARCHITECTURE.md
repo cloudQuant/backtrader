@@ -104,3 +104,7 @@ Backtrader `examples/live` 和 `examples/unified` 中涉及模拟和实盘交易
 各子项目是独立 Git 仓库/子模块，是否单独构建、安装和启用由各自发行配置决定；父仓库的 submodule 记录不等于父 wheel 已打包子项目。Backtrader 与 SDK 的 Python 支持范围不同，组合时需要明确版本矩阵、依赖、可选 extra 和失败行为。
 
 建议将验证分为源码/单元、真实组件配合 fake 叶子、隔离安装、实际只读行情、获授权模拟账户和真实账户等级。包存在、插件注册、构建 wheel、连接 socket 或监控心跳都不能单独证明交易闭环已通过。风险控制不仅在启动前检查，还应在实际订单路径上执行，交易后监控和对账也有独立作用。
+
+## 2026-11-08 Gateway默认传输
+
+迭代63按用户决定默认使用bt_api_transport_zmq，Gateway为独立进程，策略通过config.yaml连接。SDK gateway extra默认安装Gateway及ZMQ传输包；未来其他中间件另建独立传输包实现中立合同。允许Gateway及ZMQ包必要破坏式重构，但账户会话与业务状态留在Gateway，socket/认证/有界收发留在传输包。当前完整独立交易服务仍在开发，不能以默认依赖或已有CURVE回环宣布完成。
