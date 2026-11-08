@@ -1,0 +1,15 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/origin-logs/70039-1794131335437207000
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/__init__.py
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 40%]
+........................................................................ [ 53%]
+........................................................................ [ 67%]
+........................................................................ [ 80%]
+........................................................................ [ 94%]
+................................                                         [100%]
+536 passed in 20.80s
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET

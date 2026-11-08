@@ -1,0 +1,3 @@
+# Used only by tests' normal subprocess -c children; -I spawn uses runner bootstrap.
+from origin_guard import install
+install('sitecustomize-subprocess')

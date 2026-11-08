@@ -1,0 +1,54 @@
+import hashlib
+import importlib
+import importlib.metadata
+from pathlib import Path
+import sys
+from packaging.requirements import Requirement
+from packaging.version import Version
+
+tmp = Path('/tmp/iter63-r05-packaging-ZQ7t1BQh')
+target = (tmp / 'target').resolve()
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+sys.path.insert(0, str(target))
+packages = {
+    'bt_api_base': (tmp / 'source/base/src/bt_api_base', root / 'bt_api/bt_api_base/src/bt_api_base', tmp / 'source/base/README.md', root / 'bt_api/bt_api_base/README.md', '0.16.0.dev63'),
+    'bt_api_gateway': (tmp / 'source/gateway/src/bt_api_gateway', root / 'bt_api/bt_api_gateway/src/bt_api_gateway', tmp / 'source/gateway/README.md', root / 'bt_api/bt_api_gateway/README.md', '0.2.0.dev63'),
+    'bt_api_ctp': (tmp / 'source/ctp/src/bt_api_ctp', root / 'bt_api/bt_api_ctp/src/bt_api_ctp', tmp / 'source/ctp/README.md', root / 'bt_api/bt_api_ctp/README.md', '2.1.0.dev63'),
+    'bt_api_py': (tmp / 'source/sdk/bt_api_py', root / 'bt_api_py', tmp / 'source/sdk/README.md', root / 'README.md', '0.16.0.dev63'),
+}
+for name, (snapshot, source, snapshot_readme, current_readme, version) in packages.items():
+    module = importlib.import_module(name)
+    dist = importlib.metadata.distribution(name)
+    print('PACKAGE', name, module.__file__, 'METADATA', dist.version, dist._path, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+    assert Path(dist._path).resolve().is_relative_to(target) and dist.version == version
+    if hasattr(module, '__version__'): assert module.__version__ == version
+    roots = (target / name, snapshot, source)
+    sets = [{p.relative_to(path) for p in path.rglob('*.py')} for path in roots]
+    print('PYTHON_SET_COUNTS', name, *(len(s) for s in sets), flush=True)
+    assert sets[0] == sets[1] == sets[2], ('set mismatch', name, [sorted(map(str, s - sets[0])) for s in sets[1:]], sorted(map(str, sets[0] - sets[2])))
+    for rel in sets[0]:
+        assert (roots[0] / rel).read_bytes() == (roots[1] / rel).read_bytes() == (roots[2] / rel).read_bytes(), (name, str(rel))
+    readme = current_readme.read_text(encoding='utf-8')
+    assert snapshot_readme.read_text(encoding='utf-8') == readme
+    assert dist.metadata.get_payload().rstrip('\n') == readme.rstrip('\n')
+    print('README_MATCH', name, hashlib.sha256(readme.encode('utf-8')).hexdigest(), flush=True)
+for name in ('bt_api_base.gateway_direct_protocol', 'bt_api_gateway.direct_dispatch', 'bt_api_gateway.direct_command_journal', 'bt_api_py.gateway_direct_client', 'bt_api_py.gateway_order_contract', 'bt_api_py.gateway_direct_service', 'bt_api_ctp.trusted_flow'):
+    module = importlib.import_module(name)
+    print('MODULE', name, module.__file__, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+for name in ('bt_api_py', 'bt_api_gateway', 'bt_api_ctp'):
+    reqs = [Requirement(item) for item in importlib.metadata.distribution(name).requires or ()]
+    base = [r for r in reqs if r.name.lower().replace('-', '_') == 'bt_api_base']
+    assert base and all(Version('0.15.8') not in r.specifier and Version('0.16.0.dev63') in r.specifier for r in base)
+    print('BASE_FLOOR', name, ', '.join(map(str, base)), 'old 0.15.8 rejected', flush=True)
+from bt_api_base.gateway_direct_protocol import GatewayCommandBinding, GatewayCommandRecord, canonical_gateway_payload, gateway_payload_digest
+binding = GatewayCommandBinding('journal', 'account', 'strategy', 'principal')
+record = GatewayCommandRecord(schema_version=1, binding=binding, request_key='key', reservation_id='r', digest=gateway_payload_digest({'symbol':'中'}), state='RESERVED', version=1, owner_generation='g1', reservation_generation='g1', generation_current=True, remaining_ttl_seconds=3.0, expiry_pending=False, release_operation_id=None, release_expected_version=None, native_identity=None, strong_identity_key_digests=())
+assert GatewayCommandRecord.from_mapping(record.to_mapping(), expected_binding=binding) == record
+print('NEUTRAL_CONTRACT_ROUNDTRIP', canonical_gateway_payload({'symbol':'中'}), flush=True)
+import bt_api_transport_zmq
+print('EXTERNAL_TRANSPORT', bt_api_transport_zmq.__file__, flush=True)
+print('CTP_NATIVE_MODULE_LOADED', 'bt_api_ctp.ctp._ctp' in sys.modules, 'native call NOT_RUN', flush=True)
+for wheel in sorted(tmp.glob('*.whl')):
+    print('WHEEL_SHA256', wheel.name, hashlib.sha256(wheel.read_bytes()).hexdigest(), flush=True)

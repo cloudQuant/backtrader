@@ -1,0 +1,8 @@
+{
+  "branch": "dev",
+  "pushed": false,
+  "bt_api_base": "82ef63e692b2b2aabb6576ea17f55f8983fd4eb6",
+  "bt_api_gateway": "4a1f1b10ea68dea10fcf14cde0cfee438c2ce55f",
+  "bt_api_ctp": "784c7fae7ad7201135cc5a845d4f9113f43a0a55",
+  "bt_api_py": "bc87e4ae9746ea14e77f8f4b561feb73d593515f"
+}

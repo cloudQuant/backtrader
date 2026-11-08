@@ -1,0 +1,40 @@
+{
+  "python": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python",
+  "suites": [
+    {
+      "key": "gateway-base",
+      "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+      "args": "../bt_api_base/tests/test_gateway_direct_protocol.py tests/test_gateway_payload_canonical.py tests/test_iter63_direct_dispatch.py tests/test_iter63_direct_command_journal.py tests/test_session_guard.py tests/test_router.py tests/test_writer_authority.py"
+    },
+    {
+      "key": "sdk",
+      "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+      "args": "tests/test_iter63_direct_identity_keys.py tests/test_iter63_direct_error_policy.py tests/test_iter62_direct_write.py tests/test_iter63_gateway_direct_owner.py tests/unit/test_iter63_gateway_direct_client.py tests/unit/test_iter63_gateway_direct_service.py tests/unit/test_iter63_gateway_dispatch_rpc.py tests/unit/test_iter63_registry_dispatch_admission.py tests/unit/test_iter63_service_runtime_thread.py tests/integration/test_iter63_service_runtime_thread.py tests/integration/test_iter63_gateway_direct_service.py tests/integration/test_iter63_gateway_direct_dispatch.py tests/integration/test_iter63_gateway_direct_dispatch_rpc.py tests/integration/test_iter63_gateway_client_processes.py tests/unit/test_service_config.py tests/unit/test_service_deployment.py tests/unit/test_service_registry.py tests/unit/test_service_runtime.py"
+    },
+    {
+      "key": "ctp",
+      "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+      "args": "tests/test_iter62_settlement_readback_on_write.py tests/test_iter22_contracts.py tests/test_iter62_query_slot.py tests/test_query_completion_origin.py tests/test_ctp_native_query_certificate.py tests/test_iter62_direct_write_provider.py tests/test_iter62_session_reconnect.py tests/test_trusted_flow.py tests/test_md_startup_locking.py"
+    }
+  ],
+  "results": {
+    "gateway-base": {
+      "passed": 228,
+      "seconds": 2.65,
+      "exit": 0
+    },
+    "sdk": {
+      "passed": 433,
+      "failed": 1,
+      "seconds": 19.43,
+      "exit": 1,
+      "known_issue": "I63-D003"
+    },
+    "ctp": {
+      "passed": 339,
+      "seconds": 26.06,
+      "exit": 0
+    }
+  },
+  "evidence_scope": "synthetic source tests only; no account calls"
+}

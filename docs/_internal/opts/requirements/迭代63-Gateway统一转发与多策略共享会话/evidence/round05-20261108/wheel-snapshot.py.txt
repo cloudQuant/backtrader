@@ -1,0 +1,26 @@
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+destination = Path('/tmp/iter63-r05-packaging-ZQ7t1BQh/source')
+packages = (
+    ('base', root / 'bt_api/bt_api_base', ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'src'], ['src/bt_api_base/gateway_direct_protocol.py']),
+    ('gateway', root / 'bt_api/bt_api_gateway', ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'src'], []),
+    ('ctp', root / 'bt_api/bt_api_ctp', ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'src'], []),
+    ('sdk', root, ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', 'bt_api_py'], ['bt_api_py/gateway_direct_client.py', 'bt_api_py/gateway_order_contract.py']),
+)
+for name, source, paths, explicit in packages:
+    data = subprocess.check_output(['git', '-C', str(source), 'ls-files', '-z', '--cached', '--', *paths])
+    files = set(p for p in data.decode().split('\0') if p) | set(explicit)
+    count = 0
+    for path in sorted(files):
+        src = source / path
+        if src.name == 'config.yaml' or src.name.startswith('.env') or not (src.is_file() or src.is_symlink()): continue
+        dst = destination / name / path
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_symlink(): os.symlink(os.readlink(src), dst)
+        else: shutil.copy2(src, dst)
+        count += 1
+    print(name, 'copied public tracked files and explicitly named new runtime modules:', count)

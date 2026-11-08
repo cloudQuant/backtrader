@@ -1,0 +1,29 @@
+PACKAGE bt_api_base /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_base/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_base-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_base 162 162 162
+README_MATCH bt_api_base 2ae55cecfac04cf4d1e17bcdcb548557c847f523d8a956f7f7a30e989420364a
+PACKAGE bt_api_gateway /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway/__init__.py METADATA 0.2.0.dev63 /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway-0.2.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_gateway 21 21 21
+README_MATCH bt_api_gateway 88367d4aa55a8e445a508472dcb08a743b1a120a645f01629e366350490995de
+PACKAGE bt_api_ctp /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_ctp/__init__.py METADATA 2.1.0.dev63 /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_ctp-2.1.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_ctp 171 171 171
+README_MATCH bt_api_ctp 87d36776f06034b09023d8bbeab47a113c5e5d5451e5a40b1d3126d10f171cb0
+PACKAGE bt_api_py /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_py 283 283 283
+README_MATCH bt_api_py b3dead69270c07b7f423343341ac1267903119d91d6fb14523b65bcc27bd08a5
+MODULE bt_api_base.gateway_direct_protocol /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_base/gateway_direct_protocol.py
+MODULE bt_api_gateway.direct_dispatch /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway/direct_dispatch.py
+MODULE bt_api_gateway.direct_command_journal /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway/direct_command_journal.py
+MODULE bt_api_py.gateway_direct_client /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/gateway_direct_client.py
+MODULE bt_api_py.gateway_order_contract /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/gateway_order_contract.py
+MODULE bt_api_py.gateway_direct_service /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/gateway_direct_service.py
+MODULE bt_api_ctp.trusted_flow /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_ctp/trusted_flow.py
+BASE_FLOOR bt_api_py bt_api_base>=0.16.0.dev63, bt_api_base[spdlog]>=0.16.0.dev63; extra == "spdlog" old 0.15.8 rejected
+BASE_FLOOR bt_api_gateway bt_api_base>=0.16.0.dev63 old 0.15.8 rejected
+BASE_FLOOR bt_api_ctp bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+NEUTRAL_CONTRACT_ROUNDTRIP {"symbol":"\u4e2d"}
+EXTERNAL_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+CTP_NATIVE_MODULE_LOADED False native call NOT_RUN
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 6c93aa228f1c5967c92d5044dfae881ebbbc8653a43b8e990057ed6848dcf3b1
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl ff2f089ead206047849eef44c9d631201d961288cc2e3ac3bca8c4452743b7e7
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl f072758ff66282561debeaae47b3c044857faa3b325a4895d3b6a6e906fb6a98
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl a438e061cd399e8dd2700ca09e239d84b078f7dd0e82347a9759f565de27a559

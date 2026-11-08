@@ -1,0 +1,83 @@
+{
+  "log_directory": "/private/tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/origin-logs/70039-1794131335437207000",
+  "no_recorded_origin_violation": true,
+  "all_resolved_module_paths_inside_target": true,
+  "processes": [
+    {
+      "pid": 70039,
+      "guard_modes": [
+        "__main__"
+      ],
+      "resolved_modules": 239,
+      "exit_audits": 2,
+      "log_sha256": "d6131051d1731dcda70f837eaf14033eaf1d9be989f11479e1563600fe9fdfc6"
+    },
+    {
+      "pid": 70054,
+      "guard_modes": [
+        "sitecustomize-subprocess"
+      ],
+      "resolved_modules": 96,
+      "exit_audits": 1,
+      "log_sha256": "b10d711f96f65accd76f71f5470ceaf892d27cba97771f91b624910cd66b8b5e"
+    },
+    {
+      "pid": 70064,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 185,
+      "exit_audits": 1,
+      "log_sha256": "1a748301bc9a3263e9e7fa2e444cc393d631b7ef79ceb9964025c650d9a53e6c"
+    },
+    {
+      "pid": 70065,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 192,
+      "exit_audits": 1,
+      "log_sha256": "b6ef4ae18781307f5f9155da333936e39748f07480a7a08d3e25e94df08e4c83"
+    },
+    {
+      "pid": 70066,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 193,
+      "exit_audits": 1,
+      "log_sha256": "fbf275d71d63e00eab2bf6beea57edf28eba80e81c27658795a452f4add31d9c"
+    },
+    {
+      "pid": 70067,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 193,
+      "exit_audits": 1,
+      "log_sha256": "93bd2fe52be407b37d2b993a45314543e1359e36935abe5838773da2f49b9932"
+    },
+    {
+      "pid": 70068,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 193,
+      "exit_audits": 1,
+      "log_sha256": "e89b96516928c1411d0a1bc496c20921030f0ea6b133cdf29429f2cd2572ee53"
+    },
+    {
+      "pid": 70071,
+      "guard_modes": [
+        "multiprocessing-spawn-main"
+      ],
+      "resolved_modules": 106,
+      "exit_audits": 0,
+      "log_sha256": "2dc665fdba7eb85c470fa69c42a782da58c799cfedd7db4dd65886e41767d575"
+    }
+  ],
+  "public_test_copy_count": 27,
+  "public_test_copies_match": true,
+  "test_result": "536 passed in 20.80s",
+  "boundary": "Parent final loaded-module audit passed. Spawn imports are guarded individually; some multiprocessing children have no atexit audit record. This does not assert a final module-inventory audit in those children."
+}

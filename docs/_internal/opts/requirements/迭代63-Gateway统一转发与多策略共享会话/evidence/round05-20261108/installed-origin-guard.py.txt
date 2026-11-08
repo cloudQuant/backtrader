@@ -1,0 +1,61 @@
+"""Test-only import guard: four project packages must resolve inside target."""
+import atexit
+import importlib.abc
+import importlib.machinery
+import json
+import os
+from pathlib import Path
+import sys
+
+TARGET = Path('/tmp/iter63-r05-packaging-ZQ7t1BQh/target').resolve()
+LOG = Path('/tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/origin-logs') / os.environ.get('R05_ORIGIN_RUN', 'unbound')
+LOG.mkdir(parents=True, exist_ok=True)
+PACKAGES = ('bt_api_base', 'bt_api_gateway', 'bt_api_py', 'bt_api_ctp')
+
+
+def tracked(name):
+    return any(name == prefix or name.startswith(prefix + '.') for prefix in PACKAGES)
+
+
+def write(event, data):
+    with (LOG / f'{os.getpid()}.jsonl').open('a', encoding='utf-8') as output:
+        output.write(json.dumps({'event': event, 'pid': os.getpid(), 'data': data}, sort_keys=True) + '\n')
+
+
+class TargetFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if not tracked(fullname):
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(fullname, path)
+        if spec is None:
+            raise ImportError('target module unavailable: ' + fullname)
+        if spec.origin is not None:
+            origin = Path(spec.origin).resolve()
+            if not origin.is_relative_to(TARGET):
+                raise ImportError('module outside target: ' + fullname)
+        elif spec.submodule_search_locations is not None:
+            if any(not Path(item).resolve().is_relative_to(TARGET) for item in spec.submodule_search_locations):
+                raise ImportError('namespace outside target: ' + fullname)
+        write('resolved', {'module': fullname, 'origin': spec.origin})
+        return spec
+
+
+def audit():
+    observed = {}
+    for name, module in tuple(sys.modules.items()):
+        origin = getattr(module, '__file__', None) if module is not None else None
+        if tracked(name) and origin:
+            resolved = Path(origin).resolve()
+            if not resolved.is_relative_to(TARGET):
+                write('VIOLATION', {'module': name, 'origin': str(resolved)})
+                return False
+            observed[name] = str(resolved)
+    write('audit-ok', observed)
+    return True
+
+
+def install(mode):
+    if not any(isinstance(finder, TargetFinder) for finder in sys.meta_path):
+        sys.meta_path.insert(0, TargetFinder())
+        write('guard-installed', {'mode': mode, 'target': str(TARGET)})
+        atexit.register(audit)

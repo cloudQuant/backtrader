@@ -1,0 +1,16 @@
+Execute from /tmp:
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/run_installed.py
+
+Files in tests/ are byte-identical copies of the listed public tests and helpers;
+SHA-256 manifest: test-manifest.txt. Four project packages must load from target.
+The -I parent explicitly prepends target. Spawn children inherit sys.path and
+execute the __mp_main__ bootstrap; regular non-isolated subprocess children load
+test-only sitecustomize through PYTHONPATH containing only temp target/bootstrap/
+copied tests. Each importer checks module origins and writes a per-PID JSONL log
+to origin-logs/. The main runner checks loaded module origins again after pytest.
+Base, Gateway, SDK, CTP come from target; transport/third-party packages are
+existing editable/Conda dependencies. CTP tests use synthetic native leaves,
+not live account calls. No full dependency resolver or live acceptance implied.
+Each invocation prints ORIGIN_RUN_LOGS and creates a separate run-specific
+origin-logs/<run-id>/ directory; use only that run's per-PID evidence.
+The runner accepts additional pytest arguments, e.g. --collect-only.

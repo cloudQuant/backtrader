@@ -1,0 +1,5 @@
+# Working directory /tmp; snapshot.py copies only tracked public files and named new runtime files
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r05-packaging-ZQ7t1BQh/snapshot.py
+for repo in base gateway ctp sdk; do /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-deps --no-build-isolation --no-index --wheel-dir /tmp/iter63-r05-packaging-ZQ7t1BQh /tmp/iter63-r05-packaging-ZQ7t1BQh/source/$repo || exit; done
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --target /tmp/iter63-r05-packaging-ZQ7t1BQh/target --no-deps --no-index /tmp/iter63-r05-packaging-ZQ7t1BQh/*.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r05-packaging-ZQ7t1BQh/verify.py

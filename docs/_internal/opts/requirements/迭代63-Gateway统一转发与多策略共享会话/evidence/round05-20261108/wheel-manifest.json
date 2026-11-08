@@ -1,0 +1,22 @@
+{
+  "artifact_root": "/tmp/iter63-r05-packaging-ZQ7t1BQh",
+  "versions": {
+    "bt_api_base": "0.16.0.dev63",
+    "bt_api_gateway": "0.2.0.dev63",
+    "bt_api_ctp": "2.1.0.dev63",
+    "bt_api_py": "0.16.0.dev63"
+  },
+  "python_files": {
+    "bt_api_base": 162,
+    "bt_api_gateway": 21,
+    "bt_api_ctp": 171,
+    "bt_api_py": 283
+  },
+  "wheels": {
+    "bt_api_base-0.16.0.dev63-py3-none-any.whl": "6c93aa228f1c5967c92d5044dfae881ebbbc8653a43b8e990057ed6848dcf3b1",
+    "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl": "ff2f089ead206047849eef44c9d631201d961288cc2e3ac3bca8c4452743b7e7",
+    "bt_api_gateway-0.2.0.dev63-py3-none-any.whl": "f072758ff66282561debeaae47b3c044857faa3b325a4895d3b6a6e906fb6a98",
+    "bt_api_py-0.16.0.dev63-py3-none-any.whl": "a438e061cd399e8dd2700ca09e239d84b078f7dd0e82347a9759f565de27a559"
+  },
+  "boundary": "four target wheels; transport and third-party dependencies from existing environment; no native calls or account acceptance"
+}

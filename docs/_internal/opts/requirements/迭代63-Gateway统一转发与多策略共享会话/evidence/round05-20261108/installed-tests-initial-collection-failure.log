@@ -1,0 +1,28 @@
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r05-packaging-ZQ7t1BQh/target/bt_api_py/__init__.py
+
+==================================== ERRORS ====================================
+_ ERROR collecting iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/unit/test_iter63_registry_dispatch_admission.py _
+ImportError while importing test module '/private/tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/unit/test_iter63_registry_dispatch_admission.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/unit/test_iter63_registry_dispatch_admission.py:18: in <module>
+    from tests.unit.test_service_registry import (
+E   ModuleNotFoundError: No module named 'tests.unit.test_service_registry'
+=============================== warnings summary ===============================
+iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/integration/test_service_account_instrument_metadata.py:318
+  /private/tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/integration/test_service_account_instrument_metadata.py:318: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR iter63-r05-packaging-ZQ7t1BQh/installed-tests/tests/unit/test_iter63_registry_dispatch_admission.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 warning, 1 error in 3.65s
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r05-packaging-ZQ7t1BQh/installed-tests/run_installed.py` failed. (See above for error)
