@@ -1,0 +1,18 @@
+Processing /tmp/iter63-r07-final-packaging-5t99PHD1/source/ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_ctp
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9336463 sha256=a2bf4abc2b5e7d3367fcae3ed5638cce2591540bb6bfa48bc79ba80bf105acc3
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-o8k1xdbr/wheels/15/24/52/4bc687ac7b59b691b33059ce565ef0285026f0c2d30c38716c
+Successfully built bt_api_ctp
+Processing /tmp/iter63-r07-final-packaging-5t99PHD1/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2046459 sha256=45e4d911f09ebb7c16e0a62d385e885ca0f43b2883637331ec52accdc7099c40
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-lkj8ax7h/wheels/4e/45/2e/073556aa8e62178301ca9c338ed4ae8a78699079ef0396dde8
+Successfully built bt_api_py

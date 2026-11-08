@@ -1,0 +1,22 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/origin-logs/92585-1794136062284479000
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_binance/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r07-final-packaging-5t99PHD1/install/src/bt_api_py/__init__.py
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 31%]
+........................................................................ [ 39%]
+........................................................................ [ 47%]
+........................................................................ [ 55%]
+........................................................................ [ 63%]
+........................................................................ [ 71%]
+........................................................................ [ 79%]
+........................................................................ [ 87%]
+........................................................................ [ 95%]
+.............................................                            [100%]
+909 passed in 72.99s (0:01:12)
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET

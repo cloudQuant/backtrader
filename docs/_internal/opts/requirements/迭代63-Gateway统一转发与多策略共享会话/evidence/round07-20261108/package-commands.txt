@@ -1,0 +1,9 @@
+Do not execute until R07 source/tests/README explicitly frozen.
+All commands run from /tmp using the existing Anaconda base.
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r07-final-packaging-5t99PHD1/snapshot.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r07-final-packaging-5t99PHD1/copy_fixed_dependencies.py
+for repo in ctp sdk; do /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-deps --no-build-isolation --no-index --wheel-dir /tmp/iter63-r07-final-packaging-5t99PHD1 /tmp/iter63-r07-final-packaging-5t99PHD1/source/$repo || exit; done
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --target /tmp/iter63-r07-final-packaging-5t99PHD1/install/src --no-deps --no-index /tmp/iter63-r07-final-packaging-5t99PHD1/*.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r07-final-packaging-5t99PHD1/verify.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/prepare_tests.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/run_installed.py

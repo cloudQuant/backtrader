@@ -1,0 +1,27 @@
+{
+  "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+  "command": [
+    "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/test_iter63_gateway_session.py",
+    "tests/test_market_provider.py",
+    "tests/test_account_provider.py",
+    "tests/test_account_provider_execution_observations.py",
+    "tests/test_iter63_sdk_configured_pair_gate.py",
+    "tests/test_iter62_sdk_admission_gate.py",
+    "tests/test_ctp_neutral_front_pair_constructor.py",
+    "tests/test_ctp_simnow_managed_write.py",
+    "tests/test_ctp_g5_source_unification.py",
+    "tests/test_iter63_settlement_observation.py",
+    "tests/test_iter62_settlement_readback_on_write.py",
+    "tests/test_iter62_direct_write_provider.py",
+    "tests/test_iter62_session_reconnect.py",
+    "tests/test_ctp_callback_ingress_client.py",
+    "tests/test_trusted_flow.py",
+    "--junitxml=/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/\u8fed\u4ee363-Gateway\u7edf\u4e00\u8f6c\u53d1\u4e0e\u591a\u7b56\u7565\u5171\u4eab\u4f1a\u8bdd/evidence/round07-20261108/ctp-verified.xml"
+  ],
+  "exit_code": 0,
+  "elapsed": 73.62394129100721
+}

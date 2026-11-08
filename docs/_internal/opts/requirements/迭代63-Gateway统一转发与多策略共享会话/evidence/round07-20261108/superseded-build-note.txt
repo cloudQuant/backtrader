@@ -1,0 +1,4 @@
+R07 freeze withdrawn: the current source snapshot and wheels are superseded.
+Outstanding source issues: direct entry managed identity rejection and one CTP
+regression under diagnosis. Do not install or treat these wheels as evidence.
+The already-running build is allowed to finish; await explicit refreeze.

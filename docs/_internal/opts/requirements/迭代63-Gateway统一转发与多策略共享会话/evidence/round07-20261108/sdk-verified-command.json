@@ -1,0 +1,29 @@
+{
+  "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+  "command": [
+    "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/test_iter63_ctp_gateway_trading.py",
+    "tests/integration/test_iter63_ctp_gateway_trading.py",
+    "tests/unit/test_iter63_gateway_operator_trading_owner.py",
+    "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+    "tests/test_gateway_operator_application.py",
+    "tests/integration/test_gateway_operator_application.py",
+    "tests/integration/test_gateway_operator_deployment.py",
+    "tests/integration/test_gateway_operator_ctp_market.py",
+    "tests/integration/test_iter62_gateway_ctp_market_profile.py",
+    "tests/test_iter63_gateway_settlement.py",
+    "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+    "tests/test_iter63_gateway_direct_owner.py",
+    "tests/unit/test_iter63_gateway_direct_service.py",
+    "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+    "tests/integration/test_iter63_gateway_direct_service.py",
+    "tests/unit/test_iter63_gateway_direct_client.py",
+    "tests/integration/test_iter63_gateway_client_processes.py",
+    "--junitxml=/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/\u8fed\u4ee363-Gateway\u7edf\u4e00\u8f6c\u53d1\u4e0e\u591a\u7b56\u7565\u5171\u4eab\u4f1a\u8bdd/evidence/round07-20261108/sdk-verified.xml"
+  ],
+  "exit_code": 0,
+  "elapsed": 19.233610499999486
+}

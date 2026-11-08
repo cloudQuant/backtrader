@@ -1,0 +1,106 @@
+"""Run copied R07/R06/R05 tests on installed wheels; spawn-safe main guard."""
+import os
+from pathlib import Path
+import sys
+import time
+
+ROOT = Path('/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests').resolve()
+TARGET = Path('/tmp/iter63-r07-final-packaging-5t99PHD1/install/src').resolve()
+BOOTSTRAP = ROOT / 'bootstrap'
+# Explicit parent and multiprocessing-spawn setup; no checkout path is inserted.
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / 'tests/ctp'))
+sys.path.insert(0, str(BOOTSTRAP))
+sys.path.insert(0, str(TARGET))
+if __name__ == '__main__':
+    os.environ['R07_ORIGIN_RUN'] = f'{os.getpid()}-{time.time_ns()}'
+from origin_guard import audit, install
+install('__main__' if __name__ == '__main__' else 'multiprocessing-spawn-main')
+
+
+def main():
+    print('ORIGIN_RUN_LOGS', ROOT / 'origin-logs' / os.environ['R07_ORIGIN_RUN'], flush=True)
+    os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD'] = '1'
+    # Non-isolated subprocess -c tests inherit only these temp directories.
+    os.environ['PYTHONPATH'] = os.pathsep.join((str(BOOTSTRAP), str(TARGET), str(ROOT), str(ROOT / 'tests/ctp')))
+    import bt_api_base
+    import bt_api_ctp
+    import bt_api_gateway
+    import bt_api_okx
+    import bt_api_binance
+    import bt_api_py
+    import pytest
+    for module in (bt_api_base, bt_api_ctp, bt_api_gateway, bt_api_okx, bt_api_binance, bt_api_py):
+        path = Path(module.__file__).resolve()
+        print('INSTALLED_TEST_PACKAGE', module.__name__, path, flush=True)
+        assert path.is_relative_to(TARGET)
+    tests = ROOT / 'tests'
+    paths = [
+        'gateway/test_gateway_payload_canonical.py',
+        'gateway/test_iter63_direct_command_journal.py',
+        'gateway/test_iter63_direct_dispatch.py',
+        'gateway/test_iter63_settlement_journal.py',
+        'gateway/test_account_session_worker.py',
+        'ctp/test_iter63_gateway_session.py',
+        'ctp/test_iter63_sdk_configured_pair_gate.py',
+        'ctp/test_ctp_simnow_managed_write.py',
+        'ctp/test_market_provider.py',
+        'ctp/test_account_provider_execution_observations.py',
+        'test_iter63_ctp_gateway_trading.py',
+        'test_gateway_operator_application.py',
+        'test_gateway_operator_cli.py',
+        'unit/test_iter63_gateway_operator_trading_owner.py',
+        'integration/test_iter63_ctp_gateway_trading.py',
+        'integration/test_iter63_gateway_operator_trading_owner.py',
+        'integration/test_gateway_operator_application.py',
+        'integration/test_gateway_operator_deployment.py',
+        'integration/test_gateway_operator_ctp_market.py',
+        'ctp/test_iter62_direct_write_provider.py',
+        'ctp/test_iter62_settlement_readback_on_write.py',
+        'ctp/test_iter63_settlement_observation.py',
+        'test_iter63_gateway_direct_owner.py',
+        'test_iter63_settlement_observation.py',
+        'test_iter63_direct_identity_keys.py',
+        'test_iter63_direct_error_policy.py',
+        'test_iter62_direct_write.py',
+        'unit/test_iter63_gateway_direct_client.py',
+        'unit/test_iter63_gateway_direct_service.py',
+        'unit/test_iter63_gateway_dispatch_rpc.py',
+        'unit/test_iter63_registry_dispatch_admission.py',
+        'unit/test_iter63_service_runtime_thread.py',
+        'integration/test_iter63_gateway_direct_dispatch.py',
+        'integration/test_iter63_gateway_direct_service.py',
+        'integration/test_iter63_gateway_direct_dispatch_rpc.py',
+        'integration/test_iter63_gateway_client_processes.py',
+        'integration/test_iter63_service_runtime_thread.py',
+    ]
+    args = [str(tests / path) for path in paths]
+    args.append(str(ROOT.parent / 'install/tests/test_account_provider.py'))
+    args.extend(str(path) for path in sorted(tests.glob('test_iter63_gateway_settlement*.py')))
+    ctp_nodes = (
+        'test_managed_trader_api_blocks_cached_raw_query_requests',
+        'test_official_simnow_legacy_settlement_requires_typed_admission',
+        'test_managed_settlement_timeout_cannot_resubmit_same_connection',
+        'test_custom_front_settlement_requires_matching_readback_before_ready',
+        'test_managed_settlement_rejects_auto_confirmation_mode_before_write',
+        'test_auto_settlement_configuration_never_issues_implicit_terminal_write',
+        'test_read_only_login_cannot_insert_or_cancel_and_counts_zero_writes',
+        'test_read_only_login_issues_zero_implicit_settlement_writes',
+        'test_read_only_preflight_rejects_auto_settlement_before_client_construction',
+        'test_read_only_preflight_rejects_existing_unsafe_trader_without_native_requests',
+        'test_old_settlement_response_cannot_confirm_new_generation',
+        'test_settlement_response_for_wrong_trading_day_is_rejected',
+        'test_server_confirmation_query_promotes_only_matching_account_and_day',
+        'test_bad_settlement_readback_demotes_readiness_and_revokes_native_gate',
+        'test_server_confirmation_query_requires_exact_account_identity',
+    )
+    args.extend(str(tests / 'ctp/test_iter22_contracts.py') + '::' + node for node in ctp_nodes)
+    (ROOT / 'selected-tests.txt').write_text('\n'.join(args) + '\n')
+    code = pytest.main(['-q', '--import-mode=importlib', '-c', str(ROOT / 'pytest.ini'), *sys.argv[1:], *args])
+    assert audit(), 'project module loaded outside target'
+    print('INSTALLED_MODULE_ORIGINS_MATCH_TARGET', flush=True)
+    return code
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

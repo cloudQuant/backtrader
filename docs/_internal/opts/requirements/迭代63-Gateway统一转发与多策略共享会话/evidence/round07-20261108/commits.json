@@ -1,0 +1,39 @@
+[
+  {
+    "repository": "bt_api_ctp",
+    "path": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "branch": "dev",
+    "commit": "09ba470057ef4859bc62a5d3099fb21bb02b183a",
+    "files": [
+      "README.md",
+      "src/bt_api_ctp/account_provider.py",
+      "src/bt_api_ctp/ctp/client.py",
+      "src/bt_api_ctp/direct_write_provider.py",
+      "src/bt_api_ctp/feeds/live_ctp_feed.py",
+      "src/bt_api_ctp/gateway_session.py",
+      "src/bt_api_ctp/market_provider.py",
+      "tests/test_iter63_gateway_session.py",
+      "tests/test_iter63_sdk_configured_pair_gate.py",
+      "tests/test_market_provider.py"
+    ],
+    "pushed": false
+  },
+  {
+    "repository": "bt_api_py",
+    "path": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "c497f61e533b94f10eb23a5dc58b32cc15552d5f",
+    "files": [
+      "README.md",
+      "bt_api/bt_api_ctp",
+      "bt_api_py/ctp_gateway_trading.py",
+      "bt_api_py/gateway_operator.py",
+      "bt_api_py/gateway_operator_application.py",
+      "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+      "tests/test_iter63_ctp_gateway_trading.py",
+      "tests/unit/test_iter63_gateway_operator_trading_owner.py"
+    ],
+    "pushed": false
+  }
+]

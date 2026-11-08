@@ -1,0 +1,50 @@
+{
+  "base_gateway_okx_binance_r06_wheel_provenance": "PASS",
+  "ctp_native_extension": "loaded from target; tests use synthetic native leaves",
+  "ctp_sdk_source_snapshot_target_python_bytes_and_readme": "PASS",
+  "full_dependency_resolver": "NOT_RUN",
+  "installed_test_result": "909 passed / 72.99 seconds",
+  "live_account_acceptance": "NOT_RUN",
+  "logs": {
+    "build.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/build.log",
+    "fixed-dependencies.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/fixed-dependencies.log",
+    "install.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/install.log",
+    "installed-tests/installed-tests.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/installed-tests.log",
+    "installed-tests/origin-summary.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/origin-summary.log",
+    "snapshot.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/snapshot.log",
+    "verify.log": "/tmp/iter63-r07-final-packaging-5t99PHD1/verify.log"
+  },
+  "origin_processes": 9,
+  "origin_processes_without_exit_audit": 1,
+  "origin_violations": 0,
+  "selected_tests": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/selected-tests.txt",
+  "target": "/tmp/iter63-r07-final-packaging-5t99PHD1/install/src",
+  "test_manifest": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/test-manifest.txt",
+  "transport_dependency": "existing editable checkout",
+  "wheels": [
+    {
+      "filename": "bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "1d119c696ffc1398ab08d9bde61e7610f1d5a266e6d6e44a92c137e3804cb49b"
+    },
+    {
+      "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+      "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be"
+    },
+    {
+      "filename": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "a2bf4abc2b5e7d3367fcae3ed5638cce2591540bb6bfa48bc79ba80bf105acc3"
+    },
+    {
+      "filename": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "b5d4f5e3b889d923497e03086bc0ff5891912ea958f2628b118393c73041f76e"
+    },
+    {
+      "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07"
+    },
+    {
+      "filename": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "45e4d911f09ebb7c16e0a62d385e885ca0f43b2883637331ec52accdc7099c40"
+    }
+  ]
+}

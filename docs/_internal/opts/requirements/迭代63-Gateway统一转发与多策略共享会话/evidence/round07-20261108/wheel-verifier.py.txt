@@ -1,0 +1,69 @@
+"""Verify R07 CTP/SDK wheels and explicit unchanged R06 dependencies."""
+import hashlib
+import importlib
+import importlib.metadata
+import json
+from pathlib import Path
+import sys
+import zipfile
+
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+tmp = Path('/tmp/iter63-r07-final-packaging-5t99PHD1')
+previous = Path('/tmp/iter63-r06-packaging-DFTCGcmZ')
+target = (tmp / 'install/src').resolve()
+sys.path.insert(0, str(target))
+changed = {
+    'bt_api_ctp': ('ctp', 'src/bt_api_ctp', root / 'bt_api/bt_api_ctp', '2.1.0.dev63'),
+    'bt_api_py': ('sdk', 'bt_api_py', root, '0.16.0.dev63'),
+}
+for name, (snapshot_name, runtime, repo, version) in changed.items():
+    module = importlib.import_module(name)
+    dist = importlib.metadata.distribution(name)
+    print('PACKAGE', name, module.__file__, 'METADATA', dist.version, dist._path, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+    assert Path(dist._path).resolve().is_relative_to(target) and dist.version == version
+    if hasattr(module, '__version__'): assert module.__version__ == version
+    roots = (target / name, tmp / 'source' / snapshot_name / runtime, repo / runtime)
+    sets = [{p.relative_to(path) for p in path.rglob('*.py')} for path in roots]
+    print('PYTHON_SET_COUNTS', name, *(len(s) for s in sets), flush=True)
+    assert sets[0] == sets[1] == sets[2], ('set mismatch', name, [sorted(map(str, s - sets[0])) for s in sets[1:]], sorted(map(str, sets[0] - sets[2])))
+    for rel in sets[0]:
+        assert (roots[0] / rel).read_bytes() == (roots[1] / rel).read_bytes() == (roots[2] / rel).read_bytes(), (name, str(rel))
+    readme = (repo / 'README.md').read_text(encoding='utf-8')
+    assert (tmp / 'source' / snapshot_name / 'README.md').read_text(encoding='utf-8') == readme
+    assert dist.metadata.get_payload().rstrip('\n') == readme.rstrip('\n')
+    print('README_MATCH', name, hashlib.sha256(readme.encode('utf-8')).hexdigest(), flush=True)
+fixed = {
+    'bt_api_base': ('base', 'src/bt_api_base'),
+    'bt_api_gateway': ('gateway', 'src/bt_api_gateway'),
+    'bt_api_okx': ('okx', 'src/bt_api_okx'),
+    'bt_api_binance': ('binance', 'src/bt_api_binance'),
+}
+prior = {row['filename']: row['sha256'] for row in json.loads((previous / 'artifact.json').read_text())['wheels']}
+for name, (snapshot_name, runtime) in fixed.items():
+    module = importlib.import_module(name)
+    dist = importlib.metadata.distribution(name)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+    assert Path(dist._path).resolve().is_relative_to(target)
+    wheel = next(tmp.glob(name + '-*.whl'))
+    assert hashlib.sha256(wheel.read_bytes()).hexdigest() == prior[wheel.name]
+    installed = {p.relative_to(target / name) for p in (target / name).rglob('*.py')}
+    snapshot = previous / 'source' / snapshot_name / runtime
+    snapset = {p.relative_to(snapshot) for p in snapshot.rglob('*.py')}
+    with zipfile.ZipFile(wheel) as archive:
+        members = {Path(x[len(name) + 1:]) for x in archive.namelist() if x.startswith(name + '/') and x.endswith('.py')}
+        assert installed == snapset == members, ('fixed set mismatch', name)
+        for rel in installed:
+            assert (target / name / rel).read_bytes() == (snapshot / rel).read_bytes() == archive.read(name + '/' + rel.as_posix()), (name, str(rel))
+    readme = (previous / 'source' / snapshot_name / 'README.md').read_text(encoding='utf-8')
+    assert dist.metadata.get_payload().rstrip('\n') == readme.rstrip('\n')
+    print('R06_FIXED_PACKAGE_MATCH', name, module.__file__, dist.version, len(installed), prior[wheel.name], flush=True)
+for name in ('bt_api_ctp.gateway_session', 'bt_api_ctp.market_provider', 'bt_api_ctp.account_provider', 'bt_api_py.ctp_gateway_trading', 'bt_api_py.gateway_operator', 'bt_api_py.gateway_operator_application'):
+    module = importlib.import_module(name)
+    print('MODULE', name, module.__file__, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+import bt_api_transport_zmq
+print('EXTERNAL_TRANSPORT', bt_api_transport_zmq.__file__, flush=True)
+print('CTP_NATIVE_MODULE_LOADED', 'bt_api_ctp.ctp._ctp' in sys.modules, 'native call NOT_RUN', flush=True)
+for wheel in sorted(tmp.glob('*.whl')):
+    print('WHEEL_SHA256', wheel.name, hashlib.sha256(wheel.read_bytes()).hexdigest(), flush=True)

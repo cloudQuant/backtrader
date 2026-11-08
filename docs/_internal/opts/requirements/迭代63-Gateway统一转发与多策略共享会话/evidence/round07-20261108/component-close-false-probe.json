@@ -1,0 +1,10 @@
+{
+  "source": "bt_api_py/service_components.py ComponentResources.__post_init__.release_once",
+  "baseline_sdk": "da63b6ff122d8949cb6ff0cad966e95ebb52fe90",
+  "callback_return": false,
+  "close_calls": 2,
+  "callback_calls": 1,
+  "raises": false,
+  "account_calls": false,
+  "interpretation": "Callback contract is None-or-raise. Incorrectly passing a boolean native close callback can mark unresolved cleanup completed."
+}

@@ -1,6 +1,6 @@
 ﻿# Backtrader Gateway 接线的有限架构调整申请
 
-日期：2026-11-08。状态：**待用户确认，未实施 BT 产品修改**。授权依据：用户要求尽可能复用 Backtrader，不允许未经确认调整架构或重构；SDK/Gateway/ZMQ 的调整已授权。本页提供所需 BT 变更的具体范围，避免把远端预留伪装成本地原生订单。既有源码基线为 BT eb7badace、SDK bc87e4ae，静态盘点不构成运行验收。
+日期：2026-11-08。状态：**用户已于 2026-11-08 批准上述限定范围调整，BT 产品实施待接续**。授权依据：用户要求尽可能复用 Backtrader，不允许未经确认调整架构或重构；SDK/Gateway/ZMQ 的调整已授权。本页提供所需 BT 变更的具体范围，避免把远端预留伪装成本地原生订单。既有源码基线为 BT eb7badace、SDK bc87e4ae，静态盘点不构成运行验收。
 
 ## 必须解决的现状
 
@@ -10,7 +10,7 @@
 - pending.attach 只把原生字段写入 facts，恢复读取顶层 native_identity/client_order_id/session_generation，不能用 attach 冒充原子身份补写。
 - _direct_reconcile 中 PREPARED/DISPATCHED 在完整场所查询无匹配时可走 not_found_at_venue；Gateway 尚无原生身份的记录必须先查原 request_key，不能套用此判定。
 
-## 拟请求批准的范围
+## 已批准的限定范围
 
 1. 复用 backtrader/live_state 的既有状态所有权与持久化机制，增加 Gateway 意图和原键恢复索引，保存完整规范请求、可信绑定、远端预留/观察版本、派发标记及 release 计划。以显式 schema 版本和迁移处理旧状态；不删除或静默忽略旧数据。默认优先单一原子记录更新，若具体存储结构必须跨文件，先写明可恢复顺序并覆盖中途崩溃。
 2. 扩展 PendingCommandStore 的 Gateway 标记类型，按稳定 request_key 去重，支持原生身份为空的逻辑预留，以及 dispatch 后的原子、单调、幂等身份绑定。重复同值通过，身份/摘要/版本冲突或持久化失败保留待核查，不继续按新身份执行。
@@ -29,4 +29,4 @@
 
 复用并扩充 tests/unit/live_state/test_pending.py 及 tests/unit/brokers/direct 下提交、重启对账和 not_found 通知测试。新增真实 BT + 本地独立 Gateway + 合成 provider 联调，覆盖两条无原生身份意图不碰撞、reserve/dispatch 丢回复、意图/标记/身份补写失败、各崩溃点恢复、重复和冲突观察、未知恢复和迟到回报。原 direct 路径及框架策略回归须保持通过；真实 CTP/账户另按既定验收授权进行。
 
-批准只允许以上必要接线和持久状态扩展；后续若超出该范围改变 BT 架构，将另行提出具体方案。等待此决定期间继续完成已授权的 SDK/Gateway/CTP 工作。
+批准只允许以上必要接线和持久状态扩展；后续若超出该范围改变 BT 架构，将另行提出具体方案。本轮用户回复“批准上述限定范围调整（推荐）”，该批准持续有效，无需再次询问相同范围。SDK/Gateway/CTP 工作同步继续；批准不代表实现或验收完成。

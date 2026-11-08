@@ -1,0 +1,77 @@
+{
+  "processes": [
+    {
+      "exit_audits": 3,
+      "mode": "__main__",
+      "pid": 92585,
+      "preexisting_audits": 1,
+      "resolved": 384,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92680,
+      "preexisting_audits": 1,
+      "resolved": 200,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "sitecustomize-subprocess",
+      "pid": 92693,
+      "preexisting_audits": 1,
+      "resolved": 96,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92695,
+      "preexisting_audits": 1,
+      "resolved": 185,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92696,
+      "preexisting_audits": 1,
+      "resolved": 192,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92697,
+      "preexisting_audits": 1,
+      "resolved": 193,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92698,
+      "preexisting_audits": 1,
+      "resolved": 193,
+      "violations": 0
+    },
+    {
+      "exit_audits": 2,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92699,
+      "preexisting_audits": 1,
+      "resolved": 193,
+      "violations": 0
+    },
+    {
+      "exit_audits": 0,
+      "mode": "multiprocessing-spawn-main",
+      "pid": 92703,
+      "preexisting_audits": 1,
+      "resolved": 106,
+      "violations": 0
+    }
+  ],
+  "run_directory": "/private/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/origin-logs/92585-1794136062284479000"
+}

@@ -1,0 +1,38 @@
+...........F............................................................ [ 16%]
+........................................................................ [ 32%]
+........................................................................ [ 48%]
+........................................................................ [ 65%]
+........................................................................ [ 81%]
+........................................................................ [ 97%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_________ test_failed_close_keeps_custody_and_seals_borrowed_providers _________
+
+prepared = (<function prepared.<locals>.create at 0x12fcb9940>, <function prepared.<locals>.feed_factory at 0x12fcbb7e0>, <functi...rite._NativeApi object at 0x12fd8f950>], [<bt_api_ctp.feeds.live_ctp_feed.CtpMarketStream object at 0x12fd6bed0>], ...)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12fdd7150>
+
+    def test_failed_close_keeps_custody_and_seals_borrowed_providers(prepared, monkeypatch):
+        create, _, _, feeds, _, _, _, _ = prepared
+        session = create()
+        session.connect(generation="g", timeout=1)
+        direct, market = session.direct_provider, session.market_provider
+        market.subscribe(_key(), generation="m")
+        real_close = market.close
+        monkeypatch.setattr(market, "close", lambda: False)
+        assert session.close() is False
+        assert session._feed is feeds[0]
+        with pytest.raises(CtpQuoteV2MarketProviderError, match="CLOSING"):
+            market.subscribe(_key(), generation="m")
+        with pytest.raises(DirectWriteError, match="provider_closed"):
+            direct.session_generation()
+        monkeypatch.setattr(market, "close", real_close)
+>       assert session.close() is True
+E       assert False is True
+E        +  where False = close()
+E        +    where close = <bt_api_ctp.gateway_session.CtpGatewaySession object at 0x12fdc2210>.close
+
+tests/test_iter63_gateway_session.py:196: AssertionError
+- generated xml file: /Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round07-20261108/ctp-final.xml -
+=========================== short test summary info ============================
+FAILED tests/test_iter63_gateway_session.py::test_failed_close_keeps_custody_and_seals_borrowed_providers
+1 failed, 440 passed in 71.65s (0:01:11)

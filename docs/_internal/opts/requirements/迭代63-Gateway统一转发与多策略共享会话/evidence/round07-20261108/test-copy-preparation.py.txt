@@ -1,0 +1,124 @@
+"""Copy public tests/helpers after freeze, enumerate static and literal dynamic imports."""
+import ast
+import hashlib
+from pathlib import Path
+
+repo = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+root = Path('/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests')
+dest = root / 'tests'
+mapping = {
+    'gateway/test_gateway_payload_canonical.py': 'bt_api/bt_api_gateway/tests/test_gateway_payload_canonical.py',
+    'gateway/test_iter63_direct_command_journal.py': 'bt_api/bt_api_gateway/tests/test_iter63_direct_command_journal.py',
+    'gateway/test_iter63_direct_dispatch.py': 'bt_api/bt_api_gateway/tests/test_iter63_direct_dispatch.py',
+    'gateway/test_iter63_settlement_journal.py': 'bt_api/bt_api_gateway/tests/test_iter63_settlement_journal.py',
+    'ctp/test_iter62_direct_write_provider.py': 'bt_api/bt_api_ctp/tests/test_iter62_direct_write_provider.py',
+    'ctp/test_iter62_settlement_readback_on_write.py': 'bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py',
+    'ctp/test_iter63_settlement_observation.py': 'bt_api/bt_api_ctp/tests/test_iter63_settlement_observation.py',
+    'ctp/test_iter22_contracts.py': 'bt_api/bt_api_ctp/tests/test_iter22_contracts.py',
+    'test_iter63_gateway_direct_owner.py': 'tests/test_iter63_gateway_direct_owner.py',
+    'test_iter63_gateway_settlement.py': 'tests/test_iter63_gateway_settlement.py',
+    'test_iter63_gateway_settlement_ctp_fake_native.py': 'tests/test_iter63_gateway_settlement_ctp_fake_native.py',
+    'test_iter63_settlement_observation.py': 'tests/test_iter63_settlement_observation.py',
+    'test_iter63_direct_identity_keys.py': 'tests/test_iter63_direct_identity_keys.py',
+    'test_iter63_direct_error_policy.py': 'tests/test_iter63_direct_error_policy.py',
+    'test_iter62_direct_write.py': 'tests/test_iter62_direct_write.py',
+    'unit/test_iter63_gateway_direct_client.py': 'tests/unit/test_iter63_gateway_direct_client.py',
+    'unit/test_iter63_gateway_direct_service.py': 'tests/unit/test_iter63_gateway_direct_service.py',
+    'unit/test_iter63_gateway_dispatch_rpc.py': 'tests/unit/test_iter63_gateway_dispatch_rpc.py',
+    'unit/test_iter63_registry_dispatch_admission.py': 'tests/unit/test_iter63_registry_dispatch_admission.py',
+    'unit/test_iter63_service_runtime_thread.py': 'tests/unit/test_iter63_service_runtime_thread.py',
+    'unit/test_service_runtime_renewal_retry.py': 'tests/unit/test_service_runtime_renewal_retry.py',
+    'integration/test_iter63_gateway_direct_dispatch.py': 'tests/integration/test_iter63_gateway_direct_dispatch.py',
+    'integration/test_iter63_gateway_direct_service.py': 'tests/integration/test_iter63_gateway_direct_service.py',
+    'integration/test_iter63_gateway_direct_dispatch_rpc.py': 'tests/integration/test_iter63_gateway_direct_dispatch_rpc.py',
+    'integration/test_iter63_gateway_client_processes.py': 'tests/integration/test_iter63_gateway_client_processes.py',
+    'integration/test_iter63_service_runtime_thread.py': 'tests/integration/test_iter63_service_runtime_thread.py',
+    'integration/test_service_account_instrument_metadata.py': 'tests/integration/test_service_account_instrument_metadata.py',
+    'ctp/test_iter63_gateway_session.py': 'bt_api/bt_api_ctp/tests/test_iter63_gateway_session.py',
+    'ctp/test_iter63_sdk_configured_pair_gate.py': 'bt_api/bt_api_ctp/tests/test_iter63_sdk_configured_pair_gate.py',
+    'ctp/test_ctp_simnow_managed_write.py': 'bt_api/bt_api_ctp/tests/test_ctp_simnow_managed_write.py',
+    'ctp/test_market_provider.py': 'bt_api/bt_api_ctp/tests/test_market_provider.py',
+    'ctp/test_account_provider.py': 'bt_api/bt_api_ctp/tests/test_account_provider.py',
+    'ctp/test_account_provider_execution_observations.py': 'bt_api/bt_api_ctp/tests/test_account_provider_execution_observations.py',
+    'gateway/test_account_session_worker.py': 'bt_api/bt_api_gateway/tests/test_account_session_worker.py',
+    'test_iter63_ctp_gateway_trading.py': 'tests/test_iter63_ctp_gateway_trading.py',
+    'test_gateway_operator_application.py': 'tests/test_gateway_operator_application.py',
+    'test_gateway_operator_cli.py': 'tests/test_gateway_operator_cli.py',
+    'unit/test_iter63_gateway_operator_trading_owner.py': 'tests/unit/test_iter63_gateway_operator_trading_owner.py',
+    'integration/test_iter63_ctp_gateway_trading.py': 'tests/integration/test_iter63_ctp_gateway_trading.py',
+    'integration/test_iter63_gateway_operator_trading_owner.py': 'tests/integration/test_iter63_gateway_operator_trading_owner.py',
+    'integration/test_gateway_operator_application.py': 'tests/integration/test_gateway_operator_application.py',
+    'integration/test_gateway_operator_deployment.py': 'tests/integration/test_gateway_operator_deployment.py',
+    'integration/test_gateway_operator_ctp_market.py': 'tests/integration/test_gateway_operator_ctp_market.py',
+}
+for pattern in ('test_iter63_gateway_settlement*.py', 'test_iter63_settlement_observation*.py'):
+    for source in (repo / 'tests').glob(pattern):
+        mapping.setdefault(source.name, str(source.relative_to(repo)))
+for package in ('', 'base', 'gateway', 'ctp', 'okx', 'binance', 'unit', 'integration'):
+    directory = dest / package
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / '__init__.py').touch()
+manifest = []
+visited, unresolved, names_seen = set(), set(), set()
+
+def copy_file(source, target):
+    data = source.read_bytes()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    manifest.append(f'{hashlib.sha256(data).hexdigest()} {source.relative_to(repo)} -> {target.relative_to(root)}')
+
+for relative, source in sorted(mapping.items()):
+    copy_file(repo / source, dest / relative)
+# Existing joint test computes parents[1]/bt_api/bt_api_ctp/tests dynamically.
+ctp_helper = repo / 'bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py'
+copy_file(ctp_helper, root / 'bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py')
+# Preserve unmodified source-path assertions in the CTP account-provider test:
+# wheel target is .../install/src and the mirrored test is .../install/tests.
+account_test = repo / 'bt_api/bt_api_ctp/tests/test_account_provider.py'
+account_mirror = root.parent / 'install/tests/test_account_provider.py'
+account_mirror.parent.mkdir(parents=True, exist_ok=True)
+account_data = account_test.read_bytes()
+account_mirror.write_bytes(account_data)
+manifest.append(f'{hashlib.sha256(account_data).hexdigest()} {account_test.relative_to(repo)} -> install/tests/test_account_provider.py')
+queue = list(dest.rglob('*.py')) + [root / 'bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py', account_mirror]
+while queue:
+    path = queue.pop()
+    if path in visited: continue
+    visited.add(path)
+    tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names if alias.name.startswith(('tests.', 'test_')))
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            if node.module.startswith(('tests.', 'test_')): names.add(node.module)
+            elif node.module == 'tests': names.update('tests.' + alias.name for alias in node.names)
+        elif isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant) and type(node.args[0].value) is str:
+            value = node.args[0].value
+            if isinstance(node.func, ast.Attribute) and node.func.attr == 'import_module' and value.startswith(('tests.', 'test_')):
+                names.add(value)
+    for name in sorted(names):
+        names_seen.add(name)
+        if name.startswith('tests.'):
+            rel = Path(*name.split('.')[1:]).with_suffix('.py')
+            source, target = repo / 'tests' / rel, dest / rel
+        else:
+            # Bare test_ helpers are CTP test fixtures; reject ambiguity rather than
+            # falling through to an installed/source checkout import.
+            candidates = [p for p in (repo / 'tests' / (name + '.py'), repo / 'bt_api/bt_api_ctp/tests' / (name + '.py')) if p.is_file()]
+            if len(candidates) != 1:
+                unresolved.add(name)
+                continue
+            source, target = candidates[0], dest / 'ctp' / (name + '.py')
+        if not source.is_file():
+            unresolved.add(name)
+            continue
+        if not target.exists(): copy_file(source, target)
+        queue.append(target)
+if unresolved:
+    print('UNRESOLVED_TEST_IMPORTS', sorted(unresolved), flush=True)
+    raise SystemExit(1)
+(root / 'test-manifest.txt').write_text('\n'.join(sorted(set(manifest))) + '\n')
+(root / 'test-imports.txt').write_text('\n'.join(sorted(names_seen)) + '\n')
+print('copied public test/helper entries:', len(set(manifest)), 'reviewed:', len(visited), flush=True)
+print('explicit CTP helper mirror:', root / 'bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py', flush=True)

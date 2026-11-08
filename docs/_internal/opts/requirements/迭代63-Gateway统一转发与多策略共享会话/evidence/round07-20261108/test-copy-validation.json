@@ -1,0 +1,251 @@
+{
+  "entries": [
+    {
+      "source": "tests/integration/test_service_account_instrument_metadata.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_service_account_instrument_metadata.py",
+      "sha256": "01818d3b78e134fb751e2e9a64ec66287edecc10ed3feb8773003dbf990c68f6"
+    },
+    {
+      "source": "tests/test_gateway_operator_application.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_gateway_operator_application.py",
+      "sha256": "11ae195715e03a90cedef57074e27b931489c768a688799999fc5fd5f2833420"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_operator_trading_owner.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_gateway_operator_trading_owner.py",
+      "sha256": "176a2c29c71a6d677afc50f45676ad6e3b1772980c276931168c0cbfc1e3a3e7"
+    },
+    {
+      "source": "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+      "sha256": "1a1d135e4c1aeeb71d85c2d7e6ce30be7158b3708c2a70c2b4cf3ef10f18c6a6"
+    },
+    {
+      "source": "tests/integration/test_iter62_gateway_ctp_market_profile.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter62_gateway_ctp_market_profile.py",
+      "sha256": "2a581e8f5b6b0f344ec6b1a36a81cfc40f90c6279d32bfdd9ff00e7994222d86"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_direct_dispatch.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/gateway/test_iter63_direct_dispatch.py",
+      "sha256": "2d71174b9636728cd24cccf68afb16b47f9bc75ca34b53b623fab88b06acb22c"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_account_provider_execution_observations.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_account_provider_execution_observations.py",
+      "sha256": "3c20438af08b652a2f32527a7211a172d63c4445d17b661942c2bcdfbf40f097"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_market_provider.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_market_provider.py",
+      "sha256": "40b25816efae96bca4c76c6302b7c7e3816a1d75d56d06f62d6fdc394edb5ec8"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter63_sdk_configured_pair_gate.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter63_sdk_configured_pair_gate.py",
+      "sha256": "42e152a5bc07c6781c8a6a294f548b9bedf38b6dcbeba01c6f3308db87808ea7"
+    },
+    {
+      "source": "tests/integration/test_iter63_service_runtime_thread.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_service_runtime_thread.py",
+      "sha256": "4a72b4faaddbd7301c114c93d6be17c51ce6432f051a605fe51b3b7ef1a1a76b"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter63_settlement_observation.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter63_settlement_observation.py",
+      "sha256": "4db816913388b76d5f11c053d73daee495cc1b1bcacd187f5f8d93e34810d9c6"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_ctp_simnow_managed_write.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_ctp_simnow_managed_write.py",
+      "sha256": "66ac0c6b2426b4d0f2f34b16690decc8a060f8d5eccbc9d6a7c30782f456cf3f"
+    },
+    {
+      "source": "tests/integration/test_gateway_operator_ctp_market.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_gateway_operator_ctp_market.py",
+      "sha256": "66e04fc56df7cfc08d00cf4b7050ef3f9aa669d48b76a7b5bd81b9267b2877cd"
+    },
+    {
+      "source": "tests/unit/test_service_registry.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_service_registry.py",
+      "sha256": "6c3b4f93e3c4b25d414e92b9d1e98e3bdf6a94e9bed7dfe567e485c9e01b426c"
+    },
+    {
+      "source": "tests/integration/test_gateway_operator_application.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_gateway_operator_application.py",
+      "sha256": "722b12c4e85c0083ad759745e429d2a93a39b90c9c7ebc0f7c613594b3c7cbe8"
+    },
+    {
+      "source": "tests/test_iter62_direct_write.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter62_direct_write.py",
+      "sha256": "73fddd11b07310720a2cd11f7e30c7e626d2b9854e827149798536eee4db557d"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter62_settlement_readback_on_write.py",
+      "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_direct_client.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_gateway_direct_client.py",
+      "sha256": "78ee3d776dd5d5019e5b3576f8eda5ce0a132f6b4f76677bbc0509316e11977b"
+    },
+    {
+      "source": "tests/test_iter63_gateway_direct_owner.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_gateway_direct_owner.py",
+      "sha256": "792e01604befc53395da57076c052bb4d661ca3feb4c5f0337d402ff7e580735"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_account_session_worker.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/gateway/test_account_session_worker.py",
+      "sha256": "7d28aace545c15cde78ee864f19abf32716b8332e37e795d2380be5d1628316e"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_dispatch_rpc.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_gateway_dispatch_rpc.py",
+      "sha256": "7e8e0c231c9c767564366d3d4d46e2b54c6491df6d2e0c2e7224fedb1dba49dd"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_direct_write_provider.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter62_direct_write_provider.py",
+      "sha256": "7ee98a180ce888a6d78dbf8106ef9ed6760f85e7278aa77aea5dd14120a4a7bf"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter22_contracts.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter22_contracts.py",
+      "sha256": "83dc4e4dc585e427b3b4ed6e66801d2061ddaccc04826e8c514597d4b4b177c5"
+    },
+    {
+      "source": "tests/unit/test_service_runtime_renewal_retry.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_service_runtime_renewal_retry.py",
+      "sha256": "8ebabc797a43ced9ec051dac2b4c8ddfc255d1f0a70dbf3c418a8a78861d9db3"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_account_provider.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/install/tests/test_account_provider.py",
+      "sha256": "921e1ce8e4851229e644a7d0b53eafaeac34479e6ffbd81f166510701e6f87f6"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_account_provider.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_account_provider.py",
+      "sha256": "921e1ce8e4851229e644a7d0b53eafaeac34479e6ffbd81f166510701e6f87f6"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_ctp_callback_ingress_client.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_ctp_callback_ingress_client.py",
+      "sha256": "a0c8e2a49b72adfbaf06a23725616df6853a2e38078ac04ce84932036b1c12f8"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "sha256": "a26014a0cf0ff6efb6d0442c8069c3f3cfb6cb7d24d1bf027617712ed074ec9b"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_direct_service.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_gateway_direct_service.py",
+      "sha256": "a4d5b9d115d462f3312321c7086e1ffcab0c0567b3de626ee76d27083a7661a3"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_service.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_gateway_direct_service.py",
+      "sha256": "a5ccd132901758e88cf232f35b8ab63dfe3bbb5f9f679afbbbda0178073e6359"
+    },
+    {
+      "source": "tests/test_iter63_settlement_observation.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_settlement_observation.py",
+      "sha256": "b0f2f980aec486ca63d93c61087b3e2834252b90bca14aecd00cafd19d60075e"
+    },
+    {
+      "source": "tests/unit/test_iter63_service_runtime_thread.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_service_runtime_thread.py",
+      "sha256": "b3a7d9def119e1a9f641175becbd6f751464abccfce8e83d06e3a0e91dfdee57"
+    },
+    {
+      "source": "tests/integration/test_gateway_operator_deployment.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_gateway_operator_deployment.py",
+      "sha256": "b6e3e19e77f4f1b2bdf6ff499b6b9f4e40483ea90838e89e9b11b866071e319a"
+    },
+    {
+      "source": "tests/test_iter63_gateway_settlement.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_gateway_settlement.py",
+      "sha256": "ba0879b6f838364d42109799d0a0fcab975220c8989336627079b56d8773637f"
+    },
+    {
+      "source": "tests/test_iter63_ctp_gateway_trading.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_ctp_gateway_trading.py",
+      "sha256": "bb0eaeeec160601cd1377688cac4ac33fb9527f2f258b0f50280bce8a0ca31a8"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_gateway_payload_canonical.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/gateway/test_gateway_payload_canonical.py",
+      "sha256": "c73b209894401ce878e93945d23bf8d622504bea5f78e6524009ece302e83fda"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+      "sha256": "cc21bc920f2add7944b3553b94f134e68c4891d4df8cc16c5e7dce9cf1d6771d"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_direct_command_journal.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/gateway/test_iter63_direct_command_journal.py",
+      "sha256": "d0fe824bf459a2253ba93d675173649f462d800ca9a5115586e49a504ce02941"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_client_processes.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_gateway_client_processes.py",
+      "sha256": "d6a6f5702b1b67c58ee79e98b73c4d65607e9bdbbaba5fa9667ae3bba29f4d52"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_settlement_journal.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/gateway/test_iter63_settlement_journal.py",
+      "sha256": "d6e7085a21172c11c78f492068b8722ccda190c6524b34dab0863ba5c4ae25d8"
+    },
+    {
+      "source": "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_ctp_gateway_trading.py",
+      "sha256": "d7415c808aafe3b901f7d05f3df0d7138ec25859adbb6eed229d36c4a08a80c5"
+    },
+    {
+      "source": "tests/test_gateway_operator_cli.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_gateway_operator_cli.py",
+      "sha256": "e1d9b29e91879cf3a22529308898b0643ae92a4577c3b7587d3f6b68f1bee3db"
+    },
+    {
+      "source": "tests/unit/test_iter63_registry_dispatch_admission.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/unit/test_iter63_registry_dispatch_admission.py",
+      "sha256": "e241f558acc9cdb31213f83f545ed3acc383ce09e250d8e22de4a41087792f90"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter63_gateway_session.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/ctp/test_iter63_gateway_session.py",
+      "sha256": "e94e54c2774f3a7b34e777b3253c7cbe1635e4ec27ae42cc75df339ea60b98fd"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter63_gateway_operator_trading_owner.py",
+      "sha256": "f6a8e9b358548a10e02cedd029919986d655fbf87c676cd4f3ae8a823eeb4002"
+    },
+    {
+      "source": "tests/test_iter63_direct_identity_keys.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_direct_identity_keys.py",
+      "sha256": "f9224b020402b3d68d0b890f7adc232c75dfdb02e5ffa07dd34213d461ccd9d3"
+    },
+    {
+      "source": "tests/integration/test_iter62_gateway_market_runtime_lease.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/integration/test_iter62_gateway_market_runtime_lease.py",
+      "sha256": "fa0d5474d6ecadb229440f5bcb1c8581ae4bff15a2d75e78e4555bc2cb86b764"
+    },
+    {
+      "source": "tests/test_iter63_direct_error_policy.py",
+      "copy": "/tmp/iter63-r07-final-packaging-5t99PHD1/installed-tests/tests/test_iter63_direct_error_policy.py",
+      "sha256": "fec214a33c776794cfeebe71f98781d6326fd2ee75dda59a9e409da33588899f"
+    }
+  ],
+  "count": 49,
+  "result": "PASS"
+}
