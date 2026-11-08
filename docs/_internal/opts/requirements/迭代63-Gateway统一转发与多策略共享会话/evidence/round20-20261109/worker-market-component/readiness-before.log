@@ -1,0 +1,19 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_market_release_failure_does_not_close_trading_or_account _________
+tests/unit/test_iter63_trading_market_component.py:224: in test_market_release_failure_does_not_close_trading_or_account
+    assert component.readiness() is True
+E   AssertionError: assert False is True
+E    +  where False = <function build_component.<locals>.readiness at 0x14a8e0040>()
+E    +    where <function build_component.<locals>.readiness at 0x14a8e0040> = ServiceComponent(component='gateway', instance_id='gateway-a', capabilities=(ServiceCapability(instance_id='gateway-a'...0>}), internal_ports=mappingproxy({}), account_risk_policy_bindings=(), account_risk_policy_required_ports=frozenset()).readiness
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:236: in test_market_release_failure_does_not_close_trading_or_account
+    hub.close()
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:1309: in close
+    raise GatewayMarketHubError("PROVIDER_UNSUBSCRIBE_FAILED", retryable=True)
+E   bt_api_gateway.market_hub.GatewayMarketHubError: PROVIDER_UNSUBSCRIBE_FAILED
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_trading_market_component.py::test_market_release_failure_does_not_close_trading_or_account
+1 failed, 19 deselected in 0.61s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/test_iter63_trading_market_component.py -q -k market_release_failure` failed. (See above for error)

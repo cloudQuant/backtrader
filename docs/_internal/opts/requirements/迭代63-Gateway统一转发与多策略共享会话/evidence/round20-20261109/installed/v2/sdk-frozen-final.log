@@ -1,0 +1,497 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/origin-logs/sdk-54036-1794163953712584000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 54%]
+........................................................................ [ 60%]
+........................................................................ [ 67%]
+........................................................................ [ 73%]
+........................................................................ [ 79%]
+......F................................................................. [ 85%]
+........................................................................ [ 91%]
+........................................................................ [ 97%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+____ test_spawned_curve_consumers_receive_only_their_durable_account_views _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/tmp/pytest-of-yunjinqi/pytest-0/test_spawned_curve_consumers_r0')
+
+    def test_spawned_curve_consumers_receive_only_their_durable_account_views(tmp_path):
+        context = multiprocessing.get_context("spawn")
+        endpoint = account_helpers._free_endpoints(1)[0]
+        server_keys = zmq.curve_keypair()
+        service = account_helpers._account_service_info(_ACCOUNT_REF, endpoint, "account-view-curve-v1")
+        audience = []
+        client_material = {}
+        for principal_ref, strategy_ref in ((_PRINCIPAL_A, _STRATEGY_A), (_PRINCIPAL_B, _STRATEGY_B)):
+            public_key, secret_key = zmq.curve_keypair()
+            client_material[strategy_ref] = (server_keys[0], public_key, secret_key)
+            audience.append((public_key, principal_ref, strategy_ref))
+        raw_service_config = account_helpers._service_config(service)
+        client_configs = {
+            _STRATEGY_A: account_helpers._client_config(
+                _STRATEGY_A, {_ACCOUNT_REF: service}, (_ACCOUNT_REF,)
+            ),
+            _STRATEGY_B: account_helpers._client_config(
+                _STRATEGY_B, {_ACCOUNT_REF: service}, (_ACCOUNT_REF,)
+            ),
+        }
+        registry_path = str(tmp_path / "view-service-registry.sqlite3")
+        journal_path = str(tmp_path / "view-account-journal.sqlite3")
+        guard_directory = str(tmp_path / "view-session-guards")
+        Path(guard_directory).mkdir()
+        anchor = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        records: list[dict[str, Any]] = []
+        forced_cleanup: list[str] = []
+        cleanup_failures: list[str] = []
+        host_record = None
+        clients: dict[str, dict[str, Any]] = {}
+        client_ready: dict[str, tuple[Any, ...]] = {}
+    
+        def start_host(first_sequence: int, label: str):
+            record = _start_child(
+                context,
+                _view_service_process,
+                (
+                    endpoint,
+                    raw_service_config,
+                    registry_path,
+                    journal_path,
+                    guard_directory,
+                    server_keys,
+                    tuple(audience),
+                    first_sequence,
+                    anchor,
+                ),
+                label,
+            )
+            records.append(record)
+            ready = account_helpers._receive(record["pipe"], timeout=20)
+            assert ready[0] == "ready" and ready[1] == endpoint, ready
+            return record, ready
+    
+        def start_clients(suffix: str) -> None:
+            for principal, strategy, view_scope, other in (
+                (_PRINCIPAL_A, _STRATEGY_A, _VIEW_A, _STRATEGY_B),
+                (_PRINCIPAL_B, _STRATEGY_B, _VIEW_B, _STRATEGY_A),
+            ):
+                key_info = client_material[strategy]
+                client_keys = key_info
+                record, ready = _start_view_client(
+                    context,
+                    records,
+                    principal_ref=principal,
+                    strategy_ref=strategy,
+                    view_scope=view_scope,
+                    other_strategy_ref=other,
+                    raw_config=client_configs[strategy],
+                    service=service,
+                    client_keys=client_keys,
+                    projection_path=tmp_path / f"{strategy}-projection.sqlite3",
+                    label=f"{strategy}-{suffix}",
+                )
+                clients[strategy] = record
+                client_ready[strategy] = ready
+    
+        try:
+            host_record, host_ready = start_host(1, "account-view-host-first")
+            assert host_ready[2:] == (1, 1), host_ready
+            start_clients("first")
+            assert client_ready[_STRATEGY_A][0] != client_ready[_STRATEGY_B][0]
+            assert client_ready[_STRATEGY_A][1] != client_ready[_STRATEGY_B][1]
+            assert client_ready[_STRATEGY_A][0] == client_ready[_STRATEGY_A][1]
+            assert client_ready[_STRATEGY_B][0] == client_ready[_STRATEGY_B][1]
+    
+            forged = account_helpers._client_command(clients[_STRATEGY_A], "forge")
+            assert forged[0] == "forged-result", forged
+            assert forged[1]["ok"] is False and forged[1]["code"] == "SCOPE_DENIED", forged
+    
+            epoch_a, cursor_a, view_a, pending_a, run_a, progress_a = _checkpoint(clients[_STRATEGY_A])
+            epoch_b, cursor_b, view_b, pending_b, run_b, progress_b = _checkpoint(clients[_STRATEGY_B])
+            assert epoch_a and epoch_b and epoch_a != epoch_b
+            assert cursor_a == cursor_b == 1 and pending_a is pending_b is False
+            assert progress_a == {
+                "stream_epoch": epoch_a,
+                "offered_cursor": 1,
+                "acknowledged_cursor": 1,
+            }
+            assert progress_b == {
+                "stream_epoch": epoch_b,
+                "offered_cursor": 1,
+                "acknowledged_cursor": 1,
+            }
+            assert run_a == client_ready[_STRATEGY_A][0]
+            assert run_b == client_ready[_STRATEGY_B][0]
+            assert set(view_a) == {
+                "schema_id",
+                "schema_version",
+                "view_scope",
+                "consistency",
+                "coverage",
+                "fact_kinds",
+                "balances",
+            }
+            assert set(view_b) == {
+                "schema_id",
+                "schema_version",
+                "view_scope",
+                "consistency",
+                "coverage",
+                "fact_kinds",
+                "positions",
+            }
+            assert view_a["schema_id"] == view_b["schema_id"] == "sdk.account.view"
+            assert view_a["view_scope"] == _VIEW_A and view_b["view_scope"] == _VIEW_B
+            assert view_a["fact_kinds"] == ["balances"]
+            assert view_b["fact_kinds"] == ["positions"]
+            assert view_a["balances"][0]["resource"] == _SPOT.to_dict()
+            assert view_a["balances"][0]["total"] == "100.00"
+            assert view_b["positions"][0]["resource"] == _LINEAR.to_dict()
+            assert view_b["positions"][0]["quantity"] == "2.000"
+            assert all(
+                field not in view
+                for view in (view_a, view_b)
+                for field in ("policy_digest", "account_key", "observation_id", "session_generation")
+            )
+    
+            status = account_helpers._host_command(host_record, "status")
+            assert status[0] == "status" and status[1:] == (1, 1, 0), status
+            hidden_refresh = account_helpers._host_command(host_record, "refresh")
+            assert hidden_refresh == ("refresh-requested", 2, 2), hidden_refresh
+            hidden_a = _checkpoint(clients[_STRATEGY_A])
+            hidden_b = _checkpoint(clients[_STRATEGY_B])
+            assert hidden_a[1] == 1 and hidden_a[2] == view_a and hidden_a[4] == run_a
+            assert hidden_a[5]["acknowledged_cursor"] == 1
+            assert hidden_b[1] == 2 and hidden_b[2]["positions"][0]["quantity"] == "3.000"
+            assert hidden_b[5]["acknowledged_cursor"] == 2
+            assert "balances" not in hidden_b[2]
+            assert hidden_a[3] is hidden_b[3] is False
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 2, 0), status
+    
+            visible_refresh = account_helpers._host_command(host_record, "refresh")
+            assert visible_refresh == ("refresh-requested", 3, 3), visible_refresh
+            changed_a = _checkpoint(clients[_STRATEGY_A])
+            changed_b = _checkpoint(clients[_STRATEGY_B])
+            assert changed_a[1] == 2 and changed_a[2]["balances"][0]["total"] == "101.25"
+            assert changed_a[5]["acknowledged_cursor"] == 2
+            assert changed_b[1] == 3 and changed_b[2]["positions"] == []
+            assert changed_b[5]["acknowledged_cursor"] == 3
+            assert changed_a[2]["view_scope"] == _VIEW_A
+            assert changed_b[2]["view_scope"] == _VIEW_B
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 3, 0), status
+    
+            for strategy in (_STRATEGY_A, _STRATEGY_B):
+                closed = account_helpers._close_normally(clients[strategy], expected_tag="closed")
+                assert closed == ("closed", "closed", 0, 0), closed
+            first_service_epoch = client_ready[_STRATEGY_A][2]
+            closed_host = account_helpers._close_normally(host_record, expected_tag="closed")
+            assert closed_host == ("closed", "closed", 1, 3, 1), closed_host
+    
+            clients.clear()
+            client_ready.clear()
+>           host_record, restarted_host_ready = start_host(3, "account-view-host-restarted")
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/unit/test_service_account_views_integration.py:745: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+first_sequence = 3, label = 'account-view-host-restarted'
+
+    def start_host(first_sequence: int, label: str):
+        record = _start_child(
+            context,
+            _view_service_process,
+            (
+                endpoint,
+                raw_service_config,
+                registry_path,
+                journal_path,
+                guard_directory,
+                server_keys,
+                tuple(audience),
+                first_sequence,
+                anchor,
+            ),
+            label,
+        )
+        records.append(record)
+        ready = account_helpers._receive(record["pipe"], timeout=20)
+>       assert ready[0] == "ready" and ready[1] == endpoint, ready
+E       AssertionError: ('error', 'ACCOUNT_SESSION_WORKER_START_FAILED')
+E       assert ('error' == 'ready'
+E         
+E         - ready
+E         + error)
+
+tests/unit/test_service_account_views_integration.py:621: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/tmp/pytest-of-yunjinqi/pytest-0/test_spawned_curve_consumers_r0')
+
+    def test_spawned_curve_consumers_receive_only_their_durable_account_views(tmp_path):
+        context = multiprocessing.get_context("spawn")
+        endpoint = account_helpers._free_endpoints(1)[0]
+        server_keys = zmq.curve_keypair()
+        service = account_helpers._account_service_info(_ACCOUNT_REF, endpoint, "account-view-curve-v1")
+        audience = []
+        client_material = {}
+        for principal_ref, strategy_ref in ((_PRINCIPAL_A, _STRATEGY_A), (_PRINCIPAL_B, _STRATEGY_B)):
+            public_key, secret_key = zmq.curve_keypair()
+            client_material[strategy_ref] = (server_keys[0], public_key, secret_key)
+            audience.append((public_key, principal_ref, strategy_ref))
+        raw_service_config = account_helpers._service_config(service)
+        client_configs = {
+            _STRATEGY_A: account_helpers._client_config(
+                _STRATEGY_A, {_ACCOUNT_REF: service}, (_ACCOUNT_REF,)
+            ),
+            _STRATEGY_B: account_helpers._client_config(
+                _STRATEGY_B, {_ACCOUNT_REF: service}, (_ACCOUNT_REF,)
+            ),
+        }
+        registry_path = str(tmp_path / "view-service-registry.sqlite3")
+        journal_path = str(tmp_path / "view-account-journal.sqlite3")
+        guard_directory = str(tmp_path / "view-session-guards")
+        Path(guard_directory).mkdir()
+        anchor = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+        records: list[dict[str, Any]] = []
+        forced_cleanup: list[str] = []
+        cleanup_failures: list[str] = []
+        host_record = None
+        clients: dict[str, dict[str, Any]] = {}
+        client_ready: dict[str, tuple[Any, ...]] = {}
+    
+        def start_host(first_sequence: int, label: str):
+            record = _start_child(
+                context,
+                _view_service_process,
+                (
+                    endpoint,
+                    raw_service_config,
+                    registry_path,
+                    journal_path,
+                    guard_directory,
+                    server_keys,
+                    tuple(audience),
+                    first_sequence,
+                    anchor,
+                ),
+                label,
+            )
+            records.append(record)
+            ready = account_helpers._receive(record["pipe"], timeout=20)
+            assert ready[0] == "ready" and ready[1] == endpoint, ready
+            return record, ready
+    
+        def start_clients(suffix: str) -> None:
+            for principal, strategy, view_scope, other in (
+                (_PRINCIPAL_A, _STRATEGY_A, _VIEW_A, _STRATEGY_B),
+                (_PRINCIPAL_B, _STRATEGY_B, _VIEW_B, _STRATEGY_A),
+            ):
+                key_info = client_material[strategy]
+                client_keys = key_info
+                record, ready = _start_view_client(
+                    context,
+                    records,
+                    principal_ref=principal,
+                    strategy_ref=strategy,
+                    view_scope=view_scope,
+                    other_strategy_ref=other,
+                    raw_config=client_configs[strategy],
+                    service=service,
+                    client_keys=client_keys,
+                    projection_path=tmp_path / f"{strategy}-projection.sqlite3",
+                    label=f"{strategy}-{suffix}",
+                )
+                clients[strategy] = record
+                client_ready[strategy] = ready
+    
+        try:
+            host_record, host_ready = start_host(1, "account-view-host-first")
+            assert host_ready[2:] == (1, 1), host_ready
+            start_clients("first")
+            assert client_ready[_STRATEGY_A][0] != client_ready[_STRATEGY_B][0]
+            assert client_ready[_STRATEGY_A][1] != client_ready[_STRATEGY_B][1]
+            assert client_ready[_STRATEGY_A][0] == client_ready[_STRATEGY_A][1]
+            assert client_ready[_STRATEGY_B][0] == client_ready[_STRATEGY_B][1]
+    
+            forged = account_helpers._client_command(clients[_STRATEGY_A], "forge")
+            assert forged[0] == "forged-result", forged
+            assert forged[1]["ok"] is False and forged[1]["code"] == "SCOPE_DENIED", forged
+    
+            epoch_a, cursor_a, view_a, pending_a, run_a, progress_a = _checkpoint(clients[_STRATEGY_A])
+            epoch_b, cursor_b, view_b, pending_b, run_b, progress_b = _checkpoint(clients[_STRATEGY_B])
+            assert epoch_a and epoch_b and epoch_a != epoch_b
+            assert cursor_a == cursor_b == 1 and pending_a is pending_b is False
+            assert progress_a == {
+                "stream_epoch": epoch_a,
+                "offered_cursor": 1,
+                "acknowledged_cursor": 1,
+            }
+            assert progress_b == {
+                "stream_epoch": epoch_b,
+                "offered_cursor": 1,
+                "acknowledged_cursor": 1,
+            }
+            assert run_a == client_ready[_STRATEGY_A][0]
+            assert run_b == client_ready[_STRATEGY_B][0]
+            assert set(view_a) == {
+                "schema_id",
+                "schema_version",
+                "view_scope",
+                "consistency",
+                "coverage",
+                "fact_kinds",
+                "balances",
+            }
+            assert set(view_b) == {
+                "schema_id",
+                "schema_version",
+                "view_scope",
+                "consistency",
+                "coverage",
+                "fact_kinds",
+                "positions",
+            }
+            assert view_a["schema_id"] == view_b["schema_id"] == "sdk.account.view"
+            assert view_a["view_scope"] == _VIEW_A and view_b["view_scope"] == _VIEW_B
+            assert view_a["fact_kinds"] == ["balances"]
+            assert view_b["fact_kinds"] == ["positions"]
+            assert view_a["balances"][0]["resource"] == _SPOT.to_dict()
+            assert view_a["balances"][0]["total"] == "100.00"
+            assert view_b["positions"][0]["resource"] == _LINEAR.to_dict()
+            assert view_b["positions"][0]["quantity"] == "2.000"
+            assert all(
+                field not in view
+                for view in (view_a, view_b)
+                for field in ("policy_digest", "account_key", "observation_id", "session_generation")
+            )
+    
+            status = account_helpers._host_command(host_record, "status")
+            assert status[0] == "status" and status[1:] == (1, 1, 0), status
+            hidden_refresh = account_helpers._host_command(host_record, "refresh")
+            assert hidden_refresh == ("refresh-requested", 2, 2), hidden_refresh
+            hidden_a = _checkpoint(clients[_STRATEGY_A])
+            hidden_b = _checkpoint(clients[_STRATEGY_B])
+            assert hidden_a[1] == 1 and hidden_a[2] == view_a and hidden_a[4] == run_a
+            assert hidden_a[5]["acknowledged_cursor"] == 1
+            assert hidden_b[1] == 2 and hidden_b[2]["positions"][0]["quantity"] == "3.000"
+            assert hidden_b[5]["acknowledged_cursor"] == 2
+            assert "balances" not in hidden_b[2]
+            assert hidden_a[3] is hidden_b[3] is False
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 2, 0), status
+    
+            visible_refresh = account_helpers._host_command(host_record, "refresh")
+            assert visible_refresh == ("refresh-requested", 3, 3), visible_refresh
+            changed_a = _checkpoint(clients[_STRATEGY_A])
+            changed_b = _checkpoint(clients[_STRATEGY_B])
+            assert changed_a[1] == 2 and changed_a[2]["balances"][0]["total"] == "101.25"
+            assert changed_a[5]["acknowledged_cursor"] == 2
+            assert changed_b[1] == 3 and changed_b[2]["positions"] == []
+            assert changed_b[5]["acknowledged_cursor"] == 3
+            assert changed_a[2]["view_scope"] == _VIEW_A
+            assert changed_b[2]["view_scope"] == _VIEW_B
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 3, 0), status
+    
+            for strategy in (_STRATEGY_A, _STRATEGY_B):
+                closed = account_helpers._close_normally(clients[strategy], expected_tag="closed")
+                assert closed == ("closed", "closed", 0, 0), closed
+            first_service_epoch = client_ready[_STRATEGY_A][2]
+            closed_host = account_helpers._close_normally(host_record, expected_tag="closed")
+            assert closed_host == ("closed", "closed", 1, 3, 1), closed_host
+    
+            clients.clear()
+            client_ready.clear()
+            host_record, restarted_host_ready = start_host(3, "account-view-host-restarted")
+            assert restarted_host_ready[2:] == (1, 1), restarted_host_ready
+            start_clients("restarted")
+            assert client_ready[_STRATEGY_A][0] != run_a
+            assert client_ready[_STRATEGY_B][0] != run_b
+            assert client_ready[_STRATEGY_A][2] == client_ready[_STRATEGY_B][2]
+            assert client_ready[_STRATEGY_A][2] != first_service_epoch
+    
+            resumed_a = _checkpoint(clients[_STRATEGY_A])
+            resumed_b = _checkpoint(clients[_STRATEGY_B])
+            assert resumed_a[0] == epoch_a and resumed_a[1] == 2
+            assert resumed_a[5]["acknowledged_cursor"] == 2
+            assert resumed_a[2]["balances"][0]["total"] == "101.25"
+            assert resumed_b[0] == epoch_b and resumed_b[1] == 3
+            assert resumed_b[5]["acknowledged_cursor"] == 3
+            assert resumed_b[2]["positions"] == []
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 1, 0), status
+    
+            continued = account_helpers._host_command(host_record, "refresh")
+            # Restart accepted a fresh canonical observation at source cursor 4
+            # without changing either visible view; this refresh advances it to 5.
+            assert continued == ("refresh-requested", 5, 2), continued
+            continued_a = _checkpoint(clients[_STRATEGY_A])
+            continued_b = _checkpoint(clients[_STRATEGY_B])
+            assert continued_a[0] == epoch_a and continued_a[1] == 3
+            assert continued_a[5]["acknowledged_cursor"] == 3
+            assert continued_a[2]["balances"][0]["total"] == "103.00"
+            assert continued_b[0] == epoch_b and continued_b[1] == 3
+            assert continued_b[5]["acknowledged_cursor"] == 3
+            assert continued_b[2]["positions"] == []
+            status = account_helpers._host_command(host_record, "status")
+            assert status[1:] == (1, 2, 0), status
+    
+            for strategy in (_STRATEGY_A, _STRATEGY_B):
+                closed = account_helpers._close_normally(clients[strategy], expected_tag="closed")
+                assert closed == ("closed", "closed", 0, 0), closed
+            closed_host = account_helpers._close_normally(host_record, expected_tag="closed")
+            assert closed_host == ("closed", "closed", 1, 2, 1), closed_host
+        finally:
+            for record in reversed(records):
+                account_helpers._bounded_reap_spawned_process(record, forced_cleanup, cleanup_failures)
+>           account_helpers._assert_no_fallback_cleanup(forced_cleanup, cleanup_failures)
+
+tests/unit/test_service_account_views_integration.py:787: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+forced = []
+failures = ['account-view-host-restarted:normal_close:BrokenPipeError']
+
+    def _assert_no_fallback_cleanup(forced, failures) -> None:
+        if forced or failures:
+>           raise AssertionError(
+                f"spawned account integration needed fallback cleanup: "
+                f"forced={tuple(forced)}, failures={tuple(failures)}"
+            )
+E           AssertionError: spawned account integration needed fallback cleanup: forced=(), failures=('account-view-host-restarted:normal_close:BrokenPipeError',)
+
+tests/unit/test_service_account_integration.py:764: AssertionError
+----------------------------- Captured stderr call -----------------------------
+Process account-view-host-restarted:
+Traceback (most recent call last):
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/sdk-tests/tests/unit/test_service_account_views_integration.py", line 296, in _view_service_process
+    host.start()
+  File "/private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_py/service_host.py", line 1206, in start
+    raise ServiceHostError(exc.code) from None
+bt_api_py.service_host.ServiceHostError: ACCOUNT_SESSION_WORKER_START_FAILED
+=============================== warnings summary ===============================
+../install/src/backtrader/feeds/__init__.py:56
+  /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_account_views_integration.py::test_spawned_curve_consumers_receive_only_their_durable_account_views
+1 failed, 1180 passed, 1 warning in 108.86s (0:01:48)
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r20-install-20261109-v2-bbNdwxzS/run_installed.py` failed. (See above for error)

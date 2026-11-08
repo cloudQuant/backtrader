@@ -1,0 +1,62 @@
+...FF.........F.F....                                                    [100%]
+=================================== FAILURES ===================================
+_________________ test_history_acl_rejection_is_a_scope_denial _________________
+tests/unit/test_iter63_trading_market_component.py:213: in test_history_acl_rejection_is_a_scope_denial
+    hub = GatewayMarketHub(
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:320: in __init__
+    copied_history_keys, copied_history_acl = _copy_market_history_acl(
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:1955: in _copy_market_history_acl
+    raise GatewayMarketHubError("INVALID_HISTORY_KEY_UNIVERSE")
+E   bt_api_gateway.market_hub.GatewayMarketHubError: INVALID_HISTORY_KEY_UNIVERSE
+________ test_market_release_failure_does_not_close_trading_or_account _________
+tests/unit/test_iter63_trading_market_component.py:261: in test_market_release_failure_does_not_close_trading_or_account
+    assert component.handlers["market.unsubscribe"](context, {"key": _market_key().to_dict()})[
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_components.py:3483: in handler
+    return _adapter.handle(  # type: ignore[attr-defined]
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:1573: in handle
+    return self._hub.unsubscribe(principal_ref, key, registration_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:863: in unsubscribe
+    raise GatewayMarketHubError("PROVIDER_UNSUBSCRIBE_FAILED", retryable=True)
+E   bt_api_gateway.market_hub.GatewayMarketHubError: PROVIDER_UNSUBSCRIBE_FAILED
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:265: in test_market_release_failure_does_not_close_trading_or_account
+    hub.close()
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:1309: in close
+    raise GatewayMarketHubError("PROVIDER_UNSUBSCRIBE_FAILED", retryable=True)
+E   bt_api_gateway.market_hub.GatewayMarketHubError: PROVIDER_UNSUBSCRIBE_FAILED
+______ test_trading_market_publisher_rejects_ungranted_audience[instance] ______
+tests/unit/test_iter63_trading_market_component.py:395: in test_trading_market_publisher_rejects_ungranted_audience
+    host.start()
+bt_api_py/service_host.py:655: in start
+    raise ServiceHostError("AUTHORITY_GRANTS_INVALID") from None
+E   bt_api_py.service_host.ServiceHostError: AUTHORITY_GRANTS_INVALID
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:394: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'MARKET_HUB_AUDIENCE_INVALID'
+E    Input: 'AUTHORITY_GRANTS_INVALID'
+________ test_trading_market_publisher_rejects_ungranted_audience[port] ________
+tests/unit/test_iter63_trading_market_component.py:395: in test_trading_market_publisher_rejects_ungranted_audience
+    host.start()
+bt_api_py/service_host.py:655: in start
+    raise ServiceHostError("AUTHORITY_GRANTS_INVALID") from None
+E   bt_api_py.service_host.ServiceHostError: AUTHORITY_GRANTS_INVALID
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:394: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'MARKET_HUB_AUDIENCE_INVALID'
+E    Input: 'AUTHORITY_GRANTS_INVALID'
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_trading_market_component.py::test_history_acl_rejection_is_a_scope_denial
+FAILED tests/unit/test_iter63_trading_market_component.py::test_market_release_failure_does_not_close_trading_or_account
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[instance]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[port]
+4 failed, 17 passed in 1.21s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/test_iter63_trading_market_component.py -q` failed. (See above for error)

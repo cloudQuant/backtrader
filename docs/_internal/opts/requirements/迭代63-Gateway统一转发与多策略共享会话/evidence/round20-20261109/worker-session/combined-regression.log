@@ -1,0 +1,81 @@
+...............FF.FF.................................................... [ 84%]
+.............                                                            [100%]
+=================================== FAILURES ===================================
+_ test_timeout_retains_same_handle_and_rejects_other_operation[OWNER_TIMEOUT_QUEUED] _
+tests/unit/test_gateway_strategy_account.py:197: in test_timeout_retains_same_handle_and_rejects_other_operation
+    assert client.refresh(timeout_seconds=1).cursor == 7
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:359: in refresh
+    return self._call("refresh", timeout_seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:338: in _call
+    handle = self._runtime.submit_owner(self._prefix + "validate", {"view": result})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_gateway_strategy_account.py:177: in submit
+    return handles[len(calls) - 1]
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+_ test_timeout_retains_same_handle_and_rejects_other_operation[OWNER_TIMEOUT_RUNNING] _
+tests/unit/test_gateway_strategy_account.py:197: in test_timeout_retains_same_handle_and_rejects_other_operation
+    assert client.refresh(timeout_seconds=1).cursor == 7
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:359: in refresh
+    return self._call("refresh", timeout_seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:338: in _call
+    handle = self._runtime.submit_owner(self._prefix + "validate", {"view": result})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_gateway_strategy_account.py:177: in submit
+    return handles[len(calls) - 1]
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+_____ test_concurrent_call_is_nonblocking_and_owner_call_is_not_duplicated _____
+tests/unit/test_gateway_strategy_account.py:235: in test_concurrent_call_is_nonblocking_and_owner_call_is_not_duplicated
+    assert not thread.is_alive() and results[0].cursor == 7 and len(calls) == 1
+                                     ^^^^^^^^^^
+E   IndexError: list index out of range
+______________ test_process_boundary_and_status_result_validation ______________
+tests/unit/test_gateway_strategy_account.py:243: in test_process_boundary_and_status_result_validation
+    assert client.status() == {"healthy": True}
+           ^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:365: in status
+    return self._call("status", timeout_seconds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_strategy_account.py:345: in _call
+    raise ThreadedRuntimeError("NOT_READY")
+E   bt_api_py.service_runtime_thread.ThreadedRuntimeError: NOT_READY
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+tests/unit/test_gateway_strategy_account.py::test_concurrent_call_is_nonblocking_and_owner_call_is_not_duplicated
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2 (<lambda>)
+  
+  Traceback (most recent call last):
+    File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
+      self.run()
+    File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/threading.py", line 982, in run
+      self._target(*self._args, **self._kwargs)
+    File "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_gateway_strategy_account.py", line 228, in <lambda>
+      thread = threading.Thread(target=lambda: results.append(client.refresh(timeout_seconds=1)))
+                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_account.py", line 359, in refresh
+      return self._call("refresh", timeout_seconds)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_account.py", line 345, in _call
+      raise ThreadedRuntimeError("NOT_READY")
+  bt_api_py.service_runtime_thread.ThreadedRuntimeError: NOT_READY
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_gateway_strategy_account.py::test_timeout_retains_same_handle_and_rejects_other_operation[OWNER_TIMEOUT_QUEUED]
+FAILED tests/unit/test_gateway_strategy_account.py::test_timeout_retains_same_handle_and_rejects_other_operation[OWNER_TIMEOUT_RUNNING]
+FAILED tests/unit/test_gateway_strategy_account.py::test_concurrent_call_is_nonblocking_and_owner_call_is_not_duplicated
+FAILED tests/unit/test_gateway_strategy_account.py::test_process_boundary_and_status_result_validation
+4 failed, 81 passed, 2 warnings in 6.30s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q tests/unit/test_service_runtime_thread_owner.py tests/unit/test_gateway_strategy_account.py tests/unit/test_gateway_strategy_market.py tests/unit/test_iter63_trading_market_component.py tests/unit/test_iter63_gateway_strategy_client.py tests/integration/test_iter63_strategy_read_session.py tests/integration/test_iter63_gateway_strategy_client.py` failed. (See above for error)

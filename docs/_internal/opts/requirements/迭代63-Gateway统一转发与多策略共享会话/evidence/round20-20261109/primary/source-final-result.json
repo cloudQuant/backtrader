@@ -1,0 +1,26 @@
+{
+  "scope": "R20 SDK 89 selector files",
+  "argv": [
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "python",
+    "-I",
+    "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/run.py"
+  ],
+  "cwd": "/tmp",
+  "environment_overrides": {
+    "R20_KIND": "sdk",
+    "R20_SELECTORS": "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/selectors.json"
+  },
+  "exec_session_id": 49910,
+  "exit_code": 0,
+  "passed": 1181,
+  "warnings": 2,
+  "duration_seconds_reported_by_pytest": 110.03,
+  "log": "/tmp/iter63-r20-primary/sdk-source-final.log",
+  "origin_parent": "SOURCE_ORIGIN_AUDIT_OK",
+  "origin_run_id_binding": "NOT_DIRECTLY_RECORDED; archive groups separately"
+}

@@ -1,0 +1,23 @@
+REUSED_R19 bt_api_base /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_base/__init__.py 0.16.0.dev63 PY_COUNT 167 README_SHA256 bdda43e4c19be9c3dcff9e6aa493a409c1503670146e9694324ee70e10ebcba6
+REUSED_R19 bt_api_gateway /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_gateway/__init__.py 0.2.0.dev63 PY_COUNT 26 README_SHA256 7071786d48a38a6892944dfd1de48d00ac2b848a1f2107a46b2fc3356bb3f104
+REUSED_R19 bt_api_ctp /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_ctp/__init__.py 2.1.0.dev63 PY_COUNT 180 README_SHA256 6a7d91b9f12479e614f9ce8255b23873d1007e84efac9fa5d0ba401f76580f40
+REBUILT bt_api_py /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_py/__init__.py 0.16.0.dev63 PY_COUNT 292 README_SHA256 d1394e58909826c8f1eb90e981f6660e5ee310f4479011897cdb30a9e1b81534
+REUSED_R19 backtrader /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/backtrader/__init__.py 1.4.0 PY_COUNT 676 README_SHA256 18aac49f7e6a595c3b11740659423585b7dd442d507ef6f76a3fbccdbf8121d8
+FIXED bt_api_okx /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_okx/__init__.py 0.16.0.dev63 100 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+FIXED bt_api_binance /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/install/src/bt_api_binance/__init__.py 2.1.0.dev63 86 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+MANIFEST_SHA_MATCH source-manifest.json 1446
+MANIFEST_SHA_MATCH test-manifest.json 116
+EXTERNAL_EDITABLE_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+WHEEL_SHA256 back_trader_python-1.4.0-py3-none-any.whl 792bad705c3f14a41c519322e6bee7c2cbae15faf33da622e895d9e2a743b4a7
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 67f2e489053c06cc154c8edb1f05015aa9ec8be77e9e723e270e9a726072671f
+WHEEL_SHA256 bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl 56e9618be0202ea2c935d784179201f5ea9f79b9656398ad83727ad015485134
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl eca010352ae5bd4d1c9f134a70b5627641bde80d8b8af3add437fa29cfb67a30
+WHEEL_SHA256 bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl 604dab947226fd96d7daae5d41686c411ca3d9c34a7c00d6e02fe91a81679a13
+CTP_REUSED_R19_EXTENSION_SHA256 b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5
+SDK_LAYOUT_LINKS_RESOLVE_INSTALLED_TARGET 2
+GAP_SDK_ISOLATED_MINUS_I_CHILD_NO_SITECUSTOMIZE see sdk-minus-i-audit-gap.md
+EXTERNAL_EDITABLE_VERIFIED bt_api_monitor 0.1.0 aba1ca273122a4d7a29898b588cc701023a43e39 /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_monitor/src/bt_api_monitor/__init__.py 22
+EXTERNAL_EDITABLE_VERIFIED bt_api_transport_zmq 0.1.0 6a4cf80ca4ff686f55f62ee9a51a0daf875df8ec /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py 7
+NO_FULL_RESOLVER_NO_ACCOUNT_CONNECTIONS

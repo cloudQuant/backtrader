@@ -1,0 +1,88 @@
+{
+  "overall": "IN_PROGRESS / NOT_ACCEPTED",
+  "round": "R20",
+  "scope": "public synthetic SDK source and isolated installed tests; not real account acceptance",
+  "source_previous": {
+    "status": "FAIL",
+    "summary": "1180 passed, 1 failed, 2 warnings",
+    "log": "primary/sdk-source.log",
+    "failure": "ACCOUNT_SESSION_WORKER_START_FAILED"
+  },
+  "source_final": {
+    "status": "PASS",
+    "summary": "1181 passed, 2 warnings, 110.03 s",
+    "exit_code": 0,
+    "log": "primary/sdk-source-final.log",
+    "runner_result": "primary/source-final-result.json",
+    "parent_origin_audit": "SOURCE_ORIGIN_AUDIT_OK"
+  },
+  "source_origin_binding": {
+    "status": "GAP",
+    "detail": "The runner did not record its run ID in the source final log; grouped origins are retained but their complete association with this final run is not directly established. Spawned imports may reset the run ID.",
+    "origin_root": "source-runner/origin-logs"
+  },
+  "installed_previous_v2": {
+    "status": "FAIL",
+    "summary": "1180 passed, 1 failed, 1 warning",
+    "failure": "ACCOUNT_SESSION_WORKER_START_FAILED",
+    "log": "installed/v2/sdk-frozen-final.log"
+  },
+  "installed_final_v3": {
+    "status": "PASS",
+    "summary": "1181 passed, 1 warning, 110.16 s",
+    "exit_code": 0,
+    "log": "installed/v3/sdk-frozen-final.log",
+    "parent_origin_audit": "PARENT_ORIGIN_AUDIT_OK",
+    "executions": "installed/v3/executions.final.jsonl",
+    "commit_verification": "installed/v3/commits-final.complete.log"
+  },
+  "installed_isolated_child_guard": {
+    "status": "GAP",
+    "detail": "One Python -I child ignores PYTHONPATH, so its independent origin/offline guard is not established.",
+    "evidence": "installed/v3/sdk-minus-i-audit-gap.md"
+  },
+  "origin_exit_audits": {
+    "status": "GAP",
+    "detail": "342 captured origin logs: zero violations and malformed records; 12 records have guard installed without exit audit (source 6, installed v2 3, installed v3 3). At capture all 12 PIDs were absent from ps; this point-in-time check does not prove a clean exit or exclude PID reuse.",
+    "summary": "origin-audit-summary.json"
+  },
+  "head_reproduction": {
+    "status": "FAIL",
+    "detail": "HEAD account target reproduced ACCOUNT_SESSION_WORKER_START_FAILED; worktree target passed.",
+    "head_log": "primary/account-head-target-final.log",
+    "worktree_log": "primary/account-file-final.log"
+  },
+  "ruff": {
+    "status": "FAIL",
+    "detail": "15 selected files; one existing F401 in service_components.py, also observed at HEAD.",
+    "log": "primary/ruff-final.log",
+    "head_log": "primary/ruff-head-baseline.log",
+    "result": "primary/ruff-final-result.json"
+  },
+  "owner_runtime": {
+    "status": "PASS",
+    "summary": "65 passed, synthetic/local tests",
+    "log": "worker-runtime/iter63-r20-runtime.log"
+  },
+  "source_commit": {
+    "status": "PASS",
+    "commit": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68",
+    "scope": "16 SDK blobs compared to final freeze",
+    "result": "primary/product-commit.json",
+    "push": "NOT_RUN"
+  },
+  "release_and_account": {
+    "status": "NOT_RUN",
+    "detail": "No production account, native venue acceptance, or release acceptance claimed."
+  },
+  "independent_installed_verification": {
+    "status": "PASS",
+    "log": "primary/install-final-independent-verify.log",
+    "detail": "Independent verification of installed snapshot."
+  },
+  "independent_commit_verification": {
+    "status": "PASS",
+    "log": "primary/commit-final-independent-verify.log",
+    "detail": "Source manifest 1446 and test manifest 116 checked against commits and snapshot; COPY_WORKTREE_COMMIT_SHA_MATCH."
+  }
+}

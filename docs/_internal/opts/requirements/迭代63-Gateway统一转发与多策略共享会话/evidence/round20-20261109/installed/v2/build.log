@@ -1,0 +1,9 @@
+Processing /tmp/iter63-r20-install-20261109-v2-bbNdwxzS/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2094744 sha256=604dab947226fd96d7daae5d41686c411ca3d9c34a7c00d6e02fe91a81679a13
+  Stored in directory: /private/tmp/iter63-r20-install-20261109-v2-bbNdwxzS/tmp/pip-ephem-wheel-cache-vdc9l3td/wheels/d7/16/89/32872ad2b8f00cead3f6fa9b3137f6a720399556f3fd14a3ee
+Successfully built bt_api_py

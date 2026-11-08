@@ -1,0 +1,46 @@
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r20-primary/account-target-selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_spawned_curve_consumers_receive_only_their_durable_account_views _____
+tests/unit/test_service_account_views_integration.py:745: in test_spawned_curve_consumers_receive_only_their_durable_account_views
+    host_record, restarted_host_ready = start_host(3, "account-view-host-restarted")
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_service_account_views_integration.py:621: in start_host
+    assert ready[0] == "ready" and ready[1] == endpoint, ready
+E   AssertionError: ('error', 'ACCOUNT_SESSION_WORKER_START_FAILED')
+E   assert ('error' == 'ready'
+E     
+E     - ready
+E     + error)
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_service_account_views_integration.py:787: in test_spawned_curve_consumers_receive_only_their_durable_account_views
+    account_helpers._assert_no_fallback_cleanup(forced_cleanup, cleanup_failures)
+tests/unit/test_service_account_integration.py:764: in _assert_no_fallback_cleanup
+    raise AssertionError(
+E   AssertionError: spawned account integration needed fallback cleanup: forced=(), failures=('account-view-host-restarted:normal_close:BrokenPipeError',)
+----------------------------- Captured stderr call -----------------------------
+Process account-view-host-restarted:
+Traceback (most recent call last):
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_account_views_integration.py", line 296, in _view_service_process
+    host.start()
+  File "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_host.py", line 1206, in start
+    raise ServiceHostError(exc.code) from None
+bt_api_py.service_host.ServiceHostError: ACCOUNT_SESSION_WORKER_START_FAILED
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_account_views_integration.py::test_spawned_curve_consumers_receive_only_their_durable_account_views
+1 failed, 1 warning in 1.72s
+SOURCE_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/run.py` failed. (See above for error)

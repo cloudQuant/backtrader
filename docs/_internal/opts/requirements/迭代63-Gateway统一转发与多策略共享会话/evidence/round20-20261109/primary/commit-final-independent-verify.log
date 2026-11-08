@@ -1,0 +1,4 @@
+MANIFEST_COMMIT_AUDIT source-manifest.json rows 1446
+MANIFEST_COMMIT_AUDIT test-manifest.json rows 116
+COMMITS {"/Users/yunjinqi/Documents/new_projects/backtrader": "56e5623ea3c340a7ea6e40bb39c9870db75c1c52", "/Users/yunjinqi/Documents/new_projects/bt_api_py": "5ce578351d8eecfbb8bec57841e8c31f19fa3c68", "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base": "f117c0bea16e77bee87451d8c1dbe3ba790f705c", "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "abd8bf320f396ea271f974cf59659bfd0190a78c", "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "ecb98a0d1f598dc33ae112829dc958a60846058b"}
+COPY_WORKTREE_COMMIT_SHA_MATCH

@@ -1,0 +1,18 @@
+[
+  {
+    "path": "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/bootstrap/offline_guard.py",
+    "sha256": "715cb1c8aabf3458bb179c8ae433d3be1cf3662fa5c8db6718aab1f695262baa"
+  },
+  {
+    "path": "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/bootstrap/origin_guard.py",
+    "sha256": "01bda8ae3a48d5f141902808cdd346e3ac037474484f319d7b730d7a7e871d2c"
+  },
+  {
+    "path": "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "/tmp/iter63-r20-install-20261109-x3vllCQQ/source-runner/run.py",
+    "sha256": "fd71d2f650005b136c8ff0f6afc3511fe1e0da8d4123a4a0e902a5a166a6f8b9"
+  }
+]

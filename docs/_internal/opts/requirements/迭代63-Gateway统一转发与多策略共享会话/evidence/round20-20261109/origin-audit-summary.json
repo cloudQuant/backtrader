@@ -1,0 +1,3439 @@
+{
+  "observed_utc": "2026-11-08T19:06:17.995226+00:00",
+  "note": "PID presence is a point-in-time observation and can include PID reuse; no process is signaled.",
+  "origin_files": 342,
+  "rows": [
+    {
+      "archive": "installed/v2/origin-logs/guard-preflight/53988.jsonl",
+      "pids": [
+        53988
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54036.jsonl.gz",
+      "pids": [
+        54036
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54040.jsonl",
+      "pids": [
+        54040
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54043.jsonl",
+      "pids": [
+        54043
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54044.jsonl",
+      "pids": [
+        54044
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54046.jsonl",
+      "pids": [
+        54046
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54053.jsonl",
+      "pids": [
+        54053
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54054.jsonl",
+      "pids": [
+        54054
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54056.jsonl",
+      "pids": [
+        54056
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54057.jsonl",
+      "pids": [
+        54057
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54058.jsonl",
+      "pids": [
+        54058
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54059.jsonl",
+      "pids": [
+        54059
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54061.jsonl",
+      "pids": [
+        54061
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54062.jsonl",
+      "pids": [
+        54062
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54063.jsonl",
+      "pids": [
+        54063
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54065.jsonl",
+      "pids": [
+        54065
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54067.jsonl",
+      "pids": [
+        54067
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54069.jsonl",
+      "pids": [
+        54069
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54070.jsonl",
+      "pids": [
+        54070
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54071.jsonl",
+      "pids": [
+        54071
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54073.jsonl",
+      "pids": [
+        54073
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54074.jsonl",
+      "pids": [
+        54074
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54077.jsonl",
+      "pids": [
+        54077
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54078.jsonl.gz",
+      "pids": [
+        54078
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54082.jsonl",
+      "pids": [
+        54082
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54085.jsonl",
+      "pids": [
+        54085
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54086.jsonl",
+      "pids": [
+        54086
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54087.jsonl",
+      "pids": [
+        54087
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54088.jsonl",
+      "pids": [
+        54088
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54089.jsonl",
+      "pids": [
+        54089
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54090.jsonl",
+      "pids": [
+        54090
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54091.jsonl",
+      "pids": [
+        54091
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54092.jsonl",
+      "pids": [
+        54092
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54093.jsonl",
+      "pids": [
+        54093
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54095.jsonl",
+      "pids": [
+        54095
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54096.jsonl",
+      "pids": [
+        54096
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54097.jsonl",
+      "pids": [
+        54097
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54098.jsonl",
+      "pids": [
+        54098
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54099.jsonl",
+      "pids": [
+        54099
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54100.jsonl",
+      "pids": [
+        54100
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54101.jsonl",
+      "pids": [
+        54101
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54102.jsonl",
+      "pids": [
+        54102
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54104.jsonl",
+      "pids": [
+        54104
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54105.jsonl",
+      "pids": [
+        54105
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54106.jsonl",
+      "pids": [
+        54106
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54107.jsonl",
+      "pids": [
+        54107
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54108.jsonl",
+      "pids": [
+        54108
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54109.jsonl",
+      "pids": [
+        54109
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54111.jsonl",
+      "pids": [
+        54111
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54113.jsonl",
+      "pids": [
+        54113
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54114.jsonl",
+      "pids": [
+        54114
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54116.jsonl",
+      "pids": [
+        54116
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54117.jsonl",
+      "pids": [
+        54117
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54118.jsonl",
+      "pids": [
+        54118
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54120.jsonl",
+      "pids": [
+        54120
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54123.jsonl",
+      "pids": [
+        54123
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54124.jsonl",
+      "pids": [
+        54124
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54125.jsonl",
+      "pids": [
+        54125
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54126.jsonl",
+      "pids": [
+        54126
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54127.jsonl",
+      "pids": [
+        54127
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54128.jsonl",
+      "pids": [
+        54128
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54129.jsonl",
+      "pids": [
+        54129
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54131.jsonl",
+      "pids": [
+        54131
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54132.jsonl",
+      "pids": [
+        54132
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54133.jsonl",
+      "pids": [
+        54133
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54134.jsonl",
+      "pids": [
+        54134
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54135.jsonl",
+      "pids": [
+        54135
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54136.jsonl",
+      "pids": [
+        54136
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54137.jsonl",
+      "pids": [
+        54137
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54138.jsonl",
+      "pids": [
+        54138
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54139.jsonl",
+      "pids": [
+        54139
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54140.jsonl",
+      "pids": [
+        54140
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54141.jsonl",
+      "pids": [
+        54141
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54142.jsonl",
+      "pids": [
+        54142
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54143.jsonl",
+      "pids": [
+        54143
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54301.jsonl",
+      "pids": [
+        54301
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54302.jsonl",
+      "pids": [
+        54302
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54304.jsonl",
+      "pids": [
+        54304
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54305.jsonl",
+      "pids": [
+        54305
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v2/origin-logs/sdk-54036-1794163953712584000/54306.jsonl",
+      "pids": [
+        54306
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/guard-preflight/57488.jsonl",
+      "pids": [
+        57488
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57576.jsonl.gz",
+      "pids": [
+        57576
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57595.jsonl",
+      "pids": [
+        57595
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57635.jsonl",
+      "pids": [
+        57635
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57636.jsonl",
+      "pids": [
+        57636
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57720.jsonl",
+      "pids": [
+        57720
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57725.jsonl",
+      "pids": [
+        57725
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57726.jsonl",
+      "pids": [
+        57726
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57727.jsonl",
+      "pids": [
+        57727
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57728.jsonl",
+      "pids": [
+        57728
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57729.jsonl",
+      "pids": [
+        57729
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57746.jsonl",
+      "pids": [
+        57746
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57795.jsonl",
+      "pids": [
+        57795
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57796.jsonl",
+      "pids": [
+        57796
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57797.jsonl",
+      "pids": [
+        57797
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57809.jsonl",
+      "pids": [
+        57809
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57812.jsonl",
+      "pids": [
+        57812
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57813.jsonl",
+      "pids": [
+        57813
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57814.jsonl",
+      "pids": [
+        57814
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57843.jsonl",
+      "pids": [
+        57843
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57844.jsonl",
+      "pids": [
+        57844
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57845.jsonl",
+      "pids": [
+        57845
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57863.jsonl",
+      "pids": [
+        57863
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57864.jsonl.gz",
+      "pids": [
+        57864
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57866.jsonl",
+      "pids": [
+        57866
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57877.jsonl",
+      "pids": [
+        57877
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57878.jsonl",
+      "pids": [
+        57878
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57879.jsonl",
+      "pids": [
+        57879
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57880.jsonl",
+      "pids": [
+        57880
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57881.jsonl",
+      "pids": [
+        57881
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57882.jsonl",
+      "pids": [
+        57882
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57883.jsonl",
+      "pids": [
+        57883
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57884.jsonl",
+      "pids": [
+        57884
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57885.jsonl",
+      "pids": [
+        57885
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57886.jsonl",
+      "pids": [
+        57886
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57887.jsonl",
+      "pids": [
+        57887
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57890.jsonl",
+      "pids": [
+        57890
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57891.jsonl",
+      "pids": [
+        57891
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57893.jsonl",
+      "pids": [
+        57893
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57894.jsonl",
+      "pids": [
+        57894
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57895.jsonl",
+      "pids": [
+        57895
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57896.jsonl",
+      "pids": [
+        57896
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57901.jsonl",
+      "pids": [
+        57901
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57902.jsonl",
+      "pids": [
+        57902
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57903.jsonl",
+      "pids": [
+        57903
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57904.jsonl",
+      "pids": [
+        57904
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57906.jsonl",
+      "pids": [
+        57906
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57907.jsonl",
+      "pids": [
+        57907
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57908.jsonl",
+      "pids": [
+        57908
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57912.jsonl",
+      "pids": [
+        57912
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57913.jsonl",
+      "pids": [
+        57913
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57914.jsonl",
+      "pids": [
+        57914
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57915.jsonl",
+      "pids": [
+        57915
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57916.jsonl",
+      "pids": [
+        57916
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57917.jsonl",
+      "pids": [
+        57917
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57918.jsonl",
+      "pids": [
+        57918
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57926.jsonl",
+      "pids": [
+        57926
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57927.jsonl",
+      "pids": [
+        57927
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57928.jsonl",
+      "pids": [
+        57928
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57929.jsonl",
+      "pids": [
+        57929
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57930.jsonl",
+      "pids": [
+        57930
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57931.jsonl",
+      "pids": [
+        57931
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57934.jsonl",
+      "pids": [
+        57934
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57935.jsonl",
+      "pids": [
+        57935
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57936.jsonl",
+      "pids": [
+        57936
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57937.jsonl",
+      "pids": [
+        57937
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57938.jsonl",
+      "pids": [
+        57938
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57939.jsonl",
+      "pids": [
+        57939
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57940.jsonl",
+      "pids": [
+        57940
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57941.jsonl",
+      "pids": [
+        57941
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57942.jsonl",
+      "pids": [
+        57942
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57943.jsonl",
+      "pids": [
+        57943
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57945.jsonl",
+      "pids": [
+        57945
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57946.jsonl",
+      "pids": [
+        57946
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57947.jsonl",
+      "pids": [
+        57947
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57948.jsonl",
+      "pids": [
+        57948
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57949.jsonl",
+      "pids": [
+        57949
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57963.jsonl",
+      "pids": [
+        57963
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57964.jsonl",
+      "pids": [
+        57964
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57966.jsonl",
+      "pids": [
+        57966
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57967.jsonl",
+      "pids": [
+        57967
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "installed/v3/origin-logs/sdk-57576-1794164390610457000/57968.jsonl",
+      "pids": [
+        57968
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51014.jsonl.gz",
+      "pids": [
+        51014
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51114.jsonl",
+      "pids": [
+        51114
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51118.jsonl",
+      "pids": [
+        51118
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51120.jsonl",
+      "pids": [
+        51120
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51167.jsonl",
+      "pids": [
+        51167
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/51168.jsonl",
+      "pids": [
+        51168
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51014-1794163799777035000/52449.jsonl",
+      "pids": [
+        52449
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51023-1794163803356798000/51023.jsonl",
+      "pids": [
+        51023
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51037-1794163810116141000/51037.jsonl",
+      "pids": [
+        51037
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51038-1794163811016091000/51038.jsonl",
+      "pids": [
+        51038
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51040-1794163811945916000/51040.jsonl",
+      "pids": [
+        51040
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51104-1794163816416471000/51104.jsonl",
+      "pids": [
+        51104
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51106-1794163817084335000/51106.jsonl",
+      "pids": [
+        51106
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51107-1794163817708457000/51107.jsonl",
+      "pids": [
+        51107
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51110-1794163818367608000/51110.jsonl",
+      "pids": [
+        51110
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51111-1794163819066089000/51111.jsonl",
+      "pids": [
+        51111
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51112-1794163819676234000/51112.jsonl",
+      "pids": [
+        51112
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51116-1794163820708690000/51116.jsonl",
+      "pids": [
+        51116
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51140-1794163823497229000/51140.jsonl",
+      "pids": [
+        51140
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51157-1794163824194696000/51157.jsonl",
+      "pids": [
+        51157
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51165-1794163824899043000/51165.jsonl",
+      "pids": [
+        51165
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51166-1794163826984556000/51166.jsonl",
+      "pids": [
+        51166
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51649-1794163838055692000/51649.jsonl",
+      "pids": [
+        51649
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51677-1794163838508032000/51677.jsonl.gz",
+      "pids": [
+        51677
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-51986-1794163843721403000/51986.jsonl",
+      "pids": [
+        51986
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52031-1794163844507962000/52031.jsonl",
+      "pids": [
+        52031
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52048-1794163844784830000/52048.jsonl",
+      "pids": [
+        52048
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52077-1794163845259245000/52077.jsonl",
+      "pids": [
+        52077
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52112-1794163845844790000/52112.jsonl",
+      "pids": [
+        52112
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52141-1794163846320396000/52141.jsonl",
+      "pids": [
+        52141
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52172-1794163846838366000/52172.jsonl",
+      "pids": [
+        52172
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52189-1794163847108503000/52189.jsonl",
+      "pids": [
+        52189
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52205-1794163847383758000/52205.jsonl",
+      "pids": [
+        52205
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52236-1794163847697608000/52236.jsonl",
+      "pids": [
+        52236
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52332-1794163849234297000/52332.jsonl",
+      "pids": [
+        52332
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52348-1794163849503767000/52348.jsonl",
+      "pids": [
+        52348
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52365-1794163849783848000/52365.jsonl",
+      "pids": [
+        52365
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52382-1794163850111167000/52382.jsonl",
+      "pids": [
+        52382
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52429-1794163851679235000/52429.jsonl",
+      "pids": [
+        52429
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52443-1794163851943073000/52443.jsonl",
+      "pids": [
+        52443
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52444-1794163852197436000/52444.jsonl",
+      "pids": [
+        52444
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52445-1794163852487522000/52445.jsonl",
+      "pids": [
+        52445
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52446-1794163854024456000/52446.jsonl",
+      "pids": [
+        52446
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52447-1794163854498707000/52447.jsonl",
+      "pids": [
+        52447
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52448-1794163855044110000/52448.jsonl",
+      "pids": [
+        52448
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52450-1794163855745917000/52450.jsonl",
+      "pids": [
+        52450
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52451-1794163856020980000/52451.jsonl",
+      "pids": [
+        52451
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52452-1794163856305322000/52452.jsonl",
+      "pids": [
+        52452
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52453-1794163856842571000/52453.jsonl",
+      "pids": [
+        52453
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52454-1794163857538733000/52454.jsonl",
+      "pids": [
+        52454
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52455-1794163857842949000/52455.jsonl",
+      "pids": [
+        52455
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52456-1794163858184764000/52456.jsonl",
+      "pids": [
+        52456
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52457-1794163858523060000/52457.jsonl",
+      "pids": [
+        52457
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52459-1794163864821082000/52459.jsonl",
+      "pids": [
+        52459
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52460-1794163865075096000/52460.jsonl",
+      "pids": [
+        52460
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52461-1794163865518645000/52461.jsonl",
+      "pids": [
+        52461
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52462-1794163865822319000/52462.jsonl",
+      "pids": [
+        52462
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52463-1794163866739197000/52463.jsonl",
+      "pids": [
+        52463
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52465-1794163867040135000/52465.jsonl",
+      "pids": [
+        52465
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52466-1794163868311857000/52466.jsonl",
+      "pids": [
+        52466
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52467-1794163868615101000/52467.jsonl",
+      "pids": [
+        52467
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52468-1794163869063603000/52468.jsonl",
+      "pids": [
+        52468
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52469-1794163869380791000/52469.jsonl",
+      "pids": [
+        52469
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52470-1794163870840117000/52470.jsonl",
+      "pids": [
+        52470
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52471-1794163871089681000/52471.jsonl",
+      "pids": [
+        52471
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52472-1794163871357595000/52472.jsonl",
+      "pids": [
+        52472
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52473-1794163871617161000/52473.jsonl",
+      "pids": [
+        52473
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52475-1794163871875316000/52475.jsonl",
+      "pids": [
+        52475
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52476-1794163872136499000/52476.jsonl",
+      "pids": [
+        52476
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52477-1794163872401881000/52477.jsonl",
+      "pids": [
+        52477
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52478-1794163872663775000/52478.jsonl",
+      "pids": [
+        52478
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52479-1794163872925533000/52479.jsonl",
+      "pids": [
+        52479
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52480-1794163873188544000/52480.jsonl",
+      "pids": [
+        52480
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52481-1794163873453394000/52481.jsonl",
+      "pids": [
+        52481
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52759-1794163902242819000/52759.jsonl",
+      "pids": [
+        52759
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52798-1794163902551969000/52798.jsonl",
+      "pids": [
+        52798
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52868-1794163903410814000/52868.jsonl",
+      "pids": [
+        52868
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52890-1794163903758703000/52890.jsonl",
+      "pids": [
+        52890
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-52910-1794163904066402000/52910.jsonl",
+      "pids": [
+        52910
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-54464-1794164079241041000/54464.jsonl",
+      "pids": [
+        54464
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-54466-1794164079639519000/54466.jsonl",
+      "pids": [
+        54466
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-54468-1794164079907364000/54468.jsonl",
+      "pids": [
+        54468
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-54469-1794164080191174000/54469.jsonl",
+      "pids": [
+        54469
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-54476-1794164080752805000/54476.jsonl",
+      "pids": [
+        54476
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55274-1794164194393040000/55274.jsonl",
+      "pids": [
+        55274
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55404-1794164212505985000/55404.jsonl",
+      "pids": [
+        55404
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55421-1794164213111463000/55421.jsonl",
+      "pids": [
+        55421
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55422-1794164213378199000/55422.jsonl",
+      "pids": [
+        55422
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55423-1794164213648886000/55423.jsonl",
+      "pids": [
+        55423
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55424-1794164214148430000/55424.jsonl",
+      "pids": [
+        55424
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55491-1794164246090230000/55491.jsonl",
+      "pids": [
+        55491
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55493-1794164246506234000/55493.jsonl",
+      "pids": [
+        55493
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55494-1794164246760565000/55494.jsonl",
+      "pids": [
+        55494
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55495-1794164247025547000/55495.jsonl",
+      "pids": [
+        55495
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55496-1794164247520564000/55496.jsonl",
+      "pids": [
+        55496
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55497-1794164247771581000/55497.jsonl",
+      "pids": [
+        55497
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55498-1794164248039311000/55498.jsonl",
+      "pids": [
+        55498
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55690.jsonl.gz",
+      "pids": [
+        55690
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55762.jsonl",
+      "pids": [
+        55762
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55766.jsonl",
+      "pids": [
+        55766
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55769.jsonl",
+      "pids": [
+        55769
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55802.jsonl",
+      "pids": [
+        55802
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/55803.jsonl",
+      "pids": [
+        55803
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55690-1794164294269981000/56803.jsonl",
+      "pids": [
+        56803
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55692-1794164297434147000/55692.jsonl",
+      "pids": [
+        55692
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55746-1794164304531492000/55746.jsonl",
+      "pids": [
+        55746
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55749-1794164305476535000/55749.jsonl",
+      "pids": [
+        55749
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55750-1794164306391599000/55750.jsonl",
+      "pids": [
+        55750
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55754-1794164310671272000/55754.jsonl",
+      "pids": [
+        55754
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55755-1794164311321534000/55755.jsonl",
+      "pids": [
+        55755
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55756-1794164311928874000/55756.jsonl",
+      "pids": [
+        55756
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55757-1794164312552265000/55757.jsonl",
+      "pids": [
+        55757
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55758-1794164313167400000/55758.jsonl",
+      "pids": [
+        55758
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55760-1794164313758334000/55760.jsonl",
+      "pids": [
+        55760
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55763-1794164314784586000/55763.jsonl",
+      "pids": [
+        55763
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55797-1794164317581112000/55797.jsonl",
+      "pids": [
+        55797
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55799-1794164318200727000/55799.jsonl",
+      "pids": [
+        55799
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55800-1794164318865697000/55800.jsonl",
+      "pids": [
+        55800
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55801-1794164320876588000/55801.jsonl",
+      "pids": [
+        55801
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55885-1794164332071339000/55885.jsonl",
+      "pids": [
+        55885
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-55886-1794164332492371000/55886.jsonl.gz",
+      "pids": [
+        55886
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56044-1794164337694263000/56044.jsonl",
+      "pids": [
+        56044
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56149-1794164338533174000/56149.jsonl",
+      "pids": [
+        56149
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56174-1794164338818119000/56174.jsonl",
+      "pids": [
+        56174
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56207-1794164339308555000/56207.jsonl",
+      "pids": [
+        56207
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56249-1794164339914425000/56249.jsonl",
+      "pids": [
+        56249
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56282-1794164340399658000/56282.jsonl",
+      "pids": [
+        56282
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56317-1794164340934232000/56317.jsonl",
+      "pids": [
+        56317
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56336-1794164341205795000/56336.jsonl",
+      "pids": [
+        56336
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56344-1794164341481389000/56344.jsonl",
+      "pids": [
+        56344
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56355-1794164341800964000/56355.jsonl",
+      "pids": [
+        56355
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56430-1794164343404274000/56430.jsonl",
+      "pids": [
+        56430
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56446-1794164343672497000/56446.jsonl",
+      "pids": [
+        56446
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56462-1794164343940838000/56462.jsonl",
+      "pids": [
+        56462
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56480-1794164344244533000/56480.jsonl",
+      "pids": [
+        56480
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56571-1794164345770637000/56571.jsonl",
+      "pids": [
+        56571
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56588-1794164346041128000/56588.jsonl",
+      "pids": [
+        56588
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56604-1794164346310535000/56604.jsonl",
+      "pids": [
+        56604
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56622-1794164346615380000/56622.jsonl",
+      "pids": [
+        56622
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56717-1794164348162988000/56717.jsonl",
+      "pids": [
+        56717
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56746-1794164348649117000/56746.jsonl",
+      "pids": [
+        56746
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56779-1794164349211864000/56779.jsonl",
+      "pids": [
+        56779
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56822-1794164349941469000/56822.jsonl",
+      "pids": [
+        56822
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56839-1794164350211876000/56839.jsonl",
+      "pids": [
+        56839
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56856-1794164350500346000/56856.jsonl",
+      "pids": [
+        56856
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56889-1794164351034677000/56889.jsonl",
+      "pids": [
+        56889
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56905-1794164351306279000/56905.jsonl",
+      "pids": [
+        56905
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56923-1794164351595292000/56923.jsonl",
+      "pids": [
+        56923
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56967-1794164352388228000/56967.jsonl",
+      "pids": [
+        56967
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-56986-1794164352698628000/56986.jsonl",
+      "pids": [
+        56986
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57005-1794164353045239000/57005.jsonl",
+      "pids": [
+        57005
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57025-1794164353380336000/57025.jsonl",
+      "pids": [
+        57025
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57272-1794164359669211000/57272.jsonl",
+      "pids": [
+        57272
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57273-1794164359929513000/57273.jsonl",
+      "pids": [
+        57273
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57274-1794164360369371000/57274.jsonl",
+      "pids": [
+        57274
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57275-1794164360657910000/57275.jsonl",
+      "pids": [
+        57275
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57285-1794164361538168000/57285.jsonl",
+      "pids": [
+        57285
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57286-1794164361846145000/57286.jsonl",
+      "pids": [
+        57286
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57326-1794164363172308000/57326.jsonl",
+      "pids": [
+        57326
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57344-1794164363530014000/57344.jsonl",
+      "pids": [
+        57344
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57367-1794164364044594000/57367.jsonl",
+      "pids": [
+        57367
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57370-1794164364374308000/57370.jsonl",
+      "pids": [
+        57370
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57381-1794164365784323000/57381.jsonl",
+      "pids": [
+        57381
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57383-1794164366058917000/57383.jsonl",
+      "pids": [
+        57383
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57384-1794164366357241000/57384.jsonl",
+      "pids": [
+        57384
+      ],
+      "guard_installed": true,
+      "exit_audit_present": false,
+      "violations": 0,
+      "malformed_lines": 0,
+      "pids_currently_present": []
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57387-1794164366640417000/57387.jsonl",
+      "pids": [
+        57387
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57389-1794164366923848000/57389.jsonl",
+      "pids": [
+        57389
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57390-1794164367207951000/57390.jsonl",
+      "pids": [
+        57390
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57393-1794164367500338000/57393.jsonl",
+      "pids": [
+        57393
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57394-1794164367789986000/57394.jsonl",
+      "pids": [
+        57394
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57395-1794164368079590000/57395.jsonl",
+      "pids": [
+        57395
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57398-1794164368352655000/57398.jsonl",
+      "pids": [
+        57398
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57399-1794164368614817000/57399.jsonl",
+      "pids": [
+        57399
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57628-1794164397251995000/57628.jsonl",
+      "pids": [
+        57628
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57629-1794164397518641000/57629.jsonl",
+      "pids": [
+        57629
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57630-1794164398345850000/57630.jsonl",
+      "pids": [
+        57630
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57631-1794164398636822000/57631.jsonl",
+      "pids": [
+        57631
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/sdk-57632-1794164398918439000/57632.jsonl",
+      "pids": [
+        57632
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/unbound/54790.jsonl",
+      "pids": [
+        54790
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    },
+    {
+      "archive": "source-runner/origin-logs/unbound/54989.jsonl",
+      "pids": [
+        54989
+      ],
+      "guard_installed": true,
+      "exit_audit_present": true,
+      "violations": 0,
+      "malformed_lines": 0
+    }
+  ]
+}

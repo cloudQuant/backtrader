@@ -1,0 +1,26 @@
+...F
+=================================== FAILURES ===================================
+_______________ test_three_public_ports_share_one_strategy_owner _______________
+tests/integration/test_iter63_strategy_read_session.py:464: in test_three_public_ports_share_one_strategy_owner
+    session, account_settings, market_settings, keys = _triple_session(triple_service)
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_iter63_strategy_read_session.py:390: in _triple_session
+    config = parse_client_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:460: in parse_client_config
+    parsed = _parse_client_block(client_raw, role, client_name, f"$.clients[{index}]")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:633: in _parse_client_block
+    bindings = [
+bt_api_py/service_config.py:634: in <listcomp>
+    _parse_binding(binding, role, f"{path}.settings.bindings[{index}]")
+bt_api_py/service_config.py:689: in _parse_binding
+    _fail("FIELD_NOT_ALLOWED", path)
+bt_api_py/service_config.py:1479: in _fail
+    raise ServiceConfigError(code, path)
+E   bt_api_py.service_config.ServiceConfigError: FIELD_NOT_ALLOWED at $.clients[0].settings.bindings[2]
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_strategy_read_session.py::test_three_public_ports_share_one_strategy_owner
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 3 passed in 0.71s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q -x tests/integration/test_iter63_strategy_read_session.py` failed. (See above for error)

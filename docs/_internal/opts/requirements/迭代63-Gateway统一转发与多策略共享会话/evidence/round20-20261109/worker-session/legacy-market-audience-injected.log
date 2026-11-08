@@ -1,0 +1,12 @@
+F
+=================================== FAILURES ===================================
+_____________________ test_legacy_audience_leak_diagnostic _____________________
+tests/integration/test_iter63_strategy_read_session.py:762: in test_legacy_audience_leak_diagnostic
+    assert not received_b, f"unauthorized B received {len(received_b)} market frame(s)"
+E   AssertionError: unauthorized B received 2 market frame(s)
+E   assert not [[b'\x83\xa8contract\xd9@016d86d425a35efe192aabc9f1ab3972840109761956d7d0ef08f61f0c2e619c\xa6header\x8e\xaecorrelation...ype\xa4spot\xa8provider\xa9synthetic\xa5venue\xa8loopback\xaasource_ref\xb8iter60-revocation-source\xa9timeframe\xc0']]
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_strategy_read_session.py::test_legacy_audience_leak_diagnostic
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 1.06s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q -x tests/integration/test_iter63_strategy_read_session.py::test_legacy_audience_leak_diagnostic` failed. (See above for error)

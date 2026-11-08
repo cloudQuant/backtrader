@@ -1,0 +1,13 @@
+F401 [*] `bt_api_base.account_protocol.AccountResourceKey` imported but unused
+  --> bt_api_py/service_components.py:29:42
+   |
+27 | from typing import TYPE_CHECKING, Any, Final, Protocol
+28 |
+29 | from bt_api_base.account_protocol import AccountResourceKey
+   |                                          ^^^^^^^^^^^^^^^^^^
+30 | from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
+   |
+help: Remove unused import: `bt_api_base.account_protocol.AccountResourceKey`
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "-m",
+    "ruff",
+    "check",
+    "--select",
+    "E9,F",
+    "bt_api_py/gateway_direct_service.py",
+    "bt_api_py/gateway_strategy_account.py",
+    "bt_api_py/gateway_strategy_client.py",
+    "bt_api_py/gateway_strategy_market.py",
+    "bt_api_py/service_components.py",
+    "bt_api_py/service_config.py",
+    "bt_api_py/service_host.py",
+    "bt_api_py/service_registry.py",
+    "bt_api_py/service_runtime_thread.py",
+    "tests/integration/test_iter63_strategy_read_session.py",
+    "tests/unit/test_gateway_strategy_account.py",
+    "tests/unit/test_gateway_strategy_market.py",
+    "tests/unit/test_iter63_trading_market_component.py",
+    "tests/unit/test_service_runtime_thread_owner.py",
+    "tests/unit/test_service_account_views_integration.py"
+  ],
+  "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+  "exit_code": 1,
+  "file_count": 15
+}

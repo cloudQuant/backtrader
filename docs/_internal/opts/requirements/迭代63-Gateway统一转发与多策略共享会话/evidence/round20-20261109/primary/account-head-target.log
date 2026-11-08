@@ -1,0 +1,27 @@
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r20-primary/account-target-selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+ERROR: found no collectors for /Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_account_views_integration.py::test_spawned_curve_consumers_receive_only_their_durable_account_views
+
+
+==================================== ERRORS ====================================
+____ ERROR collecting tests/unit/test_service_account_views_integration.py _____
+ImportError while importing test module '/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_service_account_views_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/test_service_account_views_integration.py:37: in <module>
+    from bt_api_py.service_account_consumer import ServiceAccountConsumer
+/tmp/iter63-r20-primary/account-head/bootstrap/origin_guard.py:45: in find_spec
+    raise ImportError('module outside declared source: '+fullname)
+E   ImportError: module outside declared source: bt_api_py
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/unit/test_service_account_views_integration.py
+1 warning, 1 error in 0.08s
+SOURCE_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r20-primary/account-head/run.py` failed. (See above for error)

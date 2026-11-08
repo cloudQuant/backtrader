@@ -1,0 +1,21 @@
+F
+=================================== FAILURES ===================================
+_____________________ test_legacy_audience_leak_diagnostic _____________________
+tests/integration/test_iter63_strategy_read_session.py:716: in test_legacy_audience_leak_diagnostic
+    triple_service[6](legacy_acl=True)
+tests/integration/test_iter63_strategy_read_session.py:372: in start
+    assert response == ("ready", None), response
+E   AssertionError: ('error', 'ServiceHostError', 'Traceback (most recent call last):
+E       File "/Users/yunjinqi/Documents/new_projects/bt_a...rviceHostError("MARKET_HUB_AUDIENCE_INVALID")
+E     bt_api_py.service_host.ServiceHostError: MARKET_HUB_AUDIENCE_INVALID
+E     ')
+E   assert ('error', 'Se...CE_INVALID\n') == ('ready', None)
+E     
+E     At index 0 diff: 'error' != 'ready'
+E     Left contains one more item: 'Traceback (most recent call last):\n  File "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_i...erviceHostError("MARKET_HUB_AUDIENCE_INVALID")\nbt_api_py.service_host.ServiceHostError: MARKET_HUB_AUDIENCE_INVALID\n'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_strategy_read_session.py::test_legacy_audience_leak_diagnostic
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed in 0.74s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q -x tests/integration/test_iter63_strategy_read_session.py::test_legacy_audience_leak_diagnostic` failed. (See above for error)

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/tmp/iter63-r20-install-20261109-x3vllCQQ/capture_editable_deps.py", line 33, in <module>
+    if blob.returncode or hashlib.sha256(blob.stdout).hexdigest()!=digest: raise RuntimeError(('editable working tree differs from commit',relative))
+                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: ('editable working tree differs from commit', 'src/bt_api_monitor/__init__.py')
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r20-install-20261109-x3vllCQQ/capture_editable_deps.py` failed. (See above for error)

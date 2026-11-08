@@ -1,0 +1,25 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [
+      "bt_api_py/gateway_strategy_account.py",
+      "bt_api_py/gateway_strategy_market.py"
+    ],
+    "bt": []
+  },
+  "tests": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [
+      "tests/unit/test_service_runtime_thread_owner.py",
+      "tests/unit/test_gateway_strategy_account.py",
+      "tests/unit/test_gateway_strategy_market.py",
+      "tests/unit/test_iter63_trading_market_component.py",
+      "tests/integration/test_iter63_strategy_read_session.py"
+    ],
+    "bt": []
+  }
+}

@@ -1,0 +1,19 @@
+...................F.................................................... [ 52%]
+..................................................................       [100%]
+=================================== FAILURES ===================================
+______________ test_read_only_port_cannot_construct_trading_owner ______________
+tests/unit/test_iter63_gateway_dual_ports.py:161: in test_read_only_port_cannot_construct_trading_owner
+    parsed = parse_service_config(raw)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:542: in parse_service_config
+    parsed, role = _parse_component(component_name, component_raw)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:1002: in _parse_component
+    _fail("PORT_ROLE_MISMATCH", f"{path}.settings.bind_ports")
+bt_api_py/service_config.py:1479: in _fail
+    raise ServiceConfigError(code, path)
+E   bt_api_py.service_config.ServiceConfigError: PORT_ROLE_MISMATCH at $.components.gateway.settings.bind_ports
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_gateway_dual_ports.py::test_read_only_port_cannot_construct_trading_owner
+1 failed, 137 passed in 3.05s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/test_iter63_trading_market_component.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_gateway_cancel_profile.py tests/unit/test_service_config.py tests/unit/test_service_host.py tests/unit/test_service_market_topic_v2_integration.py -q` failed. (See above for error)

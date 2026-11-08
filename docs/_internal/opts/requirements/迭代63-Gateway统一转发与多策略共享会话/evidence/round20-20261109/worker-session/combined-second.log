@@ -1,0 +1,27 @@
+............................................................F........... [ 66%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+_________ test_domain_only_host_excludes_other_account_from_publisher __________
+tests/unit/test_iter63_trading_market_component.py:494: in test_domain_only_host_excludes_other_account_from_publisher
+    host.start()
+bt_api_py/service_host.py:844: in start
+    component = build_component(
+bt_api_py/service_components.py:2063: in build_component
+    on_resources(resources)
+bt_api_py/service_host.py:848: in <lambda>
+    on_resources=lambda resource, prepared_item=item: self._track_resources(
+bt_api_py/service_host.py:2268: in _track_resources
+    self._validate_market_hub_audience(hub, frozenset(publisher_principals.values()))
+bt_api_py/service_host.py:2415: in _validate_market_hub_audience
+    raise ServiceHostError("MARKET_HUB_AUDIENCE_INVALID")
+E   bt_api_py.service_host.ServiceHostError: MARKET_HUB_AUDIENCE_INVALID
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_trading_market_component.py::test_domain_only_host_excludes_other_account_from_publisher
+1 failed, 108 passed, 1 warning in 8.76s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q tests/unit/test_service_runtime_thread_owner.py tests/unit/test_gateway_strategy_account.py tests/unit/test_gateway_strategy_market.py tests/unit/test_iter63_trading_market_component.py tests/unit/test_iter63_gateway_strategy_client.py tests/integration/test_iter63_strategy_read_session.py tests/integration/test_iter63_gateway_strategy_client.py` failed. (See above for error)

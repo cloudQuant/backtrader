@@ -1,0 +1,66 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "d1394e58909826c8f1eb90e981f6660e5ee310f4479011897cdb30a9e1b81534"
+  },
+  {
+    "path": "bt_api_py/gateway_direct_service.py",
+    "sha256": "711f85618e96d4e4d34849d06ced090be2bb8063b969afe1d9621e49829d87dd"
+  },
+  {
+    "path": "bt_api_py/gateway_strategy_account.py",
+    "sha256": "000fde72061f81ac30b8771f54fedbda2fa4a105716b9f4c6038d320b546f700"
+  },
+  {
+    "path": "bt_api_py/gateway_strategy_client.py",
+    "sha256": "449df711cbc9eb408f6644acd7970ddcde0f1375a7dda2b17298bc640fb4253f"
+  },
+  {
+    "path": "bt_api_py/gateway_strategy_market.py",
+    "sha256": "afd18a5415e19e397d7ad0129bbacb52e1b2403d6b4cd2ed6c9df9a16741ed58"
+  },
+  {
+    "path": "bt_api_py/service_components.py",
+    "sha256": "6646d617e51d6d16f2021d5b29ec263011f4757550409b5565d14e82a54eebc9"
+  },
+  {
+    "path": "bt_api_py/service_config.py",
+    "sha256": "96511080ed4e5e80a09405474d632ab9805fece60d59c70e068868fb166a1fbf"
+  },
+  {
+    "path": "bt_api_py/service_host.py",
+    "sha256": "c49210f154a8bd82917f98f79af72850d9ba4758aa138bc0ed0d62d7ffad7ab8"
+  },
+  {
+    "path": "bt_api_py/service_registry.py",
+    "sha256": "1bec2857b45cc587aeb85d2a540750eede0bb3f46912abba9cac57f235c8c163"
+  },
+  {
+    "path": "bt_api_py/service_runtime_thread.py",
+    "sha256": "11b8a7d8da29744471849e1ada33c2688817b45bd4cd6fce21ff8db970969095"
+  },
+  {
+    "path": "tests/integration/test_iter63_strategy_read_session.py",
+    "sha256": "dd5c3029732d3464e2107b5a3151ce87b8446552b744a9a3ede1dcf9c2668c5f"
+  },
+  {
+    "path": "tests/unit/test_gateway_strategy_account.py",
+    "sha256": "da6bd5c34f38fe809580f9cf146b30ab1692f3305352d83c2ad4892191775b80"
+  },
+  {
+    "path": "tests/unit/test_gateway_strategy_market.py",
+    "sha256": "c32b77b0d0b0df2179a9b4f3c573aaee770058c12ec1855177d2679462f1355d"
+  },
+  {
+    "path": "tests/unit/test_iter63_trading_market_component.py",
+    "sha256": "afa293e21946a8f80e4055c0dce30281a36c0edede38702fe78130f704db5118"
+  },
+  {
+    "path": "tests/unit/test_service_runtime_thread_owner.py",
+    "sha256": "a8839c6af07fa0eafd2949f6056628cb599d70e9a1879f2c03178dc33e1f4116"
+  },
+  {
+    "path": "tests/unit/test_service_account_views_integration.py",
+    "sha256": "2412eafddf6216081be566bfd4e05f1928d0c54948e75fccfb74035b268e848b"
+  }
+]

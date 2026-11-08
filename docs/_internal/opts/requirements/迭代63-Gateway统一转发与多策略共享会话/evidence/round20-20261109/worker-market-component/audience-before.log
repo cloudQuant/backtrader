@@ -1,0 +1,65 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+______ test_trading_market_publisher_rejects_ungranted_audience[instance] ______
+tests/unit/test_iter63_trading_market_component.py:335: in test_trading_market_publisher_rejects_ungranted_audience
+    host.start()
+bt_api_py/service_host.py:655: in start
+    raise ServiceHostError("AUTHORITY_GRANTS_INVALID") from None
+E   bt_api_py.service_host.ServiceHostError: AUTHORITY_GRANTS_INVALID
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'MARKET_HUB_AUDIENCE_INVALID'
+E    Input: 'AUTHORITY_GRANTS_INVALID'
+_____ test_trading_market_publisher_rejects_ungranted_audience[scope_ref] ______
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   Failed: DID NOT RAISE <class 'bt_api_py.service_host.ServiceHostError'>
+________ test_trading_market_publisher_rejects_ungranted_audience[port] ________
+tests/unit/test_iter63_trading_market_component.py:335: in test_trading_market_publisher_rejects_ungranted_audience
+    host.start()
+bt_api_py/service_host.py:655: in start
+    raise ServiceHostError("AUTHORITY_GRANTS_INVALID") from None
+E   bt_api_py.service_host.ServiceHostError: AUTHORITY_GRANTS_INVALID
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'MARKET_HUB_AUDIENCE_INVALID'
+E    Input: 'AUTHORITY_GRANTS_INVALID'
+_____ test_trading_market_publisher_rejects_ungranted_audience[operation] ______
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   Failed: DID NOT RAISE <class 'bt_api_py.service_host.ServiceHostError'>
+_______ test_trading_market_publisher_rejects_ungranted_audience[domain] _______
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   Failed: DID NOT RAISE <class 'bt_api_py.service_host.ServiceHostError'>
+______ test_trading_market_publisher_rejects_ungranted_audience[account] _______
+tests/unit/test_iter63_trading_market_component.py:326: in test_trading_market_publisher_rejects_ungranted_audience
+    hub = _hub(scope=authority.scope)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_iter63_trading_market_component.py:60: in _hub
+    return GatewayMarketHub(
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:327: in __init__
+    _validate_service_wire_scope(service_identity, service_scope)
+bt_api/bt_api_gateway/src/bt_api_gateway/market_hub.py:2006: in _validate_service_wire_scope
+    raise GatewayMarketHubError("MARKET_SERVICE_SCOPE_MUST_BE_PUBLIC")
+E   bt_api_gateway.market_hub.GatewayMarketHubError: MARKET_SERVICE_SCOPE_MUST_BE_PUBLIC
+_____ test_trading_market_publisher_rejects_ungranted_audience[extra_acl] ______
+tests/unit/test_iter63_trading_market_component.py:334: in test_trading_market_publisher_rejects_ungranted_audience
+    with pytest.raises(ServiceHostError, match="MARKET_HUB_AUDIENCE_INVALID"):
+E   Failed: DID NOT RAISE <class 'bt_api_py.service_host.ServiceHostError'>
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[instance]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[scope_ref]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[port]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[operation]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[domain]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[account]
+FAILED tests/unit/test_iter63_trading_market_component.py::test_trading_market_publisher_rejects_ungranted_audience[extra_acl]
+7 failed, 12 deselected in 0.90s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest tests/unit/test_iter63_trading_market_component.py -q -k ungranted_audience` failed. (See above for error)

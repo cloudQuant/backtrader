@@ -1,0 +1,4 @@
+GAP: test_service_market_monitor_import_isolated_from_domain_packages starts a Python -I -c child. -I ignores PYTHONPATH, so test bootstrap sitecustomize/origin/offline guards are not injected. The original test derives sdk_root from the copied test and explicitly inserts that path and its base src. Both paths are symlinks to the verified install target, as recorded in sdk-layout-manifest.json. A passing original assertion establishes the child exit code was 0 and its script-reported module path matched the installed layout; it does not establish independent child guard coverage.
+isolated_script_sha256=7b95ecb50e7425c2ceaa5e50f4b4b8ab18446aa24574f224cc3448118edf7c01
+copied_test_sha256=c8c17ad3da0853d31b6b9e40a492ee7bac5bd352ef395092723383b78f3e189d
+Source script is retained verbatim in the copied public test file for review.

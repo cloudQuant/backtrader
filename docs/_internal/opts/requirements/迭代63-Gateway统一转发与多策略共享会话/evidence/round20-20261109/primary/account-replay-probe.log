@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "<stdin>", line 26, in <module>
+AttributeError: 'GatewayEventJournal' object has no attribute 'close'
+ERROR conda.cli.main_run:execute(125): `conda run python -I -` failed. (See above for error)
