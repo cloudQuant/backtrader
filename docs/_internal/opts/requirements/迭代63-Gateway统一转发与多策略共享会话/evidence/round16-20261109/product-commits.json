@@ -1,0 +1,58 @@
+{
+  "base": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "branch": "dev",
+    "commit": "3fbb929d134b9ec2f27b9a51328b1386c3754b42",
+    "paths": [
+      "README.md",
+      "src/bt_api_base/gateway_cancel_protocol.py",
+      "tests/test_gateway_cancel_protocol.py"
+    ]
+  },
+  "ctp": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "branch": "dev",
+    "commit": "d4f4eac229ea0b24def05daa131e5318694b0f05",
+    "paths": [
+      "README.md",
+      "src/bt_api_ctp/direct_write_provider.py",
+      "tests/test_iter63_cancel_readiness.py"
+    ]
+  },
+  "gateway": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "branch": "dev",
+    "commit": "2df791be42f43179359f9828ffc0b3cde37d38fe",
+    "paths": [
+      "README.md",
+      "src/bt_api_gateway/direct_cancel_journal.py",
+      "tests/test_iter63_direct_cancel_journal.py"
+    ]
+  },
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "19b6f8624978ab9b892ec2e90aa72bbf54778d37",
+    "paths": [
+      "README.md",
+      "bt_api_py/ctp_gateway_trading.py",
+      "bt_api_py/gateway_direct_client.py",
+      "bt_api_py/gateway_direct_owner.py",
+      "bt_api_py/gateway_direct_service.py",
+      "bt_api_py/gateway_operator.py",
+      "bt_api_py/service_components.py",
+      "bt_api_py/service_config.py",
+      "bt_api_py/service_registry.py",
+      "bt_api_py/service_runtime.py",
+      "tests/integration/test_iter63_gateway_operator_trading_owner.py",
+      "tests/integration/test_iter63_gateway_cancel_rpc.py",
+      "tests/unit/test_iter63_gateway_cancel_admission.py",
+      "tests/unit/test_iter63_gateway_cancel_client.py",
+      "tests/unit/test_iter63_gateway_cancel_profile.py",
+      "tests/unit/test_iter63_gateway_cancel_service.py",
+      "bt_api/bt_api_base",
+      "bt_api/bt_api_ctp",
+      "bt_api/bt_api_gateway"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+F401 [*] `.service_runtime.ServiceClientRuntime` imported but unused
+  --> bt_api_py/gateway_operator.py:32:30
+   |
+30 | from .service_config import ServiceConfig
+31 | from .service_host import ServiceHost, TrustedServiceAuthority, TrustedServiceClients
+32 | from .service_runtime import ServiceClientRuntime
+   |                              ^^^^^^^^^^^^^^^^^^^^
+33 |
+34 | _SAFE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+   |
+help: Remove unused import: `.service_runtime.ServiceClientRuntime`
+
+F401 [*] `bt_api_base.account_protocol.AccountResourceKey` imported but unused
+  --> bt_api_py/service_components.py:29:42
+   |
+27 | from typing import TYPE_CHECKING, Any, Final, Protocol
+28 |
+29 | from bt_api_base.account_protocol import AccountResourceKey
+   |                                          ^^^^^^^^^^^^^^^^^^
+30 | from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
+   |
+help: Remove unused import: `bt_api_base.account_protocol.AccountResourceKey`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --select E9,F bt_api_py/service_registry.py bt_api_py/gateway_direct_service.py bt_api_py/gateway_direct_client.py bt_api_py/gateway_direct_owner.py bt_api_py/service_components.py bt_api_py/service_runtime.py bt_api_py/service_config.py bt_api_py/gateway_operator.py bt_api_py/ctp_gateway_trading.py tests/unit/test_iter63_gateway_cancel_admission.py tests/unit/test_iter63_gateway_cancel_client.py tests/unit/test_iter63_gateway_cancel_service.py tests/unit/test_iter63_gateway_cancel_profile.py tests/integration/test_iter63_gateway_cancel_rpc.py tests/integration/test_iter63_gateway_operator_trading_owner.py` failed. (See above for error)

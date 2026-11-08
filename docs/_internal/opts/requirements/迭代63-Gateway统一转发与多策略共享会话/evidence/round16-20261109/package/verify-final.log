@@ -1,0 +1,21 @@
+REBUILT bt_api_base /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_base/__init__.py 0.16.0.dev63 PY_COUNT 166 README_SHA256 64a75ba395c6acb845cc2a465e7d72d7dadaa9ae3a124e93ee00d2f858161e36
+REBUILT bt_api_gateway /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_gateway/__init__.py 0.2.0.dev63 PY_COUNT 25 README_SHA256 98f830fcc9e3e747c580a0df0593fa2edc8298df9690245f2855cf170d6a2999
+REBUILT bt_api_ctp /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_ctp/__init__.py 2.1.0.dev63 PY_COUNT 176 README_SHA256 0c49fc89c7c447e2d1658313937579d0223799557a9c188797c16467a1c8d09c
+REBUILT bt_api_py /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_py/__init__.py 0.16.0.dev63 PY_COUNT 289 README_SHA256 cdb835e820d490e7e1f4a4012ef4cf0e8a9380792c142d71fa31ccb2b0ffe9ec
+FIXED backtrader /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/backtrader/__init__.py 1.4.0 677 458945e6b3b218f797a16b5e92df4da6f804f9646f5e20569bd2ec5ab0da4c42
+FIXED bt_api_okx /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_okx/__init__.py 0.16.0.dev63 100 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+FIXED bt_api_binance /private/tmp/iter63-r16-install-20261109-IKmdXERW/install/src/bt_api_binance/__init__.py 2.1.0.dev63 86 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+MANIFEST_SHA_MATCH source-manifest.json 756
+MANIFEST_SHA_MATCH test-manifest.json 125
+EXTERNAL_EDITABLE_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+WHEEL_SHA256 back_trader_python-1.4.0-py3-none-any.whl 458945e6b3b218f797a16b5e92df4da6f804f9646f5e20569bd2ec5ab0da4c42
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 16561520b6afe5d384e6b006ebb62e867099ff1cb94a1787c652506fb6e688a2
+WHEEL_SHA256 bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl 3569c7b142df073bff144abd7944aac73907d207615139418d88f8813d584462
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl 80e95a6eac9e26d7431131a919743d4352d1d2a2643b4b4942730d924173259e
+WHEEL_SHA256 bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl 969a67ec4d3fbc793b9290487a2162e493e8d661b2d8aa7b7cabe4511ebc34b1
+CTP_TEST_RELOCATION_SHA_MATCH
+CTP_FRESH_BUILD_EXTENSION_SHA256 b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5
+CTP_FRESH_BUILD_OBJECT_SHA256 024a25d32b1efb1c023b26d57d61bd9b152eca443e0d31f2c4b7a4e1c48b75a9
+NO_FULL_RESOLVER_NO_ACCOUNT_CONNECTIONS

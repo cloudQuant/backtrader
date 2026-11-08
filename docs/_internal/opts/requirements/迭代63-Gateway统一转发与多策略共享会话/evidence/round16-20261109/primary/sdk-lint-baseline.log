@@ -1,0 +1,26 @@
+F401 [*] `.service_runtime.ServiceClientRuntime` imported but unused
+  --> /tmp/iter63-r16-primary/lint-baseline/gateway_operator.py:32:30
+   |
+30 | from .service_config import ServiceConfig
+31 | from .service_host import ServiceHost, TrustedServiceAuthority, TrustedServiceClients
+32 | from .service_runtime import ServiceClientRuntime
+   |                              ^^^^^^^^^^^^^^^^^^^^
+33 |
+34 | _SAFE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+   |
+help: Remove unused import: `.service_runtime.ServiceClientRuntime`
+
+F401 [*] `bt_api_base.account_protocol.AccountResourceKey` imported but unused
+  --> /tmp/iter63-r16-primary/lint-baseline/service_components.py:29:42
+   |
+27 | from typing import TYPE_CHECKING, Any, Final, Protocol
+28 |
+29 | from bt_api_base.account_protocol import AccountResourceKey
+   |                                          ^^^^^^^^^^^^^^^^^^
+30 | from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
+   |
+help: Remove unused import: `bt_api_base.account_protocol.AccountResourceKey`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+ERROR conda.cli.main_run:execute(125): `conda run python -m ruff check --select E9,F /tmp/iter63-r16-primary/lint-baseline` failed. (See above for error)

@@ -1,0 +1,9 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r16-install-20261109-IKmdXERW/origin-logs/base-10242-1794156009220415000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION extension blocked
+........................................................................ [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 75%]
+.....................................................................    [100%]
+285 passed in 0.18s
+PARENT_ORIGIN_AUDIT_OK

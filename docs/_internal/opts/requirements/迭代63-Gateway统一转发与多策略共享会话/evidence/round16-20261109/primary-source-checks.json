@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-09",
+  "status": "LOCAL_RPC_SLICE_PASS_ITERATION_IN_PROGRESS",
+  "source": {
+    "base": {
+      "passed": 285,
+      "seconds": 0.19
+    },
+    "gateway": {
+      "passed": 756,
+      "seconds": 10.38
+    },
+    "ctp": {
+      "passed": 918,
+      "seconds": 19.14
+    },
+    "sdk": {
+      "passed": 771,
+      "seconds": 24.74
+    }
+  },
+  "installed": {
+    "base": {
+      "passed": 285,
+      "seconds": 0.18
+    },
+    "gateway": {
+      "passed": 756,
+      "seconds": 11.32
+    },
+    "ctp": {
+      "passed": 918,
+      "seconds": 19.98
+    },
+    "sdk": {
+      "passed": 771,
+      "seconds": 26.14
+    }
+  },
+  "selectors": {
+    "base_files": 6,
+    "gateway": "all tests",
+    "ctp_selectors": 25,
+    "sdk_files": 41
+  },
+  "source_manifest_rows": 756,
+  "test_manifest_rows": 125,
+  "package_verifier": "PASS",
+  "commit_verifier": "PASS",
+  "lint": {
+    "base": "E9/F PASS",
+    "ctp": "E9/F PASS",
+    "gateway": "E9/F PASS",
+    "sdk": "E9/F FAIL: two existing F401 reproduced on HEAD files; no new diagnostic"
+  },
+  "limits": [
+    "Synthetic provider and loopback only; no account calls",
+    "Gateway 8 children lack exit origin audit; no recorded violations",
+    "ZMQ external editable; no full dependency resolution",
+    "No Windows PowerShell 5.1 or cross-platform verification",
+    "Independent Gateway process test uses a synthetic native cancel endpoint",
+    "CTP asynchronous cancellation error attribution and BT persistent cancel host remain incomplete",
+    "Worker initial operator options expectation failure was observed in tool output but no separate raw log file was saved"
+  ]
+}
