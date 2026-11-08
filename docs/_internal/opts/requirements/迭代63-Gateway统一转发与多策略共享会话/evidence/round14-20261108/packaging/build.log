@@ -1,0 +1,23 @@
+Processing /tmp/iter63-r14-packaging-B7Rre1rO/source/base
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r14-packaging-B7Rre1rO/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r14-packaging-B7Rre1rO/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_base, bt_api_gateway, bt_api_py
+  Building wheel for bt_api_base (pyproject.toml): started
+  Building wheel for bt_api_base (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_base: filename=bt_api_base-0.16.0.dev63-py3-none-any.whl size=366507 sha256=beb681c511dab49d2963d7bf9a8213555fd9d943d2e46656506637bf740079c8
+  Stored in directory: /private/tmp/iter63-r14-packaging-B7Rre1rO/tmp/pip-ephem-wheel-cache-88k231sj/wheels/30/66/57/a679d6b3b6ceb4ddf40d5a9b3f051d17501bec789bf2196e74
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=178301 sha256=06d176f21a3b8ec6f612321b9b4a42f5636afc0c18c60e378887a6bdec70d927
+  Stored in directory: /private/tmp/iter63-r14-packaging-B7Rre1rO/tmp/pip-ephem-wheel-cache-88k231sj/wheels/c2/6a/1e/3166ffc55340732a32e09f698f51adda71b898c0e673726b85
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2068029 sha256=8ff6ebea4afa64cb7a1d3f615ed6e708bc48d14ae320bb641ee73806130adec3
+  Stored in directory: /private/tmp/iter63-r14-packaging-B7Rre1rO/tmp/pip-ephem-wheel-cache-88k231sj/wheels/23/d2/08/a7ab24cc985fe16fc13b8b7e237cabffc1afc6a3976e427b86
+Successfully built bt_api_base bt_api_gateway bt_api_py

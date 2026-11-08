@@ -1,0 +1,37 @@
+{
+  "status": "PASS_LOCAL_SLICE_ONLY",
+  "source": {
+    "base": {
+      "passed": 225,
+      "seconds": 0.35
+    },
+    "gateway": {
+      "passed": 731,
+      "seconds": 10.36
+    },
+    "sdk": {
+      "passed": 522,
+      "seconds": 18.91,
+      "selector_file": "iter63-r14-primary-sdk-selectors.json"
+    }
+  },
+  "installed": {
+    "base": 225,
+    "gateway": 731,
+    "sdk": 522
+  },
+  "commit_blob_verify_rc": 0,
+  "source_manifest_count": 500,
+  "test_manifest_count": 79,
+  "gateway_missing_child_exit_audits": 8,
+  "limits": [
+    "SDK is selected 29 files, not full suite",
+    "synthetic provider and commands only",
+    "client runtimes share test parent process",
+    "external editable ZMQ disclosed",
+    "full resolver NOT_RUN",
+    "cross-platform NOT_RUN",
+    "account calls NOT_RUN",
+    "existing SDK service_components F401 OPEN"
+  ]
+}

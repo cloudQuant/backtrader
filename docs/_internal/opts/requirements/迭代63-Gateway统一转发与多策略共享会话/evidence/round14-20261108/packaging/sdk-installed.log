@@ -1,0 +1,56 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r14-packaging-B7Rre1rO/origin-logs/sdk-87791-1794151942965614000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION loaded for structs/measurement
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r14-packaging-B7Rre1rO/install/src/bt_api_binance/__init__.py
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 41%]
+........................................................................ [ 55%]
+........................................................................ [ 68%]
+...........................................................F............ [ 82%]
+........................................................................ [ 96%]
+..................                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_import_does_not_load_gateway_dispatcher_or_native_provider ________
+
+    def test_import_does_not_load_gateway_dispatcher_or_native_provider():
+        import subprocess
+        import sys
+    
+        # bt_api_py.__init__ currently imports a pure CTP credential-binding type
+        # module; this check concerns providers, loaders and local write assembly.
+        code = (
+            "import sys; import bt_api_py.gateway_direct_client; "
+            "assert not any(x.startswith(('bt_api_gateway', 'bt_api_ctp', "
+            "'bt_api_py.gateway_direct_dispatch', 'bt_api_py.direct_write', 'bt_api_okx', "
+            "'bt_api_binance', 'backtrader_runtime._ctp_credential_binding')) for x in sys.modules)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, check=False
+        )
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 1, in <module>
+E         AssertionError
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '-c', "import sys; import bt_api_py.gateway_direct_...de=1, stdout='', stderr='Traceback (most recent call last):\n  File "<string>", line 1, in <module>\nAssertionError\n').returncode
+
+tests/unit/test_iter63_gateway_direct_client.py:534: AssertionError
+=============================== warnings summary ===============================
+tests/integration/test_service_account_instrument_metadata.py:318
+  /private/tmp/iter63-r14-packaging-B7Rre1rO/sdk-tests/tests/integration/test_service_account_instrument_metadata.py:318: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter63_gateway_direct_client.py::test_import_does_not_load_gateway_dispatcher_or_native_provider
+1 failed, 521 passed, 1 warning in 19.71s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r14-packaging-B7Rre1rO/run_installed.py` failed. (See above for error)

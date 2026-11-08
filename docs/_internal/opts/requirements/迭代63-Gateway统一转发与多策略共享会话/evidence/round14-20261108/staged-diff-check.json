@@ -1,0 +1,6 @@
+{
+  "returncode": 2,
+  "stdout": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/iter63-r14-sdk-baseline-migration-barrier.log:39: trailing whitespace.\n+E     \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/iter63-r14-sdk-baseline-migration-barrier.log:48: trailing whitespace.\n+E     \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/iter63-r14-sdk-primary.log:14: trailing whitespace.\n+E     \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/iter63-r14-sdk-primary.log:49: trailing whitespace.\n+E     \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/iter63-r14-sdk-primary.log:58: trailing whitespace.\n+E     \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/packaging/sdk-installed.log:25: trailing whitespace.\n+    \ndocs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round14-20261108/packaging/sdk-installed.log:41: trailing whitespace.\n+E         \n",
+  "stderr": "",
+  "disposition": "7 trailing whitespace diagnostics in preserved raw failure logs; log bytes intentionally unchanged; owned Markdown diff check passed"
+}

@@ -1,0 +1,84 @@
+PYTHON /Users/yunjinqi/opt/anaconda3/bin/python
+ORIGIN bt_api_py.service_registry /private/tmp/iter63-r14-sdk-baseline-dveb4_lj/bt_api_py/service_registry.py
+ORIGIN bt_api_py.service_host /private/tmp/iter63-r14-sdk-baseline-dveb4_lj/bt_api_py/service_host.py
+ORIGIN bt_api_base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py
+ORIGIN bt_api_gateway /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/src/bt_api_gateway/__init__.py
+ORIGIN bt_api_ctp /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/__init__.py
+PYTEST 8.4.2
+FFFF.F...FFF                                                             [100%]
+=================================== FAILURES ===================================
+__________ test_registry_seals_write_attempt_before_mutating_handler ___________
+tests/unit/test_service_migration_write_barrier.py:174: in test_registry_seals_write_attempt_before_mutating_handler
+    assert response["ok"] is True
+E   assert False is True
+____ test_account_ack_is_cursor_write_attempt_even_without_write_capability ____
+tests/unit/test_service_migration_write_barrier.py:203: in test_account_ack_is_cursor_write_attempt_even_without_write_capability
+    assert response["ok"] is True
+E   assert False is True
+______ test_registry_never_substitutes_process_epoch_for_deployment_epoch ______
+tests/unit/test_service_migration_write_barrier.py:219: in test_registry_never_substitutes_process_epoch_for_deployment_epoch
+    registry = _registry(state, deployment_epoch=None)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_service_migration_write_barrier.py:94: in _registry
+    return ServiceRegistry(
+bt_api_py/service_registry.py:1350: in __init__
+    migration_snapshot = owned_migration_guard.__enter__()
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+bt_api_py/service_migration_gate.py:453: in migration_start_guard
+    _validate_start_epoch(marker, deployment_epoch)
+bt_api_py/service_migration_gate.py:480: in _validate_start_epoch
+    raise MigrationGateError(REFUSAL_REVERSE_MIGRATION_REFUSED)
+E   bt_api_py.service_migration_gate.MigrationGateError: REVERSE_MIGRATION_REFUSED
+___________ test_unreadable_marker_stat_denies_write_before_handler ____________
+tests/unit/test_service_migration_write_barrier.py:269: in test_unreadable_marker_stat_denies_write_before_handler
+    assert response == {"ok": False, "code": "UNAVAILABLE", "result": {}}
+E   AssertionError: assert {'code': 'MIG... 'result': {}} == {'code': 'UNA... 'result': {}}
+E     
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'code': 'MIGRATION_WRITE_DISABLED'} != {'code': 'UNAVAILABLE'}
+E     Use -v to get more diff
+_____ test_sealed_marker_reconfirms_durability_before_later_write_attempt ______
+tests/unit/test_service_migration_write_barrier.py:331: in test_sealed_marker_reconfirms_durability_before_later_write_attempt
+    assert first_response == {
+E   AssertionError: assert {'code': 'MIG... 'result': {}} == {'code': 'UNA... 'result': {}}
+E     
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'code': 'MIGRATION_WRITE_DISABLED'} != {'code': 'UNAVAILABLE'}
+E     Use -v to get more diff
+_____ test_host_gates_internal_analytics_task_maintenance_before_callback ______
+tests/unit/test_service_migration_write_barrier.py:465: in test_host_gates_internal_analytics_task_maintenance_before_callback
+    host._maintain_components()
+bt_api_py/service_host.py:2748: in _maintain_components
+    migration_writes_enabled = registry.migration_writes_enabled
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'migration_writes_enabled'
+___ test_host_fails_closed_before_internal_maintenance_without_stable_epoch ____
+tests/unit/test_service_migration_write_barrier.py:503: in test_host_fails_closed_before_internal_maintenance_without_stable_epoch
+    host._maintain_components()
+bt_api_py/service_host.py:2748: in _maintain_components
+    migration_writes_enabled = registry.migration_writes_enabled
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'migration_writes_enabled'
+__ test_host_seals_group_ownership_before_registry_claim_and_adapter_callback __
+tests/unit/test_service_migration_write_barrier.py:575: in test_host_seals_group_ownership_before_registry_claim_and_adapter_callback
+    host._maintain_components()
+bt_api_py/service_host.py:2748: in _maintain_components
+    migration_writes_enabled = registry.migration_writes_enabled
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'migration_writes_enabled'
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_migration_write_barrier.py::test_registry_seals_write_attempt_before_mutating_handler
+FAILED tests/unit/test_service_migration_write_barrier.py::test_account_ack_is_cursor_write_attempt_even_without_write_capability
+FAILED tests/unit/test_service_migration_write_barrier.py::test_registry_never_substitutes_process_epoch_for_deployment_epoch
+FAILED tests/unit/test_service_migration_write_barrier.py::test_unreadable_marker_stat_denies_write_before_handler
+FAILED tests/unit/test_service_migration_write_barrier.py::test_sealed_marker_reconfirms_durability_before_later_write_attempt
+FAILED tests/unit/test_service_migration_write_barrier.py::test_host_gates_internal_analytics_task_maintenance_before_callback
+FAILED tests/unit/test_service_migration_write_barrier.py::test_host_fails_closed_before_internal_maintenance_without_stable_epoch
+FAILED tests/unit/test_service_migration_write_barrier.py::test_host_seals_group_ownership_before_registry_claim_and_adapter_callback
+8 failed, 4 passed in 0.48s
+ERROR conda.cli.main_run:execute(125): `conda run python -` failed. (See above for error)

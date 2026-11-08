@@ -1,0 +1,774 @@
+{
+  "bom_strict_utf8_no_replacement": [
+    "分轮合同冻结稿-2026-11-08.md",
+    "开发问题记录.md",
+    "实施基线与分轮记录-2026-11-08.md",
+    "计划修改记录.md",
+    "archived/README.md",
+    "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md"
+  ],
+  "local_links": [
+    {
+      "document": "开发问题记录.md",
+      "target": "../../../../../scripts/diagnostics/iteration63_latefill_probe.py",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "evidence/round01-20261108/latefill-synthetic.json",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第四轮派发线程与授权审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第六轮结算与日志升级审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第五轮客户端与结算回读审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "evidence/round07-20261108/component-close-false-probe.json",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第七轮单一会话与交易装配审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第八轮BT持久宿主与恢复路由审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第九轮账户读模型与双端口审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "开发问题记录.md",
+      "target": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round01-20261108/wheel-build.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round01-20261108/wheel-install.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round01-20261108/wheel-verify.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round01-20261108/gateway-commands.txt",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round01-20261108/gateway-smoke.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第二轮代码与安装包审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/sdk-primary.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/sdk-primary.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/round01-wheel-extra.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/primary-wheel-smoke.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/wheel-verifier.py.txt",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round02-20261108/wheel-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round03-transport-20261108/primary-source-tests.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round03-transport-20261108/verifier-initial-failed.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round03-transport-20261108/primary-wheel.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round03-transport-20261108/manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/独立服务与远端预留接线核对-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第四轮派发线程与授权审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/gateway.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/gateway.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/sdk-final.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/sdk-final.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/build.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/install.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/primary-smoke.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/primary-installed-tests.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round04-20261108/wheel-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第五轮客户端与结算回读审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/commands.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/gateway-base.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/gateway-base.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/sdk.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/sdk.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/ctp.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/ctp.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/primary-wheel-verify.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/primary-installed-tests.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/installed-tests-initial-collection-failure.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/installed-origin-summary.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/installed-origin-logs",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/wheel-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round05-20261108/doc-validation.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/source-check-commands.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第六轮结算与日志升级审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/primary-wheel-verify.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/primary-installed-tests.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/installed-tests.xml",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/installed-tests-initial-layout-failure.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/test-copy-validation.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/installed-origin-summary.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/installed-origin-logs",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/wheel-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/commits.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "Backtrader-Gateway接线调整申请-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round06-20261108/doc-validation.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第七轮单一会话与交易装配审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "Backtrader-Gateway接线调整申请-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/primary-wheel-verify.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/installed-tests.log",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/installed-selected-tests.txt",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/test-copy-validation.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/installed-origin-summary.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/installed-origin-logs",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/wheel-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/commits.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "evidence/round07-20261108/doc-validation.json",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第八轮BT持久宿主与恢复路由审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第八轮BT持久宿主与恢复路由审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第九轮账户读模型与双端口审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第十轮活动委托与持久观察身份审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第十一轮回报归属与同库账本审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第十二轮查询回报接线与并行审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第十三轮回报维护与消费游标审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "实施基线与分轮记录-2026-11-08.md",
+      "target": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分析-信号与订单链路组件顺序.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分析-风控位置与控制面归属.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "迭代计划.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "需求原文.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代64-bt_api_risk功能梳理与完善/迭代计划.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代64-bt_api_risk功能梳理与完善/需求原文.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代65-bt_api_execution独立执行服务/迭代计划.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代65-bt_api_execution独立执行服务/需求原文.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代66-bt_api_runtime策略启停与本地操作/迭代计划.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/迭代63计划审阅报告-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/迭代63计划审阅处理-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代62-问题修复/迭代62与63验收复审报告-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "../迭代62-问题修复/迭代62与63验收复审处理-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/迭代63文档审阅与优化处理-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "实施基线与分轮记录-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "开发问题记录.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/实施第五轮客户端与结算回读审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "实施基线与分轮记录-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "Backtrader-Gateway接线调整申请-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/实施第九轮账户读模型与双端口审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "计划修改记录.md",
+      "target": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "../实施准备与待决事项.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "../迭代计划.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "../设计文档.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "../跨迭代合同与决策.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63文档审阅与优化处理-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63文档审阅发现-2026-11-08.json",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "复核与待确认清单-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "qwen-迭代63-审阅报告-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "glm-迭代63-审阅报告-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63方案与设计审阅报告-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63-68跨迭代综合审阅报告-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63计划审阅报告-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "迭代63计划审阅处理-2026-11-07.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施首轮代码审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第二轮代码与安装包审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "独立服务与远端预留接线核对-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第四轮派发线程与授权审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第五轮客户端与结算回读审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第六轮结算与日志升级审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第七轮单一会话与交易装配审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第八轮BT持久宿主与恢复路由审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第九轮账户读模型与双端口审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第十轮活动委托与持久观察身份审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第十一轮回报归属与同库账本审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第十二轮查询回报接线与并行审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第十三轮回报维护与消费游标审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/README.md",
+      "target": "实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "target": "../分轮合同冻结稿-2026-11-08.md",
+      "exists": true
+    },
+    {
+      "document": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "target": "../evidence/round14-20261108/primary-source-checks.json",
+      "exists": true
+    },
+    {
+      "document": "archived/实施第十四轮策略回报网络链路审阅-2026-11-08.md",
+      "target": "../迭代计划.md",
+      "exists": true
+    }
+  ],
+  "anchors": "NOT_RUN",
+  "powershell_5_1": "NOT_RUN"
+}
