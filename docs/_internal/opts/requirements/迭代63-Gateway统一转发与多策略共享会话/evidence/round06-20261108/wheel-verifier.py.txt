@@ -1,0 +1,55 @@
+"""Compare final R06 target, snapshot and current source; run after freeze only."""
+import hashlib
+import importlib
+import importlib.metadata
+from pathlib import Path
+import sys
+from packaging.requirements import Requirement
+from packaging.version import Version
+
+tmp = Path('/tmp/iter63-r06-packaging-DFTCGcmZ')
+target = (tmp / 'target').resolve()
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+sys.path.insert(0, str(target))
+packages = {
+    'bt_api_base': ('base', 'src/bt_api_base', root / 'bt_api/bt_api_base', '0.16.0.dev63'),
+    'bt_api_gateway': ('gateway', 'src/bt_api_gateway', root / 'bt_api/bt_api_gateway', '0.2.0.dev63'),
+    'bt_api_ctp': ('ctp', 'src/bt_api_ctp', root / 'bt_api/bt_api_ctp', '2.1.0.dev63'),
+    'bt_api_okx': ('okx', 'src/bt_api_okx', root / 'bt_api/bt_api_okx', '0.16.0.dev63'),
+    'bt_api_binance': ('binance', 'src/bt_api_binance', root / 'bt_api/bt_api_binance', '2.1.0.dev63'),
+    'bt_api_py': ('sdk', 'bt_api_py', root, '0.16.0.dev63'),
+}
+for name, (snapshot_name, runtime, repo, version) in packages.items():
+    module = importlib.import_module(name)
+    dist = importlib.metadata.distribution(name)
+    print('PACKAGE', name, module.__file__, 'METADATA', dist.version, dist._path, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+    assert Path(dist._path).resolve().is_relative_to(target) and dist.version == version
+    if hasattr(module, '__version__'): assert module.__version__ == version
+    roots = (target / name, tmp / 'source' / snapshot_name / runtime, repo / runtime)
+    sets = [{p.relative_to(path) for p in path.rglob('*.py')} for path in roots]
+    print('PYTHON_SET_COUNTS', name, *(len(s) for s in sets), flush=True)
+    assert sets[0] == sets[1] == sets[2], ('set mismatch', name, [sorted(map(str, s - sets[0])) for s in sets[1:]], sorted(map(str, sets[0] - sets[2])))
+    for rel in sets[0]:
+        assert (roots[0] / rel).read_bytes() == (roots[1] / rel).read_bytes() == (roots[2] / rel).read_bytes(), (name, str(rel))
+    readme = (repo / 'README.md').read_text(encoding='utf-8')
+    assert (tmp / 'source' / snapshot_name / 'README.md').read_text(encoding='utf-8') == readme
+    assert dist.metadata.get_payload().rstrip('\n') == readme.rstrip('\n')
+    print('README_MATCH', name, hashlib.sha256(readme.encode('utf-8')).hexdigest(), flush=True)
+for name in ('bt_api_base.direct_write_protocol', 'bt_api_base.gateway_direct_protocol', 'bt_api_gateway.direct_command_journal', 'bt_api_gateway.direct_dispatch', 'bt_api_ctp.direct_write_provider', 'bt_api_okx.direct_write_provider', 'bt_api_binance.direct_write_provider', 'bt_api_py.gateway_settlement', 'bt_api_py.gateway_direct_owner', 'bt_api_py.gateway_direct_client', 'bt_api_py.direct_write'):
+    module = importlib.import_module(name)
+    print('MODULE', name, module.__file__, flush=True)
+    assert Path(module.__file__).resolve().is_relative_to(target)
+for name in ('bt_api_py', 'bt_api_gateway', 'bt_api_ctp', 'bt_api_okx', 'bt_api_binance'):
+    reqs = [Requirement(item) for item in importlib.metadata.distribution(name).requires or ()]
+    base = [r for r in reqs if r.name.lower().replace('-', '_') == 'bt_api_base']
+    assert base and all(Version('0.15.8') not in r.specifier and Version('0.16.0.dev63') in r.specifier for r in base)
+    print('BASE_FLOOR', name, ', '.join(map(str, base)), 'old 0.15.8 rejected', flush=True)
+from bt_api_base.direct_write_protocol import SettlementObservation, SettlementWriteBinding
+from bt_api_py.gateway_settlement import GatewaySettlementController
+print('SETTLEMENT_TYPES', SettlementObservation.__module__, SettlementWriteBinding.__module__, GatewaySettlementController.__module__, flush=True)
+import bt_api_transport_zmq
+print('EXTERNAL_TRANSPORT', bt_api_transport_zmq.__file__, flush=True)
+print('CTP_NATIVE_MODULE_LOADED', 'bt_api_ctp.ctp._ctp' in sys.modules, 'native call NOT_RUN', flush=True)
+for wheel in sorted(tmp.glob('*.whl')):
+    print('WHEEL_SHA256', wheel.name, hashlib.sha256(wheel.read_bytes()).hexdigest(), flush=True)

@@ -1,0 +1,86 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/origin-logs/78900-1794133351999771000
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_binance/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/__init__.py
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+........................................................................ [ 33%]
+...................F.................................................... [ 42%]
+..................................................F..................... [ 50%]
+........................................................................ [ 58%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+........................................................................ [ 92%]
+...............................................................          [100%]
+=================================== FAILURES ===================================
+_______________ test_entry_point_is_declared_for_the_swap_route ________________
+
+    def test_entry_point_is_declared_for_the_swap_route():
+        pyproject = tomllib.loads(
+>           (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+        )
+
+iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/okx/test_iter62_direct_write_provider.py:220: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/pyproject.toml')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/pyproject.toml'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+_______________ test_entry_point_is_declared_for_the_swap_route ________________
+
+    def test_entry_point_is_declared_for_the_swap_route():
+        pyproject = tomllib.loads(
+>           (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+        )
+
+iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/binance/test_iter62_direct_write_provider.py:213: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/pyproject.toml')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/pyproject.toml'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+=========================== short test summary info ============================
+FAILED iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/okx/test_iter62_direct_write_provider.py::test_entry_point_is_declared_for_the_swap_route
+FAILED iter63-r06-packaging-DFTCGcmZ/installed-tests/tests/binance/test_iter62_direct_write_provider.py::test_entry_point_is_declared_for_the_swap_route
+2 failed, 853 passed in 23.26s
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/run_installed.py` failed. (See above for error)

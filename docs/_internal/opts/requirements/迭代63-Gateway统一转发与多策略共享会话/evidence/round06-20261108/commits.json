@@ -1,0 +1,76 @@
+{
+  "bt_api_base": {
+    "branch": "dev",
+    "before": "82ef63e692b2b2aabb6576ea17f55f8983fd4eb6",
+    "commit": "e90ccb2b92ffdbba9ca5f4c426e94e98eb3eb611",
+    "files": [
+      "README.md",
+      "src/bt_api_base/direct_write_protocol.py"
+    ],
+    "pushed": false
+  },
+  "bt_api_okx": {
+    "branch": "dev",
+    "before": "449ccba62176027d51ad4433103342a79b4d7418",
+    "commit": "5c21b8fade058468678acf367af46ae98b03b462",
+    "files": [
+      "src/bt_api_okx/direct_write_provider.py"
+    ],
+    "pushed": false
+  },
+  "bt_api_binance": {
+    "branch": "dev",
+    "before": "4274ecab1360c91688a0b8fcb0226f14456c0a68",
+    "commit": "65681ae29fea6ba19b662e1d06958f61fac444b0",
+    "files": [
+      "src/bt_api_binance/direct_write_provider.py"
+    ],
+    "pushed": false
+  },
+  "bt_api_ctp": {
+    "branch": "dev",
+    "before": "784c7fae7ad7201135cc5a845d4f9113f43a0a55",
+    "commit": "ce8a6cc5d100701aaddc23eb7bd8715efff9e150",
+    "files": [
+      "README.md",
+      "src/bt_api_ctp/ctp/client.py",
+      "src/bt_api_ctp/direct_write_provider.py",
+      "tests/test_iter62_settlement_readback_on_write.py",
+      "tests/test_iter63_settlement_observation.py"
+    ],
+    "pushed": false
+  },
+  "bt_api_gateway": {
+    "branch": "dev",
+    "before": "4a1f1b10ea68dea10fcf14cde0cfee438c2ce55f",
+    "commit": "f6d1ba83a0672c20e3f2db827e89f7481e5d8bf4",
+    "files": [
+      "README.md",
+      "src/bt_api_gateway/direct_command_journal.py",
+      "tests/test_iter63_settlement_journal.py"
+    ],
+    "pushed": false
+  },
+  "bt_api_py": {
+    "branch": "dev",
+    "before": "bc87e4ae9746ea14e77f8f4b561feb73d593515f",
+    "commit": "da63b6ff122d8949cb6ff0cad966e95ebb52fe90",
+    "files": [
+      "README.md",
+      "bt_api_py/direct_write.py",
+      "bt_api_py/write_admission.py",
+      "bt_api_py/gateway_direct_owner.py",
+      "bt_api_py/gateway_settlement.py",
+      "tests/test_iter62_direct_write.py",
+      "tests/test_iter63_settlement_observation.py",
+      "tests/test_iter63_gateway_settlement.py",
+      "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+      "bt_api/bt_api_base",
+      "bt_api/bt_api_okx",
+      "bt_api/bt_api_binance",
+      "bt_api/bt_api_ctp",
+      "bt_api/bt_api_gateway"
+    ],
+    "pushed": false
+  }
+}

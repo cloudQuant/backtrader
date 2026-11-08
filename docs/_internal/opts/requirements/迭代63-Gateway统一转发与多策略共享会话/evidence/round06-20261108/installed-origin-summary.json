@@ -1,0 +1,71 @@
+{
+  "run": "/private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/origin-logs/79185-1794133450999340000",
+  "violations": 0,
+  "process_logs": [
+    {
+      "pid": "79185",
+      "events": 391,
+      "resolved": 386,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 3
+    },
+    {
+      "pid": "79241",
+      "events": 100,
+      "resolved": 96,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79261",
+      "events": 189,
+      "resolved": 185,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79297",
+      "events": 196,
+      "resolved": 192,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79298",
+      "events": 197,
+      "resolved": 193,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79299",
+      "events": 197,
+      "resolved": 193,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79300",
+      "events": 197,
+      "resolved": 193,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 2
+    },
+    {
+      "pid": "79344",
+      "events": 108,
+      "resolved": 106,
+      "guard_installed": 1,
+      "preexisting_audits": 1,
+      "exit_or_explicit_audits": 0
+    }
+  ],
+  "boundary": "Only recorded normal-import resolutions and explicit/preexisting/final audits are covered; no proof against arbitrary sys.modules injection or custom file loading. Processes without final audit are not claimed to have an audited terminal module set."
+}

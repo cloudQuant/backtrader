@@ -1,0 +1,56 @@
+{
+  "python_prefix": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python",
+  "ctp": [
+    "tests/test_iter63_settlement_observation.py",
+    "tests/test_iter62_settlement_readback_on_write.py",
+    "tests/test_iter22_contracts.py",
+    "tests/test_ctp_callback_ingress_client.py",
+    "tests/test_iter62_query_slot.py",
+    "tests/test_query_completion_origin.py",
+    "tests/test_ctp_native_query_certificate.py",
+    "tests/test_iter62_direct_write_provider.py",
+    "tests/test_iter62_session_reconnect.py",
+    "tests/test_trusted_flow.py",
+    "tests/test_md_startup_locking.py"
+  ],
+  "sdk_base_providers_final": [
+    "tests/test_iter63_settlement_observation.py",
+    "tests/test_iter62_direct_write.py",
+    "bt_api/bt_api_okx/tests/test_iter62_direct_write_provider.py",
+    "bt_api/bt_api_okx/tests/test_iter62_direct_write_row_rejection.py",
+    "bt_api/bt_api_binance/tests/test_iter62_direct_write_provider.py",
+    "bt_api/bt_api_base/tests/test_direct_write_error_policy.py"
+  ],
+  "gateway": [
+    "tests/test_iter63_settlement_journal.py",
+    "tests/test_iter63_direct_command_journal.py",
+    "tests/test_iter63_direct_dispatch.py",
+    "tests/test_session_guard.py",
+    "tests/test_router.py",
+    "tests/test_writer_authority.py"
+  ],
+  "sdk_gateway": [
+    "tests/test_iter63_gateway_settlement.py",
+    "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+    "tests/test_iter63_gateway_direct_owner.py",
+    "tests/test_iter63_direct_identity_keys.py",
+    "tests/test_iter63_direct_error_policy.py",
+    "tests/unit/test_iter63_gateway_direct_client.py",
+    "tests/unit/test_iter63_gateway_direct_service.py",
+    "tests/unit/test_iter63_gateway_dispatch_rpc.py",
+    "tests/unit/test_iter63_registry_dispatch_admission.py",
+    "tests/unit/test_iter63_service_runtime_thread.py",
+    "tests/unit/test_service_config.py",
+    "tests/unit/test_service_deployment.py",
+    "tests/unit/test_service_registry.py",
+    "tests/unit/test_service_registry_stop_new.py",
+    "tests/integration/test_iter63_gateway_direct_dispatch.py",
+    "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+    "tests/integration/test_iter63_gateway_direct_service.py",
+    "tests/integration/test_iter63_gateway_client_processes.py",
+    "tests/integration/test_iter63_service_runtime_thread.py"
+  ],
+  "options": "-m pytest -q <files> --junitxml=<evidence/name.xml>; SDK mixed-package runs additionally use --import-mode=importlib",
+  "account_calls": "NOT_RUN",
+  "windows_powershell_5_1": "NOT_RUN (macOS)"
+}

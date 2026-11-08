@@ -1,0 +1,70 @@
+{
+  "ctp_native_call": "NOT_RUN",
+  "full_dependency_resolver": "NOT_RUN",
+  "installed_test_collection": {
+    "count": 855,
+    "log": "/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/collection-check.log"
+  },
+  "installed_test_execution": "NOT_RUN_BY_PACKAGING_WORKER",
+  "live_account_acceptance": "NOT_RUN",
+  "logs": {
+    "build.log": "/tmp/iter63-r06-packaging-DFTCGcmZ/build.log",
+    "install.log": "/tmp/iter63-r06-packaging-DFTCGcmZ/install.log",
+    "snapshot.log": "/tmp/iter63-r06-packaging-DFTCGcmZ/snapshot.log",
+    "verify.log": "/tmp/iter63-r06-packaging-DFTCGcmZ/verify.log"
+  },
+  "selected_tests": "/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/selected-tests.txt",
+  "source_snapshot_target_python_bytes_and_readme": "PASS",
+  "target": "/tmp/iter63-r06-packaging-DFTCGcmZ/target",
+  "test_manifest": "/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/test-manifest.txt",
+  "transport_dependency": "existing editable checkout",
+  "wheels": [
+    {
+      "filename": "bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "1d119c696ffc1398ab08d9bde61e7610f1d5a266e6d6e44a92c137e3804cb49b"
+    },
+    {
+      "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+      "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be"
+    },
+    {
+      "filename": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "7f637b4399835c5571e8263083ad8058f9157c8a499dcef75108f04121a6b598"
+    },
+    {
+      "filename": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "b5d4f5e3b889d923497e03086bc0ff5891912ea958f2628b118393c73041f76e"
+    },
+    {
+      "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07"
+    },
+    {
+      "filename": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "d189d1d884e8e1ff8a494e6c63aa56cdade8f98d85bfa512d01e237445162fee"
+    }
+  ],
+  "primary_acceptance": {
+    "verify_exit": 0,
+    "installed_tests": {
+      "passed": 855,
+      "failed": 0,
+      "seconds": 23.14,
+      "initial_layout_failure": {
+        "passed": 853,
+        "failed": 2
+      }
+    },
+    "test_copies_sha256_verified": 44,
+    "origin_process_logs": 8,
+    "process_logs_without_final_audit": 1,
+    "logs": [
+      "primary-wheel-verify.log",
+      "primary-installed-tests.log",
+      "installed-tests.xml",
+      "installed-tests-initial-layout-failure.log"
+    ],
+    "account_acceptance": "NOT_RUN",
+    "full_dependency_resolver": "NOT_RUN"
+  }
+}

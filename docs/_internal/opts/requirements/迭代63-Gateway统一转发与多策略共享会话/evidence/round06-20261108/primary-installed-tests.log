@@ -1,0 +1,22 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/origin-logs/79185-1794133450999340000
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_binance/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/__init__.py
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+........................................................................ [ 50%]
+........................................................................ [ 58%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+........................................................................ [ 92%]
+...............................................................          [100%]
+- generated xml file: /Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round06-20261108/installed-tests.xml -
+855 passed in 23.14s
+INSTALLED_MODULE_ORIGINS_MATCH_TARGET

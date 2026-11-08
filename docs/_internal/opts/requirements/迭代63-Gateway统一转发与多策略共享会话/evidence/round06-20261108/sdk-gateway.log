@@ -1,0 +1,26 @@
+........................................................................ [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 61%]
+............................F........................................... [ 81%]
+..................................................................       [100%]
+=================================== FAILURES ===================================
+__________ test_monitor_requires_query_and_treats_control_as_optional __________
+tests/unit/test_service_deployment.py:403: in test_monitor_requires_query_and_treats_control_as_optional
+    control_only = _service("monitor-only-control", "service.monitor_control")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_service_deployment.py:123: in _service
+    return parse_service_config(config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:542: in parse_service_config
+    parsed, role = _parse_component(component_name, component_raw)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/service_config.py:996: in _parse_component
+    _fail("PORT_ROLE_MISMATCH", f"{path}.settings.bind_ports")
+bt_api_py/service_config.py:1467: in _fail
+    raise ServiceConfigError(code, path)
+E   bt_api_py.service_config.ServiceConfigError: PORT_ROLE_MISMATCH at $.components.monitor.settings.bind_ports
+- generated xml file: /Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round06-20261108/sdk-gateway.xml -
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_deployment.py::test_monitor_requires_query_and_treats_control_as_optional
+1 failed, 353 passed in 18.99s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/test_iter63_gateway_settlement.py tests/test_iter63_gateway_settlement_ctp_fake_native.py tests/test_iter63_gateway_direct_owner.py tests/test_iter63_direct_identity_keys.py tests/test_iter63_direct_error_policy.py tests/unit/test_iter63_gateway_direct_client.py tests/unit/test_iter63_gateway_direct_service.py tests/unit/test_iter63_gateway_dispatch_rpc.py tests/unit/test_iter63_registry_dispatch_admission.py tests/unit/test_iter63_service_runtime_thread.py tests/unit/test_service_config.py tests/unit/test_service_deployment.py tests/unit/test_service_registry.py tests/unit/test_service_registry_stop_new.py tests/integration/test_iter63_gateway_direct_dispatch.py tests/integration/test_iter63_gateway_direct_dispatch_rpc.py tests/integration/test_iter63_gateway_direct_service.py tests/integration/test_iter63_gateway_client_processes.py tests/integration/test_iter63_service_runtime_thread.py --import-mode=importlib --junitxml=/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/evidence/round06-20261108/sdk-gateway.xml` failed. (See above for error)

@@ -1,0 +1,35 @@
+"""Create clean snapshots; run only after all source/README freeze notices."""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
+root = Path('/Users/yunjinqi/Documents/new_projects/bt_api_py')
+destination = Path('/tmp/iter63-r06-packaging-DFTCGcmZ/source')
+packages = (
+    ('base', root / 'bt_api/bt_api_base', 'src', []),
+    ('gateway', root / 'bt_api/bt_api_gateway', 'src', []),
+    ('ctp', root / 'bt_api/bt_api_ctp', 'src', []),
+    ('okx', root / 'bt_api/bt_api_okx', 'src', []),
+    ('binance', root / 'bt_api/bt_api_binance', 'src', []),
+    ('sdk', root, 'bt_api_py', ['bt_api_py/gateway_settlement.py']),
+)
+for name, source, runtime, explicit in packages:
+    paths = ['pyproject.toml', 'setup.py', 'README.md', 'MANIFEST.in', 'LICENSE', runtime]
+    data = subprocess.check_output(['git', '-C', str(source), 'ls-files', '-z', '--cached', '--', *paths])
+    untracked = subprocess.check_output(['git', '-C', str(source), 'ls-files', '-z', '--others', '--exclude-standard', '--', runtime])
+    unexpected = [p for p in untracked.decode().split('\0') if p.endswith('.py') and p not in explicit]
+    if unexpected: raise RuntimeError(f'{name}: unreviewed untracked runtime Python files: {unexpected}')
+    files = set(p for p in data.decode().split('\0') if p) | set(explicit)
+    count = 0
+    for path in sorted(files):
+        src = source / path
+        if src.name == 'config.yaml' or src.name.startswith('.env') or not (src.is_file() or src.is_symlink()):
+            if path in explicit: raise RuntimeError(f'explicit runtime module missing: {path}')
+            continue
+        dst = destination / name / path
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if src.is_symlink(): os.symlink(os.readlink(src), dst)
+        else: shutil.copy2(src, dst)
+        count += 1
+    print(name, 'public tracked and explicitly named runtime files:', count, flush=True)

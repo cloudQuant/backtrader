@@ -1,0 +1,9 @@
+Do not execute until all R06 code and README freeze notices have arrived.
+Working directory: /tmp. Snapshot copies public tracked source and explicitly
+named untracked runtime files; source and target live only under this directory.
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r06-packaging-DFTCGcmZ/snapshot.py
+for repo in base gateway ctp okx binance sdk; do /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-deps --no-build-isolation --no-index --wheel-dir /tmp/iter63-r06-packaging-DFTCGcmZ /tmp/iter63-r06-packaging-DFTCGcmZ/source/$repo || exit; done
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --target /tmp/iter63-r06-packaging-DFTCGcmZ/target --no-deps --no-index /tmp/iter63-r06-packaging-DFTCGcmZ/*.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r06-packaging-DFTCGcmZ/verify.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/prepare_tests.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r06-packaging-DFTCGcmZ/installed-tests/run_installed.py

@@ -1,0 +1,43 @@
+PACKAGE bt_api_base /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_base 162 162 162
+README_MATCH bt_api_base ce4ce2caf603258a544eaa39c62aef3de06981b7fc67dfeae402f886474e3f48
+PACKAGE bt_api_gateway /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway/__init__.py METADATA 0.2.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway-0.2.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_gateway 21 21 21
+README_MATCH bt_api_gateway 12c7afc98ee19285da8acb55a1e3d291d542fe215bc7b71ae6d2d2264884bdf7
+PACKAGE bt_api_ctp /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_ctp/__init__.py METADATA 2.1.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_ctp-2.1.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_ctp 171 171 171
+README_MATCH bt_api_ctp 83e71a0de66f1f40a4b014faa7e0028a6827a2ba03f476026a0bbbc1c33f0647
+PACKAGE bt_api_okx /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_okx/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_okx-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_okx 99 99 99
+README_MATCH bt_api_okx 875dd8059c40522ebedd527b16b05bc59b4e4eda99dcc6f3c543fefbaee4b89c
+PACKAGE bt_api_binance /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_binance/__init__.py METADATA 2.1.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_binance-2.1.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_binance 85 85 85
+README_MATCH bt_api_binance c6558ae55489dc9d649943a01df03be4a86ab37d4a1e8d50cc7036529384056c
+PACKAGE bt_api_py /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/__init__.py METADATA 0.16.0.dev63 /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py-0.16.0.dev63.dist-info
+PYTHON_SET_COUNTS bt_api_py 284 284 284
+README_MATCH bt_api_py 5ab5db53b0980a471d34ff006198bce757a431f68fbdc01d74f0f6184461c83b
+MODULE bt_api_base.direct_write_protocol /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base/direct_write_protocol.py
+MODULE bt_api_base.gateway_direct_protocol /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_base/gateway_direct_protocol.py
+MODULE bt_api_gateway.direct_command_journal /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway/direct_command_journal.py
+MODULE bt_api_gateway.direct_dispatch /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_gateway/direct_dispatch.py
+MODULE bt_api_ctp.direct_write_provider /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_ctp/direct_write_provider.py
+MODULE bt_api_okx.direct_write_provider /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_okx/direct_write_provider.py
+MODULE bt_api_binance.direct_write_provider /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_binance/direct_write_provider.py
+MODULE bt_api_py.gateway_settlement /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/gateway_settlement.py
+MODULE bt_api_py.gateway_direct_owner /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/gateway_direct_owner.py
+MODULE bt_api_py.gateway_direct_client /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/gateway_direct_client.py
+MODULE bt_api_py.direct_write /private/tmp/iter63-r06-packaging-DFTCGcmZ/target/bt_api_py/direct_write.py
+BASE_FLOOR bt_api_py bt_api_base>=0.16.0.dev63, bt_api_base[spdlog]>=0.16.0.dev63; extra == "spdlog" old 0.15.8 rejected
+BASE_FLOOR bt_api_gateway bt_api_base>=0.16.0.dev63 old 0.15.8 rejected
+BASE_FLOOR bt_api_ctp bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+BASE_FLOOR bt_api_okx bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+BASE_FLOOR bt_api_binance bt_api_base<1.0,>=0.16.0.dev63 old 0.15.8 rejected
+SETTLEMENT_TYPES bt_api_base.direct_write_protocol bt_api_base.direct_write_protocol bt_api_py.gateway_settlement
+EXTERNAL_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+CTP_NATIVE_MODULE_LOADED False native call NOT_RUN
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 1d119c696ffc1398ab08d9bde61e7610f1d5a266e6d6e44a92c137e3804cb49b
+WHEEL_SHA256 bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl 7f637b4399835c5571e8263083ad8058f9157c8a499dcef75108f04121a6b598
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl b5d4f5e3b889d923497e03086bc0ff5891912ea958f2628b118393c73041f76e
+WHEEL_SHA256 bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl d189d1d884e8e1ff8a494e6c63aa56cdade8f98d85bfa512d01e237445162fee

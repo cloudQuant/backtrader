@@ -1,0 +1,225 @@
+{
+  "validated_copies": 44,
+  "entries": [
+    {
+      "source": "tests/integration/test_service_account_instrument_metadata.py",
+      "copy": "tests/integration/test_service_account_instrument_metadata.py",
+      "sha256": "01818d3b78e134fb751e2e9a64ec66287edecc10ed3feb8773003dbf990c68f6"
+    },
+    {
+      "source": "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+      "copy": "tests/test_iter63_gateway_settlement_ctp_fake_native.py",
+      "sha256": "1a1d135e4c1aeeb71d85c2d7e6ce30be7158b3708c2a70c2b4cf3ef10f18c6a6"
+    },
+    {
+      "source": "tests/integration/test_iter62_gateway_ctp_market_profile.py",
+      "copy": "tests/integration/test_iter62_gateway_ctp_market_profile.py",
+      "sha256": "2a581e8f5b6b0f344ec6b1a36a81cfc40f90c6279d32bfdd9ff00e7994222d86"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_direct_dispatch.py",
+      "copy": "tests/gateway/test_iter63_direct_dispatch.py",
+      "sha256": "2d71174b9636728cd24cccf68afb16b47f9bc75ca34b53b623fab88b06acb22c"
+    },
+    {
+      "source": "bt_api/bt_api_binance/tests/test_iter62_direct_write_provider.py",
+      "copy": "tests/binance/test_iter62_direct_write_provider.py",
+      "sha256": "3eeaee51d7608794203429451e74b422890dd6f6e5c53984a1f12da1600e1613"
+    },
+    {
+      "source": "bt_api/bt_api_binance/tests/test_iter62_direct_write_provider.py",
+      "copy": "provider-fixtures/binance/tests/test_iter62_direct_write_provider.py",
+      "sha256": "3eeaee51d7608794203429451e74b422890dd6f6e5c53984a1f12da1600e1613"
+    },
+    {
+      "source": "tests/integration/test_iter63_service_runtime_thread.py",
+      "copy": "tests/integration/test_iter63_service_runtime_thread.py",
+      "sha256": "4a72b4faaddbd7301c114c93d6be17c51ce6432f051a605fe51b3b7ef1a1a76b"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter63_settlement_observation.py",
+      "copy": "tests/ctp/test_iter63_settlement_observation.py",
+      "sha256": "4db816913388b76d5f11c053d73daee495cc1b1bcacd187f5f8d93e34810d9c6"
+    },
+    {
+      "source": "tests/integration/test_gateway_operator_ctp_market.py",
+      "copy": "tests/integration/test_gateway_operator_ctp_market.py",
+      "sha256": "66e04fc56df7cfc08d00cf4b7050ef3f9aa669d48b76a7b5bd81b9267b2877cd"
+    },
+    {
+      "source": "tests/unit/test_service_registry.py",
+      "copy": "tests/unit/test_service_registry.py",
+      "sha256": "6c3b4f93e3c4b25d414e92b9d1e98e3bdf6a94e9bed7dfe567e485c9e01b426c"
+    },
+    {
+      "source": "tests/test_iter62_direct_write.py",
+      "copy": "tests/test_iter62_direct_write.py",
+      "sha256": "73fddd11b07310720a2cd11f7e30c7e626d2b9854e827149798536eee4db557d"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "copy": "bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py",
+      "copy": "tests/ctp/test_iter62_settlement_readback_on_write.py",
+      "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_direct_client.py",
+      "copy": "tests/unit/test_iter63_gateway_direct_client.py",
+      "sha256": "78ee3d776dd5d5019e5b3576f8eda5ce0a132f6b4f76677bbc0509316e11977b"
+    },
+    {
+      "source": "tests/test_iter63_gateway_direct_owner.py",
+      "copy": "tests/test_iter63_gateway_direct_owner.py",
+      "sha256": "792e01604befc53395da57076c052bb4d661ca3feb4c5f0337d402ff7e580735"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_dispatch_rpc.py",
+      "copy": "tests/unit/test_iter63_gateway_dispatch_rpc.py",
+      "sha256": "7e8e0c231c9c767564366d3d4d46e2b54c6491df6d2e0c2e7224fedb1dba49dd"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter62_direct_write_provider.py",
+      "copy": "tests/ctp/test_iter62_direct_write_provider.py",
+      "sha256": "7ee98a180ce888a6d78dbf8106ef9ed6760f85e7278aa77aea5dd14120a4a7bf"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_iter22_contracts.py",
+      "copy": "tests/ctp/test_iter22_contracts.py",
+      "sha256": "83dc4e4dc585e427b3b4ed6e66801d2061ddaccc04826e8c514597d4b4b177c5"
+    },
+    {
+      "source": "tests/unit/test_service_runtime_renewal_retry.py",
+      "copy": "tests/unit/test_service_runtime_renewal_retry.py",
+      "sha256": "8ebabc797a43ced9ec051dac2b4c8ddfc255d1f0a70dbf3c418a8a78861d9db3"
+    },
+    {
+      "source": "bt_api/bt_api_base/tests/test_gateway_direct_protocol.py",
+      "copy": "tests/base/test_gateway_direct_protocol.py",
+      "sha256": "9df93096aa1e69b5b76e6e7e2006cd027dc7b7e3d05edd8c61bb2113a9e8b9d7"
+    },
+    {
+      "source": "bt_api/bt_api_ctp/tests/test_ctp_callback_ingress_client.py",
+      "copy": "tests/ctp/test_ctp_callback_ingress_client.py",
+      "sha256": "a0c8e2a49b72adfbaf06a23725616df6853a2e38078ac04ce84932036b1c12f8"
+    },
+    {
+      "source": "bt_api/bt_api_okx/pyproject.toml",
+      "copy": "provider-fixtures/okx/pyproject.toml",
+      "sha256": "a20524a6e7222ce32eb5d6bae9578c4e6d65c5cc058a969db2ff6fad7f2126ea"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "copy": "tests/integration/test_iter63_gateway_direct_dispatch.py",
+      "sha256": "a26014a0cf0ff6efb6d0442c8069c3f3cfb6cb7d24d1bf027617712ed074ec9b"
+    },
+    {
+      "source": "bt_api/bt_api_binance/pyproject.toml",
+      "copy": "provider-fixtures/binance/pyproject.toml",
+      "sha256": "a3196c2199a5e3a3bbac1284b41be13e821e34fe2791c0f5fc58528e955bd01e"
+    },
+    {
+      "source": "tests/unit/test_iter63_gateway_direct_service.py",
+      "copy": "tests/unit/test_iter63_gateway_direct_service.py",
+      "sha256": "a4d5b9d115d462f3312321c7086e1ffcab0c0567b3de626ee76d27083a7661a3"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_service.py",
+      "copy": "tests/integration/test_iter63_gateway_direct_service.py",
+      "sha256": "a5ccd132901758e88cf232f35b8ab63dfe3bbb5f9f679afbbbda0178073e6359"
+    },
+    {
+      "source": "tests/test_iter63_settlement_observation.py",
+      "copy": "tests/test_iter63_settlement_observation.py",
+      "sha256": "b0f2f980aec486ca63d93c61087b3e2834252b90bca14aecd00cafd19d60075e"
+    },
+    {
+      "source": "bt_api/bt_api_base/tests/test_direct_write_error_policy.py",
+      "copy": "tests/base/test_direct_write_error_policy.py",
+      "sha256": "b1f2e6b93794ef0a198f6a1a678695d04c1c91ba4f7b20d1f0ea69f94f283cf7"
+    },
+    {
+      "source": "bt_api/bt_api_okx/tests/test_iter62_direct_write_row_rejection.py",
+      "copy": "tests/okx/test_iter62_direct_write_row_rejection.py",
+      "sha256": "b2950bdfda96d2fdf4c2edbca1e557499634b87308265daff58d265296633d8e"
+    },
+    {
+      "source": "bt_api/bt_api_okx/tests/test_iter62_direct_write_row_rejection.py",
+      "copy": "provider-fixtures/okx/tests/test_iter62_direct_write_row_rejection.py",
+      "sha256": "b2950bdfda96d2fdf4c2edbca1e557499634b87308265daff58d265296633d8e"
+    },
+    {
+      "source": "tests/unit/test_iter63_service_runtime_thread.py",
+      "copy": "tests/unit/test_iter63_service_runtime_thread.py",
+      "sha256": "b3a7d9def119e1a9f641175becbd6f751464abccfce8e83d06e3a0e91dfdee57"
+    },
+    {
+      "source": "tests/integration/test_gateway_operator_deployment.py",
+      "copy": "tests/integration/test_gateway_operator_deployment.py",
+      "sha256": "b6e3e19e77f4f1b2bdf6ff499b6b9f4e40483ea90838e89e9b11b866071e319a"
+    },
+    {
+      "source": "tests/test_iter63_gateway_settlement.py",
+      "copy": "tests/test_iter63_gateway_settlement.py",
+      "sha256": "ba0879b6f838364d42109799d0a0fcab975220c8989336627079b56d8773637f"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_gateway_payload_canonical.py",
+      "copy": "tests/gateway/test_gateway_payload_canonical.py",
+      "sha256": "c73b209894401ce878e93945d23bf8d622504bea5f78e6524009ece302e83fda"
+    },
+    {
+      "source": "bt_api/bt_api_okx/tests/test_iter62_direct_write_provider.py",
+      "copy": "tests/okx/test_iter62_direct_write_provider.py",
+      "sha256": "c7a9e0de8c05837ee354ce86dd9a9165e40ac5da9b10a4f6508208c5e296127d"
+    },
+    {
+      "source": "bt_api/bt_api_okx/tests/test_iter62_direct_write_provider.py",
+      "copy": "provider-fixtures/okx/tests/test_iter62_direct_write_provider.py",
+      "sha256": "c7a9e0de8c05837ee354ce86dd9a9165e40ac5da9b10a4f6508208c5e296127d"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+      "copy": "tests/integration/test_iter63_gateway_direct_dispatch_rpc.py",
+      "sha256": "cc21bc920f2add7944b3553b94f134e68c4891d4df8cc16c5e7dce9cf1d6771d"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_direct_command_journal.py",
+      "copy": "tests/gateway/test_iter63_direct_command_journal.py",
+      "sha256": "d0fe824bf459a2253ba93d675173649f462d800ca9a5115586e49a504ce02941"
+    },
+    {
+      "source": "tests/integration/test_iter63_gateway_client_processes.py",
+      "copy": "tests/integration/test_iter63_gateway_client_processes.py",
+      "sha256": "d6a6f5702b1b67c58ee79e98b73c4d65607e9bdbbaba5fa9667ae3bba29f4d52"
+    },
+    {
+      "source": "bt_api/bt_api_gateway/tests/test_iter63_settlement_journal.py",
+      "copy": "tests/gateway/test_iter63_settlement_journal.py",
+      "sha256": "d6e7085a21172c11c78f492068b8722ccda190c6524b34dab0863ba5c4ae25d8"
+    },
+    {
+      "source": "tests/unit/test_iter63_registry_dispatch_admission.py",
+      "copy": "tests/unit/test_iter63_registry_dispatch_admission.py",
+      "sha256": "e241f558acc9cdb31213f83f545ed3acc383ce09e250d8e22de4a41087792f90"
+    },
+    {
+      "source": "tests/test_iter63_direct_identity_keys.py",
+      "copy": "tests/test_iter63_direct_identity_keys.py",
+      "sha256": "f9224b020402b3d68d0b890f7adc232c75dfdb02e5ffa07dd34213d461ccd9d3"
+    },
+    {
+      "source": "tests/integration/test_iter62_gateway_market_runtime_lease.py",
+      "copy": "tests/integration/test_iter62_gateway_market_runtime_lease.py",
+      "sha256": "fa0d5474d6ecadb229440f5bcb1c8581ae4bff15a2d75e78e4555bc2cb86b764"
+    },
+    {
+      "source": "tests/test_iter63_direct_error_policy.py",
+      "copy": "tests/test_iter63_direct_error_policy.py",
+      "sha256": "fec214a33c776794cfeebe71f98781d6326fd2ee75dda59a9e409da33588899f"
+    }
+  ]
+}
