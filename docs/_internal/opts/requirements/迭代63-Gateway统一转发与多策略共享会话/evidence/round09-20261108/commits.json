@@ -1,0 +1,58 @@
+{
+  "gateway": {
+    "repository": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "branch": "dev",
+    "commit": "485fb129ebebd87b4c1f1f096042c666215d57b0",
+    "subject": "feat: share owner-published account read model",
+    "files": [
+      "README.md",
+      "src/bt_api_gateway/account_read_model.py",
+      "src/bt_api_gateway/account_session_worker.py",
+      "src/bt_api_gateway/service_component.py",
+      "tests/test_account_read_model.py",
+      "tests/test_account_session_worker.py",
+      "tests/test_service_component.py"
+    ],
+    "pushed": false
+  },
+  "ctp": {
+    "repository": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "branch": "dev",
+    "commit": "8eeb2c11a9e4cf510d2dbc0f52f7572078dbb13a",
+    "subject": "fix: attest complete native account query filters",
+    "files": [
+      "README.md",
+      "src/bt_api_ctp/account_provider.py",
+      "src/bt_api_ctp/ctp/client.py",
+      "src/bt_api_ctp/query.py",
+      "src/bt_api_ctp/query_service.py",
+      "src/bt_api_ctp/reconciliation_authority.py",
+      "tests/test_account_provider.py",
+      "tests/test_ctp_g5_source_unification.py",
+      "tests/test_iter62_instrument_positions.py"
+    ],
+    "pushed": false
+  },
+  "sdk": {
+    "repository": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "a9489aa1432697fa66e95a8f966583f930de29f0",
+    "subject": "feat: expose account reads on CTP trading owner",
+    "files": [
+      "README.md",
+      "bt_api/bt_api_ctp",
+      "bt_api/bt_api_gateway",
+      "bt_api_py/ctp_gateway_trading.py",
+      "bt_api_py/ctp_order_target_query.py",
+      "bt_api_py/gateway_direct_service.py",
+      "bt_api_py/gateway_operator.py",
+      "bt_api_py/service_components.py",
+      "bt_api_py/service_config.py",
+      "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "tests/integration/test_iter63_gateway_dual_ports.py",
+      "tests/test_iter63_ctp_gateway_trading.py",
+      "tests/unit/test_iter63_gateway_dual_ports.py"
+    ],
+    "pushed": false
+  }
+}

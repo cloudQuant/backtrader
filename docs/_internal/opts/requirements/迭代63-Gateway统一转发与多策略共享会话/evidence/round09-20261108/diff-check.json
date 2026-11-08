@@ -1,0 +1,9 @@
+{
+  "code_and_documents": "PASS",
+  "raw_evidence_preserved": [
+    "installed-sdk-consumers.log",
+    "worker-ctp-initial-red.log",
+    "worker-ctp-old-fixture-failure.log"
+  ],
+  "reason": "Unmodified pytest diagnostic output contains trailing whitespace; not rewritten."
+}

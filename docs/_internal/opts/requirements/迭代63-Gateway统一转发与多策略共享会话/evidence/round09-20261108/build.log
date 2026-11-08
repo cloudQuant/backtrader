@@ -1,0 +1,23 @@
+Processing /tmp/iter63-r09-packaging-ySGAYCmv/final/source/gateway
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r09-packaging-ySGAYCmv/final/source/ctp
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r09-packaging-ySGAYCmv/final/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_gateway, bt_api_ctp, bt_api_py
+  Building wheel for bt_api_gateway (pyproject.toml): started
+  Building wheel for bt_api_gateway (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_gateway: filename=bt_api_gateway-0.2.0.dev63-py3-none-any.whl size=164888 sha256=2976a2f1298511746f3b239f4f2963d7f2dbd60ce6f445e50407ed65964bbac5
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-pih8pci5/wheels/a6/28/30/849ad9468341a2b3012a7897840de74d4048f1e728ea6b5bc1
+  Building wheel for bt_api_ctp (pyproject.toml): started
+  Building wheel for bt_api_ctp (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_ctp: filename=bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl size=9337833 sha256=5c34cb630280d33435dd5aa2c8b0ca96fad751f1fd77ce0588c78b76440fa92b
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-pih8pci5/wheels/ab/48/2f/86b4127cb921b7a489050c8e4a474bb86f9ed2b87cc18611fd
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2051845 sha256=e7b3a42915bf79b9c501b2c953d4795f4ab8e7480328fb680d9b980683a4c7e9
+  Stored in directory: /private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pip-ephem-wheel-cache-pih8pci5/wheels/c0/13/5e/d494ea5240938ac9f79757c575d5e7ab8b9cd2da474d4182d7
+Successfully built bt_api_gateway bt_api_ctp bt_api_py

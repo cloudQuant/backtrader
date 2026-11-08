@@ -1,0 +1,23 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r09-packaging-ySGAYCmv/final/origin-logs/ctp-14510-1794139947254915000
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_binance/__init__.py
+
+==================================== ERRORS ====================================
+____________ ERROR collecting tests/test_iter63_gateway_session.py _____________
+ImportError while importing test module '/private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/tests/test_iter63_gateway_session.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/test_iter63_gateway_session.py:17: in <module>
+    from test_market_provider import _ENTITLEMENT_REF, _SOURCE_REF, _SyntheticMdClient, _key
+E   ModuleNotFoundError: No module named 'test_market_provider'
+=========================== short test summary info ============================
+ERROR tests/test_iter63_gateway_session.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.26s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py` failed. (See above for error)

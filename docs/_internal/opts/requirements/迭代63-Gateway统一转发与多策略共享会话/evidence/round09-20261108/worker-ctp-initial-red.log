@@ -1,0 +1,1188 @@
+..FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.........                           [100%]
+=================================== FAILURES ===================================
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a47590>
+query_name = 'account', field = 'request_intent_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a475d0>
+query_name = 'positions', field = 'request_intent_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a47350>
+query_name = 'orders', field = 'request_intent_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a28ed0>
+query_name = 'account', field = 'request_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a28d50>
+query_name = 'positions', field = 'request_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1264fbf90>
+query_name = 'orders', field = 'request_filters', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1264f3b10>
+query_name = 'account', field = 'request_intent_filters'
+fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12545d5d0>
+query_name = 'positions', field = 'request_intent_filters'
+fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12545df50>
+query_name = 'orders', field = 'request_intent_filters'
+fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a1b010>
+query_name = 'account', field = 'request_filters', fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127bc2f50>
+query_name = 'positions', field = 'request_filters', fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127be0450>
+query_name = 'orders', field = 'request_filters', fault = 'foreign_account'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a47110>
+query_name = 'account', field = 'request_intent_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a479d0>
+query_name = 'positions', field = 'request_intent_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1253f7b10>
+query_name = 'orders', field = 'request_intent_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127bb42d0>
+query_name = 'account', field = 'request_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127bab090>
+query_name = 'positions', field = 'request_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1279f8ed0>
+query_name = 'orders', field = 'request_filters', fault = 'filtered'
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize("field", ["request_intent_filters", "request_filters"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign_account", "filtered"])
+    def test_full_account_read_rejects_unproved_or_filtered_native_request(
+        monkeypatch, query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name != query_name:
+                return result
+            values = dict(getattr(result.query_source, field))
+            if fault == "missing":
+                values.pop("InvestorID")
+            elif fault == "foreign_account":
+                values["BrokerID"] = "different-broker"
+            else:
+                values["InstrumentID"] = "IF2612"
+            source = replace(result.query_source, **{field: tuple(sorted(values.items()))})
+            return _attach_query_source(result, source)
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:307: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127be2490>
+query_name = 'account', field = 'request_intent_parameters'
+value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127b3b010>
+query_name = 'positions', field = 'request_intent_parameters'
+value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1279f8310>
+query_name = 'orders', field = 'request_intent_parameters'
+value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_parameters-value1-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a53410>
+query_name = 'account', field = 'request_parameters', value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_parameters-value1-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127c1ce10>
+query_name = 'positions', field = 'request_parameters'
+value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[request_parameters-value1-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127baa0d0>
+query_name = 'orders', field = 'request_parameters', value = (('Other', 1.0),)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-account] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127a0b610>
+query_name = 'account', field = 'explicit_request_filters'
+value = ('InvestorID',)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-positions] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127af62d0>
+query_name = 'positions', field = 'explicit_request_filters'
+value = ('InvestorID',)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-orders] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x127beafd0>
+query_name = 'orders', field = 'explicit_request_filters'
+value = ('InvestorID',)
+
+    @pytest.mark.parametrize("query_name", ["account", "positions", "orders"])
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("request_intent_parameters", (("Other", 1.0),)),
+            ("request_parameters", (("Other", 1.0),)),
+            ("explicit_request_filters", ("InvestorID",)),
+        ],
+    )
+    def test_full_account_read_rejects_additional_request_scope(
+        monkeypatch, query_name: str, field: str, value: object
+    ) -> None:
+        feed = _Feed()
+        feed.rows["orders"] = ()
+        original = feed._query
+    
+        def query(name, timeout):
+            result = original(name, timeout)
+            if name == query_name:
+                result = _attach_query_source(result, replace(result.query_source, **{field: value}))
+            return result
+    
+        monkeypatch.setattr(feed, "_query", query)
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_SOURCE_UNTRUSTED"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:336: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-BrokerID-positions] _
+
+query_name = 'positions', field = 'BrokerID', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-BrokerID-orders] _
+
+query_name = 'orders', field = 'BrokerID', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-InvestorID-positions] _
+
+query_name = 'positions', field = 'InvestorID', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-InvestorID-orders] _
+
+query_name = 'orders', field = 'InvestorID', fault = 'missing'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-BrokerID-positions] _
+
+query_name = 'positions', field = 'BrokerID', fault = 'foreign'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-BrokerID-orders] _
+
+query_name = 'orders', field = 'BrokerID', fault = 'foreign'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-InvestorID-positions] _
+
+query_name = 'positions', field = 'InvestorID', fault = 'foreign'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+_ test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-InvestorID-orders] _
+
+query_name = 'orders', field = 'InvestorID', fault = 'foreign'
+
+    @pytest.mark.parametrize("query_name", ["positions", "orders"])
+    @pytest.mark.parametrize("field", ["BrokerID", "InvestorID"])
+    @pytest.mark.parametrize("fault", ["missing", "foreign"])
+    def test_full_account_read_rejects_foreign_or_unidentified_native_rows(
+        query_name: str, field: str, fault: str
+    ) -> None:
+        feed = _Feed()
+        # Terminal orders are otherwise ignored, but still require account identity.
+        feed.rows["orders"][0]["OrderStatus"] = "5"
+        if fault == "missing":
+            del feed.rows[query_name][0][field]
+        else:
+            feed.rows[query_name][0][field] = "other"
+        provider = _provider(feed)
+        provider.connect(account_key=_ACCOUNT_KEY, generation="service-gen-1", timeout=2.0)
+>       with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+E       Failed: DID NOT RAISE <class 'bt_api_ctp.account_provider.CtpAccountSessionProviderError'>
+
+tests/test_account_provider.py:355: Failed
+=========================== short test summary info ============================
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_intent_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[missing-request_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_intent_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[foreign_account-request_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_intent_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_unproved_or_filtered_native_request[filtered-request_filters-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_intent_parameters-value0-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_parameters-value1-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_parameters-value1-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[request_parameters-value1-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-account]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_additional_request_scope[explicit_request_filters-value2-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-BrokerID-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-BrokerID-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-InvestorID-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[missing-InvestorID-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-BrokerID-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-BrokerID-orders]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-InvestorID-positions]
+FAILED tests/test_account_provider.py::test_full_account_read_rejects_foreign_or_unidentified_native_rows[foreign-InvestorID-orders]
+35 failed, 11 passed in 0.87s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/test_account_provider.py` failed. (See above for error)

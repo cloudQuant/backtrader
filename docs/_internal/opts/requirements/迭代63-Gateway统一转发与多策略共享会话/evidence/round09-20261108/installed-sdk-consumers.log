@@ -1,0 +1,237 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r09-packaging-ySGAYCmv/final/origin-logs/sdk_fallback-14219-1794139916338371000
+INSTALLED_TEST_PACKAGE backtrader /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/backtrader/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_py /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_py/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_base /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_base/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_gateway /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_ctp /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_okx /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_okx/__init__.py
+INSTALLED_TEST_PACKAGE bt_api_binance /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_binance/__init__.py
+.............F.............                                              [100%]
+=================================== FAILURES ===================================
+_____ test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries ______
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-3476/test_zero_fill_issue_passes_on0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12c57dad0>
+
+    @pytest.mark.unit
+    def test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries(
+        tmp_path, monkeypatch
+    ):
+        with owner_fixtures._active_case(tmp_path, monkeypatch) as case:
+            intent, _reservation, _command, owner, reader, _row = _open_zero_fill_evidence(
+                case, monkeypatch, "zero-fill-shared-issue-deadline"
+            )
+            trader = owner._trader
+            observed_deadlines = {}
+            query_orders_result = trader.query_orders_result
+            query_trades_result = trader.query_trades_result
+    
+            def observe_orders(*args, **kwargs):
+                observed_deadlines["orders"] = kwargs.get("deadline_monotonic")
+                return query_orders_result(*args, **kwargs)
+    
+            def observe_trades(*args, **kwargs):
+                observed_deadlines["trades"] = kwargs.get("deadline_monotonic")
+                return query_trades_result(*args, **kwargs)
+    
+            monkeypatch.setattr(trader, "query_orders_result", observe_orders)
+            monkeypatch.setattr(trader, "query_trades_result", observe_trades)
+            started = time.monotonic()
+    
+            evidence = reader.issue(intent.intent_id, timeout=0.25)
+    
+            assert type(evidence) is CtpZeroFillTrackedOrderEvidenceV1
+            assert set(observed_deadlines) == {"orders", "trades"}
+            assert observed_deadlines["orders"] == observed_deadlines["trades"]
+>           assert started < observed_deadlines["orders"] <= started + 0.25
+E           assert 567674.734912291 <= (567674.48490975 + 0.25)
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:283: AssertionError
+=============================== warnings summary ===============================
+../install/src/bt_api_ctp/ctp/_ctp_base.py:174
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/ctp/_ctp_base.py:174: RuntimeWarning: CTP C++ extension (_ctp) failed to load; matching extension failed to load. matching=_ctp.cpython-311-darwin.so; expected=_ctp.cpython-311-darwin.so, _ctp.abi3.so, _ctp.so; available=_ctp.cpython-311-darwin.so; import_error=offline synthetic native fixture. All CTP operations will silently no-op.
+    _warnings.warn(
+
+tests/unit/test_ctp_service_execution.py:539
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_service_execution.py:539: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_service_execution.py:650
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_service_execution.py:650: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_service_execution.py:680
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_service_execution.py:680: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_service_execution.py:721
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_service_execution.py:721: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_service_execution.py:780
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_service_execution.py:780: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_execution_owner.py:272
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_execution_owner.py:272: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_execution_owner.py:308
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_execution_owner.py:308: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_execution_owner.py:395
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_execution_owner.py:395: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_submit_port.py:168
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_submit_port.py:168: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_submit_port.py:293
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_submit_port.py:293: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_order_target_query.py:172
+tests/unit/test_ctp_order_target_query.py:172
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_order_target_query.py:172: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_order_target_query.py:348
+tests/unit/test_ctp_order_target_query.py:348
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_order_target_query.py:348: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_order_target_query.py:419
+tests/unit/test_ctp_order_target_query.py:419
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_order_target_query.py:419: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_order_target_query.py:488
+tests/unit/test_ctp_order_target_query.py:488
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_order_target_query.py:488: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_service_execution_risk_cancel_claim.py:234
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_service_execution_risk_cancel_claim.py:234: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_service_execution_risk_cancel_claim.py:289
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_service_execution_risk_cancel_claim.py:289: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_service_execution_risk_cancel_claim.py:355
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_service_execution_risk_cancel_claim.py:355: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_service_execution_risk_cancel_claim.py:384
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_service_execution_risk_cancel_claim.py:384: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_cancel_port.py:260
+tests/unit/test_ctp_managed_cancel_port.py:260
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_cancel_port.py:260: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_cancel_port.py:349
+tests/unit/test_ctp_managed_cancel_port.py:349
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_cancel_port.py:349: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_cancel_port.py:395
+tests/unit/test_ctp_managed_cancel_port.py:395
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_cancel_port.py:395: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_cancel_port.py:479
+tests/unit/test_ctp_managed_cancel_port.py:479
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_cancel_port.py:479: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_managed_cancel_port.py:508
+tests/unit/test_ctp_managed_cancel_port.py:508
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_managed_cancel_port.py:508: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_callback_evidence.py:170
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_callback_evidence.py:170: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_callback_evidence.py:303
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_callback_evidence.py:303: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_callback_evidence.py:389
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_callback_evidence.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_callback_evidence.py:461
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_callback_evidence.py:461: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_callback_evidence.py:538
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_callback_evidence.py:538: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_terminal_order_query.py:20
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_terminal_order_query.py:20: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_terminal_order_query.py:107
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_terminal_order_query.py:107: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_terminal_order_query.py:162
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_terminal_order_query.py:162: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_terminal_order_query.py:234
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_terminal_order_query.py:234: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:154
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:154: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:253
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:253: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:286
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:286: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:306
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:306: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:338
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:338: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:380
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:380: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:416
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:416: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:455
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:455: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:491
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:491: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests/unit/test_ctp_zero_fill_tracked_order.py:516
+  /private/tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/tests/unit/test_ctp_zero_fill_tracked_order.py:516: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_ctp_zero_fill_tracked_order.py::test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries
+1 failed, 26 passed, 52 warnings in 1.93s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py` failed. (See above for error)

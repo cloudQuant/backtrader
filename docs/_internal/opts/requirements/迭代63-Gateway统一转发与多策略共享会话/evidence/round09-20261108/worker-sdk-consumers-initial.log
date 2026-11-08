@@ -1,0 +1,16 @@
+.............F.............                                              [100%]
+=================================== FAILURES ===================================
+_____ test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries ______
+tests/unit/test_ctp_zero_fill_tracked_order.py:283: in test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries
+    assert started < observed_deadlines["orders"] <= started + 0.25
+E   assert 567167.081615125 <= (567166.831612958 + 0.25)
+=============================== warnings summary ===============================
+bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp_base.py:174
+  /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp_base.py:174: RuntimeWarning: CTP C++ extension (_ctp) failed to load; matching extension failed to load. matching=_ctp.cpython-311-darwin.so; expected=_ctp.cpython-311-darwin.so, _ctp.abi3.so, _ctp.so; available=_ctp.cpython-310-darwin.so, _ctp.cpython-311-darwin.so, _ctp.cpython-312-darwin.so, _ctp.cpython-313-darwin.so, _ctp.cpython-314-darwin.so, _ctp.cpython-39-darwin.so; import_error=offline synthetic native fixture. All CTP operations will silently no-op.
+    _warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_ctp_zero_fill_tracked_order.py::test_zero_fill_issue_passes_one_deadline_to_order_and_trade_queries
+1 failed, 26 passed, 1 warning in 1.87s
+ERROR conda.cli.main_run:execute(125): `conda run python /tmp/r09_fake_native_pytest.py -q tests/unit/test_ctp_order_target_query.py tests/unit/test_ctp_terminal_order_query.py tests/unit/test_ctp_zero_fill_tracked_order.py tests/unit/test_ctp_managed_cancel_port.py` failed. (See above for error)

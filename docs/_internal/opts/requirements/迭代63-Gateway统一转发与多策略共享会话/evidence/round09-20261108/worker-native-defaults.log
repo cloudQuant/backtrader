@@ -1,0 +1,6 @@
+module /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_query.py
+CThostFtdcQryTradingAccountField [('BrokerID', "''"), ('InvestorID', "''"), ('CurrencyID', "''"), ('BizType', "'\\x00'"), ('AccountID', "''")]
+CThostFtdcQryInvestorPositionField [('BrokerID', "''"), ('InvestorID', "''"), ('reserve1', "''"), ('ExchangeID', "''"), ('InvestUnitID', "''"), ('InstrumentID', "''")]
+CThostFtdcQryOrderField [('BrokerID', "''"), ('InvestorID', "''"), ('reserve1', "''"), ('ExchangeID', "''"), ('OrderSysID', "''"), ('InsertTimeStart', "''"), ('InsertTimeEnd', "''"), ('InvestUnitID', "''"), ('InstrumentID', "''")]
+BizType setter/getter '\x00'
+native request/session/account calls: NONE

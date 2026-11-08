@@ -1,0 +1,52 @@
+[
+  {
+    "name": "gateway",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests",
+    "environment": {},
+    "passed": 636,
+    "failed": 0,
+    "exit_code": 0,
+    "log": "primary-gateway.log",
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  },
+  {
+    "name": "ctp",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/test_account_provider.py tests/test_ctp_g5_source_unification.py tests/test_ctp_position_evidence.py tests/test_iter63_gateway_session.py tests/test_account_provider_execution_observations.py tests/test_ctp_native_query_certificate.py tests/test_iter62_account_facts_real_client.py tests/test_iter62_instrument_positions.py tests/test_iter62_query_slot.py tests/test_ctp_callback_ingress_client.py",
+    "environment": {},
+    "passed": 406,
+    "failed": 0,
+    "exit_code": 0,
+    "log": "primary-ctp.log",
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  },
+  {
+    "name": "sdk-assembly",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/unit/test_iter63_gateway_dual_ports.py tests/integration/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_gateway_direct_service.py tests/integration/test_iter63_gateway_direct_service.py tests/unit/test_service_config.py tests/unit/test_service_config_cfg05_acceptance.py tests/unit/test_service_host.py tests/unit/test_service_host_integration.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_ctp_gateway_trading.py tests/unit/test_iter63_gateway_operator_trading_owner.py tests/integration/test_iter63_gateway_operator_trading_owner.py",
+    "environment": {},
+    "passed": 193,
+    "failed": 0,
+    "exit_code": 0,
+    "log": "primary-sdk-assembly.log",
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  },
+  {
+    "name": "sdk-consumers",
+    "cwd": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/r09_fake_native_pytest.py -q tests/unit/test_ctp_order_target_query.py tests/unit/test_ctp_terminal_order_query.py tests/unit/test_ctp_zero_fill_tracked_order.py tests/unit/test_ctp_managed_cancel_port.py",
+    "environment": {
+      "PYTHONPATH": "tests/unit:bt_api/bt_api_ctp/tests"
+    },
+    "passed": 26,
+    "failed": 1,
+    "exit_code": 1,
+    "log": "primary-sdk-consumers.log",
+    "evidence": "LOCAL_SYNTHETIC",
+    "account_calls": false
+  }
+]

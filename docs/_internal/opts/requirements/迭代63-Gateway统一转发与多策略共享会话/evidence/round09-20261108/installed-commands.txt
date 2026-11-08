@@ -1,0 +1,16 @@
+# Run Python exclusively with the conda base environment; use /tmp as cwd unless noted.
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r09-packaging-ySGAYCmv/final/snapshot.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-index --no-deps --no-build-isolation --wheel-dir /tmp/iter63-r09-packaging-ySGAYCmv/final/wheels /tmp/iter63-r09-packaging-ySGAYCmv/final/source/gateway /tmp/iter63-r09-packaging-ySGAYCmv/final/source/ctp /tmp/iter63-r09-packaging-ySGAYCmv/final/source/sdk
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r09-packaging-ySGAYCmv/final/copy_fixed.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r09-packaging-ySGAYCmv/final/prepare_tests.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r09-packaging-ySGAYCmv/final/complete_ctp_helpers.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --no-index --no-deps --target /tmp/iter63-r09-packaging-ySGAYCmv/final/install/src /tmp/iter63-r09-packaging-ySGAYCmv/final/wheels/*.whl
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/verify.py
+# cwd /tmp/iter63-r09-packaging-ySGAYCmv/final/gateway-tests
+R09_TEST_KIND=gateway /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py
+# cwd /tmp/iter63-r09-packaging-ySGAYCmv/final/install
+R09_TEST_KIND=ctp /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py
+# cwd /tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests
+R09_TEST_KIND=sdk /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py
+R09_TEST_KIND=sdk_fallback /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r09-packaging-ySGAYCmv/final/run_installed.py
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r09-packaging-ySGAYCmv/final/audit_origins.py
