@@ -1,0 +1,39 @@
+FF.......................................................F.............. [ 64%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+______ test_disconnect_preserves_guard_rejects_old_source_and_reconciles _______
+tests/integration/test_iter63_gateway_reconnect_window.py:153: in test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+    old = _wait_result(lambda: _spec_ready(h))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_iter63_gateway_reconnect_window.py:182: in _wait_result
+    _wait(done)
+tests/test_iter63_ctp_gateway_trading.py:576: in _wait
+    assert time.monotonic() < deadline
+E   assert 607848.033681708 < 607848.023455
+E    +  where 607848.033681708 = <built-in function monotonic>()
+E    +    where <built-in function monotonic> = time.monotonic
+___________ test_disconnect_during_account_read_pauses_and_recovers ____________
+tests/integration/test_iter63_gateway_reconnect_window.py:197: in test_disconnect_during_account_read_pauses_and_recovers
+    _wait(lambda: h["model"].ready and h["returns"].status()["reservation_open"])
+tests/test_iter63_ctp_gateway_trading.py:576: in _wait
+    assert time.monotonic() < deadline
+E   assert 607853.291550083 < 607853.282342833
+E    +  where 607853.291550083 = <built-in function monotonic>()
+E    +    where <built-in function monotonic> = time.monotonic
+------------------------------ Captured log call -------------------------------
+WARNING  bt_api_ctp.ctp.client:client.py:9712 CTP trader front disconnected (reason=4097, generation=1)
+_ test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True] _
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:502: in test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation
+    assert gateway["native_events"].get(timeout=5) == ("query", 2, "IF2612", "CFFEX")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+----------------------------- Captured stderr call -----------------------------
+CTP trader front disconnected (reason=4097, generation=1)
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_reconnect_window.py::test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+FAILED tests/integration/test_iter63_gateway_reconnect_window.py::test_disconnect_during_account_read_pauses_and_recovers
+FAILED tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True]
+3 failed, 109 passed in 30.04s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q --timeout=20 tests/integration/test_iter63_gateway_reconnect_window.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_gateway_instrument_roundtrip.py tests/integration/test_iter63_gateway_instrument_profile_cleanup.py tests/integration/test_iter63_ctp_gateway_return_maintenance.py tests/unit/test_iter63_gateway_instrument_service.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_trading_market_component.py` failed. (See above for error)

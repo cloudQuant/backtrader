@@ -1,0 +1,29 @@
+CTP trader front disconnected (reason=4097, generation=1)
+R26_FIRST_ERROR session.refresh_session ExchangeConnectionError NO_FINITE_CODE
+SYNTHETIC_RELOGIN_RUNTIME RuntimeSnapshot(state='failed', thread_alive=False, healthy=False, error_code='MAINTENANCE_FAILED', bindings=(), cleanup_failures=0, unregister_uncertainties=0, identity=WireIdentity(role=<WireRole.STRATEGY_CLIENT: 'strategy_client'>, principal_ref='principal-a', actor_ref='strategy-a', delegate_ref=None), run_id='instrument-strategy-a', owner_cleanup_uncertainties=0)
+SYNTHETIC_RELOGIN_HOST ('stats', 1, 1, 0, 0, (), 0, 0, 0, True, 1, {'status': 'OWNER_CLOSED', 'reservation_open': False}, False)
+FE
+==================================== ERRORS ====================================
+_ ERROR at teardown of test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True] _
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:241: in gateway
+    assert not errors, errors
+E   AssertionError: [('failed', False)]
+E   assert not [('failed', False)]
+=================================== FAILURES ===================================
+_ test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True] _
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:492: in test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation
+    failure = joint._until(old_rejected, timeout=5)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_iter63_ctp_gateway_joint_service.py:309: in _until
+    result = fn()
+             ^^^^
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:480: in old_rejected
+    response = runtime.call(
+bt_api_py/service_runtime_thread.py:396: in call
+    raise ThreadedRuntimeError("NOT_READY")
+E   bt_api_py.service_runtime_thread.ThreadedRuntimeError: NOT_READY
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True]
+ERROR tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True]
+1 failed, 1 error in 8.50s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -s --import-mode=importlib -q --timeout=15 tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation` failed. (See above for error)

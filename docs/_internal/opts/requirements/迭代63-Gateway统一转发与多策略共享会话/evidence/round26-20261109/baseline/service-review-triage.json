@@ -1,0 +1,41 @@
+{
+  "scope": "R26 SDK frozen review plus final narrow followup",
+  "findings": [
+    {
+      "id": "E056",
+      "disposition": "patch",
+      "finding": "cancel response budget after effect",
+      "status": "candidate fixed, final source/install pending"
+    },
+    {
+      "id": "E057",
+      "disposition": "patch",
+      "finding": "platform timeout loses queued handle",
+      "status": "fixed and independent 7-case followup; final suite pending"
+    },
+    {
+      "id": "E058",
+      "disposition": "patch",
+      "finding": "owner current check reused after relogin",
+      "status": "provider point-in-time probe; final suite pending"
+    },
+    {
+      "id": "authorization-window",
+      "disposition": "documented contract boundary",
+      "finding": "admitted readonly query may execute before revoked registration maintenance",
+      "status": "response live grant rechecked before and after handler; no atomic native cancellation claim"
+    },
+    {
+      "id": "T009",
+      "disposition": "patch",
+      "finding": "profile cleanup false/retry coverage missing",
+      "status": "real local owner/profile guard test added; independent 1 passed; not-yet-issued handle only"
+    },
+    {
+      "id": "E059",
+      "disposition": "investigate",
+      "finding": "same-SPI relogin intermittent owner termination",
+      "status": "OPEN, no stable pass claim"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r26-acceptance/run.py"], "origin_log_group": "ctp-37593-1794180609422346000", "pid": 37593, "ppid": 37587, "run_id": "ctp-37593-1794180609422346000", "selector_sha256": "b9bbe049dd60e83ce69385f0d1d71152d2792150f5e3229b55c865bbdd9a4624"}
+SOURCE_ROOT ctp /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp SELECTORS /tmp/iter63-r26-acceptance/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 53%]
+........................................................................ [ 62%]
+........................................................................ [ 71%]
+........................................................................ [ 79%]
+........................................................................ [ 88%]
+........................................................................ [ 97%]
+...................                                                      [100%]
+=============================== warnings summary ===============================
+../../../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+-------- generated xml file: /tmp/iter63-r26-acceptance/ctp-source.xml ---------
+811 passed, 1 warning in 39.95s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID ctp-37593-1794180609422346000

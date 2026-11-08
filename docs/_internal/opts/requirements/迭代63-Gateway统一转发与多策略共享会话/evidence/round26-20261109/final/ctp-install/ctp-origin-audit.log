@@ -1,0 +1,1 @@
+{"files": 1, "missing_exit_audits": 0, "processes": [{"exit_audit_missing": false, "guard": true, "pid": 37949, "ppids": [37932], "resolved": 189}], "run_id": "final-ctp-37927-1794180690386976000"}

@@ -1,0 +1,13 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-m", "pip", "install", "--no-index", "--no-deps", "--target", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/back_trader_python-1.4.0-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_base-0.16.0.dev63-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_binance-2.1.0.dev63-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_okx-0.16.0.dev63-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl"], "pid": 32736, "ppid": 32711, "run_id": "install-32736-1794179259703103000", "selector_sha256": "741dfa8565616a1100230591d58ca18afcca43144484f33672a7043b37c5b21f"}
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/back_trader_python-1.4.0-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_base-0.16.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_binance-2.1.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_okx-0.16.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl
+Processing /tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl
+Installing collected packages: msgpack, bt-api-py, bt-api-okx, bt-api-gateway, bt-api-ctp, bt-api-binance, bt-api-base, back-trader-python
+
+Successfully installed back-trader-python-1.4.0 bt-api-base-0.16.0.dev63 bt-api-binance-2.1.0.dev63 bt-api-ctp-2.1.0.dev63 bt-api-gateway-0.2.0.dev63 bt-api-okx-0.16.0.dev63 bt-api-py-0.16.0.dev63 msgpack-1.2.4
+RUN_EXIT 0

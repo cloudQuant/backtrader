@@ -1,0 +1,1 @@
+{"argv": ["python", "-I", "/tmp/iter63-r26-sdk-acceptance/run.py"], "exit_code": 0, "finished_ns": 1794181776775321000, "kind": "sdk", "pid": 40919, "ppid": 40912, "run_id": "sdk-40919-1794181726649964000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "started_ns": 1794181726660444000}

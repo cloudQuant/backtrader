@@ -1,0 +1,29 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r26-sdk-acceptance/run.py"], "origin_log_group": "sdk-40919-1794181726649964000", "pid": 40919, "ppid": 40912, "run_id": "sdk-40919-1794181726649964000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a"}
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r26-sdk-acceptance/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 76%]
+........................................................................ [ 85%]
+........................................................................ [ 95%]
+....................................                                     [100%]
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../../../../../tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/install/src/backtrader/feeds/__init__.py:56
+  /tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+------ generated xml file: /tmp/iter63-r26-sdk-acceptance/sdk-source.xml -------
+756 passed, 2 warnings in 49.78s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID sdk-40919-1794181726649964000

@@ -1,0 +1,7 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/verify.py"], "pid": 41593, "ppid": 41581, "run_id": "verify-41593-1794181880596066000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "stage": "verify"}
+VERIFIED source-manifest.json 313
+VERIFIED test-manifest.json 94
+PRIMARY_FROZEN_INPUTS_OK 55
+FIXED_WHEELS_OK 7
+SDK_PAYLOAD_ALL_MATCH 308 README_METADATA_OK SDK_WHEEL_SHA256 f53cc1428ccc77d9143a615c36e52439326cd2170d70b5b491fc0ab7f8d132fe
+RUN_EXIT 0

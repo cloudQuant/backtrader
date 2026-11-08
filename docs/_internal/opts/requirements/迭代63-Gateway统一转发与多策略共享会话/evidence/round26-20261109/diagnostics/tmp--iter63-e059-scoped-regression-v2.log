@@ -1,0 +1,16 @@
+.........................................................F.............. [ 64%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+_ test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True] _
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:502: in test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation
+    assert gateway["native_events"].get(timeout=5) == ("query", 2, "IF2612", "CFFEX")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+----------------------------- Captured stderr call -----------------------------
+CTP trader front disconnected (reason=4097, generation=1)
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True]
+1 failed, 111 passed in 21.53s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q --timeout=20 tests/integration/test_iter63_gateway_reconnect_window.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_gateway_instrument_roundtrip.py tests/integration/test_iter63_gateway_instrument_profile_cleanup.py tests/integration/test_iter63_ctp_gateway_return_maintenance.py tests/unit/test_iter63_gateway_instrument_service.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_trading_market_component.py` failed. (See above for error)

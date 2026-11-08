@@ -1,0 +1,15 @@
+F....................................................................... [ 62%]
+............................................                             [100%]
+=================================== FAILURES ===================================
+______ test_disconnect_preserves_guard_rejects_old_source_and_reconciles _______
+tests/integration/test_iter63_gateway_reconnect_window.py:164: in test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+    assert _pause_observed(h), (h["owner"].status(), h["returns"].status(), h["model"].read_status())
+E   AssertionError: (GatewayDirectOwnerStatus(queue_depth=0, running=False, accepting=False, thread_alive=False, failure_category='mainten...False, 'status': 'OWNER_CLOSED'}, mappingproxy({'session_generation': None, 'ready': False, 'fresh_for_seconds': 0.0}))
+E   assert False
+E    +  where False = _pause_observed({'active': ActiveRegistrationContext(context=ServiceCallContext(identity=WireIdentity(role=<WireRole.STRATEGY_CLIENT: ...s/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/tests/test_iter62_settlement_readback_on_write.py'>, ...})
+------------------------------ Captured log call -------------------------------
+WARNING  bt_api_ctp.ctp.client:client.py:9712 CTP trader front disconnected (reason=4097, generation=1)
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_reconnect_window.py::test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+1 failed, 115 passed in 15.73s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q --timeout=20 tests/integration/test_iter63_gateway_reconnect_window.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_gateway_instrument_roundtrip.py tests/integration/test_iter63_gateway_instrument_profile_cleanup.py tests/integration/test_iter63_ctp_gateway_return_maintenance.py tests/unit/test_iter63_gateway_instrument_service.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_trading_market_component.py` failed. (See above for error)

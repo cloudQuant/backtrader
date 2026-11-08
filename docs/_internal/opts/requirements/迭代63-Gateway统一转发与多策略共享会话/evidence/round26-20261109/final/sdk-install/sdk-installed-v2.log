@@ -1,0 +1,22 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/run_sdk_v2.py"], "pid": 42124, "ppid": 42114, "run_id": "sdk-installed-v2-42124-1794182056941537000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "stage": "sdk-installed-v2"}
+RUN_ID sdk-installed-v2-42124-1794182056941537000 PID 42134 PPID 42126 SDK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/msgpack/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 47%]
+........................................................................ [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 76%]
+........................................................................ [ 85%]
+........................................................................ [ 95%]
+....................................                                     [100%]
+=============================== warnings summary ===============================
+../../../../tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/backtrader/feeds/__init__.py:56
+  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+756 passed, 1 warning in 49.11s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

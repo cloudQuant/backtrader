@@ -1,0 +1,2074 @@
+[
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/MANIFEST.in",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/MANIFEST.in",
+    "relative": "MANIFEST.in",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "bf78b5c9f759d744277399574b8ca0cc86b2c734900aa5ecea5504b607af6cde"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/README.md",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/README.md",
+    "relative": "README.md",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "af6c0b3c25216777630e98342068cbbe05c39cebcd61341d1a6ee517490578b4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/pyproject.toml",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/pyproject.toml",
+    "relative": "pyproject.toml",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5f39eb3677de6b60f05ecbc9dcab45ead2b034e5b1581097f83d106e6634309f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/setup.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/setup.py",
+    "relative": "setup.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "db501fb25690d23ebabbdd82b44c768d7215a3667ca903836e6de5625d7a0d7f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/.DS_Store",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/.DS_Store",
+    "relative": "src/bt_api_ctp/.DS_Store",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5635a31a24347358a515dc3ed252f40b41e451227e0099f6ccf97654fb9bb588"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/__init__.py",
+    "relative": "src/bt_api_ctp/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "11462189826e2fc3f4d1edfa12981db054a610dab454a5cfcb6476ee3c77d547"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/account_provider.py",
+    "relative": "src/bt_api_ctp/account_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "27414eb026f5e6d7d590bec88b49efe4a6fd81b4fc01a2e77a816938150ff437"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_risk_source_policy.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/account_risk_source_policy.py",
+    "relative": "src/bt_api_ctp/account_risk_source_policy.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "189efd89a5625874c2ebf327135065d20a32db47807997fd26e5f9bc327a5f63"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/callback_ingress_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/callback_ingress_projection.py",
+    "relative": "src/bt_api_ctp/callback_ingress_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9408279e94d0a5c8cc1707a2eeea6af7c81520bbf7b6ca94cc922695da5048ba"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cancel_target_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cancel_target_projection.py",
+    "relative": "src/bt_api_ctp/cancel_target_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2e1d8a344f9b6ee059cc45dee3f10e40525e6a218282a488bb437cd9945e5ad3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/__init__.py",
+    "relative": "src/bt_api_ctp/cleaner/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "741aa0c539611accb416e35aab03d4b9ab9f9399399a948563817453b5e0bcde"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/__main__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/__main__.py",
+    "relative": "src/bt_api_ctp/cleaner/__main__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a34eb6cb4db34217fa5366417f482ff9313711588ba03d6fdce07d97098a1d0d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/cli.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/cli.py",
+    "relative": "src/bt_api_ctp/cleaner/cli.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f98cb300d36e2d92a0b8031d95e5e999cf873f1ed709ca10ec03cbd1ef96cc5f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/config.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/config.py",
+    "relative": "src/bt_api_ctp/cleaner/config.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "000f525350ef09fb1c7de68d3c43111b852d69393db06a7a6b0edfcac6cbb2d7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/contracts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/contracts.py",
+    "relative": "src/bt_api_ctp/cleaner/contracts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "67dd1c0a506f85ef63294b3d18130be1c8393f224214341653cbfe8dedc4cb09"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/kline/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/kline/__init__.py",
+    "relative": "src/bt_api_ctp/cleaner/kline/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "10b5014c3b825badd35f6b5fadf49e9f9f41c35a6bcf493fcb21476ee7852869"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/kline/aggregator.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/kline/aggregator.py",
+    "relative": "src/bt_api_ctp/cleaner/kline/aggregator.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "030ab0246b3b60a2a23d2b2f317f44f7dd5a694a33dee30fe447def8698abd42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/kline/build.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/kline/build.py",
+    "relative": "src/bt_api_ctp/cleaner/kline/build.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "265f325f8f02d6e7dd3547ff4f91c7ca95e94153bca70a6108d97b3bb2bf60cd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/kline/schema.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/kline/schema.py",
+    "relative": "src/bt_api_ctp/cleaner/kline/schema.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "31b646e35fbdd29401bea8b3cd83a74f3d0cf852c4ce70737112c19b4a8e6e93"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/kline/writer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/kline/writer.py",
+    "relative": "src/bt_api_ctp/cleaner/kline/writer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "98e39bf783bdd52adadbb55b708c78144dc0a43cde33c30ef20aee2117164966"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/manifest.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/manifest.py",
+    "relative": "src/bt_api_ctp/cleaner/manifest.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ad807deb652a21b2d41be219641c49e4443906765c882a3b008ec271e1d5f63f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/merge.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/merge.py",
+    "relative": "src/bt_api_ctp/cleaner/merge.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "136721042b91089cd445af627c1d91e345132d3cdd9929604e493d7e2a2ca738"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pipeline.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pipeline.py",
+    "relative": "src/bt_api_ctp/cleaner/pipeline.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "18f7e1f72f9ad7c14bf2ad75288933ee24775f45f68434f3ff9c7cb0b61cc5d5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pull/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pull/__init__.py",
+    "relative": "src/bt_api_ctp/cleaner/pull/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "317bc0d3da94e82815c1b131ea31c8f87da845d2bdbfbbbe2ddfdd0bfe63ae83"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pull/backend.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pull/backend.py",
+    "relative": "src/bt_api_ctp/cleaner/pull/backend.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c9d47e1079a5fdb76531a0adb70c014dabd195f64b933ef87c3960cd34361fe0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pull/local_backend.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pull/local_backend.py",
+    "relative": "src/bt_api_ctp/cleaner/pull/local_backend.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "71bdccde62d3eee43a0f8bb1f2a212912227db658fa408a63c30841f0f623d48"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pull/rsync_backend.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pull/rsync_backend.py",
+    "relative": "src/bt_api_ctp/cleaner/pull/rsync_backend.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6dd442cc9217d2ac6cac6217548a2af19ec74063554e781c6a8126e68a9c1efb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/pull/sftp_backend.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/pull/sftp_backend.py",
+    "relative": "src/bt_api_ctp/cleaner/pull/sftp_backend.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d90bd059de55e0179db40911f8604ee1c3eda3f6f080b77624da4613bec12fe4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/reclaim.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/reclaim.py",
+    "relative": "src/bt_api_ctp/cleaner/reclaim.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a4edefe7a2a95e35ce8fdfb4d5b9b3aba9d0002337cda5bf1293f46e93cbb878"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/report.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/report.py",
+    "relative": "src/bt_api_ctp/cleaner/report.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8d55a209deb48f31b7fc3016c18171b675657a121d50fb96362e58b51d0c1176"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner/verify.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner/verify.py",
+    "relative": "src/bt_api_ctp/cleaner/verify.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "fce340fd1e6802904909aee41d620f04a60ee85cfd20c4ac47b2b95373e0b089"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner_ctp/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner_ctp/__init__.py",
+    "relative": "src/bt_api_ctp/cleaner_ctp/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a1943ccccdb5797cc51dbdc5335b502d710e1351c909b8f664d21c24ee4d4ab3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/cleaner_ctp/symbols.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/cleaner_ctp/symbols.py",
+    "relative": "src/bt_api_ctp/cleaner_ctp/symbols.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f54cb54254454e3c2412c7ef33ca04ac0211a17ab40f33c8b4ef2f654f1e85b7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/__init__.py",
+    "relative": "src/bt_api_ctp/collector/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "582667bb5e79746b48da5d57f2b185c0e9fbc581bf783b10b5b952325be19584"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/__main__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/__main__.py",
+    "relative": "src/bt_api_ctp/collector/__main__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "91a79f6cc926d11677e15722d89ab7a9675ad289aa608c9c147c636d3a8077ce"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/buffer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/buffer.py",
+    "relative": "src/bt_api_ctp/collector/buffer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3a7f2e174f451dcb5f4a39b8949dc99668e88cc12e9b0407860fb20ab225e961"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/cli.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/cli.py",
+    "relative": "src/bt_api_ctp/collector/cli.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1b641df33f0096a77f22525ff8664eaed5d15d5c5ba3246a6b007cd232d54247"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/engine.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/engine.py",
+    "relative": "src/bt_api_ctp/collector/engine.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0876972f6e58931de716902c1e694468f9f0cb04e27f310a74cc2894e8642f0d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/health.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/health.py",
+    "relative": "src/bt_api_ctp/collector/health.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4e1599c8432e0e3f079ddcccfbe211150667d224983fb5b4db5dedb0378b24a0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/lifecycle.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/lifecycle.py",
+    "relative": "src/bt_api_ctp/collector/lifecycle.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "43d2221f9688f16c342530ed6b46db6234b8a5fa5fc22e4af5472895a5b3392d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/protocols.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/protocols.py",
+    "relative": "src/bt_api_ctp/collector/protocols.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "abaee4db3769c72e39c70c85313e7de8a7ed11b1f24f1f3c3f68d6b4d6cbbc5e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/schedule.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/schedule.py",
+    "relative": "src/bt_api_ctp/collector/schedule.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "63d163752df5de6ccc4919a74b4df87c501583616e86b86db16c1282a31150b1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/shard.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/shard.py",
+    "relative": "src/bt_api_ctp/collector/shard.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7f8fb4bf91fffe53cde023e1d84ec42e54125d86832a1f9bcc2df014c795bdd4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector/sink.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector/sink.py",
+    "relative": "src/bt_api_ctp/collector/sink.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1051cacb8acc199f71f62bdf39a4fec21e2e83211cda7a79089db6fa296000f8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector_ctp/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector_ctp/__init__.py",
+    "relative": "src/bt_api_ctp/collector_ctp/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7e76c0ccaf554a87b2c889d1d90bea0484219c0e62fc0ee28f9ff43490290bce"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector_ctp/instrument_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector_ctp/instrument_provider.py",
+    "relative": "src/bt_api_ctp/collector_ctp/instrument_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f0a6914defbd081af33919b7d84c5aa390601adf3c2c7ee58ad82155f64dc8b8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector_ctp/normalizer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector_ctp/normalizer.py",
+    "relative": "src/bt_api_ctp/collector_ctp/normalizer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3f0d8459dcc9c02c1c65508cb5b0092a6af6cd16009296c650fc968c58c0ff0f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/collector_ctp/subscriber.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/collector_ctp/subscriber.py",
+    "relative": "src/bt_api_ctp/collector_ctp/subscriber.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "78c73dba88fd09e373cf3a6d34ee77464a944f6b6ca0e761a2d87f1e3cdb7843"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/configs/ctp.yaml",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/configs/ctp.yaml",
+    "relative": "src/bt_api_ctp/configs/ctp.yaml",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9be7ba6d995843cf895998550d32db5b94a1d66370a286c3c84141804a187640"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/__init__.py",
+    "relative": "src/bt_api_ctp/containers/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5384bfdb2df380b6557cc7a71d16891415bccaa87699406e236f752c6415389f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/__init__.py",
+    "relative": "src/bt_api_ctp/containers/ctp/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "43985b2fa563e0bd22beff26e75f3333e83158278152874e836bd4df19817eb8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/_normalization.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/_normalization.py",
+    "relative": "src/bt_api_ctp/containers/ctp/_normalization.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "252859b580722bcc51a3a1b6c1b39a2d7776fa9ffbdf07d294a33c52e3ce26ee"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_account.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_account.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_account.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0063f485da8a50bf8eb4b3249dcfcb3460dae193ec251e71a1a7c44734cba894"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_bar.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_bar.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_bar.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4ce8f481db4c47bab3cc7ee5c0684ea2a95f90e0d4f758e96e6642d86d51264f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "21740892acc244af7047dcdc29e5fff59414152db8a50b6fa49f014f84ece497"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_order.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_order.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_order.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0f20a6476c0fa85067aea35f571b0764f16ae122dbbf187bd5b423ac61297ff5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_position.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_position.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_position.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3fbb264bbfdeda19c5c15c38b63484ce0f04daeecc9fa6103afdb05bf64a5c64"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_position_evidence.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "fecf52f0aa94e642069d269bd3a302fa617925159005ae7057e3122ad340e1d7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_ticker.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_ticker.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_ticker.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "93c79809cd0f47c14f299abe905e784f5ec6d831bfb5337ecf96289d5153e964"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/ctp_trade.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/ctp_trade.py",
+    "relative": "src/bt_api_ctp/containers/ctp/ctp_trade.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a3c418cbf1196c0bae4a853865a7aee2797e0b20679ac56581369196b08ccec6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/containers/ctp/position_dimensions.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/containers/ctp/position_dimensions.py",
+    "relative": "src/bt_api_ctp/containers/ctp/position_dimensions.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3f37c01fbfbdff433beff484ac4ab312e16e24474a60c47c38c7c1d5fc31f387"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/credential_binding_fronts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/credential_binding_fronts.py",
+    "relative": "src/bt_api_ctp/credential_binding_fronts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "41cc492a13223e7b5f29eb8b64bfda73d0bcafe66059fbbc4d718d7231e860c2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/__init__.py",
+    "relative": "src/bt_api_ctp/ctp/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "bc64f684ed01276891beeea858a65d9461e91eb5f0a4149d6170444a5d02e0ec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-310-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-310-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-310-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6b61f242d73c559c933017cd21a49c0d9eea937901114cd92178a306591aba44"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-312-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-312-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-312-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8ee8f3ac5ddfaf6de277102341f6d293f2c9556b76a63ccef636c660af51ef06"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-313-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-313-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-313-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "07c119db25ed399fe61955ea8cce9ef7cfa9b76ff56105cf428f9bc01fe85869"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-314-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-314-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-314-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "78391252d3459373af8b986771ceda7396ab4a1c0226dbf3db55528d1687895e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp.cpython-39-darwin.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp.cpython-39-darwin.so",
+    "relative": "src/bt_api_ctp/ctp/_ctp.cpython-39-darwin.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c88ef1940aa636e063720e70064b0874c02441ed45221df560dd1fa0088a82ad"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/_ctp_base.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/_ctp_base.py",
+    "relative": "src/bt_api_ctp/ctp/_ctp_base.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b5be6cc085587559b097741fbbdd0daeab8729fc5482a83d8002c3aab5bbaddf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Headers",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Headers",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Headers",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Resources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Resources",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Resources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5be634de17bfb3c607c2d87ffce5b89ed95bd378f76b24d1411b91facdb77169"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "38c9cc2316fdf8adec55268c7e55fe63ec4f3674ab8b7422666906ad50a7754b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ff5ac3928a131b24973b9900efa1175410e5db57b9d64c937e07ae553150f1bf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/Current",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/Current",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/Versions/Current",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/thostmduserapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/thostmduserapi_se",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thostmduserapi_se.framework/thostmduserapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e225b3ab33ad76e76960ec22cc9ce14331f893388334eea6578bcc504e63dd31"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Headers",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Headers",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Headers",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Resources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Resources",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Resources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2713e7a2e1fdf689013d7e2627c5e1f516823c17424436f64b056ef1cedfd484"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5b25159ee8a5f6dba0bdc1c9702c3bea58e5a75b4e35f21fc682afa1dd9e93e9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a0861496692449d6d8fdff9ca3b2e3fcce374efcc4dfe317ef83d3fd156313a0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e22611e2b844c0eeefe1df85f9c7008d6931c37c13ef10f68db73efb5e0d4be7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/Current",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/Current",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/Versions/Current",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/thosttraderapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/thosttraderapi_se",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/darwin/thosttraderapi_se.framework/thosttraderapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1b0fa34014a60260ef7d1d72d029e71f2ec0006125bef5946d16076ac4028f22"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcMdApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcMdApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcMdApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6323c86b6bddeb41aa8f68751cb04cb637758eab2a54c8abd2fbfb2d13c2640a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcTraderApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcTraderApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcTraderApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d9be45c038b9fe5681ac5f26e4d18d52ade6accac60d4a13cc0ff7585aee4a6e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9e65fca67b26dfeca3d2c031388dacfdbeb1edf396cec23593bcb36b409a9f73"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4e73f277109bedb4b81163e4d13e2197e2f6cdffddefaa0f1d7d5e504b70033d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/error.dtd",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/error.dtd",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/error.dtd",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dd55164c51f78d5e75144bdfeb82732ff10adb9ef9d7b9acb1acfe660c40b93f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/error.xml",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/error.xml",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/error.xml",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9d0a299eb68b87a60c54b2e4d9a37b6d46e4b0e1bce3d64eeea11f93fc81083b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/libthostmduserapi_se.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/libthostmduserapi_se.so",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/libthostmduserapi_se.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6da3e23a041418b57506811a9a36b43c2dd53d5e9becf4b88ae083807d6084de"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/libthosttraderapi_se.so",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/linux/libthosttraderapi_se.so",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/linux/libthosttraderapi_se.so",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "54a231681ba68b0462a693a078251e9d12f98bf55a1569ed8f9c63de39c8bd22"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcMdApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcMdApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcMdApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcTraderApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcTraderApi.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcTraderApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e52c2cb7a8c17571d47848ea0a946679f9c2e12b5c9f4057188707a15d1546b0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/error.dtd",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/error.dtd",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/error.dtd",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dd55164c51f78d5e75144bdfeb82732ff10adb9ef9d7b9acb1acfe660c40b93f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/error.xml",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/error.xml",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/error.xml",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9d0a299eb68b87a60c54b2e4d9a37b6d46e4b0e1bce3d64eeea11f93fc81083b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.dll",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.dll",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.dll",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.lib",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.lib",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/thostmduserapi_se.lib",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "02dfc5ef9b70e30430a935807f8c61f926beab719cf85005bb408dd9dc6065a1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.dll",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.dll",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.dll",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.lib",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.lib",
+    "relative": "src/bt_api_ctp/ctp/api/6.7.7/windows/thosttraderapi_se.lib",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b345f201edc4d16efd5356aff5a0f1c875bbb7124b2a80fadb725dbf5b49ce76"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/callback_events.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/callback_events.py",
+    "relative": "src/bt_api_ctp/ctp/callback_events.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4f72035a913ddbabbddab847bb69eb9f8c4b842d2e3e1a064f8824d8829444bb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/callback_ingress.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/callback_ingress.py",
+    "relative": "src/bt_api_ctp/ctp/callback_ingress.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b5fc021d5286a2bbf43af907279bf65a047d1d5c87ca0069fded928ebf3b9176"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/client.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/client.py",
+    "relative": "src/bt_api_ctp/ctp/client.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d390364d1dd59d65cc562d19d3c0bbbece6196f295083937f5171e47b853abf3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp.i",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp.i",
+    "relative": "src/bt_api_ctp/ctp/ctp.i",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "02d4e0a64142397dc06ee9440c8d5af36fac3ea5710fc794c17e9a544858ca31"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp.py",
+    "relative": "src/bt_api_ctp/ctp/ctp.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b7765d11769a7f1832d433847889ec682a23b8ffc89225ae2ff5febfce629a2c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp.py.bak",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp.py.bak",
+    "relative": "src/bt_api_ctp/ctp/ctp.py.bak",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dbbd89e77b4dfdb35e81a1a6f33ade653e205ee7f2d9fe8fc98a66594f51cb79"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_constants.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_constants.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_constants.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "17e823164e40dbcab6fc5ce1fae99deb32c0b744821703fdd7fdb2ca3c92b635"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_md_api.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_md_api.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_md_api.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ccddb61719b32fdbada17b6994173aa54f15d687472eda933a02559459d6febe"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_account.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_account.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_account.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e33cdef54b4f80ede4d2c5778ad6c7505b836681b4ab18ebd280cde88b197121"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_common.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_common.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_common.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "fa97f7df5ad9bb93564858d19a2f524664835aa3b8bd9bc1fb1d1425cefe50d5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_market.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_market.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_market.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b83d7edcc947faca2bfbca17a9fad837a5b769d3e2393b5383fd6af6f4fff109"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_order.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_order.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_order.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c64ca2d4a25918189b6aca149ce1d0c34bc635d9bc41f5eee37a5a50e8bb5bb1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_position.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_position.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_position.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2eec9ae820cad066c4308b5ef3f77dc5e73e4b8ecb34f49f9afc821547bd371e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_query.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_query.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_query.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "53f41f793c796ba7408abb7708a655c69e54e536f3b885fc202a961fabe2ad4d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_risk.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_risk.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_risk.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9fc8cd71e05171bcc1f64eccfdf8b6f0e9d183912ceebcc057af2e86556fe2ac"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_trade.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_trade.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_trade.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "877746acb97e812e8fd323aa946d4b8e408f2cde0a0d70be4e8f9c210ad2a927"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_structs_transfer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_structs_transfer.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_structs_transfer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "af1eeca90f27db10e139044b211239f6f97418851afd0ddc7ecea39e7b1aea8b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_trader_api.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_trader_api.py",
+    "relative": "src/bt_api_ctp/ctp/ctp_trader_api.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "81f69922a0d96f00d45b5644edaf31eba4cbb1dc8e590bd8677690da3f12ed65"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_wrap.cpp",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_wrap.cpp",
+    "relative": "src/bt_api_ctp/ctp/ctp_wrap.cpp",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0db9998aada2331b30f5bebb19ed456272f678a7f00a6507f3607d975fc8d259"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/ctp_wrap.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/ctp_wrap.h",
+    "relative": "src/bt_api_ctp/ctp/ctp_wrap.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a021d2a671e1b83a548bb34cee5a2bc9d323f23f12b7e093938f633bcab55e11"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/iconv.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/iconv.h",
+    "relative": "src/bt_api_ctp/ctp/iconv.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "77bbf7978dba91b36b81ba95f2ffdcba5a58fd5010260ae3146e555886849471"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/session_relogin.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/session_relogin.py",
+    "relative": "src/bt_api_ctp/ctp/session_relogin.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ccbc07bac60bfe1ead8696b5b13cdabeb156675db10107266e48988d57e4ff0c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.dll",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.dll",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.dll",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "72a833786836ce6e6026bc0c19a06bd3c1b0279cb1ea9df0297b1c2916cad98b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Headers",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Headers",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Headers",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Resources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Resources",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Resources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5be634de17bfb3c607c2d87ffce5b89ed95bd378f76b24d1411b91facdb77169"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "38c9cc2316fdf8adec55268c7e55fe63ec4f3674ab8b7422666906ad50a7754b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ff5ac3928a131b24973b9900efa1175410e5db57b9d64c937e07ae553150f1bf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se",
+    "relative": "src/bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e225b3ab33ad76e76960ec22cc9ce14331f893388334eea6578bcc504e63dd31"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.dll",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.dll",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.dll",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d79cc036fc90733a30cee8e8e30bdea17b346333c69413f33d44ebc7a96b1fad"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Headers",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Headers",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Headers",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Resources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Resources",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Resources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2713e7a2e1fdf689013d7e2627c5e1f516823c17424436f64b056ef1cedfd484"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5b25159ee8a5f6dba0bdc1c9702c3bea58e5a75b4e35f21fc682afa1dd9e93e9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a0861496692449d6d8fdff9ca3b2e3fcce374efcc4dfe317ef83d3fd156313a0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e22611e2b844c0eeefe1df85f9c7008d6931c37c13ef10f68db73efb5e0d4be7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se",
+    "relative": "src/bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1b0fa34014a60260ef7d1d72d029e71f2ec0006125bef5946d16076ac4028f22"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp_callback_ledger_adapter.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp_callback_ledger_adapter.py",
+    "relative": "src/bt_api_ctp/ctp_callback_ledger_adapter.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "faf427026d5372ff4cbad6f9dbcb7e72c32140c6a7a207b147d8adb1901768d8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp_callback_session.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp_callback_session.py",
+    "relative": "src/bt_api_ctp/ctp_callback_session.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7e70322c202e07c2a224afc5bb61f67d3cbf1258cccd9e2a6e75587b8a35d77f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp_callback_source_bridge.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp_callback_source_bridge.py",
+    "relative": "src/bt_api_ctp/ctp_callback_source_bridge.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b1e59109d6d68be40b237afebf55ec83bffd860183d8afb1669a204fae9b1163"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp_close_plan.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp_close_plan.py",
+    "relative": "src/bt_api_ctp/ctp_close_plan.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "98b990f1544123b61e6498ee3e9fd02ed1e7cfbf510d5bbd78e35c711f1c5ae9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/ctp_env_selector.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/ctp_env_selector.py",
+    "relative": "src/bt_api_ctp/ctp_env_selector.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ef517a5c11a2bd72bb9f3e435f65d5fd3097f759895ba3718cb8f09d4d97e800"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/direct_write_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/direct_write_provider.py",
+    "relative": "src/bt_api_ctp/direct_write_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dd6f4682da6e35021a3f06435e568afb911f31803d5c89e6a5baa46a53a718f8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/errors/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/errors/__init__.py",
+    "relative": "src/bt_api_ctp/errors/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ac832587d466fd4b07167da4a52da2329f69b01bf1637bd8991cd968bcf35174"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/errors/ctp_translator.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/errors/ctp_translator.py",
+    "relative": "src/bt_api_ctp/errors/ctp_translator.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "90616fb1049eb9edc0bc5f03a280c73db92a3b5e7e0d76bd8d365368e13de9cb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/exchange_data.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/exchange_data.py",
+    "relative": "src/bt_api_ctp/exchange_data.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0ad94848f6ce0849014d254a4c44b28ddd75154043a2598b515acce5e0893bc6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_callback_mapping.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_callback_mapping.py",
+    "relative": "src/bt_api_ctp/execution_callback_mapping.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c9380441f055e3aea8046d013354257f93c2014f61d0bced9fea122934ee32df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_economics_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_economics_registration.py",
+    "relative": "src/bt_api_ctp/execution_economics_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d30c0124cfe1a3d49f64d024bc1e683be3fb52151eaf7bf69167016c8a1d8d08"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_economics_source_issuer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_economics_source_issuer.py",
+    "relative": "src/bt_api_ctp/execution_economics_source_issuer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c176d0e1c7d6a4ab45a00c864609d31e5869e93785e165c692ac63c95a7b6cdf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_instrument.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_instrument.py",
+    "relative": "src/bt_api_ctp/execution_instrument.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "275769f3d1b7fd5227b8e995293e28246f1e2e1955013a05bc62d025312e3c3e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_query_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_query_projection.py",
+    "relative": "src/bt_api_ctp/execution_query_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2d90cdb2171c7fc75dc72a330fd9430a422546ce6125afee2ee4dff406bf0ce0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_rules.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_rules.py",
+    "relative": "src/bt_api_ctp/execution_rules.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c1db970cf0c7cc9db7871bea25ba2dcca6391758c2c2281ff4b6143c9bc57388"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_rules_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_rules_registration.py",
+    "relative": "src/bt_api_ctp/execution_rules_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9321c562267b5b1a15db57e864b44aa226073a70f4c04ce85752a06bfb26491e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/execution_rules_source_issuer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/execution_rules_source_issuer.py",
+    "relative": "src/bt_api_ctp/execution_rules_source_issuer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dfb38fb527a0317702e31e3ad525656751b4d5a194f3850b8fc9a0d830fe6252"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/feeds/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/feeds/__init__.py",
+    "relative": "src/bt_api_ctp/feeds/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4f945026e09cce10a4c7f1c6d54973ea8599c11298a1e8b60de50f00bcca64a3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/feeds/base_stream.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/feeds/base_stream.py",
+    "relative": "src/bt_api_ctp/feeds/base_stream.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3fa149e52c62619557cb751ea60f24da4a4982632f2964749ed7d7eae2126e21"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/feeds/live_ctp_feed.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/feeds/live_ctp_feed.py",
+    "relative": "src/bt_api_ctp/feeds/live_ctp_feed.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "385a379f198296a56d2ae7b6e3d2e61c3314fb96f701e2194dbb458fb4ef837b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/fields.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/fields.py",
+    "relative": "src/bt_api_ctp/fields.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d1412c3ba58bc66a62e51e89cab4572b82005dcd8888bfd8b782517e0f1d4753"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_eod/__init__.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_eod/__init__.py",
+    "relative": "src/bt_api_ctp/futures_eod/__init__.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2626495c14ef506261914ae0d5905dd53b0adcffbee6f99d847fc341b0511809"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_eod/cffex.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_eod/cffex.py",
+    "relative": "src/bt_api_ctp/futures_eod/cffex.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "af2ffbab0655ab1b3e65608ab2e06f54fb7cac1088aac040d7e77ab7e352814c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_eod/provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_eod/provider.py",
+    "relative": "src/bt_api_ctp/futures_eod/provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7d8d0d9f2b39655c8fb8c052a40b289a417bec16716bd0bff8e7f60de6da31ff"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_eod/shfe.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_eod/shfe.py",
+    "relative": "src/bt_api_ctp/futures_eod/shfe.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3cf22758b2550e4cde7e469e5a426cb82817854d096ae4b7835d9c845c4d5b0d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_eod_ranking_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_eod_ranking_registration.py",
+    "relative": "src/bt_api_ctp/futures_eod_ranking_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f6720102809209b2467edd43d929e5d13c6cabed89e459b9bef9135d5f4e74aa"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_expected_calendar_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_expected_calendar_provider.py",
+    "relative": "src/bt_api_ctp/futures_expected_calendar_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "cb5096a9a40ef5190cf54a845e8ef7619116bd31189a71fa34d4ed9e8604c19c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/futures_market_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/futures_market_projection.py",
+    "relative": "src/bt_api_ctp/futures_market_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e448f6e9bf5dd61145b1bad9c97806e2eeb205cba393bf8c4c4d494e8f8cd3a6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_cancel_return_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_cancel_return_projection.py",
+    "relative": "src/bt_api_ctp/gateway_cancel_return_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "17c06f3230ac4fcaea13f9e7fa168dd16a7b0dfea94e56e3115b7b3ac3b8749d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_cancel_source.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_cancel_source.py",
+    "relative": "src/bt_api_ctp/gateway_cancel_source.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f9b64fb69c87fb3d24ae7a9d2f51819101013e9ee6ff1df957d861368251d23f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_instrument_metadata.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_instrument_metadata.py",
+    "relative": "src/bt_api_ctp/gateway_instrument_metadata.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "47a21c368773bbc5f7b813590e806bf644d48159afc4e6a94c8e00dd37250490"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_instrument_query.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_instrument_query.py",
+    "relative": "src/bt_api_ctp/gateway_instrument_query.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dffc79f92ba9cc19137a05f4f71f23dbf8fff2ee9d077fe315b815398693f1ff"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_place_return_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_place_return_projection.py",
+    "relative": "src/bt_api_ctp/gateway_place_return_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f4aa8e46f138272b0115a73013494715504e8bfabf445aeb4b98aed1034eceec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_place_source.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_place_source.py",
+    "relative": "src/bt_api_ctp/gateway_place_source.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c400ad569120206b41ca0877858f0ceedbfdb2f4bdf3865dc26e2d3176f5e9df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_return_buffer.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_return_buffer.py",
+    "relative": "src/bt_api_ctp/gateway_return_buffer.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0602a80d75646658b39108bd7e8c5008dcc24c35f081cdf6bca9a0894657d76d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_return_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_return_projection.py",
+    "relative": "src/bt_api_ctp/gateway_return_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "adca3cf884a2ab9a981563d7c3240a0921b58f865e06d7238eb566d6db98eeb6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_return_query.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_return_query.py",
+    "relative": "src/bt_api_ctp/gateway_return_query.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "cd35b033f5c1802dd2e7a4253841662f238e13492219760ec1cfa9e71557a2aa"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/gateway_session.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/gateway_session.py",
+    "relative": "src/bt_api_ctp/gateway_session.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "9d4c201b13f3ef7e4d4844224756fb2a56dac10979f1a1de4cbfe75eed8b7344"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/instrument.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/instrument.py",
+    "relative": "src/bt_api_ctp/instrument.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4779ade9545f2e315225cf33cef86d04810525b117f961e8bf92a4fe60ea397d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/instrument_catalog_cache.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/instrument_catalog_cache.py",
+    "relative": "src/bt_api_ctp/instrument_catalog_cache.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a9b1b3e6a56e8e5a546df9d86bb66817e0a871f09cf6c31d976096918660e258"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/instrument_metadata.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/instrument_metadata.py",
+    "relative": "src/bt_api_ctp/instrument_metadata.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b408b0f48736d9929ac8f2aa9c7c32b936a781e50457534a4a242303d8367b31"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/instrument_position_facts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/instrument_position_facts.py",
+    "relative": "src/bt_api_ctp/instrument_position_facts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7bf433141efe389d27886c84a4fbd0239d6f3cf43eed4d0b016471fbcbdd87e8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/instrument_rules_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/instrument_rules_projection.py",
+    "relative": "src/bt_api_ctp/instrument_rules_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "90f7ca5f2b7816821e68cb60adf2d09bd9d1243c9e430a4c3709a8715935546d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_correlation_binding.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_correlation_binding.py",
+    "relative": "src/bt_api_ctp/managed_correlation_binding.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "36248dc59b487de7d219314943991d4ae494f0631b54b6c61138676fabc32198"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_dispatch_contracts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_dispatch_contracts.py",
+    "relative": "src/bt_api_ctp/managed_dispatch_contracts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f947b29fe33ee5831408fa0b308a14a673d15eab3bd79050fdeacb2a67a40009"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_dispatch_worker_binding.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_dispatch_worker_binding.py",
+    "relative": "src/bt_api_ctp/managed_dispatch_worker_binding.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b7d1812800ed59bef6127769b14d43af9d3a679fe43a651bb69ecba6d5987f9a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_order_authority.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_order_authority.py",
+    "relative": "src/bt_api_ctp/managed_order_authority.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c5512f6dff1377f9444957c31dbbf5128f53f201e94e353825f8ca5db91015a9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_order_bridge.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_order_bridge.py",
+    "relative": "src/bt_api_ctp/managed_order_bridge.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "15f96baefe8a866f89363775b3df6140687797a7c9f69037760dee14bda562b7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_order_identifier.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_order_identifier.py",
+    "relative": "src/bt_api_ctp/managed_order_identifier.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "bc907c897c9d0bb1101e99ab48846041f6aa156119f5132c527d36e7912806ea"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_order_query_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_order_query_projection.py",
+    "relative": "src/bt_api_ctp/managed_order_query_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1da9dae47c50cfc66ff0e3a1882cd22200856045922bec1e68aa3a13791248c7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_request_identity.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_request_identity.py",
+    "relative": "src/bt_api_ctp/managed_request_identity.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "693fa964282fd53cf7e33e74fb65758bdccae0812e1cc16c19c70c9a979a8117"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/managed_runtime_route_validation.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/managed_runtime_route_validation.py",
+    "relative": "src/bt_api_ctp/managed_runtime_route_validation.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ec317ea7a123715f7b05f421b6793301cc58b845ac6fd943081f6a26b7070fd0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_key_contract.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_key_contract.py",
+    "relative": "src/bt_api_ctp/market_key_contract.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "252e3748fa5ab3a5b81e6d97ccce89ab9b0c94de2f7a123ea415b69ad380364d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_provider.py",
+    "relative": "src/bt_api_ctp/market_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c7424be2c46cc11dec130943972b3a22c17001f1bb851efb6c5175ac7c5e0e78"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_session_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_session_projection.py",
+    "relative": "src/bt_api_ctp/market_session_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f0851acc9e9297313e928ffa513746d06f44eb9ad96d9cb460836a8d95913b5e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_session_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_session_registration.py",
+    "relative": "src/bt_api_ctp/market_session_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f17b7cc9b6e2d305a205a15e5aa65240610e73242604fd4242b00ad103290fc9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_stream_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_stream_provider.py",
+    "relative": "src/bt_api_ctp/market_stream_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "27245cf77ccbf7f48bf1f2cbf43d8f384f43aebd70fd6525e7f2b07e09bd3f04"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_tick_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_tick_projection.py",
+    "relative": "src/bt_api_ctp/market_tick_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7b1539c414f9f15db4f0a5e9d75855df35ae20a8e4425c8792a4cf4694afa77f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/market_tick_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/market_tick_registration.py",
+    "relative": "src/bt_api_ctp/market_tick_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b4a230f7fe3f82f1a580d461d1e866d5b4d20e8e78699e62663ad7fcb1d3a40e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/md_diagnostics.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/md_diagnostics.py",
+    "relative": "src/bt_api_ctp/md_diagnostics.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "8a7271015a9004587fe43cb0c147342845d35874bc6c0c3db8ccfc4f4f48f26d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/md_identity.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/md_identity.py",
+    "relative": "src/bt_api_ctp/md_identity.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "162812e06e011c39a5554ba22871014655f93569f47c4a6f9bc1e30c8a296fd6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/native_order_fields.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/native_order_fields.py",
+    "relative": "src/bt_api_ctp/native_order_fields.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "42cd8e7206f2852ff9f36351561798ec6ef9e7612af722da5e346ce15ad0f8d9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/normalization_policy.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/normalization_policy.py",
+    "relative": "src/bt_api_ctp/normalization_policy.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ec15e2b4a4b1a18a55e48628f92f32de786f361a3d64db5d17364a96506a4a04"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_action.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_action.py",
+    "relative": "src/bt_api_ctp/order_action.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "4e2921cb3d6492f39f23c0e3997b820719ff5c2f9c6b25340fcace4c00d40be5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_identity_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_identity_projection.py",
+    "relative": "src/bt_api_ctp/order_identity_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "37c981c3156ffa47cd001629f1fea73934db068eb6d5f5711ea60b39b484c9ea"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_position_evidence_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_position_evidence_provider.py",
+    "relative": "src/bt_api_ctp/order_position_evidence_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c1dc64e31a424dd183978d42336ab19c805bb889bb8ecf0f8f5f1e35b4ecec7b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_provider.py",
+    "relative": "src/bt_api_ctp/order_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "43572fc5d26e45ebf3991d308a96e87c6c3cee30cf6ffa9590386af49acd9f26"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_quantity_units.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_quantity_units.py",
+    "relative": "src/bt_api_ctp/order_quantity_units.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "02a8c952f2ee9a203e405f0a8f3d51409d37df6576ea4aef165072a3c4c92843"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_request_mapping.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_request_mapping.py",
+    "relative": "src/bt_api_ctp/order_request_mapping.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dc0efd2b8bdebd351c82a6f1571bf0ef93d97b951d6fe3c2a21c679a5d67e5be"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_rules_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_rules_provider.py",
+    "relative": "src/bt_api_ctp/order_rules_provider.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3fc6acb39bef3bac97908bff0ae228a5aa6a179ed14fb8382016380c93c3bc4e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/order_side_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/order_side_projection.py",
+    "relative": "src/bt_api_ctp/order_side_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ac218f2ef7a797205c462d02e0c3f753a456911e84cf867c652d2875bf659aa3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/plugin.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/plugin.py",
+    "relative": "src/bt_api_ctp/plugin.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c36ef1e560898a51057821f4cd692ca26afa5a7550fab12b7f53cefee438b32b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/position_window_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/position_window_projection.py",
+    "relative": "src/bt_api_ctp/position_window_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "04dffda126544be99d177263184732f359ad7c7d2f522dbae3fa1f6138afa1cf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/preflight_settings.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/preflight_settings.py",
+    "relative": "src/bt_api_ctp/preflight_settings.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "28a7d05dbe85b7ee07d1b16401f124180df97b1fd9bd36fda23b8713ae525b1a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query.py",
+    "relative": "src/bt_api_ctp/query.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2d2dc72e1f926d978e533641f6ed5d3c7e259508444475f885fcb76fcc033ad0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query_facts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query_facts.py",
+    "relative": "src/bt_api_ctp/query_facts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "96cc998ca56139774c24bcb9767a4b454267bd72532d71fb775e0d987e83ac75"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query_registration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query_registration.py",
+    "relative": "src/bt_api_ctp/query_registration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "dbcaf3f0cd61f66a6fc31cb5f05f60f212d37cf8e6e996e32b0a1a667c14bbb8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query_result_evidence.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query_result_evidence.py",
+    "relative": "src/bt_api_ctp/query_result_evidence.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "530d56f44409bd549d6aacfec13beb0805cf927dc5d8476859680295317690e3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query_result_validation.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query_result_validation.py",
+    "relative": "src/bt_api_ctp/query_result_validation.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "5ec87c28d60490e50f6c6dbb8b85598aa4e91b078e0aee162d2d3ab20dee5fec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/query_service.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/query_service.py",
+    "relative": "src/bt_api_ctp/query_service.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "e8fbbe52514b822765a418d7619cf76ffd2c7c3ce3ecadbd00c3ad1e1da79ef1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/quote_v2_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/quote_v2_projection.py",
+    "relative": "src/bt_api_ctp/quote_v2_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "f76003e6f8af04e2798140a32b7d2e3fbc281694e191f5cdbf17f1649d807a14"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/quote_v2_provenance.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/quote_v2_provenance.py",
+    "relative": "src/bt_api_ctp/quote_v2_provenance.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a88ec611e277247dbf38a3d5b87526c638c715a635f1aaa157e25a7b6e7c991b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/quote_v2_time.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/quote_v2_time.py",
+    "relative": "src/bt_api_ctp/quote_v2_time.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1b581e8bd4e5ad8398358470c2de836de78b210521151b884f9757d9ac916c89"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/receipts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/receipts.py",
+    "relative": "src/bt_api_ctp/receipts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "aa6ecc35d59231df3ccf83e79ed28aa716ff27530631222477efe7a59cbab408"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/reconciliation_authority.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/reconciliation_authority.py",
+    "relative": "src/bt_api_ctp/reconciliation_authority.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "89738f3477e0cca748adfcd09d8c575bf1210cffa13378c7fd7bc21263ad4e0f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/recovery_plan_validation.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/recovery_plan_validation.py",
+    "relative": "src/bt_api_ctp/recovery_plan_validation.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "b71a96959d8d08d678540e34f5b04418c46744f38652f6e8b0f9574e1b3cbc1f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/recovery_row_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/recovery_row_projection.py",
+    "relative": "src/bt_api_ctp/recovery_row_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "03046b258e149654229af8da0f50156f0f205d0fe0ac563fbab3f949415515f5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/registered_sim_session.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/registered_sim_session.py",
+    "relative": "src/bt_api_ctp/registered_sim_session.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "7d59415cb1848254d3b9b456b1d0816ccd0c7faa77891eb85e48fdec4b39d9e8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/risk_dispatch_binding.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/risk_dispatch_binding.py",
+    "relative": "src/bt_api_ctp/risk_dispatch_binding.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "ebaa5d0b236b515a34799a0f738e120df5f91498a0d2362cc6eadaa28fa37018"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/risk_source_position_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/risk_source_position_projection.py",
+    "relative": "src/bt_api_ctp/risk_source_position_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6df96e8409ae4c96ee653081149e2c8d7caedcf99f61f4fcee01e8fa069674be"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/service_instrument_metadata.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/service_instrument_metadata.py",
+    "relative": "src/bt_api_ctp/service_instrument_metadata.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "871354b4e34ba9930e5c944e07f337c7ed60d648cf7e724fc3163b460afcad8c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/service_observation_instrument.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/service_observation_instrument.py",
+    "relative": "src/bt_api_ctp/service_observation_instrument.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "859286756e3892cd0748ec183150cc5068402bff0a18cbde2676da2a0573aa48"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/simnow.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/simnow.py",
+    "relative": "src/bt_api_ctp/simnow.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "becfdc0f345e9c381683132f8198e8db1d8ba80325ec9c8ed1ceb4ee1532854e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/simnow_execution_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/simnow_execution_projection.py",
+    "relative": "src/bt_api_ctp/simnow_execution_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "0e2df501f6a159d8663bed2acb539176330af9697c4b91be2b43c3a31ff350e7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/simnow_probe.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/simnow_probe.py",
+    "relative": "src/bt_api_ctp/simnow_probe.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "d2c054584d2f6c55f495da9d892872fec2698d73c067a668058ac80fa3cafff6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/simnow_route_configuration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/simnow_route_configuration.py",
+    "relative": "src/bt_api_ctp/simnow_route_configuration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "67f0e57eb72b1c077ab124a2ab7114b7a9f96f3dbaadfdba95ad9908bb03cfe6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/simnow_store_profile.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/simnow_store_profile.py",
+    "relative": "src/bt_api_ctp/simnow_store_profile.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "2b4bdd31f5f1782bb09e4ce328cd86494a5724d70c38dde2e8aa760bca591c8b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/status.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/status.py",
+    "relative": "src/bt_api_ctp/status.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "6e5e0d7c36d23af652f7e8a985f1293af51184be26122a94fa6a39a2c639398c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/store_account_session.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/store_account_session.py",
+    "relative": "src/bt_api_ctp/store_account_session.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "518938878f60bb8c6f34ded5eca1852b7f70faacd2944a93b6b32b7c587f6aa4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/stream_configuration.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/stream_configuration.py",
+    "relative": "src/bt_api_ctp/stream_configuration.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "c1005de023f6be32775d732fd04fff6c740e09f8642df94ba8a7c150801a1c64"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/terminal_order_query_contract.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/terminal_order_query_contract.py",
+    "relative": "src/bt_api_ctp/terminal_order_query_contract.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "3085ac15fdb1a2e02e263d672ff628925a8aaa4be3a8b19d2d282f9f6246f986"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trade_stream_readiness.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trade_stream_readiness.py",
+    "relative": "src/bt_api_ctp/trade_stream_readiness.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "358fe177a402ff513a11ab37fcf34d5e61aa6804ff42f4300ce7c40b8580d0a8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trader_connection_config.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trader_connection_config.py",
+    "relative": "src/bt_api_ctp/trader_connection_config.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "475d9338be320e0fc544b84095ecdf42c6c9b71afb581584090d412585d8b734"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trading_permission_facts.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trading_permission_facts.py",
+    "relative": "src/bt_api_ctp/trading_permission_facts.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "a40b72ca3351c26225eb0eeb0e0b831a9fbcf3cadd1a319a9a05b98a19905dec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trading_permission_projection.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trading_permission_projection.py",
+    "relative": "src/bt_api_ctp/trading_permission_projection.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "34930035c8a73f67c8256d1a8107542c214ca10acee28a7a292f46e278d8495b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trading_session_schedule.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trading_session_schedule.py",
+    "relative": "src/bt_api_ctp/trading_session_schedule.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "461ca03afc865186c5d7134e1c09c64f966643a56a1eebdcd903c2954dd4765e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/trusted_flow.py",
+    "copy": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/source/ctp/src/bt_api_ctp/trusted_flow.py",
+    "relative": "src/bt_api_ctp/trusted_flow.py",
+    "snapshot_head": "ce8765c82338876da3c1b12ddd51082f6221e89e",
+    "sha256": "1fdc2cae83d4dba1b61715921a00faf9830360fe3e27fdae6828ba13d4f98812"
+  }
+]

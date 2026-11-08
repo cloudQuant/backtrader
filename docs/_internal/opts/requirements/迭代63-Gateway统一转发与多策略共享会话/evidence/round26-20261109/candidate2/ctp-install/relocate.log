@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-ctp-final-v2-20261109-UFGxjkbS/relocate.py"], "pid": 36873, "ppid": 36863, "run_id": "relocate-36873-1794180395945147000", "selector_sha256": "e9a67fcbac1fa9b5a32cee48a6e0a8c088368bc69395af0b9ffb9169a5b0ae5c"}
+CTP_TEST_RELOCATION 23
+RUN_EXIT 0

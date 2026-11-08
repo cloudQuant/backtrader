@@ -1,0 +1,15 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/verify.py"], "pid": 32812, "ppid": 32791, "run_id": "verify-32812-1794179278379497000", "selector_sha256": "741dfa8565616a1100230591d58ca18afcca43144484f33672a7043b37c5b21f"}
+MANIFEST_MATCH source-manifest.json 259
+MANIFEST_MATCH test-manifest.json 18
+MANIFEST_MATCH ctp-relocation-manifest.json 19
+VERIFIED backtrader origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/backtrader/__init__.py wheel_sha256 5b24542e50cfb5d78234a7345dad52e961531a5da5768c5870a576eb0d65c227
+VERIFIED bt_api_base origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_base/__init__.py wheel_sha256 67f2e489053c06cc154c8edb1f05015aa9ec8be77e9e723e270e9a726072671f
+VERIFIED bt_api_gateway origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_gateway/__init__.py wheel_sha256 52a4ac9f1b3c671eada2b3314f7a1766afccef78051109d02070e7b820abe685
+VERIFIED bt_api_py origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_py/__init__.py wheel_sha256 b879552e944bacec1eb3e72e1fbb54b497e153fa44fb13885a5f1422fd327439
+VERIFIED bt_api_okx origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_okx/__init__.py wheel_sha256 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+VERIFIED bt_api_binance origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_binance/__init__.py wheel_sha256 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+VERIFIED msgpack origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/msgpack/__init__.py wheel_sha256 a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50
+VERIFIED bt_api_ctp origin /private/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/src/bt_api_ctp/__init__.py wheel_sha256 efce18e3fcf6bb014fb10e51311f26160febbe5ddf5acb82d516f3c01b800beb
+CTP_NATIVE_REUSED_NO_COMPILATION 21 b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5
+SDK_FIXED_R25_NOT_CURRENT_WORKTREE; NO_FULL_RESOLVER; NO_REAL_ACCOUNT
+RUN_EXIT 0

@@ -1,0 +1,35 @@
+{
+  "repository": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+  "branch": "dev",
+  "commit": "0373187a39cdc08acdd3cac1ab5de3bb35140c8c",
+  "owned": [
+    {
+      "path": "README.md",
+      "sha256": "af6c0b3c25216777630e98342068cbbe05c39cebcd61341d1a6ee517490578b4"
+    },
+    {
+      "path": "src/bt_api_ctp/ctp/client.py",
+      "sha256": "d390364d1dd59d65cc562d19d3c0bbbece6196f295083937f5171e47b853abf3"
+    },
+    {
+      "path": "src/bt_api_ctp/gateway_instrument_query.py",
+      "sha256": "dffc79f92ba9cc19137a05f4f71f23dbf8fff2ee9d077fe315b815398693f1ff"
+    },
+    {
+      "path": "src/bt_api_ctp/gateway_session.py",
+      "sha256": "9d4c201b13f3ef7e4d4844224756fb2a56dac10979f1a1de4cbfe75eed8b7344"
+    },
+    {
+      "path": "tests/test_iter63_async_instrument_query.py",
+      "sha256": "cd986b6a34ef052184c99db5938e815db4ba99a2fe730cb1b88e44d6fccef951"
+    },
+    {
+      "path": "tests/test_iter63_gateway_connection_state.py",
+      "sha256": "2ef2897b35f33044863fa210428ced22ad0a1fb673b3907589d33d9fa7398b21"
+    },
+    {
+      "path": "tests/test_iter63_gateway_instrument_query.py",
+      "sha256": "fabd999183a07968ada05d53c75b1b1d2abacb61f72bbf66c753bb1be39ab37f"
+    }
+  ]
+}

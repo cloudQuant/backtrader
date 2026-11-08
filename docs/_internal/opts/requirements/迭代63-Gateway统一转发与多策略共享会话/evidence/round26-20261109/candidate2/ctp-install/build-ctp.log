@@ -1,0 +1,736 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-ctp-final-v2-20261109-UFGxjkbS/build_ctp_reuse.py"], "pid": 36817, "ppid": 36807, "run_id": "build-ctp-36817-1794180375909239000", "selector_sha256": "e9a67fcbac1fa9b5a32cee48a6e0a8c088368bc69395af0b9ffb9169a5b0ae5c"}
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/setuptools/config/_apply_pyprojecttoml.py:82: SetuptoolsDeprecationWarning: `project.license` as a TOML table is deprecated
+!!
+
+        ********************************************************************************
+        Please use a simple string containing a SPDX expression for `project.license`. You can also use `project.license-files`. (Both options available on setuptools>=77.0.0).
+
+        By 2027-Feb-18, you need to update your project and remove deprecated calls
+        or your builds will no longer be supported.
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+  corresp(dist, value, root_dir)
+ModuleNotFoundError while trying to load entry-point bdist_conda: No module named 'conda.auxlib.packaging'
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/setuptools/config/_apply_pyprojecttoml.py:61: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: OSI Approved :: MIT License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+  dist._finalize_license_expression()
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+!!
+
+        ********************************************************************************
+        Please consider removing the following classifiers in favor of a SPDX license expression:
+
+        License :: OSI Approved :: MIT License
+
+        See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+        ********************************************************************************
+
+!!
+  self._finalize_license_expression()
+running bdist_wheel
+running build
+running build_py
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/normalization_policy.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_dispatch_contracts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_rules_source_issuer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_request_mapping.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/md_identity.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trading_permission_facts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/credential_binding_fronts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_session.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_order_authority.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_rules.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/ctp_callback_source_bridge.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_return_query.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_rules_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_place_return_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/ctp_callback_ledger_adapter.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/instrument_position_facts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/receipts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/simnow_store_profile.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_stream_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/position_window_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_tick_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_instrument_query.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/fields.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trading_session_schedule.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query_result_validation.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_instrument_metadata.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_order_identifier.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_rules_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_correlation_binding.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_request_identity.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_return_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_runtime_route_validation.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/simnow_execution_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/native_order_fields.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/quote_v2_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_dispatch_worker_binding.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_order_query_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_session_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/preflight_settings.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/instrument_metadata.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/terminal_order_query_contract.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_economics_source_issuer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_cancel_return_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/callback_ingress_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/recovery_plan_validation.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trading_permission_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/quote_v2_provenance.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_tick_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query_facts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/managed_order_bridge.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/direct_write_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/stream_configuration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_quantity_units.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/exchange_data.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_action.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/simnow_probe.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/service_instrument_metadata.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/risk_dispatch_binding.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/account_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_return_buffer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_callback_mapping.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trader_connection_config.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/ctp_callback_session.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/risk_source_position_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/quote_v2_time.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_identity_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/futures_market_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/cancel_target_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trade_stream_readiness.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/ctp_close_plan.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/futures_eod_ranking_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/trusted_flow.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/plugin.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_place_source.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/gateway_cancel_source.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/futures_expected_calendar_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query_service.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/simnow_route_configuration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_query_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/account_risk_source_policy.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_key_contract.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_position_evidence_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/instrument_rules_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/query_result_evidence.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/instrument_catalog_cache.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/reconciliation_authority.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_economics_registration.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/instrument.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/registered_sim_session.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/execution_instrument.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/ctp_env_selector.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/md_diagnostics.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/market_session_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/service_observation_instrument.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/store_account_session.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/recovery_row_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/simnow.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/status.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+copying src/bt_api_ctp/order_side_projection.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp
+copying src/bt_api_ctp/collector_ctp/instrument_provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp
+copying src/bt_api_ctp/collector_ctp/subscriber.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp
+copying src/bt_api_ctp/collector_ctp/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp
+copying src/bt_api_ctp/collector_ctp/normalizer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod
+copying src/bt_api_ctp/futures_eod/provider.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod
+copying src/bt_api_ctp/futures_eod/cffex.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod
+copying src/bt_api_ctp/futures_eod/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod
+copying src/bt_api_ctp/futures_eod/shfe.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/sink.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/protocols.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/health.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/shard.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/engine.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/cli.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/lifecycle.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/buffer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/schedule.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+copying src/bt_api_ctp/collector/__main__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds
+copying src/bt_api_ctp/feeds/live_ctp_feed.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds
+copying src/bt_api_ctp/feeds/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds
+copying src/bt_api_ctp/feeds/base_stream.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner_ctp
+copying src/bt_api_ctp/cleaner_ctp/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner_ctp
+copying src/bt_api_ctp/cleaner_ctp/symbols.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner_ctp
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers
+copying src/bt_api_ctp/containers/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/errors
+copying src/bt_api_ctp/errors/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/errors
+copying src/bt_api_ctp/errors/ctp_translator.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/errors
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_risk.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_order.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_constants.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_account.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/client.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_position.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_common.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_query.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_trade.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/callback_events.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_transfer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_structs_market.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/callback_ingress.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/session_relogin.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/_ctp_base.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_trader_api.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+copying src/bt_api_ctp/ctp/ctp_md_api.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/merge.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/config.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/manifest.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/reclaim.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/cli.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/pipeline.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/contracts.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/verify.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/__main__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+copying src/bt_api_ctp/cleaner/report.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/_normalization.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_position.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_ticker.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_bar.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_order.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_position_evidence.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/position_dimensions.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_account.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+copying src/bt_api_ctp/containers/ctp/ctp_trade.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+copying src/bt_api_ctp/cleaner/pull/local_backend.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+copying src/bt_api_ctp/cleaner/pull/rsync_backend.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+copying src/bt_api_ctp/cleaner/pull/backend.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+copying src/bt_api_ctp/cleaner/pull/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+copying src/bt_api_ctp/cleaner/pull/sftp_backend.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+copying src/bt_api_ctp/cleaner/kline/build.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+copying src/bt_api_ctp/cleaner/kline/aggregator.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+copying src/bt_api_ctp/cleaner/kline/__init__.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+copying src/bt_api_ctp/cleaner/kline/writer.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+copying src/bt_api_ctp/cleaner/kline/schema.py -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline
+creating build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/configs
+copying src/bt_api_ctp/configs/ctp.yaml -> build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/configs
+running build_ext
+CTP_NATIVE_REUSED_NO_COMPILATION 21 /tmp/iter63-r26-ctp-final-v2-20261109-UFGxjkbS/ctp-native-reuse-manifest.json
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/setuptools/_distutils/cmd.py:90: SetuptoolsDeprecationWarning: setup.py install is deprecated.
+!!
+
+        ********************************************************************************
+        Please avoid running ``setup.py`` directly.
+        Instead, use pypa/build, pypa/installer or other
+        standards-based tools.
+
+        This deprecation is overdue, please update your project and remove deprecated
+        calls to avoid build errors in the future.
+
+        See https://blog.ganssle.io/articles/2021/10/setup-py-deprecated.html for details.
+        ********************************************************************************
+
+!!
+  self.initialize_options()
+installing to build/bdist.macosx-11.0-arm64/wheel
+running install
+running install_lib
+creating build/bdist.macosx-11.0-arm64/wheel
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/normalization_policy.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_dispatch_contracts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_rules_source_issuer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_request_mapping.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/md_identity.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trading_permission_facts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/credential_binding_fronts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/collector_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp/instrument_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp/subscriber.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector_ctp/normalizer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_session.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/futures_eod
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod/provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/futures_eod
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod/cffex.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/futures_eod
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/futures_eod
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod/shfe.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/futures_eod
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_order_authority.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_rules.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp_callback_source_bridge.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_return_query.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_rules_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_place_return_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp_callback_ledger_adapter.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/instrument_position_facts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/receipts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/simnow_store_profile.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_stream_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/position_window_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_tick_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_instrument_query.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/fields.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trading_session_schedule.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query_result_validation.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_instrument_metadata.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_order_identifier.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_rules_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_correlation_binding.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_request_identity.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_return_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_runtime_route_validation.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/simnow_execution_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/native_order_fields.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/quote_v2_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_dispatch_worker_binding.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_order_query_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_session_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/preflight_settings.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/instrument_metadata.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/terminal_order_query_contract.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_economics_source_issuer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_cancel_return_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/callback_ingress_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/recovery_plan_validation.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trading_permission_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/quote_v2_provenance.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_tick_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/sink.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/protocols.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/health.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/shard.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/engine.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/cli.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/lifecycle.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/buffer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/schedule.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/collector/__main__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/collector
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query_facts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/managed_order_bridge.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/direct_write_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/stream_configuration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_quantity_units.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/exchange_data.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_action.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/simnow_probe.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/service_instrument_metadata.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/feeds
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds/live_ctp_feed.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/feeds
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/feeds
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/feeds/base_stream.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/feeds
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/risk_dispatch_binding.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/account_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_return_buffer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_callback_mapping.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trader_connection_config.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp_callback_session.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/risk_source_position_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/quote_v2_time.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_identity_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_market_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cancel_target_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/configs
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/configs/ctp.yaml -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/configs
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trade_stream_readiness.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp_close_plan.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_eod_ranking_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/trusted_flow.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/plugin.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_place_source.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/gateway_cancel_source.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/futures_expected_calendar_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/cleaner_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner_ctp/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner_ctp/symbols.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query_service.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/simnow_route_configuration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_query_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/account_risk_source_policy.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_key_contract.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_position_evidence_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/instrument_rules_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/query_result_evidence.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/containers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/_normalization.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_position.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_ticker.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_bar.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_order.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_position_evidence.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_native_query_certificate.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/position_dimensions.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_account.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/containers/ctp/ctp_trade.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/containers/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/instrument_catalog_cache.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/reconciliation_authority.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_economics_registration.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/instrument.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/errors
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/errors/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/errors
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/errors/ctp_translator.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/errors
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Resources -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework/Versions
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thostmduserapi_se.framework/Headers -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thostmduserapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_risk.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_order.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_constants.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_account.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/client.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_position.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_common.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_query.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_trade.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/callback_events.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_transfer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Resources -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework/Versions
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/Headers -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp/thosttraderapi_se.framework
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_structs_market.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/callback_ingress.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/session_relogin.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/_ctp_base.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_trader_api.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp/ctp_md_api.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/registered_sim_session.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/merge.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/config.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/manifest.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull/local_backend.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull/rsync_backend.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull/backend.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pull/sftp_backend.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/pull
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/reclaim.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/cli.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/pipeline.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/contracts.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline/build.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline/aggregator.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline/writer.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/kline/schema.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner/kline
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/verify.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/__main__.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/cleaner/report.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp/cleaner
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_provider.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/execution_instrument.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/ctp_env_selector.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/md_diagnostics.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/market_session_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/service_observation_instrument.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/store_account_session.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/recovery_row_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/simnow.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/status.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+copying build/lib.macosx-11.0-arm64-cpython-311/bt_api_ctp/order_side_projection.py -> build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp
+running install_egg_info
+running egg_info
+creating src/bt_api_ctp.egg-info
+writing src/bt_api_ctp.egg-info/PKG-INFO
+writing dependency_links to src/bt_api_ctp.egg-info/dependency_links.txt
+writing entry points to src/bt_api_ctp.egg-info/entry_points.txt
+writing requirements to src/bt_api_ctp.egg-info/requires.txt
+writing top-level names to src/bt_api_ctp.egg-info/top_level.txt
+writing manifest file 'src/bt_api_ctp.egg-info/SOURCES.txt'
+listing git files failed - pretending there aren't any
+reading manifest file 'src/bt_api_ctp.egg-info/SOURCES.txt'
+reading manifest template 'MANIFEST.in'
+warning: no previously-included files matching '.DS_Store' found anywhere in distribution
+warning: no previously-included files matching '*.py[cod]' found anywhere in distribution
+warning: no previously-included files matching '__pycache__/*' found anywhere in distribution
+warning: no previously-included files matching '*.bak' found anywhere in distribution
+warning: no previously-included files found matching 'src/bt_api_ctp/ctp/_ctp*.so'
+warning: no previously-included files found matching 'src/bt_api_ctp/ctp/_ctp*.pyd'
+warning: no previously-included files found matching 'src/bt_api_ctp/ctp/thost*.dll'
+no previously-included directories found matching 'src/bt_api_ctp.egg-info'
+no previously-included directories found matching 'build'
+no previously-included directories found matching 'dist'
+no previously-included directories found matching '.github'
+no previously-included directories found matching '.pytest_cache'
+no previously-included directories found matching '.ruff_cache'
+no previously-included directories found matching '.benchmarks'
+writing manifest file 'src/bt_api_ctp.egg-info/SOURCES.txt'
+Copying src/bt_api_ctp.egg-info to build/bdist.macosx-11.0-arm64/wheel/./bt_api_ctp-2.1.0.dev63-py3.11.egg-info
+running install_scripts
+creating build/bdist.macosx-11.0-arm64/wheel/bt_api_ctp-2.1.0.dev63.dist-info/WHEEL
+creating '/tmp/iter63-r26-ctp-final-v2-20261109-UFGxjkbS/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl' and adding 'build/bdist.macosx-11.0-arm64/wheel' to it
+adding 'bt_api_ctp/__init__.py'
+adding 'bt_api_ctp/account_provider.py'
+adding 'bt_api_ctp/account_risk_source_policy.py'
+adding 'bt_api_ctp/callback_ingress_projection.py'
+adding 'bt_api_ctp/cancel_target_projection.py'
+adding 'bt_api_ctp/credential_binding_fronts.py'
+adding 'bt_api_ctp/ctp_callback_ledger_adapter.py'
+adding 'bt_api_ctp/ctp_callback_session.py'
+adding 'bt_api_ctp/ctp_callback_source_bridge.py'
+adding 'bt_api_ctp/ctp_close_plan.py'
+adding 'bt_api_ctp/ctp_env_selector.py'
+adding 'bt_api_ctp/direct_write_provider.py'
+adding 'bt_api_ctp/exchange_data.py'
+adding 'bt_api_ctp/execution_callback_mapping.py'
+adding 'bt_api_ctp/execution_economics_registration.py'
+adding 'bt_api_ctp/execution_economics_source_issuer.py'
+adding 'bt_api_ctp/execution_instrument.py'
+adding 'bt_api_ctp/execution_query_projection.py'
+adding 'bt_api_ctp/execution_rules.py'
+adding 'bt_api_ctp/execution_rules_registration.py'
+adding 'bt_api_ctp/execution_rules_source_issuer.py'
+adding 'bt_api_ctp/fields.py'
+adding 'bt_api_ctp/futures_eod_ranking_registration.py'
+adding 'bt_api_ctp/futures_expected_calendar_provider.py'
+adding 'bt_api_ctp/futures_market_projection.py'
+adding 'bt_api_ctp/gateway_cancel_return_projection.py'
+adding 'bt_api_ctp/gateway_cancel_source.py'
+adding 'bt_api_ctp/gateway_instrument_metadata.py'
+adding 'bt_api_ctp/gateway_instrument_query.py'
+adding 'bt_api_ctp/gateway_place_return_projection.py'
+adding 'bt_api_ctp/gateway_place_source.py'
+adding 'bt_api_ctp/gateway_return_buffer.py'
+adding 'bt_api_ctp/gateway_return_projection.py'
+adding 'bt_api_ctp/gateway_return_query.py'
+adding 'bt_api_ctp/gateway_session.py'
+adding 'bt_api_ctp/instrument.py'
+adding 'bt_api_ctp/instrument_catalog_cache.py'
+adding 'bt_api_ctp/instrument_metadata.py'
+adding 'bt_api_ctp/instrument_position_facts.py'
+adding 'bt_api_ctp/instrument_rules_projection.py'
+adding 'bt_api_ctp/managed_correlation_binding.py'
+adding 'bt_api_ctp/managed_dispatch_contracts.py'
+adding 'bt_api_ctp/managed_dispatch_worker_binding.py'
+adding 'bt_api_ctp/managed_order_authority.py'
+adding 'bt_api_ctp/managed_order_bridge.py'
+adding 'bt_api_ctp/managed_order_identifier.py'
+adding 'bt_api_ctp/managed_order_query_projection.py'
+adding 'bt_api_ctp/managed_request_identity.py'
+adding 'bt_api_ctp/managed_runtime_route_validation.py'
+adding 'bt_api_ctp/market_key_contract.py'
+adding 'bt_api_ctp/market_provider.py'
+adding 'bt_api_ctp/market_session_projection.py'
+adding 'bt_api_ctp/market_session_registration.py'
+adding 'bt_api_ctp/market_stream_provider.py'
+adding 'bt_api_ctp/market_tick_projection.py'
+adding 'bt_api_ctp/market_tick_registration.py'
+adding 'bt_api_ctp/md_diagnostics.py'
+adding 'bt_api_ctp/md_identity.py'
+adding 'bt_api_ctp/native_order_fields.py'
+adding 'bt_api_ctp/normalization_policy.py'
+adding 'bt_api_ctp/order_action.py'
+adding 'bt_api_ctp/order_identity_projection.py'
+adding 'bt_api_ctp/order_position_evidence_provider.py'
+adding 'bt_api_ctp/order_provider.py'
+adding 'bt_api_ctp/order_quantity_units.py'
+adding 'bt_api_ctp/order_request_mapping.py'
+adding 'bt_api_ctp/order_rules_provider.py'
+adding 'bt_api_ctp/order_side_projection.py'
+adding 'bt_api_ctp/plugin.py'
+adding 'bt_api_ctp/position_window_projection.py'
+adding 'bt_api_ctp/preflight_settings.py'
+adding 'bt_api_ctp/query.py'
+adding 'bt_api_ctp/query_facts.py'
+adding 'bt_api_ctp/query_registration.py'
+adding 'bt_api_ctp/query_result_evidence.py'
+adding 'bt_api_ctp/query_result_validation.py'
+adding 'bt_api_ctp/query_service.py'
+adding 'bt_api_ctp/quote_v2_projection.py'
+adding 'bt_api_ctp/quote_v2_provenance.py'
+adding 'bt_api_ctp/quote_v2_time.py'
+adding 'bt_api_ctp/receipts.py'
+adding 'bt_api_ctp/reconciliation_authority.py'
+adding 'bt_api_ctp/recovery_plan_validation.py'
+adding 'bt_api_ctp/recovery_row_projection.py'
+adding 'bt_api_ctp/registered_sim_session.py'
+adding 'bt_api_ctp/risk_dispatch_binding.py'
+adding 'bt_api_ctp/risk_source_position_projection.py'
+adding 'bt_api_ctp/service_instrument_metadata.py'
+adding 'bt_api_ctp/service_observation_instrument.py'
+adding 'bt_api_ctp/simnow.py'
+adding 'bt_api_ctp/simnow_execution_projection.py'
+adding 'bt_api_ctp/simnow_probe.py'
+adding 'bt_api_ctp/simnow_route_configuration.py'
+adding 'bt_api_ctp/simnow_store_profile.py'
+adding 'bt_api_ctp/status.py'
+adding 'bt_api_ctp/store_account_session.py'
+adding 'bt_api_ctp/stream_configuration.py'
+adding 'bt_api_ctp/terminal_order_query_contract.py'
+adding 'bt_api_ctp/trade_stream_readiness.py'
+adding 'bt_api_ctp/trader_connection_config.py'
+adding 'bt_api_ctp/trading_permission_facts.py'
+adding 'bt_api_ctp/trading_permission_projection.py'
+adding 'bt_api_ctp/trading_session_schedule.py'
+adding 'bt_api_ctp/trusted_flow.py'
+adding 'bt_api_ctp/cleaner/__init__.py'
+adding 'bt_api_ctp/cleaner/__main__.py'
+adding 'bt_api_ctp/cleaner/cli.py'
+adding 'bt_api_ctp/cleaner/config.py'
+adding 'bt_api_ctp/cleaner/contracts.py'
+adding 'bt_api_ctp/cleaner/manifest.py'
+adding 'bt_api_ctp/cleaner/merge.py'
+adding 'bt_api_ctp/cleaner/pipeline.py'
+adding 'bt_api_ctp/cleaner/reclaim.py'
+adding 'bt_api_ctp/cleaner/report.py'
+adding 'bt_api_ctp/cleaner/verify.py'
+adding 'bt_api_ctp/cleaner/kline/__init__.py'
+adding 'bt_api_ctp/cleaner/kline/aggregator.py'
+adding 'bt_api_ctp/cleaner/kline/build.py'
+adding 'bt_api_ctp/cleaner/kline/schema.py'
+adding 'bt_api_ctp/cleaner/kline/writer.py'
+adding 'bt_api_ctp/cleaner/pull/__init__.py'
+adding 'bt_api_ctp/cleaner/pull/backend.py'
+adding 'bt_api_ctp/cleaner/pull/local_backend.py'
+adding 'bt_api_ctp/cleaner/pull/rsync_backend.py'
+adding 'bt_api_ctp/cleaner/pull/sftp_backend.py'
+adding 'bt_api_ctp/cleaner_ctp/__init__.py'
+adding 'bt_api_ctp/cleaner_ctp/symbols.py'
+adding 'bt_api_ctp/collector/__init__.py'
+adding 'bt_api_ctp/collector/__main__.py'
+adding 'bt_api_ctp/collector/buffer.py'
+adding 'bt_api_ctp/collector/cli.py'
+adding 'bt_api_ctp/collector/engine.py'
+adding 'bt_api_ctp/collector/health.py'
+adding 'bt_api_ctp/collector/lifecycle.py'
+adding 'bt_api_ctp/collector/protocols.py'
+adding 'bt_api_ctp/collector/schedule.py'
+adding 'bt_api_ctp/collector/shard.py'
+adding 'bt_api_ctp/collector/sink.py'
+adding 'bt_api_ctp/collector_ctp/__init__.py'
+adding 'bt_api_ctp/collector_ctp/instrument_provider.py'
+adding 'bt_api_ctp/collector_ctp/normalizer.py'
+adding 'bt_api_ctp/collector_ctp/subscriber.py'
+adding 'bt_api_ctp/configs/ctp.yaml'
+adding 'bt_api_ctp/containers/__init__.py'
+adding 'bt_api_ctp/containers/ctp/__init__.py'
+adding 'bt_api_ctp/containers/ctp/_normalization.py'
+adding 'bt_api_ctp/containers/ctp/ctp_account.py'
+adding 'bt_api_ctp/containers/ctp/ctp_bar.py'
+adding 'bt_api_ctp/containers/ctp/ctp_native_query_certificate.py'
+adding 'bt_api_ctp/containers/ctp/ctp_order.py'
+adding 'bt_api_ctp/containers/ctp/ctp_position.py'
+adding 'bt_api_ctp/containers/ctp/ctp_position_evidence.py'
+adding 'bt_api_ctp/containers/ctp/ctp_ticker.py'
+adding 'bt_api_ctp/containers/ctp/ctp_trade.py'
+adding 'bt_api_ctp/containers/ctp/position_dimensions.py'
+adding 'bt_api_ctp/ctp/__init__.py'
+adding 'bt_api_ctp/ctp/_ctp.cpython-311-darwin.so'
+adding 'bt_api_ctp/ctp/_ctp_base.py'
+adding 'bt_api_ctp/ctp/callback_events.py'
+adding 'bt_api_ctp/ctp/callback_ingress.py'
+adding 'bt_api_ctp/ctp/client.py'
+adding 'bt_api_ctp/ctp/ctp.py'
+adding 'bt_api_ctp/ctp/ctp_constants.py'
+adding 'bt_api_ctp/ctp/ctp_md_api.py'
+adding 'bt_api_ctp/ctp/ctp_structs_account.py'
+adding 'bt_api_ctp/ctp/ctp_structs_common.py'
+adding 'bt_api_ctp/ctp/ctp_structs_market.py'
+adding 'bt_api_ctp/ctp/ctp_structs_order.py'
+adding 'bt_api_ctp/ctp/ctp_structs_position.py'
+adding 'bt_api_ctp/ctp/ctp_structs_query.py'
+adding 'bt_api_ctp/ctp/ctp_structs_risk.py'
+adding 'bt_api_ctp/ctp/ctp_structs_trade.py'
+adding 'bt_api_ctp/ctp/ctp_structs_transfer.py'
+adding 'bt_api_ctp/ctp/ctp_trader_api.py'
+adding 'bt_api_ctp/ctp/session_relogin.py'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Headers'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Resources'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist'
+adding 'bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Headers'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Resources'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist'
+adding 'bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources'
+adding 'bt_api_ctp/errors/__init__.py'
+adding 'bt_api_ctp/errors/ctp_translator.py'
+adding 'bt_api_ctp/feeds/__init__.py'
+adding 'bt_api_ctp/feeds/base_stream.py'
+adding 'bt_api_ctp/feeds/live_ctp_feed.py'
+adding 'bt_api_ctp/futures_eod/__init__.py'
+adding 'bt_api_ctp/futures_eod/cffex.py'
+adding 'bt_api_ctp/futures_eod/provider.py'
+adding 'bt_api_ctp/futures_eod/shfe.py'
+adding 'bt_api_ctp-2.1.0.dev63.dist-info/METADATA'
+adding 'bt_api_ctp-2.1.0.dev63.dist-info/WHEEL'
+adding 'bt_api_ctp-2.1.0.dev63.dist-info/entry_points.txt'
+adding 'bt_api_ctp-2.1.0.dev63.dist-info/top_level.txt'
+adding 'bt_api_ctp-2.1.0.dev63.dist-info/RECORD'
+removing build/bdist.macosx-11.0-arm64/wheel
+RUN_EXIT 0

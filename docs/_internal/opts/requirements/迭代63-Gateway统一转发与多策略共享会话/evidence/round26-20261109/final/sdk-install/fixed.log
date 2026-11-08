@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/setup_harness.py", "fixed"], "pid": 41436, "ppid": 41426, "run_id": "fixed-41436-1794181864644251000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "stage": "fixed"}
+FIXED_WHEELS 7
+RUN_EXIT 0

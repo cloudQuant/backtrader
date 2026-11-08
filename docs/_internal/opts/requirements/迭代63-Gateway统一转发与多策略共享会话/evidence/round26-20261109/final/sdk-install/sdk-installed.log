@@ -1,0 +1,666 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/run_sdk.py"], "pid": 41627, "ppid": 41612, "run_id": "sdk-installed-41627-1794181886821832000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "stage": "sdk-installed"}
+RUN_ID sdk-installed-41627-1794181886821832000 PID 41636 PPID 41629 SDK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/msgpack/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+...........FFF.......................................................... [ 28%]
+..........................
+=================================== FAILURES ===================================
+______ test_spawned_profile_host_curve_client_dispatches_one_original_key ______
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_spawned_profile_host_curv0')
+
+    def test_spawned_profile_host_curve_client_dispatches_one_original_key(tmp_path):
+        key = AccountKey("ctp", "simnow", "simnow", "00001", "09999")
+        account_scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", account_scope, generation="provisioned"
+        )
+        endpoint = _free_endpoint()
+        server_keys = zmq.curve_keypair()
+        client_keys = zmq.curve_keypair()
+        ctx = multiprocessing.get_context("spawn")
+        events, controls = ctx.Queue(), ctx.Queue()
+        child = ctx.Process(
+            target=_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                events,
+                controls,
+            ),
+        )
+        child.start()
+        runtime = None
+        try:
+>           first, second = events.get(timeout=15), events.get(timeout=15)
+                            ^^^^^^^^^^^^^^^^^^^^^^
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:318: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.queues.Queue object at 0x10da9be90>, block = True
+timeout = 14.99999066698365
+
+    def get(self, block=True, timeout=None):
+        if self._closed:
+            raise ValueError(f"Queue {self!r} is closed")
+        if block and timeout is None:
+            with self._rlock:
+                res = self._recv_bytes()
+            self._sem.release()
+        else:
+            if block:
+                deadline = time.monotonic() + timeout
+            if not self._rlock.acquire(block, timeout):
+                raise Empty
+            try:
+                if block:
+                    timeout = deadline - time.monotonic()
+                    if not self._poll(timeout):
+>                       raise Empty
+E                       _queue.Empty
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: Empty
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_spawned_profile_host_curv0')
+
+    def test_spawned_profile_host_curve_client_dispatches_one_original_key(tmp_path):
+        key = AccountKey("ctp", "simnow", "simnow", "00001", "09999")
+        account_scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", account_scope, generation="provisioned"
+        )
+        endpoint = _free_endpoint()
+        server_keys = zmq.curve_keypair()
+        client_keys = zmq.curve_keypair()
+        ctx = multiprocessing.get_context("spawn")
+        events, controls = ctx.Queue(), ctx.Queue()
+        child = ctx.Process(
+            target=_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                events,
+                controls,
+            ),
+        )
+        child.start()
+        runtime = None
+        try:
+            first, second = events.get(timeout=15), events.get(timeout=15)
+            seen = {first[0]: first, second[0]: second}
+            assert set(seen) == {"ready", "observed"}, (first, second)
+            assert seen["ready"][1] == child.pid != os.getpid()
+            owner_tid = seen["observed"][2]
+            assert owner_tid != seen["ready"][2]
+            cfg = _client_config(endpoint, CLIENT_A).to_public_dict()
+            cfg["clients"]["gateway"]["settings"]["bindings"][0]["account_ref"] = account_scope
+            config = parse_client_config(cfg)
+            runtime = ThreadedServiceClientRuntime(
+                lambda: ServiceClientRuntime(
+                    config,
+                    identity=CLIENT_A,
+                    scope_resolver=lambda _: WireScope(DOMAIN, account_ref=account_scope),
+                    peer_resolver=lambda _: SERVICE,
+                    transport_factory=ZmqTransportFactory(
+                        {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                    ),
+                    run_id="run-a",
+                )
+            )
+            runtime.start(timeout_seconds=10)
+            binding = GatewayCommandBinding(
+                journal.journal_id, account_scope, CLIENT_A.actor_ref, CLIENT_A.principal_ref
+            )
+            route = GatewayClientRoute(
+                "broker.direct_write",
+                SERVICE.actor_ref,
+                "gateway-a",
+                "scope-a",
+                WireScope(
+                    DOMAIN, account_ref=account_scope, strategy_ref=CLIENT_A.actor_ref, run_id="run-a"
+                ),
+                CLIENT_A,
+            )
+            store = _TestSqliteHost(tmp_path / "client.sqlite", binding)
+            client = GatewayDirectClient(runtime, binding=binding, route=route, host=store)
+            request = OrderRequest.from_dict(_prepared_order(key="same-key", account=account_scope))
+            reserved = client.reserve(request, ttl_seconds=30, timeout_seconds=10)
+            assert reserved.outcome == "OBSERVED" and reserved.record.state == "RESERVED"
+            sent = client.dispatch("same-key", timeout_seconds=10)
+            assert sent.outcome == "QUEUED"
+            send_event = events.get(timeout=10)
+            assert send_event == ("sent", child.pid, owner_tid, "same-key")
+            until = time.monotonic() + 10
+            while True:
+                current = client.status("same-key", timeout_seconds=10)
+                if current.outcome == "OBSERVED" and current.record.state == "SENT":
+                    break
+                assert time.monotonic() < until
+                time.sleep(0.02)
+            assert current.record.reservation_id == reserved.record.reservation_id
+            assert client.dispatch("same-key", timeout_seconds=10).outcome != "QUEUED"
+            with pytest.raises(queue.Empty):
+                events.get(timeout=0.2)
+        finally:
+            try:
+                if runtime is not None:
+                    runtime.close(timeout_seconds=10)
+            finally:
+                controls.put("stop")
+                child.join(15)
+                if child.is_alive():
+                    child.terminate()
+                    child.join(5)
+>                   pytest.fail("spawned synthetic Gateway did not stop")
+E                   Failed: spawned synthetic Gateway did not stop
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:383: Failed
+----------------------------- Captured stdout call -----------------------------
+RUN_ID sdk-installed-41627-1794181886821832000 PID 41665 PPID 41636 SDK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/msgpack/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+...........FFF.......................................................... [ 28%]
+..........................F............................................. [ 38%]
+..............................................F......................... [ 47%]
+............................F........................................... [ 57%]
+........................................................................ [ 66%]
+..............FF..................F...................................F. [ 76%]
+............................................................EEE......... [ 85%]
+..............
+_____ test_dual_port_read_uses_owner_and_slow_query_does_not_block_status ______
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_dual_port_read_uses_owner0')
+
+    def test_dual_port_read_uses_owner_and_slow_query_does_not_block_status(tmp_path):
+        from bt_api_base.account_protocol import AccountResourceKey
+    
+        from bt_api_py.gateway_direct_service import ACCOUNT_READ_OPERATIONS
+        from bt_api_py.order_correlation_issuer import DurableOrderCorrelationIssuer
+        from bt_api_py.service_account import ServiceAccountClient, ServiceAccountError
+        from bt_api_py.service_runtime import ServiceCallOutcomeUnknownError
+    
+        key = AccountKey("ctp", "simnow", "simnow", "00001", "09999")
+        scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", scope, generation="old"
+        )
+        issuer = DurableOrderCorrelationIssuer(tmp_path / "identity.sqlite")
+        issuer_id = issuer.issuer_id
+        issuer.close()
+        endpoint = _free_endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        context = multiprocessing.get_context("spawn")
+        events, controls = context.Queue(), context.Queue()
+        should_block, blocked, resume = context.Event(), context.Event(), context.Event()
+        child = context.Process(
+            target=_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                events,
+                controls,
+                (should_block, blocked, resume, issuer_id),
+            ),
+        )
+        child.start()
+        runtime = read_runtime = account_client = None
+        try:
+            observed = {}
+            for _ in range(3):
+>               event = events.get(timeout=15)
+                        ^^^^^^^^^^^^^^^^^^^^^^
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:429: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.queues.Queue object at 0x12d7a8550>, block = True
+timeout = 14.999994875048287
+
+    def get(self, block=True, timeout=None):
+        if self._closed:
+            raise ValueError(f"Queue {self!r} is closed")
+        if block and timeout is None:
+            with self._rlock:
+                res = self._recv_bytes()
+            self._sem.release()
+        else:
+            if block:
+                deadline = time.monotonic() + timeout
+            if not self._rlock.acquire(block, timeout):
+                raise Empty
+            try:
+                if block:
+                    timeout = deadline - time.monotonic()
+                    if not self._poll(timeout):
+>                       raise Empty
+E                       _queue.Empty
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: Empty
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_dual_port_read_uses_owner0')
+
+    def test_dual_port_read_uses_owner_and_slow_query_does_not_block_status(tmp_path):
+        from bt_api_base.account_protocol import AccountResourceKey
+    
+        from bt_api_py.gateway_direct_service import ACCOUNT_READ_OPERATIONS
+        from bt_api_py.order_correlation_issuer import DurableOrderCorrelationIssuer
+        from bt_api_py.service_account import ServiceAccountClient, ServiceAccountError
+        from bt_api_py.service_runtime import ServiceCallOutcomeUnknownError
+    
+        key = AccountKey("ctp", "simnow", "simnow", "00001", "09999")
+        scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", scope, generation="old"
+        )
+        issuer = DurableOrderCorrelationIssuer(tmp_path / "identity.sqlite")
+        issuer_id = issuer.issuer_id
+        issuer.close()
+        endpoint = _free_endpoint()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        context = multiprocessing.get_context("spawn")
+        events, controls = context.Queue(), context.Queue()
+        should_block, blocked, resume = context.Event(), context.Event(), context.Event()
+        child = context.Process(
+            target=_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                events,
+                controls,
+                (should_block, blocked, resume, issuer_id),
+            ),
+        )
+        child.start()
+        runtime = read_runtime = account_client = None
+        try:
+            observed = {}
+            for _ in range(3):
+                event = events.get(timeout=15)
+                assert event[0] not in {"error", "cleanup_error", "closed"}, event
+                observed[event[0]] = event
+            assert set(observed) == {"ready", "observed", "read"}
+            assert observed["read"][2] == observed["observed"][2]
+            assert observed["read"][2] != observed["ready"][2]
+            cfg = _client_config(endpoint, CLIENT_A).to_public_dict()
+            binding = cfg["clients"]["gateway"]["settings"]["bindings"][0]
+            binding["account_ref"] = scope
+            account_binding = dict(binding)
+            account_binding["mount"] = "store.account"
+            cfg["clients"]["gateway"]["settings"]["bindings"].append(account_binding)
+            config = parse_client_config(cfg)
+            runtime = ThreadedServiceClientRuntime(
+                lambda: ServiceClientRuntime(
+                    config,
+                    identity=CLIENT_A,
+                    scope_resolver=lambda _: WireScope(DOMAIN, account_ref=scope),
+                    peer_resolver=lambda _: SERVICE,
+                    transport_factory=ZmqTransportFactory(
+                        {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                    ),
+                    run_id="run-a",
+                    requested_operations={
+                        "broker.direct_write": frozenset(
+                            {
+                                "direct.reserve",
+                                "direct.dispatch",
+                                "direct.release",
+                                "direct.command_status",
+                            }
+                        ),
+                        "store.account": ACCOUNT_READ_OPERATIONS,
+                    },
+                )
+            )
+            runtime.start(timeout_seconds=10)
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    typed = runtime.call(
+                        "store.account", "account.snapshot.typed", {}, timeout_seconds=3
+                    )
+                    break
+                except ServiceCallOutcomeUnknownError:
+                    assert time.monotonic() < deadline
+                    time.sleep(0.02)
+            assert typed["snapshot"]["payload"]["schema_id"] == "sdk.account.state.typed"
+            read_cfg = _client_config(endpoint, CLIENT_A).to_public_dict()
+            read_binding = read_cfg["clients"]["gateway"]["settings"]["bindings"][0]
+            read_binding["account_ref"], read_binding["mount"] = scope, "store.account"
+            read_runtime = ServiceClientRuntime(
+                parse_client_config(read_cfg),
+                identity=CLIENT_A,
+                scope_resolver=lambda _: WireScope(DOMAIN, account_ref=scope),
+                peer_resolver=lambda _: SERVICE,
+                transport_factory=ZmqTransportFactory(
+                    {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                ),
+                run_id="run-a",
+                requested_operations={"store.account": ACCOUNT_READ_OPERATIONS},
+            )
+            read_runtime.start()
+            account_client = ServiceAccountClient(
+                read_runtime,
+                "store.account",
+                account_ref=scope,
+                expected_account=key,
+                required_coverage=(AccountResourceKey("future", "cross"),),
+                expected_scope_ref="scope-a",
+                require_open_orders=True,
+            )
+            view = account_client.refresh()
+            assert view.observation.open_orders_complete and len(view.observation.open_orders) == 1
+            assert view.observation.open_orders[0].order_id.startswith("sdk-order-observation-v1-")
+            assert view.observation.open_orders[0].client_order_id is None
+            reserve = runtime.call(
+                "broker.direct_write",
+                "direct.reserve",
+                {
+                    "request_key": "key",
+                    "payload": _prepared_order(key="key", account=scope),
+                    "ttl_seconds": 30,
+                },
+                timeout_seconds=3,
+            )
+            assert reserve["record"]["state"] == "RESERVED"
+            command_binding = GatewayCommandBinding(
+                journal.journal_id, scope, CLIENT_A.actor_ref, CLIENT_A.principal_ref
+            )
+            route = GatewayClientRoute(
+                "broker.direct_write",
+                SERVICE.actor_ref,
+                "gateway-a",
+                "scope-a",
+                WireScope(DOMAIN, account_ref=scope, strategy_ref=CLIENT_A.actor_ref, run_id="run-a"),
+                CLIENT_A,
+            )
+            client = GatewayDirectClient(
+                runtime,
+                binding=command_binding,
+                route=route,
+                host=_TestSqliteHost(tmp_path / "dual-client.sqlite", command_binding),
+            )
+            assert (
+                client.reserve(
+                    OrderRequest.from_dict(_prepared_order(key="send", account=scope))
+                ).outcome
+                == "OBSERVED"
+            )
+            assert client.dispatch("send").outcome == "QUEUED"
+            sent = events.get(timeout=5)
+            assert sent[0] == "sent" and sent[1] == child.pid and sent[3] == "send"
+            assert sent[2] == observed["read"][2]
+            should_block.set()
+            assert blocked.wait(5)
+            with pytest.raises(ServiceCallOutcomeUnknownError):
+                runtime.call("store.account", "account.snapshot.typed", {}, timeout_seconds=3)
+            with pytest.raises(ServiceAccountError):
+                account_client.refresh()
+            result = runtime.call(
+                "broker.direct_write",
+                "direct.command_status",
+                {"request_key": "key"},
+                timeout_seconds=3,
+            )
+            assert result["record"]["state"] == "RESERVED"
+        finally:
+            resume.set()
+            try:
+                if account_client is not None:
+                    account_client.close()
+                if read_runtime is not None:
+                    read_runtime.close()
+                if runtime is not None:
+                    runtime.close(timeout_seconds=10)
+            finally:
+                controls.put("stop")
+                child.join(15)
+                if child.is_alive():
+                    child.terminate()
+                    child.join(5)
+>                   pytest.fail("spawned synthetic Gateway did not stop")
+E                   Failed: spawned synthetic Gateway did not stop
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:571: Failed
+----------------------------- Captured stdout call -----------------------------
+RUN_ID sdk-installed-41627-1794181886821832000 PID 41822 PPID 41636 SDK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/msgpack/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+...........FFF.......................................................... [ 28%]
+..........................F............................................. [ 38%]
+..............................................F......................... [ 47%]
+............................F........................................... [ 57%]
+........................................................................ [ 66%]
+..............FF..................F...................................F. [ 76%]
+............................................................EEE......... [ 85%]
+............
+_____ test_real_ctp_active_order_reaches_service_account_client_over_curve _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_real_ctp_active_order_rea0')
+
+    def test_real_ctp_active_order_reaches_service_account_client_over_curve(tmp_path):
+        from bt_api_base.account_protocol import AccountResourceKey
+    
+        from bt_api_py.gateway_direct_service import ACCOUNT_READ_OPERATIONS
+        from bt_api_py.order_correlation_issuer import DurableOrderCorrelationIssuer
+        from bt_api_py.service_account import ServiceAccountClient, ServiceAccountError
+        from bt_api_py.service_runtime import ServiceCallOutcomeUnknownError, ServiceRuntimeError
+    
+        key = AccountKey("ctp", "simnow", "simnow", "account", "9999")
+        scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", scope, generation="old"
+        )
+        issuer = DurableOrderCorrelationIssuer(tmp_path / "identity.sqlite")
+        issuer_id = issuer.issuer_id
+        issuer.close()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        endpoint = _free_endpoint()
+        context = multiprocessing.get_context("spawn")
+        events, controls = context.Queue(), context.Queue()
+        child = context.Process(
+            target=_real_ctp_read_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                issuer_id,
+                events,
+                controls,
+            ),
+        )
+        child.start()
+        runtime = account_client = None
+        try:
+>           ready = events.get(timeout=15)
+                    ^^^^^^^^^^^^^^^^^^^^^^
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:811: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <multiprocessing.queues.Queue object at 0x12d7ab5d0>, block = True
+timeout = 14.999991624965332
+
+    def get(self, block=True, timeout=None):
+        if self._closed:
+            raise ValueError(f"Queue {self!r} is closed")
+        if block and timeout is None:
+            with self._rlock:
+                res = self._recv_bytes()
+            self._sem.release()
+        else:
+            if block:
+                deadline = time.monotonic() + timeout
+            if not self._rlock.acquire(block, timeout):
+                raise Empty
+            try:
+                if block:
+                    timeout = deadline - time.monotonic()
+                    if not self._poll(timeout):
+>                       raise Empty
+E                       _queue.Empty
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: Empty
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pytest-of-yunjinqi/pytest-0/test_real_ctp_active_order_rea0')
+
+    def test_real_ctp_active_order_reaches_service_account_client_over_curve(tmp_path):
+        from bt_api_base.account_protocol import AccountResourceKey
+    
+        from bt_api_py.gateway_direct_service import ACCOUNT_READ_OPERATIONS
+        from bt_api_py.order_correlation_issuer import DurableOrderCorrelationIssuer
+        from bt_api_py.service_account import ServiceAccountClient, ServiceAccountError
+        from bt_api_py.service_runtime import ServiceCallOutcomeUnknownError, ServiceRuntimeError
+    
+        key = AccountKey("ctp", "simnow", "simnow", "account", "9999")
+        scope = key.account_key_id
+        (tmp_path / "guard").mkdir()
+        (tmp_path / "flow").mkdir(mode=0o700)
+        journal = GatewayDirectCommandJournal.create(
+            tmp_path / "journal.sqlite", scope, generation="old"
+        )
+        issuer = DurableOrderCorrelationIssuer(tmp_path / "identity.sqlite")
+        issuer_id = issuer.issuer_id
+        issuer.close()
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        endpoint = _free_endpoint()
+        context = multiprocessing.get_context("spawn")
+        events, controls = context.Queue(), context.Queue()
+        child = context.Process(
+            target=_real_ctp_read_server,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys[0],
+                journal.journal_id,
+                issuer_id,
+                events,
+                controls,
+            ),
+        )
+        child.start()
+        runtime = account_client = None
+        try:
+            ready = events.get(timeout=15)
+            assert ready[0] == "ready", ready
+            config = _client_config(endpoint, CLIENT_A).to_public_dict()
+            binding = config["clients"]["gateway"]["settings"]["bindings"][0]
+            binding["account_ref"], binding["mount"] = scope, "store.account"
+            runtime = ServiceClientRuntime(
+                parse_client_config(config),
+                identity=CLIENT_A,
+                scope_resolver=lambda _: WireScope(DOMAIN, account_ref=scope),
+                peer_resolver=lambda _: SERVICE,
+                transport_factory=ZmqTransportFactory(
+                    {"security-a": ClientCurveKeys(server_keys[0], *client_keys)}
+                ),
+                run_id="run-a",
+                requested_operations={"store.account": ACCOUNT_READ_OPERATIONS},
+            )
+            runtime.start()
+            account_client = ServiceAccountClient(
+                runtime,
+                "store.account",
+                account_ref=scope,
+                expected_account=key,
+                required_coverage=(AccountResourceKey("future", "futures"),),
+                require_open_orders=True,
+                expected_scope_ref="scope-a",
+            )
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    view = account_client.refresh()
+                    break
+                except ServiceAccountError:
+                    assert time.monotonic() < deadline
+                    time.sleep(0.02)
+            assert view.observation.open_orders_complete and len(view.observation.open_orders) == 1
+            order = view.observation.open_orders[0]
+            assert (
+                order.order_id.startswith("sdk-order-observation-v1-") and order.client_order_id is None
+            )
+            assert order.instrument.instrument_id == "IF2612" and order.quantity == "3"
+            assert order.filled_quantity == "1" and "SYS1" not in repr(view.observation.to_dict())
+            with pytest.raises(ServiceCallOutcomeUnknownError):
+                runtime.call("store.account", "account.head", {"stream": "execution"})
+            with pytest.raises(ServiceRuntimeError):
+                runtime.call("store.account", "account.snapshot.typed", {}, account_ref="other")
+            with pytest.raises(ServiceRuntimeError):
+                runtime.call("broker.direct_write", "direct.reserve", {})
+        finally:
+            try:
+                if account_client is not None:
+                    account_client.close()
+                if runtime is not None:
+                    runtime.close()
+            finally:
+                controls.put("stop")
+                child.join(15)
+                if child.is_alive():
+                    child.terminate()
+                    child.join(5)
+>                   pytest.fail("spawned synthetic CTP Gateway did not stop")
+E                   Failed: spawned synthetic CTP Gateway did not stop
+
+/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py:870: Failed
+----------------------------- Captured stdout call -----------------------------
+RUN_ID sdk-installed-41627-1794181886821832000 PID 41862 PPID 41636 SDK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/msgpack/__init__.py
+........................................................................ [  9%]
+........................................................................ [ 19%]
+...........FFF.......................................................... [ 28%]
+..........................F............................................. [ 38%]
+..............................................F......................... [ 47%]
+............................F........................................... [ 57%]
+........................................................................ [ 66%]
+..............FF..................F...................................F. [ 76%]
+............................................................EEE......... [ 85%]
+....................
+=============================== warnings summary ===============================
+../../../../tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/backtrader/feeds/__init__.py:56
+  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../../../tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py::test_spawned_profile_host_curve_client_dispatches_one_original_key
+FAILED ../../../../tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py::test_dual_port_read_uses_owner_and_slow_query_does_not_block_status
+FAILED ../../../../tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/sdk-tests/tests/integration/test_iter63_ctp_gateway_trading.py::test_real_ctp_active_order_reaches_service_account_client_over_curve
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/selectors.py:415: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+3 failed, 239 passed, 1 warning in 121.25s (0:02:01)
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/run_sdk.py` failed. (See above for error)
+RUN_EXIT 2

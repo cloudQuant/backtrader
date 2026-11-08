@@ -1,0 +1,26 @@
+F....................................................................F.. [ 63%]
+.........................................                                [100%]
+=================================== FAILURES ===================================
+______ test_disconnect_preserves_guard_rejects_old_source_and_reconciles _______
+tests/integration/test_iter63_gateway_reconnect_window.py:158: in test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+    _wait(lambda: _pause_observed(h))
+tests/test_iter63_ctp_gateway_trading.py:576: in _wait
+    assert time.monotonic() < deadline
+E   assert 608343.062626375 < 608343.0561945
+E    +  where 608343.062626375 = <built-in function monotonic>()
+E    +    where <built-in function monotonic> = time.monotonic
+------------------------------ Captured log call -------------------------------
+WARNING  bt_api_ctp.ctp.client:client.py:9712 CTP trader front disconnected (reason=4097, generation=1)
+_______ test_relogin_rejects_old_observation_and_new_job_uses_new_reader _______
+tests/unit/test_iter63_gateway_instrument_service.py:189: in test_relogin_rejects_old_observation_and_new_job_uses_new_reader
+    assert value["status"] == "ready", [(type(c.error).__name__, str(c.error)) for c in h.calls if c.error]
+E   AssertionError: [('CtpGatewayInstrumentQueryError', 'SESSION_CHANGED'), ('CtpGatewaySessionError', 'SESSION_CHANGED')]
+E   assert 'failed' == 'ready'
+E     
+E     - ready
+E     + failed
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_reconnect_window.py::test_disconnect_preserves_guard_rejects_old_source_and_reconciles
+FAILED tests/unit/test_iter63_gateway_instrument_service.py::test_relogin_rejects_old_observation_and_new_job_uses_new_reader
+2 failed, 111 passed in 20.66s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest --import-mode=importlib -q --timeout=20 tests/integration/test_iter63_gateway_reconnect_window.py tests/test_iter63_ctp_gateway_trading.py tests/integration/test_iter63_gateway_instrument_roundtrip.py tests/integration/test_iter63_gateway_instrument_profile_cleanup.py tests/integration/test_iter63_ctp_gateway_return_maintenance.py tests/unit/test_iter63_gateway_instrument_service.py tests/unit/test_iter63_gateway_dual_ports.py tests/unit/test_iter63_trading_market_component.py` failed. (See above for error)

@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/prepare.py", "tests"], "pid": 37751, "ppid": 37731, "run_id": "tests-37751-1794180651150902000", "selector_sha256": "e9a67fcbac1fa9b5a32cee48a6e0a8c088368bc69395af0b9ffb9169a5b0ae5c"}
+CTP_TEST_ROWS 22 SELECTED 19
+RUN_EXIT 0

@@ -1,0 +1,9 @@
+cdf227de606fa05206987f72a8843b67c8522f2cf908ebaa8336b7c2c5d86009  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/setup_harness.py
+165a5c332dc76683e99273fbc3c0579c1b601da5ba39a1e0c390d6385502b14e  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/launch.py
+844e03d8ed27341972befd2f44283ed6bc84c78bed6000502b37f025abb9b907  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/run_sdk.py
+c65813fa68bbd4d8cac97bd07bf39be671338695633b8ebe5082da66f0a606d2  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/verify.py
+47f4b61ce35df28c6af58caa43d27e795297170ed95e2c5ae204daa95638131b  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/guard_preflight.py
+d728177676bea47b35d30494e9f9e5a75d677ae9ed235d68fd6cdf9106d3a8b9  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/audit_run.py
+bb1c33d4350c126c7f1b3a5a7d44a55c40518e14011ef89ba45325874675058b  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/bootstrap/origin_guard.py
+c41dd304085ecdc85e9bdf1474db0f40babb991e2dfe6b07b8babe470fcf3e29  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/bootstrap/offline_guard.py
+fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf  /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/bootstrap/sitecustomize.py

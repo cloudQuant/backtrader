@@ -1,5 +1,7 @@
 ﻿# 仓库目录与文件职责规范
 
+> 2026-11-09 R26：CTP provider 持有同 TD 的分步合约查询、原生限价规则与严格当前来源探测；SDK 持有规格服务任务/三项账户操作、客户端组合、同源断连暂停及读取 epoch 协调。Gateway 默认仍用 bt_api_transport_zmq；本轮不修改 BT 产品。源码与隔离安装限定切片 CTP811/SDK756 通过，不证明全服务或真实账户；同步账户刷新、既有锁/native 等待和完整 BT 接线仍开放。[R26审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十六轮共享合约规格与重连接线审阅-2026-11-09.md)。
+
 > 2026-11-09 R25：`backtrader/brokers/_btapi_gateway_projection.py` 负责真实 BT Order/Position/Trade 的显式快照、受信框架依赖绑定和共享引用恢复；不签发 provider 事实、不自动安装到 Strategy 或发送 ACK。15个内置标量佣金类的局部源码/安装验证通过，复杂规则模型和自定义模型不在当前支持范围；生产事件消费与通知持久化仍未接通。[本轮审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十五轮真实框架对象快照与恢复审阅-2026-11-09.md)记录证据和限制，以下较早轮次按其日期理解。
 
 > 2026-11-08 迭代 63 开发：Gateway 拥有两阶段命令日志、本地耐久派发桥和事务内准入复核挂点；SDK 拥有认证上下文、延后派发准入、规范 OrderRequest 校验、native coordinator 组合、独立租约线程及有界账户 owner 队列，CTP provider 拥有受信 flow 目录映射。Gateway 的目标部署为独立服务进程，默认使用 bt_api_transport_zmq，策略仅配置连接；storage RPC 默认发布 reserve/release/status，显式 dispatch_enabled 且匹配 owner 时增加派发排队。尚未接成完整交易 owner、远端 provider、BT Gateway 模式或策略账本。局部离线与回环证据及未通过项见迭代 63 分轮记录，不把类名、排队回执或端口名当作账户能力已通过。 R05 新增 Base 命令观察/摘要合同和 SDK 策略客户端；持久 host 由调用方注入，BT pending 适配未接。CTP 结算状态每次从来源绑定的只读查询分类，可信空/旧日期维持既有本地政策；日期语义和 SDK 读后日/会话竞态仍未关闭。

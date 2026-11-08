@@ -1,0 +1,11 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-m", "pip", "wheel", "--no-index", "--no-deps", "--no-build-isolation", "--wheel-dir", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/wheels", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/source/sdk"], "pid": 41464, "ppid": 41454, "run_id": "build-41464-1794181866769802000", "selector_sha256": "6201b78f2e216676c50e359064094ba39b1425f233109e1f6963ae9e9ef6254a", "stage": "build"}
+Processing /tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2126391 sha256=f53cc1428ccc77d9143a615c36e52439326cd2170d70b5b491fc0ab7f8d132fe
+  Stored in directory: /private/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/tmp/pip-ephem-wheel-cache-zi_vm3w6/wheels/76/da/d3/12bc7b29b5ac0c750acedba5b23af489f5ec7579f8d538395f
+Successfully built bt_api_py
+RUN_EXIT 0

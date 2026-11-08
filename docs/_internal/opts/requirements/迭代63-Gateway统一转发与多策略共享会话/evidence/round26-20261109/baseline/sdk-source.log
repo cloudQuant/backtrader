@@ -1,0 +1,55 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r26-primary/run.py"], "origin_log_group": "sdk-32433-1794179218330854000", "pid": 32433, "ppid": 32399, "run_id": "sdk-32433-1794179218330854000", "selector_sha256": "3078f6b16fd61bbbd3dce326084cda674ad6fb476e4c569d3dd0a418732e4d25"}
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r26-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [ 11%]
+........................................................................ [ 22%]
+............F........................................................... [ 33%]
+........................................................................ [ 45%]
+........................................................................ [ 56%]
+.............................F.......................................... [ 67%]
+........................................................................ [ 78%]
+.....................................F....F............................. [ 90%]
+................................................................         [100%]
+=================================== FAILURES ===================================
+_____ test_dual_port_read_uses_owner_and_slow_query_does_not_block_status ______
+tests/integration/test_iter63_ctp_gateway_trading.py:401: in test_dual_port_read_uses_owner_and_slow_query_does_not_block_status
+    assert event[0] not in {"error", "cleanup_error", "closed"}, event
+E   AssertionError: ('error', 'ServiceHostError', 'RESOURCE_RESOLUTION_FAILED')
+E   assert 'error' not in {'cleanup_error', 'closed', 'error'}
+__ test_instrument_metadata_uses_trusted_ctp_owner_through_curve_service_host __
+tests/integration/test_service_account_instrument_metadata.py:481: in test_instrument_metadata_uses_trusted_ctp_owner_through_curve_service_host
+    assert status == "started", value
+E   AssertionError: ACCOUNT_SESSION_WORKER_START_FAILED
+E   assert 'error' == 'started'
+E     
+E     - started
+E     + error
+_____ test_composite_cleanup_attempts_both_and_retries_only_local_failure ______
+tests/integration/test_iter63_strategy_read_session.py:241: in test_composite_cleanup_attempts_both_and_retries_only_local_failure
+    extension = _StrategyOwnerExtension(
+E   TypeError: _StrategyOwnerExtension.__init__() missing 1 required positional argument: 'instrument_settings'
+__________ test_partial_composite_start_retains_resources_for_cleanup __________
+tests/integration/test_iter63_strategy_read_session.py:797: in test_partial_composite_start_retains_resources_for_cleanup
+    extension = _StrategyOwnerExtension(
+E   TypeError: _StrategyOwnerExtension.__init__() missing 1 required positional argument: 'instrument_settings'
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /tmp/iter63-r26-primary/sdk-source.xml ----------
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_ctp_gateway_trading.py::test_dual_port_read_uses_owner_and_slow_query_does_not_block_status
+FAILED tests/integration/test_service_account_instrument_metadata.py::test_instrument_metadata_uses_trusted_ctp_owner_through_curve_service_host
+FAILED tests/integration/test_iter63_strategy_read_session.py::test_composite_cleanup_attempts_both_and_retries_only_local_failure
+FAILED tests/integration/test_iter63_strategy_read_session.py::test_partial_composite_start_retains_resources_for_cleanup
+4 failed, 636 passed, 2 warnings in 43.25s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 1 RUN_ID sdk-32433-1794179218330854000
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r26-primary/run.py` failed. (See above for error)

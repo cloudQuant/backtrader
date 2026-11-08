@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r26-sdk-install-20261109-xAIrOrDl/setup_harness.py", "freeze"], "pid": 41329, "ppid": 41316, "run_id": "freeze-41329-1794181850887028000", "selector_sha256": null, "stage": "freeze"}
+FREEZE_CHECKED 55 42 HEAD 64eeeb5c881bfeb4fe84b98300919d14a6a7ae62
+RUN_EXIT 0

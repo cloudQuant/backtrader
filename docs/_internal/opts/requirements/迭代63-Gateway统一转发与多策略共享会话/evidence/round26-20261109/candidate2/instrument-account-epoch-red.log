@@ -1,0 +1,15 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_new_instrument_source_does_not_wait_for_account_reader_rebind ______
+tests/integration/test_iter63_gateway_reconnect_window.py:425: in test_new_instrument_source_does_not_wait_for_account_reader_rebind
+    assert future.result(timeout_seconds=0) > old
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bt_api_py/gateway_direct_owner.py:187: in result
+    raise GatewayOwnerServiceCallError(self._task.error)
+E   bt_api_py.gateway_direct_owner.GatewayOwnerServiceCallError: SERVICE_CALL_FAILED
+------------------------------ Captured log call -------------------------------
+WARNING  bt_api_ctp.ctp.client:client.py:9712 CTP trader front disconnected (reason=4097, generation=1)
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_reconnect_window.py::test_new_instrument_source_does_not_wait_for_account_reader_rebind
+1 failed in 1.00s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q --timeout=15 tests/integration/test_iter63_gateway_reconnect_window.py::test_new_instrument_source_does_not_wait_for_account_reader_rebind` failed. (See above for error)

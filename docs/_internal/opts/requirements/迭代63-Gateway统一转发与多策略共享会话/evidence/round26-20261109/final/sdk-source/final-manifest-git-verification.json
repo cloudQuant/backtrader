@@ -1,0 +1,43 @@
+{
+  "ctp": [
+    {
+      "manifest": "source-manifest.json",
+      "total": 259,
+      "verified_git_blobs": 259,
+      "gaps": [],
+      "commits": {
+        "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "0373187a39cdc08acdd3cac1ab5de3bb35140c8c"
+      }
+    },
+    {
+      "manifest": "test-manifest.json",
+      "total": 22,
+      "verified_git_blobs": 22,
+      "gaps": [],
+      "commits": {
+        "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "0373187a39cdc08acdd3cac1ab5de3bb35140c8c"
+      }
+    }
+  ],
+  "sdk": [
+    {
+      "manifest": "source-manifest.json",
+      "total": 313,
+      "verified_git_blobs": 313,
+      "gaps": [],
+      "commits": {
+        "/Users/yunjinqi/Documents/new_projects/bt_api_py": "de233932957960b553dad75dc1228b3044a90321"
+      }
+    },
+    {
+      "manifest": "test-manifest.json",
+      "total": 94,
+      "verified_git_blobs": 94,
+      "gaps": [],
+      "commits": {
+        "/Users/yunjinqi/Documents/new_projects/bt_api_py": "de233932957960b553dad75dc1228b3044a90321",
+        "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "0373187a39cdc08acdd3cac1ab5de3bb35140c8c"
+      }
+    }
+  ]
+}

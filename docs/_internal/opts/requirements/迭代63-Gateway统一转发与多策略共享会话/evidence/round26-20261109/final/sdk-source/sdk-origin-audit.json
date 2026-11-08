@@ -1,0 +1,160 @@
+{
+  "files": 17,
+  "missing_exit_audits": 1,
+  "processes": [
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40919,
+      "ppids": [
+        40912
+      ],
+      "resolved": 898
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40922,
+      "ppids": [
+        40919
+      ],
+      "resolved": 87
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40923,
+      "ppids": [
+        40919
+      ],
+      "resolved": 94
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40929,
+      "ppids": [
+        40919
+      ],
+      "resolved": 223
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40938,
+      "ppids": [
+        40919
+      ],
+      "resolved": 237
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40939,
+      "ppids": [
+        40919
+      ],
+      "resolved": 239
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40940,
+      "ppids": [
+        40919
+      ],
+      "resolved": 127
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40941,
+      "ppids": [
+        40919
+      ],
+      "resolved": 107
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40942,
+      "ppids": [
+        40919
+      ],
+      "resolved": 693
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40996,
+      "ppids": [
+        40919
+      ],
+      "resolved": 256
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 40999,
+      "ppids": [
+        40919
+      ],
+      "resolved": 252
+    },
+    {
+      "exit_audit_missing": true,
+      "guard": true,
+      "pid": 41018,
+      "ppids": [
+        40919
+      ],
+      "resolved": 112
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 41019,
+      "ppids": [
+        40919
+      ],
+      "resolved": 126
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 41023,
+      "ppids": [
+        40919
+      ],
+      "resolved": 93
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 41024,
+      "ppids": [
+        40919
+      ],
+      "resolved": 254
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 41026,
+      "ppids": [
+        40919
+      ],
+      "resolved": 254
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 41027,
+      "ppids": [
+        40919
+      ],
+      "resolved": 254
+    }
+  ],
+  "run_id": "sdk-40919-1794181726649964000"
+}

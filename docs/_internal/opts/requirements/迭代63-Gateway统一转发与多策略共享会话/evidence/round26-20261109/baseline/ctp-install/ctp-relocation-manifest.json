@@ -1,0 +1,97 @@
+[
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/selected-tests.txt",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/selected-tests.txt",
+    "sha256": "dcecf8e524f26926196c33939c0ca8b6c331e72e2a941bfd099125e20857167d"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/conftest.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/conftest.py",
+    "sha256": "a9e9fe2d9481ecf5f969be6bb4dc384fa376794d9e5d54c78c454c9c25705b3f"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_account_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_account_provider.py",
+    "sha256": "72c5cf857f2765c0d2ceb5cbe3b7d0b7f6fb081e81e2095340ae33cce1521708"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_account_provider_execution_observations.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_account_provider_execution_observations.py",
+    "sha256": "3c20438af08b652a2f32527a7211a172d63c4445d17b661942c2bcdfbf40f097"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_ctp_callback_ingress_client.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_ctp_callback_ingress_client.py",
+    "sha256": "a0c8e2a49b72adfbaf06a23725616df6853a2e38078ac04ce84932036b1c12f8"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_ctp_native_query_certificate.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_ctp_native_query_certificate.py",
+    "sha256": "a59c8c60987ab4592ed75ef7ea42719c20b935f6b719bb9afa5209979b6b53a6"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_gateway_instrument_metadata.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_gateway_instrument_metadata.py",
+    "sha256": "d3ade7012cd44c7e211acd99b531e56456088f0a22bdfe5512a138273af83755"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_instrument_metadata.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_instrument_metadata.py",
+    "sha256": "fdbe97a1cfb47a25731e4a5f596c4e72aec18a21d682005ace8a5e921bf04be0"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_instrument_queries.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_instrument_queries.py",
+    "sha256": "fa6257590111dc999b1326a00a7c125c0597b5c5567d9fe0fe696b1807c2b2bc"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter62_query_slot.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter62_query_slot.py",
+    "sha256": "9b1fc198a800ead6ab9939df3c205251cdff34238c46f5e3c822de6281a3f52d"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter62_settlement_readback_on_write.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter62_settlement_readback_on_write.py",
+    "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_async_instrument_query.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_async_instrument_query.py",
+    "sha256": "cd986b6a34ef052184c99db5938e815db4ba99a2fe730cb1b88e44d6fccef951"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_gateway_instrument_query.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_gateway_instrument_query.py",
+    "sha256": "7a65a7f0d96d5089396f00ab53bd7f0fb330f7de933d6acdc6b4d5f06d3260ac"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_gateway_return_query.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_gateway_return_query.py",
+    "sha256": "5cfbc4a2a62d006fd14ecb0ec3113a75bc429a923980ffb389c1406234d315d5"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_gateway_session.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_gateway_session.py",
+    "sha256": "67bcc180dab61e21142b0eccef31c8f90a2d469cb6b366278731be1329632b04"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_prepared_cancel.py",
+    "sha256": "83af98b23d1519ba401af230b7c8b21ebd08f74e8832f2e14140424a0fc72d79"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_iter63_prepared_place.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_iter63_prepared_place.py",
+    "sha256": "68e6a0c0ea5157b205d66b8f87dadc6c6b334ba35782a35d9198e68b6a5abb04"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_market_provider.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_market_provider.py",
+    "sha256": "40b25816efae96bca4c76c6302b7c7e3816a1d75d56d06f62d6fdc394edb5ec8"
+  },
+  {
+    "source": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/ctp-tests/tests/test_query_completion_origin.py",
+    "copy": "/tmp/iter63-r26-ctp-install-20261109-sqM3vqAE/install/tests/test_query_completion_origin.py",
+    "sha256": "d7a545e160526e05a5257e33440d19bef55a534dad386dd262a6572a4e8d142b"
+  }
+]

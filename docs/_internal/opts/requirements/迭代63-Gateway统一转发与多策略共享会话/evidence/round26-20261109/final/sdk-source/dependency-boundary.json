@@ -1,0 +1,8 @@
+{
+  "backtrader_root": "/tmp/iter63-r26-ctp-acceptance-20261109-7xzFjES1/install/src",
+  "backtrader_wheel": "R25 fixed wheel; same dependency as final CTP installed run",
+  "ctp_final_evidence": "/tmp/iter63-r26-acceptance/ctp-primary-package-verification.json",
+  "SDK_owned_count": 24,
+  "SDK_frozen_count": 55,
+  "selectors_count": 42
+}

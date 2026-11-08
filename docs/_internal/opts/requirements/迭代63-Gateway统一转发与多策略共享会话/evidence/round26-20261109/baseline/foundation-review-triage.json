@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "source": "blind-hunter",
+    "title": "begin post-check can orphan an unreturned handle",
+    "verdict": "high",
+    "route": "patch",
+    "evidence": "Original diff retained pending on cancel False; frozen source later removes post-allocation check and returns cleanup-capable handle. Original dynamic reproduction was retracted because worktree had changed."
+  },
+  {
+    "id": 2,
+    "source": "edge-case-hunter",
+    "title": "begin cancellation/release contention loses cleanup responsibility",
+    "verdict": "high",
+    "route": "patch",
+    "evidence": "Same root cause as 1; release False was ignored. Revised tests exercise 65 session changes with real lock contention and registry cleanup."
+  },
+  {
+    "id": 3,
+    "source": "verification-gap",
+    "title": "final native predispatch session fence lacked race coverage",
+    "verdict": "high",
+    "route": "patch",
+    "evidence": "New four-case test changes generation/login/API/SPI after slot reservation through _record_request, verifies zero native calls and freed unissued slot. Product unchanged."
+  },
+  {
+    "id": 4,
+    "source": "verification-gap",
+    "title": "full rule rows bypassed SPI in sealed-reader tests",
+    "verdict": "high",
+    "route": "patch",
+    "evidence": "New actual bound SPI test sends complete CThostFtdcInstrumentField and checks min=3,max=100; stale SPI terminal rejected. Independent process test now also uses SPI."
+  },
+  {
+    "id": 5,
+    "source": "verification-gap-other",
+    "title": "shared query state critical sections may block a poll",
+    "verdict": "medium",
+    "route": "defer",
+    "evidence": "Reviewer synthetic competing thread held query lock 0.25s; poll took 0.263s. Existing native gate and source fence use blocking critical sections. R26 only removes callback/rate/slot waiting; strict end-to-end latency remains OPEN with E052. No claim of a lock-free native gate."
+  },
+  {
+    "id": 6,
+    "source": "acceptance-auditor",
+    "title": "raw completed QueryResult survives subsequent session change",
+    "verdict": "false",
+    "route": "reject",
+    "evidence": "Confirmed historical terminal result is returned unchanged; QueryResult.complete denotes completed original request, not current source authority. Actual Gateway reader performs current-session and expiry validation before returning/reusing observation. Clarify contract distinction; do not relabel historical terminal evidence as current readiness."
+  },
+  {
+    "id": 7,
+    "source": "acceptance-auditor",
+    "title": "generic SDK codec allows optional max_quantity None",
+    "verdict": "false",
+    "route": "reject",
+    "evidence": "Existing InstrumentSpec explicitly allows optional max_quantity; generic codec follows that model. CTP reader independently requires positive native MaxLimitOrderVolume and cannot publish missing-limit CTP observation. Clarify generic DTO vs this provider requirements."
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "primary_independent_checks": true,
+  "input_counts": {
+    "source-manifest.json": 259,
+    "test-manifest.json": 22,
+    "ctp-relocation-manifest.json": 23
+  },
+  "python_members": 182,
+  "configured_data_members": 1,
+  "package_members": 204,
+  "native_members": 21,
+  "wheel_sha256": "bf25c4c171ffbcf5e4cca872ce8f9d4d5454210f311ba28de2bb9947defbbc6a",
+  "source_tests": 811,
+  "installed_tests": 811,
+  "initial_verifier_errors": [
+    "overbroadly expected all source and cross-platform artifacts in a cp311 macOS wheel",
+    "then omitted the declared configs/*.yaml package data; corrected after inspecting setup.py"
+  ]
+}

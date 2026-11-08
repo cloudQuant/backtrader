@@ -1,0 +1,1 @@
+{"argv": ["python", "-I", "/tmp/iter63-r26-acceptance/run.py"], "exit_code": 0, "finished_ns": 1794180649563537000, "kind": "ctp", "pid": 37593, "ppid": 37587, "run_id": "ctp-37593-1794180609422346000", "selector_sha256": "b9bbe049dd60e83ce69385f0d1d71152d2792150f5e3229b55c865bbdd9a4624", "started_ns": 1794180609430590000}

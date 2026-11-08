@@ -1,0 +1,19 @@
+{
+  "ctp": [
+    "tests/test_iter63_async_instrument_query.py",
+    "tests/test_iter63_gateway_instrument_query.py",
+    "tests/test_iter62_query_slot.py",
+    "tests/test_ctp_native_query_certificate.py",
+    "tests/test_iter63_gateway_session.py",
+    "tests/test_iter63_gateway_return_query.py",
+    "tests/test_instrument_queries.py",
+    "tests/test_instrument_metadata.py",
+    "tests/test_gateway_instrument_metadata.py",
+    "tests/test_query_completion_origin.py",
+    "tests/test_iter63_prepared_place.py",
+    "tests/test_iter63_prepared_cancel.py",
+    "tests/test_ctp_callback_ingress_client.py",
+    "tests/test_account_provider.py",
+    "tests/test_iter62_settlement_readback_on_write.py"
+  ]
+}

@@ -1,0 +1,28 @@
+E059_RPC_RESULT account.instrument_spec.begin pending None
+E059_PERFORM_OK begin tuple
+E059_PERFORM_OK poll CtpGatewayInstrumentRules
+E059_RPC_RESULT account.instrument_spec.status pending None
+E059_PERFORM_OK release bool
+E059_RPC_RESULT account.instrument_spec.status pending None
+E059_PERFORM_OK check float
+E059_RPC_RESULT account.instrument_spec.status ready None
+CTP trader front disconnected (reason=4097, generation=1)
+E059_RPC_RESULT account.instrument_spec.status pending None
+E059_PERFORM_ERROR check CtpGatewayInstrumentQueryError SESSION_CHANGED
+E059_PAUSE
+E059_RPC_RESULT account.instrument_spec.status failed SOURCE_UNAVAILABLE
+E059_RPC_RESULT account.instrument_spec.begin pending None
+E059_PERFORM_ERROR begin CtpAccountSessionProviderError QUERY_SCOPE_CHANGED
+F
+=================================== FAILURES ===================================
+_ test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True] _
+tests/integration/test_iter63_gateway_instrument_roundtrip.py:502: in test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation
+    assert gateway["native_events"].get(timeout=5) == ("query", 2, "IF2612", "CFFEX")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation[True]
+1 failed in 6.45s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -s --import-mode=importlib -q --timeout=15 tests/integration/test_iter63_gateway_instrument_roundtrip.py::test_old_query_source_rejected_after_relogin_and_new_job_uses_new_generation` failed. (See above for error)

@@ -1,0 +1,113 @@
+{
+  "source_wheel": "/tmp/iter63-r19-install-20261109-uQ78MEA5/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+  "source_wheel_sha256": "56e9618be0202ea2c935d784179201f5ea9f79b9656398ad83727ad015485134",
+  "native_extension_sha256": "b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5",
+  "members": [
+    {
+      "member": "bt_api_ctp/ctp/_ctp.cpython-311-darwin.so",
+      "sha256": "b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5",
+      "size": 13221896
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Headers",
+      "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737",
+      "size": 24
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Resources",
+      "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42",
+      "size": 26
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/thostmduserapi_se",
+      "sha256": "e225b3ab33ad76e76960ec22cc9ce14331f893388334eea6578bcc504e63dd31",
+      "size": 34
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/Current",
+      "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+      "size": 1
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/thostmduserapi_se",
+      "sha256": "ff5ac3928a131b24973b9900efa1175410e5db57b9d64c937e07ae553150f1bf",
+      "size": 7777840
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcMdApi.h",
+      "sha256": "744b6890028b5265f2a91dd6b43821ec71fb0512770a6f5e8fb01056f6f2d4e8",
+      "size": 6558
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+      "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c",
+      "size": 288713
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+      "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5",
+      "size": 348447
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/Resources/Info.plist",
+      "sha256": "5be634de17bfb3c607c2d87ffce5b89ed95bd378f76b24d1411b91facdb77169",
+      "size": 1296
+    },
+    {
+      "member": "bt_api_ctp/ctp/thostmduserapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+      "sha256": "38c9cc2316fdf8adec55268c7e55fe63ec4f3674ab8b7422666906ad50a7754b",
+      "size": 2898
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Headers",
+      "sha256": "2e7459ad2a0fe8f04a961c353c2c65f76a7081836ad76265c47e0cc08ed0a737",
+      "size": 24
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Resources",
+      "sha256": "59991b51b8ee15b59f07ec45942957a4ce90494257766964f5df60b7c7998e42",
+      "size": 26
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/thosttraderapi_se",
+      "sha256": "1b0fa34014a60260ef7d1d72d029e71f2ec0006125bef5946d16076ac4028f22",
+      "size": 34
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/Current",
+      "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+      "size": 1
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/thosttraderapi_se",
+      "sha256": "e22611e2b844c0eeefe1df85f9c7008d6931c37c13ef10f68db73efb5e0d4be7",
+      "size": 8701376
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcTraderApi.h",
+      "sha256": "2713e7a2e1fdf689013d7e2627c5e1f516823c17424436f64b056ef1cedfd484",
+      "size": 51238
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiDataType.h",
+      "sha256": "8de1bf4c06abd87b21ad0f7ee239286fde0c28c1562e81f85e5fc770a8c8830c",
+      "size": 288713
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Headers/ThostFtdcUserApiStruct.h",
+      "sha256": "13458040d1a7840e0e9b7ea77acc9251088e591a4e7e8be86fc6c44340d789b5",
+      "size": 348447
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/Resources/Info.plist",
+      "sha256": "5b25159ee8a5f6dba0bdc1c9702c3bea58e5a75b4e35f21fc682afa1dd9e93e9",
+      "size": 1296
+    },
+    {
+      "member": "bt_api_ctp/ctp/thosttraderapi_se.framework/Versions/A/_CodeSignature/CodeResources",
+      "sha256": "a0861496692449d6d8fdff9ca3b2e3fcce374efcc4dfe317ef83d3fd156313a0",
+      "size": 2902
+    }
+  ],
+  "build_policy": "standard setuptools metadata/build with verified native payload; no native compilation"
+}

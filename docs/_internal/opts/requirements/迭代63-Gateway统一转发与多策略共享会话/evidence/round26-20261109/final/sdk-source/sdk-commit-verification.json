@@ -1,0 +1,104 @@
+{
+  "repository": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+  "branch": "dev",
+  "commit": "de233932957960b553dad75dc1228b3044a90321",
+  "owned": [
+    {
+      "path": "README.md",
+      "sha256": "4fc5c1d5fe3e7adff51219b4f68cb54e2a30f11859fa0d3aee60336212812273"
+    },
+    {
+      "path": "bt_api_py/ctp_gateway_return_maintenance.py",
+      "sha256": "2aee8589f6d38986ffbef426fd6aaeef6d99609b09ba5044bd1537b0554b668d"
+    },
+    {
+      "path": "bt_api_py/ctp_gateway_trading.py",
+      "sha256": "336b444ca6da16711889871ff883afcce0370732ee74095db398d5d23f9a9364"
+    },
+    {
+      "path": "bt_api_py/gateway_direct_service.py",
+      "sha256": "2ef8683f354629ee3c7290ed38aa4a67400a3a0625430ca06c345635e407ee26"
+    },
+    {
+      "path": "bt_api_py/gateway_instrument_service.py",
+      "sha256": "c10721b7cdc2f47c2a2f1b86bc9905e82ec880209f338f1c00bb8bd1630c144c"
+    },
+    {
+      "path": "bt_api_py/gateway_instrument_spec_codec.py",
+      "sha256": "122c5e23739391c0d8b467165560bff40134d10713f88609d6e20a27f37b0771"
+    },
+    {
+      "path": "bt_api_py/gateway_settlement.py",
+      "sha256": "fba5882543295e31a2c5108cf5fe1bb24f0e1a142c8ca777ecb62723bfb1400e"
+    },
+    {
+      "path": "bt_api_py/gateway_strategy_client.py",
+      "sha256": "49065e4d348ffc5d2fa796177898b35ed2af04a49655c02bb2413e4c9e3a65af"
+    },
+    {
+      "path": "bt_api_py/gateway_strategy_instrument.py",
+      "sha256": "6a3de7f47f4b8a678dec3b8c4db7ceb3cc1fdfcabdcb604bf9b5fc9f3698722f"
+    },
+    {
+      "path": "bt_api_py/service_components.py",
+      "sha256": "07beee482c89b315ce00c7fb609543ee402f29596a209b7d058375c79c819c88"
+    },
+    {
+      "path": "bt_api_py/service_host.py",
+      "sha256": "656bf902f9d64551c4af65fd6f983de1d5e3f19f0cdbb050be614e02ec20fc26"
+    },
+    {
+      "path": "bt_api_py/service_registry.py",
+      "sha256": "e02a458becb33c668f34df34ade11ebb67a9ef1303c799e9485ce10843a26b6c"
+    },
+    {
+      "path": "bt_api_py/service_runtime.py",
+      "sha256": "2296ac7732b2a050ac1ac91e1826134203b5c13445ed774878932b1d794448f8"
+    },
+    {
+      "path": "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "sha256": "4cede39f2f63a77d86afb358455aa5342a7f9485edc80dc52dc97dc8bf78f729"
+    },
+    {
+      "path": "tests/integration/test_iter63_gateway_instrument_profile_cleanup.py",
+      "sha256": "d9149b6b7a7837da890eb4bb60d78765749d0260bc262ca707db87de3fa2da97"
+    },
+    {
+      "path": "tests/integration/test_iter63_gateway_instrument_roundtrip.py",
+      "sha256": "b07b79571fa32936d1ea4fbbf7d25f20cf406a7aab7f7edf62177edeb57e6544"
+    },
+    {
+      "path": "tests/integration/test_iter63_gateway_reconnect_window.py",
+      "sha256": "7280dac6f3978535fe8cfc143134c0579c56f6576f893fce729a8899e9ceebf6"
+    },
+    {
+      "path": "tests/integration/test_iter63_strategy_read_session.py",
+      "sha256": "36ee8884acbdf944c79e23557533b9cb53da0642f0dba80051a58f395cac7aa3"
+    },
+    {
+      "path": "tests/integration/test_service_account_instrument_metadata.py",
+      "sha256": "006c5b773d884042d1b20b9722cc0b01a081419a3d566954fedcc060eebc25f9"
+    },
+    {
+      "path": "tests/test_iter63_ctp_gateway_trading.py",
+      "sha256": "67436b9c1f606c3d72914ae51259d8eeb02b499f32079d999da1083bcb266d9c"
+    },
+    {
+      "path": "tests/unit/test_iter63_gateway_dual_ports.py",
+      "sha256": "3ca2b9048349455149e85b430f228e47cdc5e272a6076ed8fd2f3cbff271e54b"
+    },
+    {
+      "path": "tests/unit/test_iter63_gateway_instrument_service.py",
+      "sha256": "6e5d56d144e6f5f61ea16648571bb76c85d052e545f4804d4fbc3c1f8b4b59f4"
+    },
+    {
+      "path": "tests/unit/test_iter63_gateway_instrument_spec_codec.py",
+      "sha256": "542a71707c1c2a578244f1cd83ebda36723a78ee298e6cda3991f2b7fedf2502"
+    },
+    {
+      "path": "tests/unit/test_iter63_gateway_strategy_instrument.py",
+      "sha256": "90e6cf2f8831b5b7cd8e17b780ee9e13cdd12354d370113e34f98fb6e9bd8aa3"
+    }
+  ],
+  "ctp_gitlink": "0373187a39cdc08acdd3cac1ab5de3bb35140c8c"
+}

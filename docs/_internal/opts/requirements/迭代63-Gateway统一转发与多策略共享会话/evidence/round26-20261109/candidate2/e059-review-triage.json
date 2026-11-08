@@ -1,0 +1,25 @@
+{
+  "review": "independent candidate static review",
+  "sdk_sha": "d4fba76aef5ec5894f90a59fc1bc8397bd37943ff4b1ac7863b0deb857181c7a",
+  "provider_sha": "fdc55938c16a2cc6f8808d49957276de8c68e82f79704b4aea25fd0c64cb6ab9",
+  "findings": [
+    {
+      "id": "E059-fast-generation",
+      "disposition": "patch",
+      "finding": "ready sample overwrites last generation before fencing stale reservation/read model",
+      "status": "worker fixing with deterministic blocked-refresh test"
+    },
+    {
+      "id": "E059-read-exception",
+      "disposition": "patch",
+      "finding": "unchanged connection swallows arbitrary read/finish exceptions",
+      "status": "worker narrowing to known typed recoverable outcomes; journal and programming errors fatal"
+    },
+    {
+      "id": "E059-scheduled-retry",
+      "disposition": "patch",
+      "finding": "failed auth/login with a trusted scheduled retry classified fatal",
+      "status": "provider adding exact timer/token/source binding without changing retry policy"
+    }
+  ]
+}
