@@ -20,6 +20,7 @@ from bt_api_base.gateway_direct_protocol import (
 )
 from bt_api_py.direct_write import project_direct_strong_identity_keys
 from bt_api_py.gateway_direct_client import (
+    GatewayCancelPlan,
     gateway_intent_from_mapping,
     gateway_intent_to_mapping,
     gateway_cancel_plan_from_mapping,
@@ -406,6 +407,20 @@ class GatewayPendingHost:
             attempt = self._cancel_attempts(state).get(operation_id)
             return None if attempt is None else _cancel_plan(
                 attempt["plan"], self._binding, state["gateway"]["intents"]
+            )
+
+    def list_cancel_plans(self) -> tuple[GatewayCancelPlan, ...]:
+        """Return a validated, operation-id-sorted snapshot without mutating state."""
+        with self._store._lock():
+            state = self._store._load()
+            self._check_state(state)
+            if state["version"] == 2:
+                return ()
+            attempts = self._cancel_attempts(state)
+            entries = state["gateway"]["intents"]
+            return tuple(
+                _cancel_plan(attempts[operation_id]["plan"], self._binding, entries)
+                for operation_id in sorted(attempts)
             )
 
     def save_cancel_record(self, operation_id: str, record: GatewayCancelRecord):
