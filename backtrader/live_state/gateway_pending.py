@@ -158,7 +158,7 @@ def has_unresolved_gateway_intents(state: dict) -> bool:
 
 
 def has_unresolved_gateway_cancels(state: dict) -> bool:
-    if state["version"] != 3:
+    if state["version"] not in (3, 4):
         return False
     entries = state["gateway"]["intents"]
     markers = _marker_index(state)
@@ -209,8 +209,10 @@ def validate_gateway_state(state: dict, path: str) -> None:
     try:
         gateway = state["gateway"]
         gateway_keys = {"binding", "max_entries", "intents"}
-        if state["version"] == 3:
+        if state["version"] in (3, 4):
             gateway_keys |= {"max_cancel_entries", "cancel_attempts"}
+        if state["version"] == 4:
+            gateway_keys.add("execution")
         if type(gateway) is not dict or set(gateway) != gateway_keys:
             raise ValueError("gateway_shape")
         binding = _binding_from_mapping(gateway["binding"])
@@ -307,7 +309,7 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
                     raise ValueError("duplicate_local_seq")
                 unresolved_sequences.add(seq)
-        if state["version"] == 3:
+        if state["version"] in (3, 4):
             max_cancels, attempts = gateway["max_cancel_entries"], gateway["cancel_attempts"]
             if (not is_strict_int(max_cancels, minimum=1) or max_cancels > _MAX_ENTRIES
                     or type(attempts) is not dict or len(attempts) > max_cancels):
@@ -321,6 +323,9 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if attempt["record"] is not None:
                     record = _cancel_record(attempt["record"], binding, plan)
                     validate_gateway_cancel_record_progress(None, record)
+        if state["version"] == 4:
+            from .gateway_execution_state import validate_execution_state
+            validate_execution_state(state, binding)
     except Exception as exc:
         if isinstance(exc, LiveStateCorrupt):
             raise
@@ -355,8 +360,47 @@ class GatewayPendingHost:
                     raise ValueError("GATEWAY_CAPACITY_MISMATCH")
         return host
 
+    @classmethod
+    def upgrade_for_execution(cls, strategy_dir: Any, strategy_uuid: str,
+                              binding: GatewayCommandBinding, *, consumer_ref: str,
+                              max_events: int = 10_000, max_event_bytes: int = 32 * 1024 * 1024,
+                              max_projection_bytes: int = 16 * 1024 * 1024,
+                              lock_timeout: float = 10.0) -> "GatewayPendingHost":
+        from .gateway_execution_state import upgrade_for_execution
+        return upgrade_for_execution(cls, strategy_dir, strategy_uuid, binding,
+            consumer_ref=consumer_ref, max_events=max_events, max_event_bytes=max_event_bytes,
+            max_projection_bytes=max_projection_bytes, lock_timeout=lock_timeout)
+
+    def load_execution_checkpoint(self):
+        from .gateway_execution_state import load_checkpoint
+        return load_checkpoint(self)
+
+    def ingest_execution_page(self, page, *, expected_revision: int, after_sequence: int):
+        """Low-level port: after_sequence must come from this exact trusted read request."""
+        from .gateway_execution_state import ingest_page
+        return ingest_page(self, page, expected_revision=expected_revision, after_sequence=after_sequence)
+
+    def ingest_execution_result(self, result, *, expected_revision: int):
+        """Persist an SDK read result bound to its actual request, not a proof of authority."""
+        from .gateway_execution_state import ingest_result
+        return ingest_result(self, result, expected_revision=expected_revision)
+
+    def read_execution_events(self, after_sequence=None, *, limit: int = 256):
+        from .gateway_execution_state import read_events
+        return read_events(self, after_sequence=after_sequence, limit=limit)
+
+    def commit_execution_projection(self, through_sequence: int, projection, *,
+                                    expected_revision: int, expected_applied_sequence: int):
+        from .gateway_execution_state import commit_projection
+        return commit_projection(self, through_sequence, projection, expected_revision=expected_revision,
+                                 expected_applied_sequence=expected_applied_sequence)
+
+    def record_execution_ack(self, progress):
+        from .gateway_execution_state import record_ack
+        return record_ack(self, progress)
+
     def _check_state(self, state: dict) -> dict:
-        if state["version"] not in (2, 3) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+        if state["version"] not in (2, 3, 4) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
             raise ValueError("GATEWAY_BINDING_MISMATCH")
         return state["gateway"]["intents"]
 
@@ -382,7 +426,7 @@ class GatewayPendingHost:
 
     def _cancel_attempts(self, state: dict) -> dict:
         self._check_state(state)
-        if state["version"] != 3:
+        if state["version"] not in (3, 4):
             raise ValueError("GATEWAY_CANCEL_UPGRADE_REQUIRED")
         return state["gateway"]["cancel_attempts"]
 
