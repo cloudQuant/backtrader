@@ -1,0 +1,78 @@
+{
+  "round": "R18",
+  "date": "2026-11-09",
+  "iteration_status": "IN_PROGRESS / NOT_ACCEPTED",
+  "source": {
+    "sdk": {
+      "passed": 853,
+      "warnings": 2,
+      "log": "primary/sdk.log",
+      "selected_files": 48
+    },
+    "bt": {
+      "passed": 245,
+      "warnings": 1,
+      "log": "primary/bt.log",
+      "selected_files": 15
+    }
+  },
+  "installed": {
+    "sdk": {
+      "passed": 853,
+      "warnings": 1,
+      "log": "installed/sdk-installed-retry.log"
+    },
+    "bt": {
+      "passed": 245,
+      "warnings": 1,
+      "log": "installed/bt-frozen-final.log"
+    }
+  },
+  "initial_installed_sdk": {
+    "passed": 848,
+    "failed": 5,
+    "log": "installed/sdk-frozen-final.log",
+    "reason": "Five tracked public YAML fixtures omitted from copied test layout; copied unchanged and rerun same selectors"
+  },
+  "commits": {
+    "sdk": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+      "branch": "dev",
+      "commit": "9a9af12deb626116c238d3268423ebd157970fbb"
+    },
+    "bt": {
+      "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+      "branch": "dev",
+      "commit": "4816beb9ca71027a1a2ea27bb1415397499b8c25"
+    }
+  },
+  "checks": {
+    "source_and_commit_manifest_rows": 1440,
+    "test_and_helper_manifest_rows": 95,
+    "source_copy_commit_sha": "PASS",
+    "five_package_wheel_target_snapshot": "PASS",
+    "source_and_installed_cold_constructor": "PASS",
+    "changed_files_ruff_E9_F": "PASS"
+  },
+  "scope": {
+    "rebuilt": [
+      "sdk",
+      "backtrader"
+    ],
+    "fixed_r17": [
+      "base",
+      "gateway",
+      "ctp"
+    ],
+    "external_editable": [
+      "bt_api_transport_zmq"
+    ],
+    "account_operations": "NOT_RUN",
+    "full_dependency_resolver": "NOT_RUN",
+    "windows": "NOT_RUN",
+    "production_BT_Broker_Store_wiring": "INCOMPLETE",
+    "source_audit_missing_exit": 1,
+    "final_installed_sdk_audit_missing_exit": 1,
+    "BT_state_rebind_race": "OPEN; limited architecture approval pending"
+  }
+}

@@ -1,0 +1,288 @@
+{
+  "recorded_process_logs": 40,
+  "missing_guard": 0,
+  "missing_exit_or_explicit_audit": 1,
+  "violations": 0,
+  "records": [
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27620.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 709
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27626.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 0
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27627.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27628.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27630.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 476
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27636.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27637.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27638.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27639.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27640.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 142
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27641.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 142
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27642.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 145
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27643.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 115
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27648.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 115
+    },
+    {
+      "path": "origin-logs/bt-27620-1794159662326678000/27651.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 577
+    },
+    {
+      "path": "origin-logs/cold-client/28158.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 101
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27623.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 881
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27634.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 0
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27635.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 127
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27645.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 220
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27647.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 222
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27650.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 233
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27655.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27656.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27657.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27669.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27670.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27671.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 207
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27673.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 97
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27674.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 107
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27677.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 87
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27678.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 87
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27694.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 208
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27695.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 208
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27696.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 208
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27697.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 210
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27741.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 88
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27742.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 88
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27840.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": false,
+      "violations": 0,
+      "resolved_count": 112
+    },
+    {
+      "path": "origin-logs/sdk-27623-1794159662334838000/27841.jsonl",
+      "guard": true,
+      "exit_or_explicit_audit": true,
+      "violations": 0,
+      "resolved_count": 691
+    }
+  ]
+}

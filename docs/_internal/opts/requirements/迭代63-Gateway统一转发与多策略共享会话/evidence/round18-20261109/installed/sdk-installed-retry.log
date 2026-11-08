@@ -1,0 +1,23 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+........................................................................ [ 50%]
+........................................................................ [ 59%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+........................................................................ [ 92%]
+.............................................................            [100%]
+=============================== warnings summary ===============================
+../install/src/backtrader/feeds/__init__.py:56
+  /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+853 passed, 1 warning in 40.47s
+PARENT_ORIGIN_AUDIT_OK

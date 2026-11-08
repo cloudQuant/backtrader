@@ -1,0 +1,67 @@
+RUN bt-28090-1794159739292398000
+PID 28090 guard 1 resolved 703 audit 3 violations 0 exit_audit_missing False
+PID 28093 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28094 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28097 guard 1 resolved 476 audit 2 violations 0 exit_audit_missing False
+PID 28098 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28099 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28102 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28103 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+PID 28105 guard 1 resolved 142 audit 2 violations 0 exit_audit_missing False
+PID 28106 guard 1 resolved 142 audit 2 violations 0 exit_audit_missing False
+PID 28107 guard 1 resolved 145 audit 2 violations 0 exit_audit_missing False
+PID 28108 guard 1 resolved 109 audit 2 violations 0 exit_audit_missing False
+PID 28114 guard 1 resolved 109 audit 2 violations 0 exit_audit_missing False
+PID 28119 guard 1 resolved 577 audit 2 violations 0 exit_audit_missing False
+RUN guard-preflight
+PID 28047 guard 1 resolved 124 audit 3 violations 0 exit_audit_missing False
+RUN installed-cold-client-probe
+PID 28196 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+RUN sdk-28091-1794159739292398000
+PID 28091 guard 1 resolved 874 audit 3 violations 0 exit_audit_missing False
+PID 28101 guard 1 resolved 121 audit 2 violations 0 exit_audit_missing False
+PID 28112 guard 1 resolved 214 audit 2 violations 0 exit_audit_missing False
+PID 28117 guard 1 resolved 216 audit 2 violations 0 exit_audit_missing False
+PID 28120 guard 1 resolved 227 audit 2 violations 0 exit_audit_missing False
+PID 28126 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28127 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28128 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28129 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28134 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28143 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28148 guard 1 resolved 97 audit 2 violations 0 exit_audit_missing False
+PID 28157 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+PID 28159 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 28160 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 28162 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28163 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28164 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28166 guard 1 resolved 204 audit 2 violations 0 exit_audit_missing False
+PID 28167 guard 1 resolved 88 audit 2 violations 0 exit_audit_missing False
+PID 28168 guard 1 resolved 88 audit 2 violations 0 exit_audit_missing False
+PID 28177 guard 1 resolved 106 audit 0 violations 0 exit_audit_missing True
+PID 28178 guard 1 resolved 685 audit 2 violations 0 exit_audit_missing False
+RUN sdk-28306-1794159824331977000
+PID 28306 guard 1 resolved 874 audit 3 violations 0 exit_audit_missing False
+PID 28309 guard 1 resolved 121 audit 2 violations 0 exit_audit_missing False
+PID 28311 guard 1 resolved 214 audit 2 violations 0 exit_audit_missing False
+PID 28312 guard 1 resolved 216 audit 2 violations 0 exit_audit_missing False
+PID 28316 guard 1 resolved 227 audit 2 violations 0 exit_audit_missing False
+PID 28333 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28336 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28337 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28338 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28339 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28340 guard 1 resolved 201 audit 2 violations 0 exit_audit_missing False
+PID 28342 guard 1 resolved 97 audit 2 violations 0 exit_audit_missing False
+PID 28343 guard 1 resolved 101 audit 2 violations 0 exit_audit_missing False
+PID 28344 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 28345 guard 1 resolved 87 audit 2 violations 0 exit_audit_missing False
+PID 28349 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28350 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28351 guard 1 resolved 202 audit 2 violations 0 exit_audit_missing False
+PID 28353 guard 1 resolved 204 audit 2 violations 0 exit_audit_missing False
+PID 28355 guard 1 resolved 88 audit 2 violations 0 exit_audit_missing False
+PID 28356 guard 1 resolved 88 audit 2 violations 0 exit_audit_missing False
+PID 28360 guard 1 resolved 106 audit 0 violations 0 exit_audit_missing True
+PID 28361 guard 1 resolved 685 audit 2 violations 0 exit_audit_missing False

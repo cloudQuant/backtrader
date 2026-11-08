@@ -1,0 +1,1181 @@
+{
+  "scope": "Copied public raw evidence; generated checks and doc validation separate",
+  "files": [
+    {
+      "path": "primary/bootstrap/offline_guard.py",
+      "source": "/tmp/iter63-r18-primary/bootstrap/offline_guard.py",
+      "raw_sha256": "42b2cf955e4d401505f3025f1c4a31d6f4d45df998597f60a4d4253f5a45fc94",
+      "archive_sha256": "42b2cf955e4d401505f3025f1c4a31d6f4d45df998597f60a4d4253f5a45fc94",
+      "compression": null
+    },
+    {
+      "path": "primary/bootstrap/origin_guard.py",
+      "source": "/tmp/iter63-r18-primary/bootstrap/origin_guard.py",
+      "raw_sha256": "ba3ef78ee4db21a67deaa91fc0c405248d950abebd8dd8ec9b9ededd25920017",
+      "archive_sha256": "ba3ef78ee4db21a67deaa91fc0c405248d950abebd8dd8ec9b9ededd25920017",
+      "compression": null
+    },
+    {
+      "path": "primary/bootstrap/sitecustomize.py",
+      "source": "/tmp/iter63-r18-primary/bootstrap/sitecustomize.py",
+      "raw_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "archive_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "compression": null
+    },
+    {
+      "path": "primary/bt-lint.log",
+      "source": "/tmp/iter63-r18-primary/bt-lint.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "archive_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "compression": null
+    },
+    {
+      "path": "primary/bt.log",
+      "source": "/tmp/iter63-r18-primary/bt.log",
+      "raw_sha256": "517bab57ce44baec2ecbc41595cfea7a4db8c06f421c8d24632059f379393ada",
+      "archive_sha256": "517bab57ce44baec2ecbc41595cfea7a4db8c06f421c8d24632059f379393ada",
+      "compression": null
+    },
+    {
+      "path": "primary/changed-file-sha256.json",
+      "source": "/tmp/iter63-r18-primary/changed-file-sha256.json",
+      "raw_sha256": "661c2d03846aee3dc783f25060e42aa9e30d015d4c1e140ac3803c5b16361276",
+      "archive_sha256": "661c2d03846aee3dc783f25060e42aa9e30d015d4c1e140ac3803c5b16361276",
+      "compression": null
+    },
+    {
+      "path": "primary/cold-client-probe.log",
+      "source": "/tmp/iter63-r18-primary/cold-client-probe.log",
+      "raw_sha256": "e1f52b537f3c22779c0fbad817f4b96ceb1681cde5c06b6598619f6f19cb08fd",
+      "archive_sha256": "e1f52b537f3c22779c0fbad817f4b96ceb1681cde5c06b6598619f6f19cb08fd",
+      "compression": null
+    },
+    {
+      "path": "primary/cold-client-probe.py",
+      "source": "/tmp/iter63-r18-primary/cold-client-probe.py",
+      "raw_sha256": "ac2234785137b90ff5cc88e943294766b05638919a3bed3535b117737e1823cf",
+      "archive_sha256": "ac2234785137b90ff5cc88e943294766b05638919a3bed3535b117737e1823cf",
+      "compression": null
+    },
+    {
+      "path": "primary/commit-verification.log",
+      "source": "/tmp/iter63-r18-primary/commit-verification.log",
+      "raw_sha256": "93f5d9d2b4e06bedf2530c3e7bdbfb431edbce056a24d72f2a80ec61b132198c",
+      "archive_sha256": "93f5d9d2b4e06bedf2530c3e7bdbfb431edbce056a24d72f2a80ec61b132198c",
+      "compression": null
+    },
+    {
+      "path": "primary/harness-freeze-sha256.json",
+      "source": "/tmp/iter63-r18-primary/harness-freeze-sha256.json",
+      "raw_sha256": "940abaf9acb8abf68b74251bfcb23974f921e63ffa699567036faabb38b1bf1e",
+      "archive_sha256": "940abaf9acb8abf68b74251bfcb23974f921e63ffa699567036faabb38b1bf1e",
+      "compression": null
+    },
+    {
+      "path": "primary/install-verification.log",
+      "source": "/tmp/iter63-r18-primary/install-verification.log",
+      "raw_sha256": "9a0b88993b252064ece4ddfcaf56326be465cdfbbdb6d359b346b14c92ea72df",
+      "archive_sha256": "9a0b88993b252064ece4ddfcaf56326be465cdfbbdb6d359b346b14c92ea72df",
+      "compression": null
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27620.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27620.jsonl",
+      "raw_sha256": "38251d50fdfd01474cc1f57ba6d23df142fdd5b5b2f43591e7e1e03a15143e66",
+      "archive_sha256": "4b4371a51173d0d8fd617beda482d97f29abf9ad678d8e15093ce78b093943f9",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27626.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27626.jsonl",
+      "raw_sha256": "e074304d78ba3ca764cc1e9cf1787fa4312b106c79d10d9c42dbe0e4952f4579",
+      "archive_sha256": "4a4980a1c4d81fb428ca84f71de5c789c9baff32fea1b6259adcb9863bbd9a83",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27627.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27627.jsonl",
+      "raw_sha256": "dda47c388f9bef736015af0cfc680a724907589d370c70c28530f66b2b786ed1",
+      "archive_sha256": "c1f9f4dbe5a3a6eb900bb8854d492321a009bd99bb9e0114b3c72edc8566590a",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27628.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27628.jsonl",
+      "raw_sha256": "35b5ae4af7fd9947b0c915c4a17bffe90798b039d191d1390087b60b3587f2e6",
+      "archive_sha256": "12010e015065d1429e6c1f8cc2673606617dbcb6f4601b6d66f1a9d515446df3",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27630.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27630.jsonl",
+      "raw_sha256": "fb33138743c1339fa19cdef76624597facce815da74ae01d394ff54eb54d3582",
+      "archive_sha256": "4ae2502c17a8b1a1d22ca1ea6deb3abdd4d1c554bc0a254282489ac196082bb0",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27636.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27636.jsonl",
+      "raw_sha256": "03a20bf306f539f1490d438a62593bae54407ebc42da340822c7fa87be4309f9",
+      "archive_sha256": "b44746c8aaf20660464e9a567abc6a7da8bb0b67c79e97e379b6320ca4e68b55",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27637.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27637.jsonl",
+      "raw_sha256": "361aebce73202e1df3a9b5aa98c282bf3db14f08718e6f92989ba903ece44cc7",
+      "archive_sha256": "7ebf17778556429d3e91d8bd14468903704558c764b992dba42a0137a42b806b",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27638.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27638.jsonl",
+      "raw_sha256": "41edb0aafda36596e23151800998f23cb20841d00ac1b50f9fcb0bb81f226070",
+      "archive_sha256": "2f6e515c830141138c3c95e91c48d8e099fa3405a6eb845914ee9d10b218e3d7",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27639.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27639.jsonl",
+      "raw_sha256": "632825543ece95b7f6da74351449703dc9f7408155857c88470ee32bbc5e6cee",
+      "archive_sha256": "ed3d3b1006521d93ca4adb126cd2557baf61fde8214b001bf67f7822d7ff9fee",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27640.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27640.jsonl",
+      "raw_sha256": "e6caa5f296c5fa24aa701e69d50ba4ccc4c875cc0ee24a31da2a43a3762aae0b",
+      "archive_sha256": "be38e97b63fdc116f3f0a302571a889a4c34c2eab4ce5ed47cba36ac2e243ced",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27641.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27641.jsonl",
+      "raw_sha256": "529431053fdd72c6eaa351576810acf27557e3124d3fea3a5c06db9852085833",
+      "archive_sha256": "fbb5afe851356c1d748dfd72e8ee87c4036ae3ae5ed3bf850b77bd5396b32be1",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27642.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27642.jsonl",
+      "raw_sha256": "0f71538f119ba4172c0d09fafacdffa681dce79ce52c73032d98c63140ad77d9",
+      "archive_sha256": "1ce1f647960e659861f1220aba147b5b7b070e092461bf9411ffa5ff59f5fb8b",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27643.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27643.jsonl",
+      "raw_sha256": "829d3d9954f45498d9a85d86f1b35ea583e94c87d0cad99d1816fed3174ede00",
+      "archive_sha256": "bea35ec9aadb8870f59443808933e768f5b63014398f3c1a35f046089c756fec",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27648.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27648.jsonl",
+      "raw_sha256": "fc1596488823c29ab6b0d12befce4520129271ed18bf9d852f533a9a3a8c2db4",
+      "archive_sha256": "e980c30439b167c5c2eae4a22a083e49badb88742ebac0f039bacd8332c931e5",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/bt-27620-1794159662326678000/27651.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/bt-27620-1794159662326678000/27651.jsonl",
+      "raw_sha256": "2fc63223724819f1563bc4dd77ae2efa50fb6a73ffb26b529ac69782ae99daa9",
+      "archive_sha256": "cac1d1aad2a8215ba0fa0269864c97370fb63b992bb75fce1da33b673c773968",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/cold-client/28158.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/cold-client/28158.jsonl",
+      "raw_sha256": "1bf6451f91d21426879f65007da1955061c0aa5b61396ab0bde1e34456d5d0ad",
+      "archive_sha256": "ae1e79d5c66f450f07895cb69ffcd191707fecb834f7d556dbced8f459caa59c",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27623.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27623.jsonl",
+      "raw_sha256": "66d7737818bce29c40f69177e5fc12dc4911e6fd6e924d677b126d0e0a788636",
+      "archive_sha256": "1945f29ef699f45bcde7231df0573499e36296fe938aa397943f0f0a35872786",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27634.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27634.jsonl",
+      "raw_sha256": "e3ee328d2e7f57890e99fa6d8212497713cd206cf1f48ab79e8b644681dcfb3f",
+      "archive_sha256": "c99059e05be59ca25198b93ddb3c4aadbd20be65d8b8af28f22331b3dda82580",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27635.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27635.jsonl",
+      "raw_sha256": "f3f84bad1e7d6f021eb53193ad695c2f36d5b33145e5fb04078fc32c809a36e0",
+      "archive_sha256": "78b1bbde3325f43778b6bece84c872aa16a728528e69c6a7fb6c99ebe6e47799",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27645.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27645.jsonl",
+      "raw_sha256": "862fbe48ecdd0cfd0761753290e74bdec63fea440e110d754a25d5dd94bf59f4",
+      "archive_sha256": "afd956243ac20c35374f5d38df7426d1ac3ab95065a41321a8ca071bd4cd0809",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27647.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27647.jsonl",
+      "raw_sha256": "4f546302418b4f7a29e875384b09f8b0798b438585cee6282fbd5014cb1bd3c2",
+      "archive_sha256": "c71450e600708ffebfadfd8dd243c9a2bab55fec981ad33dd4165418832a61e4",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27650.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27650.jsonl",
+      "raw_sha256": "cbbcc6577f92b5b1f1dd7843ad14c5f787160a29bb92262f9cb03f6450a25cf1",
+      "archive_sha256": "e5005dc96f5d8a09bfe3965c73b11f8c93a2053cdc9a09192e4bb6e6f1137e96",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27655.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27655.jsonl",
+      "raw_sha256": "012bdbe59b5b48938c6be79b36dde0812249459a9a272a2ca176c1ee96948785",
+      "archive_sha256": "30d568d8665edf5778f7f9e033b70c9b367e4db36e464a7dcb4465179e5b658c",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27656.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27656.jsonl",
+      "raw_sha256": "bc64d9176630e7a271f9de8615d9086342ef63263051967ca4291375e18e1c83",
+      "archive_sha256": "ebdb7697376160d6941336888fd76cfafdaf76200eb8d1dd8dd837b04d9f349a",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27657.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27657.jsonl",
+      "raw_sha256": "601231449c48e4b92cbec25464a8fef6a8190cd44e016d65508962f6f039ba6a",
+      "archive_sha256": "0c460061d87938bafe1ccdaecfe2133ab0b6616b58d73d512779971c313c2ed7",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27669.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27669.jsonl",
+      "raw_sha256": "0f841acc1cd9cb357f232af372fb27eedd528cc1b70d7eb405a0855d105599b5",
+      "archive_sha256": "27ac869240d490fb4b497fafac5714450104960dda4bf6bbb70fd86b2ff4194f",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27670.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27670.jsonl",
+      "raw_sha256": "282f0c5b6fa395efba83f246acf78cbba17c7020accbcced566b83b5577f0559",
+      "archive_sha256": "441952f11fecff9801a341a9e431d37d5a3e9cafa40adfd50e55c801a01baf8f",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27671.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27671.jsonl",
+      "raw_sha256": "7044fcc24b16ee55ed4c7ce81953950e065dabe9f76c15132a50c8aac00bda62",
+      "archive_sha256": "5327d2a3432f4019e7fb88f393596440f7d947f393881e149f51c1badd812b87",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27673.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27673.jsonl",
+      "raw_sha256": "2700024eb710a57720ed21c27c4e78dfb9da41a30bf34e70dc203adb4d2e1af7",
+      "archive_sha256": "baa438612060d62ff4cccfd3684dd0373395eba4a03b1dc286ba3e65b338d723",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27674.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27674.jsonl",
+      "raw_sha256": "c2ea68b5c30651db1fb16ee1e1db45fabb7f9aaef450a713c8270f2049c9f3c5",
+      "archive_sha256": "c44c0dc1260dc3fc3c38be3a00c5830468094be2e8f84b512106ade242275d01",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27677.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27677.jsonl",
+      "raw_sha256": "4473213c2a10933f08c28a61d1fb841ce36b4e6ead2f4e507dff9f3e003881dd",
+      "archive_sha256": "1e7fc48af398077f8c4aabdfc2b8acef84e73cbfcd5ac91ce23cf75352c8cc4c",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27678.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27678.jsonl",
+      "raw_sha256": "d98070c995757a476238eba775db7054a384dad2c0ccc557929015ca065d9030",
+      "archive_sha256": "769bc68dd55be1f141c361284b536e8f8bc0eb20eaab5518562f2751074ba9ba",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27694.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27694.jsonl",
+      "raw_sha256": "cd473327c8e66d442d5806b63bbb1d6555e913b66e37f49d990c00cfe6d656b9",
+      "archive_sha256": "35270fa2a46462acfe222fd1d538f56dd2e9f766363cf0113b987494374d75ea",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27695.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27695.jsonl",
+      "raw_sha256": "9c8cdee5cd7cf5f26f6d2066f24743c5838f0f7e00fdb0dada30d09f4bc7f2d3",
+      "archive_sha256": "2e0d6c98ed9c25401c9932e9320d1c35963c2f229f83cd465b729014d9486ff5",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27696.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27696.jsonl",
+      "raw_sha256": "48ff3120d5ac614568edaf28e3ca61f026af95b29bd08708cab61a21563c8ebe",
+      "archive_sha256": "2a3b51416180a09741330de52ec035f3315f7712338ae30cfd6e64ff506e1ae3",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27697.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27697.jsonl",
+      "raw_sha256": "ad39acdc5f3329f73a1ff960199e02ecf7a0aea3d2ddcc4bc0d8a510a13ad2cb",
+      "archive_sha256": "04897b81ea65c53bc535e94aeb5f3157ae236148a6fe0e803ac700c13df83413",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27741.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27741.jsonl",
+      "raw_sha256": "e5721b64175afe4b940938d8ff8e00ec05b574dc7e36a8f9771d06bb36cb4d00",
+      "archive_sha256": "57a3486040c29735df48ee0775d5b1588da25ea16858d730a255fbe05f0d4730",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27742.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27742.jsonl",
+      "raw_sha256": "ce7ab6ed376ac88511b7466c7c8b39bbe31f9892bef74c0d04d9fc5a42247fb4",
+      "archive_sha256": "2a5a88152c4b8139d92976f653a847bebadf9a5e952e060121d08e4a5cb63d2c",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27840.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27840.jsonl",
+      "raw_sha256": "fe40d9059ea5cb2fefc6a20472b43582bd1085dcefb7745540c8237f8b0123cc",
+      "archive_sha256": "7f49669e91ed670d8b39f66773fa793296a84a70c79034388417a126b11c9f71",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/origin-logs/sdk-27623-1794159662334838000/27841.jsonl.gz",
+      "source": "/tmp/iter63-r18-primary/origin-logs/sdk-27623-1794159662334838000/27841.jsonl",
+      "raw_sha256": "59c423f85ea467560a39826bf3eaa48713f024f544abd56fdefd86d03407f998",
+      "archive_sha256": "cd5e3e2a8dae3e96f7e890e3f1f79c60a38f28b74369fe5f7ddc6d6813803f89",
+      "compression": "gzip"
+    },
+    {
+      "path": "primary/product-commits.json",
+      "source": "/tmp/iter63-r18-primary/product-commits.json",
+      "raw_sha256": "cbacab51f3112b0d068dbb20fd68b5afb226baa10479c158499be3bd6577df5e",
+      "archive_sha256": "cbacab51f3112b0d068dbb20fd68b5afb226baa10479c158499be3bd6577df5e",
+      "compression": null
+    },
+    {
+      "path": "primary/run.py",
+      "source": "/tmp/iter63-r18-primary/run.py",
+      "raw_sha256": "baedb8376a2833182c8aec868f34207969f9807eddcce284935c406929fcd534",
+      "archive_sha256": "baedb8376a2833182c8aec868f34207969f9807eddcce284935c406929fcd534",
+      "compression": null
+    },
+    {
+      "path": "primary/sdk-lint.log",
+      "source": "/tmp/iter63-r18-primary/sdk-lint.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "archive_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "compression": null
+    },
+    {
+      "path": "primary/sdk.log",
+      "source": "/tmp/iter63-r18-primary/sdk.log",
+      "raw_sha256": "5e00f8c38d30ed8046adbde2a03d11877a121dd3cfc85a43af988fdc2200d5b5",
+      "archive_sha256": "5e00f8c38d30ed8046adbde2a03d11877a121dd3cfc85a43af988fdc2200d5b5",
+      "compression": null
+    },
+    {
+      "path": "primary/selectors.json",
+      "source": "/tmp/iter63-r18-primary/selectors.json",
+      "raw_sha256": "fcb7dcf3ab3d35f18983233bef75ef1ff27f6c33dcff5e3dc28f0a473abeb991",
+      "archive_sha256": "fcb7dcf3ab3d35f18983233bef75ef1ff27f6c33dcff5e3dc28f0a473abeb991",
+      "compression": null
+    },
+    {
+      "path": "primary/source-origin-audit.json",
+      "source": "/tmp/iter63-r18-primary/source-origin-audit.json",
+      "raw_sha256": "7db57cc759a674a60702432277d3784a35036acfdc08dc04b2f24a5e3e09063f",
+      "archive_sha256": "7db57cc759a674a60702432277d3784a35036acfdc08dc04b2f24a5e3e09063f",
+      "compression": null
+    },
+    {
+      "path": "installed/SOURCE_FROZEN",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/SOURCE_FROZEN",
+      "raw_sha256": "30c6ae5fb687133ee39af768fee458cf9032eb4cd2c37c6b4462127b80e64398",
+      "archive_sha256": "30c6ae5fb687133ee39af768fee458cf9032eb4cd2c37c6b4462127b80e64398",
+      "compression": null
+    },
+    {
+      "path": "installed/audit-final.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/audit-final.log",
+      "raw_sha256": "f03db30cae755bcb134508bcd179780bdaaaaedae22d58c9bf807a2f0423c24b",
+      "archive_sha256": "f03db30cae755bcb134508bcd179780bdaaaaedae22d58c9bf807a2f0423c24b",
+      "compression": null
+    },
+    {
+      "path": "installed/audit_origins.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/audit_origins.py",
+      "raw_sha256": "8de12c8e34325e5ef5a411dd4725b99ae9edc62a667d532258a5fe5c876a265e",
+      "archive_sha256": "8de12c8e34325e5ef5a411dd4725b99ae9edc62a667d532258a5fe5c876a265e",
+      "compression": null
+    },
+    {
+      "path": "installed/bootstrap/offline_guard.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/bootstrap/offline_guard.py",
+      "raw_sha256": "42b2cf955e4d401505f3025f1c4a31d6f4d45df998597f60a4d4253f5a45fc94",
+      "archive_sha256": "42b2cf955e4d401505f3025f1c4a31d6f4d45df998597f60a4d4253f5a45fc94",
+      "compression": null
+    },
+    {
+      "path": "installed/bootstrap/origin_guard.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/bootstrap/origin_guard.py",
+      "raw_sha256": "8455742635eed677358c71fdca2e4e156251f7c206f15704de5fe7ce04f97827",
+      "archive_sha256": "8455742635eed677358c71fdca2e4e156251f7c206f15704de5fe7ce04f97827",
+      "compression": null
+    },
+    {
+      "path": "installed/bootstrap/sitecustomize.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/bootstrap/sitecustomize.py",
+      "raw_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "archive_sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "compression": null
+    },
+    {
+      "path": "installed/bt-frozen-final.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/bt-frozen-final.log",
+      "raw_sha256": "14d6682f9d4a52297fad682764d4e224f105920753ee54803e99c37e70f13eae",
+      "archive_sha256": "14d6682f9d4a52297fad682764d4e224f105920753ee54803e99c37e70f13eae",
+      "compression": null
+    },
+    {
+      "path": "installed/build.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/build.log",
+      "raw_sha256": "f9a0e337bba07b3230c236decface5ab0981c19039dfb75806d3d5bf4472e714",
+      "archive_sha256": "f9a0e337bba07b3230c236decface5ab0981c19039dfb75806d3d5bf4472e714",
+      "compression": null
+    },
+    {
+      "path": "installed/capture_selectors.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/capture_selectors.py",
+      "raw_sha256": "3387ec6f19cebe92787126d490969a0ca2ba9b96143b826500670b8fee554320",
+      "archive_sha256": "3387ec6f19cebe92787126d490969a0ca2ba9b96143b826500670b8fee554320",
+      "compression": null
+    },
+    {
+      "path": "installed/copy_public_example_fixtures.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/copy_public_example_fixtures.py",
+      "raw_sha256": "31a31ac5e8e53c2e655453b6a59d87801234108f5f92b5413e972227ea48d44e",
+      "archive_sha256": "31a31ac5e8e53c2e655453b6a59d87801234108f5f92b5413e972227ea48d44e",
+      "compression": null
+    },
+    {
+      "path": "installed/executions.jsonl",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/executions.jsonl",
+      "raw_sha256": "5404c75b8b5138e04b2575f78220f4f9bb6e212311d0ab1a57954741dece5d14",
+      "archive_sha256": "5404c75b8b5138e04b2575f78220f4f9bb6e212311d0ab1a57954741dece5d14",
+      "compression": null
+    },
+    {
+      "path": "installed/fixed-wheels.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/fixed-wheels.json",
+      "raw_sha256": "fc25f2b124ce68b1838781523e7dc28199366a99046be89f6fe727fcc5e763f5",
+      "archive_sha256": "fc25f2b124ce68b1838781523e7dc28199366a99046be89f6fe727fcc5e763f5",
+      "compression": null
+    },
+    {
+      "path": "installed/fixed.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/fixed.log",
+      "raw_sha256": "113a56970423e54c13ebeb78b4be40eeee3a9d8b3083b637e25037a423cc62f6",
+      "archive_sha256": "113a56970423e54c13ebeb78b4be40eeee3a9d8b3083b637e25037a423cc62f6",
+      "compression": null
+    },
+    {
+      "path": "installed/guard-preflight.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/guard-preflight.log",
+      "raw_sha256": "1e6efbee315f1ce905633e1e67c930145f2cbd37befc0f3b6a7c88eea10834d1",
+      "archive_sha256": "1e6efbee315f1ce905633e1e67c930145f2cbd37befc0f3b6a7c88eea10834d1",
+      "compression": null
+    },
+    {
+      "path": "installed/guard_preflight.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/guard_preflight.py",
+      "raw_sha256": "432f1d152d08dc0b1f407cdd3f5466da66d7a054debe839c1db09032952fd058",
+      "archive_sha256": "432f1d152d08dc0b1f407cdd3f5466da66d7a054debe839c1db09032952fd058",
+      "compression": null
+    },
+    {
+      "path": "installed/harness-freeze-sha256.txt",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/harness-freeze-sha256.txt",
+      "raw_sha256": "716f4ff52b95742097294f70e445b667273e384878eaca06c6f4a5d1019410df",
+      "archive_sha256": "716f4ff52b95742097294f70e445b667273e384878eaca06c6f4a5d1019410df",
+      "compression": null
+    },
+    {
+      "path": "installed/install.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/install.log",
+      "raw_sha256": "9e4a5b342efa477fea7ddbb37db76aa5854b541a182c91f6386be881feaad804",
+      "archive_sha256": "9e4a5b342efa477fea7ddbb37db76aa5854b541a182c91f6386be881feaad804",
+      "compression": null
+    },
+    {
+      "path": "installed/installed-cold-client-probe.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/installed-cold-client-probe.log",
+      "raw_sha256": "51788eee23ac3b297a892e80449355fc19e14699aec88a93c23e490197ff868d",
+      "archive_sha256": "51788eee23ac3b297a892e80449355fc19e14699aec88a93c23e490197ff868d",
+      "compression": null
+    },
+    {
+      "path": "installed/installed-cold-client-probe.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/installed-cold-client-probe.py",
+      "raw_sha256": "1f9a873be8cd74866ac66c1dddeae2f677b0114b6e19a9d6a32fd11f012e10e6",
+      "archive_sha256": "1f9a873be8cd74866ac66c1dddeae2f677b0114b6e19a9d6a32fd11f012e10e6",
+      "compression": null
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28090.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28090.jsonl",
+      "raw_sha256": "ef788e216eb1e6c7d039aa4d4024fffd4e6b0c2ff0db257e129a20f4252eab1b",
+      "archive_sha256": "8b4646ef1d991beeeb65477d7bed20871e21bb53c9dd5600ee1461656a5bc358",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28093.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28093.jsonl",
+      "raw_sha256": "df687c97483238c1645be55519c06953ca2b8a017a7d090e7ced6be119ca5aa1",
+      "archive_sha256": "14f314e76665c6246c3251e61da87aeaae4a5c49c5d0e73ede669c463fa856e6",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28094.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28094.jsonl",
+      "raw_sha256": "c92083da4bcc2d86619dbdb8fca7e7dac6e3c60150eee06ad3ca7ed78e5b2855",
+      "archive_sha256": "bbe66fdcb99908dde7999fa37bef910a2390821f707bc967b42a9ba5cb34b93e",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28097.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28097.jsonl",
+      "raw_sha256": "1dd41cc09e86ded3605920ffb93955cb1a0c83ea54cba7183005d04d2234d0bc",
+      "archive_sha256": "c8e20cfcb962760e949e434c5639619f9a734f7f257b406a4a790a4f81174fde",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28098.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28098.jsonl",
+      "raw_sha256": "7bf8704c4caca86d5e93657edbc0f3f78a36ebe3bde4ff15979b70badbb58735",
+      "archive_sha256": "c5923f783a59cfb876370ec97cb9d5a879023d3091dd1dcf91d7b71617455695",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28099.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28099.jsonl",
+      "raw_sha256": "5aa1524b5019b4de66e92bd7f75dd262c52be9d7b2160780f8a5afb986dea529",
+      "archive_sha256": "27bff0069afaa400d1fce02297591ddbf0a8abe230992c96d8ed9ffcd6d41382",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28102.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28102.jsonl",
+      "raw_sha256": "21b13b93733006a492982ebbf9678205920b5510ee9f79073fa276bb450b43ac",
+      "archive_sha256": "14b6823969f872094ba93a9f15a45418465069f4e3aea5d58a0fe2a7cb508b13",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28103.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28103.jsonl",
+      "raw_sha256": "f1eeb8041cc442e149476ed3ffdf5fe8e9407018450c5d6697b6f3ade66d7bde",
+      "archive_sha256": "375200f9e5cdd8ab99764d7df8d618853f9678cc3038c9c11a971c3411af2b21",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28105.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28105.jsonl",
+      "raw_sha256": "cd5e6ef9d1a77eeff45add0fdce70bbc786818f5c2809c7c82ef1fdeda01650e",
+      "archive_sha256": "b74e329de699a2dc0727ca2198a91f5192d4cad2cfe0ced77180e49a9701a96e",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28106.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28106.jsonl",
+      "raw_sha256": "a9735ed673ce6d8fe957f888555fa5263d935b12c29ba0b25899b9ba7f757d0c",
+      "archive_sha256": "92e2618215de576aee3f12b8adf0e5a065e26c5ef0f565c354ca208c0f9bea32",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28107.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28107.jsonl",
+      "raw_sha256": "a87f740cfba99d9499bc807e7fcd668c6a87d83f4a76ad16f97c426cf6807b74",
+      "archive_sha256": "e28c16c7c58d7c964871f63c3ead57d92ec24dea28039661a0a92d539fc1c8d1",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28108.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28108.jsonl",
+      "raw_sha256": "55ca9047a1ad693cfe55c7e09dbe27043ddff307838db3e360e4b4657f988f25",
+      "archive_sha256": "3db3e45f5ddbfe8e6a880e06545673938cc7916c0cab2da44e37f70e6cd22a1f",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28114.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28114.jsonl",
+      "raw_sha256": "49760962267ed51f7ee8b7c7abe9057a2aa6ab93a91af748a7ea3e219ce86609",
+      "archive_sha256": "3ab172b10384578939a6e75fe6249705d95a8798d44f2fda1540a3e3223d3862",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/bt-28090-1794159739292398000/28119.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/bt-28090-1794159739292398000/28119.jsonl",
+      "raw_sha256": "7f9c7f2ee56ee1d4370b99aee9a5b03532e6ca863d1ae4c15ca4483a3ff77786",
+      "archive_sha256": "7e5776eb97bf56e6db36d0a977ab89890033e3b074455966d91428506d1f7eaa",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/guard-preflight/28047.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/guard-preflight/28047.jsonl",
+      "raw_sha256": "b0b9269bb0b2045192ed798b7882307503489a7ed0f38421f8c477304cdf5d1a",
+      "archive_sha256": "d96f0a557ce695224056d3fcff52b6cc4c2aa9d4834507b4b197943ab01597a0",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/installed-cold-client-probe/28196.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/installed-cold-client-probe/28196.jsonl",
+      "raw_sha256": "e7a87c137bf1dee77c1a6c3b8fd1d21681c17750cf4070e7abf13095ad1b0ced",
+      "archive_sha256": "af80d28e897ef362cd81da6844e82c6c61928d4ea8016478ddd355e84ab2bd45",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28091.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28091.jsonl",
+      "raw_sha256": "a49e3e450487de032267789152c97cbe0b33790c4ecaff368dd3cb911a5ac8a8",
+      "archive_sha256": "32eb01eaf6d2a1c890fa6417d5be6b3210a12f5de4b06240de2f044a1fc60ed0",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28101.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28101.jsonl",
+      "raw_sha256": "8b54db5b629f8634615ae27a3f05052285307d7f00b7086659ef6ad78f363804",
+      "archive_sha256": "579de96bb67c0246f529bb369a35bb3c13d5a17a87b9965a3387571de2bf1669",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28112.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28112.jsonl",
+      "raw_sha256": "7f3f4e9dcb0831b3f6b8c197888af1dfe07e14866c15f9b92f5f008bbdcc26c4",
+      "archive_sha256": "1ec0837e83b51e3f6cadc8e135b3e98ad955b81aaf957e047d19d9101eebdc92",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28117.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28117.jsonl",
+      "raw_sha256": "e3cc0dc2c65f9e5e914a36141b4dd75d0f958c6dd414187fc0d983bf2143bd48",
+      "archive_sha256": "a516bd05be75c3c1456bba81e45b1efd8490384468414dff89f2feef84023b21",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28120.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28120.jsonl",
+      "raw_sha256": "ec6a5408e01fcb3c55b39f470b121c63cf5c4167b16777b88f76912780f3e0a6",
+      "archive_sha256": "47698750ec047a88a3b9e621775ba4538cbe7f42b5204c8dc1ab22d95b3476cc",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28126.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28126.jsonl",
+      "raw_sha256": "d68e839899e92ad595b6b7fb2ca3e0158a34192cb5baf6134181b8c197fbd811",
+      "archive_sha256": "e637f8ff6100719263f360bbae8f1c6ab2fb1a5c87e0dd48e4a5dacd4e1fbfd6",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28127.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28127.jsonl",
+      "raw_sha256": "3b0cd4fe92c7690dabb38f7ddefc9c467b587950e8a65bb793621fbfcab75583",
+      "archive_sha256": "2303c615557b9af6d58cf9e53fd2a65281c6ab37b0fa0092baacf578d701ed6e",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28128.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28128.jsonl",
+      "raw_sha256": "b1f454889c3b1b6e5aa5925d4d92d4c2b7504eed774c111796a950e6710ca4e3",
+      "archive_sha256": "32be53195b8348f164e20948b015c3bcbd77d45a0edfe6793466f885a2b03765",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28129.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28129.jsonl",
+      "raw_sha256": "ea30241c0aee2d291d8ccf5d4ff4d3938c7a46abba0e7d8aa084ede3bb48fb19",
+      "archive_sha256": "cc85324d57b57b5cbf209907c9e86a670c8ee3088fc0a27ca5b22adffe6e9653",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28134.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28134.jsonl",
+      "raw_sha256": "62a19a0e7a4f70621ae6af2dae953e499a13e98de8210ad7912019caad0947bb",
+      "archive_sha256": "b024d2320b6c7bd753618c5ba8b1a5142525b7219aef92a4f7afbcd4764957f9",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28143.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28143.jsonl",
+      "raw_sha256": "251dfb345989a386391444a4f0c6bc4dfabdf2e6ca1718db2c13839b622f2007",
+      "archive_sha256": "9079d319b67a114e783de51145af9867be570c9219729c297e2acd75e7b0e01f",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28148.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28148.jsonl",
+      "raw_sha256": "6ff6fe82d662963841859b997e6483f6ba428c5cdf939a4600dbfc3c45c73662",
+      "archive_sha256": "8f53a7f411f33d914fead4e91b69db8a7c7ee55d4a9bf234ebf0cfaf04e2ca88",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28157.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28157.jsonl",
+      "raw_sha256": "cbec9fdedb96b3fb9a5e875a03b1a2617cbb494d3725d2be165cf62bcb235591",
+      "archive_sha256": "f918dc789f3e4cb4d4bfe72c275daa4358e4d274c8cd518f457ac9c4bf162440",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28159.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28159.jsonl",
+      "raw_sha256": "d92fd1c770e67707be753a3d9f27277691d186542726941e95aa1558917e435d",
+      "archive_sha256": "a5437f789fdcb571b86f167c61d20d7a4ea97e822655ab0292a2b2481561fe53",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28160.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28160.jsonl",
+      "raw_sha256": "f4808ec788daca8d97c6aa6a4e4f73e0ffdfa0c9d42e028a0abaf4ec2b7aefd1",
+      "archive_sha256": "9317781d23ad12c08b6d0cad18e26573260997e2728e29a89cd4b8676e8e0204",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28162.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28162.jsonl",
+      "raw_sha256": "900b3cd25873878c2bd83d3fa8fcc5a012d7946c77eaad1fbd412b47501c87ae",
+      "archive_sha256": "db3f1c1212febc3459925273bec21628b078f415d40a7a87e311f08fb0016238",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28163.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28163.jsonl",
+      "raw_sha256": "a25b2610ec2ff4ac0f241aad4f9fdb36708705c3c25b036bff6594dd3b603613",
+      "archive_sha256": "be1ef1c94e97ead2ad52f6d11d5af81aa8d59a6e6274c9b0ecd097890e60af36",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28164.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28164.jsonl",
+      "raw_sha256": "15be3232ee774049a35631c01af54f23bf98c8ead65c8588a0cc93041afb2a54",
+      "archive_sha256": "5a3f9dcdcc3570b7a073e9cbf3fdd101a92c8a7dc88909860b7279d814389a29",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28166.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28166.jsonl",
+      "raw_sha256": "ecef5842cc10019965e9ef6993a4f684bb06764decf6ea08c82087c016bac00b",
+      "archive_sha256": "af18c34ce2138f0c375a74d718dcc67b1d24eed010a6a7dc6a3e43a65b332aa9",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28167.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28167.jsonl",
+      "raw_sha256": "193f6f4a02621f87060ca4667bd3d682e955a1b1368ef5e7ce0c476e75be9f0e",
+      "archive_sha256": "eb5972c642d828dea64883eeff1dee7f01761bb38070f12d4f643707f83767db",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28168.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28168.jsonl",
+      "raw_sha256": "6d45e7407de425772710a0359e3d6321d6ab8e7c86b3a2446bb118b7ad444ac1",
+      "archive_sha256": "927cbbd4a2d88993572ba89e878b7b03780d97f5f168a0257218707deb145b18",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28177.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28177.jsonl",
+      "raw_sha256": "a23c9f76056fd9239b2d296f86964a6b7ad43b8c8c64cac49342402630a68d8e",
+      "archive_sha256": "badaf414fc64b8367254bb744d542f581481ff2b8eb077a8744eb8440b9fd3cd",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28091-1794159739292398000/28178.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000/28178.jsonl",
+      "raw_sha256": "d8912dff0f1861eac5e638265c810e063675603f7896d373a3b59a57f1636b90",
+      "archive_sha256": "adc85a6d55fb5f89337014e998c4fe147f5c0144341dd6c6f5699d8d2022cac1",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28306.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28306.jsonl",
+      "raw_sha256": "1cfd47eca83a5fb618c8ab87a365b6f7939967ebb01495b3135e9c7ce93a52c6",
+      "archive_sha256": "10765f572b3308ff9250bfbbbc8761fcadcb29db4bc1a4951d5cd893d2e5cc76",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28309.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28309.jsonl",
+      "raw_sha256": "f01db56c87d4c281373c9d1a7baccafd74ed25071d666bce60ad42eb04a5f6a5",
+      "archive_sha256": "5793ae2b34a06d9130af2a282400fb4a64d599fcc9b6a1ec92ac1ecad11f09d1",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28311.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28311.jsonl",
+      "raw_sha256": "9de666f898c2cb82da91866cc093d8ed34564398d1f5af78a83235f970110208",
+      "archive_sha256": "edb00b70b20fe7a80fb09d827150f323c5f8bb47b865f30c963df7c30182fade",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28312.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28312.jsonl",
+      "raw_sha256": "2543dc9a5925e85de4555251cbf2f350dd7e3397996a985618bf2b7a9647a81f",
+      "archive_sha256": "e36eae7a01f37dca07d2cb7157684e9b892285ba2e101ced7b592019ebee1c4c",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28316.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28316.jsonl",
+      "raw_sha256": "9021b1750e80d3e197e0ab22392e048980bde8c4b59648924d1f1c053351cc25",
+      "archive_sha256": "1eed09d4b1e1a03fe422cfc3538a1835bf757722c1e03e62e037b76ca0707ad3",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28333.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28333.jsonl",
+      "raw_sha256": "4805437ab39a58557f97342c8f6ae17fdba901d63d4533a63debb22d264341db",
+      "archive_sha256": "10b9d172ad64637f06ba14de67cc1748717501e3a4e9e161bdfd387d874b45ca",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28336.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28336.jsonl",
+      "raw_sha256": "1f78b90cf81182e89269b25680a96475f0bcb093c13adf3d40f1551b4511bd4a",
+      "archive_sha256": "68a8be3a7c348b253b01c84735c418ac73293375e58bc23f5aa86fc36c5eddda",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28337.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28337.jsonl",
+      "raw_sha256": "f50eb1d89051b6ffdba794021ec7dbaf74315c34bdb111a17de4574cdb4573ff",
+      "archive_sha256": "5c342c1a1472b9c0c46450fdc06daa418d30e48cb08469a06b8baf15a3ef6379",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28338.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28338.jsonl",
+      "raw_sha256": "ddbce164f5b49d1ea1235b30cccc42ce3fd21cca552122b692e6d553b36a2390",
+      "archive_sha256": "30431ccd22c9e906ae3f1d87aeaa516af7ea81fd9468734d1adc83c661b36ffe",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28339.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28339.jsonl",
+      "raw_sha256": "285b80dbcce8337e0c9f90497534e275e20c955c0a381eded694c3ad9cea3670",
+      "archive_sha256": "3dd1b1ddb69795fe06436b1219cad9e337a710cf4658438e2608aa066999c181",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28340.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28340.jsonl",
+      "raw_sha256": "e7bafc1c1109d51962383b89e5df47f6d14fbb69e4a40f9c440ab92b11a3bfda",
+      "archive_sha256": "ff08d04923b36124e4b6b5f57532c0d6ab7fd71b41b81a0ee96862c6087e629f",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28342.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28342.jsonl",
+      "raw_sha256": "0c7d2b1f304fb0ceae22fc9e856711f85277c651d33b8be2e3d2eab4fdab1c61",
+      "archive_sha256": "d8417dbf4c259a21a8664a83835621d47c574c67cec4e5bfd6ed7ee7e8749f12",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28343.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28343.jsonl",
+      "raw_sha256": "1347f0301443b2347e4a3a5d7b09d294443a5a1ba463d002d34652eca1a90ed9",
+      "archive_sha256": "dd2973fe70c33b07d8ab35c42274344df5b9983377cbb356aeae78de42582a8f",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28344.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28344.jsonl",
+      "raw_sha256": "4c54a07d4abc1344ea5ccd58647195d4dd9d8b21454ff7602dcba6f2296e49cd",
+      "archive_sha256": "7cc7492993d3eabdd350bf325f563f30a80bc576ae31a3f877484e95cab8a94d",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28345.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28345.jsonl",
+      "raw_sha256": "8121ae3f76ebf7b2ccdc6a8d5e2448d2bdeee0ba4dcf05634bc7e9846348b832",
+      "archive_sha256": "da307831fd71b6c412d1d32def38af471bb9d4bdaceb3471f5cf2beb174aa3dd",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28349.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28349.jsonl",
+      "raw_sha256": "ff730595c72ad23305cad38865ae9da8c89b1831994ed4a560ad6df8ec1c6199",
+      "archive_sha256": "2841389c040f78675e2f1de77174d446f0ad56466169edfc449cb5f03029f4ec",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28350.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28350.jsonl",
+      "raw_sha256": "3c195ace8a7d31bbeb8364a0d6d9b4c64baa63082596ff00fa9ad48b2478fa1c",
+      "archive_sha256": "40829017df8bf1e6fa38f03b3c7e8e511427a936d0ea380dd3f63f7c5ff6a5dc",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28351.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28351.jsonl",
+      "raw_sha256": "8af4dca05aa5f01f67e25536f81cd275f595abf62666f0c6e52a002c90afd75d",
+      "archive_sha256": "38c554b8606ecf8d0865a60b7bbd3f3d70c83519853bee3455962207960631c3",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28353.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28353.jsonl",
+      "raw_sha256": "788796ad22ee3e9a54ce90d09f29543c9ed6734330b1c64ac6145029d71d3a31",
+      "archive_sha256": "67c641ec3a2e7bcd45d0895874a292145d4ce5d8891c040213fe32c8eb20dfa2",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28355.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28355.jsonl",
+      "raw_sha256": "7ea1baeac286e411f279b0bacafd84b579aa34dd1cb3b3528d275f040b0c9c3c",
+      "archive_sha256": "6bf4626bd2e5096a222fa5d67422f3ccfdeadcadb826959a2189b0353266b328",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28356.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28356.jsonl",
+      "raw_sha256": "95107361b10aaee13d52d109a0293eda28a69ff612d2e142d24e6e36f9ad1447",
+      "archive_sha256": "4d07251d2c51988db22e98bd892fedb54dcefc5627b3c87f01ad3fd5c7d14b0a",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28360.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28360.jsonl",
+      "raw_sha256": "0a3f6ea404c11b0e2980329c6337c5594aefe8a5e22369fe07bd06ba6f64513a",
+      "archive_sha256": "e9f17b6552d49c5f7b8922ef46591217a205936e7ac535c75c8bb71119852896",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/origin-logs/sdk-28306-1794159824331977000/28361.jsonl.gz",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28306-1794159824331977000/28361.jsonl",
+      "raw_sha256": "6aa582b9f2a6ec3ecaa22533744f686b4c31e90fe6d625f82fecf0b5ec6a5734",
+      "archive_sha256": "2da3a009a983a6a29ff5029a941a80dff71f2ea854697d0631bb2f420349cc76",
+      "compression": "gzip"
+    },
+    {
+      "path": "installed/plans/bt.txt",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/plans/bt.txt",
+      "raw_sha256": "1693dc19f03a16cb7a28b967b9d973449b2eaf56d80895b50d314555a483b907",
+      "archive_sha256": "1693dc19f03a16cb7a28b967b9d973449b2eaf56d80895b50d314555a483b907",
+      "compression": null
+    },
+    {
+      "path": "installed/plans/sdk.txt",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/plans/sdk.txt",
+      "raw_sha256": "f678bebe9702e3b1eb346e814e2fa6046ad1d6ecd3732257e4987bd002ef5e37",
+      "archive_sha256": "f678bebe9702e3b1eb346e814e2fa6046ad1d6ecd3732257e4987bd002ef5e37",
+      "compression": null
+    },
+    {
+      "path": "installed/prepare.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/prepare.py",
+      "raw_sha256": "818dddac757f145900656548a9c06a629b71a8c4c5c771d3c98227d68a34dbe4",
+      "archive_sha256": "818dddac757f145900656548a9c06a629b71a8c4c5c771d3c98227d68a34dbe4",
+      "compression": null
+    },
+    {
+      "path": "installed/prepare_base_layout.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/prepare_base_layout.py",
+      "raw_sha256": "75860ccdfbbd8adc2f5e34b48fdc8d82cf1bb5c90cc1dc36e78af44f777f48ac",
+      "archive_sha256": "75860ccdfbbd8adc2f5e34b48fdc8d82cf1bb5c90cc1dc36e78af44f777f48ac",
+      "compression": null
+    },
+    {
+      "path": "installed/prepare_harness.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/prepare_harness.py",
+      "raw_sha256": "5c1dd028f457cd9018f8a59d454026af4561da4ca973a7cfba146ae1e9cab059",
+      "archive_sha256": "5c1dd028f457cd9018f8a59d454026af4561da4ca973a7cfba146ae1e9cab059",
+      "compression": null
+    },
+    {
+      "path": "installed/public-example-fixtures-manifest.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/public-example-fixtures-manifest.json",
+      "raw_sha256": "e117a0cc768424b0c6c4ca28c6337ced805225d0c35f1df1422ca03b2e962873",
+      "archive_sha256": "e117a0cc768424b0c6c4ca28c6337ced805225d0c35f1df1422ca03b2e962873",
+      "compression": null
+    },
+    {
+      "path": "installed/relocate_ctp_tests.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/relocate_ctp_tests.py",
+      "raw_sha256": "854e710d32dfb39945a4f432eefc7266e6a21e082e08c2ff6479b2bb655e5523",
+      "archive_sha256": "854e710d32dfb39945a4f432eefc7266e6a21e082e08c2ff6479b2bb655e5523",
+      "compression": null
+    },
+    {
+      "path": "installed/run.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/run.py",
+      "raw_sha256": "24c17b230c37728a681670f2ccc202ced9faf618f0b2dec90feb27f86ca7b9c5",
+      "archive_sha256": "24c17b230c37728a681670f2ccc202ced9faf618f0b2dec90feb27f86ca7b9c5",
+      "compression": null
+    },
+    {
+      "path": "installed/run_installed.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/run_installed.py",
+      "raw_sha256": "994df00172ab64758ce485ecbe38be432dc01db56620c7155d2946528a2dcefe",
+      "archive_sha256": "994df00172ab64758ce485ecbe38be432dc01db56620c7155d2946528a2dcefe",
+      "compression": null
+    },
+    {
+      "path": "installed/sdk-frozen-final.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-frozen-final.log",
+      "raw_sha256": "356cfcdbf27d34be0a9b17ca60512873ee0e66c296ea80f963c8568f425522fa",
+      "archive_sha256": "356cfcdbf27d34be0a9b17ca60512873ee0e66c296ea80f963c8568f425522fa",
+      "compression": null
+    },
+    {
+      "path": "installed/sdk-installed-retry.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-installed-retry.log",
+      "raw_sha256": "6f6178d7d38f2bf8875d4a0059920f8e464e197077b03e60ad7f7fce7530873f",
+      "archive_sha256": "6f6178d7d38f2bf8875d4a0059920f8e464e197077b03e60ad7f7fce7530873f",
+      "compression": null
+    },
+    {
+      "path": "installed/selectors.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/selectors.json",
+      "raw_sha256": "fcb7dcf3ab3d35f18983233bef75ef1ff27f6c33dcff5e3dc28f0a473abeb991",
+      "archive_sha256": "fcb7dcf3ab3d35f18983233bef75ef1ff27f6c33dcff5e3dc28f0a473abeb991",
+      "compression": null
+    },
+    {
+      "path": "installed/snapshot.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/snapshot.log",
+      "raw_sha256": "db42ca67594da0e6dc427b8a6f37c2eb2327c381b1db8935de3d88c9ad690aa6",
+      "archive_sha256": "db42ca67594da0e6dc427b8a6f37c2eb2327c381b1db8935de3d88c9ad690aa6",
+      "compression": null
+    },
+    {
+      "path": "installed/source-manifest.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/source-manifest.json",
+      "raw_sha256": "842d43473a9fd7ac1c60553856efa4b993d8c7909364c5633baa23172ed4ae27",
+      "archive_sha256": "842d43473a9fd7ac1c60553856efa4b993d8c7909364c5633baa23172ed4ae27",
+      "compression": null
+    },
+    {
+      "path": "installed/test-manifest-before-public-examples.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/test-manifest-before-public-examples.json",
+      "raw_sha256": "7d13a547861a5a03e9011af62b48f70932b1f2c35d7ae0f9a6373e81b6da3ed6",
+      "archive_sha256": "7d13a547861a5a03e9011af62b48f70932b1f2c35d7ae0f9a6373e81b6da3ed6",
+      "compression": null
+    },
+    {
+      "path": "installed/test-manifest.json",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/test-manifest.json",
+      "raw_sha256": "cc6d1042f98dbe4f3f99f7ec7297d4e6bd173beea11723ce46d9d6b726f9cc39",
+      "archive_sha256": "cc6d1042f98dbe4f3f99f7ec7297d4e6bd173beea11723ce46d9d6b726f9cc39",
+      "compression": null
+    },
+    {
+      "path": "installed/tests-copy.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/tests-copy.log",
+      "raw_sha256": "cb144c1588701975055757e99f507e82e3eb1e792ba5de56ed4deeecab1d7dd3",
+      "archive_sha256": "cb144c1588701975055757e99f507e82e3eb1e792ba5de56ed4deeecab1d7dd3",
+      "compression": null
+    },
+    {
+      "path": "installed/verify-final.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/verify-final.log",
+      "raw_sha256": "9a0b88993b252064ece4ddfcaf56326be465cdfbbdb6d359b346b14c92ea72df",
+      "archive_sha256": "9a0b88993b252064ece4ddfcaf56326be465cdfbbdb6d359b346b14c92ea72df",
+      "compression": null
+    },
+    {
+      "path": "installed/verify.log",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/verify.log",
+      "raw_sha256": "164d03a36b2e4450e3c69517ea3d0417cc974991aafcabe45638ad6bea9da613",
+      "archive_sha256": "164d03a36b2e4450e3c69517ea3d0417cc974991aafcabe45638ad6bea9da613",
+      "compression": null
+    },
+    {
+      "path": "installed/verify.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/verify.py",
+      "raw_sha256": "245e430c2225633028e2dd2a318bc1066cbdf873eb974b9b19ed724a3bbdeb34",
+      "archive_sha256": "245e430c2225633028e2dd2a318bc1066cbdf873eb974b9b19ed724a3bbdeb34",
+      "compression": null
+    },
+    {
+      "path": "installed/verify_commits.py",
+      "source": "/tmp/iter63-r18-install-20261109-GvDCI8TF/verify_commits.py",
+      "raw_sha256": "6755a16067ad09778e963d70563d5d0a2577bb8c95a1fb6484cc375abf37fbdb",
+      "archive_sha256": "6755a16067ad09778e963d70563d5d0a2577bb8c95a1fb6484cc375abf37fbdb",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-bt-host/enumeration-initial.log",
+      "source": "/tmp/iter63-r18-bt-host/enumeration-initial.log",
+      "raw_sha256": "63d536fb8bbe6ed3941b2a01f97c528d3a23d7792458dd58e67835d63c18a51f",
+      "archive_sha256": "63d536fb8bbe6ed3941b2a01f97c528d3a23d7792458dd58e67835d63c18a51f",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-bt-host/enumeration-regression.log",
+      "source": "/tmp/iter63-r18-bt-host/enumeration-regression.log",
+      "raw_sha256": "1fba2f5bba5733d6a6e202728818bb36c53e02defa85591cdf2b7720a0bfaebd",
+      "archive_sha256": "1fba2f5bba5733d6a6e202728818bb36c53e02defa85591cdf2b7720a0bfaebd",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/fourth-run.log",
+      "source": "/tmp/iter63-r18-strategy-client/fourth-run.log",
+      "raw_sha256": "45b817abc1a2e36d543ff9efb494702362ea607d9e271939276747d40b06dc41",
+      "archive_sha256": "45b817abc1a2e36d543ff9efb494702362ea607d9e271939276747d40b06dc41",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/final-close.log",
+      "source": "/tmp/iter63-r18-strategy-client/final-close.log",
+      "raw_sha256": "83063c7df439027daed9e53546e2e28683286ba748807a69a009b2d6aacb00a1",
+      "archive_sha256": "83063c7df439027daed9e53546e2e28683286ba748807a69a009b2d6aacb00a1",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/importlib-regression.log",
+      "source": "/tmp/iter63-r18-strategy-client/importlib-regression.log",
+      "raw_sha256": "5095fb1e72b6aad72c165ae139e20b9a1a0ef5028651608a9e18e9d4f22a0b07",
+      "archive_sha256": "5095fb1e72b6aad72c165ae139e20b9a1a0ef5028651608a9e18e9d4f22a0b07",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/first-run.log",
+      "source": "/tmp/iter63-r18-strategy-client/first-run.log",
+      "raw_sha256": "7e4f5c438c8f00cc3c81a87ccfeb141971e1fad9c287ee745ed99dbbc80d6e45",
+      "archive_sha256": "7e4f5c438c8f00cc3c81a87ccfeb141971e1fad9c287ee745ed99dbbc80d6e45",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/second-run.log",
+      "source": "/tmp/iter63-r18-strategy-client/second-run.log",
+      "raw_sha256": "6b81a2173fbe4c7c37a940b9f73cc24f38a8f17c9b1eb7aede0926804483baae",
+      "archive_sha256": "6b81a2173fbe4c7c37a940b9f73cc24f38a8f17c9b1eb7aede0926804483baae",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client/third-run.log",
+      "source": "/tmp/iter63-r18-strategy-client/third-run.log",
+      "raw_sha256": "62813b8aa6a00ef48f82a9a98e1242196195e07fadc15ad89648ad121de03383",
+      "archive_sha256": "62813b8aa6a00ef48f82a9a98e1242196195e07fadc15ad89648ad121de03383",
+      "compression": null
+    },
+    {
+      "path": "workers/iter63-r18-strategy-client.log",
+      "source": "/tmp/iter63-r18-strategy-client.log",
+      "raw_sha256": "905babd712e9e9da0311269c7f52a65a662e76fe6508a7a3d431f4e89b01d52d",
+      "archive_sha256": "905babd712e9e9da0311269c7f52a65a662e76fe6508a7a3d431f4e89b01d52d",
+      "compression": null
+    }
+  ]
+}

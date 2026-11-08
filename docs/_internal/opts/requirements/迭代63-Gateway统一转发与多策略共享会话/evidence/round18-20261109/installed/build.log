@@ -1,0 +1,16 @@
+Processing /tmp/iter63-r18-install-20261109-GvDCI8TF/source/sdk
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Processing /tmp/iter63-r18-install-20261109-GvDCI8TF/source/bt
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: bt_api_py, back-trader-python
+  Building wheel for bt_api_py (pyproject.toml): started
+  Building wheel for bt_api_py (pyproject.toml): finished with status 'done'
+  Created wheel for bt_api_py: filename=bt_api_py-0.16.0.dev63-py3-none-any.whl size=2079358 sha256=0d14230d0f20ce4e02b80550d1e3fc5b9337bff4995cd12c8df0b426469c4c29
+  Stored in directory: /private/tmp/iter63-r18-install-20261109-GvDCI8TF/tmp/pip-ephem-wheel-cache-4129goq9/wheels/e3/da/6f/b81070546e3ea1e5f14647c9c07fe88cb72d506727b32a1636
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=1997773 sha256=792bad705c3f14a41c519322e6bee7c2cbae15faf33da622e895d9e2a743b4a7
+  Stored in directory: /private/tmp/iter63-r18-install-20261109-GvDCI8TF/tmp/pip-ephem-wheel-cache-4129goq9/wheels/11/53/89/ff00f213200e49b349c2e2fc9983c9ab9baec655681d65f558
+Successfully built bt_api_py back-trader-python

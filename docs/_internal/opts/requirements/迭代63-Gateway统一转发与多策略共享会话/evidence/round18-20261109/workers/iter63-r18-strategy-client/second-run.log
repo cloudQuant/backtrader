@@ -1,0 +1,18 @@
+F
+=================================== FAILURES ===================================
+__________ test_public_yaml_bt_host_cancel_recovery_stream_and_lease ___________
+tests/integration/test_iter63_gateway_strategy_client.py:238: in test_public_yaml_bt_host_cancel_recovery_stream_and_lease
+    initial_deadline = session.status().bindings[0].lease_deadline
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'BindingSnapshot' object has no attribute 'lease_deadline'
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_strategy_client.py::test_public_yaml_bt_host_cancel_recovery_stream_and_lease
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 1 warning in 2.01s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -x tests/integration/test_iter63_gateway_strategy_client.py` failed. (See above for error)

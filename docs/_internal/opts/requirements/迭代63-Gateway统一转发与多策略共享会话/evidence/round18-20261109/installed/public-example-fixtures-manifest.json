@@ -1,0 +1,42 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/unconfigured-client.yaml",
+    "copy": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/unconfigured-client.yaml",
+    "sha256": "588fccd3c0b5ad7e0d42a296aa8359f7b541faeb39e949f2c897bc740b897592",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/unconfigured-client.yaml",
+    "snapshot_head": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/strategy-readonly.yaml",
+    "copy": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/strategy-readonly.yaml",
+    "sha256": "1cf4a16c5ea37ab8e6352b5467db8758256a34b3a07ae8f85a6851bf77621aba",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/strategy-readonly.yaml",
+    "snapshot_head": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/portfolio-analysis-client.yaml",
+    "copy": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/portfolio-analysis-client.yaml",
+    "sha256": "842ac475818a8ce91fd39e658dc34bc9247b929cf1e4f4009c5e612373a26161",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/portfolio-analysis-client.yaml",
+    "snapshot_head": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/account-service.yaml",
+    "copy": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/account-service.yaml",
+    "sha256": "c29c6a518d11612510294f0aedf44b5094af3b27e3ba1f081768ed24b9a9bd3f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/account-service.yaml",
+    "snapshot_head": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/examples/services/portfolio-analysis-service.yaml",
+    "copy": "/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/portfolio-analysis-service.yaml",
+    "sha256": "18c550e57bcea91af9a4551b9f2ba7c4c331e4e00d41651c08122aea9d2f5875",
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "relative": "examples/services/portfolio-analysis-service.yaml",
+    "snapshot_head": "824a3f7fca6d3e6adbf3dcce4e5b48c1ade439bd"
+  }
+]

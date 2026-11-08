@@ -1,0 +1,12 @@
+{
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "9a9af12deb626116c238d3268423ebd157970fbb"
+  },
+  "bt": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "branch": "dev",
+    "commit": "4816beb9ca71027a1a2ea27bb1415397499b8c25"
+  }
+}

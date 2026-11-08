@@ -1,0 +1,19 @@
+REUSED_R17 bt_api_base /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_base/__init__.py 0.16.0.dev63 PY_COUNT 166 README_SHA256 c4594239d777e429110b002ebaf5f218187f26287fa4308eeec67c69500772d1
+REUSED_R17 bt_api_gateway /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_gateway/__init__.py 0.2.0.dev63 PY_COUNT 25 README_SHA256 0dd2f4d9db16caa08afd32065a8a56aaa592e542f94dba4659af6a786c660972
+REUSED_R17 bt_api_ctp /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_ctp/__init__.py 2.1.0.dev63 PY_COUNT 178 README_SHA256 e7d8b4dcc6a1b1e8a90a2803df58a4349bb1c8543bc94e721e9c5c6653a5d4ef
+REBUILT bt_api_py /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_py/__init__.py 0.16.0.dev63 PY_COUNT 290 README_SHA256 51011e19383e29c317333f64b2d6639ba777e1939a81cc38b00cb2e795d29a36
+REBUILT backtrader /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/backtrader/__init__.py 1.4.0 PY_COUNT 676 README_SHA256 18aac49f7e6a595c3b11740659423585b7dd442d507ef6f76a3fbccdbf8121d8
+FIXED bt_api_okx /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_okx/__init__.py 0.16.0.dev63 100 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+FIXED bt_api_binance /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/bt_api_binance/__init__.py 2.1.0.dev63 86 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+MANIFEST_SHA_MATCH source-manifest.json 1440
+MANIFEST_SHA_MATCH test-manifest.json 95
+EXTERNAL_EDITABLE_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+WHEEL_SHA256 back_trader_python-1.4.0-py3-none-any.whl 792bad705c3f14a41c519322e6bee7c2cbae15faf33da622e895d9e2a743b4a7
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 0a0cd2c19c4873d1a866589794cade29116fa503d0d9341bc8be1dcb66e5a187
+WHEEL_SHA256 bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl 9a55436a1b392e5957675bfdcd2ee37239d3860b948f1931f13290c995c56402
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl 6e62c242317527892d7bb8dadc511f13d733863eb8e477e810d25be108d63159
+WHEEL_SHA256 bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl 0d14230d0f20ce4e02b80550d1e3fc5b9337bff4995cd12c8df0b426469c4c29
+CTP_REUSED_R17_EXTENSION_SHA256 b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5
+NO_FULL_RESOLVER_NO_ACCOUNT_CONNECTIONS

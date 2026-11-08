@@ -1,0 +1,8 @@
+{
+  "/Users/yunjinqi/Documents/new_projects/bt_api_py/README.md": "51011e19383e29c317333f64b2d6639ba777e1939a81cc38b00cb2e795d29a36",
+  "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_client.py": "c7176da87caa062097e7e157d26bb18cbe2f1043a4ff9859c7a3c9cffbbcb5ab",
+  "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/unit/test_iter63_gateway_strategy_client.py": "445c6156a5703fb51402cf7f7a0da07f0dbe75021fdb8d52288d3fcac75bc151",
+  "/Users/yunjinqi/Documents/new_projects/bt_api_py/tests/integration/test_iter63_gateway_strategy_client.py": "501c871483d12e4fcaef39cb75d65135c38e3e55847f55a0a8500b7ec83cded7",
+  "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_pending.py": "352fd351ce8c7c833f2134521cc5cec5a1e8862d6d57e6e66a11b6d07b66ef73",
+  "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_enumeration.py": "85b74429a06dffd8dc2de2c932ff09b35e7d01b2d5d73b42371e5fb08a9d766d"
+}

@@ -1,0 +1,261 @@
+ORIGIN_RUN_LOGS /private/tmp/iter63-r18-install-20261109-GvDCI8TF/origin-logs/sdk-28091-1794159739292398000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+........................................................................ [ 50%]
+........................................................................ [ 59%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+.............................................................FFFFF...... [ 92%]
+.............................................................            [100%]
+=================================== FAILURES ===================================
+_ test_shipped_config_examples_validate_through_public_loader[unconfigured-client.yaml-client] _
+
+filename = 'unconfigured-client.yaml', role = 'client'
+
+    @pytest.mark.parametrize(
+        ("filename", "role"),
+        [
+            ("unconfigured-client.yaml", "client"),
+            ("strategy-readonly.yaml", "client"),
+            ("portfolio-analysis-client.yaml", "client"),
+            ("account-service.yaml", "service"),
+            ("portfolio-analysis-service.yaml", "service"),
+        ],
+    )
+    def test_shipped_config_examples_validate_through_public_loader(filename, role):
+        path = Path(__file__).resolve().parents[2] / "examples" / "services" / filename
+        loader = load_client_config if role == "client" else load_service_config
+>       config = loader(path)
+                 ^^^^^^^^^^^^
+
+tests/unit/test_service_config_io.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../install/src/bt_api_py/service_config_io.py:95: in load_client_config
+    return parse_client_config(_read_yaml(path))
+                               ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/unconfigured-client.yaml')
+
+    def _read_yaml(path: str | Path) -> dict:
+        """Read one plain mapping, without aliases, merge keys or duplicate keys."""
+        import yaml
+    
+        try:
+            with Path(path).open("rb") as source:
+                # Check the opened file, so a replaced path cannot change this check.
+                import os
+    
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ServiceConfigError("CONFIG_NOT_REGULAR_FILE", "$")
+                raw = source.read(MAX_CONFIG_BYTES + 1)
+        except OSError:
+>           raise ServiceConfigError("CONFIG_READ_FAILED", "$") from None
+E           bt_api_py.service_config.ServiceConfigError: CONFIG_READ_FAILED at $
+
+../install/src/bt_api_py/service_config_io.py:44: ServiceConfigError
+_ test_shipped_config_examples_validate_through_public_loader[strategy-readonly.yaml-client] _
+
+filename = 'strategy-readonly.yaml', role = 'client'
+
+    @pytest.mark.parametrize(
+        ("filename", "role"),
+        [
+            ("unconfigured-client.yaml", "client"),
+            ("strategy-readonly.yaml", "client"),
+            ("portfolio-analysis-client.yaml", "client"),
+            ("account-service.yaml", "service"),
+            ("portfolio-analysis-service.yaml", "service"),
+        ],
+    )
+    def test_shipped_config_examples_validate_through_public_loader(filename, role):
+        path = Path(__file__).resolve().parents[2] / "examples" / "services" / filename
+        loader = load_client_config if role == "client" else load_service_config
+>       config = loader(path)
+                 ^^^^^^^^^^^^
+
+tests/unit/test_service_config_io.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../install/src/bt_api_py/service_config_io.py:95: in load_client_config
+    return parse_client_config(_read_yaml(path))
+                               ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/strategy-readonly.yaml')
+
+    def _read_yaml(path: str | Path) -> dict:
+        """Read one plain mapping, without aliases, merge keys or duplicate keys."""
+        import yaml
+    
+        try:
+            with Path(path).open("rb") as source:
+                # Check the opened file, so a replaced path cannot change this check.
+                import os
+    
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ServiceConfigError("CONFIG_NOT_REGULAR_FILE", "$")
+                raw = source.read(MAX_CONFIG_BYTES + 1)
+        except OSError:
+>           raise ServiceConfigError("CONFIG_READ_FAILED", "$") from None
+E           bt_api_py.service_config.ServiceConfigError: CONFIG_READ_FAILED at $
+
+../install/src/bt_api_py/service_config_io.py:44: ServiceConfigError
+_ test_shipped_config_examples_validate_through_public_loader[portfolio-analysis-client.yaml-client] _
+
+filename = 'portfolio-analysis-client.yaml', role = 'client'
+
+    @pytest.mark.parametrize(
+        ("filename", "role"),
+        [
+            ("unconfigured-client.yaml", "client"),
+            ("strategy-readonly.yaml", "client"),
+            ("portfolio-analysis-client.yaml", "client"),
+            ("account-service.yaml", "service"),
+            ("portfolio-analysis-service.yaml", "service"),
+        ],
+    )
+    def test_shipped_config_examples_validate_through_public_loader(filename, role):
+        path = Path(__file__).resolve().parents[2] / "examples" / "services" / filename
+        loader = load_client_config if role == "client" else load_service_config
+>       config = loader(path)
+                 ^^^^^^^^^^^^
+
+tests/unit/test_service_config_io.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../install/src/bt_api_py/service_config_io.py:95: in load_client_config
+    return parse_client_config(_read_yaml(path))
+                               ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/portfolio-analysis-client.yaml')
+
+    def _read_yaml(path: str | Path) -> dict:
+        """Read one plain mapping, without aliases, merge keys or duplicate keys."""
+        import yaml
+    
+        try:
+            with Path(path).open("rb") as source:
+                # Check the opened file, so a replaced path cannot change this check.
+                import os
+    
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ServiceConfigError("CONFIG_NOT_REGULAR_FILE", "$")
+                raw = source.read(MAX_CONFIG_BYTES + 1)
+        except OSError:
+>           raise ServiceConfigError("CONFIG_READ_FAILED", "$") from None
+E           bt_api_py.service_config.ServiceConfigError: CONFIG_READ_FAILED at $
+
+../install/src/bt_api_py/service_config_io.py:44: ServiceConfigError
+_ test_shipped_config_examples_validate_through_public_loader[account-service.yaml-service] _
+
+filename = 'account-service.yaml', role = 'service'
+
+    @pytest.mark.parametrize(
+        ("filename", "role"),
+        [
+            ("unconfigured-client.yaml", "client"),
+            ("strategy-readonly.yaml", "client"),
+            ("portfolio-analysis-client.yaml", "client"),
+            ("account-service.yaml", "service"),
+            ("portfolio-analysis-service.yaml", "service"),
+        ],
+    )
+    def test_shipped_config_examples_validate_through_public_loader(filename, role):
+        path = Path(__file__).resolve().parents[2] / "examples" / "services" / filename
+        loader = load_client_config if role == "client" else load_service_config
+>       config = loader(path)
+                 ^^^^^^^^^^^^
+
+tests/unit/test_service_config_io.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../install/src/bt_api_py/service_config_io.py:100: in load_service_config
+    return parse_service_config(_read_yaml(path))
+                                ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/account-service.yaml')
+
+    def _read_yaml(path: str | Path) -> dict:
+        """Read one plain mapping, without aliases, merge keys or duplicate keys."""
+        import yaml
+    
+        try:
+            with Path(path).open("rb") as source:
+                # Check the opened file, so a replaced path cannot change this check.
+                import os
+    
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ServiceConfigError("CONFIG_NOT_REGULAR_FILE", "$")
+                raw = source.read(MAX_CONFIG_BYTES + 1)
+        except OSError:
+>           raise ServiceConfigError("CONFIG_READ_FAILED", "$") from None
+E           bt_api_py.service_config.ServiceConfigError: CONFIG_READ_FAILED at $
+
+../install/src/bt_api_py/service_config_io.py:44: ServiceConfigError
+_ test_shipped_config_examples_validate_through_public_loader[portfolio-analysis-service.yaml-service] _
+
+filename = 'portfolio-analysis-service.yaml', role = 'service'
+
+    @pytest.mark.parametrize(
+        ("filename", "role"),
+        [
+            ("unconfigured-client.yaml", "client"),
+            ("strategy-readonly.yaml", "client"),
+            ("portfolio-analysis-client.yaml", "client"),
+            ("account-service.yaml", "service"),
+            ("portfolio-analysis-service.yaml", "service"),
+        ],
+    )
+    def test_shipped_config_examples_validate_through_public_loader(filename, role):
+        path = Path(__file__).resolve().parents[2] / "examples" / "services" / filename
+        loader = load_client_config if role == "client" else load_service_config
+>       config = loader(path)
+                 ^^^^^^^^^^^^
+
+tests/unit/test_service_config_io.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../install/src/bt_api_py/service_config_io.py:100: in load_service_config
+    return parse_service_config(_read_yaml(path))
+                                ^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/tmp/iter63-r18-install-20261109-GvDCI8TF/sdk-tests/examples/services/portfolio-analysis-service.yaml')
+
+    def _read_yaml(path: str | Path) -> dict:
+        """Read one plain mapping, without aliases, merge keys or duplicate keys."""
+        import yaml
+    
+        try:
+            with Path(path).open("rb") as source:
+                # Check the opened file, so a replaced path cannot change this check.
+                import os
+    
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ServiceConfigError("CONFIG_NOT_REGULAR_FILE", "$")
+                raw = source.read(MAX_CONFIG_BYTES + 1)
+        except OSError:
+>           raise ServiceConfigError("CONFIG_READ_FAILED", "$") from None
+E           bt_api_py.service_config.ServiceConfigError: CONFIG_READ_FAILED at $
+
+../install/src/bt_api_py/service_config_io.py:44: ServiceConfigError
+=============================== warnings summary ===============================
+../install/src/backtrader/feeds/__init__.py:56
+  /private/tmp/iter63-r18-install-20261109-GvDCI8TF/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_service_config_io.py::test_shipped_config_examples_validate_through_public_loader[unconfigured-client.yaml-client]
+FAILED tests/unit/test_service_config_io.py::test_shipped_config_examples_validate_through_public_loader[strategy-readonly.yaml-client]
+FAILED tests/unit/test_service_config_io.py::test_shipped_config_examples_validate_through_public_loader[portfolio-analysis-client.yaml-client]
+FAILED tests/unit/test_service_config_io.py::test_shipped_config_examples_validate_through_public_loader[account-service.yaml-service]
+FAILED tests/unit/test_service_config_io.py::test_shipped_config_examples_validate_through_public_loader[portfolio-analysis-service.yaml-service]
+5 failed, 848 passed, 1 warning in 42.89s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r18-install-20261109-GvDCI8TF/run_installed.py` failed. (See above for error)
