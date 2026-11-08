@@ -1,0 +1,19 @@
+{
+  "sdk": {
+    "result": "PASS",
+    "check": "ruff --no-fix --select E9,F on changed product/test files"
+  },
+  "ctp": {
+    "result": "BASELINE_FAILURE",
+    "check": "ruff --no-fix --select E9,F on changed product/test files",
+    "code": "F401",
+    "path": "src/bt_api_ctp/execution_query_projection.py",
+    "line": 36,
+    "symbol": "_utc_text",
+    "head_and_worktree_each_have_only_one_occurrence": true
+  },
+  "diff_check": {
+    "sdk": "PASS",
+    "ctp": "PASS"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "ctp": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "branch": "dev",
+    "commit": "9593397956e39e5d7600ae099c9692fb447e5aff",
+    "files": [
+      "README.md",
+      "src/bt_api_ctp/account_provider.py",
+      "src/bt_api_ctp/execution_query_projection.py",
+      "src/bt_api_ctp/gateway_session.py",
+      "tests/test_account_provider.py",
+      "tests/test_iter63_gateway_session.py"
+    ],
+    "pushed": false
+  },
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "branch": "dev",
+    "commit": "9778e3a1e37be7f2e75c0c1c6979206a180ac3d9",
+    "files": [
+      "README.md",
+      "bt_api/bt_api_ctp",
+      "bt_api_py/ctp_gateway_trading.py",
+      "bt_api_py/order_correlation_issuer.py",
+      "tests/integration/test_iter63_ctp_gateway_trading.py",
+      "tests/test_iter63_ctp_gateway_trading.py",
+      "tests/unit/test_iter63_correlation_issuer_reopen.py"
+    ],
+    "pushed": false
+  }
+}

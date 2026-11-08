@@ -1,0 +1,22 @@
+# Executed commands; cwd is /tmp except as explicitly noted.
+cp /tmp/iter63-r09-packaging-ySGAYCmv/final/ctp-selected.txt /tmp/iter63-r10-packaging-Zc9un7t2/plans/ctp.txt
+cp /tmp/iter63-r09-packaging-ySGAYCmv/final/sdk-tests/selected-tests.txt /tmp/iter63-r10-packaging-Zc9un7t2/plans/sdk.txt
+printf '%s\n' 'tests/unit/test_iter63_correlation_issuer_reopen.py' 'tests/unit/test_iter60_venue_safe_correlation_ids.py' >> /tmp/iter63-r10-packaging-Zc9un7t2/plans/sdk.txt
+printf '%s\n' 'Root confirmed CTP/SDK source, tests, and README freeze; R09 10 CTP tests and SDK 12 + two correlation tests.' > /tmp/iter63-r10-packaging-Zc9un7t2/SOURCE_FROZEN
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r10-packaging-Zc9un7t2/snapshot.py > /tmp/iter63-r10-packaging-Zc9un7t2/snapshot.log 2>&1
+# Following two commands were run independently in parallel.
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r10-packaging-Zc9un7t2/copy_fixed.py > /tmp/iter63-r10-packaging-Zc9un7t2/fixed.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r10-packaging-Zc9un7t2/prepare_tests.py > /tmp/iter63-r10-packaging-Zc9un7t2/prepare-tests.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip wheel --no-index --no-deps --no-build-isolation --wheel-dir /tmp/iter63-r10-packaging-Zc9un7t2/wheels /tmp/iter63-r10-packaging-Zc9un7t2/source/ctp /tmp/iter63-r10-packaging-Zc9un7t2/source/sdk > /tmp/iter63-r10-packaging-Zc9un7t2/build.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pip install --no-index --no-deps --target /tmp/iter63-r10-packaging-Zc9un7t2/install/src /tmp/iter63-r10-packaging-Zc9un7t2/wheels/*.whl > /tmp/iter63-r10-packaging-Zc9un7t2/install.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r10-packaging-Zc9un7t2/verify.py > /tmp/iter63-r10-packaging-Zc9un7t2/verify.log 2>&1
+# The following test commands ran independently in parallel.
+# cwd /tmp/iter63-r10-packaging-Zc9un7t2/install
+R10_TEST_KIND=ctp /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r10-packaging-Zc9un7t2/run_installed.py > /tmp/iter63-r10-packaging-Zc9un7t2/ctp-installed.log 2>&1
+# cwd /tmp/iter63-r10-packaging-Zc9un7t2/sdk-tests
+R10_TEST_KIND=sdk /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r10-packaging-Zc9un7t2/run_installed.py > /tmp/iter63-r10-packaging-Zc9un7t2/sdk-installed.log 2>&1
+# cwd /tmp
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r10-packaging-Zc9un7t2/audit_origins.py > /tmp/iter63-r10-packaging-Zc9un7t2/origin-summary.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -I /tmp/iter63-r10-packaging-Zc9un7t2/verify.py > /tmp/iter63-r10-packaging-Zc9un7t2/verify-final.log 2>&1
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python /tmp/iter63-r10-packaging-Zc9un7t2/make_artifact.py
+# artifact.json was then amended with exact recorded-process scope and native fake boundaries.

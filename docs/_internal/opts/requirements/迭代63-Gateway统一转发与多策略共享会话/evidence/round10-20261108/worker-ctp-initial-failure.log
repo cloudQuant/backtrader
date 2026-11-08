@@ -1,0 +1,2481 @@
+..FFFFFFFFFFFFFFFF...................................................... [ 54%]
+......FFFF..........F.FFFFFFFFFFFFFF.F.F...................              [100%]
+=================================== FAILURES ===================================
+_____ test_active_order_uses_stable_opaque_id_without_strategy_attribution _____
+
+    def test_active_order_uses_stable_opaque_id_without_strategy_attribution() -> None:
+        issuer = HmacIssuer()
+        feed = _Feed()
+        provider = _connected_snapshot(feed, issuer)
+>       first = provider.read_account(generation="service-gen-1", timeout=2.0)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider.py:300: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+____ test_active_order_any_unprojectable_row_blocks_complete_snapshot[day] _____
+
+fault = 'day'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__ test_active_order_any_unprojectable_row_blocks_complete_snapshot[account] ___
+
+fault = 'account'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_active_order_any_unprojectable_row_blocks_complete_snapshot[broker] ___
+
+fault = 'broker'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__ test_active_order_any_unprojectable_row_blocks_complete_snapshot[catalog] ___
+
+fault = 'catalog'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__ test_active_order_any_unprojectable_row_blocks_complete_snapshot[missing] ___
+
+fault = 'missing'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+____ test_active_order_any_unprojectable_row_blocks_complete_snapshot[time] ____
+
+fault = 'time'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_ test_active_order_any_unprojectable_row_blocks_complete_snapshot[duplicate] __
+
+fault = 'duplicate'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_active_order_any_unprojectable_row_blocks_complete_snapshot[option] ___
+
+fault = 'option'
+
+    @pytest.mark.parametrize("fault", ["day", "account", "broker", "catalog", "missing", "time", "duplicate", "option"])
+    def test_active_order_any_unprojectable_row_blocks_complete_snapshot(fault):
+        feed = _Feed()
+        row = feed.rows["orders"][0]
+        instruments = (_INSTRUMENT,)
+        if fault == "day": row["TradingDay"] = "20261018"
+        elif fault == "account": row["InvestorID"] = "other"
+        elif fault == "broker": row["BrokerID"] = "other"
+        elif fault == "catalog": row["InstrumentID"] = "UNKNOWN"
+        elif fault == "missing": del row["Direction"]
+        elif fault == "time": row["InsertTime"] = "invalid"
+        elif fault == "duplicate": feed.rows["orders"] = (row, dict(row))
+        else:
+            instruments = (replace(_INSTRUMENT, product_type="option"),)
+        provider = _connected_snapshot(feed, HmacIssuer(), instruments)
+        with pytest.raises(CtpAccountSessionProviderError):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+________________ test_terminal_order_is_not_reported_as_open[0] ________________
+
+status = '0'
+
+    @pytest.mark.parametrize("status", ["0", "2", "4", "5"])
+    def test_terminal_order_is_not_reported_as_open(status):
+        feed = _Feed()
+        feed.rows["orders"][0]["OrderStatus"] = status
+>       observation = _connected_snapshot(feed, HmacIssuer()).read_account(
+            generation="service-gen-1", timeout=2.0
+        )
+
+tests/test_account_provider.py:339: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+________________ test_terminal_order_is_not_reported_as_open[2] ________________
+
+status = '2'
+
+    @pytest.mark.parametrize("status", ["0", "2", "4", "5"])
+    def test_terminal_order_is_not_reported_as_open(status):
+        feed = _Feed()
+        feed.rows["orders"][0]["OrderStatus"] = status
+>       observation = _connected_snapshot(feed, HmacIssuer()).read_account(
+            generation="service-gen-1", timeout=2.0
+        )
+
+tests/test_account_provider.py:339: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+________________ test_terminal_order_is_not_reported_as_open[4] ________________
+
+status = '4'
+
+    @pytest.mark.parametrize("status", ["0", "2", "4", "5"])
+    def test_terminal_order_is_not_reported_as_open(status):
+        feed = _Feed()
+        feed.rows["orders"][0]["OrderStatus"] = status
+>       observation = _connected_snapshot(feed, HmacIssuer()).read_account(
+            generation="service-gen-1", timeout=2.0
+        )
+
+tests/test_account_provider.py:339: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+________________ test_terminal_order_is_not_reported_as_open[5] ________________
+
+status = '5'
+
+    @pytest.mark.parametrize("status", ["0", "2", "4", "5"])
+    def test_terminal_order_is_not_reported_as_open(status):
+        feed = _Feed()
+        feed.rows["orders"][0]["OrderStatus"] = status
+>       observation = _connected_snapshot(feed, HmacIssuer()).read_account(
+            generation="service-gen-1", timeout=2.0
+        )
+
+tests/test_account_provider.py:339: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_________________ test_snapshot_never_invokes_managed_resolver _________________
+
+    def test_snapshot_never_invokes_managed_resolver():
+        feed = _Feed()
+        def fail(*args):
+            raise AssertionError("managed resolver must not be called by account snapshot")
+        provider = _connected_snapshot(feed, HmacIssuer(), execution_order_resolver=fail,
+                                       execution_scope_ref="strategy-test")
+>       order = provider.read_account(generation="service-gen-1", timeout=2.0).open_orders[0]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider.py:351: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____ test_active_native_status_and_quantity_conflict_blocks_snapshot[1-0] _____
+
+status = '1', filled = 0
+
+    @pytest.mark.parametrize(("status", "filled"), [("1", 0), ("3", 1)])
+    def test_active_native_status_and_quantity_conflict_blocks_snapshot(status, filled):
+        feed = _Feed()
+        feed.rows["orders"][0].update(OrderStatus=status, VolumeTraded=filled)
+        provider = _connected_snapshot(feed, HmacIssuer())
+        with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____ test_active_native_status_and_quantity_conflict_blocks_snapshot[3-1] _____
+
+status = '3', filled = 1
+
+    @pytest.mark.parametrize(("status", "filled"), [("1", 0), ("3", 1)])
+    def test_active_native_status_and_quantity_conflict_blocks_snapshot(status, filled):
+        feed = _Feed()
+        feed.rows["orders"][0].update(OrderStatus=status, VolumeTraded=filled)
+        provider = _connected_snapshot(feed, HmacIssuer())
+        with pytest.raises(CtpAccountSessionProviderError, match="QUERY_ROW_INVALID"):
+>           provider.read_account(generation="service-gen-1", timeout=2.0)
+
+tests/test_account_provider.py:361: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____ test_query_service_uses_exact_complete_native_scope[account-account] _____
+
+family = 'account', native_family = 'account'
+
+    @pytest.mark.parametrize(
+        ("family", "native_family"),
+        [("account", "account"), ("positions", "positions"),
+         ("orders", "orders"), ("open_orders", "orders")],
+    )
+    def test_query_service_uses_exact_complete_native_scope(family, native_family) -> None:
+>       from bt_api_ctp.query_service import CtpProviderQueryService, _native_filter_map_matches
+
+tests/test_account_provider.py:505: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/query_service.py:46: in <module>
+    from bt_api_ctp.execution_query_projection import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_query_service_uses_exact_complete_native_scope[positions-positions] ___
+
+family = 'positions', native_family = 'positions'
+
+    @pytest.mark.parametrize(
+        ("family", "native_family"),
+        [("account", "account"), ("positions", "positions"),
+         ("orders", "orders"), ("open_orders", "orders")],
+    )
+    def test_query_service_uses_exact_complete_native_scope(family, native_family) -> None:
+>       from bt_api_ctp.query_service import CtpProviderQueryService, _native_filter_map_matches
+
+tests/test_account_provider.py:505: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/query_service.py:46: in <module>
+    from bt_api_ctp.execution_query_projection import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+______ test_query_service_uses_exact_complete_native_scope[orders-orders] ______
+
+family = 'orders', native_family = 'orders'
+
+    @pytest.mark.parametrize(
+        ("family", "native_family"),
+        [("account", "account"), ("positions", "positions"),
+         ("orders", "orders"), ("open_orders", "orders")],
+    )
+    def test_query_service_uses_exact_complete_native_scope(family, native_family) -> None:
+>       from bt_api_ctp.query_service import CtpProviderQueryService, _native_filter_map_matches
+
+tests/test_account_provider.py:505: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/query_service.py:46: in <module>
+    from bt_api_ctp.execution_query_projection import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_query_service_uses_exact_complete_native_scope[open_orders-orders] ____
+
+family = 'open_orders', native_family = 'orders'
+
+    @pytest.mark.parametrize(
+        ("family", "native_family"),
+        [("account", "account"), ("positions", "positions"),
+         ("orders", "orders"), ("open_orders", "orders")],
+    )
+    def test_query_service_uses_exact_complete_native_scope(family, native_family) -> None:
+>       from bt_api_ctp.query_service import CtpProviderQueryService, _native_filter_map_matches
+
+tests/test_account_provider.py:505: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/query_service.py:46: in <module>
+    from bt_api_ctp.execution_query_projection import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________ test_projects_orders_then_fills_with_opaque_ids_and_no_fee __________
+
+    def test_projects_orders_then_fills_with_opaque_ids_and_no_fee():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row()])
+        built = connected(feed, clock)
+>       page = read(built)
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:309: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________ test_duplicated_and_reordered_rows_produce_the_same_facts ___________
+
+    def test_duplicated_and_reordered_rows_produce_the_same_facts():
+        clock = Clock()
+        orders = [order_row(), order_row(OrderSysID="      1002", OrderRef="000000000002")]
+        trades = [
+            trade_row(),
+            trade_row(TradeID="      7002", OrderSysID="      1002", OrderRef="000000000002"),
+        ]
+>       first = read(connected(Feed(clock, orders=orders, trades=trades), clock))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:397: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_________ test_conflicting_rows_of_one_identity_are_refused_not_merged _________
+
+    def test_conflicting_rows_of_one_identity_are_refused_not_merged():
+        clock = Clock()
+        feed = Feed(
+            clock,
+            orders=[order_row()],
+            trades=[trade_row(), trade_row(Price=4100.0)],  # same TradeID, other price
+        )
+        built = connected(feed, clock)
+>       page = read(built)
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:418: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____________ test_a_changed_fact_under_a_published_id_is_refused ______________
+
+    def test_a_changed_fact_under_a_published_id_is_refused():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row()])
+        built = connected(feed, clock)
+>       page = read(built)
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:431: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____ test_order_progress_is_published_but_fills_are_never_derived_from_it _____
+
+    def test_order_progress_is_published_but_fills_are_never_derived_from_it():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row()])
+        built = connected(feed, clock)
+>       built.confirm_execution_observations(generation="gen-1", count=len(read(built)))
+                                                                           ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:442: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________________ test_an_order_state_regression_is_refused ___________________
+
+    def test_an_order_state_regression_is_refused():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row(VolumeTraded=2)], trades=[])
+        built = connected(feed, clock)
+>       built.confirm_execution_observations(generation="gen-1", count=len(read(built)))
+                                                                           ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:459: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________ test_a_fill_waits_until_its_order_observation_is_published __________
+
+    def test_a_fill_waits_until_its_order_observation_is_published():
+        clock = Clock()
+        feed = Feed(
+            clock,
+            orders=[order_row(), order_row(VolumeTraded=2)],  # conflicting order rows
+            trades=[trade_row()],
+        )
+        built = connected(feed, clock)
+>       assert read(built) == ()
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:475: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_________________ test_unacknowledged_orders_are_not_published _________________
+
+    def test_unacknowledged_orders_are_not_published():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row(OrderStatus="a", VolumeTraded=0)], trades=[])
+        built = connected(feed, clock)
+>       assert read(built) == ()
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:486: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_____ test_foreign_account_instrument_and_day_rows_are_refused_with_counts _____
+
+    def test_foreign_account_instrument_and_day_rows_are_refused_with_counts():
+        clock = Clock()
+        feed = Feed(
+            clock,
+            orders=[
+                order_row(),
+                order_row(OrderSysID="      2001", InvestorID="someone-else"),
+                order_row(OrderSysID="      2002", InstrumentID="IC2612"),
+                order_row(OrderSysID="      2003", TradingDay="20261016"),
+            ],
+            trades=[
+                trade_row(),
+                trade_row(TradeID="      8001", BrokerID="other-broker"),
+                trade_row(TradeID="      8002", ExchangeID="SHFE", InstrumentID="rb2610"),
+            ],
+        )
+        built = connected(feed, clock)
+>       page = read(built)
+               ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:510: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________ test_partial_confirm_redelivers_the_remainder_identically ___________
+
+    def test_partial_confirm_redelivers_the_remainder_identically():
+        clock = Clock()
+        feed = Feed(
+            clock,
+            orders=[order_row(), order_row(OrderSysID="      1002", OrderRef="000000000002")],
+            trades=[trade_row()],
+        )
+        built = connected(feed, clock)
+>       first = read(built, limit=2)
+                ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:534: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_stale_generations_are_refused_and_each_generation_has_a_fresh_queue ___
+
+    def test_stale_generations_are_refused_and_each_generation_has_a_fresh_queue():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row()])
+        built = connected(feed, clock)
+        assert error_code(lambda: read(built, "gen-0")) == "EXECUTION_GENERATION_STALE"
+>       first = read(built)
+                ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:560: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+______ test_restart_with_the_same_issuer_secret_gives_identical_fact_ids _______
+
+    def test_restart_with_the_same_issuer_secret_gives_identical_fact_ids():
+        clock = Clock()
+        rows = {"orders": [order_row()], "trades": [trade_row()]}
+>       before = read(connected(Feed(clock, **rows), clock, issuer=HmacIssuer(_SECRET)))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:577: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________________ test_query_interval_bounds_native_queries ___________________
+
+    def test_query_interval_bounds_native_queries():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[])
+        built = connected(feed, clock, interval=1.0)
+>       built.confirm_execution_observations(generation="gen-1", count=len(read(built)))
+                                                                           ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:588: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+__________ test_failed_or_untrusted_queries_leave_the_queue_unchanged __________
+
+    def test_failed_or_untrusted_queries_leave_the_queue_unchanged():
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row()])
+        built = connected(feed, clock)
+        feed.fail.add("orders")
+        assert error_code(lambda: read(built)) == "QUERY_FAILED"
+        feed.fail.clear()
+        feed.tamper.add("trades")
+        assert error_code(lambda: read(built)) == "QUERY_SOURCE_UNTRUSTED"
+        feed.tamper.clear()
+        clock.monotonic = 1000.0  # query evidence older than its trusted TTL
+        original = feed._query
+    
+        def stale(name, timeout):
+            clock.monotonic = 1000.0
+            result = original(name, timeout)
+            clock.monotonic = 1100.0
+            return result
+    
+        feed._query = stale
+        assert error_code(lambda: read(built)) in {"QUERY_BUDGET_EXCEEDED", "QUERY_SOURCE_UNTRUSTED"}
+        feed._query = original
+        clock.monotonic = 1200.0  # monotonic time only moves forward
+>       assert len(read(built)) == 2
+                   ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:617: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___________________ test_oversized_query_results_fail_closed ___________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x13c843110>
+
+    def test_oversized_query_results_fail_closed(monkeypatch):
+        clock = Clock()
+        feed = Feed(clock, orders=[order_row()], trades=[trade_row(), trade_row(TradeID="x")])
+        built = connected(feed, clock)
+        monkeypatch.setattr(provider_module, "_MAX_EXECUTION_QUERY_ROWS", 1)
+        assert error_code(lambda: read(built)) == "EXECUTION_QUERY_TOO_LARGE"
+        monkeypatch.setattr(provider_module, "_MAX_EXECUTION_QUERY_ROWS", 8192)
+        monkeypatch.setattr(provider_module, "_MAX_EXECUTION_TRACKED", 2)
+>       assert error_code(lambda: read(built)) == "EXECUTION_CAPACITY_EXCEEDED"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:628: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:298: in error_code
+    call()
+tests/test_account_provider_execution_observations.py:628: in <lambda>
+    assert error_code(lambda: read(built)) == "EXECUTION_CAPACITY_EXCEEDED"
+                              ^^^^^^^^^^^
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+_ test_client_order_id_is_verified_only_through_an_issuer_validated_correlation _
+
+    def test_client_order_id_is_verified_only_through_an_issuer_validated_correlation():
+        clock = Clock()
+        issuer = HmacIssuer()
+        correlation, handle = issuer.issue_order_correlation("CTP___FUTURE", "IF2612", "sa1b2c3d4-1")
+        forged = OrderCorrelation("CTP___FUTURE", "IF2612", "sforged-1", "res-forged")
+        references = {
+            "000000000001": (correlation, handle),
+            "000000000002": (forged, Handle("not-the-issuer-handle")),
+        }
+        feed = Feed(
+            clock,
+            orders=[
+                order_row(),
+                order_row(OrderSysID="      1002", OrderRef="000000000002"),
+                order_row(OrderSysID="      1003", OrderRef="000000000003"),
+            ],
+            trades=[],
+        )
+        built = connected(
+            feed,
+            clock,
+            issuer=issuer,
+            execution_order_resolver=lambda order_ref, _instrument: references.get(order_ref),
+            execution_scope_ref="scope:test",
+        )
+>       verified, forged_order, unknown = (item.order for item in read(built))
+                                                                  ^^^^^^^^^^^
+
+tests/test_account_provider_execution_observations.py:676: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_account_provider_execution_observations.py:286: in read
+    return built.read_execution_observations(generation=generation, timeout=2.0, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:910: in _read_execution_observations
+    self._poll_execution(state, float(timeout))
+src/bt_api_ctp/account_provider.py:985: in _poll_execution
+    state.projector = self._execution_projector(baseline_scope, account_key)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+___ test_account_snapshot_active_order_uses_one_real_trader_with_fake_native ___
+
+prepared = (<function prepared.<locals>.create at 0x13c85fc40>, <function prepared.<locals>.feed_factory at 0x13c85f880>, <functi...Future object at 0x13c915010>], [<test_iter62_settlement_readback_on_write._NativeApi object at 0x13c916790>], [], ...)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x13c897310>
+
+    def test_account_snapshot_active_order_uses_one_real_trader_with_fake_native(prepared, monkeypatch):
+        create, _, _, feeds, natives, _, stops, _ = prepared
+        issuer = HmacIssuer()
+        instrument = MarketInstrumentKey("ctp", "CFFEX", "simnow", "future", "IF2612", "IF2612")
+        session = create(observation_issuer=issuer, observation_instruments=(instrument,))
+        session.connect(generation="g", timeout=1)
+        trader, native = feeds[0].trader_client, natives[0]
+        calls = []
+        account = dict(AccountID="account", BrokerID="9999", CurrencyID="CNY", Balance=1000, Available=800)
+        order = dict(BrokerID="9999", InvestorID="account", InstrumentID="IF2612", ExchangeID="CFFEX",
+                     TradingDay="20261106", OrderSysID="SYS1", OrderStatus="1", Direction="0",
+                     CombOffsetFlag="0", VolumeTotalOriginal=3, VolumeTraded=1, OrderPriceType="2",
+                     LimitPrice=4001, InsertDate="20261106", InsertTime="00:00:00")
+        def responder(kind, rows):
+            def submit(_field, request_id):
+                calls.append(kind)
+                for row in rows:
+                    trader._handle_query_callback(kind, row, None, request_id, False)
+                trader._handle_query_callback(kind, None, None, request_id, True)
+                return 0
+            return submit
+        monkeypatch.setattr(native, "ReqQryTradingAccount", responder("account", [account]), raising=False)
+        monkeypatch.setattr(native, "ReqQryInvestorPosition", responder("positions", []), raising=False)
+        monkeypatch.setattr(native, "ReqQryOrder", responder("orders", [order]), raising=False)
+>       result = session.read_account(generation="g", timeout=1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_iter63_gateway_session.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/bt_api_ctp/gateway_session.py:202: in read_account
+    return self._reader.read_account(generation=generation, timeout=_timeout(timeout, 300.0))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/bt_api_ctp/account_provider.py:522: in read_account
+    self._execution_projector(baseline_scope, account_key, managed_correlation=False)
+src/bt_api_ctp/account_provider.py:999: in _execution_projector
+    from bt_api_ctp.execution_query_projection import CtpExecutionQueryProjector
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Neutral projection for source-sealed CTP execution query rows.
+    
+    Only the CTP package reads native order, trade and rate fields. This module
+    projects facts into ``bt_api_base`` DTOs after the query service has validated
+    the sealed query source and current session. It never exposes native order
+    identities, CTP request IDs, or the account fingerprint.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import re
+    from collections.abc import Mapping
+    from decimal import Decimal
+    from typing import Any, Callable
+    
+    from bt_api_base.account_protocol import AccountOpenOrder, AccountResourceKey
+    from bt_api_base.execution_correlation_protocol import (
+        ManagedOrderObservationIssuer,
+        OrderCorrelation,
+    )
+    from bt_api_base.execution_query_protocol import (
+        CommissionRateRecord,
+        ExecutionOrderRecord,
+        ExecutionTradeRecord,
+        MarginRateRecord,
+        NOTIONAL_RATE_UNIT_FRACTION_OF_NOTIONAL,
+        RATE_AMOUNT_UNIT_CURRENCY_PER_CONTRACT,
+    )
+    from bt_api_base.market_protocol import MarketInstrumentKey
+>   from bt_api_ctp.account_provider import (
+        _ctp_datetime_utc,
+        _decimal_text,
+        _field,
+        _integer,
+        _utc_text,
+    )
+E   ImportError: cannot import name '_ctp_datetime_utc' from 'bt_api_ctp.account_provider' (/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp/src/bt_api_ctp/account_provider.py)
+
+src/bt_api_ctp/execution_query_projection.py:31: ImportError
+=========================== short test summary info ============================
+FAILED tests/test_account_provider.py::test_active_order_uses_stable_opaque_id_without_strategy_attribution
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[day]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[account]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[broker]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[catalog]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[missing]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[time]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[duplicate]
+FAILED tests/test_account_provider.py::test_active_order_any_unprojectable_row_blocks_complete_snapshot[option]
+FAILED tests/test_account_provider.py::test_terminal_order_is_not_reported_as_open[0]
+FAILED tests/test_account_provider.py::test_terminal_order_is_not_reported_as_open[2]
+FAILED tests/test_account_provider.py::test_terminal_order_is_not_reported_as_open[4]
+FAILED tests/test_account_provider.py::test_terminal_order_is_not_reported_as_open[5]
+FAILED tests/test_account_provider.py::test_snapshot_never_invokes_managed_resolver
+FAILED tests/test_account_provider.py::test_active_native_status_and_quantity_conflict_blocks_snapshot[1-0]
+FAILED tests/test_account_provider.py::test_active_native_status_and_quantity_conflict_blocks_snapshot[3-1]
+FAILED tests/test_account_provider.py::test_query_service_uses_exact_complete_native_scope[account-account]
+FAILED tests/test_account_provider.py::test_query_service_uses_exact_complete_native_scope[positions-positions]
+FAILED tests/test_account_provider.py::test_query_service_uses_exact_complete_native_scope[orders-orders]
+FAILED tests/test_account_provider.py::test_query_service_uses_exact_complete_native_scope[open_orders-orders]
+FAILED tests/test_account_provider_execution_observations.py::test_projects_orders_then_fills_with_opaque_ids_and_no_fee
+FAILED tests/test_account_provider_execution_observations.py::test_duplicated_and_reordered_rows_produce_the_same_facts
+FAILED tests/test_account_provider_execution_observations.py::test_conflicting_rows_of_one_identity_are_refused_not_merged
+FAILED tests/test_account_provider_execution_observations.py::test_a_changed_fact_under_a_published_id_is_refused
+FAILED tests/test_account_provider_execution_observations.py::test_order_progress_is_published_but_fills_are_never_derived_from_it
+FAILED tests/test_account_provider_execution_observations.py::test_an_order_state_regression_is_refused
+FAILED tests/test_account_provider_execution_observations.py::test_a_fill_waits_until_its_order_observation_is_published
+FAILED tests/test_account_provider_execution_observations.py::test_unacknowledged_orders_are_not_published
+FAILED tests/test_account_provider_execution_observations.py::test_foreign_account_instrument_and_day_rows_are_refused_with_counts
+FAILED tests/test_account_provider_execution_observations.py::test_partial_confirm_redelivers_the_remainder_identically
+FAILED tests/test_account_provider_execution_observations.py::test_stale_generations_are_refused_and_each_generation_has_a_fresh_queue
+FAILED tests/test_account_provider_execution_observations.py::test_restart_with_the_same_issuer_secret_gives_identical_fact_ids
+FAILED tests/test_account_provider_execution_observations.py::test_query_interval_bounds_native_queries
+FAILED tests/test_account_provider_execution_observations.py::test_failed_or_untrusted_queries_leave_the_queue_unchanged
+FAILED tests/test_account_provider_execution_observations.py::test_oversized_query_results_fail_closed
+FAILED tests/test_account_provider_execution_observations.py::test_client_order_id_is_verified_only_through_an_issuer_validated_correlation
+FAILED tests/test_iter63_gateway_session.py::test_account_snapshot_active_order_uses_one_real_trader_with_fake_native
+37 failed, 94 passed in 5.69s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/test_account_provider.py tests/test_account_provider_execution_observations.py tests/test_iter63_gateway_session.py` failed. (See above for error)

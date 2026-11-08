@@ -1,0 +1,55 @@
+/private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/ctp/_ctp_base.py:174: RuntimeWarning: CTP C++ extension (_ctp) failed to load; matching extension failed to load. matching=_ctp.cpython-311-darwin.so; expected=_ctp.cpython-311-darwin.so, _ctp.abi3.so, _ctp.so; available=_ctp.cpython-311-darwin.so; import_error=offline synthetic native fixture. All CTP operations will silently no-op.
+  _warnings.warn(
+MODULE bt_api_py /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_py/__init__.py
+MODULE bt_api_base /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_base/__init__.py
+MODULE bt_api_ctp /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/__init__.py
+MODULE bt_api_gateway /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/__init__.py
+MODULE bt_api_py.order_correlation_issuer /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_py/order_correlation_issuer.py
+MODULE bt_api_ctp.account_provider /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/account_provider.py
+MODULE bt_api_ctp.query /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_ctp/query.py
+MODULE bt_api_gateway.account_session_worker /private/tmp/iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/account_session_worker.py
+TEST_SHA256 47e1ab772532a072c7fd27e2de12315c27d392325a0a5276bf75b7146feb286d
+CTP_NATIVE_AND_NETWORK_DISABLED
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r10-r09-baseline-gmsqeno_/pytest-tmp/test_ctp_fills_reach_a_strateg0')
+
+    def test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution(tmp_path):
+        clocks = _Clocks()
+        issuer, issued, provider, journal, publisher, worker = _process(tmp_path, clocks, None)
+>       worker.start()
+
+test_iter60_ctp_gateway_execution_events.py:294: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/account_session_worker.py:398: in start
+    self._refresh_impl()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bt_api_gateway.account_session_worker.GatewayAccountSessionWorker object at 0x105ae1ad0>
+
+    def _refresh_impl(self) -> GatewayAccountSnapshot:
+        generation = self._generation
+        self._freshness_invalidated = True
+        self._state = "refreshing"
+        token = None
+        try:
+            if generation is None or not self._connect_attempted:
+                raise GatewayAccountSessionWorkerError("SESSION_NOT_ACTIVE")
+            token = self._read_model.begin_refresh()
+            try:
+                result = self._provider.read_account(generation=generation, timeout=self._request_timeout)
+            except BaseException as exc:
+                if self._generation == generation:
+                    self._read_model.fail_refresh(token)
+                if isinstance(exc, Exception):
+>                   raise GatewayAccountSessionWorkerError("PROVIDER_READ_FAILED") from None
+E                   bt_api_gateway.account_read_model.GatewayAccountSessionWorkerError: PROVIDER_READ_FAILED
+
+../iter63-r09-packaging-ySGAYCmv/final/install/src/bt_api_gateway/account_session_worker.py:734: GatewayAccountSessionWorkerError
+=========================== short test summary info ============================
+FAILED test_iter60_ctp_gateway_execution_events.py::test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution
+1 failed in 0.04s
+ORIGIN_AUDIT_OK; CTP_NATIVE_NOT_LOADED
+ERROR conda.cli.main_run:execute(125): `conda run python -B -I /tmp/iter63-r10-r09-baseline-gmsqeno_/run.py` failed. (See above for error)

@@ -1,0 +1,54 @@
+{
+  "observed_processes": [
+    {
+      "path": "ctp-23306-1794141549112393000/23306.jsonl",
+      "pid": 23306,
+      "guard_count": 1,
+      "resolved_count": 699,
+      "audit_count": 3,
+      "violations": 0
+    },
+    {
+      "path": "sdk-23305-1794141549112393000/23305.jsonl",
+      "pid": 23305,
+      "guard_count": 1,
+      "resolved_count": 749,
+      "audit_count": 3,
+      "violations": 0
+    },
+    {
+      "path": "sdk-23305-1794141549112393000/23314.jsonl",
+      "pid": 23314,
+      "guard_count": 1,
+      "resolved_count": 121,
+      "audit_count": 2,
+      "violations": 0
+    },
+    {
+      "path": "sdk-23305-1794141549112393000/23317.jsonl",
+      "pid": 23317,
+      "guard_count": 1,
+      "resolved_count": 201,
+      "audit_count": 2,
+      "violations": 0
+    },
+    {
+      "path": "sdk-23305-1794141549112393000/23318.jsonl",
+      "pid": 23318,
+      "guard_count": 1,
+      "resolved_count": 203,
+      "audit_count": 2,
+      "violations": 0
+    },
+    {
+      "path": "sdk-23305-1794141549112393000/23319.jsonl",
+      "pid": 23319,
+      "guard_count": 1,
+      "resolved_count": 218,
+      "audit_count": 2,
+      "violations": 0
+    }
+  ],
+  "scope": "Only recorded processes; issuer fork early-exit children and arbitrary loaders/sys.modules injection are not covered by an independent final audit.",
+  "all_recorded_origins_in_target": true
+}

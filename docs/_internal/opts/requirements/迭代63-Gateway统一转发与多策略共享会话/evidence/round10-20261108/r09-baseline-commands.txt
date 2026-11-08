@@ -1,0 +1,2 @@
+cd /tmp/iter63-r10-r09-baseline-gmsqeno_
+/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -B -I /tmp/iter63-r10-r09-baseline-gmsqeno_/run.py > /tmp/iter63-r10-r09-baseline-gmsqeno_/run.log 2>&1

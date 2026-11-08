@@ -1,0 +1,14 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution _____
+tests/integration/test_iter60_ctp_gateway_execution_events.py:294: in test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution
+    worker.start()
+bt_api/bt_api_gateway/src/bt_api_gateway/account_session_worker.py:398: in start
+    self._refresh_impl()
+bt_api/bt_api_gateway/src/bt_api_gateway/account_session_worker.py:734: in _refresh_impl
+    raise GatewayAccountSessionWorkerError("PROVIDER_READ_FAILED") from None
+E   bt_api_gateway.account_read_model.GatewayAccountSessionWorkerError: PROVIDER_READ_FAILED
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter60_ctp_gateway_execution_events.py::test_ctp_fills_reach_a_strategy_stream_only_with_verified_attribution
+1 failed in 0.39s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/integration/test_iter60_ctp_gateway_execution_events.py` failed. (See above for error)

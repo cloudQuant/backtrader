@@ -1,0 +1,8 @@
+RUN ctp-23306-1794141549112393000
+PID 23306 guard 1 resolved 699 audit 3 violations 0
+RUN sdk-23305-1794141549112393000
+PID 23305 guard 1 resolved 749 audit 3 violations 0
+PID 23314 guard 1 resolved 121 audit 2 violations 0
+PID 23317 guard 1 resolved 201 audit 2 violations 0
+PID 23318 guard 1 resolved 203 audit 2 violations 0
+PID 23319 guard 1 resolved 218 audit 2 violations 0

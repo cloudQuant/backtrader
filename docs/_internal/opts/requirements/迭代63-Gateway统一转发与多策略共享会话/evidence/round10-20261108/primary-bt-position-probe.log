@@ -1,0 +1,5 @@
+position_average_price: 3500
+returned_keys: data_name, direction, position_side, price, price_currency, qty_unit, resource, size, symbol, volume
+missing_broker_fields: instrument, quantity, average_price
+actual_route: None
+control_route_with_instrument_only: 'rb-feed'
