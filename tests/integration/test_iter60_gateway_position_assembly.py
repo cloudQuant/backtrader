@@ -115,7 +115,8 @@ SCENARIO = textwrap.dedent(
             a.datas = [data]; a.data = data
             broker.bind_direct_strategy_ledger(a, ledger, account_positions=stream)  # the stream object
             try:
-                a.getposition(data)
+                # D63-41: the strategy-scope read is explicit.
+                a.get_strategy_position(data)
             except ServiceStrategyAccountBookError as error:
                 assert error.code == "STRATEGY_BOOK_RECONCILIATION_UNVERIFIED", error.code
             else:

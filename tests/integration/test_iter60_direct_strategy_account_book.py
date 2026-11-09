@@ -222,10 +222,14 @@ def _code(order):
 
 
 def test_each_strategy_reads_its_own_position(stack):
-    assert stack.a.getposition(stack.data).size == 2.0
-    assert stack.b.getposition(stack.data).size == 3.0
-    assert stack.a.getpositionbyname(INSTRUMENT).size == 2.0
-    assert stack.a.getpositions()[stack.data].size == 2.0
+    # D63-41: the strategy scope is explicit; the default getters stay account
+    # scope even with a strategy book bound (no automatic switch, no fallback).
+    assert stack.a.get_strategy_position(stack.data).size == 2.0
+    assert stack.b.get_strategy_position(stack.data).size == 3.0
+    account = stack.broker.getposition(stack.data).size
+    assert stack.a.getposition(stack.data).size == account
+    assert stack.a.getpositionbyname(INSTRUMENT).size == account
+    assert stack.a.getpositions()[stack.data].size == account
 
 
 def test_reader_with_provider_positions_fails_closed_on_residual(stack, tmp_path):
@@ -445,7 +449,7 @@ def test_explicit_over_close_is_rejected_before_dispatch(stack):
     assert order.status == order.Rejected
     assert _code(order) == "strategy_ledger_position_flip_refused"
     assert stack.store.sent == []
-    assert stack.b.getposition(stack.data).size == 3.0
+    assert stack.b.get_strategy_position(stack.data).size == 3.0
 
 
 def test_a_second_close_cannot_reuse_pending_capacity(stack):
@@ -486,7 +490,7 @@ def test_unbound_strategy_cannot_trade_on_a_gated_account(stack):
 def test_partial_fill_and_cancel_follow_the_ledger(stack):
     order = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
     _fill(stack.broker, order, 1)
-    assert stack.a.getposition(stack.data).size == 1.0
+    assert stack.a.get_strategy_position(stack.data).size == 1.0
     assert stack.ledger.intent_state(order.info["strategy_ledger_intent_id"]) == "PARTIALLY_FILLED"
     order.cancel()
     stack.broker.notify(order)
@@ -494,8 +498,8 @@ def test_partial_fill_and_cancel_follow_the_ledger(stack):
     rest = stack.a.close(data=stack.data, price=1500.0, exectype=bt.Order.Limit)
     assert rest.status == rest.Accepted and abs(rest.size) == 1.0
     _fill(stack.broker, rest, 1)
-    assert stack.a.getposition(stack.data).size == 0.0
-    assert stack.b.getposition(stack.data).size == 3.0
+    assert stack.a.get_strategy_position(stack.data).size == 0.0
+    assert stack.b.get_strategy_position(stack.data).size == 3.0
 
 
 def test_redelivered_notifications_do_not_double_count(stack):
@@ -503,7 +507,7 @@ def test_redelivered_notifications_do_not_double_count(stack):
     _fill(stack.broker, order, 2)
     stack.broker.notify(order)
     stack.broker.notify(order)
-    assert stack.a.getposition(stack.data).size == 0.0
+    assert stack.a.get_strategy_position(stack.data).size == 0.0
 
 
 def test_unknown_dispatch_keeps_capacity_across_restart(stack):
@@ -795,7 +799,7 @@ def test_direct_ledger_path_runs_with_bt_api_execution_unavailable(tmp_path):
         broker.bind_direct_strategy_ledger(a, ledger, unreconciled=True)
         order = a.close(data=data, price=1500.0, exectype=bt.Order.Limit)
         assert order.status == order.Accepted, order.info.get("error_code")
-        assert a.getposition(data).size == 2.0
+        assert a.get_strategy_position(data).size == 2.0
         loaded = sorted(n for n in sys.modules if n.startswith("bt_api_execution"))
         assert not loaded, loaded
         owner.close()
