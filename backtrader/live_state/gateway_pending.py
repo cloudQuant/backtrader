@@ -395,6 +395,24 @@ class GatewayPendingHost:
         return commit_projection(self, through_sequence, projection, expected_revision=expected_revision,
                                  expected_applied_sequence=expected_applied_sequence)
 
+    def commit_execution_notification_batch(self, through_sequence, projection, notifications, *,
+                                            expected_revision, expected_applied_sequence):
+        from .gateway_execution_state import commit_notification_batch
+        return commit_notification_batch(self, through_sequence, projection, notifications,
+                                         expected_revision=expected_revision,
+                                         expected_applied_sequence=expected_applied_sequence)
+
+    def load_execution_notification_batch(self):
+        from .gateway_execution_state import load_notification_batch
+        return load_notification_batch(self)
+
+    def confirm_execution_notification_batch(self, batch_id, *, expected_revision,
+                                             expected_applied_sequence, expected_projection_digest):
+        from .gateway_execution_state import confirm_notification_batch
+        return confirm_notification_batch(self, batch_id, expected_revision=expected_revision,
+                                          expected_applied_sequence=expected_applied_sequence,
+                                          expected_projection_digest=expected_projection_digest)
+
     def record_execution_ack(self, progress):
         from .gateway_execution_state import record_ack
         return record_ack(self, progress)

@@ -21,12 +21,13 @@ from bt_api_base.gateway_execution_stream_protocol import (
 )
 from bt_api_py.gateway_direct_client import gateway_intent_from_mapping
 
-from ._common import ensure_no_secret_keys, is_strict_int
-from .gateway_pending import _cancel_plan, _cancel_record, _record
+from ._common import ensure_no_secret_keys, is_sha256_hex, is_strict_int
+from .gateway_pending import _binding_mapping, _cancel_plan, _cancel_record, _record
 
 _MAX_EVENTS = 100_000
 _MAX_EVENT_BYTES = 64 * 1024 * 1024
 _MAX_PROJECTION_BYTES = 32 * 1024 * 1024
+_NOTIFICATIONS = "_gateway_notifications"
 _EXECUTION_KEYS = {
     "consumer_ref",
     "epoch",
@@ -43,6 +44,11 @@ _EXECUTION_KEYS = {
 }
 
 
+def _digest(value: object) -> bool:
+    # The shared regex also accepts a trailing newline; this contract does not.
+    return type(value) is str and len(value) == 64 and is_sha256_hex(value)
+
+
 @dataclass(frozen=True)
 class GatewayExecutionCheckpoint:
     consumer_ref: str
@@ -53,6 +59,15 @@ class GatewayExecutionCheckpoint:
     acknowledged_sequence: int
     projection: dict | None
     stored_events: int
+
+    @property
+    def projection_digest(self) -> str | None:
+        """SHA-256 of the complete canonical JSON projection, including the batch."""
+        return (
+            None
+            if self.projection is None
+            else hashlib.sha256(_json_bytes(self.projection)).hexdigest()
+        )
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -101,6 +116,81 @@ def _projection(value: object, limit: int) -> dict:
     if len(_json_bytes(value)) > limit:
         raise ValueError("EXECUTION_PROJECTION_CAPACITY")
     return copy.deepcopy(value)
+
+
+def _notification_batch(execution: dict, binding, batch: object) -> None:
+    if (
+        type(batch) is not dict
+        or set(batch) != {"version", "batch_id", "through_sequence", "notifications", "status"}
+        or type(batch["version"]) is not int
+        or batch["version"] != 1
+        or not _digest(batch["batch_id"])
+        or batch["status"] not in ("pending", "confirmed")
+        or type(batch["status"]) is not str
+        or not is_strict_int(batch["through_sequence"], minimum=1)
+        or batch["through_sequence"] != execution["applied_sequence"]
+        or execution["epoch"] is None
+    ):
+        raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+    notifications = batch["notifications"]
+    if type(notifications) is not list or not 1 <= len(notifications) <= 4096:
+        raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+    ids = set()
+    for item in notifications:
+        if (
+            type(item) is not dict
+            or set(item) != {"notification_id", "kind", "object_key", "payload"}
+            or not _digest(item["notification_id"])
+            or type(item["kind"]) is not str
+            or item["kind"] not in ("order", "trade", "fee")
+            or type(item["object_key"]) is not str
+            or not item["object_key"]
+            or type(item["payload"]) is not dict
+        ):
+            raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+        try:
+            key = item["object_key"].encode("utf-8", errors="strict")
+        except UnicodeEncodeError:
+            raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID") from None
+        if len(key) > 1024 or any(
+            ord(char) < 32 or 127 <= ord(char) <= 159 for char in item["object_key"]
+        ):
+            raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+        if item["notification_id"] in ids:
+            raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+        ids.add(item["notification_id"])
+    if batch["batch_id"] != _batch_id(execution, binding, batch["through_sequence"], notifications):
+        raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+    if (
+        batch["status"] == "pending"
+        and execution["acknowledged_sequence"] >= batch["through_sequence"]
+    ):
+        raise ValueError("EXECUTION_NOTIFICATION_BATCH_INVALID")
+    # The only confirmation change expands the canonical JSON status by two bytes.
+    # Reserve that space before persisting, and reject older unconfirmable candidates.
+    if (
+        batch["status"] == "pending"
+        and len(_json_bytes(execution["projection"])) + len("confirmed") - len("pending")
+        > execution["max_projection_bytes"]
+    ):
+        raise ValueError("EXECUTION_PROJECTION_CAPACITY")
+
+
+def _batch_id(execution: dict, binding, through: int, notifications: list) -> str:
+    value = {
+        "domain": "backtrader.gateway.notifications.v1",
+        "binding": _binding_mapping(binding),
+        "consumer_ref": execution["consumer_ref"],
+        "epoch": execution["epoch"],
+        "through_sequence": through,
+        "notifications": notifications,
+    }
+    return hashlib.sha256(_json_bytes(value)).hexdigest()
+
+
+def _batch(execution: dict):
+    projection = execution["projection"]
+    return None if projection is None else projection["state"].get(_NOTIFICATIONS)
 
 
 def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
@@ -247,6 +337,10 @@ def validate_execution_state(state: dict, binding) -> None:
         raise ValueError("EXECUTION_WATERMARK_INVALID")
     if execution["projection"] is not None:
         _projection(execution["projection"], execution["max_projection_bytes"])
+        if _NOTIFICATIONS in execution["projection"]["state"]:
+            _notification_batch(
+                execution, binding, execution["projection"]["state"][_NOTIFICATIONS]
+            )
     if (execution["applied_sequence"] == 0) != (execution["projection"] is None):
         raise ValueError("EXECUTION_PROJECTION_INVALID")
     if epoch is None and (
@@ -524,6 +618,10 @@ def commit_projection(
     with host._store._lock():
         state, execution = _load(host)
         projection = _projection(projection, execution["max_projection_bytes"])
+        if _NOTIFICATIONS in projection["state"]:
+            raise ValueError("EXECUTION_NOTIFICATION_RESERVED")
+        if _batch(execution) is not None and _batch(execution)["status"] == "pending":
+            raise ValueError("EXECUTION_NOTIFICATION_PENDING")
         if (
             through_sequence == execution["applied_sequence"]
             and execution["projection"] is not None
@@ -546,6 +644,114 @@ def commit_projection(
         return _checkpoint(execution)
 
 
+def commit_notification_batch(
+    host,
+    through_sequence,
+    projection,
+    notifications,
+    *,
+    expected_revision,
+    expected_applied_sequence,
+):
+    if any(
+        not is_strict_int(value, minimum=0)
+        for value in (through_sequence, expected_revision, expected_applied_sequence)
+    ):
+        raise ValueError("EXECUTION_CURSOR_INVALID")
+    with host._store._lock():
+        state, execution = _load(host)
+        projection = _projection(projection, execution["max_projection_bytes"])
+        if _NOTIFICATIONS in projection["state"]:
+            raise ValueError("EXECUTION_NOTIFICATION_RESERVED")
+        # Validate the whole structure before computing its canonical identity.
+        candidate = {
+            "version": 1,
+            "batch_id": "0" * 64,
+            "through_sequence": through_sequence,
+            "notifications": notifications,
+            "status": "pending",
+        }
+        projection["state"][_NOTIFICATIONS] = candidate
+        projection = _projection(projection, execution["max_projection_bytes"])
+        candidate = projection["state"][_NOTIFICATIONS]
+        current = _batch(execution)
+        # A committed identical pending batch is safe to retry after an ambiguous write.
+        if through_sequence == execution["applied_sequence"] and current is not None:
+            candidate["batch_id"] = _batch_id(
+                execution, host._binding, through_sequence, candidate["notifications"]
+            )
+            if current["status"] == "pending" and _json_bytes(projection) == _json_bytes(
+                execution["projection"]
+            ):
+                return _checkpoint(execution)
+        if current is not None and current["status"] == "pending":
+            raise ValueError("EXECUTION_NOTIFICATION_PENDING")
+        if (
+            expected_revision != execution["revision"]
+            or expected_applied_sequence != execution["applied_sequence"]
+        ):
+            raise ValueError("EXECUTION_REVISION_CONFLICT")
+        if through_sequence <= execution["applied_sequence"] or through_sequence not in {
+            item["sequence"] for item in execution["events"]
+        }:
+            raise ValueError("EXECUTION_APPLIED_CONFLICT")
+        candidate["batch_id"] = _batch_id(
+            execution, host._binding, through_sequence, candidate["notifications"]
+        )
+        execution["applied_sequence"] = through_sequence
+        execution["projection"] = projection
+        _notification_batch(execution, host._binding, candidate)
+        execution["revision"] += 1
+        host._store._store(state, trim_history=False)
+        return _checkpoint(execution)
+
+
+def load_notification_batch(host):
+    with host._store._lock():
+        _, execution = _load(host)
+        return copy.deepcopy(_batch(execution))
+
+
+def confirm_notification_batch(
+    host, batch_id, *, expected_revision, expected_applied_sequence, expected_projection_digest
+):
+    if (
+        not _digest(batch_id)
+        or not _digest(expected_projection_digest)
+        or not is_strict_int(expected_revision, minimum=0)
+        or not is_strict_int(expected_applied_sequence, minimum=0)
+    ):
+        raise ValueError("EXECUTION_NOTIFICATION_CONFIRM_INVALID")
+    with host._store._lock():
+        state, execution = _load(host)
+        batch = _batch(execution)
+        if (
+            batch is None
+            or batch["batch_id"] != batch_id
+            or expected_applied_sequence != execution["applied_sequence"]
+        ):
+            raise ValueError("EXECUTION_NOTIFICATION_CONFIRM_CONFLICT")
+        projection = execution["projection"]
+        current_digest = hashlib.sha256(_json_bytes(projection)).hexdigest()
+        if batch["status"] == "confirmed":
+            if expected_revision > execution["revision"]:
+                raise ValueError("EXECUTION_REVISION_CONFLICT")
+            original = copy.deepcopy(projection)
+            original["state"][_NOTIFICATIONS]["status"] = "pending"
+            pending_digest = hashlib.sha256(_json_bytes(original)).hexdigest()
+            if expected_projection_digest not in (pending_digest, current_digest):
+                raise ValueError("EXECUTION_NOTIFICATION_DIGEST_CONFLICT")
+            return _checkpoint(execution)
+        if expected_revision != execution["revision"]:
+            raise ValueError("EXECUTION_REVISION_CONFLICT")
+        if expected_projection_digest != current_digest:
+            raise ValueError("EXECUTION_NOTIFICATION_DIGEST_CONFLICT")
+        batch["status"] = "confirmed"
+        execution["revision"] += 1
+        host._store._store(state, trim_history=False)
+        return _checkpoint(execution)
+
+
 def record_ack(host, progress):
     if type(progress) is not GatewayExecutionStreamProgress:
         raise ValueError("EXECUTION_PROGRESS_INVALID")
@@ -561,6 +767,8 @@ def record_ack(host, progress):
         if progress.acknowledged_sequence > execution["applied_sequence"]:
             raise ValueError("EXECUTION_ACK_AHEAD")
         if progress.acknowledged_sequence > execution["acknowledged_sequence"]:
+            if _batch(execution) is not None and _batch(execution)["status"] == "pending":
+                raise ValueError("EXECUTION_NOTIFICATION_PENDING")
             execution["acknowledged_sequence"] = progress.acknowledged_sequence
             execution["revision"] += 1
             host._store._store(state, trim_history=False)
@@ -568,11 +776,12 @@ def record_ack(host, progress):
 
 
 def has_unresolved_gateway_execution(state: dict) -> bool:
-    """Only persisted watermark gaps are checked, not opaque projection contents."""
+    """Check watermarks and the explicitly persisted notification batch."""
     if state["version"] != 4:
         return False
     execution = state["gateway"]["execution"]
     return (
         execution["stored_sequence"] > execution["applied_sequence"]
         or execution["applied_sequence"] > execution["acknowledged_sequence"]
+        or (_batch(execution) is not None and _batch(execution)["status"] == "pending")
     )
