@@ -322,6 +322,11 @@ class BtApiBroker(
         if self.store is None:
             raise ValueError("BtApiBroker requires a BtApiStore instance")
 
+        if getattr(self.store, "_gateway_mode", False):
+            self.store.start(broker=self)
+            self._live_started = True
+            return
+
         if self._direct_active():
             return
         if self._direct_selected():
@@ -1955,8 +1960,21 @@ class BtApiBroker(
             strategy, self, cursor, limit=limit
         )
 
+    @property
+    def gateway_financial_unavailable(self):
+        """Report why an explicit Gateway account view has no financial values."""
+        if not getattr(self.store, "_gateway_mode", False):
+            return {}
+        return {"cash": "GATEWAY_ACCOUNT_CASH_UNAVAILABLE",
+                "value": "GATEWAY_ACCOUNT_VALUE_UNAVAILABLE",
+                "position_price": "GATEWAY_STRATEGY_POSITION_PRICE_UNAVAILABLE"}
+
     def getcash(self) -> float:
         """Return current available cash."""
+        if getattr(self.store, "_gateway_mode", False):
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                self._gateway_auto_bind()
+            return float("nan")
         if self._direct_active():
             return self._cash
         if not self._uses_async_commands():
@@ -1965,6 +1983,10 @@ class BtApiBroker(
 
     def getvalue(self, datas=None) -> float:
         """Return current portfolio value."""
+        if getattr(self.store, "_gateway_mode", False):
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                self._gateway_auto_bind()
+            return float("nan")
         if self._direct_active():
             return self._value
         if not self._uses_async_commands():
@@ -1973,6 +1995,10 @@ class BtApiBroker(
 
     def getposition(self, data, clone=True, side=None):
         """Return the cached position for a given data feed."""
+        if getattr(self.store, "_gateway_mode", False):
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                self._gateway_auto_bind()
+            raise RuntimeError("GATEWAY_ACCOUNT_POSITION_UNAVAILABLE")
         if self._direct_active():
             return self._direct_getposition(data, clone=clone, side=side)
         if not self._uses_async_commands():
@@ -1987,6 +2013,66 @@ class BtApiBroker(
                 self._sync_net_position(data) if self._is_dual_side_mode() else self.positions[key]
             )
         return position.clone() if clone else position
+
+    def get_strategy_position(self, strategy, data, side=None):
+        if not getattr(self.store, "_gateway_mode", False):
+            return super().get_strategy_position(strategy, data, side=side)
+        if self.__dict__.get("_gateway_stream_binding") is None:
+            self._gateway_auto_bind(strategy)
+        binding = self.__dict__.get("_gateway_stream_binding")
+        if binding is None or binding.strategy is not strategy:
+            raise RuntimeError("GATEWAY_STRATEGY_BINDING_UNAVAILABLE")
+        return self._gateway_position_view(data, side)
+
+    def get_strategy_cash(self, strategy, *, currency=None):
+        if not getattr(self.store, "_gateway_mode", False):
+            return super().get_strategy_cash(strategy, currency=currency)
+        return self._gateway_strategy_financial(strategy, currency, "cash")
+
+    def get_strategy_value(self, strategy, *, datas=None, currency=None):
+        if not getattr(self.store, "_gateway_mode", False):
+            return super().get_strategy_value(strategy, datas=datas, currency=currency)
+        if datas is not None:
+            raise RuntimeError("GATEWAY_STRATEGY_VALUE_UNAVAILABLE")
+        return self._gateway_strategy_financial(strategy, currency, "value")
+
+    def _gateway_strategy_financial(self, strategy, currency, field):
+        from bt_api_py.gateway_strategy_financial import (
+            GatewayStrategyFinancialObservation, GatewayStrategyFinancialResult,
+        )
+
+        if self.__dict__.get("_gateway_stream_binding") is None:
+            self._gateway_auto_bind(strategy)
+        binding = self.__dict__.get("_gateway_stream_binding")
+        if binding is None or binding.strategy is not strategy:
+            raise RuntimeError("GATEWAY_STRATEGY_BINDING_UNAVAILABLE")
+        self._gateway_stream_check(binding)
+        config = getattr(self.store, "gateway_strategy_config", None)
+        configured_currency = getattr(config, "strategy_finance_currency", None)
+        if (type(configured_currency) is not str or not configured_currency
+                or configured_currency != configured_currency.strip()):
+            raise RuntimeError("GATEWAY_STRATEGY_CURRENCY_REQUIRED")
+        if currency is None:
+            currency = configured_currency
+        if currency != configured_currency:
+            raise RuntimeError("GATEWAY_STRATEGY_CURRENCY_MISMATCH")
+        try:
+            result = binding.api.get_strategy_financial(binding.policy.route, currency,
+                                                        timeout_seconds=binding.timeout)
+            observation = result.observation
+            if (type(result) is not GatewayStrategyFinancialResult or result.outcome != "OBSERVED"
+                    or type(observation) is not GatewayStrategyFinancialObservation
+                    or observation.binding != binding.host._binding or observation.currency != currency
+                    or not binding.api.strategy_financial_is_current(
+                        binding.policy.route, observation, max_age_seconds=1.0)):
+                raise ValueError
+            amount = getattr(observation, field)
+            value = float(amount)
+            if not math.isfinite(value) or Decimal(str(value)) != amount:
+                raise ValueError
+            return value
+        except Exception:
+            raise RuntimeError("GATEWAY_STRATEGY_" + field.upper() + "_UNAVAILABLE") from None
 
     def execution_position_snapshot(self, data):
         """Return the Broker's cached position without a provider refresh."""
@@ -2027,8 +2113,13 @@ class BtApiBroker(
 
     def submit(self, order):
         """Submit an order through the store."""
+        if (getattr(self.store, "_gateway_mode", False)
+                and self.__dict__.get("_gateway_stream_binding") is None):
+            self._gateway_auto_bind(order.owner)
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                raise RuntimeError("GATEWAY_STREAM_FEED_NOT_READY")
         if self.__dict__.get("_gateway_stream_binding") is not None:
-            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
+            return self._gateway_submit_order(order)
         if self._direct_active():
             return self._direct_submit(order)
         if getattr(self, "factor_execution_coordinator", None) is not None:
@@ -2263,8 +2354,15 @@ class BtApiBroker(
             raise
     def cancel(self, order):
         """Cancel an existing order through the store."""
+        if (getattr(self.store, "_gateway_mode", False)
+                and self.__dict__.get("_gateway_stream_binding") is None):
+            if order is None:
+                return None
+            self._gateway_auto_bind(order.owner)
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                raise RuntimeError("GATEWAY_STREAM_FEED_NOT_READY")
         if self.__dict__.get("_gateway_stream_binding") is not None:
-            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
+            return self._gateway_cancel_order(order)
         if order is None:
             return None
         if self._direct_active():
@@ -2652,6 +2750,11 @@ class BtApiBroker(
 
     def next(self):
         """Refresh cached balances and positions."""
+        if (getattr(self.store, "_gateway_mode", False)
+                and self.__dict__.get("_gateway_stream_binding") is None):
+            self._gateway_auto_bind()
+            if self.__dict__.get("_gateway_stream_binding") is None:
+                return
         if self.__dict__.get("_gateway_stream_binding") is not None:
             return self._gateway_stream_next()
         if self._direct_active():

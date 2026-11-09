@@ -83,6 +83,15 @@ class Sizer(ParameterizedBase):
         strategy = getattr(self, "strategy", None)
         scoped = getattr(strategy, "_strategy_account_book", None)
         account_book = scoped(self.broker) if callable(scoped) else None
+        if self.uses_account_cash and getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            try:
+                cash = self.strategy.get_strategy_cash(broker=self.broker)
+                available = math.isfinite(cash)
+            except (RuntimeError, TypeError, ValueError, OverflowError):
+                available = False
+            if not available:
+                raise ValueError(f"{type(self).__name__}: Gateway strategy cash is unavailable")
+            return self._getsizing(comminfo, cash, data, isbuy)
         if self.uses_account_cash and account_book is not None:
             return self._getsizing(
                 comminfo, _strategy_cash(account_book, comminfo, type(self).__name__), data, isbuy
@@ -118,6 +127,16 @@ class Sizer(ParameterizedBase):
 
         """
         raise NotImplementedError
+
+    def _strategy_position(self, data):
+        """Use the strategy's order-helper scope, including Gateway binding."""
+        strategy = getattr(self, "strategy", None)
+        if strategy is None:
+            return self.broker.getposition(data)
+        helper = getattr(strategy, "_order_helper_position", None)
+        if callable(helper):
+            return helper(data)
+        return strategy.getposition(data, self.broker)
 
     # Set strategy and broker
     def set(self, strategy, broker):

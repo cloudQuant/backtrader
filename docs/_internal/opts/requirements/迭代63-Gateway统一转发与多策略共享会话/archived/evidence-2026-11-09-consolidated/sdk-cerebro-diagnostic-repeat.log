@@ -1,0 +1,38 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_cerebro_auto_binding_with_configured_rules_and_real_pub _________
+tests/integration/test_iter63_gateway_qualified_order_process.py:281: in test_cerebro_auto_binding_with_configured_rules_and_real_pub
+    strategies = cerebro.run()
+                 ^^^^^^^^^^^^^
+../backtrader/backtrader/cerebro.py:107: in _wrapped
+    result = run_method(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../backtrader/backtrader/cerebro.py:929: in run
+    runstrat = self.runstrategies(iterstrat)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../backtrader/backtrader/_cerebro/execution.py:639: in runstrategies
+    raise run_exception
+../backtrader/backtrader/_cerebro/execution.py:541: in runstrategies
+    self._runnext(runstrats)
+../backtrader/backtrader/_cerebro/runnext.py:1463: in _runnext
+    single_runstrat_next()
+../backtrader/backtrader/strategy.py:1657: in _next_fast_simple
+    self.nextstart()
+../backtrader/backtrader/strategy.py:2071: in nextstart
+    super().nextstart()
+../backtrader/backtrader/lineiterator.py:2064: in nextstart
+    self.next()
+tests/integration/test_iter63_gateway_qualified_order_process.py:216: in next
+    after.ok, after.reason)
+              ^^^^^^^^^^^^
+E   AttributeError: 'FeedTradeQualification' object has no attribute 'reason'
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_qualified_order_process.py::test_cerebro_auto_binding_with_configured_rules_and_real_pub
+1 failed, 1 warning in 3.23s
+ERROR conda.cli.main_run:execute(125): `conda run env BT_SKIP_PYTEST_TMP_CLEANUP=1 DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP PYTHONPATH=/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/integration/test_iter63_gateway_qualified_order_process.py::test_cerebro_auto_binding_with_configured_rules_and_real_pub` failed. (See above for error)

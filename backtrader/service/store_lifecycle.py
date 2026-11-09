@@ -13,6 +13,9 @@ from typing import Optional
 
 def stop_store(store, timeout: Optional[float] = None, *, safe_log):
     """Bound Store work and close only an API this Store owns."""
+    if getattr(store, "_gateway_mode", False):
+        from .gateway_config import stop_gateway_store
+        return stop_gateway_store(store, timeout=timeout)
     managed_borrowed_api = store._managed_runtime_borrowed_api
     if managed_borrowed_api is not None:
         store._managed_runtime_stopped = True
@@ -351,6 +354,9 @@ def stop_synchronous_store_sdk(store, timeout: Optional[float] = None):
 
 def start_store(store, data=None, broker=None, *, error_type, gateway_entrypoint, gateway_error_type):
     """Start the store and attach broker/feed instances."""
+    if getattr(store, "_gateway_mode", False):
+        from .gateway_config import start_gateway_store
+        return start_gateway_store(store, data=data, broker=broker, error_type=error_type)
     legacy_entrypoint = gateway_entrypoint(store.provider, store.backend)
     if legacy_entrypoint is not None:
         raise gateway_error_type(legacy_entrypoint)

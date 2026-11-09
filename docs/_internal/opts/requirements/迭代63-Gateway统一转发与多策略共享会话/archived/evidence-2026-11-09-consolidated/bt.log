@@ -1,0 +1,193 @@
+.......................................................................x [ 20%]
+..........................F............................................. [ 40%]
+........................................................................ [ 60%]
+........................................................................ [ 80%]
+.....................................................FFF.............    [100%]
+=================================== FAILURES ===================================
+________ test_gateway_sizer_guards_cash_but_not_cash_independent_sizer _________
+
+gateway_strategy = (<backtrader.feeds.pandafeed.PandasData object at 0x16917e810>, BtApiBroker(parameters=47), <tests.unit.brokers.test_iter63_gateway_notification_delivery.Strategy object at 0x169164990>, [3.0], [])
+
+    def test_gateway_sizer_guards_cash_but_not_cash_independent_sizer(gateway_strategy):
+        data, broker, strategy, _, _ = gateway_strategy
+        broker.getcash = lambda: float('nan')
+        called = []
+        class CashSizer(bt.Sizer):
+            def _getsizing(self, *_args):
+                called.append('cash')
+                return 1
+        class FixedSizer(CashSizer):
+            uses_account_cash = False
+        cash = CashSizer()
+        cash.set(strategy, broker)
+        with pytest.raises(ValueError, match='cash is unavailable'):
+>           cash.getsizing(data, True)
+
+tests/unit/brokers/test_iter63_gateway_strategy_helpers.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+backtrader/sizer.py:88: in getsizing
+    cash = self.strategy.get_strategy_cash(broker=self.broker)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtrader/strategy.py:4706: in get_strategy_cash
+    return selected.get_strategy_cash(self, currency=currency)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtrader/brokers/btapibroker.py:2030: in get_strategy_cash
+    return self._gateway_strategy_financial(strategy, currency, "cash")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtrader/brokers/btapibroker.py:2045: in _gateway_strategy_financial
+    self._gateway_auto_bind(strategy)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = BtApiBroker(parameters=47)
+strategy = <tests.unit.brokers.test_iter63_gateway_notification_delivery.Strategy object at 0x169164990>
+
+    def _gateway_auto_bind(self, strategy=None):
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            current = self._gateway_stream_binding.strategy
+            if strategy is not None and strategy is not current:
+                _fail("STRATEGY_SCOPE")
+            return current
+        store = self.store
+        if store is None or not getattr(store, "_gateway_mode", False):
+            return None
+        if strategy is None:
+            cerebro = getattr(self, "cerebro", None)
+            strategies = getattr(cerebro, "runningstrats", None) or []
+            if len(strategies) != 1:
+                _fail("STRATEGY_SCOPE")
+            strategy = strategies[0]
+        if getattr(strategy, "broker", None) is not self:
+            _fail("STRATEGY_SCOPE")
+>       configured = store.gateway_strategy_config.instruments_by_ref
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'gateway_strategy_config'
+
+backtrader/brokers/_btapi_gateway_stream.py:66: AttributeError
+___________ test_spawned_gateway_strategy_submits_and_consumes_fill ____________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-5092/test_spawned_gateway_strategy_0')
+
+    def test_spawned_gateway_strategy_submits_and_consumes_fill(tmp_path):
+        ctx = multiprocessing.get_context('spawn')
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+        server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+        client = None
+        server.start()
+        try:
+            ready = _message(gm, 'ready')
+            client = ctx.Process(target=_submitted_client,
+                args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+            client.start()
+>           submitted = _message(cm, 'submitted')
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:652: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = <multiprocessing.queues.Queue object at 0x169557090>, expected = 'submitted'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+>       assert value[0] == expected, value
+E       AssertionError: ('error', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integra...   raise AssertionError(\'synthetic order did not reach SENT\')
+E         AssertionError: synthetic order did not reach SENT
+E         ')
+E       assert 'error' == 'submitted'
+E         
+E         - submitted
+E         + error
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:482: AssertionError
+_________ test_spawned_gateway_store_config_submits_and_consumes_fill __________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-5092/test_spawned_gateway_store_con0')
+
+    def test_spawned_gateway_store_config_submits_and_consumes_fill(tmp_path):
+        ctx = multiprocessing.get_context('spawn')
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+        server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+        client = None
+        server.start()
+        try:
+            ready = _message(gm, 'ready')
+            client = ctx.Process(target=_configured_client,
+                args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+            client.start()
+>           assert _message(cm, 'configured-submitted')[1] == client.pid
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:777: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = <multiprocessing.queues.Queue object at 0x1695e3ed0>
+expected = 'configured-submitted'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+>       assert value[0] == expected, value
+E       AssertionError: ('error', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integra...r(\'configured synthetic order did not reach SENT\')
+E         AssertionError: configured synthetic order did not reach SENT
+E         ')
+E       assert 'error' == 'configured-submitted'
+E         
+E         - configured-submitted
+E         + error
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:482: AssertionError
+_______ test_cerebro_automatically_binds_configured_gateway_before_order _______
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-5092/test_cerebro_automatically_bin0')
+
+    def test_cerebro_automatically_binds_configured_gateway_before_order(tmp_path):
+        ctx = multiprocessing.get_context('spawn')
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+        server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+        client = None
+        server.start()
+        try:
+            ready = _message(gm, 'ready')
+            client = ctx.Process(target=_cerebro_client,
+                args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+            client.start()
+>           assert _message(cm, 'cerebro-submitted')[1] == client.pid
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:880: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = <multiprocessing.queues.Queue object at 0x1695d4350>
+expected = 'cerebro-submitted'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+>       assert value[0] == expected, value
+E       AssertionError: ('cerebro-result', [], 0, 0, True)
+E       assert 'cerebro-result' == 'cerebro-submitted'
+E         
+E         - cerebro-submitted
+E         + cerebro-result
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:482: AssertionError
+--------- generated xml file: /tmp/iter63-consolidated-20261109/bt.xml ---------
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+FAILED tests/unit/brokers/test_iter63_gateway_strategy_helpers.py::test_gateway_sizer_guards_cash_but_not_cash_independent_sizer
+FAILED tests/integration/test_iter63_gateway_stream_consumer_process.py::test_spawned_gateway_strategy_submits_and_consumes_fill
+FAILED tests/integration/test_iter63_gateway_stream_consumer_process.py::test_spawned_gateway_store_config_submits_and_consumes_fill
+FAILED tests/integration/test_iter63_gateway_stream_consumer_process.py::test_cerebro_automatically_binds_configured_gateway_before_order
+4 failed, 352 passed, 1 xfailed in 75.25s (0:01:15)
+ERROR conda.cli.main_run:execute(125): `conda run env DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/unit/brokers/test_iter63_gateway_framework_projection.py tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py tests/unit/brokers/test_iter63_gateway_notification_delivery.py tests/unit/brokers/test_iter63_gateway_strategy_helpers.py tests/unit/brokers/test_iter63_gateway_stream_consumer.py tests/unit/feeds/test_iter63_gateway_market_feed.py tests/unit/stores/test_iter63_gateway_store_config.py tests/unit/live_state/test_iter63_gateway_local_notifications.py tests/unit/live_state/test_iter63_gateway_notification_state.py tests/unit/live_state/test_iter63_gateway_order_bootstrap.py tests/unit/live_state/test_iter63_gateway_trade_date_pending.py tests/unit/live_state/test_iter63_gateway_trade_time_pending.py tests/unit/test_iter63_gateway_notification_resume_hook.py tests/unit/test_iter63_gateway_strategy_notification_hooks.py tests/unit/test_iter60_strategy_scoped_positions.py tests/integration/test_iter63_gateway_stream_consumer_process.py tests/integration/test_iter63_gateway_notification_restart.py -ra --junitxml=/tmp/iter63-consolidated-20261109/bt.xml` failed. (See above for error)

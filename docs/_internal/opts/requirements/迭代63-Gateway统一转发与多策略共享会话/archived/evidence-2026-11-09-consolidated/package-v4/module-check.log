@@ -1,0 +1,3 @@
+claim_fence /private/tmp/iter63-package-v4-final-Pydn2Z/venv/lib/python3.11/site-packages/bt_api_base/claim_fence.py
+sha256 22d360e2ee1efd85c5f9000edeb41c27e323ee0bca7feb75d6d7559e0a299606
+entrypoint bt_api_py.ctp_gateway_local_profile:profile_factory load OK

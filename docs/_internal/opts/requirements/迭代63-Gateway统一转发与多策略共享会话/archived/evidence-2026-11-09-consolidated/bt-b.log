@@ -1,0 +1,169 @@
+.......................................................................x [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 60%]
+........................................................................ [ 80%]
+.....................................................FF................  [100%]
+=================================== FAILURES ===================================
+________ test_spawned_gateway_real_bt_notifications_and_recovery[False] ________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-5388/test_spawned_gateway_real_bt_n0')
+mismatch = False
+
+    @pytest.mark.parametrize("mismatch", [False, True])
+    def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
+        ctx = multiprocessing.get_context("spawn")
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            endpoint = "tcp://127.0.0.1:" + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gateway_messages, gateway_controls = ctx.Queue(), ctx.Queue()
+        client_messages, client_controls = ctx.Queue(), ctx.Queue()
+        server = ctx.Process(
+            target=_gateway,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys,
+                gateway_messages,
+                gateway_controls,
+            ),
+        )
+        clients = []
+        server.start()
+        try:
+            ready = _message(gateway_messages, "ready")
+            assert ready[1] == server.pid != os.getpid()
+            phase = "wrong" if mismatch else "first"
+    
+            def start_client(phase):
+                process = ctx.Process(
+                    target=_client,
+                    args=(
+                        str(tmp_path),
+                        endpoint,
+                        server_keys[0],
+                        client_keys,
+                        ready[2],
+                        phase,
+                        client_messages,
+                        client_controls,
+                    ),
+                )
+                process.start()
+                clients.append(process)
+                bound = _message(client_messages, "bound")
+                assert bound[1:] == (phase, process.pid) and process.pid != os.getpid()
+                return process
+    
+>           first = start_client(phase)
+                    ^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:542: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_iter63_gateway_stream_consumer_process.py:538: in start_client
+    bound = _message(client_messages, "bound")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = <multiprocessing.queues.Queue object at 0x14ee76c50>, expected = 'bound'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+>       assert value[0] == expected, value
+E       AssertionError: ('error', 'first', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/test..."order-a").outcome == "QUEUED"
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError
+E         ')
+E       assert 'error' == 'bound'
+E         
+E         - bound
+E         + error
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:482: AssertionError
+________ test_spawned_gateway_real_bt_notifications_and_recovery[True] _________
+
+tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-5388/test_spawned_gateway_real_bt_n1')
+mismatch = True
+
+    @pytest.mark.parametrize("mismatch", [False, True])
+    def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
+        ctx = multiprocessing.get_context("spawn")
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            endpoint = "tcp://127.0.0.1:" + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gateway_messages, gateway_controls = ctx.Queue(), ctx.Queue()
+        client_messages, client_controls = ctx.Queue(), ctx.Queue()
+        server = ctx.Process(
+            target=_gateway,
+            args=(
+                str(tmp_path),
+                endpoint,
+                server_keys,
+                client_keys,
+                gateway_messages,
+                gateway_controls,
+            ),
+        )
+        clients = []
+        server.start()
+        try:
+            ready = _message(gateway_messages, "ready")
+            assert ready[1] == server.pid != os.getpid()
+            phase = "wrong" if mismatch else "first"
+    
+            def start_client(phase):
+                process = ctx.Process(
+                    target=_client,
+                    args=(
+                        str(tmp_path),
+                        endpoint,
+                        server_keys[0],
+                        client_keys,
+                        ready[2],
+                        phase,
+                        client_messages,
+                        client_controls,
+                    ),
+                )
+                process.start()
+                clients.append(process)
+                bound = _message(client_messages, "bound")
+                assert bound[1:] == (phase, process.pid) and process.pid != os.getpid()
+                return process
+    
+>           first = start_client(phase)
+                    ^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:542: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_iter63_gateway_stream_consumer_process.py:538: in start_client
+    bound = _message(client_messages, "bound")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = <multiprocessing.queues.Queue object at 0x150843c10>, expected = 'bound'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+>       assert value[0] == expected, value
+E       AssertionError: ('error', 'wrong', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/test..."order-a").outcome == "QUEUED"
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError
+E         ')
+E       assert 'error' == 'bound'
+E         
+E         - bound
+E         + error
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:482: AssertionError
+-------- generated xml file: /tmp/iter63-consolidated-20261109/bt-b.xml --------
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+FAILED tests/integration/test_iter63_gateway_stream_consumer_process.py::test_spawned_gateway_real_bt_notifications_and_recovery[False]
+FAILED tests/integration/test_iter63_gateway_stream_consumer_process.py::test_spawned_gateway_real_bt_notifications_and_recovery[True]
+2 failed, 356 passed, 1 xfailed in 39.67s
+ERROR conda.cli.main_run:execute(125): `conda run env BT_SKIP_PYTEST_TMP_CLEANUP=1 DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/unit/brokers/test_iter63_gateway_framework_projection.py tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py tests/unit/brokers/test_iter63_gateway_notification_delivery.py tests/unit/brokers/test_iter63_gateway_strategy_helpers.py tests/unit/brokers/test_iter63_gateway_stream_consumer.py tests/unit/feeds/test_iter63_gateway_market_feed.py tests/unit/stores/test_iter63_gateway_store_config.py tests/unit/live_state/test_iter63_gateway_local_notifications.py tests/unit/live_state/test_iter63_gateway_notification_state.py tests/unit/live_state/test_iter63_gateway_order_bootstrap.py tests/unit/live_state/test_iter63_gateway_trade_date_pending.py tests/unit/live_state/test_iter63_gateway_trade_time_pending.py tests/unit/test_iter63_gateway_notification_resume_hook.py tests/unit/test_iter63_gateway_strategy_notification_hooks.py tests/unit/test_iter60_strategy_scoped_positions.py tests/integration/test_iter63_gateway_stream_consumer_process.py tests/integration/test_iter63_gateway_notification_restart.py -ra --junitxml=/tmp/iter63-consolidated-20261109/bt-b.xml` failed. (See above for error)

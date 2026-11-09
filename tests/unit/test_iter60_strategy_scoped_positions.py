@@ -1,11 +1,9 @@
-"""Iteration 60, P0-2: every position entry point is strategy-scoped.
+"""D63-41 migrates public getters while keeping order helpers strategy-scoped.
 
 Shared account holds 5; strategy A's book owns 2 and strategy B's owns 3.
-Every Strategy position query (by data, by name, collections, properties),
-``close()``, ``order_target_size()`` and the percent sizer must see only the
-strategy's own position; the explicit account-level API and an explicit other
-Broker keep account semantics; per-side reads are refused; an unbound
-strategy keeps plain Broker semantics (backtest compatibility).
+Public position getters return account scope; explicit strategy reads,
+``close()``, ``order_target_size()`` and the percent sizer use the strategy
+book. This intentionally replaces the old 60.11 default getter contract.
 """
 
 from __future__ import annotations
@@ -97,18 +95,19 @@ def pair():
     return a, orders_a, b, orders_b
 
 
-def test_every_query_entry_point_is_strategy_scoped(pair):
+def test_default_getters_are_account_scope_and_explicit_getter_is_strategy_scope(pair):
     a, _orders_a, b, _orders_b = pair
     for strategy, own in ((a, 2.0), (b, 3.0)):
-        assert strategy.getposition(X).size == own
-        assert strategy.getposition(X, strategy.broker).size == own
-        assert strategy.position.size == own
-        assert strategy.getpositionbyname("X").size == own
-        assert strategy.positionbyname.size == own
-        assert strategy.getpositions()[X].size == own
-        assert strategy.positions[X].size == own
-        assert strategy.getpositionsbyname()["X"].size == own
-        assert strategy.positionsbyname["X"].size == own
+        assert strategy.get_strategy_position(X).size == own
+        assert strategy.getposition(X).size == 5.0
+        assert strategy.getposition(X, strategy.broker).size == 5.0
+        assert strategy.position.size == 5.0
+        assert strategy.getpositionbyname("X").size == 5.0
+        assert strategy.positionbyname.size == 5.0
+        assert strategy.getpositions()[X].size == 5.0
+        assert strategy.positions[X].size == 5.0
+        assert strategy.getpositionsbyname()["X"].size == 5.0
+        assert strategy.positionsbyname["X"].size == 5.0
 
 
 def test_empty_strategy_position_is_zero_not_the_account(pair):
@@ -138,9 +137,7 @@ def test_explicit_other_broker_keeps_its_semantics(pair):
 def test_per_side_reads_are_refused_on_every_scoped_entry(pair):
     a, *_ = pair
     with pytest.raises(ValueError, match="per-side"):
-        a.getposition(X, side="long")
-    with pytest.raises(ValueError, match="per-side"):
-        a.getpositionbyname("X", side="long")
+        a.get_strategy_position(X, side="long")
 
 
 def test_close_uses_only_the_strategy_position(pair):

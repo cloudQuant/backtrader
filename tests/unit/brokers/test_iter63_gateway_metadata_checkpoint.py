@@ -84,7 +84,7 @@ def test_date_only_projection_durable_without_second_trade_or_notification(state
         list(strategy.events),
     ) == before
     metadata = checkpoint.projection["state"]["_gateway_strategy"]
-    assert metadata["version"] == 2 and metadata["delivery"] == "none"
+    assert metadata["version"] == 3 and metadata["delivery"] == "none"
     assert metadata["event_fact_digest"] == event.fact_digest
     assert broker.assert_gateway_notifications_ackable(strategy, 6) == checkpoint
     before_bytes = Path(state.pending.path).read_bytes()
@@ -134,6 +134,52 @@ def test_reject_wrong_sequence_normal_trade_cross_strategy_and_date_conflict(sta
     with pytest.raises(ValueError, match="DATE_CONFLICT"):
         broker.commit_gateway_trade_metadata(strategy, 6)
     assert Path(state.pending.path).read_bytes() == before
+
+
+def test_metadata_time_conflict_does_not_mutate_or_ack(state, ready):
+    host, binding, data, broker, strategy, order, original, event = prepare(ready)
+    broker.arm_gateway_notification_state(strategy, 6)
+    order.info['gateway_trade_times'] = {event.observation.trade_key_digest: '10:00:00'}
+    before = Path(state.pending.path).read_bytes()
+    with pytest.raises(ValueError, match='METADATA_TIME_CONFLICT'):
+        broker.commit_gateway_trade_metadata(strategy, 6)
+    assert Path(state.pending.path).read_bytes() == before
+    with pytest.raises(ValueError, match='ACK_BLOCKED'):
+        broker.assert_gateway_notifications_ackable(strategy, 6)
+
+
+def test_legacy_date_only_v2_checkpoint_still_restores(state, ready, monkeypatch):
+    import copy
+
+    host, binding, consumer = ready
+    data, broker, strategy = framework()
+    order = bt.BuyOrder(owner=strategy, data=data, size=2, price=10, exectype=bt.Order.Limit)
+    order.addcomminfo(broker.getcommissioninfo(data))
+    order.submit(broker)
+    order.accept(broker)
+    broker.bind_gateway_notification_state(strategy, host=host, data_by_ref={'rb': data},
+                                            orders_by_key={'key-a': order})
+    original = make_event(host)
+    event = dated(original, 6, trade_time=None)
+    host.ingest_execution_page(page(binding, consumer, [original, event]),
+                               expected_revision=0, after_sequence=0)
+    broker.arm_gateway_notification_state(strategy, 3)
+    fill(broker, strategy, order)
+    strategy._notify()
+    strategy.clear()
+    broker.arm_gateway_notification_state(strategy, 6)
+    commit = host.commit_execution_projection
+    def legacy_commit(sequence, snapshot, **kwargs):
+        snapshot = copy.deepcopy(snapshot)
+        snapshot['state']['_gateway_strategy']['version'] = 2
+        return commit(sequence, snapshot, **kwargs)
+    monkeypatch.setattr(host, 'commit_execution_projection', legacy_commit)
+    checkpoint = broker.commit_gateway_trade_metadata(strategy, 6)
+    assert checkpoint.projection['state']['_gateway_strategy']['version'] == 2
+    assert 'gateway_trade_times' not in order.info
+    _, _, broker2, strategy2, restored = reopen(state, host, binding)
+    assert broker2.assert_gateway_notifications_ackable(strategy2, 6) == restored
+    assert next(iter(broker2.orders.values())).info['gateway_trade_dates'][event.observation.trade_key_digest] == '20261107'
 
 
 def test_unconfirmed_notification_blocks_date_checkpoint(ready):

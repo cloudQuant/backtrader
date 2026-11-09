@@ -1,0 +1,35 @@
+..                                                                       [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 1 warning in 9.70s
+..                                                                       [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 1 warning in 8.77s
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+______________ test_qualified_configured_order_and_clock_failure _______________
+tests/integration/test_iter63_gateway_qualified_order_process.py:504: in test_qualified_configured_order_and_clock_failure
+    assert state["events"].get(timeout=5) == ("synthetic-owner-queued", "QUEUED")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_qualified_order_process.py::test_qualified_configured_order_and_clock_failure
+1 failed, 1 passed, 1 warning in 11.15s
+ERROR conda.cli.main_run:execute(125): `conda run env BT_SKIP_PYTEST_TMP_CLEANUP=1 DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP PYTHONPATH=/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/integration/test_iter63_gateway_qualified_order_process.py` failed. (See above for error)

@@ -216,10 +216,10 @@ def validate_pending_state(raw: Any, path: str, strategy_uuid: Optional[str]) ->
     if not isinstance(raw, dict):
         raise LiveStateCorrupt(path, "not_a_mapping")
     version = raw.get("version")
-    if type(version) is not int or version not in (1, 2, 3, 4, 5):
+    if type(version) is not int or version not in (1, 2, 3, 4, 5, 6):
         raise LiveStateCorrupt(path, "version_unsupported")
     keys = {"version", "strategy_uuid", "active", "history"}
-    if version in (2, 3, 4, 5):
+    if version in (2, 3, 4, 5, 6):
         keys.add("gateway")
     if set(raw) != keys:
         raise LiveStateCorrupt(path, "unexpected_keys")
@@ -229,18 +229,18 @@ def validate_pending_state(raw: Any, path: str, strategy_uuid: Optional[str]) ->
         raise LiveStateCorrupt(path, "invalid_structure")
     seen_marker_ids = set()
     for marker_id, marker in raw["active"].items():
-        _check_marker(marker, path, terminal=False, gateway=version in (2, 3, 4, 5) and isinstance(marker, dict) and "gateway_ref" in marker)
+        _check_marker(marker, path, terminal=False, gateway=version in (2, 3, 4, 5, 6) and isinstance(marker, dict) and "gateway_ref" in marker)
         if marker["marker_id"] != marker_id or marker["host_scope"] != raw["strategy_uuid"]:
             raise LiveStateCorrupt(path, "marker_key_mismatch")
         seen_marker_ids.add(marker_id)
     for marker in raw["history"]:
-        _check_marker(marker, path, terminal=True, gateway=version in (2, 3, 4, 5) and isinstance(marker, dict) and "gateway_ref" in marker)
+        _check_marker(marker, path, terminal=True, gateway=version in (2, 3, 4, 5, 6) and isinstance(marker, dict) and "gateway_ref" in marker)
         if marker["marker_id"] in seen_marker_ids or marker["host_scope"] != raw["strategy_uuid"]:
             raise LiveStateCorrupt(path, "marker_key_mismatch")
         seen_marker_ids.add(marker["marker_id"])
     if strategy_uuid is not None and raw["strategy_uuid"] != strategy_uuid:
         raise LiveStateIdentityMismatch("strategy_uuid_mismatch", "pending.json")
-    if version in (2, 3, 4, 5):
+    if version in (2, 3, 4, 5, 6):
         from .gateway_pending import validate_gateway_state
         validate_gateway_state(raw, path)
     return raw
@@ -544,7 +544,7 @@ class PendingCommandStore:
             old = [m for m in state["history"] if "gateway_ref" not in m]
             remove = {id(m) for m in old[:-self.history_limit]}
             state["history"][:] = [m for m in state["history"] if id(m) not in remove]
-        if state["version"] in (2, 3, 4, 5):
+        if state["version"] in (2, 3, 4, 5, 6):
             # All writers, including the legacy mutation API, share the same
             # cross-reference contract before the atomic replacement.
             validate_pending_state(state, self.paths.pending, self.strategy_uuid)
@@ -596,7 +596,7 @@ class PendingCommandStore:
             for other in state["active"].values():
                 if other["operation"] == "place" and other["local_seq"] == marker["local_seq"]:
                     raise LiveStateError("pending_duplicate_local_seq")
-            if state["version"] in (2, 3, 4, 5):
+            if state["version"] in (2, 3, 4, 5, 6):
                 from .gateway_pending import has_active_gateway_sequence
                 if has_active_gateway_sequence(state, marker["local_seq"]):
                     raise LiveStateError("pending_duplicate_local_seq")

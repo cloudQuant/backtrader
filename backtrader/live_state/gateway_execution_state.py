@@ -193,6 +193,45 @@ def _batch(execution: dict):
     return None if projection is None else projection["state"].get(_NOTIFICATIONS)
 
 
+def verify_gateway_trade_attribution(event, record, binding) -> bool:
+    """Validate a Gateway journal bridge against this durable command.
+
+    The bridge describes the journal's original-order-to-venue alias match;
+    it does not add fields to the native trade observation.
+    """
+    from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+    from bt_api_base.gateway_execution_stream_protocol import GatewayTradeAttribution
+
+    obs = event.observation
+    proof = obs.trade_attribution
+    if proof is None:
+        return False
+    if type(proof) is not GatewayTradeAttribution:
+        raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+    proof = GatewayTradeAttribution.from_mapping(proof.to_mapping())
+    original = set(proof.original_binding_key_digests)
+    strong = set(record.strong_identity_key_digests)
+    if (obs.kind is not DirectExecutionEventKind.TRADE
+            or record.binding != binding or record.request_key != event.request_key
+            or record.native_identity is None
+            or event.command_principal != binding.principal
+            or event.reservation_id != record.reservation_id
+            or event.command_digest != record.digest
+            or proof.account_scope != binding.account_scope
+            or proof.strategy_scope != binding.strategy_scope
+            or proof.fact_digest != event.fact_digest
+            or proof.reservation_id != event.reservation_id
+            or proof.command_digest != event.command_digest
+            or proof.anchor_sequence >= event.sequence
+            or proof.venue_key_digest != obs.venue_key_digest
+            or proof.venue_key_digest not in obs.identity_key_digests
+            or obs.account_scope != binding.account_scope
+            or obs.route != record.native_identity.exchange_name
+            or not original or not original.issubset(strong)):
+        raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+    return True
+
+
 def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
     if type(event) is not GatewayExecutionStreamEvent:
         raise ValueError("EXECUTION_EVENT_INVALID")
@@ -210,6 +249,7 @@ def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
     # the RPC route is not an exchange route and cannot establish this binding.
     if record.native_identity is None:
         raise ValueError("GATEWAY_EXECUTION_IDENTITY_REQUIRED")
+    verify_gateway_trade_attribution(event, record, binding)
     if (
         event.command_principal != binding.principal
         or event.command_digest != intent.digest
@@ -440,7 +480,7 @@ def upgrade_for_execution(
             }
             validate_execution_state(state, host._binding)
             host._store._store(state, trim_history=False)
-        elif state["version"] in (4, 5):
+        elif state["version"] in (4, 5, 6):
             execution = state["gateway"]["execution"]
             if (
                 execution["consumer_ref"] != consumer_ref
@@ -457,7 +497,7 @@ def upgrade_for_execution(
 def _load(host):
     state = host._store._load()
     host._check_state(state)
-    if state["version"] not in (4, 5):
+    if state["version"] not in (4, 5, 6):
         raise ValueError("GATEWAY_EXECUTION_UPGRADE_REQUIRED")
     return state, state["gateway"]["execution"]
 
@@ -792,7 +832,7 @@ def record_ack(host, progress):
 
 def has_unresolved_gateway_execution(state: dict) -> bool:
     """Check watermarks and the explicitly persisted notification batch."""
-    if state["version"] not in (4, 5):
+    if state["version"] not in (4, 5, 6):
         return False
     execution = state["gateway"]["execution"]
     return (

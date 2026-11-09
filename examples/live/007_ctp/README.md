@@ -88,7 +88,7 @@ python -m backtrader.live_state resolve examples/live/007_ctp/sa_dual_ma_direct 
 
 ## 启动与查询相关配置（2026-11-06 更新）
 
-下列键写在 `config.yaml` 中。22 个示例（11 个 `_direct`、11 个 `_gateway`）的 `ctp.private_topic_mode` 与
+下列 direct 专用键写在 `_direct/config.yaml` 中；Gateway 独立配置见文末。11 个 `_direct` 示例的 `ctp.private_topic_mode` 与
 `broker.direct_facts_timeout` 取值相同；`broker.direct_permission_*` 没有写进示例配置，使用 Broker 缺省值，
 需要调整时加在 `broker:` 下。依据是源码与迭代 62 计划条目（I62-01a、I62-12a、I62-13）；SimNow 上的运行记录见迭代 62
 文档，没有真实账户证据，本节不表示任何验收结论。
@@ -177,8 +177,7 @@ Broker 先保留它 `broker.direct_trade_match_window` 秒（缺省 5 秒），�
 Store 停止后也不再重同步。feed 把新会话当作新的连接范围：断线前未完成的 bar 作废、不进数据线，
 新会话第一笔新鲜、有效的 tick 就可用于下单。`store.get_stream_health(<合约>)` 的 `tick_sdk_resyncs`、
 `tick_sdk_resync_failures` 记录成功和失败次数；其中的 `stale` 是累计的丢失证据，重同步不清除它，
-feed 的 LIVE 和下单资格只看 tick 本身。从 Gateway MarketHub 取行情的 Store（`_gateway` 示例）不自动重同步，
-仍保持 fail-closed。证据：UNIT/FAKE（真实的 SDK stream owner 与 Store，脚本化的提供方会话），SimNow NOT_RUN。
+feed 的 LIVE 和下单资格只看 tick 本身。Gateway 的恢复与资格另按文末所述。证据：UNIT/FAKE（真实的 SDK stream owner 与 Store，脚本化的提供方会话），SimNow NOT_RUN。
 
 **进程日志（D62-38 第 7 点，2026-11-06）**：`bt_api_ctp` 的连接、登录和恢复日志是 INFO 级，Python 在没有配置日志时
 只显示 WARNING 及以上，所以以前看不到这些行。`run.py` 启动时在根日志器上装一个输出（stderr，或 `logging.file`），
@@ -186,8 +185,7 @@ feed 的 LIVE 和下单资格只看 tick 本身。从 Gateway MarketHub 取行�
 `Logging: bt_api_ctp=… other=… to=…`；`--dry-run` 只校验并打印，不创建文件。未知键或无效级别拒绝启动。
 这些日志行只含连接代际、交易日、原因码、重试间隔与次数和行情前置地址，不含用户名、密码或认证码；输出还经过
 backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防线。上面的重同步成功行是 backtrader 的 INFO 行，
-要看到它把 `logging.other_level` 设为 `INFO`。`_gateway` 版本的行情会话运行在 `gateway_host.py` 子进程里，
-这个设置不作用于子进程（本次未改），所以 Gateway 的行情连接与恢复行仍看不到；主进程交易会话的行可见。
+要看到它把 `logging.other_level` 设为 `INFO`。独立 Gateway 有自己的日志配置；策略进程的配置不控制 Gateway 服务日志。
 
 ## 订单规则
 
@@ -222,8 +220,7 @@ backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防�
   运行开始前收到的 SIGTERM 会在运行一开始就生效；停止过程中再收到 SIGTERM 只重复请求，不会中断停止，
   确需立即结束用 SIGKILL（不撤单、不写快照，下次启动按对账恢复）。运行结束后恢复原来的信号处理；
   Ctrl+C（SIGINT）行为不变。Windows 的 `TerminateProcess`（包括 `os.kill(pid, signal.SIGTERM)`）无法被捕获，
-  需要优雅停止时向进程组发送 `CTRL_BREAK_EVENT`。`_gateway` 版本的 `gateway_host.py` 子进程仍由 `run.py`
-  结束时停止；如果 SIGTERM 发给整个进程组，它会立即退出（本次未改），之后的撤单仍走 SDK direct。
+  需要优雅停止时向进程组发送 `CTRL_BREAK_EVENT`。Gateway 策略的进程停止不会停止独立 Gateway；Gateway 不可用时不回退 direct。
   证据：UNIT/FAKE（子进程 + 假 Feed/Broker），没有在 SimNow 上发送过 SIGTERM。
 
 ## 证据说明
@@ -231,44 +228,15 @@ backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防�
 这些示例在 SimNow 上运行的记录见迭代 62 的验收文档；没有实际运行或没有触发交易的示例不能当作已验证。
 SimNow 的结果只说明模拟账户上的行为；真实账户使用同一套准入代码路径，但本迭代不提供真实账户证据。
 
-## Gateway 版本（`_gateway`，迭代 62.08）
+## Gateway 版本（`_gateway`，迭代 63）
 
-每个 `_direct` 文件夹都有一个同名的 `_gateway` 文件夹（共 11 个），里面是相同的策略文件、`config.yaml`、
-BT 入口 `run.py` 和 Gateway 进程 `gateway_host.py`，同样自包含。
-
-**当前可运行的组合**：行情来自 Gateway CTP MarketHub，下单走 SDK 直连写入准入（`gateway.orders: direct`，默认）。
-`run.py` 先以子进程启动本目录的 `gateway_host.py`，经进程间管道取得本次运行生成的 CURVE 连接，再运行 Cerebro。
-**订单经 Gateway 托管执行运行时（`gateway.orders: managed`）目前不可用**：`run.py` 在读取凭据前输出
-`BLOCKED`（`managed_gateway_execution_unavailable`）并以退出码 2 结束。
+11 个 `_gateway` 目录复用各自原策略，但行情及订单都经同一账户级独立 Gateway。先启动并授权 Gateway，再启动策略；策略进程不创建 Gateway 子进程、CTP 会话或读取 CTP 凭据，不支持旧 `gateway.orders`、`--orders` 和 `--managed-boot-check`。每个策略必须具有独立已登记身份和本地持久状态，不能复用他人身份。
 
 ```bash
-python examples/live/007_ctp/sa_dual_ma_gateway/run.py --dry-run
-python examples/live/007_ctp/sa_dual_ma_gateway/gateway_host.py --env-file /path/to/.env --check-seconds 60
-python examples/live/007_ctp/sa_dual_ma_gateway/run.py --first-init --env-file /path/to/.env
-python examples/live/007_ctp/sa_dual_ma_gateway/run.py --env-file /path/to/.env --run-seconds 600
-python examples/live/007_ctp/sa_dual_ma_gateway/gateway_host.py --env-file /path/to/.env --managed-boot-check
+conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --dry-run
+conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --run-seconds 600
 ```
 
-### 组成
+`config.yaml` 为公开占位配置，须与实际 Gateway 的账户、策略、会话、合约和授权配置对齐。默认 `local_files` 加载器从受保护文件读取 CURVE 密钥，并要求首次显式 `--first-init` 创建本地身份及示例初始化标记、登记授权后再 `--upgrade-state`；标记仅防误用，不证明账户空仓、writer fence 或授权；也可选择安装可信 `bt_api_py.gateway_example_resources` entry point。密钥不应放进 YAML、命令行或日志；加载器不授予账户权限。文件权限、初始化和受信工厂接口见各示例 README；离线 `--dry-run` 不加载密钥也不联网。
 
-| 进程 | 组件与配置 |
-| --- | --- |
-| Gateway（`gateway_host.py`） | SDK `ctp_gateway_composition.build_ctp_gateway_market_host`：Gateway 组件角色 `market_hub`、端口 `service.market_source`，SimNow 档案取 `gateway.ctp_profile`；订阅频道 `tick`、合约键环境 `demo`，载荷为中立的 `sdk.market.tick`；行情凭据只在此进程读取 |
-| BT 策略（`run.py`） | SDK `create_gateway_market_runtime` 建立 CURVE 客户端；`BtApiStore(provider="ctp", exchange_kwargs=..., write_admission={"CTP___FUTURE": True}, market_runtime_factory=...)`：SDK facade 的行情订阅全部由 Gateway 提供，不再打开进程内 CTP 行情会话；`store.getbroker(strategy_dir=...)` 走直连 Broker（本目录 `state/`、`logs/current_position.yaml`） |
-| 托管执行（`--managed-boot-check`） | SDK `ctp_gateway_execution.build_ctp_gateway_execution`：托管 CTP 运行时以 bt_api_py 写入准入代替 SimNow 审批白名单（登录、结算单回读/确认、按合约 arm），只做启动核验，不下单 |
-
-### 缺口（托管下单）
-
-- **BT 启动证明**：非直连的 SDK Store 的 `get_reconcile_snapshot()` 恒为不完整，托管路径的 Broker 无法证明首次空仓，任何真实 Store 都不能启动托管会话。
-- **CTP OrderRef 切换依据**：托管运行时第一次预留 OrderRef 需要 `CtpOrderRefSeedProof`，目前没有生产签发方（测试中只有合成种子）。
-- **托管撤单恢复**：运行时的撤单恢复绑定仍依赖 SimNow 凭据绑定，SDK 写入准入下无法配置。
-- **单合约**：托管运行时一个账户只服务一个合约，配对策略（`*_pair_*`）无法经托管路径下单。
-- **启动恢复依据**：带持仓或挂单重启时，没有能证明持仓安全、接管挂单的已验证依据。
-
-### 与直连版本的区别
-
-- 行情：Gateway 进程独占 CTP 行情会话，策略进程通过 CURVE 订阅；tick 保留来源时间和 Gateway 接收时间，
-  本进程按直连同样的 SDK 规则判定时钟资格，无法核验的 tick 不作为下单依据。
-- 凭据：`run.py`（直连交易会话）和 Gateway 子进程（行情会话）各自读取，都不打印。
-- 状态：下单仍是直连，所以对账与恢复规则同直连，但状态属于 `_gateway` 文件夹自己；不要与 `_direct` 文件夹同时交易同一账户的同一合约。
-- 证据：Gateway 路径只有本地模拟（INTEGRATION_SIM）结果，尚无 SimNow 运行记录。
+Gateway 会话/行情断线不触发 direct 回退或假设委托已取消；策略停止不会停止共享 Gateway。行情时钟校准默认关闭，必须显式提供受信 SNTP 配置且两端证据有效才可能取得交易资格。当前策略资金和可平仓账本、真实 CTP 一致基线、部分订单类型与完整恢复尚未验收；合成测试和离线配置检查均不是 SimNow 或真实账户证据。详见各目录 README 与迭代 63 验收矩阵。

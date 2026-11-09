@@ -1,0 +1,4 @@
+module /private/tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_py/gateway_reconciliation_candidate.py
+sha256 c88216e548eba0bbec86ab7e5179012ad399a3234247010a97afdb51495e0d99
+SDK 0.16.0.dev63
+entrypoint bt_api_py.ctp_gateway_local_profile:profile_factory load OK

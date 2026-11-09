@@ -97,6 +97,8 @@ class StrategyAccountBookPercentSizer(Sizer):
 
     def _owner_account_book(self):
         strategy = self.strategy
+        if getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            raise ValueError("Gateway cannot mix a separate strategy account book")
         account_book = getattr(strategy, "account_book", None)
         strategy_params = getattr(strategy, "p", None)
         expected_strategy = getattr(strategy_params, "strategy_ref", None)

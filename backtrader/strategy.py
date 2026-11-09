@@ -2981,7 +2981,10 @@ class Strategy(StrategyBase):
         broker = getattr(self, "broker", None)
         validate = getattr(broker, "_gateway_validate_notification_entry", None)
         if callable(validate):
-            validate(self)
+            if id(self) in (getattr(broker, "_gateway_notification_bindings", None) or {}):
+                validate(self, order)
+            else:
+                validate(self)
         # If not simulated trading, add order to pending orders
         if not order.p.simulated:
             self._orderspending.append(order)
@@ -3970,6 +3973,23 @@ class Strategy(StrategyBase):
 
         return None
 
+    def _gateway_helper_offset(self, kwargs, intended):
+        """Keep the helper's explicit intent consistent with its operation."""
+        if not getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            return
+        supplied = kwargs.get("offset")
+        allowed = {"close", "close_today", "close_yesterday"} if intended == "close" else {"open"}
+        if supplied is not None and supplied not in allowed:
+            raise ValueError("Gateway order helper offset conflicts with its intended operation")
+        if supplied is None:
+            kwargs["offset"] = intended
+
+    def _order_helper_position(self, data, side=None):
+        if (getattr(getattr(self.broker, "store", None), "_gateway_mode", False)
+                or self._strategy_account_book(self.broker) is not None):
+            return self.get_strategy_position(data, broker=self.broker, side=side)
+        return self.getposition(data, self.broker, side=side)
+
     def close(self, data=None, size=None, **kwargs) -> Optional[Order]:
         """Close a long or short position.
 
@@ -3993,6 +4013,7 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        self._gateway_helper_offset(kwargs, "close")
         position_side = kwargs.pop("position_side", None)
         position_side = normalize_position_side(position_side)
         broker_mode = normalize_position_mode(
@@ -4003,8 +4024,8 @@ class Strategy(StrategyBase):
 
         if position_side is not None or broker_mode == POSITION_MODE_DUAL_SIDE:
             if position_side is None:
-                long_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_LONG).size)
-                short_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_SHORT).size)
+                long_size = abs(self._order_helper_position(data, side=POSITION_SIDE_LONG).size)
+                short_size = abs(self._order_helper_position(data, side=POSITION_SIDE_SHORT).size)
                 if long_size and short_size:
                     raise ValueError(
                         "close() requires position_side when both long and short legs are open"
@@ -4018,7 +4039,7 @@ class Strategy(StrategyBase):
                 else:
                     return None
             else:
-                possize = abs(self.getposition(data, self.broker, side=position_side).size)
+                possize = abs(self._order_helper_position(data, side=position_side).size)
 
             size = abs(size if size is not None else possize)
             if not size:
@@ -4030,7 +4051,7 @@ class Strategy(StrategyBase):
                 return self.sell(data=data, size=size, **kwargs)
             return self.buy(data=data, size=size, **kwargs)
         # Get the current position size
-        possize = self.getposition(data, self.broker).size
+        possize = self._order_helper_position(data).size
         # If size is None, close the entire position; otherwise close the specified size
         size = abs(size if size is not None else possize)
         # Iteration 60 (P0-2): with a strategy account book bound, close() may
@@ -4320,7 +4341,15 @@ class Strategy(StrategyBase):
             data = self.data
 
         # Get the current position size
-        possize = self.getposition(data, self.broker).size
+        possize = self._order_helper_position(data).size
+        if getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            if not math.isfinite(float(target)):
+                raise ValueError("Gateway target position must be finite")
+            if possize * target < 0:
+                raise ValueError("Gateway target position cannot cross zero in one order")
+            if target != possize:
+                intent = "close" if abs(target) < abs(possize) else "open"
+                self._gateway_helper_offset(kwargs, intent)
         # If target is 0 and position exists, close the position
         if not target and possize:
             return self.close(data=data, size=possize, **kwargs)
@@ -4355,6 +4384,10 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        if getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            if target:
+                raise ValueError("Gateway strategy valuation is unavailable")
+            return self.close(data=data, price=price, **kwargs)
         if self._strategy_account_book(self.broker) is not None:
             return self._strategy_order_target_value(data, target, price, **kwargs)
         # Get the current position size
@@ -4570,6 +4603,10 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        if getattr(getattr(self.broker, "store", None), "_gateway_mode", False):
+            if target:
+                raise ValueError("Gateway strategy valuation is unavailable")
+            return self.close(data=data, **kwargs)
         account_book = self._strategy_account_book(self.broker)
         if account_book is not None:
             # 60.11-R2: the denominator is this strategy's equity (its cash +
@@ -4609,13 +4646,9 @@ class Strategy(StrategyBase):
     def _strategy_account_book(self, broker=None):
         """Return the bound strategy account book when ``broker`` is ours.
 
-        Iteration 60 (60.07, P0-2): a strategy bound to its own account book on
-        a shared account reads its own positions from every position entry
-        point (``getposition``, ``position``, ``getpositionbyname``,
-        ``getpositions``, ``getpositionsbyname`` and their properties), so
-        ``close()``, ``order_target_*()`` and sizers follow. An explicit other
-        Broker keeps that Broker's semantics. Account-wide reads use
-        :meth:`getaccountposition` / :meth:`getaccountpositions`.
+        D63-41 keeps this book strategy-scoped; public position getters default
+        to the Broker's account view. Order helpers and explicit strategy
+        getters still use this book when it is bound to the selected Broker.
         """
         account_book = self.__dict__.get("account_book")
         if account_book is not None and (broker is None or broker is self.broker):
@@ -4630,23 +4663,60 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            The current Position object. With a strategy account book bound,
-            this strategy's own position (never the account total).
+            The Broker's account-scope Position, when available.
 
         Note:
             A property ``position`` is also available as a shortcut.
         """
         data = data if data is not None else self.datas[0]
-        account_book = self._strategy_account_book(broker)
-        if account_book is not None:
-            if side is not None or kwargs:
-                raise ValueError(
-                    "strategy account books hold net positions; "
-                    "per-side position reads are not supported"
-                )
-            return account_book.getposition(data)
         broker = broker or self.broker
         return broker.getposition(data, side=side, **kwargs)
+
+    def get_strategy_position(self, data=None, broker=None, side=None):
+        """Return this strategy's position, never an account-total fallback."""
+        data = data if data is not None else self.datas[0]
+        selected = broker or self.broker
+        account_book = self._strategy_account_book(broker)
+        if getattr(getattr(selected, "store", None), "_gateway_mode", False):
+            if account_book is not None:
+                raise ValueError("Gateway cannot mix a separate strategy account book")
+            return selected.get_strategy_position(self, data, side=side)
+        if account_book is not None:
+            if side is not None:
+                raise ValueError("strategy account books hold net positions; per-side position reads are not supported")
+            return account_book.getposition(data)
+        if self._single_strategy_backbroker(selected):
+            return selected.getposition(data, side=side)
+        return selected.get_strategy_position(self, data, side=side)
+
+    def _single_strategy_backbroker(self, selected):
+        from .brokers.bbroker import BackBroker
+        running = getattr(self.env, "runningstrats", ())
+        return isinstance(selected, BackBroker) and len(running) == 1 and running[0] is self
+
+    def get_strategy_cash(self, broker=None, *, currency=None):
+        selected = broker or self.broker
+        account_book = self._strategy_account_book(broker)
+        if getattr(getattr(selected, "store", None), "_gateway_mode", False) and account_book is not None:
+            raise ValueError("Gateway cannot mix a separate strategy account book")
+        if account_book is not None:
+            return account_book.getcash(currency=currency)
+        if currency is None and self._single_strategy_backbroker(selected):
+            return selected.getcash()
+        return selected.get_strategy_cash(self, currency=currency)
+
+    def get_strategy_value(self, broker=None, *, datas=None, currency=None):
+        selected = broker or self.broker
+        account_book = self._strategy_account_book(broker)
+        if getattr(getattr(selected, "store", None), "_gateway_mode", False) and account_book is not None:
+            raise ValueError("Gateway cannot mix a separate strategy account book")
+        if account_book is not None:
+            if datas is not None or currency is not None:
+                raise ValueError("strategy value selection is unavailable")
+            return account_book.getvalue()
+        if currency is None and self._single_strategy_backbroker(selected):
+            return selected.getvalue(datas=datas)
+        return selected.get_strategy_value(self, datas=datas, currency=currency)
 
     # Property to access position for the default data feed
     position = property(getposition)
@@ -4659,7 +4729,7 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            The current Position object, strategy-scoped like :meth:`getposition`.
+            The account-scope Position, like :meth:`getposition`.
 
         Note:
             A property ``positionbyname`` is also available as a shortcut.
@@ -4677,17 +4747,14 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            Mapping of data feeds to Position objects. With a strategy account
-            book bound, a new dict of this strategy's own positions for every
-            data feed of the run.
+            Mapping of data feeds to account-scope Position objects.
 
         Note:
             A property ``positions`` is also available as a shortcut.
         """
-        account_book = self._strategy_account_book(broker)
-        if account_book is not None:
-            return {data: account_book.getposition(data) for data in self.env.datas}
         broker = broker or self.broker
+        if getattr(getattr(broker, "store", None), "_gateway_mode", False):
+            return {data: broker.getposition(data) for data in self.env.datas}
         return broker.positions
 
     # Property to access all positions
@@ -4700,7 +4767,7 @@ class Strategy(StrategyBase):
             broker: The broker to query. If None, uses the default broker.
 
         Returns:
-            OrderedDict mapping data names to Position objects, strategy-scoped
+            OrderedDict mapping data names to account-scope Position objects,
             like :meth:`getpositions`.
 
         Note:
@@ -4730,6 +4797,8 @@ class Strategy(StrategyBase):
     def getaccountpositions(self, broker=None):
         """Account-wide positions from the Broker, ignoring any strategy book."""
         broker = broker or self.broker
+        if getattr(getattr(broker, "store", None), "_gateway_mode", False):
+            return {data: broker.getposition(data) for data in self.env.datas}
         return broker.positions
 
     def _addsizer(self, sizer, *args, **kwargs):

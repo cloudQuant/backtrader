@@ -1,42 +1,14 @@
 ﻿# bbroker_5s_single_symbol_gateway
 
-rb2701 tick 输入，策略内聚合 5 秒 bar 的单品种均线策略。这是 `SingleSymbolMaStrategy` 的 Gateway 版本（迭代 62，62.08）。`run.py` 先启动本目录的 Gateway 进程
-（`gateway_host.py`），策略的行情全部来自 Gateway CTP MarketHub；下单目前走 SDK 直连写入准入
-（与 `../bbroker_5s_single_symbol_direct/` 相同的直连 Broker，本目录就是一个独立的策略实例）。
+本示例通过独立的账户级 Gateway 接收行情和提交订单。先启动并授权该 Gateway，再启动策略；不会在策略进程中创建 CTP 会话、Gateway 服务或读取 CTP 凭据。Gateway 不可用时不会回退到 direct。
 
-**订单经 Gateway 托管执行运行时（`gateway.orders: managed`）目前不可用**：`run.py` 会在读取凭据之前
-输出 `BLOCKED`（`managed_gateway_execution_unavailable`），原因见上级 README 的“缺口”一节。
+## 配置与启动
 
-## 运行（SimNow 标准环境交易时段）
+1. 复制公开 `config.yaml`，将 `gateway_strategy` 中的身份、作用域、服务地址、合约和订阅配置为与已注册 Gateway 一致；示例身份和 localhost 端口仅是占位符，不能授予权限。多个策略各使用独立的已登记身份与本地状态目录。
+2. 默认 `gateway_resource_provider: local_files` 使用内置加载器。`gateway_resource_files` 只配置 Gateway 公钥、策略公钥和策略私钥的文件路径；每个文件为一行 Z85 CURVE 密钥。文件必须属于当前用户；策略私钥权限不得允许组或其他用户访问，公钥文件不得允许组或其他用户写入。路径及父目录不能是符号链接，不接受不可信的可写目录。当前本地文件权限检查仅支持 POSIX；其他平台明确拒绝，需另行配置受信资源工厂。不要把密钥写入 YAML、命令参数或日志。也可选择受信安装的 `bt_api_py.gateway_example_resources` entry point，工厂签名为 `provider(config=parsed_gateway_config, strategy_dir=Path, first_init=bool)`，返回 `(GatewayPendingHost, security_profiles)`；配置引用本身不授予账户权限。
+3. 离线检查：`conda run -n base python run.py --config config.yaml --dry-run`；只解析配置，不读取密钥、不连接网络，也不证明 Gateway 或账户可用。新策略先运行 `--first-init`：仅创建本地随机身份并停止，运营从本地 `state/identity.json` 查看 UUID，将它登记到 Gateway，并将公开配置中的 strategy_scope、strategy_ref 与 actor_ref 等身份设为一致；这一步不建立账户或交易授权。之后显式运行 `--upgrade-state`，在独占运行锁下将新的空白本地状态按已有版本逐步升级，然后停止；再正常运行。v1 升级还要求该示例 `--first-init` 创建的同 UUID 本地初始化标记；旧 direct 状态、缺标记或标记不匹配均拒绝。标记只防止误操作，不证明账户空仓、writer fence 或授权；如身份写入后标记创建前崩溃，应停止并由运营审查，不能手工伪造或清空状态。已有直连策略须按已批准的空仓迁移与对账流程处理。
+4. `feed.gateway_clock_verification` 默认关闭；未配置可信 SNTP 来源时行情不可取得交易资格。需要按部署的受信时钟方案显式配置，例如 `servers`，并确保 Gateway 端也有有效校时及身份授权。配置本身不建立时钟、资金或交易权限。
 
-```bash
-python run.py --dry-run                                    # 离线校验配置并构建 Gateway 档案
-python gateway_host.py --env-file /path/to/.env --check-seconds 60    # 只核验 Gateway 行情
-python run.py --first-init --env-file /path/to/.env        # 只在第一次，账户须空仓且无挂单
-python run.py --env-file /path/to/.env --run-seconds 600   # 以后每次
-python gateway_host.py --env-file /path/to/.env --managed-boot-check  # 托管运行时在 SDK 准入下的启动核验（不下单）
-```
+`Ctrl+C`/SIGTERM 或 `--run-seconds` 使用原 Cerebro 停止路径；关闭策略不会停止独立 Gateway。Gateway 暂时不可达、恢复证据不足或授权失效时必须等待/拒绝，不能认为委托已经取消或重新提交。手工交易和其他策略持仓不属于本策略；具体对账按 Gateway 账户事实执行。
 
-| 文件 | 内容 |
-| --- | --- |
-| `single_symbol_ma_strategy.py` | `SingleSymbolMaStrategy`；与 `../bbroker_5s_single_symbol_direct/` 中的同名文件内容相同 |
-| `run.py` | 启动 Gateway 子进程并经管道取得本次运行的 CURVE 连接，`BtApiStore(..., market_runtime_factory=...)` 从 Gateway 取行情，直连 Broker 下单，带超时运行后输出对账与停止摘要并关闭 Gateway |
-| `gateway_host.py` | Gateway 进程：SDK `ctp_gateway_composition` 组装的 CTP MarketHub（订阅频道 `tick`，键环境 `demo`）；`--check-seconds` 单独核验行情，`--managed-boot-check` 在 SDK 写入准入下启动并关闭托管运行时 |
-| `config.yaml` | 合约与交易所、`gateway`（SimNow 档案、订单路径、核验时长、托管准入）、直连写入准入、Broker、feed、策略参数 |
-
-凭据从 `SIMNOW_USER_ID` / `SIMNOW_PASSWORD`（或 `--env-file`）读取：`run.py` 用于本进程的直连交易会话，
-Gateway 子进程自己读取用于行情会话；两边都不打印。CURVE 密钥每次运行新生成，只经进程间管道传递。
-
-## 行情时钟
-
-Gateway 转发的 tick 保留 CTP 来源时间与 Gateway 接收时间；本进程在 SDK 中按直连同样的规则做时钟资格判断
-（NTP 证据加交易会话登录时的交易所时间）。无法核验的 tick 只用于指标，不作为下单依据（D62-21/27）。
-
-## 对账、恢复与状态
-
-下单走直连，因此状态和恢复与直连版本相同，但属于本目录：`state/`（策略身份、局部序号、未决标记、待发单）
-和 `logs/current_position.yaml`（对账基线）。首次运行要 `--first-init` 且账户空仓、无挂单；
-以后每次启动按直连规则核对持仓与挂单（详见上级 README 的直连部分）。不要和 `_direct` 目录同时交易同一账户的同一合约。
-
-托管路径（`--orders managed`）的状态归属应是执行服务的持久日志，不使用本目录的 `state/`；
-它目前没有可用的启动证明和恢复依据，因此空仓首次启动和带仓/挂单重启都明确不可用。
+当前功能仍在开发验收中：策略资金/可平仓账本、真实 CTP 可信基线、部分订单类型和完整恢复尚未完成。示例中的占位配置、手续费参数或离线检查均不证明真实账户可交易。

@@ -41,6 +41,15 @@ def _text(value):
     return type(value) is str and bool(value) and value == value.strip() and len(value) <= 512
 
 
+def _quick(strategy):
+    value = getattr(strategy, "_quicknotify", None)
+    if value is None:
+        value = strategy.cerebro.p.quicknotify
+    if type(value) is not bool:
+        _error("QUICK_MODE")
+    return value
+
+
 _STRATEGY_FIELDS = {
     "version",
     "through_sequence",
@@ -64,23 +73,43 @@ def _metadata_event(event):
 
     obs = event.observation
     date = obs.trade_date
+    time = obs.trade_time
     key = obs.trade_key_digest
     if (
         obs.kind is not DirectExecutionEventKind.TRADE
         or obs.trade_metadata_only is not True
-        or type(date) is not str
-        or len(date) != 8
-        or any(ch not in "0123456789" for ch in date)
+        or (date is None and time is None)
         or type(key) is not str
         or len(key) != 64
         or any(ch not in "0123456789abcdef" for ch in key)
     ):
         _error("METADATA_EVENT_INVALID")
     try:
-        datetime.date(int(date[:4]), int(date[4:6]), int(date[6:]))
-    except ValueError:
+        if date is not None:
+            if type(date) is not str or len(date) != 8 or any(ch not in "0123456789" for ch in date):
+                raise ValueError
+            datetime.date(int(date[:4]), int(date[4:6]), int(date[6:]))
+        if time is not None:
+            if (type(time) is not str or len(time) != 8 or time[2] != ':' or time[5] != ':'
+                    or any(ch not in '0123456789' for ch in time[:2] + time[3:5] + time[6:])):
+                raise ValueError
+            datetime.time(int(time[:2]), int(time[3:5]), int(time[6:]))
+    except (TypeError, ValueError):
         _error("METADATA_EVENT_INVALID")
-    return key, date
+    return key, date, time
+
+
+def _metadata_maps_match(info, key, date, time, version):
+    """Check facts saved by this checkpoint; v2 predates time metadata."""
+    if version == 2 and date is None:
+        return False
+    for name, value in (("gateway_trade_dates", date), ("gateway_trade_times", time)):
+        if value is None or (version == 2 and name == "gateway_trade_times"):
+            continue
+        values = info.get(name)
+        if type(values) is not dict or values.get(key) != value:
+            return False
+    return True
 
 
 def _reject_metadata_notification(event):
@@ -116,6 +145,7 @@ class _Binding:
     active: object = None
     candidate: object = None
     fault: object = None
+    local_candidate: object = None
 
 
 class GatewayNotificationsBrokerMixin:
@@ -233,10 +263,11 @@ class GatewayNotificationsBrokerMixin:
             "service_execution_recovery_managed"
         ):
             _error("MODE_CONFLICT")
-        if (
-            binding.host.load_intent(request_key) is None
-            or binding.host.load_record(request_key) is None
-        ):
+        intent = binding.host.load_intent(request_key)
+        record = binding.host.load_record(request_key)
+        local = binding.host.local_order_notifications().get(request_key)
+        if (intent is None or (record is None and (local is None
+                or binding.host.load_order_snapshot(request_key) is None))):
             _error("ORDER_BINDING")
         current = binding.orders.get(request_key)
         if current is not None:
@@ -285,7 +316,7 @@ class GatewayNotificationsBrokerMixin:
         return event
 
     def commit_gateway_trade_metadata(self, strategy, through_sequence):
-        """Persist a date-only event and the actual framework snapshot, without a callback."""
+        """Persist an enrichment event and framework snapshot, without a callback."""
         binding = self._gateway_binding(strategy, required=True)
         if type(through_sequence) is not int or through_sequence <= 0:
             _error("SEQUENCE")
@@ -293,7 +324,7 @@ class GatewayNotificationsBrokerMixin:
             checkpoint = binding.host.load_execution_checkpoint()
             projection = checkpoint.projection
             metadata = None if projection is None else projection["state"].get("_gateway_strategy")
-            if type(metadata) is dict and metadata.get("version") == 2:
+            if type(metadata) is dict and metadata.get("version") in (2, 3):
                 return self.assert_gateway_notifications_ackable(strategy, through_sequence)
             _error("NOT_ARMED")
         if (
@@ -310,7 +341,7 @@ class GatewayNotificationsBrokerMixin:
             or strategy._tradespending
         ):
             _error("METADATA_SCOPE")
-        key, date = _metadata_event(binding.armed)
+        key, date, time = _metadata_event(binding.armed)
         order = binding.orders.get(binding.armed.request_key)
         if order is None or self._gateway_request(binding, order) != binding.armed.request_key:
             _error("ORDER_BINDING")
@@ -327,21 +358,23 @@ class GatewayNotificationsBrokerMixin:
             or (batch is not None and batch["status"] != "confirmed")
         ):
             _error("METADATA_SCOPE")
-        dates = order.info.get("gateway_trade_dates")
-        if dates is None:
-            dates = {}
-        if type(dates) is not dict:
-            _error("METADATA_DATE_CONFLICT")
-        if key in dates and (type(dates[key]) is not str or dates[key] != date):
-            _error("METADATA_DATE_CONFLICT")
-        new_dates = dict(dates)
-        new_dates[key] = date
+        updates = {}
+        for name, value, conflict in (("gateway_trade_dates", date, "METADATA_DATE_CONFLICT"),
+                                      ("gateway_trade_times", time, "METADATA_TIME_CONFLICT")):
+            if value is None:
+                continue
+            values = order.info.get(name)
+            if values is None:
+                values = {}
+            if type(values) is not dict or (key in values and values[key] != value):
+                _error(conflict)
+            updates[name] = {**values, key: value}
         # After changing the actual order, failures require a reload before any further work.
         binding.fault = "restart_required"
-        order.info["gateway_trade_dates"] = new_dates
+        order.info.update(updates)
         snapshot, *_ = self._gateway_graph(binding, [], [])
         metadata = snapshot["state"]["_gateway_strategy"]
-        metadata.update(version=2, delivery="none", event_fact_digest=binding.armed.fact_digest)
+        metadata.update(version=3, delivery="none", event_fact_digest=binding.armed.fact_digest)
         checkpoint = binding.host.commit_execution_projection(
             through_sequence,
             snapshot,
@@ -498,7 +531,7 @@ class GatewayNotificationsBrokerMixin:
             "position_slots": position_slots,
             "fee_applied": applied,
             "fee_trades": last_trade,
-            "quick": bool(strategy._quicknotify),
+            "quick": _quick(strategy),
             "fee": None,
         }
         snapshot = capture_framework_state(
@@ -602,12 +635,34 @@ class GatewayNotificationsBrokerMixin:
             if binding.armed is not None:
                 _error("EMPTY")
             return None
+        if binding.replaying and binding.receipt is not None and binding.receipt.phase == "local":
+            binding.active = binding.receipt
+            return binding.receipt
         if binding.replaying:
             if binding.receipt is None or binding.replay_phase != "notifications":
                 _error("RECEIPT")
             binding.replay_phase = "in_callback"
             binding.active = binding.receipt
             return binding.receipt
+        if binding.armed is None and binding.receipt is None and not trades:
+            pending = binding.host.local_order_notifications()
+            selected = {}
+            for order in orders:
+                key = self._gateway_request(binding, order)
+                notice_key = key if order.status == order.Submitted else "cancel:" + key
+                entry = pending.get(notice_key)
+                if (entry is None or entry["status"] != "pending"
+                        or getattr(order, "notification_id", None) != entry["notification_id"]
+                        or order.status not in (order.Submitted, order.Canceled)
+                        or order.executed.size != 0 or notice_key in selected):
+                    _error("LOCAL_NOTIFICATION_SCOPE")
+                selected[notice_key] = entry["notification_id"]
+            if not selected:
+                _error("EMPTY")
+            receipt = _Receipt(binding, "local", None, _hash(selected))
+            binding.local_candidate = (selected, list(orders))
+            binding.receipt = binding.active = receipt
+            return receipt
         if binding.fee_receipt is not None:
             if not binding.fee_ready or binding.receipt is not binding.fee_receipt:
                 _error("FEE_PHASE")
@@ -636,7 +691,7 @@ class GatewayNotificationsBrokerMixin:
         binding.active = receipt
         return receipt
 
-    def _gateway_validate_notification_entry(self, strategy):
+    def _gateway_validate_notification_entry(self, strategy, order=None):
         """Reject a new framework notification before it changes Strategy state."""
         binding = self._gateway_binding(strategy)
         if binding is None:
@@ -648,7 +703,15 @@ class GatewayNotificationsBrokerMixin:
         if binding.receipt is not None:
             _error("PENDING")
         if binding.armed is None:
-            _error("NOT_ARMED")
+            key = self._gateway_request(binding, order)
+            notice_key = key if order.status == order.Submitted else "cancel:" + key
+            notice = binding.host.local_order_notifications().get(notice_key)
+            if (notice is None or notice["status"] != "pending"
+                    or getattr(order, "notification_id", None) != notice["notification_id"]
+                    or order.status not in (order.Submitted, order.Canceled)
+                    or order.executed.size != 0):
+                _error("NOT_ARMED")
+            return None
         _reject_metadata_notification(binding.armed)
         return None
 
@@ -735,6 +798,11 @@ class GatewayNotificationsBrokerMixin:
             _error("RECEIPT")
         if binding.fault is not None:
             _error("FAULT")
+        if receipt.phase == "local":
+            binding.host.confirm_local_order_notifications(binding.local_candidate[0])
+            binding.local_candidate = None
+            binding.receipt = binding.active = None
+            return
         if receipt.phase == "fee":
             binding.fee_ready = True
             binding.candidate[2][0].notification_id = binding.candidate[1][1]["notification_id"]
@@ -777,6 +845,21 @@ class GatewayNotificationsBrokerMixin:
             _error("FAULT")
         if binding.fault not in (None, "retryable"):
             _error("FAULT")
+        if binding.receipt is not None and binding.receipt.phase == "local":
+            if qorders or qtrades or binding.local_candidate is None:
+                _error("PENDING_NEW_NOTIFICATIONS")
+            _, orders = binding.local_candidate
+            for order in orders:
+                order.replayed = True
+            binding.replaying = True
+            try:
+                if _quick(strategy):
+                    strategy._notify(qorders=orders, qtrades=[])
+                else:
+                    strategy._notify()
+            finally:
+                binding.replaying = False
+            return True
         pending = (
             binding.restored is not None
             or binding.receipt is not None
@@ -803,13 +886,13 @@ class GatewayNotificationsBrokerMixin:
             type(metadata) is not dict
             or set(metadata) != _STRATEGY_FIELDS | {"delivery", "event_fact_digest"}
             or type(metadata["version"]) is not int
-            or metadata["version"] != 2
+            or metadata["version"] not in (2, 3)
             or metadata["delivery"] != "none"
             or type(metadata["delivery"]) is not str
             or type(metadata["through_sequence"]) is not int
             or metadata["through_sequence"] != checkpoint.applied_sequence
             or type(metadata["quick"]) is not bool
-            or metadata["quick"] != bool(binding.strategy._quicknotify)
+            or metadata["quick"] != _quick(binding.strategy)
             or type(metadata["originals"]) is not dict
             or not metadata["originals"]
             or metadata["fee"] is not None
@@ -830,7 +913,7 @@ class GatewayNotificationsBrokerMixin:
         ):
             _error("METADATA_CHECKPOINT_INVALID")
         event = events[0]
-        key, date = _metadata_event(event)
+        key, date, time = _metadata_event(event)
         original_key = metadata["originals"].get(event.request_key)
         state = _validate(snapshot, _sources(binding.feeds))
         if type(original_key) is not str or original_key not in state["orders"]:
@@ -840,16 +923,14 @@ class GatewayNotificationsBrokerMixin:
             groups["info"], groups["info_nodes"], {name: object() for name in state["orders"]}
         )
         info = infos[state["orders"][original_key]["info"]]
-        dates = info.get("gateway_trade_dates")
-        if type(dates) is not dict or dates.get(key) != date:
+        if not _metadata_maps_match(info, key, date, time, metadata["version"]):
             _error("METADATA_CHECKPOINT_INVALID")
         if require_order:
             order = binding.orders.get(event.request_key)
             if (
                 order is None
                 or self._gateway_request(binding, order) != event.request_key
-                or type(order.info.get("gateway_trade_dates")) is not dict
-                or order.info["gateway_trade_dates"].get(key) != date
+                or not _metadata_maps_match(order.info, key, date, time, metadata["version"])
             ):
                 _error("METADATA_CHECKPOINT_INVALID")
         return event, metadata
@@ -924,11 +1005,11 @@ class GatewayNotificationsBrokerMixin:
             type(metadata) is not dict
             or set(metadata) != fields
             or type(metadata["version"]) is not int
-            or metadata["version"] != (2 if is_metadata else 1)
+            or metadata["version"] not in ((2, 3) if is_metadata else (1,))
             or type(metadata["through_sequence"]) is not int
             or metadata["through_sequence"] != checkpoint.applied_sequence
             or type(metadata["quick"]) is not bool
-            or metadata["quick"] != bool(strategy._quicknotify)
+            or metadata["quick"] != _quick(strategy)
             or type(metadata["originals"]) is not dict
             or not metadata["originals"]
         ):
@@ -1060,9 +1141,9 @@ class GatewayNotificationsBrokerMixin:
         binding.armed, binding.arm_checkpoint = events[0], checkpoint
         try:
             if is_metadata:
-                key, date = _metadata_event(events[0])
-                dates = originals[events[0].request_key].info.get("gateway_trade_dates")
-                if type(dates) is not dict or dates.get(key) != date:
+                key, date, time = _metadata_event(events[0])
+                if not _metadata_maps_match(originals[events[0].request_key].info,
+                                            key, date, time, metadata["version"]):
                     _error("RESTORE_INVALID")
             notices = [] if is_metadata else batch["notifications"]
             expected = []

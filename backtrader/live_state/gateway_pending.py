@@ -158,7 +158,7 @@ def has_unresolved_gateway_intents(state: dict) -> bool:
 
 
 def has_unresolved_gateway_cancels(state: dict) -> bool:
-    if state["version"] not in (3, 4, 5):
+    if state["version"] not in (3, 4, 5, 6):
         return False
     entries = state["gateway"]["intents"]
     markers = _marker_index(state)
@@ -209,12 +209,14 @@ def validate_gateway_state(state: dict, path: str) -> None:
     try:
         gateway = state["gateway"]
         gateway_keys = {"binding", "max_entries", "intents"}
-        if state["version"] in (3, 4, 5):
+        if state["version"] in (3, 4, 5, 6):
             gateway_keys |= {"max_cancel_entries", "cancel_attempts"}
-        if state["version"] in (4, 5):
+        if state["version"] in (4, 5, 6):
             gateway_keys.add("execution")
-        if state["version"] == 5:
+        if state["version"] in (5, 6):
             gateway_keys |= {"order_snapshots", "max_order_snapshot_bytes"}
+        if state["version"] == 6:
+            gateway_keys.add("local_notifications")
         if type(gateway) is not dict or set(gateway) != gateway_keys:
             raise ValueError("gateway_shape")
         binding = _binding_from_mapping(gateway["binding"])
@@ -311,7 +313,7 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
                     raise ValueError("duplicate_local_seq")
                 unresolved_sequences.add(seq)
-        if state["version"] in (3, 4, 5):
+        if state["version"] in (3, 4, 5, 6):
             max_cancels, attempts = gateway["max_cancel_entries"], gateway["cancel_attempts"]
             if (not is_strict_int(max_cancels, minimum=1) or max_cancels > _MAX_ENTRIES
                     or type(attempts) is not dict or len(attempts) > max_cancels):
@@ -325,10 +327,10 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if attempt["record"] is not None:
                     record = _cancel_record(attempt["record"], binding, plan)
                     validate_gateway_cancel_record_progress(None, record)
-        if state["version"] in (4, 5):
+        if state["version"] in (4, 5, 6):
             from .gateway_execution_state import validate_execution_state
             validate_execution_state(state, binding)
-        if state["version"] == 5:
+        if state["version"] in (5, 6):
             from .gateway_order_state import validate_order_state
             validate_order_state(state)
     except Exception as exc:
@@ -389,6 +391,28 @@ class GatewayPendingHost:
         from .gateway_order_state import save_order_intent
         save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref, snapshot=snapshot)
 
+    def upgrade_for_local_notifications(self):
+        from .gateway_order_state import upgrade_for_local_notifications
+        return upgrade_for_local_notifications(self)
+
+    def save_submitted_order_intent(self, intent: Any, *, local_seq: int, bt_ref: int,
+                                    snapshot: dict) -> None:
+        from .gateway_order_state import save_order_intent
+        save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref,
+                          snapshot=snapshot, local_submitted=True)
+
+    def local_order_notifications(self):
+        from .gateway_order_state import local_notifications
+        return local_notifications(self)
+
+    def save_released_order_notification(self, request_key, *, bt_ref, snapshot):
+        from .gateway_order_state import save_released_notification
+        return save_released_notification(self, request_key, bt_ref=bt_ref, snapshot=snapshot)
+
+    def confirm_local_order_notifications(self, entries):
+        from .gateway_order_state import confirm_local_notifications
+        return confirm_local_notifications(self, entries)
+
     def load_order_snapshot(self, request_key: str):
         from .gateway_order_state import load_order_snapshot
         return load_order_snapshot(self, request_key)
@@ -444,7 +468,7 @@ class GatewayPendingHost:
         return record_ack(self, progress)
 
     def _check_state(self, state: dict) -> dict:
-        if state["version"] not in (2, 3, 4, 5) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+        if state["version"] not in (2, 3, 4, 5, 6) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
             raise ValueError("GATEWAY_BINDING_MISMATCH")
         return state["gateway"]["intents"]
 
@@ -470,7 +494,7 @@ class GatewayPendingHost:
 
     def _cancel_attempts(self, state: dict) -> dict:
         self._check_state(state)
-        if state["version"] not in (3, 4, 5):
+        if state["version"] not in (3, 4, 5, 6):
             raise ValueError("GATEWAY_CANCEL_UPGRADE_REQUIRED")
         return state["gateway"]["cancel_attempts"]
 

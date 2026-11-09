@@ -1,0 +1,29 @@
+PACKAGE bt_api_base version 0.16.0.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_base/__init__.py
+PACKAGE bt_api_ctp version 2.1.0.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_ctp/__init__.py
+PACKAGE bt_api_execution version 0.2.0 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_execution/__init__.py
+PACKAGE bt_api_gateway version 0.2.0.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_gateway/__init__.py
+PACKAGE bt_api_monitor version 0.1.1.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_monitor/__init__.py
+PACKAGE bt_api_py version 0.16.0.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_py/__init__.py
+PACKAGE bt_api_risk version 0.1.1.dev63 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_risk/__init__.py
+PACKAGE bt_api_transport_zmq version 0.1.0 file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_transport_zmq/__init__.py
+MODULE bt_api_py.gateway_reconciliation_candidate file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_py/gateway_reconciliation_candidate.py
+MODULE bt_api_py.gateway_direct_service file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_py/gateway_direct_service.py
+MODULE bt_api_py.ctp_gateway_trading file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_py/ctp_gateway_trading.py
+MODULE bt_api_gateway.direct_command_journal file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_gateway/direct_command_journal.py
+MODULE bt_api_ctp.ctp._ctp file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so
+MODULE zmq file /tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages/zmq/__init__.py
+WHEEL_IMPORT_GUARD_OK /private/tmp/iter63-package-v3-cwu3bZ/venv/lib/python3.11/site-packages
+
+==================================== ERRORS ====================================
+_ ERROR collecting tests/integration/test_iter63_gateway_reconciliation_candidate.py _
+import file mismatch:
+imported module 'test_iter63_gateway_reconciliation_candidate' has this __file__ attribute:
+  /tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/tests/unit/test_iter63_gateway_reconciliation_candidate.py
+which is not the same as the test file we want to collect:
+  /tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/tests/integration/test_iter63_gateway_reconciliation_candidate.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+=========================== short test summary info ============================
+ERROR ../../../../tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/tests/integration/test_iter63_gateway_reconciliation_candidate.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.10s
+ERROR conda.cli.main_run:execute(125): `conda run python -S -m pytest -s -q -c /tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/pytest.ini /tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/tests/unit/test_iter63_gateway_reconciliation_candidate.py /tmp/iter63-package-v3-cwu3bZ/candidate-wheel-smoke/tests/integration/test_iter63_gateway_reconciliation_candidate.py` failed. (See above for error)

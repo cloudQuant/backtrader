@@ -1,0 +1,9 @@
+.......................................................................x [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 60%]
+........................................................................ [ 80%]
+......................................................................   [100%]
+------ generated xml file: /tmp/iter63-consolidated-20261109/bt-rerun.xml ------
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+357 passed, 1 xfailed in 43.47s

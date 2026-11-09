@@ -1,0 +1,5 @@
+entrypoint ctp-local-readonly bt_api_py.ctp_gateway_local_profile:profile_factory load OK
+profile /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_py/ctp_gateway_local_profile.py
+risk release /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_risk/gateway_delegate_journal.py
+native CTP /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so
+versions [('bt_api_base', '0.16.0.dev63'), ('bt_api_ctp', '2.1.0.dev63'), ('bt_api_execution', '0.2.0'), ('bt_api_gateway', '0.2.0.dev63'), ('bt_api_monitor', '0.1.1.dev63'), ('bt_api_py', '0.16.0.dev63'), ('bt_api_risk', '0.1.1.dev63'), ('bt_api_transport_zmq', '0.1.0')]

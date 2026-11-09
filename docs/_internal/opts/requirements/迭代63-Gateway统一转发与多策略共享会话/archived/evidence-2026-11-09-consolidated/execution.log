@@ -1,0 +1,16 @@
+.....F.F.                                                                [100%]
+=================================== FAILURES ===================================
+______________ test_execution_to_registry_gateway_parent_journal _______________
+tests/test_parent_authority_iter63.py:253: in test_execution_to_registry_gateway_parent_journal
+    from tests.unit.test_service_registry import _next_request, _register
+E   ModuleNotFoundError: No module named 'tests.unit.test_service_registry'
+____ test_explicit_service_config_constructs_zmq_session_without_connecting ____
+tests/test_parent_authority_iter63.py:441: in test_explicit_service_config_constructs_zmq_session_without_connecting
+    from tests.unit.test_service_config import _service_config, _read_profile
+E   ModuleNotFoundError: No module named 'tests.unit.test_service_config'
+----- generated xml file: /tmp/iter63-consolidated-20261109/execution.xml ------
+=========================== short test summary info ============================
+FAILED tests/test_parent_authority_iter63.py::test_execution_to_registry_gateway_parent_journal
+FAILED tests/test_parent_authority_iter63.py::test_explicit_service_config_constructs_zmq_session_without_connecting
+2 failed, 7 passed in 0.80s
+ERROR conda.cli.main_run:execute(125): `conda run env DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/test_parent_authority_iter63.py -ra --junitxml=/tmp/iter63-consolidated-20261109/execution.xml` failed. (See above for error)

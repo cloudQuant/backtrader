@@ -10,6 +10,7 @@ import queue
 import socket
 import time
 import traceback
+import uuid
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
@@ -34,7 +35,7 @@ from bt_api_gateway.direct_execution_journal import GatewayDirectExecutionLedger
 from bt_api_gateway.session_guard import LocalAccountSessionGuard
 from bt_api_py._contracts.models import OrderRequest, OrderType, Side
 from bt_api_py.bt_api import BtApi
-from bt_api_py.gateway_direct_client import GatewayClientRoute
+from bt_api_py.gateway_direct_client import GatewayClientRoute, build_gateway_order_intent
 from bt_api_py.gateway_direct_owner import GatewayDirectOwner, GatewayDirectOwnerResources
 from bt_api_py.gateway_direct_service import GatewayDirectGrant, GatewayDirectServiceBinding
 from bt_api_py.gateway_execution_stream_service import (
@@ -167,21 +168,55 @@ def _fact(trade, *, dated, wrong=False):
     )
 
 
-def _gateway(root, endpoint, server_keys, client_keys, messages, controls):
+def _historical_request():
+    return OrderRequest(symbol="rb", side=Side.BUY, order_type=OrderType.LIMIT,
+        quantity=Decimal("2"), account_id=ACCOUNT, client_order_id="order-a", price=Decimal("10"),
+        idempotency_key="order-a", offset="open")
+
+
+def _seed_synthetic_historical_sent(journal):
+    """Install a clearly synthetic prior SENT fact; never dispatch or call native."""
+    from bt_api_base.gateway_direct_protocol import canonical_gateway_payload
+    from bt_api_gateway.direct_command_journal import payload_digest
+
+    payload = _historical_request().to_dict()
+    native = _identity()
+    identity = {"exchange_name": native.exchange_name, "client_order_id": native.client_order_id,
+        "session_generation": native.session_generation,
+        "fields_json": canonical_gateway_payload(dict(native.fields))}
+    key = "TEST:" + native.client_order_id
+    reservation = 'historical-' + str(uuid.uuid4())
+    with journal._transaction() as db:
+        db.execute("INSERT INTO direct_journal_commands VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (ACCOUNT, CLIENT.actor_ref, 'order-a', reservation, CLIENT.principal_ref,
+             payload_digest(payload), canonical_gateway_payload(payload), journal.generation,
+             time.monotonic() + 10, 'SENT', 3, canonical_gateway_payload(identity),
+             canonical_gateway_payload([key])))
+        db.execute("INSERT INTO direct_journal_strong_keys VALUES (?,?,?)", (ACCOUNT, key, reservation))
+        journal._bump(db)
+    stored = journal.get(CLIENT.actor_ref, 'order-a', CLIENT.principal_ref)
+    assert stored.status == 'SENT' and stored.strong_identity_keys == (key,)
+
+
+def _gateway(root, endpoint, server_keys, client_keys, messages, controls, seed_history=False):
     host = owner = stream = None
     try:
         root = Path(root)
         (root / "guard").mkdir()
         resources = []
+        native_calls = []
 
         def owner_factory():
             guard = LocalAccountSessionGuard(root / "guard", ACCOUNT, "synthetic-owner")
             journal = GatewayDirectCommandJournal.create(
                 root / "journal.sqlite", ACCOUNT, generation=guard.acquire()
             )
+            if seed_history:
+                _seed_synthetic_historical_sent(journal)
             ledger = GatewayDirectExecutionLedger(journal, guard)
 
             def native(payload, port, scope):
+                native_calls.append(True)
                 identity = _identity()
                 record = PreDispatchRecord(
                     operation=WriteOperation.PLACE,
@@ -206,14 +241,14 @@ def _gateway(root, endpoint, server_keys, client_keys, messages, controls):
                 lambda identity: ("TEST:" + identity.client_order_id,),
                 lambda row: True,
             )
-            resources.append((journal, ledger))
+            resources.append((journal, ledger, dispatcher))
             return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
 
         owner = GatewayDirectOwner(
             owner_factory, queue_size=4, max_queue_wait_seconds=20, busy_timeout_seconds=20
         )
         assert owner.start(10)
-        journal, ledger = resources[0]
+        journal, ledger, dispatcher = resources[0]
         stream = GatewayExecutionStreamService(
             ledger, journal, {CLIENT.principal_ref: CLIENT.actor_ref}, execution_domain_ref=DOMAIN
         )
@@ -267,6 +302,27 @@ def _gateway(root, endpoint, server_keys, client_keys, messages, controls):
                 command = None
             if command == "stop":
                 break
+            if command == 'native-count':
+                messages.put(('native-count', len(native_calls)))
+            if command == 'claim-check':
+                from bt_api_gateway.direct_dispatch import DirectDispatchError
+                def check_reserved():
+                    request = _historical_request().to_dict()
+                    request['idempotency_key'] = 'fresh-reserved'
+                    request['client_order_id'] = 'fresh-reserved'
+                    row = journal.reserve(CLIENT.actor_ref, 'fresh-reserved', CLIENT.principal_ref, request)
+                    try:
+                        dispatcher.dispatch(CLIENT.actor_ref, row.request_key, CLIENT.principal_ref,
+                            row.reservation_id, row.digest, row.version)
+                    except DirectDispatchError as exc:
+                        assert exc.code == 'DISPATCH_CLAIM_UNAVAILABLE'
+                    else:
+                        raise AssertionError('fresh RESERVED unexpectedly dispatched')
+                    after = journal.get(CLIENT.actor_ref, 'fresh-reserved', CLIENT.principal_ref)
+                    assert after.status == 'RESERVED' and after.native_identity_json is None
+                    assert after.strong_identity_keys == () and not native_calls
+                owner.submit_service_call(check_reserved).result(timeout_seconds=10)
+                messages.put(('claim-unavailable', len(native_calls)))
             if command in {"partial", "date", "final", "wrong"}:
                 fact = _fact(
                     "one" if command != "final" else "two",
@@ -320,16 +376,6 @@ def _progress(api):
     return result.progress.acknowledged_sequence
 
 
-def _wait_sent(api):
-    deadline = time.monotonic() + 8
-    while True:
-        result = api.command_status(ROUTE, "order-a", timeout_seconds=5)
-        if result.record is not None and result.record.state == "SENT":
-            return
-        assert time.monotonic() < deadline
-        time.sleep(0.01)
-
-
 def _deliver(broker, strategy):
     notice = broker.get_notification()
     assert notice is not None
@@ -372,21 +418,11 @@ def _client(root, endpoint, server_public, keys, journal_id, phase, messages, co
             order.addcomminfo(broker.getcommissioninfo(data))
             order.submit(broker)
             order.accept(broker)
-            request = OrderRequest(
-                symbol="rb",
-                side=Side.BUY,
-                order_type=OrderType.LIMIT,
-                quantity=Decimal("2"),
-                account_id=ACCOUNT,
-                client_order_id="order-a",
-                price=Decimal("10"),
-                idempotency_key="order-a",
-                offset="open",
-            )
-            assert api.reserve_order(ROUTE, request).outcome == "OBSERVED"
-            host.save_intent(host.load_intent("order-a"), bt_ref=order.ref)
-            assert api.dispatch_order(ROUTE, "order-a").outcome == "QUEUED"
-            _wait_sent(api)
+            request = _historical_request()
+            host.save_intent(build_gateway_order_intent(binding, session.route, request), bt_ref=order.ref)
+            # Read a pre-seeded historical record; this fixture does not place an order.
+            result = api.command_status(ROUTE, "order-a")
+            assert result.outcome == "OBSERVED" and result.record.state == "SENT"
             orders = {"order-a": order}
         else:
             orders = {}
@@ -510,6 +546,7 @@ def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
             client_keys,
             gateway_messages,
             gateway_controls,
+            True,  # Install only the synthetic historical SENT record.
         ),
     )
     clients = []
@@ -565,6 +602,8 @@ def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
             client_controls.put("final")
             assert _message(client_messages, "final")[1:3] == (2, 2)
             _join(resumed)
+        gateway_controls.put('native-count')
+        assert _message(gateway_messages, 'native-count')[1] == 0
     finally:
         for process in clients:
             if process.is_alive():
@@ -574,4 +613,315 @@ def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
         _join(server)
         assert _message(gateway_messages, "closed") == ("closed", server.pid)
         for q in (gateway_messages, gateway_controls, client_messages, client_controls):
+            q.close()
+
+
+def test_spawned_gateway_new_reserved_has_no_dispatch_claim_or_native_call(tmp_path):
+    ctx = multiprocessing.get_context('spawn')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+    server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+    messages, controls = ctx.Queue(), ctx.Queue()
+    server = ctx.Process(target=_gateway,
+        args=(str(tmp_path), endpoint, server_keys, client_keys, messages, controls))
+    server.start()
+    try:
+        _message(messages, 'ready')
+        controls.put('claim-check')
+        assert _message(messages, 'claim-unavailable') == ('claim-unavailable', 0)
+    finally:
+        controls.put('stop')
+        _join(server)
+        assert _message(messages, 'closed') == ('closed', server.pid)
+        messages.close()
+        controls.close()
+
+
+def _submitted_client(root, endpoint, server_public, keys, journal_id, messages, controls):
+    api = None
+    try:
+        path = Path(root) / 'submitted-strategy'
+        path.mkdir()
+        state = StrategyStateDir.initialize(path)
+        binding = GatewayCommandBinding(journal_id, ACCOUNT, CLIENT.actor_ref, CLIENT.principal_ref)
+        GatewayPendingHost.upgrade_for_gateway(path, state.strategy_uuid, binding)
+        GatewayPendingHost.upgrade_for_cancellation(path, state.strategy_uuid, binding)
+        consumer = gateway_execution_consumer_ref(principal_ref=CLIENT.principal_ref,
+            actor_ref=CLIENT.actor_ref, execution_domain_ref=DOMAIN, account_scope=ACCOUNT,
+            strategy_scope=CLIENT.actor_ref)
+        GatewayPendingHost.upgrade_for_execution(path, state.strategy_uuid, binding, consumer_ref=consumer)
+        host = GatewayPendingHost.upgrade_for_order_state(path, state.strategy_uuid, binding)
+        _, api = _session(endpoint, server_public, keys, binding, host)
+        api.start(timeout_seconds=10)
+        data, broker, strategy = framework()
+        from types import SimpleNamespace
+        broker.store = SimpleNamespace(contract_metadata={'rb': {'instrument_key': INSTRUMENT.to_dict(),
+            'exchange_name': ROUTE, 'quantity_unit': 'lots', 'time_in_force': 'GFD'}})
+        broker.bind_gateway_execution_stream(strategy, api=api, host=host, data_by_ref={'rb': data},
+            orders_by_key={}, instrument_by_ref={'rb': INSTRUMENT},
+            time_policy=GatewayExecutionTimePolicy(ROUTE, 'UTC'), timeout_seconds=5,
+            sequence=state.sequence)
+        order = bt.BuyOrder(owner=strategy, data=data, size=2, price=10, exectype=bt.Order.Limit)
+        order.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+        reserve_calls, reserve = [], api.reserve_order
+        def tracked_reserve(*args, **kwargs):
+            reserve_calls.append(True)
+            return reserve(*args, **kwargs)
+        api.reserve_order = tracked_reserve
+        before_seq, before_pending = state.sequence.local_seq, host._store._load()
+        with pytest.raises(RuntimeError, match='FEED_NOT_TRADABLE'):
+            broker.submit(order)
+        assert state.sequence.local_seq == before_seq and host._store._load() == before_pending
+        assert order.status == order.Created and broker.get_notification() is None and not reserve_calls
+        messages.put(('unqualified-rejected', os.getpid()))
+    except BaseException:
+        messages.put(('error', traceback.format_exc()))
+    finally:
+        if api is not None:
+            try:
+                api.close(timeout_seconds=5)
+            except BaseException:
+                messages.put(('error', traceback.format_exc()))
+
+
+def test_spawned_gateway_strategy_rejects_unqualified_feed_before_intent(tmp_path):
+    ctx = multiprocessing.get_context('spawn')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+    server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+    gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+    server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+    client = None
+    server.start()
+    try:
+        ready = _message(gm, 'ready')
+        client = ctx.Process(target=_submitted_client,
+            args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+        client.start()
+        rejected = _message(cm, 'unqualified-rejected')
+        assert rejected[1] == client.pid and rejected[1] != server.pid
+        _join(client)
+    finally:
+        if client is not None and client.is_alive():
+            client.terminate()
+            client.join(5)
+        gc.put('stop')
+        _join(server)
+        assert _message(gm, 'closed') == ('closed', server.pid)
+        for q in (gm, gc, cm, cc):
+            q.close()
+
+
+def _configured_raw(endpoint, journal_id):
+    raw = {'schema_version': 1, 'exchange_name': ROUTE,
+        'client_config': {'client_config_schema_version': 1, 'process_role': 'strategy_client',
+            'registration': {'strategy_ref': CLIENT.actor_ref},
+            'clients': {'gateway': {'config_schema_version': 1, 'settings': {'bindings': [{
+                'mount': 'broker.direct_write', 'service_id': SERVICE.actor_ref,
+                'instance_id': 'gateway-a', 'scope_ref': 'scope-a', 'account_ref': ACCOUNT,
+                'transport_ref': 'transport'}]}}},
+            'communication': {'config_schema_version': 1, 'profiles': {'transport': {
+                'backend': 'zmq', 'config_schema_version': 1,
+                'endpoints': {'rpc_connect': endpoint}, 'security_profile_ref': 'security'}}}},
+        'binding': {'journal_id': journal_id, 'account_scope': ACCOUNT,
+                    'strategy_scope': CLIENT.actor_ref, 'principal': CLIENT.principal_ref},
+        'route': {'mount': 'broker.direct_write', 'service_id': SERVICE.actor_ref,
+            'instance_id': 'gateway-a', 'scope_ref': 'scope-a',
+            'scope': {'execution_domain_ref': DOMAIN, 'account_ref': ACCOUNT, 'account_refs': [],
+                'strategy_ref': CLIENT.actor_ref, 'run_id': 'run-a', 'manual_book_ref': None,
+                'portfolio_ref': None, 'group_id': None, 'leg_id': None},
+            'identity': {'role': 'strategy_client', 'principal_ref': CLIENT.principal_ref,
+                         'actor_ref': CLIENT.actor_ref, 'delegate_ref': None}},
+        'peer': {'role': 'service', 'principal_ref': SERVICE.principal_ref,
+                 'actor_ref': SERVICE.actor_ref, 'delegate_ref': None},
+        'requested_operations': sorted(OPS),
+        'execution_time_policy': {'route': ROUTE, 'timezone': 'UTC',
+                                  'format': 'date_hms_seconds_v1', 'schema_version': 1},
+        'instruments_by_ref': {'rb': INSTRUMENT.to_dict()}}
+    return raw
+
+
+def _configured_client(root, endpoint, server_public, keys, journal_id, messages, controls):
+    store = None
+    try:
+        from backtrader.stores.btapistore import BtApiStore
+        path = Path(root) / 'configured-strategy'
+        path.mkdir()
+        state = StrategyStateDir.initialize(path)
+        binding = GatewayCommandBinding(journal_id, ACCOUNT, CLIENT.actor_ref, CLIENT.principal_ref)
+        GatewayPendingHost.upgrade_for_gateway(path, state.strategy_uuid, binding)
+        GatewayPendingHost.upgrade_for_cancellation(path, state.strategy_uuid, binding)
+        consumer = gateway_execution_consumer_ref(principal_ref=CLIENT.principal_ref,
+            actor_ref=CLIENT.actor_ref, execution_domain_ref=DOMAIN, account_scope=ACCOUNT,
+            strategy_scope=CLIENT.actor_ref)
+        GatewayPendingHost.upgrade_for_execution(path, state.strategy_uuid, binding, consumer_ref=consumer)
+        host = GatewayPendingHost.upgrade_for_order_state(path, state.strategy_uuid, binding)
+        raw = _configured_raw(endpoint, journal_id)
+        store = BtApiStore(config={'gateway_strategy': raw, 'contracts': {
+            'rb': {'quantity_unit': 'lots', 'time_in_force': 'GFD'}}}, gateway_host=host,
+                           gateway_security_profiles={'security': ClientCurveKeys(server_public, *keys)})
+        data, broker, strategy = framework()
+        broker.store = store
+        broker.start()
+        assert store.gateway_sequence is not None
+        broker.cerebro.runningstrats = [strategy]
+        broker.next()  # An idle strategy binds even without creating an order.
+        assert broker._gateway_stream_binding.strategy is strategy
+        import math
+        assert math.isnan(broker.getcash()) and math.isnan(broker.getvalue())
+        assert broker.gateway_financial_unavailable["position_price"] == "GATEWAY_STRATEGY_POSITION_PRICE_UNAVAILABLE"
+        with pytest.raises(RuntimeError, match="GATEWAY_ACCOUNT_POSITION_UNAVAILABLE"):
+            broker.getposition(data)
+        assert store.contract_metadata['rb']['instrument_key'] == INSTRUMENT.to_dict()
+        assert store.contract_metadata['rb']['gateway_rule_source'] == 'local_configuration'
+        order = bt.BuyOrder(owner=strategy, data=data, size=2, price=10, exectype=bt.Order.Limit)
+        order.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+        reserve_calls, reserve = [], store.gateway_api.reserve_order
+        def tracked_reserve(*args, **kwargs):
+            reserve_calls.append(True)
+            return reserve(*args, **kwargs)
+        store.gateway_api.reserve_order = tracked_reserve
+        before_seq, before_pending = store.gateway_sequence.local_seq, host._store._load()
+        with pytest.raises(RuntimeError, match='FEED_NOT_TRADABLE'):
+            broker.submit(order)
+        assert store.gateway_sequence.local_seq == before_seq and host._store._load() == before_pending
+        assert broker.get_notification() is None and order.status == order.Created and not reserve_calls
+        messages.put(('configured-unqualified', os.getpid()))
+    except BaseException:
+        messages.put(('error', traceback.format_exc()))
+    finally:
+        if store is not None:
+            try:
+                store.stop(timeout=5)
+            except BaseException:
+                messages.put(('error', traceback.format_exc()))
+
+
+def test_spawned_gateway_store_config_binds_and_rejects_unqualified_feed(tmp_path):
+    ctx = multiprocessing.get_context('spawn')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+    server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+    gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+    server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+    client = None
+    server.start()
+    try:
+        ready = _message(gm, 'ready')
+        client = ctx.Process(target=_configured_client,
+            args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+        client.start()
+        assert _message(cm, 'configured-unqualified')[1] == client.pid
+        _join(client)
+    finally:
+        if client is not None and client.is_alive():
+            client.terminate()
+            client.join(5)
+        gc.put('stop')
+        _join(server)
+        assert _message(gm, 'closed') == ('closed', server.pid)
+        for q in (gm, gc, cm, cc):
+            q.close()
+
+
+def _cerebro_client(root, endpoint, server_public, keys, journal_id, messages, controls):
+    store = None
+    try:
+        import math
+        import pandas as pd
+        from backtrader.stores.btapistore import BtApiStore
+
+        path = Path(root) / 'cerebro-strategy'
+        path.mkdir()
+        state = StrategyStateDir.initialize(path)
+        binding = GatewayCommandBinding(journal_id, ACCOUNT, CLIENT.actor_ref, CLIENT.principal_ref)
+        GatewayPendingHost.upgrade_for_gateway(path, state.strategy_uuid, binding)
+        GatewayPendingHost.upgrade_for_cancellation(path, state.strategy_uuid, binding)
+        consumer = gateway_execution_consumer_ref(principal_ref=CLIENT.principal_ref,
+            actor_ref=CLIENT.actor_ref, execution_domain_ref=DOMAIN, account_scope=ACCOUNT,
+            strategy_scope=CLIENT.actor_ref)
+        GatewayPendingHost.upgrade_for_execution(path, state.strategy_uuid, binding, consumer_ref=consumer)
+        host = GatewayPendingHost.upgrade_for_order_state(path, state.strategy_uuid, binding)
+        store = BtApiStore(config={'gateway_strategy': _configured_raw(endpoint, journal_id),
+            'contracts': {'rb': {'quantity_unit': 'lots', 'time_in_force': 'GFD'}}},
+            gateway_host=host, gateway_security_profiles={'security': ClientCurveKeys(server_public, *keys)})
+
+        class TestStrategy(bt.Strategy):
+            def __init__(self):
+                self.sent = False
+                self.rejected = False
+                self.notices = []
+            def next(self):
+                if self.sent:
+                    return
+                self.sent = True
+                assert self.broker._gateway_stream_binding.strategy is self
+                reserve_calls, reserve = [], store.gateway_api.reserve_order
+                def tracked_reserve(*args, **kwargs):
+                    reserve_calls.append(True)
+                    return reserve(*args, **kwargs)
+                store.gateway_api.reserve_order = tracked_reserve
+                before_seq, before_pending = store.gateway_sequence.local_seq, host._store._load()
+                with pytest.raises(RuntimeError, match='FEED_NOT_TRADABLE'):
+                    self.buy(size=2, price=10, exectype=bt.Order.Limit, offset='open',
+                             quantity_unit='lots', time_in_force='GFD')
+                assert (store.gateway_sequence.local_seq == before_seq
+                        and host._store._load() == before_pending and not reserve_calls)
+                self.rejected = True
+            def notify_order(self, order):
+                self.notices.append((order.status, order.executed.size))
+            def stop(self):
+                messages.put(('cerebro-result', self.rejected, self.notices,
+                    self.broker.positions['rb'].size,
+                    host.load_execution_checkpoint().acknowledged_sequence,
+                    math.isnan(self.broker.getcash())))
+
+        frame = pd.DataFrame({'open':[10.]*8, 'high':[11.]*8, 'low':[9.]*8,
+                              'close':[10.]*8, 'volume':[1.]*8},
+            index=pd.date_range('2030-01-01 09:00', periods=8, freq='min'))
+        cerebro = bt.Cerebro(stdstats=False, runonce=False)
+        broker = bt.brokers.BtApiBroker(store=store)
+        cerebro.setbroker(broker)
+        cerebro.adddata(bt.feeds.PandasData(dataname=frame), name='rb')
+        cerebro.addstrategy(TestStrategy)
+        cerebro.run()
+    except BaseException:
+        messages.put(('error', traceback.format_exc()))
+    finally:
+        if store is not None and store.gateway_api is not None:
+            try:
+                store.stop(timeout=5)
+            except BaseException:
+                messages.put(('error', traceback.format_exc()))
+
+
+def test_cerebro_binds_configured_gateway_and_rejects_unqualified_feed(tmp_path):
+    ctx = multiprocessing.get_context('spawn')
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        endpoint = 'tcp://127.0.0.1:' + str(sock.getsockname()[1])
+    server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+    gm, gc, cm, cc = ctx.Queue(), ctx.Queue(), ctx.Queue(), ctx.Queue()
+    server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gm, gc))
+    client = None
+    server.start()
+    try:
+        ready = _message(gm, 'ready')
+        client = ctx.Process(target=_cerebro_client,
+            args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], cm, cc))
+        client.start()
+        result = _message(cm, 'cerebro-result')
+        assert result[1:] == (True, [], 0, 0, True)
+        _join(client)
+    finally:
+        if client is not None and client.is_alive():
+            client.terminate()
+            client.join(5)
+        gc.put('stop')
+        _join(server)
+        assert _message(gm, 'closed') == ('closed', server.pid)
+        for q in (gm, gc, cm, cc):
             q.close()

@@ -1,56 +1,22 @@
-# CTP SimNow, Gateway mode (iteration 62, step 62.08): see README.md and ../README.md.
-# Market data comes from the Gateway CTP MarketHub (gateway_host.py); orders use the SDK
-# direct write path (gateway.orders: direct). gateway.orders: managed is BLOCKED for now.
+# Public placeholders only; provide protected key files and registered identities.
 symbols:
 - rb2701
 contracts:
-  # A contract may also set event_time_max_age, receive_time_max_age and
-  # incomplete_volume_bars (overrides of feed:), e.g. a quiet one: receive_time_max_age: 10.0
   rb2701:
     exchange: SHFE
     price_tick: 1.0
     multiplier: 10
+    quantity_unit: contracts
+    time_in_force: GFD
 run_timeout_seconds: 150
-ctp:
-  instrument_environment: demo   # SDK route label of SimNow (Gateway keys too)
-  broker_id: '9999'
-  app_id: simnow_client_test
-  auth_code: '0000000000000000'
-  private_topic_mode: quick   # restart replays the day on login: slow on SimNow in trading hours (I62-01a)
-  # catalog_cache_dir: cache/ctp_catalog   # optional CTP instrument-catalog cache folder (I62-12); relative to this folder; default: the user cache dir
-gateway:
-  ctp_profile: set1_group1_vpn   # SimNow standard environment (trading hours only)
-  orders: direct     # direct (runnable) | managed (BLOCKED, see README)
-  market_check_seconds: 60
-  execution:
-    write_admission: true   # SDK admission of gateway_host.py --managed-boot-check
-direct:
-  write_admission: true
-  market_clock_verification: true
-  # market_clock_verification may also be a mapping: the same as true, with these
-  # SDK keys (defaults shown; an unknown key makes the start fail):
-  # market_clock_verification:
-  #   max_latency_seconds: 2.0        # SDK source->receive limit (D62-28/37)
-  #   max_error_bound_ms: 500         # largest accepted SNTP error bound
-  #   validity_seconds: 900           # lifetime of one SNTP measurement
-  #   refresh_interval_seconds: 300   # background SNTP refresh
-  #   timeout_seconds: 2.0            # per SNTP query
-  #   servers: [time.apple.com, cn.pool.ntp.org, ntp.aliyun.com]
-broker:
-  direct_facts_timeout: 60   # per query: whole-day orders/trades (SimNow ~14 rows/s)
-  position_mode: net
-  direct_funds_refresh_interval: 60
-  direct_position_audit_interval: 300
-  waiting_orders: true
-  stop_cancel_timeout: 10
 feed:
   timeframe: ticks
   compression: 1
   backfill_start: false
-  # Defaults of this venue and strategy (D62-28); contracts.<symbol> may override them.
-  event_time_max_age: 2.0          # source event -> local receipt, seconds (only tightens the SDK limit)
-  receive_time_max_age: 2.0        # local receipt -> order, seconds
-  incomplete_volume_bars: lines    # lines | notify_only: volume-incomplete bars (2026-11-06)
+  event_time_max_age: 2.0
+  receive_time_max_age: 2.0
+  incomplete_volume_bars: lines
+  gateway_clock_verification: false
 strategy_params:
   symbol: rb2701
   tick_window: 2
@@ -74,9 +40,126 @@ trade_logger:
   log_position_snapshot: false
   enabled: true
 logging:
-  # Process logs (iteration 62, D62-38 point 7): bt_api_ctp front connect / login /
-  # market-source recovery lines (re-login lines carry reason=... and retry_in=...;
-  # never a user id or a password). Levels: DEBUG | INFO | WARNING | ERROR | CRITICAL.
-  level: INFO            # bt_api_ctp loggers
-  other_level: WARNING   # every other logger (backtrader, bt_api_py, ...)
-  # file: logs/ctp_session.log   # optional; relative to this folder; default: stderr
+  level: INFO
+  other_level: WARNING
+broker:
+  position_mode: net
+gateway_resource_provider: local_files
+gateway_strategy:
+  schema_version: 1
+  exchange_name: CTP___FUTURE
+  client_config:
+    client_config_schema_version: 1
+    process_role: strategy_client
+    registration:
+      strategy_ref: replace-with-registered-strategy-uuid
+    clients:
+      gateway:
+        config_schema_version: 1
+        settings:
+          bindings:
+          - mount: broker.direct_write
+            service_id: gateway
+            instance_id: instance
+            scope_ref: scope
+            account_ref: account
+            transport_ref: transport
+          - mount: store.market
+            service_id: gateway
+            instance_id: instance
+            scope_ref: scope
+            transport_ref: transport
+    communication:
+      config_schema_version: 1
+      profiles:
+        transport:
+          backend: zmq
+          config_schema_version: 1
+          endpoints:
+            rpc_connect: tcp://127.0.0.1:12345
+            market_connect: tcp://127.0.0.1:12346
+          security_profile_ref: security
+  binding:
+    journal_id: journal
+    account_scope: account
+    strategy_scope: replace-with-registered-strategy-uuid
+    principal: principal
+  route:
+    mount: broker.direct_write
+    service_id: gateway
+    instance_id: instance
+    scope_ref: scope
+    scope:
+      execution_domain_ref: domain
+      account_ref: account
+      account_refs: []
+      strategy_ref: replace-with-registered-strategy-uuid
+      run_id: run
+      manual_book_ref: null
+      portfolio_ref: null
+      group_id: null
+      leg_id: null
+    identity:
+      role: strategy_client
+      principal_ref: principal
+      actor_ref: replace-with-registered-strategy-uuid
+      delegate_ref: null
+  peer:
+    role: service
+    principal_ref: service-principal
+    actor_ref: gateway
+    delegate_ref: null
+  requested_operations:
+  - direct.reserve
+  - direct.dispatch
+  - direct.command_status
+  - direct.cancel
+  - direct.cancel_status
+  - direct.events.read_after
+  - direct.events.ack
+  - direct.events.progress
+  execution_time_policy:
+    route: CTP___FUTURE
+    timezone: Asia/Shanghai
+    format: date_hms_seconds_v1
+    schema_version: 1
+  instruments_by_ref:
+    rb2701:
+      provider: ctp
+      venue: SHFE
+      environment: demo
+      product_type: future
+      instrument_id: rb2701
+      native_symbol: rb2701
+  market_settings:
+    requested_operations:
+    - market.subscribe
+    - market.unsubscribe
+    - market.snapshot
+    - market.head
+    - market.read_after
+    - market.bootstrap_begin
+    - market.bootstrap_status
+    - market.bootstrap_cancel
+    - market.clock_observation
+    subscriptions:
+      rb2701:
+        key:
+          source_ref: ctp-source
+          entitlement_ref: market-entitlement
+          instrument:
+            provider: ctp
+            venue: SHFE
+            environment: demo
+            product_type: future
+            instrument_id: rb2701
+            native_symbol: rb2701
+          channel: tick
+          depth: null
+          timeframe: null
+        require_source_descriptor: true
+gateway_resource_files:
+  security:
+    server_public_key_file: state/keys/gateway.public
+    client_public_key_file: state/keys/strategy.public
+    client_secret_key_file: state/keys/strategy.secret

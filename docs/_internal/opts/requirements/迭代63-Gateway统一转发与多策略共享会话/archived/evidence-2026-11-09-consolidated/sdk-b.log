@@ -1,0 +1,9 @@
+........................................................................ [ 47%]
+..............................x..........x.x............................ [ 94%]
+........                                                                 [100%]
+------- generated xml file: /tmp/iter63-consolidated-20261109/sdk-b.xml --------
+=========================== short test summary info ============================
+XFAIL tests/test_iter63_ctp_gateway_trading.py::test_dispatch_requires_enabled_settlement_and_literal_business_admission[True-True-SENT] - Iter63 B: full trusted writer coverage is not yet proven; Gateway native dispatch is unavailable
+XFAIL tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-False] - Iter63 B: full trusted writer coverage is not yet proven; Gateway native dispatch is unavailable
+XFAIL tests/test_iter63_ctp_gateway_trading.py::test_real_ctp_session_trader_with_synthetic_native[True-True-True-SENT-True] - Iter63 B: reconnect-safe Gateway native dispatch is not yet available
+149 passed, 3 xfailed in 9.01s

@@ -1,0 +1,14 @@
+.....F...                                                                [100%]
+=================================== FAILURES ===================================
+______________ test_execution_to_registry_gateway_parent_journal _______________
+tests/test_parent_authority_iter63.py:388: in test_execution_to_registry_gateway_parent_journal
+    assert len(results) == 2 and results[0].outcome in {'QUEUED', 'OBSERVED'} and results[1].outcome == 'UNKNOWN', (results, responses[-1])
+E   AssertionError: ((GatewayDelegateActorResult(outcome='UNKNOWN', observation=None, cancel=None, code=None), GatewayDelegateActorRelease..._id=None, operation_id=None, code='RPC_OUTCOME_UNKNOWN')), {'code': 'OK', 'ok': True, 'result': {'status': 'UNKNOWN'}})
+E   assert (2 == 2 and 'UNKNOWN' in {'OBSERVED', 'QUEUED'})
+E    +  where 2 = len((GatewayDelegateActorResult(outcome='UNKNOWN', observation=None, cancel=None, code=None), GatewayDelegateActorReleaseResult(outcome='UNKNOWN', state=None, reservation_id=None, operation_id=None, code='RPC_OUTCOME_UNKNOWN')))
+E    +  and   'UNKNOWN' = GatewayDelegateActorResult(outcome='UNKNOWN', observation=None, cancel=None, code=None).outcome
+-- generated xml file: /tmp/iter63-consolidated-20261109/execution-rerun.xml ---
+=========================== short test summary info ============================
+FAILED tests/test_parent_authority_iter63.py::test_execution_to_registry_gateway_parent_journal
+1 failed, 8 passed in 0.74s
+ERROR conda.cli.main_run:execute(125): `conda run env DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP PYTHONPATH=/Users/yunjinqi/Documents/new_projects/bt_api_py /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/test_parent_authority_iter63.py -ra --junitxml=/tmp/iter63-consolidated-20261109/execution-rerun.xml` failed. (See above for error)

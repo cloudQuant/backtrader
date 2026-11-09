@@ -272,6 +272,18 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         """
         raise NotImplementedError
 
+    def get_strategy_position(self, strategy, data, side=None):
+        """Return an explicitly bound strategy position, when supported."""
+        raise RuntimeError("STRATEGY_POSITION_UNAVAILABLE")
+
+    def get_strategy_cash(self, strategy, *, currency=None):
+        """Return explicitly bound strategy cash, when supported."""
+        raise RuntimeError("STRATEGY_CASH_UNAVAILABLE")
+
+    def get_strategy_value(self, strategy, *, datas=None, currency=None):
+        """Return explicitly bound strategy equity, when supported."""
+        raise RuntimeError("STRATEGY_VALUE_UNAVAILABLE")
+
     def get_cached_report_state(self):
         """Return a local-only state view for runtime observers.
 

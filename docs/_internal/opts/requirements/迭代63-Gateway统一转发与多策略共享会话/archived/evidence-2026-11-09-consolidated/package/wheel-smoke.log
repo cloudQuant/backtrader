@@ -1,0 +1,16 @@
+PACKAGE bt_api_base version 0.16.0.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_base/__init__.py
+PACKAGE bt_api_ctp version 2.1.0.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_ctp/__init__.py
+PACKAGE bt_api_execution version 0.2.0 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_execution/__init__.py
+PACKAGE bt_api_gateway version 0.2.0.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_gateway/__init__.py
+PACKAGE bt_api_monitor version 0.1.1.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_monitor/__init__.py
+PACKAGE bt_api_py version 0.16.0.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_py/__init__.py
+PACKAGE bt_api_risk version 0.1.1.dev63 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_risk/__init__.py
+PACKAGE bt_api_transport_zmq version 0.1.0 file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_transport_zmq/__init__.py
+MODULE bt_api_py.gateway_direct_service file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_py/gateway_direct_service.py
+MODULE bt_api_py.ctp_gateway_trading file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_py/ctp_gateway_trading.py
+MODULE bt_api_gateway.direct_command_journal file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_gateway/direct_command_journal.py
+MODULE bt_api_ctp.ctp._ctp file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/bt_api_ctp/ctp/_ctp.cpython-311-darwin.so
+MODULE zmq file /tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages/zmq/__init__.py
+...........WHEEL_IMPORT_GUARD_OK /private/tmp/iter63-package-v2-pzgJHC/venv/lib/python3.11/site-packages
+
+11 passed in 4.67s

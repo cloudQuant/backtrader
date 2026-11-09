@@ -10,8 +10,10 @@ import json
 import math
 import os
 import threading
-from dataclasses import dataclass
-from decimal import Decimal
+import time
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from decimal import Decimal, localcontext
 
 from ..utils.dateintern import date2num
 
@@ -34,7 +36,9 @@ class _StreamBinding:
     timeout: float
     pid: int
     thread: object
+    sequence: object = None
     state: str = "ACTIVE"
+    local_deferred: list = field(default_factory=list)
 
 
 def _fail(code):
@@ -42,6 +46,47 @@ def _fail(code):
 
 
 class GatewayExecutionStreamBrokerMixin:
+    def _gateway_auto_bind(self, strategy=None):
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            current = self._gateway_stream_binding.strategy
+            if strategy is not None and strategy is not current:
+                _fail("STRATEGY_SCOPE")
+            return current
+        store = self.store
+        if store is None or not getattr(store, "_gateway_mode", False):
+            return None
+        if strategy is None:
+            cerebro = getattr(self, "cerebro", None)
+            strategies = getattr(cerebro, "runningstrats", None) or []
+            if len(strategies) != 1:
+                _fail("STRATEGY_SCOPE")
+            strategy = strategies[0]
+        if getattr(strategy, "broker", None) is not self:
+            _fail("STRATEGY_SCOPE")
+        config = getattr(store, "gateway_strategy_config", None)
+        configured = getattr(config, "instruments_by_ref", None)
+        if not isinstance(configured, Mapping) or not configured:
+            _fail("CONFIG_UNAVAILABLE")
+        data_by_ref = {}
+        for ref, instrument in configured.items():
+            candidates = [data for data in strategy.datas
+                          if self._position_key(data) in (ref, instrument.native_symbol)]
+            if len(candidates) != 1 or candidates[0] in data_by_ref.values():
+                _fail("INSTRUMENT_SCOPE")
+            data_by_ref[ref] = candidates[0]
+        # Framework snapshot/restore requires every bound feed to have its
+        # first bar.  Wait without installing a partial binding or falling
+        # back to direct while live feeds are starting or disconnected.
+        if any(len(data) < 1 for data in data_by_ref.values()):
+            self._gateway_waiting_for_feed = True
+            return None
+        sequence = getattr(store, "gateway_sequence", None)
+        if sequence is None:
+            _fail("SEQUENCE_SCOPE")
+        store.bind_gateway_strategy(strategy, data_by_ref=data_by_ref, sequence=sequence)
+        self._gateway_waiting_for_feed = False
+        return strategy
+
     def bind_gateway_execution_events(self, *args, **kwargs):
         if self.__dict__.get("_gateway_stream_binding") is not None:
             _fail("MODE_CONFLICT")
@@ -49,7 +94,7 @@ class GatewayExecutionStreamBrokerMixin:
 
     def bind_gateway_execution_stream(
         self, strategy, *, api, host, data_by_ref, orders_by_key, time_policy, instrument_by_ref,
-        page_limit=128, timeout_seconds=1.0,
+        page_limit=128, timeout_seconds=1.0, sequence=None,
     ):
         """Bind a real SDK facade and its exact durable host to one strategy."""
         from bt_api_py.gateway_api import GatewayBtApi
@@ -57,6 +102,7 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_py.gateway_execution_time import GatewayExecutionTimePolicy
         from bt_api_base.market_protocol import MarketInstrumentKey
         from ..live_state.gateway_pending import GatewayPendingHost
+        from ..live_state.sequence import SequenceAllocator
 
         if self.__dict__.get("_gateway_stream_binding") is not None:
             _fail("ALREADY_BOUND")
@@ -76,6 +122,13 @@ class GatewayExecutionStreamBrokerMixin:
             _fail("BINDING_INVALID")
         if time_policy.route != api._exchange_name or api._host is not host:
             _fail("SCOPE")
+        if sequence is not None:
+            if (type(sequence) is not SequenceAllocator
+                    or sequence.strategy_uuid != host._store.strategy_uuid
+                    or sequence.paths.strategy_dir != host._store.paths.strategy_dir):
+                _fail("SEQUENCE_SCOPE")
+            sequence.restore_ref_basis()
+            host.upgrade_for_local_notifications()
         stream = api.gateway_execution_stream(time_policy.route)
         checkpoint = host.load_execution_checkpoint()
         if (
@@ -91,16 +144,57 @@ class GatewayExecutionStreamBrokerMixin:
         )
         binding = _StreamBinding(strategy, api, host, stream, time_policy, dict(instrument_by_ref),
                                  dict(data_by_ref), checkpoint.projection is not None, page_limit,
-                                 float(timeout_seconds), os.getpid(), threading.current_thread())
+                                 float(timeout_seconds), os.getpid(), threading.current_thread(), sequence)
         self._gateway_stream_binding = binding
         try:
             if checkpoint.projection is not None:
                 self.restore_gateway_notification_state(strategy)
             notices = self._gateway_binding(strategy, required=True)
+            if sequence is not None:
+                from ._btapi_gateway_projection import restore_framework_state
+                def queue_local(order):
+                    if notices.restored is not None or notices.receipt is not None:
+                        binding.local_deferred.append(order)
+                    else:
+                        self.notifs.append(order)
+                for current in notices.orders.values():
+                    sequence.observe_ref(current.ref)
+                for key, envelope in host.iter_order_snapshots().items():
+                    restored = restore_framework_state(envelope["snapshot"], data_by_ref=binding.feeds,
+                        owner=strategy, broker=self, commission_for_data=self.getcommissioninfo)
+                    old = restored.orders[key]
+                    sequence.observe_ref(old.ref)
+                    if key not in notices.orders:
+                        self._gateway_register_order(notices, key, old)
+                        self.orders[old.ref] = old
+                    local = host.local_order_notifications().get(key)
+                    if local is not None and local["status"] == "pending":
+                        current = notices.orders[key]
+                        if current.executed.size != 0:
+                            _fail("LOCAL_NOTIFICATION_CONFLICT")
+                        old.ref = current.ref
+                        old.notification_id, old.replayed = local["notification_id"], True
+                        queue_local(old.clone())
+                    cancel = host.local_order_notifications().get("cancel:" + key)
+                    current = notices.orders[key]
+                    if cancel is not None:
+                        canceled = restore_framework_state(cancel["snapshot"], data_by_ref=binding.feeds,
+                            owner=strategy, broker=self, commission_for_data=self.getcommissioninfo).orders[key]
+                        sequence.observe_ref(canceled.ref)
+                        if current.executed.size != 0 or canceled.status != canceled.Canceled:
+                            _fail("LOCAL_NOTIFICATION_CONFLICT")
+                        current.status, current.executed.dt = canceled.status, canceled.executed.dt
+                        if cancel["status"] == "pending":
+                            canceled.ref = current.ref
+                            canceled.notification_id, canceled.replayed = cancel["notification_id"], True
+                            queue_local(canceled)
+                    elif (host.load_record(key) is not None
+                          and host.load_record(key).state == "RELEASED"):
+                        self._gateway_finalize_release(binding, current, key)
             for key, order in notices.orders.items():
-                self._gateway_stream_order(binding, key, order)
+                self._gateway_stream_order(binding, key, order, allow_unreserved=sequence is not None)
                 feed_ref = next(ref for ref, data in binding.feeds.items() if data is order.data)
-                if not binding.restored:
+                if not binding.restored and order.info.get("gateway_original_bt_ref") is None:
                     order.addinfo(gateway_instrument_key=binding.instruments[feed_ref].to_dict(),
                                   gateway_execution_time_policy=binding.policy.to_mapping(),
                                   gateway_execution_time_policy_digest=binding.policy.digest,
@@ -118,12 +212,337 @@ class GatewayExecutionStreamBrokerMixin:
     def gateway_execution_stream_status(self):
         binding = self.__dict__.get("_gateway_stream_binding")
         if binding is None:
-            return "UNBOUND"
+            return "WAITING_FEED" if self.__dict__.get("_gateway_waiting_for_feed") else "UNBOUND"
         self._gateway_stream_check(binding)
         return binding.state
 
+    def _gateway_notify_local(self, binding, order):
+        notice = self._gateway_binding(binding.strategy, required=True)
+        before = len(self.notifs)
+        self.notify(order)
+        if (notice.armed is not None or notice.receipt is not None or notice.restored is not None):
+            if len(self.notifs) != before + 1:
+                _fail("LOCAL_NOTIFICATION_QUEUE")
+            binding.local_deferred.append(self.notifs.pop())
+
+    def _gateway_require_trade_qualification(self, data, instrument):
+        """Ask the exact Gateway feed to qualify its latest delivered live tick."""
+        from ..feed import DataClone
+        from ..feeds.btapifeed import BtApiFeed, FeedTradeQualification
+
+        source = data.data if isinstance(data, DataClone) else data
+        if (not isinstance(source, BtApiFeed) or getattr(data, "replaying", False)
+                or getattr(source, "replaying", False)):
+            _fail("FEED_NOT_TRADABLE")
+        try:
+            if BtApiFeed.historical_warmup_active(source):
+                _fail("FEED_NOT_TRADABLE")
+            verdict = BtApiFeed.gateway_trade_qualification(
+                source, expected_store=self.store, expected_instrument=instrument
+            )
+        except Exception:
+            _fail("FEED_NOT_TRADABLE")
+        if (type(verdict) is not FeedTradeQualification or verdict.ok is not True
+                or verdict.live is not True or verdict.reasons != ()
+                or type(verdict.expires_monotonic_ns) is not int
+                or time.monotonic_ns() >= verdict.expires_monotonic_ns):
+            _fail("FEED_NOT_TRADABLE")
+        from bt_api_base.market_protocol import MarketSubscriptionKey
+        ref = verdict.dispatch_market_ref
+        try:
+            if not isinstance(ref, Mapping) or set(ref) != {"key", "epoch", "sequence", "message_id"}:
+                raise ValueError
+            key = dict(ref["key"])
+            key["instrument"] = dict(key["instrument"])
+            subscription = MarketSubscriptionKey.from_dict(key)
+            if (subscription.instrument != instrument
+                    or type(ref["epoch"]) is not str or not ref["epoch"]
+                    or type(ref["sequence"]) is not int or ref["sequence"] <= 0
+                    or type(ref["message_id"]) is not str or not ref["message_id"]):
+                raise ValueError
+            return {"key": subscription.to_dict(), "epoch": ref["epoch"],
+                    "sequence": ref["sequence"], "message_id": ref["message_id"]}
+        except (TypeError, ValueError, KeyError):
+            _fail("FEED_NOT_TRADABLE")
+
+    def _gateway_strategy_position_observation(self, binding, instrument, unit, *, order=None):
+        """Read a freshly authenticated observation for this exact strategy."""
+        from bt_api_py.gateway_strategy_position import (
+            GatewayStrategyPositionObservation, GatewayStrategyPositionResult,
+        )
+
+        try:
+            if order is None:
+                result = binding.api.get_strategy_position(binding.policy.route, instrument,
+                    quantity_unit=unit, timeout_seconds=binding.timeout)
+            else:
+                result = binding.api.get_strategy_close_capacity(binding.policy.route, instrument,
+                    quantity_unit=unit, side="buy" if order.isbuy() else "sell",
+                    offset=order.info.get("offset"), quantity=Decimal(str(abs(order.size))),
+                    position_side=order.info.get("position_side"), timeout_seconds=binding.timeout)
+            if type(result) is not GatewayStrategyPositionResult or result.outcome != "OBSERVED":
+                _fail("STRATEGY_POSITION_UNAVAILABLE")
+            observation = result.observation
+            if (type(observation) is not GatewayStrategyPositionObservation
+                    or observation.binding != binding.host._binding
+                    or observation.instrument != instrument or observation.quantity_unit != unit
+                    or not binding.api.strategy_position_is_current(
+                        binding.policy.route, observation, max_age_seconds=1.0)):
+                _fail("STRATEGY_POSITION_UNAVAILABLE")
+            if order is not None and (observation.strategy_close_available is None
+                    or observation.strategy_close_available < Decimal(str(abs(order.size)))):
+                _fail("STRATEGY_CLOSE_UNAVAILABLE")
+            return observation
+        except GatewayExecutionStreamError:
+            raise
+        except Exception:
+            _fail("STRATEGY_POSITION_UNAVAILABLE")
+
+    def _gateway_position_view(self, data, side=None):
+        from bt_api_base.market_protocol import MarketInstrumentKey
+        from ..position import Position
+
+        binding = self.__dict__.get("_gateway_stream_binding")
+        if binding is None:
+            _fail("FEED_NOT_READY")
+        self._gateway_stream_check(binding)
+        refs = [ref for ref, feed in binding.feeds.items() if feed is data]
+        if len(refs) != 1:
+            _fail("INSTRUMENT_SCOPE")
+        instrument = binding.instruments[refs[0]]
+        metadata = getattr(self.store, "contract_metadata", None) or {}
+        row = metadata.get(instrument.native_symbol) if isinstance(metadata, Mapping) else None
+        if not isinstance(row, Mapping):
+            _fail("STRATEGY_POSITION_UNIT_UNAVAILABLE")
+        declared = row.get("instrument_key")
+        if isinstance(declared, Mapping):
+            try:
+                declared = MarketInstrumentKey.from_dict(dict(declared))
+            except (TypeError, ValueError):
+                _fail("INSTRUMENT_RULE_SCOPE")
+        unit = row.get("quantity_unit")
+        if (type(declared) is not MarketInstrumentKey or declared != instrument
+                or row.get("exchange_name") != binding.policy.route
+                or type(unit) is not str or unit not in {"base", "contracts", "lots", "native"}):
+            _fail("STRATEGY_POSITION_UNIT_UNAVAILABLE")
+        observation = self._gateway_strategy_position_observation(binding, instrument, unit)
+        with localcontext() as context:
+            context.prec = 160
+            long_size = observation.long_today + observation.long_yesterday
+            short_size = observation.short_today + observation.short_yesterday
+            if side is None:
+                if long_size and short_size:
+                    _fail("STRATEGY_POSITION_SIDE_REQUIRED")
+                size = long_size - short_size
+            elif side == "long":
+                size = long_size
+            elif side == "short":
+                size = short_size
+            else:
+                _fail("STRATEGY_POSITION_SIDE_REQUIRED")
+        try:
+            value = float(size)
+        except (ValueError, OverflowError):
+            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
+        if not math.isfinite(value) or Decimal(str(value)) != size:
+            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
+        return Position(size=value, price=float("nan") if value else 0.0)
+
+    def _gateway_submit_order(self, order):
+        from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+        from bt_api_py.gateway_direct_client import build_gateway_order_intent
+        from ._btapi_gateway_projection import capture_framework_state
+        from ..order import Order
+
+        binding = self._gateway_stream_binding
+        if binding is None:
+            _fail("FEED_NOT_READY")
+        self._gateway_stream_check(binding)
+        notice = self._gateway_binding(binding.strategy, required=True)
+        if binding.sequence is None:
+            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
+        if (binding.state == "RESTART_REQUIRED" or notice.fault is not None
+                or order.owner is not binding.strategy or order.exectype != Order.Limit
+                or order.parent is not None or order.oco is not None or not order.transmit
+                or order.valid is not None or getattr(order.p, "simulated", False)
+                or order.status != order.Created or order.executed.size != 0
+                or order.executed.exbits or order.ref in self.orders):
+            _fail("ORDER_UNSUPPORTED")
+        if not self._trading_enabled:
+            _fail("TRADING_DISABLED")
+        refs = [key for key, data in binding.feeds.items() if data is order.data]
+        if len(refs) != 1 or self._position_key(order.data) != binding.instruments[refs[0]].native_symbol:
+            _fail("INSTRUMENT_SCOPE")
+        key = binding.instruments[refs[0]]
+        # Configured rules are usable only when they name the exact instrument
+        # and route. A symbol alone is not an instrument identity.
+        metadata = getattr(self.store, "contract_metadata", None) or {}
+        row = metadata.get(key.native_symbol) if isinstance(metadata, Mapping) else None
+        if not isinstance(row, Mapping):
+            _fail("INSTRUMENT_RULES_UNAVAILABLE")
+        from bt_api_base.market_protocol import MarketInstrumentKey
+        instrument = row.get("instrument_key")
+        if isinstance(instrument, Mapping):
+            try:
+                instrument = MarketInstrumentKey.from_dict(dict(instrument))
+            except (TypeError, ValueError):
+                _fail("INSTRUMENT_RULE_SCOPE")
+        if (type(instrument) is not MarketInstrumentKey or instrument != key
+                or row.get("exchange_name") != binding.policy.route):
+            _fail("INSTRUMENT_RULE_SCOPE")
+        declared = row
+        fields = {}
+        for name in ("quantity_unit", "time_in_force"):
+            chosen = order.info.get(name)
+            rule = declared.get(name)
+            if type(rule) is not str or not rule or rule != rule.strip():
+                _fail("INSTRUMENT_RULES_UNAVAILABLE")
+            if chosen is not None and rule is not None and chosen != rule:
+                _fail("INSTRUMENT_RULE_CONFLICT")
+            chosen = chosen if chosen is not None else rule
+            if type(chosen) is not str or not chosen or chosen != chosen.strip():
+                _fail("ORDER_" + name.upper() + "_REQUIRED")
+            fields[name] = chosen
+        if fields["quantity_unit"] not in {"base", "contracts", "lots", "native"}:
+            _fail("ORDER_QUANTITY_UNIT_INVALID")
+        offset = order.info.get("offset")
+        # Unknown product labels must not silently inherit Base's OPEN default.
+        if offset is None and key.product_type.casefold() not in {"spot", "cash"}:
+            _fail("ORDER_OFFSET_REQUIRED")
+        if offset is not None and offset not in {"open", "close", "close_today", "close_yesterday"}:
+            _fail("ORDER_OFFSET_INVALID")
+        exchange = order.info.get("exchange_id")
+        if exchange is not None and exchange != key.venue:
+            _fail("INSTRUMENT_SCOPE")
+        reduce_only = order.info.get("reduce_only", False)
+        if type(reduce_only) is not bool or (reduce_only and offset in (None, "open")):
+            _fail("ORDER_REDUCE_ONLY_INVALID")
+        for prior_key, prior_order in notice.orders.items():
+            if prior_order.data is not order.data:
+                continue
+            record = binding.host.load_record(prior_key)
+            context = binding.host.load_context(prior_key)
+            if (record is None or record.state == "UNKNOWN" or not record.generation_current
+                    or (record.state == "RESERVED" and context.marker_id is None)):
+                _fail("ORDER_RECONCILE_REQUIRED")
+        if offset in {"close", "close_today", "close_yesterday"}:
+            self._gateway_strategy_position_observation(binding, key, fields["quantity_unit"], order=order)
+        self._gateway_require_trade_qualification(order.data, key)
+        seq = binding.sequence.allocate(order.ref)
+        request_key = "bt-" + binding.sequence.strategy_uuid.replace("-", "") + "-" + str(seq)
+        request = OrderRequest(symbol=key.native_symbol, side=Side.BUY if order.isbuy() else Side.SELL,
+            order_type=OrderType.LIMIT, quantity=Decimal(str(abs(order.size))),
+            account_id=binding.host._binding.account_scope, client_order_id=request_key,
+            idempotency_key=request_key, price=Decimal(str(order.price)),
+            quantity_unit=fields["quantity_unit"], time_in_force=fields["time_in_force"],
+            offset=offset, position_side=order.info.get("position_side"),
+            position_mode=order.info.get("position_mode"), reduce_only=reduce_only,
+            position_id=order.info.get("position_id"), hedge_flag=order.info.get("hedge_flag"),
+            hedge_class=order.info.get("hedge_class"), exchange_id=key.venue)
+        from bt_api_base.order_intent import position_intent
+        position_intent(request)
+        intent = build_gateway_order_intent(binding.host._binding, binding.stream._route, request)
+        if order.comminfo is None:
+            order.addcomminfo(self.getcommissioninfo(order.data))
+        try:
+            order.addinfo(gateway_original_bt_ref=order.ref, gateway_instrument_key=key.to_dict(),
+                          gateway_execution_time_policy=binding.policy.to_mapping(),
+                          gateway_execution_time_policy_digest=binding.policy.digest,
+                          gateway_request_key=request_key, gateway_quantity_unit=fields["quantity_unit"],
+                          gateway_time_in_force=fields["time_in_force"], gateway_offset=offset,
+                          gateway_reduce_only=reduce_only, gateway_exchange_id=key.venue,
+                          local_seq=seq)
+            order.submit(self)
+            snapshot = capture_framework_state(orders={request_key: order}, positions={}, trades={},
+                data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
+            binding.host.save_submitted_order_intent(intent, local_seq=seq, bt_ref=order.ref,
+                                                    snapshot=snapshot)
+            self._gateway_register_order(notice, request_key, order)
+            self.orders[order.ref] = order
+            local = binding.host.local_order_notifications()[request_key]
+            order.notification_id, order.replayed = local["notification_id"], False
+            self._gateway_notify_local(binding, order)
+        except BaseException:
+            binding.state = "RESTART_REQUIRED"
+            raise
+        try:
+            result = binding.api.reserve_order(binding.policy.route, request, timeout_seconds=binding.timeout)
+            if result.outcome == "OBSERVED" and result.record is not None and result.record.state == "RESERVED":
+                try:
+                    market_ref = self._gateway_require_trade_qualification(order.data, key)
+                    if not isinstance(market_ref, dict):
+                        _fail("FEED_NOT_TRADABLE")
+                except Exception:
+                    binding.state = "FEED_NOT_TRADABLE_AFTER_RESERVE"
+                    return order
+                result = binding.api.dispatch_order(binding.policy.route, request_key, market_ref=market_ref,
+                                                    timeout_seconds=binding.timeout)
+        except BaseException:
+            binding.state = "SUBMIT_UNKNOWN"
+            raise
+        if result.outcome not in ("OBSERVED", "QUEUED"):
+            binding.state = "SUBMIT_UNKNOWN"
+        return order
+
+    def _gateway_cancel_order(self, order):
+        binding = self._gateway_stream_binding
+        self._gateway_stream_check(binding)
+        if binding.sequence is None:
+            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
+        notice = self._gateway_binding(binding.strategy, required=True)
+        key = self._gateway_request(notice, order)
+        order = notice.orders[key]
+        record = binding.host.load_record(key)
+        if record is None:
+            result = binding.api.command_status(binding.policy.route, key, timeout_seconds=binding.timeout)
+            if result.outcome != "OBSERVED" or result.record is None:
+                binding.state = "CANCEL_UNKNOWN"
+                return order
+            record = result.record
+        if record.state == "RELEASED":
+            self._gateway_finalize_release(binding, order, key)
+            return order
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        try:
+            if record.state == "RESERVED":
+                result = binding.api.release_order(binding.policy.route, key,
+                    operation_id="release-" + digest, timeout_seconds=binding.timeout)
+                if (result.outcome == "OBSERVED" and result.record is not None
+                        and result.record.state == "RELEASED"):
+                    self._gateway_finalize_release(binding, order, key)
+            else:
+                result = binding.api.cancel_order(binding.policy.route, key,
+                    operation_id="cancel-" + digest, timeout_seconds=binding.timeout)
+        except BaseException:
+            if binding.state != "RESTART_REQUIRED":
+                binding.state = "CANCEL_UNKNOWN"
+            raise
+        if result.outcome not in ("OBSERVED", "QUEUED"):
+            binding.state = "CANCEL_UNKNOWN"
+        return order
+
+    def _gateway_finalize_release(self, binding, order, key):
+        from ._btapi_gateway_projection import capture_framework_state
+
+        if order.status == order.Canceled:
+            return
+        if order.status != order.Submitted or order.executed.size != 0:
+            _fail("RELEASE_SCOPE")
+        try:
+            order.cancel()
+            snapshot = capture_framework_state(orders={key: order}, positions={}, trades={},
+                data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
+            notice = binding.host.save_released_order_notification(key, bt_ref=order.ref,
+                                                                   snapshot=snapshot)
+            order.notification_id, order.replayed = notice["notification_id"], False
+            self._gateway_notify_local(binding, order)
+        except BaseException:
+            binding.state = "RESTART_REQUIRED"
+            raise
+
     def _gateway_stream_check(self, binding):
         if (binding.pid != os.getpid() or binding.thread is not threading.current_thread()
+                or (getattr(self.store, "_gateway_mode", False) and not self.store.is_connected)
                 or binding.api._host is not binding.host
                 or binding.api.gateway_execution_stream(binding.policy.route) is not binding.stream
                 or binding.stream._binding != binding.host._binding
@@ -133,19 +552,19 @@ class GatewayExecutionStreamBrokerMixin:
         if self.__dict__.get("_gateway_execution_bindings"):
             _fail("MODE_CONFLICT")
 
-    def _gateway_stream_order(self, binding, key, order):
+    def _gateway_stream_order(self, binding, key, order, *, allow_unreserved=False):
         from bt_api_py.gateway_order_contract import decode_gateway_order_request
 
         intent = binding.host.load_intent(key)
         record = binding.host.load_record(key)
         context = binding.host.load_context(key)
-        if (intent is None or record is None or context is None
+        if (intent is None or (record is None and not allow_unreserved) or context is None
                 or intent.binding != binding.host._binding
                 or intent.route != binding.stream._route
-                or record.binding != intent.binding or record.request_key != key
-                or record.digest != intent.digest
-                or type(context.bt_ref) is not int or context.bt_ref != (
-                    order.info.get("gateway_original_bt_ref") if binding.restored else order.ref)):
+                or (record is not None and (record.binding != intent.binding or record.request_key != key
+                or record.digest != intent.digest))
+                or type(context.bt_ref) is not int or context.bt_ref !=
+                    order.info.get("gateway_original_bt_ref", order.ref)):
             _fail("ORDER_BINDING")
         request = decode_gateway_order_request(json.loads(intent.canonical_payload), intent.binding.account_scope)
         side = "buy" if order.isbuy() else "sell"
@@ -153,18 +572,34 @@ class GatewayExecutionStreamBrokerMixin:
                 or Decimal(str(abs(order.size))) != request.quantity
                 or self._position_key(order.data) != request.symbol):
             _fail("ORDER_BINDING")
+        if order.info.get("gateway_request_key") is not None:
+            if (order.info.get("gateway_request_key") != key
+                    or request.order_type.value != "limit"
+                    or Decimal(str(order.price)) != request.price
+                    or order.info.get("gateway_quantity_unit") != request.quantity_unit
+                    or order.info.get("gateway_time_in_force") != request.time_in_force
+                    or order.info.get("gateway_offset") != request.offset
+                    or order.info.get("gateway_reduce_only") != request.reduce_only
+                    or order.info.get("gateway_exchange_id") != request.exchange_id
+                    or order.info.get("position_side") != request.position_side
+                    or order.info.get("position_mode") != request.position_mode
+                    or order.info.get("position_id") != request.position_id
+                    or order.info.get("hedge_flag") != request.hedge_flag
+                    or order.info.get("hedge_class") != request.hedge_class):
+                _fail("ORDER_BINDING")
         refs = [ref for ref, data in binding.feeds.items() if data is order.data]
         if len(refs) != 1 or binding.instruments[refs[0]].native_symbol != request.symbol:
             _fail("INSTRUMENT_SCOPE")
         saved_key = order.info.get("gateway_instrument_key")
         expected_key = binding.instruments[refs[0]].to_dict()
         original_ref = order.info.get("gateway_original_bt_ref")
-        if ((binding.restored and (saved_key != expected_key or type(original_ref) is not int))
+        restored = binding.restored or original_ref is not None
+        if ((restored and (saved_key != expected_key or type(original_ref) is not int))
                 or (not binding.restored and saved_key is not None and saved_key != expected_key)):
             _fail("INSTRUMENT_SCOPE")
         old_policy = order.info.get("gateway_execution_time_policy")
         old_digest = order.info.get("gateway_execution_time_policy_digest")
-        if ((binding.restored or old_policy is not None or old_digest is not None)
+        if ((restored or old_policy is not None or old_digest is not None)
                 and (old_policy != binding.policy.to_mapping() or old_digest != binding.policy.digest)):
             _fail("TIME_POLICY_CONFLICT")
         return intent, record, request
@@ -187,11 +622,13 @@ class GatewayExecutionStreamBrokerMixin:
 
     def _gateway_stream_event_binding(self, binding, event, order):
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+        from ..live_state.gateway_execution_state import verify_gateway_trade_attribution
 
         intent, record, request = self._gateway_stream_order(binding, event.request_key, order)
         obs = event.observation
         feed_ref = next(ref for ref, data in binding.feeds.items() if data is order.data)
         matched_identity = bool(set(record.strong_identity_key_digests).intersection(obs.binding_key_digests))
+        bridged_identity = verify_gateway_trade_attribution(event, record, binding.host._binding)
         request_error = (
             (obs.kind is DirectExecutionEventKind.ORDER_ERROR and event.place_attribution is not None)
             or (obs.kind is DirectExecutionEventKind.CANCEL_ERROR and event.cancel_attribution is not None)
@@ -200,7 +637,7 @@ class GatewayExecutionStreamBrokerMixin:
                 or event.command_principal != intent.binding.principal
                 or obs.account_scope != intent.binding.account_scope
                 or obs.route != binding.policy.route
-                or not (matched_identity or request_error)
+                or not (matched_identity or bridged_identity or request_error)
                 or request.symbol != obs.instrument.native_symbol
                 or obs.instrument != binding.instruments[feed_ref]
                 or (request.instrument is not None and request.instrument != obs.instrument)
@@ -244,6 +681,36 @@ class GatewayExecutionStreamBrokerMixin:
         if notice.armed is not None or notice.receipt is not None:
             binding.state = "WAITING_NOTIFICATIONS"
             return
+        if binding.local_deferred:
+            self.notifs.extend(binding.local_deferred)
+            binding.local_deferred.clear()
+        if any(item["status"] == "pending" for item in binding.host.local_order_notifications().values()):
+            binding.state = "WAITING_NOTIFICATIONS"
+            return
+        for key in notice.orders:
+            record = binding.host.load_record(key)
+            if (record is not None and record.state == "RELEASED"
+                    and "cancel:" + key not in binding.host.local_order_notifications()):
+                self._gateway_finalize_release(binding, notice.orders[key], key)
+                binding.state = "WAITING_NOTIFICATIONS"
+                return
+            if record is None or record.state == "UNKNOWN":
+                result = binding.api.command_status(binding.policy.route, key,
+                                                    timeout_seconds=binding.timeout)
+                if result.outcome != "OBSERVED" or result.record is None:
+                    binding.state = "RECOVERY_PENDING"
+                    return
+                record = result.record
+            context = binding.host.load_context(key)
+            if record.state == "RESERVED" and context.marker_id is None:
+                result = binding.api.command_status(binding.policy.route, key,
+                                                    timeout_seconds=binding.timeout)
+                if result.outcome != "OBSERVED" or result.record is None:
+                    binding.state = "RECOVERY_PENDING"
+                    return
+                if result.record.state == "RESERVED":
+                    binding.state = "RESERVATION_RECOVERY_PENDING"
+                    return
         did_read = False
 
         def read_once():
@@ -254,6 +721,30 @@ class GatewayExecutionStreamBrokerMixin:
             if result.outcome != "OBSERVED":
                 binding.state = "READ_UNAVAILABLE"
                 return False
+            # A dispatch may return QUEUED while the service already publishes
+            # execution events.  Refresh only previously registered request
+            # keys; the SDK verifies and persists their command identities.
+            # Do not advance the stream cursor until the original key has a
+            # durable native identity against which the page can be checked.
+            from bt_api_base.gateway_execution_stream_protocol import GatewayExecutionStreamPage
+            if type(result.page) is GatewayExecutionStreamPage:
+                for event in result.page.events:
+                    key = event.request_key
+                    if key not in notice.orders:
+                        continue  # normal page validation will reject the orphan
+                    record = binding.host.load_record(key)
+                    if record is None or record.native_identity is None:
+                        try:
+                            observed = binding.api.command_status(
+                                binding.policy.route, key, timeout_seconds=binding.timeout)
+                        except Exception:
+                            binding.state = "RECOVERY_PENDING"
+                            return False
+                        record = binding.host.load_record(key)
+                        if (observed.outcome != "OBSERVED" or observed.record is None
+                                or record != observed.record or record.native_identity is None):
+                            binding.state = "RECOVERY_PENDING"
+                            return False
             checkpoint = binding.host.ingest_execution_result(result, expected_revision=checkpoint.revision)
             return True
 
@@ -270,11 +761,17 @@ class GatewayExecutionStreamBrokerMixin:
         if order is None:
             binding.state = "ORDER_UNAVAILABLE"
             return
+        if binding.host.load_record(event.request_key) is None:
+            result = binding.api.command_status(binding.policy.route, event.request_key,
+                                                timeout_seconds=binding.timeout)
+            if result.outcome != "OBSERVED" or result.record is None:
+                binding.state = "ORDER_UNAVAILABLE"
+                return
         request = self._gateway_stream_event_binding(binding, event, order)
         obs = event.observation
         if obs.kind is DirectExecutionEventKind.TRADE:
             def trade_facts():
-                prior, dates, times = [], [], set()
+                prior, dates, times = [], [], []
                 for candidate in self._gateway_stream_events(binding.host):
                     other = candidate.observation
                     if (candidate.request_key == event.request_key
@@ -284,26 +781,29 @@ class GatewayExecutionStreamBrokerMixin:
                         if other.trade_date is not None:
                             dates.append((other.trade_date, candidate.fact_digest))
                         if other.trade_time is not None:
-                            times.add(other.trade_time)
+                            times.append((other.trade_time, candidate.fact_digest))
                 if len({value for value, _ in dates}) > 1:
                     _fail("TRADE_DATE_CONFLICT")
-                if len(times) > 1:
+                if len({value for value, _ in times}) > 1:
                     _fail("TRADE_TIME_CONFLICT")
-                return prior, dates
+                return prior, dates, times
 
-            prior, dates = trade_facts()
-            if (not obs.trade_metadata_only and obs.trade_date is None and not dates
+            prior, dates, times = trade_facts()
+            if (not obs.trade_metadata_only
+                    and ((obs.trade_date is None and not dates)
+                         or (obs.trade_time is None and not times))
                     and not did_read):
                 if not read_once():
                     return
-                prior, dates = trade_facts()
+                prior, dates, times = trade_facts()
         if obs.kind is DirectExecutionEventKind.TRADE and not obs.trade_metadata_only:
             if obs.offset != request.offset:
                 binding.state = "TRADE_INCOMPLETE"
                 return
             date = obs.trade_date or (dates[0][0] if dates else None)
+            trade_time = obs.trade_time or (times[0][0] if times else None)
             try:
-                stamp = binding.policy.project(date, obs.trade_time)
+                stamp = binding.policy.project(date, trade_time)
             except ValueError:
                 binding.state = "TIME_INVALID"
                 return
@@ -352,8 +852,9 @@ class GatewayExecutionStreamBrokerMixin:
                 order.addinfo(gateway_execution_time_policy=binding.policy.to_mapping(),
                               gateway_execution_time_policy_digest=binding.policy.digest)
                 facts = dict(order.info.get("gateway_execution_time_facts") or {})
-                facts[obs.trade_key_digest] = {"trade_date": date, "trade_time": obs.trade_time,
-                                               "date_fact_digest": next((f for d, f in dates if d == date), None)}
+                facts[obs.trade_key_digest] = {"trade_date": date, "trade_time": trade_time,
+                    "date_fact_digest": next((f for d, f in dates if d == date), None),
+                    "time_fact_digest": next((f for t, f in times if t == trade_time), None)}
                 order.info["gateway_execution_time_facts"] = facts
                 if not prior:
                     order.addinfo(quantity_unit=request.quantity_unit, position_side=request.position_side,

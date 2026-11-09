@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 
 from bt_api_py.gateway_direct_client import gateway_intent_from_mapping, gateway_intent_to_mapping
 
@@ -55,6 +56,66 @@ def validate_order_state(state):
         total += len(_json_bytes(snap))
         if total > limit:
             raise ValueError("GATEWAY_ORDER_CAPACITY_EXCEEDED")
+    if state["version"] == 6:
+        notices = gateway["local_notifications"]
+        if type(notices) is not dict or len(notices) > 2 * gateway["max_entries"]:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CAPACITY")
+        for key, notice in notices.items():
+            if key.startswith("cancel:"):
+                request_key = key[len("cancel:"):]
+                if (type(notice) is not dict or set(notice) !=
+                        {"notification_id", "status", "bt_ref", "snapshot"}
+                        or request_key not in snapshots or request_key not in notices
+                        or entries[request_key]["record"] is None
+                        or entries[request_key]["record"]["state"] != "RELEASED"):
+                    raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+                cancel_snapshot = _snapshot(notice["snapshot"], request_key,
+                                            notice["bt_ref"], limit)
+                if (cancel_snapshot["state"]["orders"][request_key]["status"] != 5
+                        or notice["status"] not in ("pending", "confirmed")
+                        or notice["notification_id"] != _cancel_notice_id(
+                            state, request_key, notice["bt_ref"], cancel_snapshot)
+                        or (notice["status"] == "confirmed"
+                            and notices[request_key]["status"] != "confirmed")):
+                    raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+                total += len(_json_bytes(cancel_snapshot))
+                if total > limit:
+                    raise ValueError("GATEWAY_ORDER_CAPACITY_EXCEEDED")
+                continue
+            envelope = snapshots.get(key)
+            if (envelope is None or type(notice) is not dict
+                    or set(notice) != {"notification_id", "status"}
+                    or envelope["snapshot"]["state"]["orders"][key]["status"] != 1
+                    or notice["status"] not in ("pending", "confirmed")
+                    or notice["notification_id"] != _notice_id(state, key, envelope)):
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+
+
+def _notice_id(state, key, envelope):
+    payload = {"domain": "backtrader.gateway.local-submitted.v1",
+               "strategy_uuid": state["strategy_uuid"], "request_key": key,
+               "order": envelope}
+    return hashlib.sha256(_json_bytes(payload)).hexdigest()
+
+
+def _cancel_notice_id(state, key, bt_ref, snapshot):
+    payload = {"domain": "backtrader.gateway.local-canceled.v1",
+               "strategy_uuid": state["strategy_uuid"], "request_key": key,
+               "bt_ref": bt_ref, "snapshot": snapshot}
+    return hashlib.sha256(_json_bytes(payload)).hexdigest()
+
+
+def upgrade_for_local_notifications(host):
+    with host._store._lock():
+        state = host._store._load()
+        host._check_state(state)
+        if state["version"] == 5:
+            state["version"] = 6
+            state["gateway"]["local_notifications"] = {}
+            host._store._store(state, trim_history=False)
+        elif state["version"] != 6:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
+    return host
 
 
 def upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding, *,
@@ -71,7 +132,7 @@ def upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding, *,
             state["gateway"]["max_order_snapshot_bytes"] = max_order_snapshot_bytes
             state["gateway"]["order_snapshots"] = {}
             host._store._store(state, trim_history=False)
-        elif state["version"] == 5:
+        elif state["version"] in (5, 6):
             if state["gateway"]["max_order_snapshot_bytes"] != max_order_snapshot_bytes:
                 raise ValueError("GATEWAY_ORDER_CAPACITY_MISMATCH")
         else:
@@ -79,7 +140,9 @@ def upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding, *,
     return host
 
 
-def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot):
+def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submitted=False):
+    if type(local_submitted) is not bool:
+        raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
     if not is_strict_int(local_seq, minimum=1) or not is_strict_int(bt_ref, minimum=1):
         raise ValueError("GATEWAY_FACT_INVALID")
     mapping = gateway_intent_to_mapping(intent)
@@ -87,8 +150,10 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot):
     with host._store._lock():
         state = host._store._load()
         entries = host._check_state(state)
-        if state["version"] != 5:
+        if state["version"] not in (5, 6):
             raise ValueError("GATEWAY_ORDER_UPGRADE_REQUIRED")
+        if local_submitted and state["version"] != 6:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
         snap = _snapshot(snapshot, canonical.request_key, bt_ref,
                          gateway["max_order_snapshot_bytes"])
@@ -105,8 +170,19 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot):
         changed = host._save_intent_in_state(state, mapping, canonical, local_seq, bt_ref)
         if previous is None:
             gateway["order_snapshots"][canonical.request_key] = envelope
-            validate_order_state(state)
             changed = True
+        if local_submitted:
+            notice_id = _notice_id(state, canonical.request_key, envelope)
+            notices = gateway["local_notifications"]
+            if canonical.request_key not in notices:
+                if previous is not None:
+                    raise ValueError("GATEWAY_LOCAL_NOTIFICATION_TOO_LATE")
+                notices[canonical.request_key] = {"notification_id": notice_id,
+                                                  "status": "pending"}
+                changed = True
+            elif notices[canonical.request_key]["notification_id"] != notice_id:
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
+        validate_order_state(state)
         if changed:
             host._store._store(state)
 
@@ -115,7 +191,7 @@ def iter_order_snapshots(host):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] != 5:
+        if state["version"] not in (5, 6):
             return {}
         snapshots = state["gateway"]["order_snapshots"]
         return copy.deepcopy({key: snapshots[key] for key in sorted(snapshots)})
@@ -125,6 +201,68 @@ def load_order_snapshot(host, request_key):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] != 5:
+        if state["version"] not in (5, 6):
             return None
         return copy.deepcopy(state["gateway"]["order_snapshots"].get(request_key))
+
+
+def local_notifications(host):
+    with host._store._lock():
+        state = host._store._load()
+        host._check_state(state)
+        if state["version"] != 6:
+            return {}
+        return copy.deepcopy(state["gateway"]["local_notifications"])
+
+
+def save_released_notification(host, request_key, *, bt_ref, snapshot):
+    if type(request_key) is not str or not is_strict_int(bt_ref, minimum=1):
+        raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+    with host._store._lock():
+        state = host._store._load()
+        entries = host._check_state(state)
+        if state["version"] != 6:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
+        gateway = state["gateway"]
+        entry = entries.get(request_key)
+        if (entry is None or entry["record"] is None or entry["record"]["state"] != "RELEASED"
+                or request_key not in gateway["local_notifications"]):
+            raise ValueError("GATEWAY_RELEASE_NOT_PROVEN")
+        snap = _snapshot(snapshot, request_key, bt_ref, gateway["max_order_snapshot_bytes"])
+        if snap["state"]["orders"][request_key]["status"] != 5:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+        notice = {"notification_id": _cancel_notice_id(state, request_key, bt_ref, snap),
+                  "status": "pending", "bt_ref": bt_ref, "snapshot": snap}
+        key = "cancel:" + request_key
+        old = gateway["local_notifications"].get(key)
+        if old is not None:
+            if any(old[field] != notice[field] for field in ("notification_id", "bt_ref", "snapshot")):
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
+            return copy.deepcopy(old)
+        gateway["local_notifications"][key] = notice
+        validate_order_state(state)
+        host._store._store(state, trim_history=False)
+        return copy.deepcopy(notice)
+
+
+def confirm_local_notifications(host, entries):
+    if type(entries) is not dict or not entries:
+        raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+    with host._store._lock():
+        state = host._store._load()
+        host._check_state(state)
+        if state["version"] != 6:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
+        notices = state["gateway"]["local_notifications"]
+        for key, notice_id in entries.items():
+            item = notices.get(key)
+            if item is None or item["notification_id"] != notice_id:
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
+        changed = False
+        for key in entries:
+            if notices[key]["status"] == "pending":
+                notices[key]["status"] = "confirmed"
+                changed = True
+        if changed:
+            validate_order_state(state)
+            host._store._store(state, trim_history=False)

@@ -243,6 +243,8 @@ class FeedTradeQualification:
     last_event_time_utc: Optional[_dt.datetime]
     last_received_at_utc: Optional[_dt.datetime]
     receive_age_seconds: Optional[float]
+    expires_monotonic_ns: Optional[int] = None
+    dispatch_market_ref: Optional[Mapping] = None
 
 
 def _bounded_context_value(value):
@@ -402,6 +404,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ("bar_watermark_ms", 500),
         ("event_time_max_age", 2.0),
         ("receive_time_max_age", 2.0),
+        ("gateway_clock_verification", None),
         # D62-38: consecutive real-time ticks whose exchange time went
         # backwards before the feed degrades; fewer are dropped and counted.
         ("event_time_regression_limit", 3),
@@ -641,6 +644,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         """Return the exact cohort installed by Cerebro for this feed, if any."""
         return self._live_bar_cohort
 
+    def _gateway_market_enabled_for_store(self, store):
+        """The Gateway feed path uses its own SDK subscription, not Store polling."""
+        return (store is self.store and getattr(store, "_gateway_strategy_config", None) is not None
+                and self._replay_tick_adapter is None)
+
     def start(self):
         """Start the feed, register it, and backfill if configured."""
         new_session = not self._session_active
@@ -680,6 +688,27 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 return
 
             self.store.start(data=self)
+            if self._gateway_market_enabled_for_store(self.store):
+                if (self.p.backfill_start or self._history or self._live
+                        or self.p.cohort_source_mode or self.p.orderbook_as_ticks):
+                    raise ValueError("GATEWAY_MARKET_FEED_CONFIGURATION_UNSUPPORTED")
+                from ..service.gateway_market_adapter import GatewayMarketAdapter
+
+                adapter = GatewayMarketAdapter(self.store, self._dataname, self,
+                    clock_verification=self.p.gateway_clock_verification)
+                self._gateway_market_adapter = adapter
+                try:
+                    adapter.start()
+                except BaseException:
+                    adapter.close()
+                    self.__dict__.pop("_gateway_market_adapter", None)
+                    raise
+                self._stream_recovery_reader = adapter.recovery_reason
+                if adapter.recovery_reason():
+                    self.put_notification(self.DELAYED, stale_reason=adapter.recovery_reason())
+                    self._continuity_degraded = True
+                self._session_active = True
+                return
             if self._live_bar_cohort is not None:
                 try:
                     baseline = self._read_cohort_stream_health()
@@ -788,6 +817,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         try:
             super().stop()
         finally:
+            gateway_adapter = self.__dict__.get("_gateway_market_adapter")
             if self._tick_consumer_claimed and self.store is not None:
                 release = getattr(self.store, "release_tick_consumer", None)
                 if callable(release):
@@ -810,9 +840,13 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self._tick_consumer_claimed = False
             self._session_active = False
             self._tick_trade_state = (None, None)
+            self._gateway_last_data_event = None
             if self._replay_started:
                 self._replay_tick_adapter.close()
                 self._replay_started = False
+            if gateway_adapter is not None:
+                gateway_adapter.close()
+                self.__dict__.pop("_gateway_market_adapter", None)
 
     def islive(self) -> bool:
         """Return whether this feed has a configured live data source."""
@@ -947,6 +981,20 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         """
         return bool(self._history)
 
+    def gateway_trade_qualification(self, *, expected_store, expected_instrument):
+        """Qualify only the Gateway Feed bound to this Store and instrument."""
+        from dataclasses import replace
+        from ..service.gateway_market_adapter import GatewayMarketAdapter
+
+        adapter = self.__dict__.get("_gateway_market_adapter")
+        if (type(adapter) is not GatewayMarketAdapter
+                or not adapter.matches(expected_store, self, expected_instrument)):
+            return FeedTradeQualification(False, ("GATEWAY_FEED_BINDING_MISMATCH",), False, None, None, None)
+        result = BtApiFeed.trade_qualification(self)
+        if not adapter.matches(expected_store, self, expected_instrument):
+            return replace(result, ok=False, reasons=result.reasons + ("GATEWAY_FEED_BINDING_MISMATCH",))
+        return result
+
     def trade_qualification(self, now_monotonic_ns=None):
         """Whether this feed's data may back a live order now (D62-21/27/28).
 
@@ -960,6 +1008,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         Returns:
             FeedTradeQualification: ``ok`` and the finite failure ``reasons``.
         """
+        adapter = self.__dict__.get("_gateway_market_adapter")
+        if adapter is not None:
+            return BtApiFeed._gateway_clock_trade_qualification(self, adapter, now_monotonic_ns)
         qualification, ingest_error = self._tick_trade_state
         live = bool(
             self._replay_tick_adapter is None
@@ -1009,6 +1060,45 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             ),
             receive_age_seconds=receive_age,
         )
+
+    def _gateway_clock_trade_qualification(self, adapter, now_monotonic_ns):
+        live = bool(self._session_active and self._live_notified and not self._continuity_degraded)
+        pair = adapter.latest_realtime()
+        if (not live or pair is None or pair[0] is not self.__dict__.get("_gateway_last_data_event")
+                or self._tick_trade_state[1] is not None
+                or not adapter.matches(self.store, self, adapter._key.instrument)):
+            return FeedTradeQualification(False, ("GATEWAY_REALTIME_UNAVAILABLE",), live, None, None, None)
+        qualified = adapter.qualify_latest()
+        pair_after = adapter.latest_realtime()
+        if (qualified is None or pair_after is None or pair_after[0] is not pair[0]
+                or pair_after[1] is not pair[1] or not self._session_active
+                or not self._live_notified or self._continuity_degraded
+                or self.__dict__.get("_gateway_last_data_event") is not pair[0]
+                or self._tick_trade_state[1] is not None
+                or not adapter.matches(self.store, self, adapter._key.instrument)):
+            return FeedTradeQualification(False, ("GATEWAY_CLOCK_UNAVAILABLE",), live, None, None, None)
+        result, market_ref = qualified
+        now = _time.monotonic_ns()
+        if now_monotonic_ns is not None:
+            if type(now_monotonic_ns) is not int:
+                return FeedTradeQualification(False, ("NOW_MONOTONIC_INVALID",), live, None, None, None)
+            now = max(now, now_monotonic_ns)
+        received = result.client_received_monotonic_ns
+        try:
+            age = (now - received) / 1e9
+            limit = float(self.p.receive_time_max_age)
+            event_time = _as_utc_datetime(result.event_time_utc)
+            receive_time = _as_utc_datetime(result.client_received_at_utc)
+            valid = (type(received) is int and type(self.p.receive_time_max_age) is not bool
+                     and math.isfinite(limit) and 0 <= age <= limit
+                     and now < result.expires_monotonic_ns and event_time is not None
+                     and receive_time is not None)
+        except (TypeError, ValueError, OverflowError):
+            valid, age, event_time, receive_time = False, None, None, None
+        return FeedTradeQualification(valid, () if valid else ("GATEWAY_CLOCK_EXPIRED",), live,
+                                      event_time, receive_time, age,
+                                      result.expires_monotonic_ns if valid else None,
+                                      market_ref if valid else None)
 
     def _record_tick_ingest_error(self, event, code):
         """Drop one SDK tick that cannot enter data lines (D62-27).
@@ -1273,7 +1363,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
         if self._live:
             bar = self._live.popleft()
-        elif self.store is not None:
+        elif self.store is not None and self.__dict__.get("_gateway_market_adapter") is None:
             bar = self.store.poll_live(self._dataname)
         else:
             bar = None
@@ -1416,7 +1506,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if quote_only and self._live_bar_cohort is None:
             raise RuntimeError("quote-only tick drain requires an active live bar cohort")
         if self._replay_tick_adapter is None and (
-            self.store is None or not hasattr(self.store, "poll_tick")
+            self.__dict__.get("_gateway_market_adapter") is None
+            and (self.store is None or not hasattr(self.store, "poll_tick"))
         ):
             return 0 if quote_only else False
 
@@ -1431,6 +1522,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             try:
                 if self._replay_tick_adapter is not None:
                     tick = self._replay_tick_adapter.poll()
+                elif self.__dict__.get("_gateway_market_adapter") is not None:
+                    tick = self._gateway_market_adapter.poll()
                 else:
                     tick = self.store.poll_tick(self._dataname)
             except Exception:
@@ -1445,6 +1538,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 if self._live_notified and not self._continuity_degraded:
                     self._note_stream_recovery()
                 break
+            if self.__dict__.get("_gateway_market_adapter") is not None:
+                self._gateway_last_data_event = None
             previous_trade_state = self._tick_trade_state
             if self._replay_tick_adapter is None:
                 event = tick
@@ -1547,6 +1642,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 ):
                     break
                 continue
+
+            if (self.__dict__.get("_gateway_market_adapter") is not None
+                    and _tick_value(tick, "data_quality", default=None) == "GOOD"):
+                self._gateway_last_data_event = event
 
             if not quote_only:
                 self._record_initial_volume_baseline(tick)
@@ -1689,6 +1788,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         promoting a partial bar to executable data.
         """
 
+        if self.__dict__.get("_gateway_market_adapter") is not None:
+            return False
         store = self.store
         if self._replay_tick_adapter is not None:
             if not self._replay_tick_adapter.exhausted:
@@ -1719,6 +1820,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         return True
 
     def _drain_live_orderbooks(self, limit=None, *, deadline_ns=None):
+        if self.__dict__.get("_gateway_market_adapter") is not None:
+            return False
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
             return False
 

@@ -1,0 +1,20 @@
+....................................................F................... [ 98%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_qualified_configured_order_and_clock_failure _______________
+tests/integration/test_iter63_gateway_qualified_order_process.py:445: in test_qualified_configured_order_and_clock_failure
+    assert order.executed.size == 1
+E   assert 0 == 1
+E    +  where 0 = <backtrader.order.OrderData object at 0x166ea7c10>.size
+E    +    where <backtrader.order.OrderData object at 0x166ea7c10> = <backtrader.order.BuyOrder object at 0x166e51350>.executed
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+----- generated xml file: /tmp/iter63-consolidated-20261109/sdk-final.xml ------
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_qualified_order_process.py::test_qualified_configured_order_and_clock_failure
+1 failed, 72 passed, 1 warning in 21.68s
+ERROR conda.cli.main_run:execute(125): `conda run env BT_SKIP_PYTEST_TMP_CLEANUP=1 DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP PYTHONPATH=/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/unit/test_iter63_account_facts_client.py tests/integration/test_iter63_account_facts_curve.py tests/integration/test_iter63_account_fact_status_ctp.py tests/integration/test_iter63_gateway_account_events_owner_curve.py tests/unit/test_iter63_gateway_account_observer_rpc.py tests/unit/test_iter63_account_observer_client.py tests/unit/test_iter63_gateway_lease_recovery_proof.py tests/unit/test_iter63_gateway_control_curve.py tests/unit/test_iter63_gateway_strategy_financial.py tests/integration/test_iter63_gateway_financial_source_process.py tests/integration/test_iter63_gateway_qualified_order_process.py tests/unit/test_iter63_gateway_market_dispatch_gate.py -ra --junitxml=/tmp/iter63-consolidated-20261109/sdk-final.xml` failed. (See above for error)

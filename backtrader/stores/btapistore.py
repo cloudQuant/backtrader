@@ -14,6 +14,7 @@ import contextvars
 import datetime as _dt
 import functools
 import math
+import os
 import threading
 import time
 import uuid
@@ -292,6 +293,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         execution_authorization: Any = None,
         settlement_authorization: Any = None,
         autostart: bool = False,
+        gateway_host: Any = None,
+        gateway_security_profiles: Any = None,
+        gateway_run_lock: Any = None,
         **kwargs: Any,
     ):
         """Initialize the BtApiStore.
@@ -322,10 +326,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 is bounded by ``config['live_bar_queue_size']`` (defaulting to
                 ``book_queue_size``, or 256). Every eviction is counted and
                 marks this Store's stream stale; create a new Store to begin a
-                clean source epoch after any bar loss.
+                clean source epoch after any bar loss. A ``gateway_strategy``
+                mapping explicitly selects the independent Gateway client;
+                its public fields follow SDK ``GatewayStrategyConfig``.
             preserve_raw_bars: Preserve raw bar fields for strict opt-in consumers.
             contract_metadata: Contract metadata by symbol.
-            backend: Runtime backend. Only ``direct`` remains supported here.
+            backend: Legacy runtime backend selector. Only ``direct`` is
+                supported; the independent Gateway uses ``gateway_strategy``
+                in config, not a retired backend alias.
             managed_execution_adapter: A trusted Iteration 41 adapter attached
                 only after configuration-first capability resolution.  The
                 Store never discovers or constructs this from user config.
@@ -338,6 +346,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 It remains separate from order authorization and is passed
                 unchanged to the SDK settlement claim and confirmation methods.
             autostart: Whether to start the store on initialization.
+            gateway_host: Explicit strategy-local Gateway pending host. Its
+                durable identity must match the Gateway configuration.
+            gateway_security_profiles: Separately resolved SDK CURVE keys, not
+                embedded in the public configuration mapping.
+            gateway_run_lock: Reserved; externally held locks are rejected
+                because their process ownership cannot currently be verified.
             **kwargs: Additional SDK configuration values.
         """
         super().__init__()
@@ -349,6 +363,43 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self.provider = self._resolve_provider(provider)
         self.backend = _resolve_backend(self.provider, backend)
+        gateway_tree = config.get("gateway_strategy") if isinstance(config, Mapping) else None
+        self._gateway_mode = isinstance(config, Mapping) and "gateway_strategy" in config
+        self._gateway_pid = os.getpid() if self._gateway_mode else None
+        self._gateway_strategy_config = None
+        self._gateway_host = None
+        self._gateway_security_profiles = None
+        self._gateway_run_lock = None
+        self._gateway_owns_run_lock = False
+        self._gateway_state = None
+        self._gateway_closed = False
+        self._gateway_start_attempted = False
+        if self._gateway_mode:
+            from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
+            from ..live_state.gateway_pending import GatewayPendingHost
+            from ..live_state.state_dir import StrategyStateDir
+
+            if (self.provider != "btapi" or backend not in (None, "") or api is not None
+                    or api_cls is not None or managed_execution_adapter is not None
+                    or execution_authorization is not None or settlement_authorization is not None
+                    or api_kwargs or kwargs or type(gateway_host) is not GatewayPendingHost
+                    or not isinstance(gateway_security_profiles, Mapping)
+                    or not gateway_security_profiles):
+                raise BtApiStoreError("GATEWAY_CONFIGURATION_CONFLICT")
+            self._gateway_strategy_config = parse_gateway_strategy_config(gateway_tree)
+            if gateway_host._binding != self._gateway_strategy_config.binding:
+                raise BtApiStoreError("GATEWAY_HOST_BINDING_MISMATCH")
+            self._gateway_host = gateway_host
+            self._gateway_security_profiles = dict(gateway_security_profiles)
+            state = StrategyStateDir(gateway_host._store.paths.strategy_dir)
+            if state.strategy_uuid != gateway_host._store.strategy_uuid:
+                raise BtApiStoreError("GATEWAY_HOST_IDENTITY_MISMATCH")
+            if gateway_run_lock is not None:
+                raise BtApiStoreError("GATEWAY_BORROWED_LOCK_UNSUPPORTED")
+            self._gateway_state = state
+            self.backend = "gateway_strategy"
+        elif gateway_host is not None or gateway_security_profiles is not None or gateway_run_lock is not None:
+            raise BtApiStoreError("GATEWAY_CONFIGURATION_REQUIRED")
         self._sdk_route_policy = StoreRouteIdentityPolicy(
             self,
             error_type=BtApiStoreError,
@@ -418,7 +469,13 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             and not has_execution
         )
         configured_exchanges = sdk_options.get("exchange_kwargs")
-        if isinstance(configured_exchanges, Mapping):
+        if self._gateway_mode:
+            if (configured_exchanges is not None or "write_admission" in sdk_options
+                    or has_execution):
+                raise BtApiStoreError("GATEWAY_CONFIGURATION_CONFLICT")
+            self._sdk_direct_exchange_kwargs = None
+            self._sdk_exchanges = {self._gateway_strategy_config.exchange_name: {}}
+        elif isinstance(configured_exchanges, Mapping):
             self._sdk_direct_exchange_kwargs = dict(configured_exchanges)
             self._sdk_exchanges = {name: {} for name in configured_exchanges}
         elif api_is_bt_api:
@@ -612,9 +669,17 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self._subscribed_datanames: set = set()
         self._successful_connect_count = 0
-        self.contract_metadata = {
-            str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
-        }
+        if self._gateway_mode:
+            from ..service.gateway_config import compose_gateway_contract_metadata
+
+            self.contract_metadata = compose_gateway_contract_metadata(
+                self._gateway_strategy_config, self._config.get("contracts"),
+                contract_metadata, BtApiStoreError,
+            )
+        else:
+            self.contract_metadata = {
+                str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
+            }
         self.session_id = (
             f"{self.provider}-"
             f"{_dt.datetime.now(_dt.timezone.utc).strftime('%Y%m%d%H%M%S')}-"
@@ -695,6 +760,13 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     @property
     def is_connected(self) -> bool:
         """Return whether the store is connected and ready."""
+        if self._gateway_mode:
+            if (self._gateway_pid != os.getpid() or not self._connected or self._api is None
+                    or self._gateway_run_lock is None
+                    or not self._gateway_run_lock.held):
+                return False
+            status = self._api.status()
+            return status.state == "running" and status.healthy is True
         return self._connected
 
     @property
@@ -730,9 +802,58 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
         Store query methods continue to use the managed client internally.
         """
-        if _legacy_gateway_entrypoint(self.provider, self.backend) is not None:
+        if self._gateway_mode or _legacy_gateway_entrypoint(self.provider, self.backend) is not None:
             return None
         return self._api
+
+    @property
+    def gateway_api(self):
+        """Gateway facade after explicit Store startup, or None before startup."""
+        return self._api if self._gateway_mode else None
+
+    @property
+    def gateway_host(self):
+        """Borrowed strategy-local pending host; never owned or closed by Store."""
+        return self._gateway_host
+
+    @property
+    def gateway_strategy_config(self):
+        """Detached public Gateway configuration selected for this Store."""
+        return self._gateway_strategy_config
+
+    @property
+    def gateway_sequence(self):
+        """Sequence bound to the Gateway host's strategy state."""
+        return None if self._gateway_state is None else self._gateway_state.sequence
+
+    def bind_gateway_strategy(self, strategy, *, data_by_ref, sequence=None, orders_by_key=None,
+                              page_limit=128, timeout_seconds=1.0):
+        """Bind the existing broker after Strategy and Feed objects exist.
+
+        Store holds the existing run lock; the sequence must name the same
+        strategy state. This does not infer account readiness or create a
+        second strategy lifecycle.
+        """
+        if not self._gateway_mode or not self._started or not self.is_connected:
+            raise BtApiStoreError("GATEWAY_SESSION_UNAVAILABLE")
+        broker = self._broker
+        bind = getattr(broker, "bind_gateway_execution_stream", None)
+        if broker is None or getattr(strategy, "broker", None) is not broker or not callable(bind):
+            raise BtApiStoreError("GATEWAY_BROKER_BINDING_INVALID")
+        if sequence is None:
+            sequence = self.gateway_sequence
+        if (sequence is not self.gateway_sequence
+                and (getattr(sequence, "strategy_uuid", None) != self._gateway_state.strategy_uuid
+                     or getattr(getattr(sequence, "paths", None), "sequence", None)
+                     != self._gateway_state.paths.sequence)):
+            raise BtApiStoreError("GATEWAY_SEQUENCE_BINDING_INVALID")
+        if orders_by_key is None:
+            orders_by_key = {}
+        return bind(strategy, api=self._api, host=self._gateway_host,
+                    data_by_ref=data_by_ref, orders_by_key=orders_by_key,
+                    instrument_by_ref=dict(self._gateway_strategy_config.instruments_by_ref),
+                    time_policy=self._gateway_strategy_config.execution_time_policy,
+                    sequence=sequence, page_limit=page_limit, timeout_seconds=timeout_seconds)
 
     def _bind_managed_runtime_api(self, api: Any) -> None:
         """Mark the exact injected SDK API as borrowed by a managed runtime."""
@@ -1444,6 +1565,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         cash amount does not imply settlement, transferability, or withdrawal
         availability.
         """
+        if self._gateway_mode:
+            raise BtApiStoreError("GATEWAY_STRATEGY_BALANCE_UNAVAILABLE")
         if self._service_read_only:
             api = self._ensure_api_ready()
             balance = api.get_balance()
@@ -1533,6 +1656,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         raise_errors: bool = False,
     ) -> List[Dict[str, Any]]:
         """Return positions from the selected read path without fabricating freshness."""
+        if self._gateway_mode:
+            raise BtApiStoreError("GATEWAY_STRATEGY_POSITIONS_UNAVAILABLE")
         if self._service_read_only:
             api = self._ensure_api_ready()
             positions = api.get_positions()
@@ -1880,6 +2005,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         orderbook_depth: Optional[int] = None,
     ):
         """Subscribe selected market channels without inferring book depth."""
+        if self._gateway_mode:
+            raise BtApiStoreError("GATEWAY_MARKET_FEED_UNAVAILABLE")
         api = self._ensure_api_ready()
         dataname = str(dataname)
 
@@ -4428,6 +4555,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def _ensure_api_ready(self):
         """Ensure the Store-bound SDK is ready through its lifecycle bridge."""
+        if self._gateway_mode:
+            if not self._started or not self.is_connected:
+                raise BtApiStoreError("GATEWAY_SESSION_UNAVAILABLE")
+            return self._api
         return _ensure_store_api_ready(
             self, error_type=BtApiStoreError,
             gateway_entrypoint=_legacy_gateway_entrypoint,

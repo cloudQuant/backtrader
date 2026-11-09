@@ -56,11 +56,7 @@ class PercentSizer(Sizer):
     def _getsizing(self, comminfo, cash, data, isbuy):
         # Read through the strategy so a bound strategy account book sizes
         # from this strategy's own position, not the shared account total.
-        strategy = getattr(self, "strategy", None)
-        if strategy is not None:
-            position = strategy.getposition(data, self.broker)
-        else:
-            position = self.broker.getposition(data)
+        position = self._strategy_position(data)
         if not position:
             close_price = data.close[0]
             if not close_price or close_price != close_price:

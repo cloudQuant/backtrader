@@ -1,0 +1,110 @@
+......F................................................................. [ 64%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+__________ test_refreshed_clock_must_predate_tick_and_stop_revokes_it __________
+
+source = (<bt_api_ctp.gateway_session.CtpGatewaySession object at 0x1548d4650>, <bt_api_ctp.market_provider.CtpQuoteV2MarketPro...bt_api_ctp.ctp.client.TraderClient object at 0x1548d5fd0>, {'mono': 631003822564791, 'wall': 1794203248286109000}, ...)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1548a7fd0>
+
+    def test_refreshed_clock_must_predate_tick_and_stop_revokes_it(source, monkeypatch):
+        from bt_api_py.gateway_server_clock_refresh import GatewayServerClockRefresher
+    
+        monkeypatch.setattr(clock, "_monotonic_ns", time.monotonic_ns)
+        monkeypatch.setattr(clock, "_wall_ns", time.time_ns)
+        verifier = ClockVerifier(servers=("synthetic",))
+        refresher = GatewayServerClockRefresher(
+            verifier, allowed_servers=frozenset({"synthetic"}), max_error_bound_ns=10_000_000,
+            max_sample_validity_seconds=60, refresh_interval_seconds=30)
+        session, _, handle, key, _, _, anchor = source
+        reader = CtpGatewayCalibratedClockSource(session, anchor, refresher=refresher)
+        refresher.start()
+        try:
+            deadline = time.monotonic() + 2
+            while refresher.current() is None and time.monotonic() < deadline:
+                threading.Event().wait(0.01)
+            assert refresher.current() is not None
+            payload = _tick(source)
+            options = dict(key=key, generation="market-g1", stream_id=key.stream_id,
+                           epoch="hub-e1", provider_sequence=payload["provider_sequence"],
+                           provider_subscription_epoch=payload["provider_subscription_epoch"])
+>           assert reader.read(handle, **options)["schema_version"] == 2
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_iter63_gateway_clock_observation.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../bt_api_py/ctp_gateway_clock_source.py:119: in read
+    return self._read(handle, key=key, generation=generation, stream_id=stream_id,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bt_api_py.ctp_gateway_clock_source.CtpGatewayCalibratedClockSource object at 0x1548d82d0>
+handle = CtpQuoteV2MarketHandle(key=MarketSubscriptionKey(source_ref='ctp-native-market-r1', entitlement_ref='ctp-quote-v2-enti..., instrument_id='IF2612', native_symbol='IF2612'), channel='tick', depth=None, timeframe=None), generation='market-g1')
+
+    def _read(self, handle, *, key, generation, stream_id, epoch,
+              provider_sequence, provider_subscription_epoch, internal):
+        if (os.getpid() != self._pid or threading.current_thread() is not self._thread
+                or self._session is not self._original_session
+                or self._calibration is not self._original_calibration
+                or self._refresher is not self._original_refresher):
+            raise CtpGatewayCalibratedClockError("CLOCK_SOURCE_CHANGED")
+        tick_requested = provider_sequence is not None or provider_subscription_epoch is not None
+        if tick_requested and (type(provider_sequence) is not int or provider_sequence <= 0
+                               or type(provider_subscription_epoch) is not int
+                               or provider_subscription_epoch <= 0):
+            raise CtpGatewayCalibratedClockError("CLOCK_SOURCE_UNAVAILABLE")
+        anchor = self._calibration
+        if tick_requested and self._refresher is not None:
+            from bt_api_py.gateway_server_clock_refresh import GatewayServerClockSnapshot
+            anchor = self._refresher.current()
+            if (type(anchor) is not GatewayServerClockSnapshot or anchor.pid != os.getpid()
+                    or self._refresher.is_current(anchor) is not True):
+                raise CtpGatewayCalibratedClockError("CLOCK_CALIBRATION_UNAVAILABLE")
+        before = time.monotonic_ns()
+        try:
+            if tick_requested:
+                raw = self._session.read_market_tick_clock(
+                    handle, key=key, generation=generation, stream_id=stream_id,
+                    epoch=epoch, provider_sequence=provider_sequence,
+                    provider_subscription_epoch=provider_subscription_epoch,
+                    max_age_seconds=self._max_age_seconds, _internal=internal,
+                )
+            else:
+                raw = self._session.read_market_login_clock(
+                    handle, key=key, generation=generation, stream_id=stream_id,
+                    epoch=epoch, max_age_seconds=self._max_age_seconds,
+                )
+        except Exception:
+            raise CtpGatewayCalibratedClockError("CLOCK_SOURCE_UNAVAILABLE") from None
+        after = time.monotonic_ns()
+        source_mono = None
+        if internal:
+            if (not tick_requested or type(raw) is not tuple or len(raw) != 2
+                    or type(raw[1]) is not int or not before <= raw[1] <= after):
+                raise CtpGatewayCalibratedClockError("CLOCK_SOURCE_UNAVAILABLE")
+            raw, source_mono = raw
+        evidence = anchor.evidence
+        if (tick_requested and self._refresher is not None
+                and self._refresher.is_current(anchor) is not True):
+            raise CtpGatewayCalibratedClockError("CLOCK_CALIBRATION_UNAVAILABLE")
+        if (type(before) is not int or type(after) is not int or before <= 0 or after < before
+                or type(raw) is not dict or type(raw.get("age_ns")) is not int
+                or type(raw.get("remaining_ns")) is not int or raw["age_ns"] < 0
+                or type(evidence) is not ClockEvidence or evidence.method != "sntp"
+                or type(evidence.server) is not str or not evidence.server
+                or type(evidence.offset_ns) is not int
+                or type(evidence.error_bound_ns) is not int or evidence.error_bound_ns < 0
+                or type(evidence.measured_monotonic_ns) is not int
+                or type(evidence.valid_until_monotonic_ns) is not int
+                or evidence.measured_monotonic_ns <= 0
+                # Earliest possible login instant is the call start minus the
+                # age computed later within the call. This is conservative.
+                or anchor.anchor_monotonic_ns > before - raw["age_ns"]
+                or evidence.valid_until_monotonic_ns <= after):
+>           raise CtpGatewayCalibratedClockError("CLOCK_CALIBRATION_UNAVAILABLE")
+E           bt_api_py.ctp_gateway_clock_source.CtpGatewayCalibratedClockError: CLOCK_CALIBRATION_UNAVAILABLE
+
+../../bt_api_py/ctp_gateway_clock_source.py:194: CtpGatewayCalibratedClockError
+-------- generated xml file: /tmp/iter63-consolidated-20261109/ctp.xml ---------
+=========================== short test summary info ============================
+FAILED tests/test_iter63_gateway_clock_observation.py::test_refreshed_clock_must_predate_tick_and_stop_revokes_it
+1 failed, 111 passed in 29.84s
+ERROR conda.cli.main_run:execute(125): `conda run env DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/test_iter63_gateway_clock_observation.py tests/test_iter63_prepared_place.py tests/test_iter63_gateway_session.py -ra --junitxml=/tmp/iter63-consolidated-20261109/ctp.xml` failed. (See above for error)

@@ -105,7 +105,7 @@ class FixedReverser(Sizer):
         super().__init__(**kwargs)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
-        position = self.strategy.getposition(data)
+        position = self._strategy_position(data)
         size = self.get_param("stake") * (1 + (position.size != 0))
         return size
 
@@ -149,7 +149,7 @@ class FixedSizeTarget(Sizer):
     def _getsizing(self, comminfo, cash, data, isbuy):
         if self.get_param("tranches") > 1:
             size = abs(int(self.get_param("stake") / self.get_param("tranches")))
-            return min((self.strategy.position.size + size), self.get_param("stake"))
+            return min((self._strategy_position(data).size + size), self.get_param("stake"))
         return self.get_param("stake")
 
     def setsizing(self, stake):
@@ -162,6 +162,6 @@ class FixedSizeTarget(Sizer):
         """
         if self.get_param("tranches") > 1:
             size = abs(int(stake / self.get_param("tranches")))
-            self.set_param("stake", min((self.strategy.position.size + size), stake))
+            self.set_param("stake", min((self._strategy_position(self.strategy.data).size + size), stake))
         else:
             self.set_param("stake", stake)  # OLD METHOD FOR SAMPLE COMPATIBILITY

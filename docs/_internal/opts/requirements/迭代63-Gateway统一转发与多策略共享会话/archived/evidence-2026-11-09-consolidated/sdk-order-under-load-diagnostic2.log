@@ -1,0 +1,56 @@
+.                                                                        [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 6.21s
+.                                                                        [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 6.15s
+.                                                                        [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 6.20s
+.                                                                        [100%]
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 6.18s
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_qualified_configured_order_and_clock_failure _______________
+tests/integration/test_iter63_gateway_qualified_order_process.py:528: in test_qualified_configured_order_and_clock_failure
+    queued = state["events"].get(timeout=5)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../opt/anaconda3/lib/python3.11/multiprocessing/queues.py:114: in get
+    raise Empty
+E   _queue.Empty
+
+During handling of the above exception, another exception occurred:
+tests/integration/test_iter63_gateway_qualified_order_process.py:536: in test_qualified_configured_order_and_clock_failure
+    pytest.fail(f"second order not queued: key={request_key!r}, "
+E   Failed: second order not queued: key='bt-5d90708a0426450ea682172bd4fcfd60-2', binding='SUBMIT_UNKNOWN', trace=[('reserve', 'OBSERVED', None, 'RESERVED'), ('dispatch', 'QUEUED', None, 'RESERVED'), ('reserve', 'REQUEST_DENIED', 'ADMISSION_DENIED', None)], status=('REQUEST_DENIED', 'NOT_FOUND', None), qualification=(False, ('GATEWAY_CLOCK_UNAVAILABLE',), None), child_alive=True, child_exit=None, stats=('stats', 1, 1, 1, 1, ('IF2612',), 0, 1, 0, True, 3, {'status': 'HEALTHY', 'reservation_open': True}, False)
+=============================== warnings summary ===============================
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_qualified_order_process.py::test_qualified_configured_order_and_clock_failure
+1 failed, 1 warning in 8.16s
+ERROR conda.cli.main_run:execute(125): `conda run env BT_SKIP_PYTEST_TMP_CLEANUP=1 DYLD_LIBRARY_PATH=/tmp/iter63-sqlite-YwfUZP PYTHONPATH=/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway/tests /Users/yunjinqi/opt/anaconda3/bin/python -m pytest -q tests/integration/test_iter63_gateway_qualified_order_process.py::test_qualified_configured_order_and_clock_failure` failed. (See above for error)
