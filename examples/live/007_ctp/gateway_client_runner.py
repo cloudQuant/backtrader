@@ -221,9 +221,10 @@ def main(strategy, title, run_dir, argv=None):
                          "multiplier": contracts[symbol].get("multiplier", 1)}
                 for symbol in config["symbols"]}
     try:
+        # Gateway mode routes by the configured exchange_name; the Store refuses
+        # direct-mode options such as symbol_routes (GATEWAY_CONFIGURATION_CONFLICT).
         store = BtApiStore(config={"gateway_strategy": config["gateway_strategy"]},
                            gateway_host=host, gateway_security_profiles=profiles,
-                           symbol_routes={symbol: parsed.exchange_name for symbol in config["symbols"]},
                            contract_metadata=metadata)
         broker = store.getbroker(**config.get("broker", {}))
         for symbol, row in contracts.items():
