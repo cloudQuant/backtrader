@@ -185,6 +185,37 @@ def test_zero_timeout_requests_facade_fence_even_when_worker_still_running(setup
     assert store.gateway_api is None
 
 
+@pytest.mark.parametrize("failures,timeout,outcome", [(2, 3, "PASS"), (99, 1, "RAISE"), (1, 0, "RAISE")])
+def test_retryable_cleanup_failure_is_retried_within_the_stop_timeout(
+        setup_gateway, monkeypatch, failures, timeout, outcome):
+    # I63-E100: a market bootstrap still pending at the Gateway made the client
+    # runtime report CLEANUP_FAILED; one further close lets it retry cleanup.
+    from bt_api_py.service_runtime_thread import ThreadedRuntimeError
+
+    class RetryableApi(FakeApi):
+        def close(self, *, timeout_seconds):
+            self.closes += 1
+            if self.closes <= failures:
+                self.state = "close_failed"
+                raise ThreadedRuntimeError("CLEANUP_FAILED")
+            self.state = "closed"
+            return self.status()
+
+    api = RetryableApi()
+    monkeypatch.setattr(GatewayStrategyConfig, "create_api", lambda *_a, **_kw: api)
+    store = make_store(setup_gateway)
+    store.start()
+    if outcome == "PASS":
+        store.stop(timeout=timeout)
+        assert api.closes == failures + 1 and store.gateway_api is None
+        assert store._shutdown_state == "PASS"
+    else:
+        with pytest.raises(ThreadedRuntimeError, match="CLEANUP_FAILED"):
+            store.stop(timeout=timeout)
+        assert store._shutdown_state == "INCOMPLETE" and not store.is_connected
+        assert api.closes >= 1 if timeout else api.closes == 1
+
+
 def test_explicit_strategy_binding_delegates_exact_config(setup_gateway, monkeypatch):
     api = FakeApi()
     monkeypatch.setattr(GatewayStrategyConfig, "create_api", lambda *_a, **_kw: api)

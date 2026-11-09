@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from collections.abc import Mapping
 from copy import deepcopy
 
@@ -213,6 +214,26 @@ def start_gateway_store(store, *, data, broker, error_type):
     store._shutdown_state = "RUNNING"
 
 
+def _close_with_cleanup_retry(api, timeout):
+    """Close the SDK facade, retrying its own retryable cleanup until ``timeout``.
+
+    ``CLEANUP_FAILED`` means the client runtime kept its resources and waits for
+    another close (for example a market bootstrap still pending at the Gateway,
+    I63-E100); each further close lets it retry that cleanup. A zero timeout
+    never retries; the caller then records INCOMPLETE as before.
+    """
+    deadline = time.monotonic() + float(timeout)
+    while True:
+        remaining = deadline - time.monotonic()
+        try:
+            return api.close(timeout_seconds=remaining if timeout and remaining > 0 else 1e-9)
+        except Exception as exc:
+            if (getattr(exc, "code", None) != "CLEANUP_FAILED" or not timeout
+                    or deadline - time.monotonic() <= 0.2):
+                raise
+        time.sleep(0.2)
+
+
 def stop_gateway_store(store, *, timeout):
     if store._gateway_pid != os.getpid():
         raise RuntimeError("GATEWAY_WRONG_PROCESS")
@@ -234,7 +255,7 @@ def stop_gateway_store(store, *, timeout):
     try:
         # Even a non-waiting stop must first fence previously handed-out API
         # references. The SDK sets its facade to closing before waiting.
-        snapshot = api.close(timeout_seconds=float(timeout) if timeout else 1e-9)
+        snapshot = _close_with_cleanup_retry(api, timeout)
     except Exception as exc:
         if timeout == 0 and getattr(exc, "code", None) == "CLOSE_TIMEOUT_WORKER_ALIVE":
             store._shutdown_state = "INCOMPLETE"
