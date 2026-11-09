@@ -10,6 +10,12 @@ from bt_api_base.service_protocol import WireScope
 from bt_api_py.gateway_market_projection import GatewayMarketTickProjector
 
 
+
+# Owner-side conditions that clear by themselves: a call still queued/running,
+# or another call holding the subscription client's single pending slot (it is
+# retired once finished). Never terminal for this adapter.
+_TRANSIENT_OWNER_CODES = ("OWNER_TIMEOUT_QUEUED", "OWNER_TIMEOUT_RUNNING", "OWNER_OPERATION_PENDING")
+
 class GatewayMarketAdapter:
     """Own a single feed cursor; never create a provider or a market source."""
 
@@ -114,7 +120,7 @@ class GatewayMarketAdapter:
             self._pending_operation = None
         except Exception as exc:
             code = getattr(exc, "code", None)
-            if code in ("OWNER_TIMEOUT_QUEUED", "OWNER_TIMEOUT_RUNNING"):
+            if code in _TRANSIENT_OWNER_CODES:
                 self._reason = code
             elif code in ("RECOVERY_REQUIRED", "PROVIDER_RESYNC_REQUIRED"):
                 self._pending_operation = None
@@ -198,7 +204,8 @@ class GatewayMarketAdapter:
         except Exception as exc:
             self._latest_event = self._latest_receipt = None
             code = getattr(exc, "code", None)
-            if code in ("OWNER_TIMEOUT_QUEUED", "OWNER_TIMEOUT_RUNNING"):
+            if code in _TRANSIENT_OWNER_CODES:
+                # The pending operation is retried unchanged after backoff.
                 self._reason = code
             else:
                 self._pending_operation = None

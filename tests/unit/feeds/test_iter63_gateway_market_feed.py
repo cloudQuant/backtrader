@@ -289,6 +289,30 @@ def test_timeout_retries_exact_pending_poll_without_status_overtaking(monkeypatc
     assert calls == ['poll', 'poll']
 
 
+@pytest.mark.parametrize('code', ['OWNER_OPERATION_PENDING', 'OWNER_TIMEOUT_QUEUED'])
+def test_owner_pending_slot_is_transient_not_terminal(monkeypatch, code):
+    # SimNow 63.09: OWNER_OPERATION_PENDING (another call still holds the
+    # client's single slot) left the feed unavailable for the process lifetime.
+    from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
+    from bt_api_py.service_runtime_thread import ThreadedRuntimeError
+    client, _ = client_with(monkeypatch, [])
+    calls = []
+    def poll(**kw):
+        calls.append('poll')
+        if len(calls) <= 2:
+            raise ThreadedRuntimeError(code)
+        return frame(1)
+    monkeypatch.setattr(client, 'poll', poll)
+    adapter = GatewayMarketAdapter(_gateway_store(client), 'SA609', object())
+    adapter.start()
+    assert adapter.poll() is None and adapter.recovery_reason() == code
+    adapter._next_retry = 0
+    assert adapter.poll() is None and adapter.recovery_reason() == code
+    adapter._next_retry = 0
+    assert adapter.poll().cursor.sequence == 1
+    assert adapter.recovery_reason() is None and calls == ['poll', 'poll', 'poll']
+
+
 def test_stopped_feed_cannot_reuse_stale_subscription_cursor(monkeypatch):
     from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
     client, _ = client_with(monkeypatch, [])
