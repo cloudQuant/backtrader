@@ -242,6 +242,14 @@ BT_API_CTP_GATEWAY_RESOURCES_FILE=/PRIVATE/DIRECTORY/resource.json \
 
 会话：一个 Gateway 只维持该账户的一个 TD 会话和按需的 MD 会话，所有策略共用。首启：新策略先在策略侧 `--first-init` 并由运营把身份登记进资源文件。停止：SIGINT/SIGTERM 经 owner 关闭 Gateway；停止策略不会停止 Gateway，停止 Gateway 也不会撤销或重发策略委托。Gateway 不可用：策略等待或拒绝，不回退 direct，不推断委托已撤销。手工交易：账户上的手工或其他来源成交归 external，不计入任何策略持仓。以上离线检查与合成测试不是 SimNow 或真实账户证据。
 
+异常退出：Gateway 被强杀或崩溃后，重启会报 `SESSION_RECONCILIATION_REQUIRED`，等待不会自行解除。运营方用以下命令对账：
+
+```bash
+bt-gateway-operator --config <operator.yaml> --reconcile-session --operator <id> --reason <原因>
+```
+
+该命令确认旧进程已不存在，且 journal 中无结果未知的下单、撤单或结算确认，写入审计记录后再关闭旧会话记录。若被拒，先到交易所核对账户。详见 SDK 文档 `examples/services/ctp-gateway-simnow-trading.example.md`。策略进程被强杀后，需等其注册租约到期才能以同一身份重新启动。
+
 ### 策略侧
 
 11 个 `_gateway` 目录复用各自原策略，但行情及订单都经同一账户级独立 Gateway。先启动并授权 Gateway，再启动策略；策略进程不创建 Gateway 子进程、CTP 会话或读取 CTP 凭据，不支持旧 `gateway.orders`、`--orders` 和 `--managed-boot-check`。每个策略必须具有独立已登记身份和本地持久状态，不能复用他人身份。
