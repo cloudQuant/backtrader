@@ -230,6 +230,20 @@ SimNow 的结果只说明模拟账户上的行为；真实账户使用同一套�
 
 ## Gateway 版本（`_gateway`，迭代 63）
 
+### 共享 Gateway 的启动（运营侧）
+
+Gateway 是独立的账户级服务进程，由 SDK 的 `bt-gateway-operator` 启动，凭据和授权只来自运营方受保护的资源文件（`BT_API_CTP_GATEWAY_RESOURCES_FILE` 指向的 0600 JSON），从不写进策略配置。可交易 profile 为 `ctp-simnow-trading`：仅 SimNow 账户可开启写入（INV63-08，其他环境开启写入时以 `GATEWAY_WRITE_REQUIRES_BROKER_CONFIRMATION` 拒绝启动），派发按用户决定 B（单次 claim 后在途），结算确认按决定 A（每交易日一次耐久尝试，可信回读才算成功，结果不明只回读不重发）。只读 profile 为 `ctp-local-readonly`。示例与文件格式见 bt_api_py 的 `examples/services/ctp-gateway-simnow-trading.example.md`。
+
+```bash
+bt-gateway-operator --config ctp-gateway-simnow-trading.example.yaml --dry-run   # 离线：只解析配置并解析已安装 profile
+BT_API_CTP_GATEWAY_RESOURCES_FILE=/PRIVATE/DIRECTORY/resource.json \
+  bt-gateway-operator --config ctp-gateway-simnow-trading.example.yaml            # 连接配置的 SimNow 前置
+```
+
+会话：一个 Gateway 只维持该账户的一个 TD 会话和按需的 MD 会话，所有策略共用。首启：新策略先在策略侧 `--first-init` 并由运营把身份登记进资源文件。停止：SIGINT/SIGTERM 经 owner 关闭 Gateway；停止策略不会停止 Gateway，停止 Gateway 也不会撤销或重发策略委托。Gateway 不可用：策略等待或拒绝，不回退 direct，不推断委托已撤销。手工交易：账户上的手工或其他来源成交归 external，不计入任何策略持仓。以上离线检查与合成测试不是 SimNow 或真实账户证据。
+
+### 策略侧
+
 11 个 `_gateway` 目录复用各自原策略，但行情及订单都经同一账户级独立 Gateway。先启动并授权 Gateway，再启动策略；策略进程不创建 Gateway 子进程、CTP 会话或读取 CTP 凭据，不支持旧 `gateway.orders`、`--orders` 和 `--managed-boot-check`。每个策略必须具有独立已登记身份和本地持久状态，不能复用他人身份。
 
 ```bash
