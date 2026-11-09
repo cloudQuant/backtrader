@@ -73,8 +73,12 @@ def _gateway_process(root, endpoint, server_keys, clients, messages, controls):
                 marker = port.commit(record)
                 return NativeDispatchOutcome(marker is not None, identity, marker)
 
-            dispatcher = GatewayDirectDispatcher(journal, "TEST", guard, native,
-                lambda identity: project_direct_strong_identity_keys(identity, day_scoped_ids=True), lambda _: True)
+            from tests.unit.live_state._gateway_claim_support import SyntheticClaimPort, claiming
+
+            # Decision B: no dispatch without a claim port.
+            dispatcher = GatewayDirectDispatcher(journal, "TEST", guard, claiming(native),
+                lambda identity: project_direct_strong_identity_keys(identity, day_scoped_ids=True), lambda _: True,
+                claim_port=SyntheticClaimPort())
             resources.append((journal, ledger))
             return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
 

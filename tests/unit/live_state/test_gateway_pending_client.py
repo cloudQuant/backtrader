@@ -189,13 +189,20 @@ def _gateway(tmp_path):
                     sends.put(key)
                     return NativeDispatchOutcome(True, identity, marker)
 
+                from tests.unit.live_state._gateway_claim_support import (
+                    SyntheticClaimPort,
+                    claiming,
+                )
+
+                # Decision B: no dispatch without a claim port.
                 dispatcher = GatewayDirectDispatcher(
                     journal,
                     "TEST",
                     guard,
-                    native,
+                    claiming(native),
                     lambda identity: ("TEST:" + identity.client_order_id,),
                     lambda _: True,
+                    claim_port=SyntheticClaimPort(),
                 )
                 return GatewayDirectOwnerResources(dispatcher, journal, guard.release)
 
