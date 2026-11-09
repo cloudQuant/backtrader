@@ -256,6 +256,8 @@ def _check_event_conflicts(mappings: list[dict]) -> None:
             raise ValueError("EXECUTION_FACT_CONFLICT")
         facts[event.fact_digest] = encoded
         obs = event.observation
+        if obs.trade_metadata_only and obs.trade_key_digest is None:
+            raise ValueError("EXECUTION_TRADE_METADATA_WITHOUT_ORIGINAL")
         if obs.trade_key_digest is not None:
             key = (obs.account_scope, obs.route, obs.trade_key_digest)
             if obs.trade_quantity is None or obs.trade_price is None:
@@ -279,7 +281,16 @@ def _check_event_conflicts(mappings: list[dict]) -> None:
                 raise ValueError("EXECUTION_TRADE_BINDING_CONFLICT")
             if key in trades and trades[key][1] != economics:
                 raise ValueError("EXECUTION_TRADE_CONFLICT")
-            trades[key] = (identity, economics)
+            prior = trades.get(key)
+            if obs.trade_metadata_only and prior is None:
+                raise ValueError("EXECUTION_TRADE_METADATA_WITHOUT_ORIGINAL")
+            known_date = None if prior is None else prior[2]
+            if known_date is not None and obs.trade_date is not None:
+                if known_date != obs.trade_date:
+                    raise ValueError("EXECUTION_TRADE_DATE_CONFLICT")
+            elif prior is not None and obs.trade_date is not None and not obs.trade_metadata_only:
+                raise ValueError("EXECUTION_TRADE_METADATA_EFFECT_MISMATCH")
+            trades[key] = (identity, economics, known_date or obs.trade_date)
 
 
 def validate_execution_state(state: dict, binding) -> None:
