@@ -61,6 +61,31 @@ def validate_order_state(state):
         if type(notices) is not dict or len(notices) > 2 * gateway["max_entries"]:
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CAPACITY")
         for key, notice in notices.items():
+            if key.startswith("reject:"):
+                request_key = key[len("reject:"):]
+                entry = entries.get(request_key)
+                if (type(notice) is not dict or set(notice) !=
+                        {"notification_id", "status", "bt_ref", "snapshot", "code"}
+                        or request_key not in snapshots or request_key not in notices
+                        or entry is None
+                        or any(entry[name] is not None for name in ("record", "marker_id", "release"))
+                        or "cancel:" + request_key in notices
+                        or type(notice["code"]) is not str or not _REJECT_CODE(notice["code"])):
+                    raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+                reject_snapshot = _snapshot(notice["snapshot"], request_key,
+                                            notice["bt_ref"], limit)
+                if (reject_snapshot["state"]["orders"][request_key]["status"] != 8
+                        or notice["status"] not in ("pending", "confirmed")
+                        or notice["notification_id"] != _reject_notice_id(
+                            state, request_key, notice["bt_ref"], reject_snapshot,
+                            notice["code"])
+                        or (notice["status"] == "confirmed"
+                            and notices[request_key]["status"] != "confirmed")):
+                    raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+                total += len(_json_bytes(reject_snapshot))
+                if total > limit:
+                    raise ValueError("GATEWAY_ORDER_CAPACITY_EXCEEDED")
+                continue
             if key.startswith("cancel:"):
                 request_key = key[len("cancel:"):]
                 if (type(notice) is not dict or set(notice) !=
@@ -102,6 +127,19 @@ def _cancel_notice_id(state, key, bt_ref, snapshot):
     payload = {"domain": "backtrader.gateway.local-canceled.v1",
                "strategy_uuid": state["strategy_uuid"], "request_key": key,
                "bt_ref": bt_ref, "snapshot": snapshot}
+    return hashlib.sha256(_json_bytes(payload)).hexdigest()
+
+
+def _REJECT_CODE(code):
+    # A Gateway request-denial code: short upper-case ASCII identifier.
+    return (0 < len(code) <= 64 and code.isascii() and code == code.strip()
+            and all(ch.isupper() or ch.isdigit() or ch == "_" for ch in code))
+
+
+def _reject_notice_id(state, key, bt_ref, snapshot, code):
+    payload = {"domain": "backtrader.gateway.local-rejected.v1",
+               "strategy_uuid": state["strategy_uuid"], "request_key": key,
+               "bt_ref": bt_ref, "code": code, "snapshot": snapshot}
     return hashlib.sha256(_json_bytes(payload)).hexdigest()
 
 
@@ -237,6 +275,43 @@ def save_released_notification(host, request_key, *, bt_ref, snapshot):
         old = gateway["local_notifications"].get(key)
         if old is not None:
             if any(old[field] != notice[field] for field in ("notification_id", "bt_ref", "snapshot")):
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
+            return copy.deepcopy(old)
+        gateway["local_notifications"][key] = notice
+        validate_order_state(state)
+        host._store._store(state, trim_history=False)
+        return copy.deepcopy(notice)
+
+
+def save_rejected_notification(host, request_key, *, bt_ref, snapshot, code):
+    """Record a Gateway request denial for an intent that never got a record.
+
+    Only a validated REQUEST_DENIED reserve reply proves no reservation was
+    created; an unknown or lost reply must stay on the recovery path.
+    """
+    if (type(request_key) is not str or not is_strict_int(bt_ref, minimum=1)
+            or type(code) is not str or not _REJECT_CODE(code)):
+        raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+    with host._store._lock():
+        state = host._store._load()
+        entries = host._check_state(state)
+        if state["version"] != 6:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
+        gateway = state["gateway"]
+        entry = entries.get(request_key)
+        if (entry is None or request_key not in gateway["local_notifications"]
+                or any(entry[name] is not None for name in ("record", "marker_id", "release"))):
+            raise ValueError("GATEWAY_REJECTION_NOT_PROVEN")
+        snap = _snapshot(snapshot, request_key, bt_ref, gateway["max_order_snapshot_bytes"])
+        if snap["state"]["orders"][request_key]["status"] != 8:
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+        notice = {"notification_id": _reject_notice_id(state, request_key, bt_ref, snap, code),
+                  "status": "pending", "bt_ref": bt_ref, "snapshot": snap, "code": code}
+        key = "reject:" + request_key
+        old = gateway["local_notifications"].get(key)
+        if old is not None:
+            if any(old[field] != notice[field]
+                   for field in ("notification_id", "bt_ref", "snapshot", "code")):
                 raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
             return copy.deepcopy(old)
         gateway["local_notifications"][key] = notice

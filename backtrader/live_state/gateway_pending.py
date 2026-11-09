@@ -409,6 +409,11 @@ class GatewayPendingHost:
         from .gateway_order_state import save_released_notification
         return save_released_notification(self, request_key, bt_ref=bt_ref, snapshot=snapshot)
 
+    def save_rejected_order_notification(self, request_key, *, bt_ref, snapshot, code):
+        from .gateway_order_state import save_rejected_notification
+        return save_rejected_notification(self, request_key, bt_ref=bt_ref, snapshot=snapshot,
+                                          code=code)
+
     def confirm_local_order_notifications(self, entries):
         from .gateway_order_state import confirm_local_notifications
         return confirm_local_notifications(self, entries)

@@ -16,6 +16,9 @@ from dataclasses import dataclass, field
 from decimal import Decimal, localcontext
 
 from ..utils.dateintern import date2num
+from ..utils.log_message import get_logger
+
+_logger = get_logger(__name__)
 
 
 class GatewayExecutionStreamError(RuntimeError):
@@ -176,8 +179,21 @@ class GatewayExecutionStreamBrokerMixin:
                         old.notification_id, old.replayed = local["notification_id"], True
                         queue_local(old.clone())
                     cancel = host.local_order_notifications().get("cancel:" + key)
+                    reject = host.local_order_notifications().get("reject:" + key)
                     current = notices.orders[key]
-                    if cancel is not None:
+                    if reject is not None:
+                        rejected = restore_framework_state(reject["snapshot"], data_by_ref=binding.feeds,
+                            owner=strategy, broker=self, commission_for_data=self.getcommissioninfo).orders[key]
+                        sequence.observe_ref(rejected.ref)
+                        if (cancel is not None or current.executed.size != 0
+                                or rejected.status != rejected.Rejected):
+                            _fail("LOCAL_NOTIFICATION_CONFLICT")
+                        current.status, current.executed.dt = rejected.status, rejected.executed.dt
+                        if reject["status"] == "pending":
+                            rejected.ref = current.ref
+                            rejected.notification_id, rejected.replayed = reject["notification_id"], True
+                            queue_local(rejected)
+                    elif cancel is not None:
                         canceled = restore_framework_state(cancel["snapshot"], data_by_ref=binding.feeds,
                             owner=strategy, broker=self, commission_for_data=self.getcommissioninfo).orders[key]
                         sequence.observe_ref(canceled.ref)
@@ -417,8 +433,9 @@ class GatewayExecutionStreamBrokerMixin:
         reduce_only = order.info.get("reduce_only", False)
         if type(reduce_only) is not bool or (reduce_only and offset in (None, "open")):
             _fail("ORDER_REDUCE_ONLY_INVALID")
+        local_notices = binding.host.local_order_notifications()
         for prior_key, prior_order in notice.orders.items():
-            if prior_order.data is not order.data:
+            if prior_order.data is not order.data or "reject:" + prior_key in local_notices:
                 continue
             record = binding.host.load_record(prior_key)
             context = binding.host.load_context(prior_key)
@@ -467,22 +484,74 @@ class GatewayExecutionStreamBrokerMixin:
             raise
         try:
             result = binding.api.reserve_order(binding.policy.route, request, timeout_seconds=binding.timeout)
+            if result.outcome == "REQUEST_DENIED":
+                # A validated denial: the Gateway created no reservation.
+                self._gateway_finalize_rejection(binding, order, request_key, result.code)
+                return order
             if result.outcome == "OBSERVED" and result.record is not None and result.record.state == "RESERVED":
                 try:
                     market_ref = self._gateway_require_trade_qualification(order.data, key)
                     if not isinstance(market_ref, dict):
                         _fail("FEED_NOT_TRADABLE")
                 except Exception:
+                    # Nothing was dispatched: withdraw the reservation.
                     binding.state = "FEED_NOT_TRADABLE_AFTER_RESERVE"
+                    self._gateway_release_unsent(binding, order, request_key)
                     return order
                 result = binding.api.dispatch_order(binding.policy.route, request_key, market_ref=market_ref,
                                                     timeout_seconds=binding.timeout)
+                if result.outcome == "REQUEST_DENIED":
+                    # Refused before the owner queue or any marker: never sent.
+                    binding.state = "DISPATCH_DENIED"
+                    order.addinfo(gateway_dispatch_denied=result.code)
+                    self._gateway_release_unsent(binding, order, request_key)
+                    return order
         except BaseException:
-            binding.state = "SUBMIT_UNKNOWN"
+            if binding.state != "RESTART_REQUIRED":
+                binding.state = "SUBMIT_UNKNOWN"
             raise
         if result.outcome not in ("OBSERVED", "QUEUED"):
             binding.state = "SUBMIT_UNKNOWN"
         return order
+
+    def _gateway_release_unsent(self, binding, order, key):
+        """Release a reservation BT never dispatched (or that was refused)."""
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        try:
+            result = binding.api.release_order(binding.policy.route, key,
+                operation_id="release-" + digest, timeout_seconds=binding.timeout)
+        except Exception as error:
+            # Unclear outcome: the waiting loop re-reads status and retries the
+            # same release operation id, so the order is never left orphaned.
+            _logger.warning("gateway release of an unsent reservation failed: %s",
+                            type(error).__name__)
+            result = None
+        if (result is not None and result.outcome == "OBSERVED" and result.record is not None
+                and result.record.state == "RELEASED"):
+            self._gateway_finalize_release(binding, order, key)
+            return True
+        binding.state = "RELEASE_PENDING"
+        return False
+
+    def _gateway_finalize_rejection(self, binding, order, key, code):
+        from ._btapi_gateway_projection import capture_framework_state
+
+        if order.status == order.Rejected:
+            return
+        if order.status != order.Submitted or order.executed.size != 0:
+            _fail("REJECTION_SCOPE")
+        try:
+            order.reject(self)
+            order.addinfo(gateway_request_denied=code)
+            snapshot = capture_framework_state(orders={key: order}, positions={}, trades={},
+                data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
+            notice = binding.host.save_rejected_order_notification(
+                key, bt_ref=order.ref, snapshot=snapshot, code=code)
+            order.notification_id, order.replayed = notice["notification_id"], False
+            self._gateway_notify_local(binding, order)
+        except BaseException:
+            binding.state = "RESTART_REQUIRED"
+            raise
 
     def _gateway_cancel_order(self, order):
         binding = self._gateway_stream_binding
@@ -687,7 +756,10 @@ class GatewayExecutionStreamBrokerMixin:
         if any(item["status"] == "pending" for item in binding.host.local_order_notifications().values()):
             binding.state = "WAITING_NOTIFICATIONS"
             return
+        local_notices = binding.host.local_order_notifications()
         for key in notice.orders:
+            if "reject:" + key in local_notices:
+                continue
             record = binding.host.load_record(key)
             if (record is not None and record.state == "RELEASED"
                     and "cancel:" + key not in binding.host.local_order_notifications()):
@@ -709,6 +781,13 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "RECOVERY_PENDING"
                     return
                 if result.record.state == "RESERVED":
+                    # No marker: BT never requested dispatch, so withdrawing
+                    # the reservation cannot race a venue send.
+                    order = notice.orders[key]
+                    if (order.status == order.Submitted and order.executed.size == 0
+                            and self._gateway_release_unsent(binding, order, key)):
+                        binding.state = "WAITING_NOTIFICATIONS"
+                        return
                     binding.state = "RESERVATION_RECOVERY_PENDING"
                     return
         did_read = False

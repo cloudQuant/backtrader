@@ -128,9 +128,10 @@ def _check_gateway_sequence_consistency(host, state, error_type):
     if raw["version"] == 6:
         notices = host.local_order_notifications()
         for notice_key, notice in notices.items():
-            if not notice_key.startswith("cancel:"):
+            prefix = next((p for p in ("cancel:", "reject:") if notice_key.startswith(p)), None)
+            if prefix is None:
                 continue
-            key, ref = notice_key[len("cancel:"):], notice["bt_ref"]
+            key, ref = notice_key[len(prefix):], notice["bt_ref"]
             if type(ref) is not int or ref <= 0 or key not in snapshots:
                 raise error_type("GATEWAY_ORDER_STATE_INCOMPLETE")
             if ref > initial_sequence["ref_high_water"]:

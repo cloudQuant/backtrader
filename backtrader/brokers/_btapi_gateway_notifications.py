@@ -117,6 +117,15 @@ def _reject_metadata_notification(event):
         _error("METADATA_ONLY")
 
 
+
+def _local_notice_key(order, key):
+    """Local (not venue) notification key for a Gateway order's current status."""
+    if order.status == order.Submitted:
+        return key
+    if order.status == order.Rejected:
+        return "reject:" + key
+    return "cancel:" + key
+
 @dataclass(eq=False, frozen=True)
 class _Receipt:
     binding: object
@@ -649,11 +658,11 @@ class GatewayNotificationsBrokerMixin:
             selected = {}
             for order in orders:
                 key = self._gateway_request(binding, order)
-                notice_key = key if order.status == order.Submitted else "cancel:" + key
+                notice_key = _local_notice_key(order, key)
                 entry = pending.get(notice_key)
                 if (entry is None or entry["status"] != "pending"
                         or getattr(order, "notification_id", None) != entry["notification_id"]
-                        or order.status not in (order.Submitted, order.Canceled)
+                        or order.status not in (order.Submitted, order.Canceled, order.Rejected)
                         or order.executed.size != 0 or notice_key in selected):
                     _error("LOCAL_NOTIFICATION_SCOPE")
                 selected[notice_key] = entry["notification_id"]
@@ -704,11 +713,11 @@ class GatewayNotificationsBrokerMixin:
             _error("PENDING")
         if binding.armed is None:
             key = self._gateway_request(binding, order)
-            notice_key = key if order.status == order.Submitted else "cancel:" + key
+            notice_key = _local_notice_key(order, key)
             notice = binding.host.local_order_notifications().get(notice_key)
             if (notice is None or notice["status"] != "pending"
                     or getattr(order, "notification_id", None) != notice["notification_id"]
-                    or order.status not in (order.Submitted, order.Canceled)
+                    or order.status not in (order.Submitted, order.Canceled, order.Rejected)
                     or order.executed.size != 0):
                 _error("NOT_ARMED")
             return None

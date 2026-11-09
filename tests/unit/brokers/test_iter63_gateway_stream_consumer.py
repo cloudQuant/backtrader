@@ -678,8 +678,7 @@ def test_gateway_submits_only_after_durable_intent_and_delivers_local_notificati
     assert host.load_execution_checkpoint().acknowledged_sequence == 0
 
 
-@pytest.mark.parametrize('outcome,code', [('UNKNOWN', 'RPC_OUTCOME_UNKNOWN'),
-                                           ('REQUEST_DENIED', 'ADMISSION_DENIED')])
+@pytest.mark.parametrize('outcome,code', [('UNKNOWN', 'RPC_OUTCOME_UNKNOWN')])
 def test_gateway_unknown_submission_restart_replays_local_notice_without_new_reserve(state, ready, inputs, monkeypatch, outcome, code):
     from backtrader.live_state.gateway_pending import GatewayPendingHost
     from bt_api_py.gateway_direct_client import GatewayClientResult
@@ -1257,8 +1256,173 @@ def test_gateway_gate_rejects_absent_or_wrong_instrument_market_ref(monkeypatch)
             broker._gateway_require_trade_qualification(source, INSTRUMENT)
 
 
+def _bound_submit_fixture(state, ready, inputs, monkeypatch, *, qualify=True):
+    from backtrader.live_state.gateway_pending import GatewayPendingHost
+
+    _, binding, _ = ready
+    host = GatewayPendingHost.upgrade_for_order_state(state.strategy_dir, state.strategy_uuid, binding)
+    state.sequence.allocate()
+    api = api_for(host, inputs[1])
+    data, broker, strategy = framework()
+    if qualify:
+        monkeypatch.setattr(broker, "_gateway_require_trade_qualification",
+                            lambda *_: SYNTHETIC_MARKET_REF)  # synthetic order-path test
+    broker.bind_gateway_execution_stream(strategy, api=api, host=host, data_by_ref={'rb': data},
+        orders_by_key={}, instrument_by_ref={'rb': INSTRUMENT},
+        time_policy=GatewayExecutionTimePolicy('CTP___FUTURE', 'UTC'), sequence=state.sequence)
+    return host, api, data, broker, strategy
+
+
+def _rebind(state, host, api, monkeypatch=None):
+    data, broker, strategy = framework()
+    if monkeypatch is not None:
+        monkeypatch.setattr(broker, "_gateway_require_trade_qualification",
+                            lambda *_: SYNTHETIC_MARKET_REF)  # synthetic order-path test
+    broker.bind_gateway_execution_stream(strategy, api=api, host=host, data_by_ref={'rb': data},
+        orders_by_key={}, instrument_by_ref={'rb': INSTRUMENT},
+        time_policy=GatewayExecutionTimePolicy('CTP___FUTURE', 'UTC'), sequence=state.sequence)
+    return data, broker, strategy
+
+
+def _emulated_release(host, calls=None, *, fail=0):
+    from bt_api_py.gateway_direct_client import GatewayClientResult, GatewayReleasePlan
+
+    remaining = [fail]
+
+    def release(route, key, *, operation_id, timeout_seconds):
+        if calls is not None:
+            calls.append(('release', operation_id))
+        if remaining[0]:
+            remaining[0] -= 1
+            raise OSError('synthetic release transport failure')
+        reserved = host.load_record(key)
+        if reserved.state != 'RELEASED':
+            host.save_release(GatewayReleasePlan(key, reserved.reservation_id, reserved.digest,
+                                                 operation_id, reserved.version))
+            host.save_record(key, replace(reserved, state='RELEASED', version=reserved.version + 1,
+                remaining_ttl_seconds=None, release_operation_id=operation_id,
+                release_expected_version=reserved.version))
+        return GatewayClientResult('OBSERVED', host.load_record(key))
+    return release
+
+
+def _limit_order(strategy, data, price=10):
+    order = bt.BuyOrder(owner=strategy, data=data, size=1, price=price, exectype=bt.Order.Limit)
+    order.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+    return order
+
+
+@pytest.mark.parametrize('restart_before_delivery', [False, True])
+def test_reserve_denial_rejects_locally_and_never_blocks_the_stream(
+        state, ready, inputs, monkeypatch, restart_before_delivery):
+    # SimNow 63.09: a validated REQUEST_DENIED reserve left the order Submitted
+    # and every later next() returned RECOVERY_PENDING before reading events.
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+    calls = []
+
+    def denied(route, request, *, timeout_seconds):
+        calls.append(('reserve', request.idempotency_key))
+        return GatewayClientResult('REQUEST_DENIED', code='ADMISSION_DENIED')
+    monkeypatch.setattr(api, 'reserve_order', denied)
+    monkeypatch.setattr(api, 'dispatch_order', lambda *a, **kw: calls.append(('dispatch',)))
+    monkeypatch.setattr(api, 'command_status', lambda *a, **kw: calls.append(('status',)))
+    order = _limit_order(strategy, data)
+    assert broker.submit(order) is order
+    key = order.info.gateway_request_key
+    assert order.status == order.Rejected and order.info.gateway_request_denied == 'ADMISSION_DENIED'
+    notices = host.local_order_notifications()
+    assert notices[key]['status'] == notices['reject:' + key]['status'] == 'pending'
+    assert notices['reject:' + key]['code'] == 'ADMISSION_DENIED'
+    assert host.load_record(key) is None
+    if restart_before_delivery:
+        data, broker, strategy = _rebind(state, host, api, monkeypatch)
+        restored = next(iter(broker.orders.values()))
+        assert restored.status == restored.Rejected
+    deliver(broker, strategy)
+    deliver(broker, strategy)
+    assert [event[1] for event in strategy.events] == [
+        notices[key]['notification_id'], notices['reject:' + key]['notification_id']]
+    assert all(row['status'] == 'confirmed' for row in host.local_order_notifications().values())
+    broker.next()
+    assert broker.gateway_execution_stream_status() != 'RECOVERY_PENDING'
+    assert ('status',) not in calls and ('dispatch',) not in calls
+
+    def reserve(route, request, *, timeout_seconds):
+        calls.append(('reserve', request.idempotency_key))
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', lambda route, k, **kw:
+                        GatewayClientResult('QUEUED', host.load_record(k)))
+    second = _limit_order(strategy, data, price=11)
+    broker.submit(second)  # no ORDER_RECONCILE_REQUIRED from the rejected intent
+    assert [c[0] for c in calls].count('reserve') == 2
+    _, broker3, _ = _rebind(state, host, api)
+    by_key = {o.info.gateway_request_key: o for o in broker3.orders.values()}
+    assert by_key[key].status == order.Rejected
+
+
+def test_reserve_denial_rejection_is_validated_by_pending_state(state, ready, inputs, monkeypatch):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', lambda route, k, **kw:
+                        GatewayClientResult('QUEUED', host.load_record(k)))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    snapshot = host.load_order_snapshot(key)['snapshot']
+    # A reservation exists: a local rejection is not provable.
+    with pytest.raises(ValueError, match='GATEWAY_REJECTION_NOT_PROVEN'):
+        host.save_rejected_order_notification(key, bt_ref=order.ref, snapshot=snapshot,
+                                              code='ADMISSION_DENIED')
+    with pytest.raises(ValueError, match='GATEWAY_LOCAL_NOTIFICATION_INVALID'):
+        host.save_rejected_order_notification(key, bt_ref=order.ref, snapshot=snapshot,
+                                              code='not a code')
+
+
+@pytest.mark.parametrize('code', ['MARKET_GATE_UNAVAILABLE', 'DISPATCH_CLAIM_UNAVAILABLE'])
+def test_dispatch_denial_releases_the_unsent_reservation(state, ready, inputs, monkeypatch, code):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+    calls = []
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', lambda *a, **kw: GatewayClientResult('REQUEST_DENIED', code=code))
+    monkeypatch.setattr(api, 'release_order', _emulated_release(host, calls))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    assert order.status == order.Canceled and order.info.gateway_dispatch_denied == code
+    assert host.load_record(key).state == 'RELEASED'
+    assert host.local_order_notifications()['cancel:' + key]['status'] == 'pending'
+    assert calls == [('release', 'release-' + __import__('hashlib').sha256(key.encode()).hexdigest())]
+    deliver(broker, strategy)
+    deliver(broker, strategy)
+    assert all(row['status'] == 'confirmed' for row in host.local_order_notifications().values())
+
+
 @pytest.mark.parametrize('lost_ref', [False, True])
-def test_gateway_feed_losing_qualification_after_reserve_never_dispatches(state, ready, inputs, monkeypatch, lost_ref):
+@pytest.mark.parametrize('release_failures', [0, 1])
+def test_gateway_feed_losing_qualification_after_reserve_never_dispatches(
+        state, ready, inputs, monkeypatch, lost_ref, release_failures):
     from backtrader.live_state.gateway_pending import GatewayPendingHost
     from bt_api_py.gateway_direct_client import GatewayClientResult
     from tests.unit.live_state.test_gateway_pending import observe
@@ -1286,13 +1450,25 @@ def test_gateway_feed_losing_qualification_after_reserve_never_dispatches(state,
     monkeypatch.setattr(broker, '_gateway_require_trade_qualification', qualification)
     monkeypatch.setattr(api, 'reserve_order', reserve)
     monkeypatch.setattr(api, 'dispatch_order', lambda *args, **kwargs: calls.append('dispatch'))
+    releases = []
+    monkeypatch.setattr(api, 'release_order', _emulated_release(host, releases, fail=release_failures))
     order = bt.BuyOrder(owner=strategy, data=data, size=1, price=10, exectype=bt.Order.Limit)
     order.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
     assert broker.submit(order) is order
+    key = order.info.gateway_request_key
     assert calls == ['qualification', 'reserve', 'qualification']
-    assert broker.gateway_execution_stream_status() == 'FEED_NOT_TRADABLE_AFTER_RESERVE'
-    assert host.load_context(order.info.gateway_request_key).marker_id is None
-    assert host.load_record(order.info.gateway_request_key).state == 'RESERVED'
+    assert host.load_context(key).marker_id is None
+    if release_failures:
+        # Unclear release: the reservation stays on the recovery path.
+        assert broker.gateway_execution_stream_status() == 'RELEASE_PENDING'
+        assert host.load_record(key).state == 'RESERVED' and order.status == order.Submitted
+        monkeypatch.setattr(api, 'command_status', lambda route, k, **kw:
+                            GatewayClientResult('OBSERVED', host.load_record(k)))
+        deliver(broker, strategy)  # the local Submitted notice
+        broker.next()
+    assert 'dispatch' not in calls
+    assert host.load_record(key).state == 'RELEASED' and order.status == order.Canceled
+    assert len({op for _, op in releases}) == 1 and len(releases) == 1 + release_failures
 
 
 def _strategy_position_observation(binding, *, long='3', short='0', available=None):
