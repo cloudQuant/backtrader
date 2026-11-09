@@ -3218,6 +3218,11 @@ class Strategy(StrategyBase):
     def _notify(self, qorders=None, qtrades=None):
         """Deliver notifications and acknowledge durable receipts on success."""
 
+        broker = getattr(self, "broker", None)
+        resume = getattr(broker, "_gateway_resume_notifications", None)
+        if callable(resume) and resume(self, qorders=qorders, qtrades=qtrades) is True:
+            return
+
         try:
             quicknotify_enabled = self._quicknotify
         except AttributeError:

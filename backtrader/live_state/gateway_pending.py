@@ -158,7 +158,7 @@ def has_unresolved_gateway_intents(state: dict) -> bool:
 
 
 def has_unresolved_gateway_cancels(state: dict) -> bool:
-    if state["version"] not in (3, 4):
+    if state["version"] not in (3, 4, 5):
         return False
     entries = state["gateway"]["intents"]
     markers = _marker_index(state)
@@ -209,10 +209,12 @@ def validate_gateway_state(state: dict, path: str) -> None:
     try:
         gateway = state["gateway"]
         gateway_keys = {"binding", "max_entries", "intents"}
-        if state["version"] in (3, 4):
+        if state["version"] in (3, 4, 5):
             gateway_keys |= {"max_cancel_entries", "cancel_attempts"}
-        if state["version"] == 4:
+        if state["version"] in (4, 5):
             gateway_keys.add("execution")
+        if state["version"] == 5:
+            gateway_keys |= {"order_snapshots", "max_order_snapshot_bytes"}
         if type(gateway) is not dict or set(gateway) != gateway_keys:
             raise ValueError("gateway_shape")
         binding = _binding_from_mapping(gateway["binding"])
@@ -309,7 +311,7 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
                     raise ValueError("duplicate_local_seq")
                 unresolved_sequences.add(seq)
-        if state["version"] in (3, 4):
+        if state["version"] in (3, 4, 5):
             max_cancels, attempts = gateway["max_cancel_entries"], gateway["cancel_attempts"]
             if (not is_strict_int(max_cancels, minimum=1) or max_cancels > _MAX_ENTRIES
                     or type(attempts) is not dict or len(attempts) > max_cancels):
@@ -323,9 +325,12 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if attempt["record"] is not None:
                     record = _cancel_record(attempt["record"], binding, plan)
                     validate_gateway_cancel_record_progress(None, record)
-        if state["version"] == 4:
+        if state["version"] in (4, 5):
             from .gateway_execution_state import validate_execution_state
             validate_execution_state(state, binding)
+        if state["version"] == 5:
+            from .gateway_order_state import validate_order_state
+            validate_order_state(state)
     except Exception as exc:
         if isinstance(exc, LiveStateCorrupt):
             raise
@@ -370,6 +375,27 @@ class GatewayPendingHost:
         return upgrade_for_execution(cls, strategy_dir, strategy_uuid, binding,
             consumer_ref=consumer_ref, max_events=max_events, max_event_bytes=max_event_bytes,
             max_projection_bytes=max_projection_bytes, lock_timeout=lock_timeout)
+
+    @classmethod
+    def upgrade_for_order_state(cls, strategy_dir: Any, strategy_uuid: str,
+                                binding: GatewayCommandBinding, *,
+                                max_order_snapshot_bytes: int = 16 * 1024 * 1024,
+                                lock_timeout: float = 10.0) -> "GatewayPendingHost":
+        from .gateway_order_state import upgrade_for_order_state
+        return upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding,
+            max_order_snapshot_bytes=max_order_snapshot_bytes, lock_timeout=lock_timeout)
+
+    def save_order_intent(self, intent: Any, *, local_seq: int, bt_ref: int, snapshot: dict) -> None:
+        from .gateway_order_state import save_order_intent
+        save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref, snapshot=snapshot)
+
+    def load_order_snapshot(self, request_key: str):
+        from .gateway_order_state import load_order_snapshot
+        return load_order_snapshot(self, request_key)
+
+    def iter_order_snapshots(self):
+        from .gateway_order_state import iter_order_snapshots
+        return iter_order_snapshots(self)
 
     def load_execution_checkpoint(self):
         from .gateway_execution_state import load_checkpoint
@@ -418,7 +444,7 @@ class GatewayPendingHost:
         return record_ack(self, progress)
 
     def _check_state(self, state: dict) -> dict:
-        if state["version"] not in (2, 3, 4) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+        if state["version"] not in (2, 3, 4, 5) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
             raise ValueError("GATEWAY_BINDING_MISMATCH")
         return state["gateway"]["intents"]
 
@@ -444,7 +470,7 @@ class GatewayPendingHost:
 
     def _cancel_attempts(self, state: dict) -> dict:
         self._check_state(state)
-        if state["version"] not in (3, 4):
+        if state["version"] not in (3, 4, 5):
             raise ValueError("GATEWAY_CANCEL_UPGRADE_REQUIRED")
         return state["gateway"]["cancel_attempts"]
 
@@ -523,6 +549,44 @@ class GatewayPendingHost:
             raise ValueError("GATEWAY_INTENT_NOT_FOUND")
         return entry
 
+    def _save_intent_in_state(self, state: dict, mapping: dict, canonical: Any,
+                              local_seq: int | None, bt_ref: int | None) -> bool:
+        entries = self._check_state(state)
+        entry = entries.get(canonical.request_key)
+        if entry is None:
+            if len(entries) >= state["gateway"]["max_entries"]:
+                raise ValueError("GATEWAY_CAPACITY_EXCEEDED")
+            entry = {"intent": mapping, "record": None, "marker_id": None,
+                     "release": None, "local_seq": local_seq, "bt_ref": bt_ref}
+            entries[canonical.request_key] = entry
+            changed = True
+        else:
+            old = entry["intent"]
+            if {k: v for k, v in old.items() if k != "ttl_seconds"} != {
+                k: v for k, v in mapping.items() if k != "ttl_seconds"
+            }:
+                raise ValueError("GATEWAY_INTENT_CONFLICT")
+            changed = False
+            for name, value in (("local_seq", local_seq), ("bt_ref", bt_ref)):
+                if value is not None and entry[name] is not None and value != entry[name]:
+                    raise ValueError("GATEWAY_FACT_CONFLICT")
+                if value is not None and entry[name] is None:
+                    entry[name] = value
+                    marker = _marker_for(state, entry["marker_id"])
+                    if marker is not None:
+                        marker[name] = value
+                    changed = True
+        markers = _marker_index(state)
+        if entry["local_seq"] is not None and _unresolved(state, entry, markers):
+            seq = entry["local_seq"]
+            if any(other is not entry and other["local_seq"] == seq and _unresolved(state, other, markers)
+                   for other in entries.values()):
+                raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
+            if any(marker["local_seq"] == seq and marker["marker_id"] != entry["marker_id"]
+                   for marker in state["active"].values()):
+                raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
+        return changed
+
     def save_intent(self, intent: Any, *, local_seq: int | None = None,
                     bt_ref: int | None = None) -> None:
         mapping = gateway_intent_to_mapping(intent)
@@ -531,41 +595,7 @@ class GatewayPendingHost:
             raise ValueError("GATEWAY_FACT_INVALID")
         with self._store._lock():
             state = self._store._load()
-            entries = self._check_state(state)
-            entry = entries.get(canonical.request_key)
-            if entry is None:
-                if len(entries) >= state["gateway"]["max_entries"]:
-                    raise ValueError("GATEWAY_CAPACITY_EXCEEDED")
-                entry = {"intent": mapping, "record": None, "marker_id": None,
-                         "release": None, "local_seq": local_seq, "bt_ref": bt_ref}
-                entries[canonical.request_key] = entry
-                changed = True
-            else:
-                old = entry["intent"]
-                if {k: v for k, v in old.items() if k != "ttl_seconds"} != {
-                    k: v for k, v in mapping.items() if k != "ttl_seconds"
-                }:
-                    raise ValueError("GATEWAY_INTENT_CONFLICT")
-                changed = False
-                for name, value in (("local_seq", local_seq), ("bt_ref", bt_ref)):
-                    if value is not None and entry[name] is not None and value != entry[name]:
-                        raise ValueError("GATEWAY_FACT_CONFLICT")
-                    if value is not None and entry[name] is None:
-                        entry[name] = value
-                        marker = _marker_for(state, entry["marker_id"])
-                        if marker is not None:
-                            marker[name] = value
-                        changed = True
-            markers = _marker_index(state)
-            if entry["local_seq"] is not None and _unresolved(state, entry, markers):
-                seq = entry["local_seq"]
-                if any(other is not entry and other["local_seq"] == seq and _unresolved(state, other, markers)
-                       for other in entries.values()):
-                    raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
-                if any(marker["local_seq"] == seq and marker["marker_id"] != entry["marker_id"]
-                       for marker in state["active"].values()):
-                    raise ValueError("GATEWAY_LOCAL_SEQ_CONFLICT")
-            if changed:
+            if self._save_intent_in_state(state, mapping, canonical, local_seq, bt_ref):
                 self._store._store(state)
 
     def load_intent(self, request_key: str):

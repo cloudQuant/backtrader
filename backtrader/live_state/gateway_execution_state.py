@@ -290,7 +290,11 @@ def _check_event_conflicts(mappings: list[dict]) -> None:
                     raise ValueError("EXECUTION_TRADE_DATE_CONFLICT")
             elif prior is not None and obs.trade_date is not None and not obs.trade_metadata_only:
                 raise ValueError("EXECUTION_TRADE_METADATA_EFFECT_MISMATCH")
-            trades[key] = (identity, economics, known_date or obs.trade_date)
+            known_time = None if prior is None else prior[3]
+            if known_time and obs.trade_time and known_time != obs.trade_time:
+                raise ValueError("EXECUTION_TRADE_TIME_CONFLICT")
+            trades[key] = (identity, economics, known_date or obs.trade_date,
+                           known_time or obs.trade_time)
 
 
 def validate_execution_state(state: dict, binding) -> None:
@@ -436,7 +440,7 @@ def upgrade_for_execution(
             }
             validate_execution_state(state, host._binding)
             host._store._store(state, trim_history=False)
-        elif state["version"] == 4:
+        elif state["version"] in (4, 5):
             execution = state["gateway"]["execution"]
             if (
                 execution["consumer_ref"] != consumer_ref
@@ -453,7 +457,7 @@ def upgrade_for_execution(
 def _load(host):
     state = host._store._load()
     host._check_state(state)
-    if state["version"] != 4:
+    if state["version"] not in (4, 5):
         raise ValueError("GATEWAY_EXECUTION_UPGRADE_REQUIRED")
     return state, state["gateway"]["execution"]
 
@@ -788,7 +792,7 @@ def record_ack(host, progress):
 
 def has_unresolved_gateway_execution(state: dict) -> bool:
     """Check watermarks and the explicitly persisted notification batch."""
-    if state["version"] != 4:
+    if state["version"] not in (4, 5):
         return False
     execution = state["gateway"]["execution"]
     return (

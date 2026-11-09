@@ -22,6 +22,7 @@ from ._btapi_owner_fence import lease_outcome_for_error as _owner_lease_error_ou
 from ._btapi_owner_fence import lease_outcome_for_response as _owner_lease_response_outcome
 from ._btapi_gateway_events import GatewayExecutionEventsBrokerMixin
 from ._btapi_gateway_notifications import GatewayNotificationsBrokerMixin
+from ._btapi_gateway_stream import GatewayExecutionStreamBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
@@ -68,6 +69,7 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 
 
 class BtApiBroker(
+    GatewayExecutionStreamBrokerMixin,
     GatewayNotificationsBrokerMixin,
     BtApiDirectModeMixin,
     AccountOwnerFenceBrokerMixin,
@@ -2025,6 +2027,8 @@ class BtApiBroker(
 
     def submit(self, order):
         """Submit an order through the store."""
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
         if self._direct_active():
             return self._direct_submit(order)
         if getattr(self, "factor_execution_coordinator", None) is not None:
@@ -2259,6 +2263,8 @@ class BtApiBroker(
             raise
     def cancel(self, order):
         """Cancel an existing order through the store."""
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
         if order is None:
             return None
         if self._direct_active():
@@ -2646,6 +2652,8 @@ class BtApiBroker(
 
     def next(self):
         """Refresh cached balances and positions."""
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            return self._gateway_stream_next()
         if self._direct_active():
             return self._direct_next()
         session = self._managed_runtime_session
@@ -4595,6 +4603,8 @@ class BtApiBroker(
 
     def _request_order_reconcile(self, order):
         """Queue a bounded identity-preserving query for an unknown SDK order."""
+        if self.__dict__.get("_gateway_stream_binding") is not None:
+            return
         if bool(self._order_info_get(order, "reconcile_requested", False)):
             return
         due = self._order_info_get(order, "reconcile_next_monotonic_ns")
@@ -5542,6 +5552,7 @@ class BtApiBroker(
         actual_commission, commission_error = self._normalized_commission(update)
         allow_local_estimate = not (
             bool(getattr(self.store, "_sdk_mode", False)) or self._uses_async_commands()
+            or self.__dict__.get("_gateway_stream_binding") is not None
         )
         # Keywords: the helper takes (opened_qty, closed_qty); a positional
         # (closed, opened) call booked an opening fill's fee as closed (F5).
@@ -5869,6 +5880,7 @@ class BtApiBroker(
         actual_commission, commission_error = self._normalized_commission(update)
         allow_local_estimate = not (
             bool(getattr(self.store, "_sdk_mode", False)) or self._uses_async_commands()
+            or self.__dict__.get("_gateway_stream_binding") is not None
         )
         # Keywords: the helper takes (opened_qty, closed_qty); a positional
         # (closed, opened) call booked an opening fill's fee as closed (F5).
@@ -6266,9 +6278,13 @@ class BtApiBroker(
         # used for backtrader order bookkeeping). utcnow() is deprecated in 3.12+.
         return _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
 
-    @staticmethod
-    def _order_execution_dt(order):
+    def _order_execution_dt(self, order):
         """Pick a stable execution dt compatible with backtrader order bookkeeping."""
+        context = self.__dict__.get("_gateway_stream_execution_time")
+        if context is not None:
+            if context[0] is not order:
+                raise ValueError("GATEWAY_EXECUTION_TIME_SCOPE")
+            return context[1]
         if BtApiBroker._order_info_get(
             order, "service_execution_recovery_v2_trade_time_verified", False
         ) is True:

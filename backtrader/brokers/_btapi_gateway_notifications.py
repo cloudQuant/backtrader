@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import collections
 import copy
+import datetime
 import hashlib
 import json
 import math
@@ -38,6 +39,53 @@ def _hash(value):
 
 def _text(value):
     return type(value) is str and bool(value) and value == value.strip() and len(value) <= 512
+
+
+_STRATEGY_FIELDS = {
+    "version",
+    "through_sequence",
+    "originals",
+    "orders",
+    "orders_pending",
+    "orders_quick",
+    "trade_groups",
+    "trades_pending",
+    "trades_quick",
+    "position_slots",
+    "fee_applied",
+    "fee_trades",
+    "quick",
+    "fee",
+}
+
+
+def _metadata_event(event):
+    from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+
+    obs = event.observation
+    date = obs.trade_date
+    key = obs.trade_key_digest
+    if (
+        obs.kind is not DirectExecutionEventKind.TRADE
+        or obs.trade_metadata_only is not True
+        or type(date) is not str
+        or len(date) != 8
+        or any(ch not in "0123456789" for ch in date)
+        or type(key) is not str
+        or len(key) != 64
+        or any(ch not in "0123456789abcdef" for ch in key)
+    ):
+        _error("METADATA_EVENT_INVALID")
+    try:
+        datetime.date(int(date[:4]), int(date[4:6]), int(date[6:]))
+    except ValueError:
+        _error("METADATA_EVENT_INVALID")
+    return key, date
+
+
+def _reject_metadata_notification(event):
+    if event.observation.trade_metadata_only is True:
+        _error("METADATA_ONLY")
 
 
 @dataclass(eq=False, frozen=True)
@@ -236,6 +284,74 @@ class GatewayNotificationsBrokerMixin:
         binding.armed, binding.arm_checkpoint = event, checkpoint
         return event
 
+    def commit_gateway_trade_metadata(self, strategy, through_sequence):
+        """Persist a date-only event and the actual framework snapshot, without a callback."""
+        binding = self._gateway_binding(strategy, required=True)
+        if type(through_sequence) is not int or through_sequence <= 0:
+            _error("SEQUENCE")
+        if binding.armed is None:
+            checkpoint = binding.host.load_execution_checkpoint()
+            projection = checkpoint.projection
+            metadata = None if projection is None else projection["state"].get("_gateway_strategy")
+            if type(metadata) is dict and metadata.get("version") == 2:
+                return self.assert_gateway_notifications_ackable(strategy, through_sequence)
+            _error("NOT_ARMED")
+        if (
+            binding.armed.sequence != through_sequence
+            or binding.receipt is not None
+            or binding.fee_receipt is not None
+            or binding.fee_ready
+            or binding.candidate is not None
+            or binding.active is not None
+            or binding.fault is not None
+            or binding.replaying
+            or binding.restored is not None
+            or strategy._orderspending
+            or strategy._tradespending
+        ):
+            _error("METADATA_SCOPE")
+        key, date = _metadata_event(binding.armed)
+        order = binding.orders.get(binding.armed.request_key)
+        if order is None or self._gateway_request(binding, order) != binding.armed.request_key:
+            _error("ORDER_BINDING")
+        current = binding.host.load_execution_checkpoint()
+        next_events = binding.host.read_execution_events(limit=1)
+        batch = binding.host.load_execution_notification_batch()
+        if (
+            current.revision != binding.arm_checkpoint.revision
+            or current.applied_sequence != binding.arm_checkpoint.applied_sequence
+            or current.consumer_ref != binding.arm_checkpoint.consumer_ref
+            or current.epoch != binding.arm_checkpoint.epoch
+            or not next_events
+            or next_events[0] != binding.armed
+            or (batch is not None and batch["status"] != "confirmed")
+        ):
+            _error("METADATA_SCOPE")
+        dates = order.info.get("gateway_trade_dates")
+        if dates is None:
+            dates = {}
+        if type(dates) is not dict:
+            _error("METADATA_DATE_CONFLICT")
+        if key in dates and (type(dates[key]) is not str or dates[key] != date):
+            _error("METADATA_DATE_CONFLICT")
+        new_dates = dict(dates)
+        new_dates[key] = date
+        # After changing the actual order, failures require a reload before any further work.
+        binding.fault = "restart_required"
+        order.info["gateway_trade_dates"] = new_dates
+        snapshot, *_ = self._gateway_graph(binding, [], [])
+        metadata = snapshot["state"]["_gateway_strategy"]
+        metadata.update(version=2, delivery="none", event_fact_digest=binding.armed.fact_digest)
+        checkpoint = binding.host.commit_execution_projection(
+            through_sequence,
+            snapshot,
+            expected_revision=binding.arm_checkpoint.revision,
+            expected_applied_sequence=binding.arm_checkpoint.applied_sequence,
+        )
+        binding.armed = binding.arm_checkpoint = None
+        binding.fault = None
+        return checkpoint
+
     def _gateway_request(self, binding, order):
         if type(order) not in (BuyOrder, SellOrder) or order.owner is not binding.strategy:
             _error("ORDER_SCOPE")
@@ -419,6 +535,7 @@ class GatewayNotificationsBrokerMixin:
     def _gateway_commit(self, binding, orders, trades, *, fee=None):
         if binding.armed is None:
             _error("NOT_ARMED")
+        _reject_metadata_notification(binding.armed)
         binding.fault = "restart_required"
         if not orders:
             _error("EVENT_SCOPE")
@@ -475,6 +592,8 @@ class GatewayNotificationsBrokerMixin:
         binding = self._gateway_binding(strategy)
         if binding is None:
             return None
+        if binding.armed is not None:
+            _reject_metadata_notification(binding.armed)
         if binding.active is not None:
             _error("BUSY")
         if binding.fault is not None:
@@ -530,6 +649,7 @@ class GatewayNotificationsBrokerMixin:
             _error("PENDING")
         if binding.armed is None:
             _error("NOT_ARMED")
+        _reject_metadata_notification(binding.armed)
         return None
 
     def _gateway_validate_fee_notifications(self, strategy, order, corrections, done):
@@ -552,6 +672,7 @@ class GatewayNotificationsBrokerMixin:
             or self._gateway_request(binding, order) != binding.armed.request_key
         ):
             _error("EVENT_SCOPE")
+        _reject_metadata_notification(binding.armed)
         if type(corrections) not in (list, tuple) or type(done) is not int or done < 0:
             _error("FEE_INVALID")
         if list(order.executed.iterpending()):
@@ -645,6 +766,94 @@ class GatewayNotificationsBrokerMixin:
             _error("RECEIPT")
         binding.active = None
 
+    def _gateway_resume_notifications(self, strategy, qorders=None, qtrades=None):
+        """Resume a saved batch only at the Strategy's ordinary notification point."""
+        binding = self._gateway_binding(strategy)
+        if binding is None or binding.replaying:
+            return False
+        if binding.active is not None:
+            _error("BUSY")
+        if binding.fault == "restart_required":
+            _error("FAULT")
+        if binding.fault not in (None, "retryable"):
+            _error("FAULT")
+        pending = (
+            binding.restored is not None
+            or binding.receipt is not None
+            or binding.candidate is not None
+            or binding.fault == "retryable"
+        )
+        if not pending:
+            return False
+        if binding.fee_ready:
+            return False
+        if qorders or qtrades:
+            _error("PENDING_NEW_NOTIFICATIONS")
+        self.replay_gateway_notifications(strategy)
+        return True
+
+    def _gateway_metadata_checkpoint(self, binding, checkpoint, batch, *, require_order):
+        from ._btapi_gateway_projection import _info_decode_all, _sources, _validate
+
+        if checkpoint.projection is None or batch is not None or checkpoint.applied_sequence <= 0:
+            _error("METADATA_CHECKPOINT_INVALID")
+        snapshot = copy.deepcopy(checkpoint.projection)
+        metadata = snapshot["state"].pop("_gateway_strategy", None)
+        if (
+            type(metadata) is not dict
+            or set(metadata) != _STRATEGY_FIELDS | {"delivery", "event_fact_digest"}
+            or type(metadata["version"]) is not int
+            or metadata["version"] != 2
+            or metadata["delivery"] != "none"
+            or type(metadata["delivery"]) is not str
+            or type(metadata["through_sequence"]) is not int
+            or metadata["through_sequence"] != checkpoint.applied_sequence
+            or type(metadata["quick"]) is not bool
+            or metadata["quick"] != bool(binding.strategy._quicknotify)
+            or type(metadata["originals"]) is not dict
+            or not metadata["originals"]
+            or metadata["fee"] is not None
+            or any(
+                metadata[name] != [] or type(metadata[name]) is not list
+                for name in ("orders_pending", "orders_quick", "trades_pending", "trades_quick")
+            )
+        ):
+            _error("METADATA_CHECKPOINT_INVALID")
+        events = binding.host.read_execution_events(
+            after_sequence=checkpoint.applied_sequence - 1, limit=1
+        )
+        if (
+            not events
+            or events[0].sequence != checkpoint.applied_sequence
+            or type(metadata["event_fact_digest"]) is not str
+            or metadata["event_fact_digest"] != events[0].fact_digest
+        ):
+            _error("METADATA_CHECKPOINT_INVALID")
+        event = events[0]
+        key, date = _metadata_event(event)
+        original_key = metadata["originals"].get(event.request_key)
+        state = _validate(snapshot, _sources(binding.feeds))
+        if type(original_key) is not str or original_key not in state["orders"]:
+            _error("METADATA_CHECKPOINT_INVALID")
+        groups = state["groups"]
+        infos = _info_decode_all(
+            groups["info"], groups["info_nodes"], {name: object() for name in state["orders"]}
+        )
+        info = infos[state["orders"][original_key]["info"]]
+        dates = info.get("gateway_trade_dates")
+        if type(dates) is not dict or dates.get(key) != date:
+            _error("METADATA_CHECKPOINT_INVALID")
+        if require_order:
+            order = binding.orders.get(event.request_key)
+            if (
+                order is None
+                or self._gateway_request(binding, order) != event.request_key
+                or type(order.info.get("gateway_trade_dates")) is not dict
+                or order.info["gateway_trade_dates"].get(key) != date
+            ):
+                _error("METADATA_CHECKPOINT_INVALID")
+        return event, metadata
+
     def assert_gateway_notifications_ackable(self, strategy, sequence):
         binding = self._gateway_binding(strategy, required=True)
         checkpoint = binding.host.load_execution_checkpoint()
@@ -652,14 +861,37 @@ class GatewayNotificationsBrokerMixin:
         if (
             type(sequence) is not int
             or sequence != checkpoint.applied_sequence
-            or batch is None
-            or batch["through_sequence"] != sequence
-            or batch["status"] != "confirmed"
             or binding.receipt is not None
             or binding.fault is not None
             or binding.active is not None
         ):
             _error("ACK_BLOCKED")
+        if batch is None:
+            if (
+                binding.armed is not None
+                or binding.replaying
+                or binding.restored is not None
+                or binding.fee_receipt is not None
+                or binding.fee_ready
+                or binding.candidate is not None
+                or strategy._orderspending
+                or strategy._tradespending
+            ):
+                _error("ACK_BLOCKED")
+            try:
+                self._gateway_metadata_checkpoint(binding, checkpoint, batch, require_order=True)
+            except (ValueError, TypeError, KeyError):
+                _error("ACK_BLOCKED")
+        else:
+            events = binding.host.read_execution_events(after_sequence=sequence - 1, limit=1)
+            if (
+                batch["through_sequence"] != sequence
+                or batch["status"] != "confirmed"
+                or not events
+                or events[0].sequence != sequence
+                or events[0].observation.trade_metadata_only is True
+            ):
+                _error("ACK_BLOCKED")
         return checkpoint
 
     def restore_gateway_notification_state(self, strategy):
@@ -679,32 +911,20 @@ class GatewayNotificationsBrokerMixin:
             _error("RESTORE_NOT_EMPTY")
         checkpoint = binding.host.load_execution_checkpoint()
         batch = binding.host.load_execution_notification_batch()
-        if batch is None or checkpoint.projection is None:
+        if checkpoint.projection is None:
             _error("RESTORE_MISSING")
+        is_metadata = batch is None
+        if is_metadata:
+            self._gateway_metadata_checkpoint(binding, checkpoint, batch, require_order=False)
         snapshot = copy.deepcopy(checkpoint.projection)
         metadata = snapshot["state"].pop("_gateway_strategy", None)
         snapshot["state"].pop("_gateway_notifications", None)
-        fields = {
-            "version",
-            "through_sequence",
-            "originals",
-            "orders",
-            "orders_pending",
-            "orders_quick",
-            "trade_groups",
-            "trades_pending",
-            "trades_quick",
-            "position_slots",
-            "fee_applied",
-            "fee_trades",
-            "quick",
-            "fee",
-        }
+        fields = _STRATEGY_FIELDS | ({"delivery", "event_fact_digest"} if is_metadata else set())
         if (
             type(metadata) is not dict
             or set(metadata) != fields
             or type(metadata["version"]) is not int
-            or metadata["version"] != 1
+            or metadata["version"] != (2 if is_metadata else 1)
             or type(metadata["through_sequence"]) is not int
             or metadata["through_sequence"] != checkpoint.applied_sequence
             or type(metadata["quick"]) is not bool
@@ -833,12 +1053,18 @@ class GatewayNotificationsBrokerMixin:
             not events
             or events[0].sequence != checkpoint.applied_sequence
             or events[0].request_key not in originals
+            or (not is_metadata and events[0].observation.trade_metadata_only is True)
         ):
             _error("RESTORE_INVALID")
         # Validate notification identities, order, exact object references and fee metadata.
         binding.armed, binding.arm_checkpoint = events[0], checkpoint
         try:
-            notices = batch["notifications"]
+            if is_metadata:
+                key, date = _metadata_event(events[0])
+                dates = originals[events[0].request_key].info.get("gateway_trade_dates")
+                if type(dates) is not dict or dates.get(key) != date:
+                    _error("RESTORE_INVALID")
+            notices = [] if is_metadata else batch["notifications"]
             expected = []
             if metadata["fee"] is not None:
                 fee = metadata["fee"]
@@ -914,6 +1140,9 @@ class GatewayNotificationsBrokerMixin:
             container[name] = position
         for order in originals.values():
             self.orders[order.ref] = order
+        if is_metadata:
+            binding.armed = binding.arm_checkpoint = None
+            return checkpoint
         if batch["status"] == "confirmed":
             strategy.clear()
             binding.armed = binding.arm_checkpoint = None
