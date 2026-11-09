@@ -11,6 +11,9 @@ from .gateway_execution_state import _json_bytes, _projection
 
 _MAX_BYTES = 64 * 1024 * 1024
 _STATE_KEYS = {"codec", "feeds", "orders", "positions", "trades", "groups"}
+# Gateway records proving a reservation ended without any dispatch: released by
+# the strategy, or expired by the Gateway (its TTL or owner generation passed).
+_NEVER_SENT_FINAL = frozenset({"RELEASED", "EXPIRED"})
 
 
 def _snapshot(value, request_key, bt_ref, limit):
@@ -92,7 +95,7 @@ def validate_order_state(state):
                         {"notification_id", "status", "bt_ref", "snapshot"}
                         or request_key not in snapshots or request_key not in notices
                         or entries[request_key]["record"] is None
-                        or entries[request_key]["record"]["state"] != "RELEASED"):
+                        or entries[request_key]["record"]["state"] not in _NEVER_SENT_FINAL):
                     raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
                 cancel_snapshot = _snapshot(notice["snapshot"], request_key,
                                             notice["bt_ref"], limit)
@@ -263,7 +266,8 @@ def save_released_notification(host, request_key, *, bt_ref, snapshot):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
         entry = entries.get(request_key)
-        if (entry is None or entry["record"] is None or entry["record"]["state"] != "RELEASED"
+        if (entry is None or entry["record"] is None
+                or entry["record"]["state"] not in _NEVER_SENT_FINAL
                 or request_key not in gateway["local_notifications"]):
             raise ValueError("GATEWAY_RELEASE_NOT_PROVEN")
         snap = _snapshot(snapshot, request_key, bt_ref, gateway["max_order_snapshot_bytes"])

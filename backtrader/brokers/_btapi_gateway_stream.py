@@ -42,6 +42,9 @@ class _StreamBinding:
     sequence: object = None
     state: str = "ACTIVE"
     local_deferred: list = field(default_factory=list)
+    # Request keys this process asked the Gateway to dispatch; any other
+    # RESERVED reservation was left by an earlier process and is withdrawn.
+    dispatched: set = field(default_factory=set)
 
 
 def _fail(code):
@@ -205,7 +208,7 @@ class GatewayExecutionStreamBrokerMixin:
                             canceled.notification_id, canceled.replayed = cancel["notification_id"], True
                             queue_local(canceled)
                     elif (host.load_record(key) is not None
-                          and host.load_record(key).state == "RELEASED"):
+                          and host.load_record(key).state in ("RELEASED", "EXPIRED")):
                         self._gateway_finalize_release(binding, current, key)
             for key, order in notices.orders.items():
                 self._gateway_stream_order(binding, key, order, allow_unreserved=sequence is not None)
@@ -435,8 +438,9 @@ class GatewayExecutionStreamBrokerMixin:
             _fail("ORDER_REDUCE_ONLY_INVALID")
         local_notices = binding.host.local_order_notifications()
         for prior_key, prior_order in notice.orders.items():
-            if prior_order.data is not order.data or "reject:" + prior_key in local_notices:
-                continue
+            if (prior_order.data is not order.data or "reject:" + prior_key in local_notices
+                    or "cancel:" + prior_key in local_notices):
+                continue  # finalized locally (never sent)
             record = binding.host.load_record(prior_key)
             context = binding.host.load_context(prior_key)
             if (record is None or record.state == "UNKNOWN" or not record.generation_current
@@ -498,6 +502,7 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "FEED_NOT_TRADABLE_AFTER_RESERVE"
                     self._gateway_release_unsent(binding, order, request_key)
                     return order
+                binding.dispatched.add(request_key)
                 result = binding.api.dispatch_order(binding.policy.route, request_key, market_ref=market_ref,
                                                     timeout_seconds=binding.timeout)
                 if result.outcome == "REQUEST_DENIED":
@@ -528,6 +533,18 @@ class GatewayExecutionStreamBrokerMixin:
             result = None
         if (result is not None and result.outcome == "OBSERVED" and result.record is not None
                 and result.record.state == "RELEASED"):
+            self._gateway_finalize_release(binding, order, key)
+            return True
+        # The Gateway may already have expired it (TTL or owner generation): a
+        # release reply then carries no release identity; read the status.
+        try:
+            status = binding.api.command_status(binding.policy.route, key,
+                                                timeout_seconds=binding.timeout)
+        except Exception as error:
+            _logger.warning("gateway status after release failed: %s", type(error).__name__)
+            status = None
+        if (status is not None and status.outcome == "OBSERVED" and status.record is not None
+                and status.record.state == "EXPIRED"):
             self._gateway_finalize_release(binding, order, key)
             return True
         binding.state = "RELEASE_PENDING"
@@ -761,8 +778,9 @@ class GatewayExecutionStreamBrokerMixin:
             if "reject:" + key in local_notices:
                 continue
             record = binding.host.load_record(key)
-            if (record is not None and record.state == "RELEASED"
-                    and "cancel:" + key not in binding.host.local_order_notifications()):
+            if "cancel:" + key in local_notices:
+                continue
+            if record is not None and record.state in ("RELEASED", "EXPIRED"):
                 self._gateway_finalize_release(binding, notice.orders[key], key)
                 binding.state = "WAITING_NOTIFICATIONS"
                 return
@@ -774,15 +792,23 @@ class GatewayExecutionStreamBrokerMixin:
                     return
                 record = result.record
             context = binding.host.load_context(key)
-            if record.state == "RESERVED" and context.marker_id is None:
+            if record.state == "RESERVED" and (context.marker_id is None
+                                               or key not in binding.dispatched):
+                # No marker: BT never asked to dispatch. Not dispatched by this
+                # process: an earlier process left it; its outcome is settled at
+                # the Gateway by version (a dispatch that already won makes the
+                # release fail and the order proceeds normally).
                 result = binding.api.command_status(binding.policy.route, key,
                                                     timeout_seconds=binding.timeout)
                 if result.outcome != "OBSERVED" or result.record is None:
                     binding.state = "RECOVERY_PENDING"
                     return
+                if result.record.state == "EXPIRED":
+                    self._gateway_finalize_release(binding, notice.orders[key], key)
+                    binding.state = "WAITING_NOTIFICATIONS"
+                    return
                 if result.record.state == "RESERVED":
-                    # No marker: BT never requested dispatch, so withdrawing
-                    # the reservation cannot race a venue send.
+                    # Never sent (still RESERVED at the Gateway): withdraw it.
                     order = notice.orders[key]
                     if (order.status == order.Submitted and order.executed.size == 0
                             and self._gateway_release_unsent(binding, order, key)):

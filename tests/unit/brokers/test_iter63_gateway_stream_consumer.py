@@ -994,7 +994,9 @@ def test_reserved_without_dispatch_marker_waits_on_original_key(state, ready, in
     blocked.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
     with pytest.raises(RuntimeError, match='ORDER_RECONCILE_REQUIRED'):
         broker.submit(blocked)
-    assert calls == [('dispatch', key), ('status', key)]
+    # Status, an unclear release (not patched here), then a status read that
+    # still shows RESERVED: the reservation stays on the recovery path.
+    assert calls == [('dispatch', key), ('status', key), ('status', key)]
 
 
 def test_order_submitted_in_failed_remote_callback_waits_for_replay(state, ready, inputs, monkeypatch):
@@ -1300,7 +1302,7 @@ def _emulated_release(host, calls=None, *, fail=0):
             host.save_release(GatewayReleasePlan(key, reserved.reservation_id, reserved.digest,
                                                  operation_id, reserved.version))
             host.save_record(key, replace(reserved, state='RELEASED', version=reserved.version + 1,
-                remaining_ttl_seconds=None, release_operation_id=operation_id,
+                remaining_ttl_seconds=None, expiry_pending=False, release_operation_id=operation_id,
                 release_expected_version=reserved.version))
         return GatewayClientResult('OBSERVED', host.load_record(key))
     return release
@@ -1417,6 +1419,93 @@ def test_dispatch_denial_releases_the_unsent_reservation(state, ready, inputs, m
     deliver(broker, strategy)
     deliver(broker, strategy)
     assert all(row['status'] == 'confirmed' for row in host.local_order_notifications().values())
+
+
+@pytest.mark.parametrize('gateway_state', ['RESERVED', 'EXPIRED'])
+def test_reservation_left_by_an_earlier_process_is_withdrawn_after_restart(
+        state, ready, inputs, monkeypatch, gateway_state):
+    # SimNow 63.09: an order whose dispatch was refused kept its RESERVED
+    # record (with a marker); after a restart it stayed Submitted forever and
+    # its non-current generation blocked new submits (ORDER_RECONCILE_REQUIRED).
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+
+    def unknown_dispatch(route, key, **kwargs):
+        host.commit_pre_dispatch(key, host.load_record(key))  # marker persisted before the RPC
+        return GatewayClientResult('UNKNOWN', code='RPC_OUTCOME_UNKNOWN')
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', unknown_dispatch)
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    assert host.load_context(key).marker_id is not None
+    deliver(broker, strategy)
+    # The Gateway never dispatched it; the next process withdraws it.
+    calls = []
+    release = _emulated_release(host, calls)
+
+    def status(route, k, **kwargs):
+        calls.append(('status', k))
+        record = host.load_record(k)
+        if record.state == 'RESERVED' and record.generation_current:
+            # The Gateway restarted: the reservation belongs to an old owner generation.
+            record = replace(record, owner_generation=record.reservation_generation + "-restarted",
+                             generation_current=False, remaining_ttl_seconds=0,
+                             expiry_pending=True)
+            host.save_record(k, record)
+        if gateway_state == 'EXPIRED' and record.state == 'RESERVED':
+            record = replace(record, state='EXPIRED', version=record.version + 1,
+                             remaining_ttl_seconds=None, expiry_pending=False)
+            host.save_record(k, record)
+        return GatewayClientResult('OBSERVED', record)
+    monkeypatch.setattr(api, 'command_status', status)
+    monkeypatch.setattr(api, 'release_order', release)
+    data2, broker2, strategy2 = _rebind(state, host, api, monkeypatch)
+    restored = next(iter(broker2.orders.values()))
+    broker2.next()
+    assert restored.status == restored.Canceled
+    assert host.load_record(key).state == ('RELEASED' if gateway_state == 'RESERVED' else 'EXPIRED')
+    assert any(c[0] == 'release' for c in calls) == (gateway_state == 'RESERVED')
+    deliver(broker2, strategy2)
+    assert all(row['status'] == 'confirmed' for row in host.local_order_notifications().values())
+    # A finalized order never blocks the next submit on the same data.
+    monkeypatch.setattr(api, 'dispatch_order', lambda route, k, **kw:
+                        GatewayClientResult('QUEUED', host.load_record(k)))
+    second = _limit_order(strategy2, data2, price=11)
+    broker2.submit(second)
+    assert host.load_record(second.info.gateway_request_key).state == 'RESERVED'
+
+
+def test_reservation_this_process_is_dispatching_is_not_withdrawn(state, ready, inputs, monkeypatch):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+
+    def queued(route, key, **kwargs):
+        host.commit_pre_dispatch(key, host.load_record(key))
+        return GatewayClientResult('QUEUED', host.load_record(key))
+    calls = []
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', queued)
+    monkeypatch.setattr(api, 'release_order', _emulated_release(host, calls))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    deliver(broker, strategy)
+    broker.next()
+    assert not calls and order.status == order.Submitted
 
 
 @pytest.mark.parametrize('lost_ref', [False, True])
