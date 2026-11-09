@@ -4280,6 +4280,144 @@ class BtApiBroker(
                 }
             return
 
+        order = self.orders.get(update.get("bt_order_ref"))
+        if order is None and update.get("client_order_id") not in (None, ""):
+            order = self._lookup_order(update)
+        if order is None:
+            return
+        response = update.get("response")
+
+        if command == "query":
+            # The legacy query worker returns an untyped mapping.  It is not
+            # evidence that can safely transition an Order in this facade.
+            order.addinfo(
+                execution_unknown=True,
+                reconcile_requested=False,
+                error_code="typed_order_observation_unavailable",
+            )
+            self._begin_execution_reconciliation("typed_order_observation_unavailable")
+            self.notify(order)
+            self._schedule_order_reconcile_retry(order, "typed_order_observation_unavailable")
+            return
+
+        if command not in {"submit", "cancel"}:
+            return
+
+        if (
+            command == "submit"
+            and isinstance(response, Mapping)
+            and response.get("local_terminal") is True
+            and response.get("remote_write_attempted") is False
+            and response.get("terminal_confirmed") is True
+        ):
+            local_update = dict(response)
+            for key in ("bt_order_ref", "client_order_id", "data_name", "exchange_name"):
+                if update.get(key) not in (None, ""):
+                    local_update.setdefault(key, update[key])
+            self._apply_order_update(local_update)
+            return
+
+        local_rejection = bool(
+            isinstance(response, Mapping)
+            and response.get("remote_write_attempted") is False
+            and response.get("definite_reject") is True
+            and response.get("terminal_confirmed") is True
+        )
+        if local_rejection:
+            error_code = str(response.get("error_code") or "local_execution_rejected")
+            if command == "submit":
+                order.addinfo(error_code=error_code, error_msg=response.get("error_msg"))
+                order.reject(self)
+                self._clear_order_mappings(order)
+            else:
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_execution_unknown=False,
+                    cancel_intent_active=False,
+                    cancel_deadline_monotonic_ns=None,
+                    cancel_deadline_unknown_marked=False,
+                    cancel_error_code=error_code,
+                    cancel_error_msg=response.get("error_msg"),
+                )
+            self.notify(order)
+            return
+
+        correlation = self._order_correlations.get(order.ref)
+        verified = (
+            self._verify_order_response(correlation, response)
+            if command == "submit"
+            else self._verify_cancel_response(correlation, response)
+        )
+        ack_status = (
+            response.get("status")
+            if isinstance(response, Mapping)
+            and response.get("kind") == "verified_order_ack"
+            and response.get("verified_order_ack") is True
+            and response.get("operation") == command
+            else None
+        )
+        if not verified or ack_status not in {"accepted", "rejected"}:
+            self._abort_recovery_dispatch(order, "execution_dispatch_outcome_unverified")
+            if command == "submit":
+                order.addinfo(
+                    execution_unknown=True,
+                    error_code="sdk_order_ack_unverified",
+                    error_msg="SDK acknowledgement is unverified; reconcile the original order",
+                )
+            else:
+                order.addinfo(
+                    cancel_requested_remote=True,
+                    cancel_execution_unknown=True,
+                    cancel_intent_active=True,
+                    execution_unknown=True,
+                    cancel_error_code="sdk_cancel_ack_unverified",
+                )
+            self._begin_execution_reconciliation("sdk_ack_unverified")
+            self.notify(order)
+            self._request_order_reconcile(order)
+            return
+
+        if ack_status == "rejected":
+            error_code = str(response.get("error_code") or f"remote_{command}_rejected")
+            error_msg = response.get("error_msg")
+            if command == "submit":
+                order.addinfo(error_code=error_code, error_msg=error_msg)
+                order.reject(self)
+                self._clear_order_mappings(order)
+            else:
+                order.addinfo(
+                    cancel_requested_remote=False,
+                    cancel_execution_unknown=False,
+                    cancel_intent_active=False,
+                    cancel_deadline_monotonic_ns=None,
+                    cancel_deadline_unknown_marked=False,
+                    cancel_error_code=error_code,
+                    cancel_error_msg=error_msg,
+                )
+            self.notify(order)
+            return
+
+        if command == "submit":
+            if order.status < order.Accepted:
+                order.accept(self)
+            order.addinfo(
+                execution_unknown=False,
+                submit_command_completed=True,
+                submit_receipt_id=update.get("receipt_id"),
+            )
+            self._cache_order_identifiers(order, response)
+        else:
+            order.addinfo(
+                cancel_requested_remote=True,
+                cancel_execution_unknown=False,
+                cancel_intent_active=True,
+                cancel_command_completed=True,
+                cancel_receipt_id=update.get("receipt_id"),
+            )
+            self._cache_order_identifiers(order, response)
+            self._request_order_reconcile(order)
+        self.notify(order)
+
     def _apply_order_reconciliation_completion(self, update):
         """Apply one verified order snapshot without advancing the account barrier."""
         local_ref = update.get("bt_order_ref")
@@ -4474,144 +4612,6 @@ class BtApiBroker(
 
         order_update["remote_order_id"] = order_id
         self._apply_order_update(order_update, from_query=True)
-
-        order = self.orders.get(update.get("bt_order_ref"))
-        if order is None and update.get("client_order_id") not in (None, ""):
-            order = self._lookup_order(update)
-        if order is None:
-            return
-        response = update.get("response")
-
-        if command == "query":
-            # The legacy query worker returns an untyped mapping.  It is not
-            # evidence that can safely transition an Order in this facade.
-            order.addinfo(
-                execution_unknown=True,
-                reconcile_requested=False,
-                error_code="typed_order_observation_unavailable",
-            )
-            self._begin_execution_reconciliation("typed_order_observation_unavailable")
-            self.notify(order)
-            self._schedule_order_reconcile_retry(order, "typed_order_observation_unavailable")
-            return
-
-        if command not in {"submit", "cancel"}:
-            return
-
-        if (
-            command == "submit"
-            and isinstance(response, Mapping)
-            and response.get("local_terminal") is True
-            and response.get("remote_write_attempted") is False
-            and response.get("terminal_confirmed") is True
-        ):
-            local_update = dict(response)
-            for key in ("bt_order_ref", "client_order_id", "data_name", "exchange_name"):
-                if update.get(key) not in (None, ""):
-                    local_update.setdefault(key, update[key])
-            self._apply_order_update(local_update)
-            return
-
-        local_rejection = bool(
-            isinstance(response, Mapping)
-            and response.get("remote_write_attempted") is False
-            and response.get("definite_reject") is True
-            and response.get("terminal_confirmed") is True
-        )
-        if local_rejection:
-            error_code = str(response.get("error_code") or "local_execution_rejected")
-            if command == "submit":
-                order.addinfo(error_code=error_code, error_msg=response.get("error_msg"))
-                order.reject(self)
-                self._clear_order_mappings(order)
-            else:
-                order.addinfo(
-                    cancel_requested_remote=False,
-                    cancel_execution_unknown=False,
-                    cancel_intent_active=False,
-                    cancel_deadline_monotonic_ns=None,
-                    cancel_deadline_unknown_marked=False,
-                    cancel_error_code=error_code,
-                    cancel_error_msg=response.get("error_msg"),
-                )
-            self.notify(order)
-            return
-
-        correlation = self._order_correlations.get(order.ref)
-        verified = (
-            self._verify_order_response(correlation, response)
-            if command == "submit"
-            else self._verify_cancel_response(correlation, response)
-        )
-        ack_status = (
-            response.get("status")
-            if isinstance(response, Mapping)
-            and response.get("kind") == "verified_order_ack"
-            and response.get("verified_order_ack") is True
-            and response.get("operation") == command
-            else None
-        )
-        if not verified or ack_status not in {"accepted", "rejected"}:
-            self._abort_recovery_dispatch(order, "execution_dispatch_outcome_unverified")
-            if command == "submit":
-                order.addinfo(
-                    execution_unknown=True,
-                    error_code="sdk_order_ack_unverified",
-                    error_msg="SDK acknowledgement is unverified; reconcile the original order",
-                )
-            else:
-                order.addinfo(
-                    cancel_requested_remote=True,
-                    cancel_execution_unknown=True,
-                    cancel_intent_active=True,
-                    execution_unknown=True,
-                    cancel_error_code="sdk_cancel_ack_unverified",
-                )
-            self._begin_execution_reconciliation("sdk_ack_unverified")
-            self.notify(order)
-            self._request_order_reconcile(order)
-            return
-
-        if ack_status == "rejected":
-            error_code = str(response.get("error_code") or f"remote_{command}_rejected")
-            error_msg = response.get("error_msg")
-            if command == "submit":
-                order.addinfo(error_code=error_code, error_msg=error_msg)
-                order.reject(self)
-                self._clear_order_mappings(order)
-            else:
-                order.addinfo(
-                    cancel_requested_remote=False,
-                    cancel_execution_unknown=False,
-                    cancel_intent_active=False,
-                    cancel_deadline_monotonic_ns=None,
-                    cancel_deadline_unknown_marked=False,
-                    cancel_error_code=error_code,
-                    cancel_error_msg=error_msg,
-                )
-            self.notify(order)
-            return
-
-        if command == "submit":
-            if order.status < order.Accepted:
-                order.accept(self)
-            order.addinfo(
-                execution_unknown=False,
-                submit_command_completed=True,
-                submit_receipt_id=update.get("receipt_id"),
-            )
-            self._cache_order_identifiers(order, response)
-        else:
-            order.addinfo(
-                cancel_requested_remote=True,
-                cancel_execution_unknown=False,
-                cancel_intent_active=True,
-                cancel_command_completed=True,
-                cancel_receipt_id=update.get("receipt_id"),
-            )
-            self._cache_order_identifiers(order, response)
-            self._request_order_reconcile(order)
-        self.notify(order)
 
     def _apply_reconcile_read_model(self, snapshot):
         """Apply worker query results while keeping startup fills authoritative."""
