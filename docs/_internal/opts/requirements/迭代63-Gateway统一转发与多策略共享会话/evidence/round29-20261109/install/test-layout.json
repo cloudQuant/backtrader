@@ -1,0 +1,6 @@
+{
+  "link": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/sdk-tests/bt_api_py",
+  "literal_target": "../install/src/bt_api_py",
+  "resolved_target": "/private/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install/src/bt_api_py",
+  "reason": "retired-entrypoint test resolves package relative to tests root; target is installed wheel"
+}

@@ -1,0 +1,812 @@
+[
+  {
+    "path": "source-attempt1/SOURCE_FROZEN",
+    "source": "/tmp/iter63-r29-primary/SOURCE_FROZEN",
+    "sha256": "24dc4e3267e0fd39945e834f231fd3bdba5a826da2a88a941ec5c305c1218e5c",
+    "bytes": 61
+  },
+  {
+    "path": "source-attempt1/audit_run.py",
+    "source": "/tmp/iter63-r29-primary/audit_run.py",
+    "sha256": "2674730acd8e00cdd466edc205a0d1c6158d0b509e2263106506e0df13c87cda",
+    "bytes": 1291
+  },
+  {
+    "path": "source-attempt1/launcher-executions.jsonl",
+    "source": "/tmp/iter63-r29-primary/launcher-executions.jsonl",
+    "sha256": "08c0044f65020344603a4e18fc9c6b6bfde18ffdc7a18f03e5f53c3200d79aa4",
+    "bytes": 815
+  },
+  {
+    "path": "source-attempt1/retired-find-spec-diagnostic.log",
+    "source": "/tmp/iter63-r29-primary/retired-find-spec-diagnostic.log",
+    "sha256": "bf8a3e055a7c9031b559f95cc988fa9372b400347e3be0d1de327de065d6216d",
+    "bytes": 521
+  },
+  {
+    "path": "source-attempt1/run.py",
+    "source": "/tmp/iter63-r29-primary/run.py",
+    "sha256": "43876eccd340b2aa250d17a86baea4ee7eee26ce7917b63e1f500e0df46be968",
+    "bytes": 4440
+  },
+  {
+    "path": "source-attempt1/run_source.py",
+    "source": "/tmp/iter63-r29-primary/run_source.py",
+    "sha256": "01565130468c0d4eb14347bf6f52383f103b98cc529b3184bfee10a8591d457a",
+    "bytes": 2878
+  },
+  {
+    "path": "source-attempt1/sdk-frozen-inputs.json",
+    "source": "/tmp/iter63-r29-primary/sdk-frozen-inputs.json",
+    "sha256": "d4790232177ab72480d1de5a4ab4062911698637b90572d9321863cbfa023dc5",
+    "bytes": 2534
+  },
+  {
+    "path": "source-attempt1/sdk-owned-files.json",
+    "source": "/tmp/iter63-r29-primary/sdk-owned-files.json",
+    "sha256": "0c4128a07ba352bd9ce4a48d72fdfb27d8dfa492715cdd4a729c1fd6b7fa0368",
+    "bytes": 227
+  },
+  {
+    "path": "source-attempt1/sdk-source-native.json",
+    "source": "/tmp/iter63-r29-primary/sdk-source-native.json",
+    "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+    "bytes": 302
+  },
+  {
+    "path": "source-attempt1/sdk-source.log",
+    "source": "/tmp/iter63-r29-primary/sdk-source.log",
+    "sha256": "f505566b2bceea4b4f810abff9d2acde988f100b73131b05f0c6edd08af34292",
+    "bytes": 3429
+  },
+  {
+    "path": "source-attempt1/sdk-source.xml",
+    "source": "/tmp/iter63-r29-primary/sdk-source.xml",
+    "sha256": "e660e95b2350fdc0eabec7f364054f8832d709fc3553c7e93acf732213d6487c",
+    "bytes": 46458
+  },
+  {
+    "path": "source-attempt1/selectors.json",
+    "source": "/tmp/iter63-r29-primary/selectors.json",
+    "sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3",
+    "bytes": 807
+  },
+  {
+    "path": "source-attempt1/source-executions.jsonl",
+    "source": "/tmp/iter63-r29-primary/source-executions.jsonl",
+    "sha256": "40083190c065b58ab7b561bd95e390f4de49849b0b12c8cd23b022f0f4f75fdf",
+    "bytes": 322
+  },
+  {
+    "path": "source-attempt1/bootstrap/offline_guard.py",
+    "source": "/tmp/iter63-r29-primary/bootstrap/offline_guard.py",
+    "sha256": "1666f409a6a439de49f7f87f777138d7aea7b5c2f5be332a3478b7eb85eec3fc",
+    "bytes": 5947
+  },
+  {
+    "path": "source-attempt1/bootstrap/origin_guard.py",
+    "source": "/tmp/iter63-r29-primary/bootstrap/origin_guard.py",
+    "sha256": "6f684c3e654a74600dff33136546796346193167a877549c753f52f2886a2c87",
+    "bytes": 2922
+  },
+  {
+    "path": "source-attempt1/bootstrap/sitecustomize.py",
+    "source": "/tmp/iter63-r29-primary/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+    "bytes": 165
+  },
+  {
+    "path": "source-attempt1/origin-logs/diagnostic-retired-find-spec/60869.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/diagnostic-retired-find-spec/60869.jsonl",
+    "sha256": "8b4b7fc8b5343e8953cc33edb9109cadaadccb6c836dfea66994ae78fb3cfe7b",
+    "bytes": 46991
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60568.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60568.jsonl",
+    "sha256": "8a7afa46548de522c17558c76d9e91dd52f8dcb5f145bdd6f28bf9cf8597248c",
+    "bytes": 473061
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60569.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60569.jsonl",
+    "sha256": "7cc3643a178bf7995188e8a1315d34f847a01c3588e6d6fdfa7f1447fd31109c",
+    "bytes": 57483
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60571.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60571.jsonl",
+    "sha256": "ced79821567d10ec70ed4de06f0530123ceb0abcd4de9374962342413c371788",
+    "bytes": 372844
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60572.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60572.jsonl",
+    "sha256": "1102ad95a182d574ab5fe5ac50f67585f3ff873f778543daa0c774317f7a0163",
+    "bytes": 49294
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60573.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60573.jsonl",
+    "sha256": "3cd3562fe1f7e64c396dc22f863f29fcf90290be83ddb67007c5cbff9c3be5a3",
+    "bytes": 372336
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60578.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60578.jsonl",
+    "sha256": "acc43a033a6f73cf37d2a91e7217cec042c2a1bc185d7a4281fc554de55e77df",
+    "bytes": 50985
+  },
+  {
+    "path": "source-attempt1/origin-logs/sdk-60568-1794186356248154000/60580.jsonl",
+    "source": "/tmp/iter63-r29-primary/origin-logs/sdk-60568-1794186356248154000/60580.jsonl",
+    "sha256": "eb311fdb2747fb7699e09ae673bd2bad9b3f90bdfde7ea3caf902ed3a2da0a12",
+    "bytes": 52644
+  },
+  {
+    "path": "source-final/SOURCE_FROZEN",
+    "source": "/tmp/iter63-r29-primary-v2/SOURCE_FROZEN",
+    "sha256": "24dc4e3267e0fd39945e834f231fd3bdba5a826da2a88a941ec5c305c1218e5c",
+    "bytes": 61
+  },
+  {
+    "path": "source-final/archive_delivery.py",
+    "source": "/tmp/iter63-r29-primary-v2/archive_delivery.py",
+    "sha256": "5c1f15c20823646e6e7b17ed6c1974d14b1478540525ed571244a4fb7b5465b9",
+    "bytes": 3065
+  },
+  {
+    "path": "source-final/audit_run.py",
+    "source": "/tmp/iter63-r29-primary-v2/audit_run.py",
+    "sha256": "65408637525d78de41b96b8f02134e275ead20073ed8ea9a03b3967b8160ab6b",
+    "bytes": 1294
+  },
+  {
+    "path": "source-final/launcher-executions.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/launcher-executions.jsonl",
+    "sha256": "aabf92f624a9e3e731a8b7d1edbe9fe08e81d6dee71887dcff600782aa36c2c3",
+    "bytes": 821
+  },
+  {
+    "path": "source-final/primary-delivery-before-commit.json",
+    "source": "/tmp/iter63-r29-primary-v2/primary-delivery-before-commit.json",
+    "sha256": "c3a8a6f3eb9594c9e48529b075b4f209bcc45af0d8bb93bfc679323dc9d49c4b",
+    "bytes": 658
+  },
+  {
+    "path": "source-final/primary-delivery-committed.json",
+    "source": "/tmp/iter63-r29-primary-v2/primary-delivery-committed.json",
+    "sha256": "cd6e7ae36769a941988242782c2d0b37edce07a4fae472a563ab80c62a5d645c",
+    "bytes": 653
+  },
+  {
+    "path": "source-final/run.py",
+    "source": "/tmp/iter63-r29-primary-v2/run.py",
+    "sha256": "f935e5668e4664a21871f1d74725b871bc431f3ef9ef9831b2175ff279afbd16",
+    "bytes": 4443
+  },
+  {
+    "path": "source-final/run_source.py",
+    "source": "/tmp/iter63-r29-primary-v2/run_source.py",
+    "sha256": "5c0f31a0d6beb31234b3081ea1e6cb5a819ac12fdd4459e6ed55f69e9d0ddf77",
+    "bytes": 2881
+  },
+  {
+    "path": "source-final/sdk-frozen-inputs.json",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-frozen-inputs.json",
+    "sha256": "d4790232177ab72480d1de5a4ab4062911698637b90572d9321863cbfa023dc5",
+    "bytes": 2534
+  },
+  {
+    "path": "source-final/sdk-origin-audit.json",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-origin-audit.json",
+    "sha256": "cd8644938b89508b0dba7333469fe8ff1a25d213b362cb76d05f35fb3f87a213",
+    "bytes": 759
+  },
+  {
+    "path": "source-final/sdk-owned-files.json",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-owned-files.json",
+    "sha256": "0c4128a07ba352bd9ce4a48d72fdfb27d8dfa492715cdd4a729c1fd6b7fa0368",
+    "bytes": 227
+  },
+  {
+    "path": "source-final/sdk-source-native.json",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-source-native.json",
+    "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+    "bytes": 302
+  },
+  {
+    "path": "source-final/sdk-source.log",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-source.log",
+    "sha256": "0ef2274e2f38acf16f31f6824fd5df77416b8372918cf26b5d55e3d3d18be4c2",
+    "bytes": 1844
+  },
+  {
+    "path": "source-final/sdk-source.xml",
+    "source": "/tmp/iter63-r29-primary-v2/sdk-source.xml",
+    "sha256": "78bb31e3d14bd35270f746102b7f8dfa06c8c1ed0ff510038dc6d05c6f8e4be7",
+    "bytes": 44429
+  },
+  {
+    "path": "source-final/selectors.json",
+    "source": "/tmp/iter63-r29-primary-v2/selectors.json",
+    "sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3",
+    "bytes": 807
+  },
+  {
+    "path": "source-final/source-executions.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/source-executions.jsonl",
+    "sha256": "20e6936c878c324a02a9bac649cd8795c532975635ef41a6425ef2e56758d2bc",
+    "bytes": 325
+  },
+  {
+    "path": "source-final/verify_delivery.py",
+    "source": "/tmp/iter63-r29-primary-v2/verify_delivery.py",
+    "sha256": "37659e115d6b02b1a98eb178614254387388139e042a16402f78442e9533ef10",
+    "bytes": 3390
+  },
+  {
+    "path": "source-final/bootstrap/offline_guard.py",
+    "source": "/tmp/iter63-r29-primary-v2/bootstrap/offline_guard.py",
+    "sha256": "1666f409a6a439de49f7f87f777138d7aea7b5c2f5be332a3478b7eb85eec3fc",
+    "bytes": 5947
+  },
+  {
+    "path": "source-final/bootstrap/origin_guard.py",
+    "source": "/tmp/iter63-r29-primary-v2/bootstrap/origin_guard.py",
+    "sha256": "76a023105cae61060bb2afbe13d1d4c0f8ec1618cea0f2bbb80bed700a2d8a23",
+    "bytes": 3169
+  },
+  {
+    "path": "source-final/bootstrap/sitecustomize.py",
+    "source": "/tmp/iter63-r29-primary-v2/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+    "bytes": 165
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61067.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61067.jsonl",
+    "sha256": "c69b12a677371626db1bd14626af335163120c95eae13421889ba6e4fb66b995",
+    "bytes": 473061
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61069.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61069.jsonl",
+    "sha256": "0f89ac7e6592d5a7c9c4f5d0aafe55bd99b01f18afb6ea014379d303c9aaf18d",
+    "bytes": 57483
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61071.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61071.jsonl",
+    "sha256": "ba4f0d39cff206ee9f9a81ad15b44b0031f2cc9ff06516671237d7ec05157b97",
+    "bytes": 372844
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61072.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61072.jsonl",
+    "sha256": "a2b3738927763c93580d3d5f20cfba584325c01ca4845933e35ece44b0000544",
+    "bytes": 49920
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61073.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61073.jsonl",
+    "sha256": "0d675c294c5567ebaeb2588919a029f9502a1ab45b266aa3718058cced6cf7c9",
+    "bytes": 372336
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61098.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61098.jsonl",
+    "sha256": "cb448ed610be1779c931a8de23b1fcc237d59ea9165f8dad872faf5216fabb88",
+    "bytes": 50985
+  },
+  {
+    "path": "source-final/origin-logs/sdk-61067-1794186474683552000/61101.jsonl",
+    "source": "/tmp/iter63-r29-primary-v2/origin-logs/sdk-61067-1794186474683552000/61101.jsonl",
+    "sha256": "2f34c405bf8e7d08fa984214d5dfde64a3cdabc541f4a69a32333a88132e1881",
+    "bytes": 52644
+  },
+  {
+    "path": "install/SOURCE_FROZEN",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/SOURCE_FROZEN",
+    "sha256": "4f31bebe33f0b0072a6f311665c31f7685abab08ac93b2099d16c8b20212a393",
+    "bytes": 65
+  },
+  {
+    "path": "install/audit_run.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/audit_run.py",
+    "sha256": "481da6cc7654b8d6ba9da0c11c624dc35f2186472bdd788f7d273281ade221df",
+    "bytes": 1313
+  },
+  {
+    "path": "install/build.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/build.log",
+    "sha256": "5a5090dd879c85574b288345eae6dde25e782a7aef4f5b1dd530dab80bcb2e38",
+    "bytes": 1254
+  },
+  {
+    "path": "install/capture_editable_deps.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/capture_editable_deps.py",
+    "sha256": "d600ec6fbeb44227160aa2c51f3b4c5bd1ad5225de7a04c08800bd6ac4019750",
+    "bytes": 2905
+  },
+  {
+    "path": "install/editable-deps-manifest.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/editable-deps-manifest.json",
+    "sha256": "4ba97ba1ed796ca2445569b1631b42d6b57f335a72357912f27fbb6c1e2f706f",
+    "bytes": 14048
+  },
+  {
+    "path": "install/editable-deps.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/editable-deps.log",
+    "sha256": "da37d7a61403ec1906a5dd838b63e9e26f368a80a63985c3ac1d963722411595",
+    "bytes": 201
+  },
+  {
+    "path": "install/executions.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/executions.jsonl",
+    "sha256": "2e6b66a1f8c8e95a25d2c360b0b2f9685ac154ae44fd0c706e8e608cc03ad4c8",
+    "bytes": 6594
+  },
+  {
+    "path": "install/fixed-wheels.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/fixed-wheels.json",
+    "sha256": "e538d322f55988b9f29b527a2160782b935d10beb6056a60bf1a9cbe62648874",
+    "bytes": 1874
+  },
+  {
+    "path": "install/fixed.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/fixed.log",
+    "sha256": "07ddd482f0ab4107a58e828b62e633440e97b6ea24cb4361fa900168f9943192",
+    "bytes": 401
+  },
+  {
+    "path": "install/freeze.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/freeze.log",
+    "sha256": "67066d21f778c87453a4d5d4c0a394f032f624790e257cb1f01ae76e962c63a0",
+    "bytes": 394
+  },
+  {
+    "path": "install/guard_preflight.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/guard_preflight.py",
+    "sha256": "ac3b3575d82b6db09aa4d41c4d503a90e8bfd482ce86991dd15e986202eb1bd6",
+    "bytes": 1856
+  },
+  {
+    "path": "install/harness-freeze-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/harness-freeze-sha256.txt",
+    "sha256": "d352f4d1101803be9d9ea0f8bc287c8faf5f18b079f35f57dbce620bf99b1842",
+    "bytes": 1311
+  },
+  {
+    "path": "install/harness-guard-v2-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/harness-guard-v2-sha256.txt",
+    "sha256": "80fc86db49653da691fef7cb90270e3eaeca5b114530142a3fb6f8040cff06c5",
+    "bytes": 529
+  },
+  {
+    "path": "install/install.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install.log",
+    "sha256": "0fe255a6340dd9911b63d7f3e160deaf166f1a0de31c7dd3b5887b7d37a74b7a",
+    "bytes": 2466
+  },
+  {
+    "path": "install/install_test_layout.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install_test_layout.py",
+    "sha256": "08995788051aea0b29f42655f57524c5a805b40a140045b584819d36acd3a2d6",
+    "bytes": 720
+  },
+  {
+    "path": "install/launch_v2.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/launch_v2.py",
+    "sha256": "4810f3b4637796967dadb65319be7216089707e5d688f572dee7087ef14d0316",
+    "bytes": 2384
+  },
+  {
+    "path": "install/launch_v3.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/launch_v3.py",
+    "sha256": "708776ed820179e792897f67260bd7c0a8b9874a8637cf5a435db1d77648a65e",
+    "bytes": 2435
+  },
+  {
+    "path": "install/make_templates.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/make_templates.py",
+    "sha256": "9b5eb06a922be830da3cb12becf04fb04caffb887937cb926ca0a67913d0cfc3",
+    "bytes": 3204
+  },
+  {
+    "path": "install/origin_guard-v1.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin_guard-v1.py",
+    "sha256": "ca2781b57993de547e5504a3b9c90c3d4e1fc248c84a83d268f2ab6643ec94f7",
+    "bytes": 2876
+  },
+  {
+    "path": "install/preflight-v2.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/preflight-v2.log",
+    "sha256": "5609c4e3a31fd7118d30917a7417681c8d2dc57ae45de32c323e552d8fb0e7e1",
+    "bytes": 447
+  },
+  {
+    "path": "install/preflight.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/preflight.log",
+    "sha256": "98327c92071aa5935fec89aeac74c15377f229ed1a8e62fb328ac2bb6143a0c6",
+    "bytes": 441
+  },
+  {
+    "path": "install/refine_helpers.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/refine_helpers.py",
+    "sha256": "a789df4befc109c1bdc8c0283e3e5f323bf4f7039f3adf33497ad0d0872fbe1f",
+    "bytes": 1727
+  },
+  {
+    "path": "install/refine_origin_guard.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/refine_origin_guard.py",
+    "sha256": "34aa71737ef6dd23a99f7ed06e7ab90d1dd64afa77749a7e84217920d8d76a67",
+    "bytes": 1086
+  },
+  {
+    "path": "install/run_sdk_v2.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/run_sdk_v2.py",
+    "sha256": "ba573a314a4d4831e7c936737bc564a022617cf5c949de81edf749576dddfa1e",
+    "bytes": 1416
+  },
+  {
+    "path": "install/sdk-frozen-inputs.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/sdk-frozen-inputs.json",
+    "sha256": "d4790232177ab72480d1de5a4ab4062911698637b90572d9321863cbfa023dc5",
+    "bytes": 2534
+  },
+  {
+    "path": "install/sdk-installed-v2.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/sdk-installed-v2.log",
+    "sha256": "984e8e0e16575b67fb1fb49f94b6ab8c7b36b605a95a6b487058b15451a5b08b",
+    "bytes": 1617
+  },
+  {
+    "path": "install/sdk-origin-audit.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/sdk-origin-audit.json",
+    "sha256": "346fab13c351b72e0190c91ef819f277522494fa4b5cbe6feea057a2679f3fef",
+    "bytes": 772
+  },
+  {
+    "path": "install/sdk-owned-files.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/sdk-owned-files.json",
+    "sha256": "0c4128a07ba352bd9ce4a48d72fdfb27d8dfa492715cdd4a729c1fd6b7fa0368",
+    "bytes": 227
+  },
+  {
+    "path": "install/selectors-DRAFT.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/selectors-DRAFT.json",
+    "sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3",
+    "bytes": 807
+  },
+  {
+    "path": "install/selectors.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/selectors.json",
+    "sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3",
+    "bytes": 807
+  },
+  {
+    "path": "install/setup_harness.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/setup_harness.py",
+    "sha256": "90153f17eaf361bb822f02009254d2434e1a70ebfe0c26dafefac01dcdc76105",
+    "bytes": 8238
+  },
+  {
+    "path": "install/snapshot.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/snapshot.log",
+    "sha256": "b9d2ba3e0208df25fe3cb6e41af33cfd5bf268462e02560f47e52421dac53323",
+    "bytes": 446
+  },
+  {
+    "path": "install/source-manifest.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source-manifest.json",
+    "sha256": "f033e77656efb78ded28b1ea7ce609f172c61ed3f177072eff6b08889b2f1607",
+    "bytes": 153107
+  },
+  {
+    "path": "install/test-layout-script-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/test-layout-script-sha256.txt",
+    "sha256": "f68a8baac35aa4c007b007206c0c453a9b240bb42ac7ae212ea2fda1af0547c8",
+    "bytes": 135
+  },
+  {
+    "path": "install/test-layout.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/test-layout.json",
+    "sha256": "4b4b94fd13b354a2902062724215cf8cc0135bb735358715769baf8f788d0d46",
+    "bytes": 336
+  },
+  {
+    "path": "install/test-layout.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/test-layout.log",
+    "sha256": "705748590736a3766fd2d91faf5277c143e32b5c54a048fb17f6ff2c198baea7",
+    "bytes": 326
+  },
+  {
+    "path": "install/test-manifest.json",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/test-manifest.json",
+    "sha256": "892bad420e6772c8af349d7ee755a81185a4cff819fff469bbc5eb26059b83c3",
+    "bytes": 17823
+  },
+  {
+    "path": "install/tests.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/tests.log",
+    "sha256": "5ef2072b8b02285b0a27743ee00a455284f5a859aae07e8af77c9f2fb3a8f768",
+    "bytes": 437
+  },
+  {
+    "path": "install/verify-editable-script-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-editable-script-sha256.txt",
+    "sha256": "b25ce97316e36ec885ce02dbcf4cfa43ee7202c9ef78be367be3cf8abc823562",
+    "bytes": 131
+  },
+  {
+    "path": "install/verify-editable.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-editable.log",
+    "sha256": "30d65846a19e561063247102270c919be36ff0da54e6ae6daa1153c2d1a7d35b",
+    "bytes": 185
+  },
+  {
+    "path": "install/verify-final.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-final.log",
+    "sha256": "935dd717da1b7c004d8747369d8839926ac05fb19f260b0bffd5675e3eb4824a",
+    "bytes": 628
+  },
+  {
+    "path": "install/verify-wheel-all-script-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all-script-sha256.txt",
+    "sha256": "47ca00472dbaad12a4d8d5130bbc210b5a131b922df9aff403e4482f16760c39",
+    "bytes": 132
+  },
+  {
+    "path": "install/verify-wheel-all-v2-script-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all-v2-script-sha256.txt",
+    "sha256": "cf258a1d6736de20ca183fdb1a0946839fc89e9b55bdd2540b4db4bfbf14e679",
+    "bytes": 135
+  },
+  {
+    "path": "install/verify-wheel-all-v2.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all-v2.log",
+    "sha256": "485c60c3b92dfe0f027652bde5d6bd2bad04957022983d408f29659ce7b00c57",
+    "bytes": 733
+  },
+  {
+    "path": "install/verify-wheel-all-v3-script-sha256.txt",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all-v3-script-sha256.txt",
+    "sha256": "1c5c81c0db80fe27cbe86bac59e366409a5cf40e4f55d100527d378981b13bad",
+    "bytes": 135
+  },
+  {
+    "path": "install/verify-wheel-all-v3.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all-v3.log",
+    "sha256": "de819bdda40e111b6109269fea854affa15c836a941973ef3000fbe05b5760f5",
+    "bytes": 19953
+  },
+  {
+    "path": "install/verify-wheel-all.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify-wheel-all.log",
+    "sha256": "c61ea4638995eaeb42a279684ce460f97ab9a0185c02633fb5e5ea100d573d5b",
+    "bytes": 973
+  },
+  {
+    "path": "install/verify.log",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify.log",
+    "sha256": "bcd6e50819483ea697f00a9167e922bb633cf6c0348da5268b026a611870f816",
+    "bytes": 616
+  },
+  {
+    "path": "install/verify.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify.py",
+    "sha256": "db24454459b842ae4ad021722d70a16e5a1806c81a019aca74683833d984622a",
+    "bytes": 1773
+  },
+  {
+    "path": "install/verify_editable.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_editable.py",
+    "sha256": "66c9708f2f0a5aaaab482c7a0c8685a95d12970a0780d1bf84a61ced3e477490",
+    "bytes": 934
+  },
+  {
+    "path": "install/verify_wheel_all.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all.py",
+    "sha256": "83186face90bf7fd876a4caa4fc4e6decba2346a761b543988d09174401af677",
+    "bytes": 1856
+  },
+  {
+    "path": "install/verify_wheel_all_v2.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all_v2.py",
+    "sha256": "031bc446c9b13acdef699fc8f53713f08f357da85ea850099676de0dbd401300",
+    "bytes": 2037
+  },
+  {
+    "path": "install/verify_wheel_all_v3.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all_v3.py",
+    "sha256": "beb4eae5a31602663eaa1990ba16f9abc1d3b643bfdcd9bf224c9f42f2f80bf6",
+    "bytes": 2192
+  },
+  {
+    "path": "install/bootstrap/offline_guard.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/offline_guard.py",
+    "sha256": "1666f409a6a439de49f7f87f777138d7aea7b5c2f5be332a3478b7eb85eec3fc",
+    "bytes": 5947
+  },
+  {
+    "path": "install/bootstrap/origin_guard.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/origin_guard.py",
+    "sha256": "933aa0acef5375d8c3d0fb50563da2b43caeb1c74d35d09f11f22b7558a7278c",
+    "bytes": 3132
+  },
+  {
+    "path": "install/bootstrap/sitecustomize.py",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/sitecustomize.py",
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+    "bytes": 165
+  },
+  {
+    "path": "install/origin-logs/preflight-60821-1794186407768709000/60829.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/preflight-60821-1794186407768709000/60829.jsonl",
+    "sha256": "b9b6a7ebb0e9271029849d01552f57518c8f69f02cfaa394ae2b304687ad9eb4",
+    "bytes": 84349
+  },
+  {
+    "path": "install/origin-logs/preflight-v2-61050-1794186473449944000/61066.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/preflight-v2-61050-1794186473449944000/61066.jsonl",
+    "sha256": "8c583b8c51ac917b08cfd27b9cbec8f01b8cb184cb69a48141e2a944b0986d01",
+    "bytes": 84736
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61093.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61093.jsonl",
+    "sha256": "6fec8b413aaeae8e0e62a59f1ea2f3357ce63464579fda2cfd745759181e64b6",
+    "bytes": 503992
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61094.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61094.jsonl",
+    "sha256": "27b1d28417ca1338ceb1b592760245b7eed8bc8e5d4237a6de180ba4772d82e5",
+    "bytes": 59086
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61096.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61096.jsonl",
+    "sha256": "7352195e908f27f7fc771bc7e7e003f885618b88ccb42e6ec87afbf4a4fc7a79",
+    "bytes": 397157
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61097.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61097.jsonl",
+    "sha256": "ac2c7c57287559e946a93ec91ccdf2edbf1ccc790bb182a84ee59f682a52e70f",
+    "bytes": 51196
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61099.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61099.jsonl",
+    "sha256": "2342d9d8485d4253f969a3c51041fca62c7f1f262c1d690533342128cce68574",
+    "bytes": 396593
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61108.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61108.jsonl",
+    "sha256": "242562ab131f003c641f8f04ddbd708dc5ad0e849f51a56e5792b73b0adb9cc2",
+    "bytes": 52519
+  },
+  {
+    "path": "install/origin-logs/sdk-installed-v2-61085-1794186479920118000/61110.jsonl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/origin-logs/sdk-installed-v2-61085-1794186479920118000/61110.jsonl",
+    "sha256": "1c07618aaf85409505bce32b7aa7b59b5a8d2afb8922a1879d1910e9ae0a84f1",
+    "bytes": 54139
+  },
+  {
+    "path": "worker/iter63-r29-sdk-tests.log",
+    "source": "/tmp/iter63-r29-sdk-tests.log",
+    "sha256": "e4e3e2d04deaff7db8dba970e903a4b6c24eb036cff4ccb0e88ef32e7fef35ba",
+    "bytes": 1582
+  },
+  {
+    "path": "worker/iter63-r29-sdk-combined-tests.log",
+    "source": "/tmp/iter63-r29-sdk-combined-tests.log",
+    "sha256": "086a19f9f9c202677b6f14f88ad2b215afdfb8183032162b52531c4c7bcd2d01",
+    "bytes": 181
+  },
+  {
+    "path": "worker/iter63-r29-sdk-gateway-tests.log",
+    "source": "/tmp/iter63-r29-sdk-gateway-tests.log",
+    "sha256": "32ca86e8ac4b6954e347254374e5754fe39af8959072b10b27d7354c0fb889b6",
+    "bytes": 181
+  },
+  {
+    "path": "worker/iter63-r29-sdk-legacy-tests.log",
+    "source": "/tmp/iter63-r29-sdk-legacy-tests.log",
+    "sha256": "4ece48d3f5047746466afcab446e3b1265741e5653d4149ac807454358b43500",
+    "bytes": 99
+  },
+  {
+    "path": "worker/iter63-r29-sdk-ruff.log",
+    "source": "/tmp/iter63-r29-sdk-ruff.log",
+    "sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+    "bytes": 20
+  },
+  {
+    "path": "worker/iter63-r29-cleanup-combined-tests.log",
+    "source": "/tmp/iter63-r29-cleanup-combined-tests.log",
+    "sha256": "d42fbf526da46dd00361651d6c7dc7f22670703e32f72fa0163bd69693ee515a",
+    "bytes": 181
+  },
+  {
+    "path": "worker/iter63-r29-cleanup-ruff.log",
+    "source": "/tmp/iter63-r29-cleanup-ruff.log",
+    "sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+    "bytes": 20
+  },
+  {
+    "path": "integration-worker/attempt1/input-before.sha256",
+    "source": "/tmp/iter63-r29-gateway-api-process/attempt1/input-before.sha256",
+    "sha256": "8e6bf8e5aef3f939a5b25c80e666d7b51253b212fe4272c3a61a266c8403917e",
+    "bytes": 1129
+  },
+  {
+    "path": "integration-worker/attempt1/junit.xml",
+    "source": "/tmp/iter63-r29-gateway-api-process/attempt1/junit.xml",
+    "sha256": "1650ca501664d469144243b809f15473c9f53bede439464fd29e4a4bb0bdf3e1",
+    "bytes": 1020
+  },
+  {
+    "path": "integration-worker/attempt1/stderr.txt",
+    "source": "/tmp/iter63-r29-gateway-api-process/attempt1/stderr.txt",
+    "sha256": "b5050aa3b0fb2e46858adf3b0847c13b50c015a7fde4850c9241c13b028cb81c",
+    "bytes": 211
+  },
+  {
+    "path": "integration-worker/attempt1/stdout.txt",
+    "source": "/tmp/iter63-r29-gateway-api-process/attempt1/stdout.txt",
+    "sha256": "3f4777666969f0c8062078447e5c064cf2272bb5a54660b1a3e8e280b54a7581",
+    "bytes": 1328
+  },
+  {
+    "path": "integration-worker/input-after.sha256",
+    "source": "/tmp/iter63-r29-gateway-api-process/input-after.sha256",
+    "sha256": "a441606a82ef7b24f477ff673bbca1eba79c002b6c327133a92d5f34912b8c3d",
+    "bytes": 1129
+  },
+  {
+    "path": "integration-worker/input-before.sha256",
+    "source": "/tmp/iter63-r29-gateway-api-process/input-before.sha256",
+    "sha256": "a441606a82ef7b24f477ff673bbca1eba79c002b6c327133a92d5f34912b8c3d",
+    "bytes": 1129
+  },
+  {
+    "path": "integration-worker/junit.xml",
+    "source": "/tmp/iter63-r29-gateway-api-process/junit.xml",
+    "sha256": "1959302d6046d8370a81100b5c79365df0cfe796329ccd64aa7e226f7c6ff3d3",
+    "bytes": 563
+  },
+  {
+    "path": "integration-worker/stderr.txt",
+    "source": "/tmp/iter63-r29-gateway-api-process/stderr.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "integration-worker/stdout.txt",
+    "source": "/tmp/iter63-r29-gateway-api-process/stdout.txt",
+    "sha256": "4067c24cdf20120f77d682b9705be0e8c87c3559e6b22b5a381fb0de3d68d0a5",
+    "bytes": 647
+  },
+  {
+    "path": "wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+    "source": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+    "sha256": "5d356b565675411947dfa0f1b73e0845e7c2cc707d24a2323e183957eb8046f0",
+    "bytes": 2129489
+  },
+  {
+    "path": "review-summary.json",
+    "sha256": "ee3a57015b197e8f58232b7debbd2863ba4f70dc05df00f7d1442a27b530b299",
+    "bytes": 740,
+    "source": "primary summary of independent review messages"
+  },
+  {
+    "path": "documentation-check.json",
+    "source": "primary documentation validation",
+    "sha256": "7b0f49b45541cefbb01586cfc0f761f40174cb4698004c350cc538fc0273fc3e",
+    "bytes": 1788
+  }
+]

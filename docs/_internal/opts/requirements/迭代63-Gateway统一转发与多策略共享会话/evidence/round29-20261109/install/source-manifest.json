@@ -1,0 +1,2514 @@
+[
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/LICENSE",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/LICENSE",
+    "relative": "LICENSE",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "378db8314110649fdd9519398a5df044a29d16778507be92acfec025eaac00a2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/MANIFEST.in",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/MANIFEST.in",
+    "relative": "MANIFEST.in",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e31f4776dbb7c2ec66f705d535ccf5e58c338d4dca44f8bc68ab12626eaa16b6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/README.md",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/README.md",
+    "relative": "README.md",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8f755cbf7f5463ee842197caecd357730d4e54636103607d92dd4d939c0ee616"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/__init__.py",
+    "relative": "bt_api_py/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "146e631a0eae3626e4b66d7c9a067410f381cf6ad17452fde51caeb8de95e066"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/__init__.py",
+    "relative": "bt_api_py/_contracts/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "de7900b7381792724dcc7b62a9bca3b930c65488e37951f21c7b3731ff577d95"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/cache_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/cache_policy.py",
+    "relative": "bt_api_py/_contracts/cache_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "30e60a9d18d55d2903818e1a3dca1adfbbeb914412ead955a1f57d2fba46cf67"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/capabilities.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/capabilities.py",
+    "relative": "bt_api_py/_contracts/capabilities.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "303a368f412d8ceba67ab867f717fd6f81dff21d522cb0eaa59838b5b90861c2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/errors.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/errors.py",
+    "relative": "bt_api_py/_contracts/errors.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6ca122e9dd09b7e0094f55da3bc6b91ceeb91b77c099c8f8f562db5a87614009"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/models.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/models.py",
+    "relative": "bt_api_py/_contracts/models.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7aeb1d34d4035fcb30967533e895d2556d77d7002ee84fc73f250bd8f6c8a537"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_contracts/subscriptions.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_contracts/subscriptions.py",
+    "relative": "bt_api_py/_contracts/subscriptions.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "876c49dc25a03a0fb2c8a72880e124b97aa599a816e30a29659682ad1761e2ac"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_budget.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_budget.py",
+    "relative": "bt_api_py/_ctp_budget.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "243abfc320ee3b1a5939da9dd4f4c2b3f2c19028fdb10382ed2f616affb0ac8c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_credential_binding.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_credential_binding.py",
+    "relative": "bt_api_py/_ctp_credential_binding.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "698ca7aac861f02daca61262be2485548b6494b043b60c471dc4814bf4a0b48e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_execution_authorization.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_execution_authorization.py",
+    "relative": "bt_api_py/_ctp_execution_authorization.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ddb1098ca16da975f4d8a6bc60f9ce89cbe600d4feedb43179e955577a7f08c0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_execution_identity_bridge.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_execution_identity_bridge.py",
+    "relative": "bt_api_py/_ctp_execution_identity_bridge.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "cdc8bf03fd4de4faf966d383bf91d5298b06b3d513bc355368535f28480d572d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_ingress.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_ingress.py",
+    "relative": "bt_api_py/_ctp_ingress.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "822bfa67d87b2319350051a197148e0ceb40afeb959c098b1b46f27f65b31b6d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_market_attestation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_market_attestation.py",
+    "relative": "bt_api_py/_ctp_market_attestation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "fa59aec2421e132915498a9fff242d8a626e7c550f6045c55080a1c9ece1a03e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_ctp_recovery_query.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_ctp_recovery_query.py",
+    "relative": "bt_api_py/_ctp_recovery_query.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "dcb4764838ca4fcbb1485ccefd40dcdc874164f9c839817cd1985008fefa5ba9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_direct_backend.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_direct_backend.py",
+    "relative": "bt_api_py/_direct_backend.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "fe020c2dcc12ba0a73e5d7d0d3006abaf9f83e98cab2800ed2d6c19650592db9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_execution_session.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_execution_session.py",
+    "relative": "bt_api_py/_execution_session.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e2cc0c517353e63a18d85a0ad52c6542c66037b478f02292d84f2067ce99bbf3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_feed_adapter.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_feed_adapter.py",
+    "relative": "bt_api_py/_feed_adapter.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "576dde325a1f86a127b5ef0fb73bde61525a4a4449fc06f364059583b5b8e038"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_normalization.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_normalization.py",
+    "relative": "bt_api_py/_normalization.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "42890873918e65b7cd3a78e45986ea3ddd859c761f8a2ea50e825951566781ac"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_operation_backend.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_operation_backend.py",
+    "relative": "bt_api_py/_operation_backend.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6fe48ce146f232882899de8197f25687dd8f6118a3a95c98cfa95cb011c45f4b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_plugin_catalog.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_plugin_catalog.py",
+    "relative": "bt_api_py/_plugin_catalog.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5ba67cedf2eb0808b88b854624bab0700cb3058b22f022d7be45951a1c91d216"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/_venue_mappers/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/_venue_mappers/__init__.py",
+    "relative": "bt_api_py/_venue_mappers/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d81c7eea57db2ded51467ae9a6ba79d3bfa29504e53a7e93ec7749d478d84e8c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_balance_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_balance_contracts.py",
+    "relative": "bt_api_py/account_balance_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2a91cd47180c0ef1a10f8c5ad66e488de98b9e2eee1ffdd5cbfaadb6d37435b4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_balance_facade.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_balance_facade.py",
+    "relative": "bt_api_py/account_balance_facade.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "09c48ca79dd5be57a14aa8a8dd5ab75bf12cbcece3ad7bb5ac348dd3e6aaf0be"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_balance_read.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_balance_read.py",
+    "relative": "bt_api_py/account_balance_read.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "fc73155f209dd24abd99522d471f0714e874622203e5538554a8a936e6802e94"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_book_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_book_contracts.py",
+    "relative": "bt_api_py/account_book_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3d21b0b057cc7631b0536b07748072eef239d2c8aed14b045e874a268e0688cb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_config_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_config_composition.py",
+    "relative": "bt_api_py/account_config_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "02eb8b84fa42145f6cda7a4abba6e0d90f7529921d01efc31da327103e1ffc2a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_coordination.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_coordination.py",
+    "relative": "bt_api_py/account_coordination.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "353947ae9f639846efb413eaa91ab067edbe337ea3eabeac844969eadb885675"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_execution_snapshot.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_execution_snapshot.py",
+    "relative": "bt_api_py/account_execution_snapshot.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "dad2cef1523662e4c1fcc407b59201eca46be400956dde8198fe19b71e68fbb8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_owner_handoff.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_owner_handoff.py",
+    "relative": "bt_api_py/account_owner_handoff.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8104f5e87513fdc6099ab5c0f2178342eebe671740d8a66df676fcd6d09be251"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_position_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_position_contracts.py",
+    "relative": "bt_api_py/account_position_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0ac4361c505595df08d62fcc8117a68885fa72764460b247a2f1f52b601f2907"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_position_read.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_position_read.py",
+    "relative": "bt_api_py/account_position_read.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7a3a37170251711eb8f2349e83f89343fcdf32cec0482a0002d134620cb376a5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_position_snapshot_facade.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_position_snapshot_facade.py",
+    "relative": "bt_api_py/account_position_snapshot_facade.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9fec97938e94d9d3279a9461da491864e5956a69d411d79c226897cfa2d8c242"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_position_stream.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_position_stream.py",
+    "relative": "bt_api_py/account_position_stream.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "efc2b25095373dac1567b490497e77359413631458abbada137cb82dab36df8a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_request_labels.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_request_labels.py",
+    "relative": "bt_api_py/account_request_labels.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "06cafa549d8c29d2e42ab6704fe2f2d291772952689a49c31bb9d81d7886436c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_risk_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_risk_projection.py",
+    "relative": "bt_api_py/account_risk_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0a4c18be92d6757821bad568c59e55b337e95e8ede8fe2e725e08335538d2afd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_risk_source_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_risk_source_policy.py",
+    "relative": "bt_api_py/account_risk_source_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e3f0bf9101423601fa956c4420475d312e2ab8c8bd99eeef811d2dc43a5454af"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_risk_state.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_risk_state.py",
+    "relative": "bt_api_py/account_risk_state.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "29b21c76acdbfc53476c30ccce80eda71e7a04734d31b458042375c0e23d3e74"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_session_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_session_composition.py",
+    "relative": "bt_api_py/account_session_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6f849f36fcb2c3b4a1ac81f7e38451733ccd1eeaf06f761a118d1c7f347680ec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/account_writer_authority.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/account_writer_authority.py",
+    "relative": "bt_api_py/account_writer_authority.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c37c0e9828589746aa7f4ca6ce5b6b769a7b8fada641b327cfaf81a205730be7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/allocation_sizing.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/allocation_sizing.py",
+    "relative": "bt_api_py/allocation_sizing.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "722e64274294b5bf7e81de99f8a5ff85c160f9f93344b02d2bf7c887ba3c67df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/approval_lease.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/approval_lease.py",
+    "relative": "bt_api_py/approval_lease.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0289021f5cac1fba2f44d82869114b1856e3a300eca0716f5b6510d1bf206188"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/balance_manager.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/balance_manager.py",
+    "relative": "bt_api_py/balance_manager.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1bd2ae19a35a26f6c197de874b2fcac893c0df4255361447114d6d452f9d1a4d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bounded_api_close.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/bounded_api_close.py",
+    "relative": "bt_api_py/bounded_api_close.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "75ddc237de92ea72d7e6b351af38a907dddd6090fe2302214da23d2fdbe4c685"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bounded_metadata_probe.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/bounded_metadata_probe.py",
+    "relative": "bt_api_py/bounded_metadata_probe.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bb8348dd662fe3738a4caa139fe8b3a9fc4c885d5caf3f7fa22b4a9d68723e17"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/broker_event_envelope.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/broker_event_envelope.py",
+    "relative": "bt_api_py/broker_event_envelope.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9aeb5438fae2520f9b7b7aa3868fdd6831a4d382b6da25231b78fc7868a1ebe3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/bt_api.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/bt_api.py",
+    "relative": "bt_api_py/bt_api.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "41f7408939b487e47ab08313b16ea1bf50a946591a3a2ba2e432080702205926"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/certification/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/certification/__init__.py",
+    "relative": "bt_api_py/certification/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ab6a4abbe7d32dced1176f6d2fd0eac1cea20134e40050f6fbf6ead965164b58"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/certification/audit.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/certification/audit.py",
+    "relative": "bt_api_py/certification/audit.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9dcf9b582e85096f92b07462408fc9c3655a2d9d1222ed49de4c2a9585ec9569"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/certification/scenarios.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/certification/scenarios.py",
+    "relative": "bt_api_py/certification/scenarios.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2b51bbfadba54adc9977c5b7b82ebcc2dead0f99fe87a50f1fc1f56ce92a3b24"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/clock_verification.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/clock_verification.py",
+    "relative": "bt_api_py/clock_verification.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "35c6ac1ab15fa7222690c98ff008d1c86092e90bd5f7f67d611a5d58b4faad76"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/command_coordinator.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/command_coordinator.py",
+    "relative": "bt_api_py/command_coordinator.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5a86e88d1138e8279e5a88347bc73fa59414ae1803e71d8b11556c3cc07fe913"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/command_outcome.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/command_outcome.py",
+    "relative": "bt_api_py/command_outcome.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "cf7bf2864aaf9b45b281991d9c59108b67b07d10d155749e22c48f096a3b51ad"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/config_migration.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/config_migration.py",
+    "relative": "bt_api_py/config_migration.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ee0071b531fe20da3cb29d5b66b7fb321a6ecf811d88d1bf9d2ce6ea809c664c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/__init__.py",
+    "relative": "bt_api_py/configs/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7d851e1d0ee44e5085d40ba4ba4b4dbda328cefc0fe97c40ff0bd46283d75161"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/account_config_example.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/account_config_example.yaml",
+    "relative": "bt_api_py/configs/account_config_example.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e84ba13d97917acb82552591871f09ee759dd14220c3212ae49d03083ccaf27a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/balancer.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/balancer.yaml",
+    "relative": "bt_api_py/configs/balancer.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "312807e77ad6ecda79a422e01be81f6d5ecf5f9e3e382919979f9a5776ea15dd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/binance_spot_symbol_info.pkl",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/binance_spot_symbol_info.pkl",
+    "relative": "bt_api_py/configs/binance_spot_symbol_info.pkl",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "11059498b96875ecde7c6ec978a238d744a4d1966ea8887472d1a62499133ab4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/binance_swap_symbol_info.pkl",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/binance_swap_symbol_info.pkl",
+    "relative": "bt_api_py/configs/binance_swap_symbol_info.pkl",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9a3264bbd1bb721178c926669b8d1efa79297268a5ea74c3a81f5ad323223d58"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/cow_swap.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/cow_swap.yaml",
+    "relative": "bt_api_py/configs/cow_swap.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8555bdf6498f1b7e8fff63af2866e516b99ebaffc2ccab987b29711650aedd55"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/curve.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/curve.yaml",
+    "relative": "bt_api_py/configs/curve.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a8faabc99f1ecb141ca0204029360b4389498bae5f38f1ec3e2a48d21090f9a6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/exchange-bundles.toml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/exchange-bundles.toml",
+    "relative": "bt_api_py/configs/exchange-bundles.toml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "107730a8a2c1198dec086fba83792ed0e7bde62a884afeb02b2e50e72edeebf4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/pancakeswap.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/pancakeswap.yaml",
+    "relative": "bt_api_py/configs/pancakeswap.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "208829c91a4925b15e9190c4a5096064894913724cf0b31f6c9d2de49cbebc6e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/raydium.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/raydium.yaml",
+    "relative": "bt_api_py/configs/raydium.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e17dee398a9021d3ea2024711fc032ba942c78c33f739cab5ea8961f42d71a0b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/sushiswap.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/sushiswap.yaml",
+    "relative": "bt_api_py/configs/sushiswap.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "34169f8b39369fb855c64d92516e39d9cafb1e92d8c5375d4a7ff5b43fd94b30"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/configs/uniswap.yaml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/configs/uniswap.yaml",
+    "relative": "bt_api_py/configs/uniswap.yaml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "325b820f132771f0636bb06ca3959427bde302c66a586e3d421958e1f128b3d3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/contract_mapping.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/contract_mapping.py",
+    "relative": "bt_api_py/contract_mapping.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5b84af462fd2c862d11615f2d88b6c06ef3ae8834d2a331d424fcc8f165fcaa7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/correlated_command_dispatch.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/correlated_command_dispatch.py",
+    "relative": "bt_api_py/correlated_command_dispatch.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "212de69a20e1539938eea6f9041352ef77bcce18b01092103e40bfbd540ab095"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/correlated_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/correlated_execution.py",
+    "relative": "bt_api_py/correlated_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8b544a4db6eee8e1f1b1cd4cc327cdcd89acdd2b8806357f2a66a5a8145aaf49"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/cross_venue.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/cross_venue.py",
+    "relative": "bt_api_py/cross_venue.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9c9f55f4b860214415f694159deb8a9c246278dcf7e0cafad24c36462b436fe9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_account_process.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_account_process.py",
+    "relative": "bt_api_py/ctp_account_process.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "72a3844d3e098a339819396c50761154a91f1d84861a2dcbc08918f6e75f1265"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_admission_authority.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_admission_authority.py",
+    "relative": "bt_api_py/ctp_admission_authority.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "36fc87705a847954bc38a38125f1522803a35664a06813c068a53937f6a19a37"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_callback_evidence.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_callback_evidence.py",
+    "relative": "bt_api_py/ctp_callback_evidence.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7deb82ce5099375ebd9b965a3247af633da3f02f8859683199a582d5b66e157c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_cancel_authority.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_cancel_authority.py",
+    "relative": "bt_api_py/ctp_cancel_authority.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d21c6bc914c01befeef60280b67ec59cbf3167dcbc0da404ad37bafd886a972b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_close_plan.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_close_plan.py",
+    "relative": "bt_api_py/ctp_close_plan.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e71a0cf1cf8350f5262b717a65cd964200c6525f8755c1d59d6785cdbb729c69"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_execution_owner.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_execution_owner.py",
+    "relative": "bt_api_py/ctp_execution_owner.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d9b0482464a6eea58eb0734d644af3bca567d16c1f6312676e116c2a1fe32211"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_execution_runtime.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_execution_runtime.py",
+    "relative": "bt_api_py/ctp_execution_runtime.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ae43c0ff9021d65c4949e73dfc2d2352bcb132fd0953f605da4c058a317cca66"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gate_approval_validation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gate_approval_validation.py",
+    "relative": "bt_api_py/ctp_gate_approval_validation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8f80420a6f7efa6abf7b9b214e626499e821701111bd7e0d148824f8ac68a5f0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gateway_composition.py",
+    "relative": "bt_api_py/ctp_gateway_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2facb098b8c5ce83f63789e19628154940cfb45c4b9ea2c5e1869a060de9bb43"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gateway_execution.py",
+    "relative": "bt_api_py/ctp_gateway_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d61a44dbca8a894fb41f1b5b63e9f8e5dc506eb917a13d85814146eee974e0c1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_return_ingestion.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gateway_return_ingestion.py",
+    "relative": "bt_api_py/ctp_gateway_return_ingestion.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "16de0397d3ccbb4d15d803e2dc02299165615a1e89fdddb2c4f12fe0637d3b94"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_return_maintenance.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gateway_return_maintenance.py",
+    "relative": "bt_api_py/ctp_gateway_return_maintenance.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2aee8589f6d38986ffbef426fd6aaeef6d99609b09ba5044bd1537b0554b668d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_gateway_trading.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_gateway_trading.py",
+    "relative": "bt_api_py/ctp_gateway_trading.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "336b444ca6da16711889871ff883afcce0370732ee74095db398d5d23f9a9364"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_managed_cancel_port.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_managed_cancel_port.py",
+    "relative": "bt_api_py/ctp_managed_cancel_port.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4729f38467e1e468da6f28e8a18208a2f7bc02451921e337ce1c93b8422d5517"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_managed_runtime_host.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_managed_runtime_host.py",
+    "relative": "bt_api_py/ctp_managed_runtime_host.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "70477095f3b933895f807f53f375a171fc3e7350c5c19efa8ecaa007c830d1c0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_managed_runtime_registration.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_managed_runtime_registration.py",
+    "relative": "bt_api_py/ctp_managed_runtime_registration.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a91b0d0358816fed8622159bcdfa76967be1ca03ace6c88b8f4c7e2cc500f6c5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_managed_submit_port.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_managed_submit_port.py",
+    "relative": "bt_api_py/ctp_managed_submit_port.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8ccc109cb4b224b9d8c4d78e82b236fe3c52ced615979941278fd03a0523c9cf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_order_provider_dependencies.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_order_provider_dependencies.py",
+    "relative": "bt_api_py/ctp_order_provider_dependencies.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "51015321ec09699e280e429e8c647238e89381e89a83253fff4f6cec5df8e77c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_order_target_query.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_order_target_query.py",
+    "relative": "bt_api_py/ctp_order_target_query.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "76659e076d294fd1ca2aa12c3e316ce828fa6a2fcaac233d6092b36f8353ccf2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_probe.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_probe.py",
+    "relative": "bt_api_py/ctp_probe.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "26a76ff99a09774b0d05dec5dfb27862bcddde498c24463ce1f5a7656624673f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_profiles.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_profiles.py",
+    "relative": "bt_api_py/ctp_profiles.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3283225b199505ef2dd213159e16bcb65e3f75cfa8a687ae6a64342d4bdd810d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_risk_dispatch_bridge.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_risk_dispatch_bridge.py",
+    "relative": "bt_api_py/ctp_risk_dispatch_bridge.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4c0a313f896319eff6a048df95c5629b41597e684ebcbf21dfa1a557d1dea1d6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_runtime_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_runtime_composition.py",
+    "relative": "bt_api_py/ctp_runtime_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "40608848965f877c55b580088b49b1b7304639668b982228f3463431afe49f29"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_service_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_service_execution.py",
+    "relative": "bt_api_py/ctp_service_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6051839635a2cb9de885bd2a9a34aad53f6b9e2c5fbede4f2e70abe27384e6e1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_simnow_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_simnow_execution.py",
+    "relative": "bt_api_py/ctp_simnow_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "16bda7103d1ca531b42a4e7bc11f83ccc9a17e0fcb2727eb92bee8de035547a0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_terminal_order_query.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_terminal_order_query.py",
+    "relative": "bt_api_py/ctp_terminal_order_query.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ec7507d4f2aa6ebe399912bb06c1f5b72b0e6dfdc3a058f6e90ad76e48c72a1d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/ctp_zero_fill_tracked_order.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/ctp_zero_fill_tracked_order.py",
+    "relative": "bt_api_py/ctp_zero_fill_tracked_order.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "aa3a45e3bcfd44cf627bb3db9362d1c04d39d2a73a0002ff8e1d1548bf16c43d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/data_downloader.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/data_downloader.py",
+    "relative": "bt_api_py/data_downloader.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d1fd10df1d24873341242033bfc6cf179ee03337a98080c5fe7c24f329ad6111"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/direct_api_assembly.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/direct_api_assembly.py",
+    "relative": "bt_api_py/direct_api_assembly.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "01fa3678556a6ad9fe6daf424b2e5e74a5b6d9ba19c28d31a60855071e5c95b2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/direct_correlated_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/direct_correlated_execution.py",
+    "relative": "bt_api_py/direct_correlated_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2fc08386eb9939a073aec29ec355236e5700b2afcbe3bea56319ef99af5fa3e4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/direct_write.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/direct_write.py",
+    "relative": "bt_api_py/direct_write.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d929f185bb253098558e1e06a4a299169e4d22793c67801efab217f1198bec78"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/doctor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/doctor.py",
+    "relative": "bt_api_py/doctor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c83a63261e8d7de4544613cbc8fb1e7fe8490b04ddd816ac5995d3344b93f90d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/exceptions.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/exceptions.py",
+    "relative": "bt_api_py/exceptions.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1776f03b4a62438c94793e5fc8522d8ca7152e2965fbb42dd4d435fe2d0dcd08"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution.py",
+    "relative": "bt_api_py/execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e0645bd6105fd4e32c990d4123cda9afefc22b4db3f964d76904cf3d686adcf5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_capacity.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_capacity.py",
+    "relative": "bt_api_py/execution_capacity.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3ff26df2b0326ad80ce37616b397e2e91e74e980f4460c6c46563377f266d237"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_configuration_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_configuration_policy.py",
+    "relative": "bt_api_py/execution_configuration_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "09571fbfa63a13b8dbdf6ec638ecc1b95833d6eba8252e6ff6a359630ba71f14"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_economics_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_economics_composition.py",
+    "relative": "bt_api_py/execution_economics_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "67d240685d9ad62f749f1f647b78a186a5358d3ef3e4444d91f703fa7a868e13"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_economics_evaluation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_economics_evaluation.py",
+    "relative": "bt_api_py/execution_economics_evaluation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d3645bfdbdbde49f839f55a840ef5e2b87b3c5b6d87a5fcee1a63a74dbe0da85"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_event_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_event_projection.py",
+    "relative": "bt_api_py/execution_event_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "738a4fcdaf8be79fac132cbbc21039edddc527c67b9956df7a793f2ed3eab307"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_identity_assurance_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_identity_assurance_composition.py",
+    "relative": "bt_api_py/execution_identity_assurance_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "23fb71dbbd6fb9517325b2554d2c6fb4fffc534a7849220f43ef0b9439e6e572"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_identity_fence.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_identity_fence.py",
+    "relative": "bt_api_py/execution_identity_fence.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ff60b85038c54cb5a5b9a3b4f57a0e015592d84501d88fb91e3dc68a169c2e7c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_journal.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_journal.py",
+    "relative": "bt_api_py/execution_journal.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a0aa23e057f532ccd9ac2a67329b564f0ce79b779b1a10516694d9a5e35eadff"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_ledger_identity_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_ledger_identity_policy.py",
+    "relative": "bt_api_py/execution_ledger_identity_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ae5487b17065315f8107ad276702083ee5781477232aab7c8b5fe4d9c9982a22"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_rule_evaluation_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_rule_evaluation_composition.py",
+    "relative": "bt_api_py/execution_rule_evaluation_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a824689ada763120f76630c5c034fed4515552ecff371cf46e5473e57d2c02e7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_rule_preparation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_rule_preparation.py",
+    "relative": "bt_api_py/execution_rule_preparation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "65d2a2190bf0efed5336f1673d9edeafeab9c49bea3ffd5d268d1980f5aa3af9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/execution_rules_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/execution_rules_composition.py",
+    "relative": "bt_api_py/execution_rules_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0cb7a536ba87c14262b7fac180b1ea039e1d361a4cc545a21ac1267b8ed286ec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/facade_protocol.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/facade_protocol.py",
+    "relative": "bt_api_py/facade_protocol.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e7f6c4c2c2624672c432d476b0a9467f602da8e68a76cb0189c30b531b18c590"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/factor_order_correlation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/factor_order_correlation.py",
+    "relative": "bt_api_py/factor_order_correlation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8c81c231ff5fc27a7f128cf8b445e5e940e4eaee3cce108dcf2e7a95672bc298"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/factor_position_attribution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/factor_position_attribution.py",
+    "relative": "bt_api_py/factor_position_attribution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7326f5237845adadb907f567c0bcc22c709e3973ee73fb6ea4b0078c3e13e556"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/fee_pair_facts_journal_port.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/fee_pair_facts_journal_port.py",
+    "relative": "bt_api_py/fee_pair_facts_journal_port.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c71fe242b6195726849aa60d5f9cc1763ab2f4abeaeaefe63054afd89adb494a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/funding_refresh.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/funding_refresh.py",
+    "relative": "bt_api_py/funding_refresh.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1d56dda947fc1b480dc4f0850bcec1ffef025b88c0602138ab19ea4070c9d6f4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_contract_lookup.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_contract_lookup.py",
+    "relative": "bt_api_py/futures_contract_lookup.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e6f0c034a76256740e10670da36afc36b3e01a4fdbe42efaa2d7e13018307de4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_contracts.py",
+    "relative": "bt_api_py/futures_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "90f923cc78a4885b141800057109767d3884f932474709e2fce2f78ba1ed3987"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_eod_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_eod_projection.py",
+    "relative": "bt_api_py/futures_eod_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5087f7540e41c7be8622a98cfcfcae7a1f172af3f50165e215a3b54cc1fdf852"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_eod_ranking.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_eod_ranking.py",
+    "relative": "bt_api_py/futures_eod_ranking.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "f61abf04a2f9b9e56e8693a9df5477ce3854a87be95cf4a6f3e5db58c451ec19"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_expected_calendar_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_expected_calendar_composition.py",
+    "relative": "bt_api_py/futures_expected_calendar_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bc9514da680f74f0a08424c4013bc1e3c7d0642827fdc815b3b990a830386e11"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_expected_calendar_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_expected_calendar_contracts.py",
+    "relative": "bt_api_py/futures_expected_calendar_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "42573b9468bdec925bde4a9eaba95b4d234644eb0a6ba4089659de101ee25c3e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_market_facade.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_market_facade.py",
+    "relative": "bt_api_py/futures_market_facade.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e50c3329b7e611d6b80cea23bec93f46ae57c0a7bd4c15e02fb527b165eefd4d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/__init__.py",
+    "relative": "bt_api_py/futures_selection/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2113426adba13bb23a3ed3d337b87c7f80193942b2dd49401aabf871102e9861"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/decision.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/decision.py",
+    "relative": "bt_api_py/futures_selection/decision.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0357d358fe9c9fcbce41775b8b59c848fe737d0d7a3ddf015515c260cbf342a6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/market_selection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/market_selection.py",
+    "relative": "bt_api_py/futures_selection/market_selection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e66769712770266d15444ab070a4e0e6577f180edcb63ca2fd9d164d8402b030"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/models.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/models.py",
+    "relative": "bt_api_py/futures_selection/models.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "30baf586c5cef076dcb741bb1c1bf5ae669db6297c7298ba8844d9847be6d914"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/ranking_lookup.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/ranking_lookup.py",
+    "relative": "bt_api_py/futures_selection/ranking_lookup.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e3bb1ac64168ae94d142a91965713a3baf9693c88ce59ec98b356e2aa200a02c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_selection/selection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_selection/selection.py",
+    "relative": "bt_api_py/futures_selection/selection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b8931ff2fffc0f7b5f94b9f7ac57b9299b9e11d954646d892d5b3476710f160f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/futures_snapshot_workflow.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/futures_snapshot_workflow.py",
+    "relative": "bt_api_py/futures_snapshot_workflow.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4f6285200319856d6a045bb15e6a18d73d89d034a25d55538a099719ebe4b779"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_api.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_api.py",
+    "relative": "bt_api_py/gateway_api.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "70c8fa28d852df3a109515842d594ad2ad455ee2c9ed090f87b2936b8d480eb6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_direct_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_direct_client.py",
+    "relative": "bt_api_py/gateway_direct_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "023b4c92d129a414b252122f255b4efcb38a59ba4810de64c3ffd801d99e2d88"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_direct_dispatch.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_direct_dispatch.py",
+    "relative": "bt_api_py/gateway_direct_dispatch.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ea8c15b67c9cfa28c6f5f04107f7485442bbb635fdffbb7dca8c47ee9d1c5c8f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_direct_owner.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_direct_owner.py",
+    "relative": "bt_api_py/gateway_direct_owner.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "31eb38630a56f12c43ce81729c35dc56f9eb998d2d4117604363a40407eee500"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_direct_service.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_direct_service.py",
+    "relative": "bt_api_py/gateway_direct_service.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2ef8683f354629ee3c7290ed38aa4a67400a3a0625430ca06c345635e407ee26"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_execution_stream_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_execution_stream_client.py",
+    "relative": "bt_api_py/gateway_execution_stream_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8f7c0524bacb1f4efd89749e5611e87dd782a2005ac8c2eb15acd9938dc0c8df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_execution_stream_service.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_execution_stream_service.py",
+    "relative": "bt_api_py/gateway_execution_stream_service.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1170c02e26925a5527041a97d4d74a86540a427090e75276f6753c867a719ff8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_instrument_service.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_instrument_service.py",
+    "relative": "bt_api_py/gateway_instrument_service.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c10721b7cdc2f47c2a2f1b86bc9905e82ec880209f338f1c00bb8bd1630c144c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_instrument_spec_codec.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_instrument_spec_codec.py",
+    "relative": "bt_api_py/gateway_instrument_spec_codec.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "122c5e23739391c0d8b467165560bff40134d10713f88609d6e20a27f37b0771"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_market_runtime.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_market_runtime.py",
+    "relative": "bt_api_py/gateway_market_runtime.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8caaeecc0e8298792ce5ee6b0eef90d0f340dc4e3239d7a34f9d68f7156fe69c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_operator.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_operator.py",
+    "relative": "bt_api_py/gateway_operator.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "24d0c55b6814bc8f4f183673f70f8101ddbbe93efc194c333bb79b5658ad6903"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_operator_application.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_operator_application.py",
+    "relative": "bt_api_py/gateway_operator_application.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e8543ccdbbc1fcd1d6c2058a9af378728c3b48ce21a5c88fd64a4fa67cc65256"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_operator_cli.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_operator_cli.py",
+    "relative": "bt_api_py/gateway_operator_cli.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5a7b9226cf809642ab53ccc52956a5f46bd77e94e1b277981496ae168c7641e0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_operator_market.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_operator_market.py",
+    "relative": "bt_api_py/gateway_operator_market.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "54bd396fdb70642a435504624d4d5a6b359eb12924261016d560087d05dad903"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_order_contract.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_order_contract.py",
+    "relative": "bt_api_py/gateway_order_contract.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b49c8b218436204a0e3f7edfd3d17165b4fb3aa3b38c262cfb4a1ce26948ba18"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_owner_market.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_owner_market.py",
+    "relative": "bt_api_py/gateway_owner_market.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a33a6fd97330218389cdd845a4d026ba29531dfb870ae7b8a36c02e40561f122"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_risk_position_source.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_risk_position_source.py",
+    "relative": "bt_api_py/gateway_risk_position_source.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "631a3305e4d70056b188fd62b807596e7a4163a6eeacc9500d5c252eccbdb106"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_settlement.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_settlement.py",
+    "relative": "bt_api_py/gateway_settlement.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "fba5882543295e31a2c5108cf5fe1bb24f0e1a142c8ca777ecb62723bfb1400e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_account.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_strategy_account.py",
+    "relative": "bt_api_py/gateway_strategy_account.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "000fde72061f81ac30b8771f54fedbda2fa4a105716b9f4c6038d320b546f700"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_strategy_client.py",
+    "relative": "bt_api_py/gateway_strategy_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "49065e4d348ffc5d2fa796177898b35ed2af04a49655c02bb2413e4c9e3a65af"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_instrument.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_strategy_instrument.py",
+    "relative": "bt_api_py/gateway_strategy_instrument.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6a3de7f47f4b8a678dec3b8c4db7ceb3cc1fdfcabdcb604bf9b5fc9f3698722f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/gateway_strategy_market.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/gateway_strategy_market.py",
+    "relative": "bt_api_py/gateway_strategy_market.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8b6ba0ad4100c8d325ca295759a09c70c32e82a064cb698bc402a71fceb2a243"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/instrument_metadata_aliases.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/instrument_metadata_aliases.py",
+    "relative": "bt_api_py/instrument_metadata_aliases.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0a805ad411d28b5d51c63f84e9c17bf9cc5d577946b84bcb826276e55627f334"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/journal_capacity.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/journal_capacity.py",
+    "relative": "bt_api_py/journal_capacity.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e043415def77a4516dab38d45861b8e7cff51647e79a6d1e4b2871061bb8d52a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_execution.py",
+    "relative": "bt_api_py/managed_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0b3fa55357491f982f7e44aaf36b8c768423f45e54b188d82d1b69e2604846d6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_execution_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_execution_client.py",
+    "relative": "bt_api_py/managed_execution_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "60c550b1bce6db1aa018221f040c6d22d85c5a838d5881c6b6c7b2043352acec"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_execution_dispatcher.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_execution_dispatcher.py",
+    "relative": "bt_api_py/managed_execution_dispatcher.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "672ef5ed19d238906662b6554cd820334fcfc9578239665ea64487ff7b098f73"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_execution_mailbox.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_execution_mailbox.py",
+    "relative": "bt_api_py/managed_execution_mailbox.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "f2a7fd08162bd37b8a6fc0ceff825d2eab0bb1faa53f67b6c7ade53445349061"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_order_refresh.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_order_refresh.py",
+    "relative": "bt_api_py/managed_order_refresh.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c46b6fcbd82b6e69bae782cc12ff9987c873bfdffe46b8f7f13f0a7df2417f1e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/managed_runtime_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/managed_runtime_composition.py",
+    "relative": "bt_api_py/managed_runtime_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b3ca790f5902af73fc5d66f362584922e0da4c5ad8d8a03d99d65412697e4449"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_cohort.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_cohort.py",
+    "relative": "bt_api_py/market_cohort.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8f02fcb428691afe02ecc6bf360e0a25cf8b8f9d934aa30827e28ceada02dad1"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_delivery_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_delivery_projection.py",
+    "relative": "bt_api_py/market_delivery_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c6b4150b1a4073c6558b4ff4e39b6927732b030d6e23f0ad5116a9652f32e956"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_history_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_history_composition.py",
+    "relative": "bt_api_py/market_history_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bbf2d2fcdda5ce6f73697c750a50c0c71b708f7d644f22fcce879344990d29b3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_session_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_session_composition.py",
+    "relative": "bt_api_py/market_session_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "11b5a06ceaa21224756a27cd9b9e4f710ac941f8f4ce1feb62c7ff336fa0b60e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_stream_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_stream_composition.py",
+    "relative": "bt_api_py/market_stream_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b72744782638c12d466cdeb6953b4aaa143b722ab7b6712a388ffc4f7e331bfc"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_stream_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_stream_contracts.py",
+    "relative": "bt_api_py/market_stream_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "11c0b0c9a1bdcdc7bd6b9576752b83c6d8f4d0df20d746708fff2a04ea6e9217"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_stream_session.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_stream_session.py",
+    "relative": "bt_api_py/market_stream_session.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "cfcb0c40ab0fbbfb1736784a8a876c85750ea22680cdf51b5514b99908aadd1f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_tick_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_tick_composition.py",
+    "relative": "bt_api_py/market_tick_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "eda9eb6702b6955096b42b79a68d73b2d2a8ba3ff9f4aa399be572a8d6864fc9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/market_tick_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/market_tick_contracts.py",
+    "relative": "bt_api_py/market_tick_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "117876935d11d67700f552682e4ab4165e83e5f6d44925c9bca955889e5429fd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/monitor_threshold_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/monitor_threshold_composition.py",
+    "relative": "bt_api_py/monitor_threshold_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0ed300c4e9a0549ec1dc49003bf15aa9ca0bd7750e8b44edd75d3d23e20da605"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/multi_route_read.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/multi_route_read.py",
+    "relative": "bt_api_py/multi_route_read.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d364fce96d2852856fd401e39e6712ca834b0f2ae169134308c21604f8afde4c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_correlation_issuer.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_correlation_issuer.py",
+    "relative": "bt_api_py/order_correlation_issuer.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a33151be90b01710f21342edd1e0b19a3280c3f95ef8968c9c5542858d0d457c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_fee_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_fee_projection.py",
+    "relative": "bt_api_py/order_fee_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b3eb2b304145a36c395fc6192cb5606817bbc928cb8c72e3fe76aaee4bddb1df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_position_evidence_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_position_evidence_composition.py",
+    "relative": "bt_api_py/order_position_evidence_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "351a2f54361dfacc64585632389d0cade009bff64c6fbea1011ae53dafbe27a4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_position_evidence_read.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_position_evidence_read.py",
+    "relative": "bt_api_py/order_position_evidence_read.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ccfe7c8ab024f01f20152a956b22cde95ec698a5ed23c3a7db3de42f87727014"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_preflight.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_preflight.py",
+    "relative": "bt_api_py/order_preflight.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b6e83cf48d512b3016791e257fa61306eb15212e8140b3641192f4eb89cfed81"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_quantity_units.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_quantity_units.py",
+    "relative": "bt_api_py/order_quantity_units.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2b3b16c9974ed2a44201becebb76556662f15d4ac49c350c1e7884c701f9411c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_readiness_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_readiness_composition.py",
+    "relative": "bt_api_py/order_readiness_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3978187d304d7b4c071c23921a5f5c81b6330a6358e92fdd8008739852ce396e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/order_source_alias_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/order_source_alias_policy.py",
+    "relative": "bt_api_py/order_source_alias_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "968203ae65cdecec942f8549843967d8b8aee563e111a61acd05ed352803b380"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/position_mode_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/position_mode_composition.py",
+    "relative": "bt_api_py/position_mode_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "71927e744ddfea79442ab35a83d9fbeb1c769ff0d05e12f03443fdfb80bf7d01"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/position_stream_bootstrap.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/position_stream_bootstrap.py",
+    "relative": "bt_api_py/position_stream_bootstrap.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "00560b595548cc2b7da0c81d8b13c9c7feaf12fa76a4ddb84276c5a8cae54499"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/provider_configuration.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/provider_configuration.py",
+    "relative": "bt_api_py/provider_configuration.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "357cb3ec4ec2effb7f36062cf38b4f04181d0c53955fc138bd7424e6fba04d1e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/provider_entrypoints.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/provider_entrypoints.py",
+    "relative": "bt_api_py/provider_entrypoints.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "fb2117ee320f723fac742e768fcecb7900c5e40b3ff6ead5866b4115a2985d80"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/provider_session_revocation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/provider_session_revocation.py",
+    "relative": "bt_api_py/provider_session_revocation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1157d363924a03aafa8f0ab0a4b707dd07b8f98398a8cf466fcb0389a8e70250"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/py.typed",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/py.typed",
+    "relative": "bt_api_py/py.typed",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/query_composition.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/query_composition.py",
+    "relative": "bt_api_py/query_composition.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e759345d0b41070ad5d03549ef53de158b481600a85ae7270c6a498c76f89156"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/query_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/query_contracts.py",
+    "relative": "bt_api_py/query_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b1878c3fcc6c5d96c102b3f7bdaa52a56e1922574784da5d7a2246104d8de468"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/query_facade.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/query_facade.py",
+    "relative": "bt_api_py/query_facade.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e4991762b61af73e8aa01e726494f0e8ca5114aac9a3694d7a727e5036ff10eb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/query_preflight.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/query_preflight.py",
+    "relative": "bt_api_py/query_preflight.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b89ba54b7ca2df859ad62ab048022cd598e134cf520ad58a6e8cf5b60f1d0ebd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/queued_command_runtime.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/queued_command_runtime.py",
+    "relative": "bt_api_py/queued_command_runtime.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "aa967b3c856ae45c29eece06f6af08b04c15ca6c724c5ed856ccc12bc9274292"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/reconciliation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/reconciliation.py",
+    "relative": "bt_api_py/reconciliation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c3743bdcd5a0126a5d7ed958dbb9f4ee38646db0c8ee767359f06b7b4a0aeb98"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/reconciliation_projection_inputs.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/reconciliation_projection_inputs.py",
+    "relative": "bt_api_py/reconciliation_projection_inputs.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "726dfe7ffa4c6860b0c0bdcb013a523ea4449df1d1fe280c5e814d8515ead648"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/reconciliation_routes.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/reconciliation_routes.py",
+    "relative": "bt_api_py/reconciliation_routes.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2d96787ae79a4db633778c64dbf95b0f479b81cfe48d4caa70ab11c64c2f5ff8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/replay_market_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/replay_market_contracts.py",
+    "relative": "bt_api_py/replay_market_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a475d97c32eb8e2b4d5a26be53daad39f0a0599fc5dc9e579389b9fa42f43fcc"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/risk_dispatch_evidence.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/risk_dispatch_evidence.py",
+    "relative": "bt_api_py/risk_dispatch_evidence.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2dec3d184c096688d6e5257883480f56eed2a5fb8734d74139e24124689b988c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/route_identity_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/route_identity_projection.py",
+    "relative": "bt_api_py/route_identity_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "92f3665df7e6ad1935b4ff585289515db109e12328455bd70ebb8fd95b5fe053"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/run_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/run_contracts.py",
+    "relative": "bt_api_py/run_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8a215986e0a6523d03e892c66842525c6d6b22d4baf2ab46d262e90316b01820"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/__init__.py",
+    "relative": "bt_api_py/runtime_plugins/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6794ebe3adf38740948caccd9fb106d4cb3d20c8553f4d0d71d8bb1e9a55695c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/cancellation_control.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/cancellation_control.py",
+    "relative": "bt_api_py/runtime_plugins/cancellation_control.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c54b52eb85b349640e71f6a32b424b6119a5516eaa0d15560b9d5ca2278b5837"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/catalog.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/catalog.py",
+    "relative": "bt_api_py/runtime_plugins/catalog.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bcef090d2c3fbec6bf4af5d6f370f3da271f56edad3018676babb1fe08d91148"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/contracts.py",
+    "relative": "bt_api_py/runtime_plugins/contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bf00684cd9c7d76a391b034ce61e5572bdaa7b7a4b3c00653abc12238791fc84"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/fake_dispatch_authority.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/fake_dispatch_authority.py",
+    "relative": "bt_api_py/runtime_plugins/fake_dispatch_authority.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6948e8c9f812f8f159cfde3399531cacec78c081e18dbedd7a97adf43555649a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/instrument_risk.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/instrument_risk.py",
+    "relative": "bt_api_py/runtime_plugins/instrument_risk.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0b1c976b6e8247c29214354ad4845602ef46088ad54f89b62c9e2a10f5b3340a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/managed.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/managed.py",
+    "relative": "bt_api_py/runtime_plugins/managed.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "31e9760c254882104c99698522df758547ad5405dbe5fd75008cac57945e0b5c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/managed_recovery.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/managed_recovery.py",
+    "relative": "bt_api_py/runtime_plugins/managed_recovery.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a6e5267b46620ad1a69c49fd6b4f8033c0ac5ab96fb8f98dacd34c580fda2bae"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/runtime_plugins/reconcile_control.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/runtime_plugins/reconcile_control.py",
+    "relative": "bt_api_py/runtime_plugins/reconcile_control.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b044e98bbc2a8a37232bbce80a22360371bd530f6a694db9d8e89cdd304f8413"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/__init__.py",
+    "relative": "bt_api_py/security_compliance/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8e1e9fbd329ca8c8bda656f1f5af8963d3e974d414f9f6f1331b0cf2581e82de"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/auth/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/auth/__init__.py",
+    "relative": "bt_api_py/security_compliance/auth/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3c1ae8922cf4db36766a5ee2a4c5b0c98b3112521d11ca5b3abf53a9b9d435fc"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/auth/mfa_provider.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/auth/mfa_provider.py",
+    "relative": "bt_api_py/security_compliance/auth/mfa_provider.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1b24d0441f6a18136868ed874d116d06a9e60200f26b341dcad04090337b05d4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/auth/oauth2_provider.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/auth/oauth2_provider.py",
+    "relative": "bt_api_py/security_compliance/auth/oauth2_provider.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c1b9bb056451553a9a90cf884d138999070216746c0bf29971d3d5bfc46cc26d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/__init__.py",
+    "relative": "bt_api_py/security_compliance/core/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ba8b07858d362ebbbcd86e091e5ba2e4cfecc28937adba8781c736f1db13833f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/access_control.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/access_control.py",
+    "relative": "bt_api_py/security_compliance/core/access_control.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ac429bbc89ede481f9b57fdeecd504836c9bccf9fbe35e97950c31bbec97e227"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/audit_logger.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/audit_logger.py",
+    "relative": "bt_api_py/security_compliance/core/audit_logger.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bda6fbdfc2a4d962dd702f67202b79d0578c96643901e337f18f7807c8f609cf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/compliance_monitor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/compliance_monitor.py",
+    "relative": "bt_api_py/security_compliance/core/compliance_monitor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ab053b46fc2dec288db8575612fb17db4aed057cb9753f5c1f0d7218b388a670"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/encryption_manager.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/encryption_manager.py",
+    "relative": "bt_api_py/security_compliance/core/encryption_manager.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5aa22b432bc2edc466f240f3decc54a1503c5c541d7cd7195e2ea5132b5e5fe8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/identity_manager.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/identity_manager.py",
+    "relative": "bt_api_py/security_compliance/core/identity_manager.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "69453004fd133a0360a1a651f4317bc0919fda5bdb1d481246a843f35a10b733"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/core/threat_detection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/core/threat_detection.py",
+    "relative": "bt_api_py/security_compliance/core/threat_detection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3fb5e416c6e3386e080351b264947151d96f5e25bef8aa91f12af7a16716fff8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/data/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/data/__init__.py",
+    "relative": "bt_api_py/security_compliance/data/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1aeb92652b1ebcbd10aaae2b656315ac8675e6226711442d94f794ce95ad0e7a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/data/protection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/data/protection.py",
+    "relative": "bt_api_py/security_compliance/data/protection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "66b581d8e81376f464661b9c0595cdeef71abb817312a75501d11216fb2ee244"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/framework.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/framework.py",
+    "relative": "bt_api_py/security_compliance/framework.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2b14597e9bf77b98749b270687fd127b31a39b100f3c973e8a79f9618bdb4186"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/monitoring/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/monitoring/__init__.py",
+    "relative": "bt_api_py/security_compliance/monitoring/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "27c634b67d8c496e01f8543205e7a4b16637d6d93bec4661084b0ac9c9bd00d6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/monitoring/security_monitoring.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/monitoring/security_monitoring.py",
+    "relative": "bt_api_py/security_compliance/monitoring/security_monitoring.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c6111b29d505bb6f4f0db004b66c658e52c6453ed15d1921baca39e94462bc24"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/network/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/network/__init__.py",
+    "relative": "bt_api_py/security_compliance/network/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "9b9b96a1aaef6db0d682a01501e12457822ae09e88e8f9390e9f4bd3004f8f6b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/network/tls_manager.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/network/tls_manager.py",
+    "relative": "bt_api_py/security_compliance/network/tls_manager.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3b1ede421053c83d1c56db73769dc504b090f6a31bda10d610a05bf16cd66682"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/recovery/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/recovery/__init__.py",
+    "relative": "bt_api_py/security_compliance/recovery/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "11ae110f554b58e25834037dbe51d297b8dd1477d12318ff141d3653e76eebd8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/security_compliance/recovery/disaster_recovery.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/security_compliance/recovery/disaster_recovery.py",
+    "relative": "bt_api_py/security_compliance/recovery/disaster_recovery.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c5cb598ec6b7391249cba4ba392a8b57d6d4cf849d81fb8b3597c7299ad13db5"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account.py",
+    "relative": "bt_api_py/service_account.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "331d6f0ed0466405f8426deb4760de4ba7451e45083db48457972e11eab75e04"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account_book_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account_book_client.py",
+    "relative": "bt_api_py/service_account_book_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "468bf89d133dbe0a28252f2729ca867a8353f5fa1ac6aca97ccd83a2aaa11d7b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account_certification.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account_certification.py",
+    "relative": "bt_api_py/service_account_certification.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b8d059b39bd035444b68a9eab7a678c7ad4c0b0734961c7eafc8dc0745db020e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account_consumer.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account_consumer.py",
+    "relative": "bt_api_py/service_account_consumer.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a4ebb7c8ddf7061c6b1fdbe42f52af3582155f47cfd42e12d3747e48d9a18d1f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account_observation.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account_observation.py",
+    "relative": "bt_api_py/service_account_observation.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ca67b0cf256b1d8974ac059fd3022bc66f34ba21050488cef87de3971a73dee0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_account_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_account_projection.py",
+    "relative": "bt_api_py/service_account_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ab32d2cf59a87093c9567bf9ea22ae541448c5a8ffcb822f6d50c0c0a497da14"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_command_wire.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_command_wire.py",
+    "relative": "bt_api_py/service_command_wire.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4086133b7b9ae29fbd98351f7ad6164754cbe6896b4bb331ef1ccd891d4b83af"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_components.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_components.py",
+    "relative": "bt_api_py/service_components.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "07beee482c89b315ce00c7fb609543ee402f29596a209b7d058375c79c819c88"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_config.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_config.py",
+    "relative": "bt_api_py/service_config.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "96511080ed4e5e80a09405474d632ab9805fece60d59c70e068868fb166a1fbf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_config_io.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_config_io.py",
+    "relative": "bt_api_py/service_config_io.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "54890a5c41bfe0046b8a39fac40d08a2fcf6caa8a38df6b5fc6a739e9918e4b4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_contracts.py",
+    "relative": "bt_api_py/service_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e4e04b58953f46cd8e4d377ea9b6b94e3f57041e5d8999203f1d4654ee4df74d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_deployment.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_deployment.py",
+    "relative": "bt_api_py/service_deployment.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "488e21290a93b13857d0c94eaf7bb6b7db930e5d90263c1d94bcd1bb8df5b4b3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution.py",
+    "relative": "bt_api_py/service_execution.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e693f1b8880aa6d450c63d9828cdaa250767bd5fac66d61345590f42e0181815"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_account_books.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_account_books.py",
+    "relative": "bt_api_py/service_execution_account_books.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a30edd251d956aba69d752f3b051c82f047a4cf8cc7c990720bad374ae07c04b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_account_group_owner.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_account_group_owner.py",
+    "relative": "bt_api_py/service_execution_account_group_owner.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "849db7df99183fd36949fe1b338ebe4255fa4cc30034f522c14e4b6b74f8cb42"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_assembly.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_assembly.py",
+    "relative": "bt_api_py/service_execution_assembly.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d54eff0fd544fd9fefd494666d67d7da1b7e234d40c6e413cd5182bc8f26bcf4"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_event_consumer.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_event_consumer.py",
+    "relative": "bt_api_py/service_execution_event_consumer.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "65848805a958140659a90645cacab7a7770ce98e6e2160fe08d6371b6584d100"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group.py",
+    "relative": "bt_api_py/service_execution_group.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "7dc552f572dc4ffa59925bca9dc12bfdaf740cd1be75f1f609fc5f79437dfb6f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_authority.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_authority.py",
+    "relative": "bt_api_py/service_execution_group_authority.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1dc6be596e26664bca76410c9cce5dc328adcb6ed857ecda39500e3e60cc5310"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_cancel.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_cancel.py",
+    "relative": "bt_api_py/service_execution_group_cancel.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4376c54e08d3b536fe3512f7cde2b7cb417cd384db1a348e5b9f69118582fc99"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_client.py",
+    "relative": "bt_api_py/service_execution_group_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "051782f9b5b35bb98273b98490f489e937cafbdb124a08d6393bc64bf684d1eb"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_compensation_source.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_compensation_source.py",
+    "relative": "bt_api_py/service_execution_group_compensation_source.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ba007e90d6cddc9b6471635f600e527bda5c06c13f18f862ed7c69cce4328b21"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_proofs.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_proofs.py",
+    "relative": "bt_api_py/service_execution_group_proofs.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "69ef977add045a5b9f853303deeb75d2f7f37cfff6d10172030835ea09853cc9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_group_roll_exit_source.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_group_roll_exit_source.py",
+    "relative": "bt_api_py/service_execution_group_roll_exit_source.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2c923fa23a7e3b56a2e5dc74dd4fed6427654f569c0ae260482d0dcb6ce21c34"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_monitor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_monitor.py",
+    "relative": "bt_api_py/service_execution_monitor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6e10bc4bb3978d9011d796e903639ac7896168719a9f6e442302895787f4537d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_risk_cancel.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_risk_cancel.py",
+    "relative": "bt_api_py/service_execution_risk_cancel.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0841aef043caac4e02efd6f8f0561cd5f41a2e8632609e47e9e8ca63102cb552"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_risk_journal_bridge.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_risk_journal_bridge.py",
+    "relative": "bt_api_py/service_execution_risk_journal_bridge.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ed6f80c9e0f896ddec3bf5ca2e027831f5f08e2c0f3cfc7b3a5f1e5ce6de88be"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_execution_workflow.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_execution_workflow.py",
+    "relative": "bt_api_py/service_execution_workflow.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "cadb6ae6a099f50b7912887dce87f44db61e62c257c63c3b00c89d428dcc147f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_compensation_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_compensation_contracts.py",
+    "relative": "bt_api_py/service_group_compensation_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "f526b571f057321e37d0b052f15eb2757e430134051bffd893b2ff139972ddff"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_contracts.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_contracts.py",
+    "relative": "bt_api_py/service_group_contracts.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "af3b92978b219f86a478372bb3e28ce7318e30ef10c585ac6a816788e8fb9b38"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_monitor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_monitor.py",
+    "relative": "bt_api_py/service_group_monitor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "41ee954cacf970d3acfb1889f4dba84c662a8b0b2f391c5dd28031aefb7ed27b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_reservations.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_reservations.py",
+    "relative": "bt_api_py/service_group_reservations.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "46b3dff14e355951847b4931eef8ae616947a0a05e76b76bdaa32031cf03acf3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_roll_exit.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_roll_exit.py",
+    "relative": "bt_api_py/service_group_roll_exit.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bba1ee3cadd41bee3208bc361dd26e2e8ae38666934e76c53abc135316c65325"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_group_rpc_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_group_rpc_client.py",
+    "relative": "bt_api_py/service_group_rpc_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e88d24fd684cf897bd6610cea80c01150a85fbeee4e71cc12c473bee8252bf1d"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_host.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_host.py",
+    "relative": "bt_api_py/service_host.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "656bf902f9d64551c4af65fd6f983de1d5e3f19f0cdbb050be614e02ec20fc26"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market.py",
+    "relative": "bt_api_py/service_market.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "5b219a1e308035329f2ced98a4d8572a97ec387840aa4f819c51cdbcb04d5d27"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_bindings.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_bindings.py",
+    "relative": "bt_api_py/service_market_bindings.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "763f0c0adfdc117785704078d078ea9e7a9391e229f37833de94c605d948070f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_events.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_events.py",
+    "relative": "bt_api_py/service_market_events.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "68ee2e37816fed7b44fa344e3bc97b06fc0e2f5e2c000d25f5772f613119b2ba"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_history.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_history.py",
+    "relative": "bt_api_py/service_market_history.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "0ec19553515328d03501ce19f5db8ae7e6bea94923cd460bfd2fae41717d2b73"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_legs.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_legs.py",
+    "relative": "bt_api_py/service_market_legs.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "1d6456c25406dd034cb098a71a3e4e412202b784b93e3f1083295bec6571edf2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_monitor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_monitor.py",
+    "relative": "bt_api_py/service_market_monitor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "de2831bd99d0103d09cb7018140f548c61a43945faa223e2787fd78e380a4f52"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_orderbook.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_orderbook.py",
+    "relative": "bt_api_py/service_market_orderbook.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bb247311818efd5d8f60c3c2d1f60603a878047d15d464971a504598923d1714"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_projection.py",
+    "relative": "bt_api_py/service_market_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8fc7e0aaafa78bf144ba9c158b25622c1a4fa0984b7157ded2398c3e90cb8afa"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_stream.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_stream.py",
+    "relative": "bt_api_py/service_market_stream.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "38512f57e03dd69196a7341cd2134ece563e611cdec679e56a377834cc3f7ba6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_stream_owner.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_stream_owner.py",
+    "relative": "bt_api_py/service_market_stream_owner.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "906f8950e12d997178d0521f1d08e2841897481f11a711c636d74968cdbaf3ce"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_market_tick_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_market_tick_projection.py",
+    "relative": "bt_api_py/service_market_tick_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b410043f4b122da1148974b2ad513baa0bd8f7666aff76403f6fdd32a86a52e7"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_migration_boundary.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_migration_boundary.py",
+    "relative": "bt_api_py/service_migration_boundary.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "64538ed78e6f1bf2a1b548f4bd2f685c9a6e21c2df8c35febd6b17b0e491b29e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_migration_gate.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_migration_gate.py",
+    "relative": "bt_api_py/service_migration_gate.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8fdaeed23e74e31c1b360dd6d4139af21805c0322467d7726bf469fceab8020e"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_migration_import.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_migration_import.py",
+    "relative": "bt_api_py/service_migration_import.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d4ec88d69e65e7012e20077cf4a4e5123d3e96f70606c0709ddbb2861073bb71"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_migration_map.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_migration_map.py",
+    "relative": "bt_api_py/service_migration_map.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "f60351439088513a4b36a81ddb7bd9b3f05c47bb2dc64a8152222f8f126990c2"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_monitor.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_monitor.py",
+    "relative": "bt_api_py/service_monitor.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "6fbc850967e8417b5f9e669b3fce8aee23b3987df37099787d316995cc67abd6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_monitor_control.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_monitor_control.py",
+    "relative": "bt_api_py/service_monitor_control.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "effc611db44ff0ccb23ed69871b3d0f5ac2f8b2a93229767a35a2c65a502c741"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_observation_assembly.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_observation_assembly.py",
+    "relative": "bt_api_py/service_observation_assembly.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d8253ee8a86977a0fdb5b41287972564d324da33bc6db2312d402935c6c5bbdd"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_observation_clients.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_observation_clients.py",
+    "relative": "bt_api_py/service_observation_clients.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2370f41b6dd21ec814d85994514cb0765f0ec5eabdf9aee2f9560d9151b734f3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_paper_legacy_import_client.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_paper_legacy_import_client.py",
+    "relative": "bt_api_py/service_paper_legacy_import_client.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3b07312d8ce1e9817494205be26359d68f904322ab8575c0d44f603f143b17a0"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_read_lifecycle.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_read_lifecycle.py",
+    "relative": "bt_api_py/service_read_lifecycle.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8750b90b839e0221f68962960042beb7bab505f9429f12cd6bcdeac2c913b7ef"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_recovery.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_recovery.py",
+    "relative": "bt_api_py/service_recovery.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d56f63a7d0566e4aed2afa863c2d5227e6820cfb5095642adddf87a6d44d5c58"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_recovery_quote.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_recovery_quote.py",
+    "relative": "bt_api_py/service_recovery_quote.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "401ec7935e7584edc536ceb1891d3b0cada7abb0c5a4f39e8e66f3555a7ffb06"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_registry.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_registry.py",
+    "relative": "bt_api_py/service_registry.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e02a458becb33c668f34df34ade11ebb67a9ef1303c799e9485ce10843a26b6c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_risk_group_roll_exit.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_risk_group_roll_exit.py",
+    "relative": "bt_api_py/service_risk_group_roll_exit.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d8662f7aafda262c49b2ef0c01ac115697295d602e4112a15284f5e8b14475a6"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_risk_order_entry.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_risk_order_entry.py",
+    "relative": "bt_api_py/service_risk_order_entry.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "c487f948ced4897c11764dbca7f478b6130081073a7faa4728525679c84e27df"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_risk_order_journal.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_risk_order_journal.py",
+    "relative": "bt_api_py/service_risk_order_journal.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "84dc2498476c7975cedc100e6a7318a1331600756b2293f8a1d0d0df70ab4eaf"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_risk_position_snapshot.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_risk_position_snapshot.py",
+    "relative": "bt_api_py/service_risk_position_snapshot.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "cbb87fb1b9d8cc5135623c7e278eb396c41e10a86b8c7b2845f3177b57040149"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_route_selection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_route_selection.py",
+    "relative": "bt_api_py/service_route_selection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "d99b23b935ed053227889e59c8ba9d514208ce66eab42ea6fb8a605b0d9b94d3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_runtime.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_runtime.py",
+    "relative": "bt_api_py/service_runtime.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "2296ac7732b2a050ac1ac91e1826134203b5c13445ed774878932b1d794448f8"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_runtime_thread.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_runtime_thread.py",
+    "relative": "bt_api_py/service_runtime_thread.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "760fe32cc2a013ea4771ed8767a7ba03d936f1f04ff8489f98153c4bfcf0d077"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_strategy_ledger_host.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_strategy_ledger_host.py",
+    "relative": "bt_api_py/service_strategy_ledger_host.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "62bedae6485bff521cfffd3a71cbf75c8c76a6d33447bd4db67bbe292894e7c3"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/service_telemetry.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/service_telemetry.py",
+    "relative": "bt_api_py/service_telemetry.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "89a8d82e51f2cbb70dcde4bb069053b4d340778b0aeb222343a9183b14175489"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/startup_recovery.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/startup_recovery.py",
+    "relative": "bt_api_py/startup_recovery.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "4764c3d986585b836b1b02ecea42e188e3b535112640b6c0d5393ada2c8d6f77"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/strategy_event_feed.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/strategy_event_feed.py",
+    "relative": "bt_api_py/strategy_event_feed.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "349b60e99f0649008e44b86df2f70af349b14cc7c284ba6fc43efac1fac354c9"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/strategy_ledger.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/strategy_ledger.py",
+    "relative": "bt_api_py/strategy_ledger.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3ad319535d28a4a65126cadcbaf99b897b37228ca87b846ef49b52f67589761f"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/testing/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/testing/__init__.py",
+    "relative": "bt_api_py/testing/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "ad5c4c74ad4299754cbb522ce1c8401e124c1aa5e2f7d82ac44cdbcf08bb3105"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/testing/fixtures.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/testing/fixtures.py",
+    "relative": "bt_api_py/testing/fixtures.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "591cad8a41f97f5a796649c4d95dfb43220933c6eb9867175b4146d14713f827"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/utils/__init__.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/utils/__init__.py",
+    "relative": "bt_api_py/utils/__init__.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "a606304c901dde0f6d2a6e3520560d56841bd3045d9392df9104994654fe6f1a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/utils/hyperliquid_types.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/utils/hyperliquid_types.py",
+    "relative": "bt_api_py/utils/hyperliquid_types.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8960ea276fdbee5d85738e02e2ecbbae5ada178853b0afd1c3ad9b85c08d3898"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/venue_normalization_policy.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/venue_normalization_policy.py",
+    "relative": "bt_api_py/venue_normalization_policy.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "3e1417e8690653e3b969be24e6cb36db241157ba995a9352a43cbc3d8339e98c"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/venue_order_identity.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/venue_order_identity.py",
+    "relative": "bt_api_py/venue_order_identity.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "bcb98a16e5b6a4a48382dad3e41bdd212178ced744da5f5e7044b8b6c36a695b"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/venue_order_side_projection.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/venue_order_side_projection.py",
+    "relative": "bt_api_py/venue_order_side_projection.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "e3760e55058a10925de67fa7aad4d8a8ac13dd800f594ec4693ab4a032102a89"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api_py/write_admission.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/bt_api_py/write_admission.py",
+    "relative": "bt_api_py/write_admission.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "8f7fdb612c250971bc88ccdfa0211f23b8d96aa642ff7fa0ce89e8b21fc1f61a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/pyproject.toml",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/pyproject.toml",
+    "relative": "pyproject.toml",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "b0c8e1f94d383943f0cf763dca792ee63bc166ba3e3374b77502a1b8d5d9820a"
+  },
+  {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "source": "/Users/yunjinqi/Documents/new_projects/bt_api_py/setup.py",
+    "copy": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/source/sdk/setup.py",
+    "relative": "setup.py",
+    "snapshot_head": "de233932957960b553dad75dc1228b3044a90321",
+    "sha256": "f41d8bf09475ce8e1e5089b50418efea72ab25a0e2d9124d3cfdaa032280cd56"
+  }
+]

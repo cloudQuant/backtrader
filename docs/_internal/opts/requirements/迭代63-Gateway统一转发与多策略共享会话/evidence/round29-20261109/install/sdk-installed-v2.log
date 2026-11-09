@@ -1,0 +1,16 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/run_sdk_v2.py"], "pid": 61085, "ppid": 61075, "run_id": "sdk-installed-v2-61085-1794186479920118000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3", "stage": "sdk-installed-v2"}
+RUN_ID sdk-installed-v2-61085-1794186479920118000 PID 61093 PPID 61087 SDK /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install/src/bt_api_py/__init__.py MSGPACK /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install/src/msgpack/__init__.py
+........................................................................ [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 72%]
+........................................................................ [ 96%]
+.........                                                                [100%]
+=============================== warnings summary ===============================
+../../../../tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install/src/backtrader/feeds/__init__.py:56
+  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+297 passed, 1 warning in 13.52s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

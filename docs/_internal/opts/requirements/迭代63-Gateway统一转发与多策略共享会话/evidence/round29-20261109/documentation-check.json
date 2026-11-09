@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/分轮合同冻结稿-2026-11-08.md",
+      "sha256": "deb4fe2b2fc4526ac0a74822bc65bd21a121f4a4a53280560b54a4f17c6cc1cd"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发问题记录.md",
+      "sha256": "a4aa4c677187683194dabc1aab686e33f8b30462b68e668d987a1a7d90a69fa6"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/实施基线与分轮记录-2026-11-08.md",
+      "sha256": "149a0974660e6e1e848f1635307712d5b71e173a7b32b49b2c6b3b107b956a0e"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/计划修改记录.md",
+      "sha256": "85599a778ac0c132bbd405e6cf326971749e81c14c4e7b3154ca49dfceb6df3f"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发验收状态矩阵.md",
+      "sha256": "f0e0be19bde295853b780e17b1db19083f4bd9e675eb2097fd112344e160e320"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/README.md",
+      "sha256": "4de33a83d60c399521796ab9da2d8a955ded39eb3c24515849b5cee30a9fa6d9"
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十九轮SDK显式Gateway入口审阅-2026-11-09.md",
+      "sha256": "c02477359ac5944e5a4c3f6e32fe2c152b33a12a3bc7d9e8d700fefbbce54f55"
+    }
+  ],
+  "local_links_checked": 228,
+  "utf8_bom": true,
+  "replacement_characters": 0,
+  "diff_check": true,
+  "powershell_51": "NOT_RUN"
+}

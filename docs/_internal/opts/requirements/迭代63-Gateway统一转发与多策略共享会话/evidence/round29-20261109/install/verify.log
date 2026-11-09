@@ -1,0 +1,7 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify.py"], "pid": 60841, "ppid": 60831, "run_id": "verify-60841-1794186411510080000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3", "stage": "verify"}
+VERIFIED source-manifest.json 314
+VERIFIED test-manifest.json 35
+PRIMARY_FROZEN_INPUTS_OK 17
+FIXED_WHEELS_OK 7
+SDK_PAYLOAD_ALL_MATCH 309 README_METADATA_OK SDK_WHEEL_SHA256 5d356b565675411947dfa0f1b73e0845e7c2cc707d24a2323e183957eb8046f0
+RUN_EXIT 0

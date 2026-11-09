@@ -1,0 +1,33 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r29-primary/run.py"], "origin_log_group": "sdk-60568-1794186356248154000", "pid": 60568, "ppid": 60562, "run_id": "sdk-60568-1794186356248154000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3"}
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r29-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+.............................................................F.......... [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 72%]
+........................................................................ [ 96%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_____ test_retired_runtime_modules_are_absent_after_normal_package_import ______
+tests/test_mig01_gateway_entrypoints_retired.py:71: in test_retired_runtime_modules_are_absent_after_normal_package_import
+    result = subprocess.run(
+../../../opt/anaconda3/lib/python3.11/subprocess.py:571: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['/Users/yunjinqi/opt/anaconda3/bin/python', '-c', '\nimport importlib.util\nimport json\nimport sys\nfrom pathlib import Path\n\nimport bt_api_py\nimport bt_api_py.runtime_plugins as runtime_plugins\n\nroot = Path(bt_api_py.__file__).resolve().parent\nnames = (\n    "bt_api_py.forwarding",\n    "bt_api_py.gateway",\n    "bt_api_py._gateway_wire",\n    "bt_api_py.runtime_plugins.gateway_dispatch",\n)\nmodules = {name: importlib.util.find_spec(name) is not None for name in names}\nprint(json.dumps({\n    "package_file": str(Path(bt_api_py.__file__).resolve()),\n    "runtime_plugins_file": str(Path(runtime_plugins.__file__).resolve()),\n    "modules": modules,\n    "loaded": sorted(name for name in sys.modules if name in names),\n}))\n']' returned non-zero exit status 1.
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /tmp/iter63-r29-primary/sdk-source.xml ----------
+=========================== short test summary info ============================
+FAILED tests/test_mig01_gateway_entrypoints_retired.py::test_retired_runtime_modules_are_absent_after_normal_package_import
+1 failed, 296 passed, 2 warnings in 13.48s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 1 RUN_ID sdk-60568-1794186356248154000
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r29-primary/run.py` failed. (See above for error)

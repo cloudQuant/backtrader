@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all.py", line 26, in <module>
+    b=check(installed_records,read_target)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all.py", line 12, in check
+    data=read(name);digest=base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b'=').decode()
+         ^^^^^^^^^^
+  File "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all.py", line 24, in read_target
+    if not p.is_relative_to(target.resolve()):raise RuntimeError(('unsafe installed record path',n))
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: ('unsafe installed record path', '../../bin/bt-gateway-operator')
+ERROR conda.cli.main_run:execute(125): `conda run python /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify_wheel_all.py` failed. (See above for error)

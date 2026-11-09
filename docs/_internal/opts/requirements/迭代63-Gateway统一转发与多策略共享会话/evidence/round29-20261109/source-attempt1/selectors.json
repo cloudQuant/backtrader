@@ -1,0 +1,18 @@
+{
+  "sdk": [
+    "tests/unit/test_iter63_gateway_api.py",
+    "tests/integration/test_iter63_gateway_api_process.py",
+    "tests/test_mig01_gateway_entrypoints_retired.py",
+    "tests/unit/test_iter63_gateway_strategy_client.py",
+    "tests/integration/test_iter63_gateway_strategy_client.py",
+    "tests/integration/test_iter63_strategy_read_session.py",
+    "tests/unit/test_iter63_gateway_cancel_client.py",
+    "tests/unit/test_iter63_gateway_strategy_instrument.py",
+    "tests/unit/test_iter63_gateway_direct_client.py",
+    "tests/unit/test_gateway_strategy_market.py",
+    "tests/unit/test_gateway_strategy_account.py",
+    "tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "tests/unit/test_iter63_async_market_client.py",
+    "tests/unit/test_iter63_service_runtime_thread.py"
+  ]
+}

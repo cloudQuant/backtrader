@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="2.160" timestamp="2026-11-09T08:54:53.224743+08:00" hostname="MacBook-Air-3.local"><testcase classname="tests.integration.test_iter63_gateway_api_process" name="test_gateway_facade_process_commands_stream_and_session_ownership" time="1.131"><failure message="AssertionError: assert ('count', 0) == ('count', 1)&#10;  &#10;  At index 1 diff: 0 != 1&#10;  Use -v to get more diff">tests/integration/test_iter63_gateway_api_process.py:111: in test_gateway_facade_process_commands_stream_and_session_ownership
+    assert messages.get(timeout=5) == ("count", 1)
+E   AssertionError: assert ('count', 0) == ('count', 1)
+E     
+E     At index 1 diff: 0 != 1
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.integration.test_iter63_gateway_api_process" name="test_gateway_facade_delegates_configured_account_read" time="0.042" /></testsuite></testsuites>

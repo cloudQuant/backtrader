@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/setup_harness.py", "tests"], "pid": 60723, "ppid": 60713, "run_id": "tests-60723-1794186393895628000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3", "stage": "tests"}
+TEST_ROWS 35 SDK_AST_FILES 35 CTP_FROZEN_HELPERS 0
+RUN_EXIT 0

@@ -1,0 +1,10 @@
+90153f17eaf361bb822f02009254d2434e1a70ebfe0c26dafefac01dcdc76105  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/setup_harness.py
+4810f3b4637796967dadb65319be7216089707e5d688f572dee7087ef14d0316  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/launch_v2.py
+ba573a314a4d4831e7c936737bc564a022617cf5c949de81edf749576dddfa1e  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/run_sdk_v2.py
+db24454459b842ae4ad021722d70a16e5a1806c81a019aca74683833d984622a  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/verify.py
+ac3b3575d82b6db09aa4d41c4d503a90e8bfd482ce86991dd15e986202eb1bd6  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/guard_preflight.py
+481da6cc7654b8d6ba9da0c11c624dc35f2186472bdd788f7d273281ade221df  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/audit_run.py
+d600ec6fbeb44227160aa2c51f3b4c5bd1ad5225de7a04c08800bd6ac4019750  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/capture_editable_deps.py
+ca2781b57993de547e5504a3b9c90c3d4e1fc248c84a83d268f2ab6643ec94f7  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/origin_guard.py
+1666f409a6a439de49f7f87f777138d7aea7b5c2f5be332a3478b7eb85eec3fc  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/offline_guard.py
+fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf  /tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/bootstrap/sitecustomize.py

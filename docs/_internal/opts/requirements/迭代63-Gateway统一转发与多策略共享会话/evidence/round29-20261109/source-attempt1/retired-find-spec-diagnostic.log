@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "<stdin>", line 8, in <module>
+  File "<frozen importlib.util>", line 103, in find_spec
+  File "<frozen importlib._bootstrap>", line 1078, in _find_spec
+  File "/tmp/iter63-r29-primary/bootstrap/origin_guard.py", line 43, in find_spec
+    raise ModuleNotFoundError('source module unavailable: '+fullname, name=fullname)
+ModuleNotFoundError: source module unavailable: bt_api_py.gateway
+ERROR conda.cli.main_run:execute(125): `conda run python -I -` failed. (See above for error)

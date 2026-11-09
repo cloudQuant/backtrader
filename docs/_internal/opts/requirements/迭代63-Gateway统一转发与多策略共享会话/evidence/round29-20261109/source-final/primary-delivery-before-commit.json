@@ -1,0 +1,20 @@
+{
+  "mode": "before-commit",
+  "sdk_head": "de233932957960b553dad75dc1228b3044a90321",
+  "selectors": 14,
+  "frozen_inputs": 17,
+  "manifest_rows": {
+    "source-manifest.json": 314,
+    "test-manifest.json": 35
+  },
+  "unique_paths": 349,
+  "sdk_payload_members": 309,
+  "readme_raw_bytes_match": true,
+  "sdk_wheel": "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+  "sdk_wheel_sha256": "5d356b565675411947dfa0f1b73e0845e7c2cc707d24a2323e183957eb8046f0",
+  "source_recorded_processes": 7,
+  "install_recorded_processes": 7,
+  "missing_exit_audits": 0,
+  "all_bytes_verified": true,
+  "git_verified": false
+}

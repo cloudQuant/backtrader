@@ -1,0 +1,1 @@
+{"argv": ["python", "-I", "/tmp/iter63-r29-primary/run.py"], "exit_code": 1, "finished_ns": 1794186370059390000, "kind": "sdk", "pid": 60568, "ppid": 60562, "run_id": "sdk-60568-1794186356248154000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3", "started_ns": 1794186356261152000}

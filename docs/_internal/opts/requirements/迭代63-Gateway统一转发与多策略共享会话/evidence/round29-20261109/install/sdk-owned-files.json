@@ -1,0 +1,8 @@
+[
+  "bt_api_py/bt_api.py",
+  "bt_api_py/gateway_api.py",
+  "tests/unit/test_iter63_gateway_api.py",
+  "tests/test_mig01_gateway_entrypoints_retired.py",
+  "tests/integration/test_iter63_gateway_api_process.py",
+  "README.md"
+]

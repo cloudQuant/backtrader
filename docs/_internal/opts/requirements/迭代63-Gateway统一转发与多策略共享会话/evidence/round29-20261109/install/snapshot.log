@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r29-sdk-install-20261109-pht8FUZ4/setup_harness.py", "snapshot"], "pid": 60698, "ppid": 60684, "run_id": "snapshot-60698-1794186391605234000", "selector_sha256": "cdd51be021d00c0aa4d28193c2201ad2b1cd404d3734e2aeda0b95d40de0e1e3", "stage": "snapshot"}
+SOURCE_ROWS 314 EXTRA ['bt_api_py/gateway_api.py']
+RUN_EXIT 0

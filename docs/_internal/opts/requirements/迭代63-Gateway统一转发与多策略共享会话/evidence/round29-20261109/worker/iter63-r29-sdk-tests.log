@@ -1,0 +1,21 @@
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/unit/test_iter63_gateway_api.py tests/unit/test_iter63_gateway_strategy_client.py tests/unit/test_iter63_gateway_direct_client.py tests/test_mig01_gateway_entrypoints_retired.py tests/bt_api_contract/test_direct_zmq_bt_api_contract.py tests/bt_api_contract/test_normalized_public_api.py::test_direct_gateway_wire_config_is_rejected_before_runtime_setup` failed. (See above for error)
+........................................................................ [ 68%]
+..........................F......                                        [100%]
+=================================== FAILURES ===================================
+_________ test_direct_btapi_without_legacy_inputs_keeps_normal_backend _________
+tests/test_mig01_gateway_entrypoints_retired.py:215: in test_direct_btapi_without_legacy_inputs_keeps_normal_backend
+    assert legacy_modules_after == legacy_modules_before == set()
+E   AssertionError: assert {'bt_api_py.g...account', ...} == set()
+E     
+E     Extra items in the left set:
+E     'bt_api_py.gateway_direct_client'
+E     'bt_api_py.gateway_instrument_spec_codec'
+E     'bt_api_py.gateway_api'
+E     'bt_api_py.gateway_strategy_account'
+E     'bt_api_py.gateway_order_contract'...
+E     
+E     ...Full output truncated (5 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_mig01_gateway_entrypoints_retired.py::test_direct_btapi_without_legacy_inputs_keeps_normal_backend
+1 failed, 104 passed in 2.77s
+

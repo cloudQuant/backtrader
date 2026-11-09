@@ -1,0 +1,9 @@
+{
+  "scope": "R29 explicit GatewayBtApi, no full BT consumer or account acceptance",
+  "initial_product_sha256": "c8693a571f152b01acf0385e62bb01ad7f30338034a139089574922a2f46630e",
+  "finding": "E070 detected binding changes prevented owned facade from closing the original runtime",
+  "final_product_sha256": "70c8fa28d852df3a109515842d594ad2ad455ee2c9ed090f87b2936b8d480eb6",
+  "independent_recheck": "original-PID borrowed/owned cleanup reproduced with synthetic session; business calls still rejected; no further definite issue in limited scope",
+  "primary_acceptance": "source and installed same14 297 passed; primary reviewed diff and independently verified all manifests, package payload and Git bytes",
+  "account_tested": false
+}
