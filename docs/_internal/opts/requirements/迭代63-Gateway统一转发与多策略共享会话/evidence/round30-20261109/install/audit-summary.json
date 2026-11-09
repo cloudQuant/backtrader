@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "base",
+    "run_id": "base-frozen-final-69178-1794188231180328000",
+    "processes": 1,
+    "missing_exit": 0
+  },
+  {
+    "kind": "gateway",
+    "run_id": "gateway-frozen-final-69174-1794188231153024000",
+    "processes": 14,
+    "missing_exit": 8
+  },
+  {
+    "kind": "ctp",
+    "run_id": "ctp-frozen-final-69175-1794188231158204000",
+    "processes": 1,
+    "missing_exit": 0
+  },
+  {
+    "kind": "sdk",
+    "run_id": "sdk-frozen-final-69173-1794188231128132000",
+    "processes": 9,
+    "missing_exit": 0
+  },
+  {
+    "kind": "bt",
+    "run_id": "bt-frozen-final-69176-1794188231157514000",
+    "processes": 17,
+    "missing_exit": 0
+  }
+]

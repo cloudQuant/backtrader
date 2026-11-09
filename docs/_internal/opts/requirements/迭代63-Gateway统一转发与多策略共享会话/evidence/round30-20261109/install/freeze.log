@@ -1,0 +1,5 @@
+INPUTS_OK base 8 OWNED 4 NEW_RUNTIME [] NEW_TESTS ['tests/test_iter63_gateway_trade_date_protocol.py']
+INPUTS_OK gateway 50 OWNED 9 NEW_RUNTIME [] NEW_TESTS ['tests/test_iter63_trade_date_journal.py']
+INPUTS_OK ctp 8 OWNED 3 NEW_RUNTIME [] NEW_TESTS ['tests/test_iter63_gateway_trade_date_projection.py']
+INPUTS_OK sdk 9 OWNED 3 NEW_RUNTIME [] NEW_TESTS ['tests/integration/test_iter63_trade_date_stream.py']
+INPUTS_OK bt 18 OWNED 2 NEW_RUNTIME [] NEW_TESTS ['tests/unit/live_state/test_iter63_gateway_trade_date_pending.py']

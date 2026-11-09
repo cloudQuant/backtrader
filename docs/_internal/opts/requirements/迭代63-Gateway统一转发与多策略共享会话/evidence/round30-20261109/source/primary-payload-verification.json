@@ -1,0 +1,47 @@
+{
+  "source_manifest_rows": 1456,
+  "packages": [
+    {
+      "kind": "base",
+      "members": 167,
+      "wheel": "bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "6adcaf19163bf8a020f3e39653b217280c8d7244c2f3903a4cb5b4b0d6ca70a0",
+      "readme_sha256": "32535a356f11f38352775eb7d626879bb942cd14167a332d2d4872fb543eb627",
+      "readme_metadata_exact": true
+    },
+    {
+      "kind": "gateway",
+      "members": 27,
+      "wheel": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "696966a55fe378189993c7f150a2fff2e2bc23ce25d3f8b5bdb792b9b7b7729c",
+      "readme_sha256": "a29e2a98c04815525c5be7c20c326542a059f277950873544ab7d92581bb242a",
+      "readme_metadata_exact": true
+    },
+    {
+      "kind": "ctp",
+      "members": 204,
+      "wheel": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "668e65387d088dd0994fab18c1e151a6e42011cfea4dc8c4275f5c014860b00f",
+      "readme_sha256": "969a290bddea174b6db973b01821dffeacc31c545519987dfb00ddee32df482c",
+      "readme_metadata_exact": true
+    },
+    {
+      "kind": "sdk",
+      "members": 309,
+      "wheel": "bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "a246f199af2d18113c0646f6ac2c4735b7abd47cba61f325214077b53f34c25b",
+      "readme_sha256": "996edfe182c86c45674497c82deec0c0980799290fde55e3ab8cc6a2a6baa3c1",
+      "readme_metadata_exact": true
+    },
+    {
+      "kind": "bt",
+      "members": 680,
+      "wheel": "back_trader_python-1.4.0-py3-none-any.whl",
+      "sha256": "58d391e537d43281c3f97d4b1287b8b7262b0d4800186f4b985077c18ba932e9",
+      "readme_sha256": "18aac49f7e6a595c3b11740659423585b7dd442d507ef6f76a3fbccdbf8121d8",
+      "readme_metadata_exact": true
+    }
+  ],
+  "native_reused": 21,
+  "native_origin_wheel_sha256": "56e9618be0202ea2c935d784179201f5ea9f79b9656398ad83727ad015485134"
+}

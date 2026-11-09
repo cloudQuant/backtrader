@@ -1,0 +1,18 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r30-primary/run.py"], "origin_log_group": "ctp-68446-1794188145721954000", "pid": 68446, "ppid": 68417, "run_id": "ctp-68446-1794188145721954000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2"}
+SOURCE_ROOT ctp /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp SELECTORS /tmp/iter63-r30-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [ 29%]
+........................................................................ [ 58%]
+........................................................................ [ 87%]
+..............................                                           [100%]
+=============================== warnings summary ===============================
+../../../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /tmp/iter63-r30-primary/ctp-source.xml ----------
+246 passed, 1 warning in 2.54s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID ctp-68446-1794188145721954000

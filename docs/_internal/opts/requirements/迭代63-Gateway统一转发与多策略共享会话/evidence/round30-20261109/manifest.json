@@ -1,0 +1,1813 @@
+{
+  "round": "R30",
+  "date": "2026-11-09",
+  "evidence_level": "local synthetic source and isolated installed package checks",
+  "files": [
+    {
+      "path": "source/SOURCE_FROZEN",
+      "source": "/tmp/iter63-r30-primary/SOURCE_FROZEN",
+      "sha256": "1708e997d5cad56b1a4f0db5e46935efd4046286daec42c16dd0c2d471529bee",
+      "bytes": 99
+    },
+    {
+      "path": "source/archive_round30.py",
+      "source": "/tmp/iter63-r30-primary/archive_round30.py",
+      "sha256": "927b2bf664e70062760bea31486b1f91a442f4682ca5c6c472528792862f1b48",
+      "bytes": 4234
+    },
+    {
+      "path": "source/audit_run.py",
+      "source": "/tmp/iter63-r30-primary/audit_run.py",
+      "sha256": "31c6a1beb211075a2e552e290cb31dc6be85526e95cc3ef2460a91f7c394db33",
+      "bytes": 1291
+    },
+    {
+      "path": "source/base-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary/base-frozen-inputs.json",
+      "sha256": "de8a57a5c05eaa4c6f717c1c50b9c9dae5d77875e90a316b27af1863e54abf18",
+      "bytes": 1191
+    },
+    {
+      "path": "source/base-owned-files.json",
+      "source": "/tmp/iter63-r30-primary/base-owned-files.json",
+      "sha256": "433076154060ecebd673db17dc2208f4dd3922c65eef906f4cfdea366d8a5ff7",
+      "bytes": 181
+    },
+    {
+      "path": "source/base-ruff.log",
+      "source": "/tmp/iter63-r30-primary/base-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "source/base-source.log",
+      "source": "/tmp/iter63-r30-primary/base-source.log",
+      "sha256": "edcd88645a357b78e6169c891fd58ff6f43ecb9ba7d1dc56ca6f920b923f110a",
+      "bytes": 1110
+    },
+    {
+      "path": "source/base-source.xml",
+      "source": "/tmp/iter63-r30-primary/base-source.xml",
+      "sha256": "e109576f88280376d93ce302a378d129c84133fb0054461b15a2f8f69c9f53d7",
+      "bytes": 36632
+    },
+    {
+      "path": "source/bt-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary/bt-frozen-inputs.json",
+      "sha256": "9654cfb532fb96363c04efbd9247fa27939f506239a96400255d716003caf2ca",
+      "bytes": 2804
+    },
+    {
+      "path": "source/bt-owned-files.json",
+      "source": "/tmp/iter63-r30-primary/bt-owned-files.json",
+      "sha256": "47822508e2eb02ec081bb05a0908a122a7e68be93874d49cc42fee06022fb242",
+      "bytes": 126
+    },
+    {
+      "path": "source/bt-ruff.log",
+      "source": "/tmp/iter63-r30-primary/bt-ruff.log",
+      "sha256": "57ba81c0bef95a884ed7572a72f205904da929196ba0fb4d337e081daecc0852",
+      "bytes": 1215
+    },
+    {
+      "path": "source/bt-source-native.json",
+      "source": "/tmp/iter63-r30-primary/bt-source-native.json",
+      "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+      "bytes": 302
+    },
+    {
+      "path": "source/bt-source.log",
+      "source": "/tmp/iter63-r30-primary/bt-source.log",
+      "sha256": "da171fb810f951dd2e84e9ffe8f3133b19ae7489f99edabb5d220686998ea019",
+      "bytes": 1531
+    },
+    {
+      "path": "source/bt-source.xml",
+      "source": "/tmp/iter63-r30-primary/bt-source.xml",
+      "sha256": "9471b139d29772ee380ee3d3844810ee9c5b2b0b5af6505b5360a0c5d3205586",
+      "bytes": 45633
+    },
+    {
+      "path": "source/compare_old_codec.py",
+      "source": "/tmp/iter63-r30-primary/compare_old_codec.py",
+      "sha256": "fc01f65156066f7b511e0e70efb0ecdb163fa802b27437a484dd390fba481223",
+      "bytes": 1560
+    },
+    {
+      "path": "source/compare_old_codec_pinned.py",
+      "source": "/tmp/iter63-r30-primary/compare_old_codec_pinned.py",
+      "sha256": "b5c290bda16513c47bcf5beaeb0b258ec568d34577dd7f6c28ede31e7aa2a803",
+      "bytes": 1522
+    },
+    {
+      "path": "source/ctp-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary/ctp-frozen-inputs.json",
+      "sha256": "33d7ef9ebb424b21f3b06a176ea195e796a67f59b2292352cfa221edb2690005",
+      "bytes": 1169
+    },
+    {
+      "path": "source/ctp-owned-files.json",
+      "source": "/tmp/iter63-r30-primary/ctp-owned-files.json",
+      "sha256": "1fd83806a7b965ecfdb2dc793835f6b0391330772ee81d4a81035b80f4672a06",
+      "bytes": 123
+    },
+    {
+      "path": "source/ctp-ruff.log",
+      "source": "/tmp/iter63-r30-primary/ctp-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "source/ctp-source-native.json",
+      "source": "/tmp/iter63-r30-primary/ctp-source-native.json",
+      "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+      "bytes": 302
+    },
+    {
+      "path": "source/ctp-source.log",
+      "source": "/tmp/iter63-r30-primary/ctp-source.log",
+      "sha256": "ca7b4558f9cb56df19f1ce1eaed8c2c68b21485c0f4152d9d93c944d2c2cb0d4",
+      "bytes": 1477
+    },
+    {
+      "path": "source/ctp-source.xml",
+      "source": "/tmp/iter63-r30-primary/ctp-source.xml",
+      "sha256": "a4098249cfc288c3f10bb459ee89970d47a45519236fffb6e0b76bda32c7fd5f",
+      "bytes": 36762
+    },
+    {
+      "path": "source/gateway-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary/gateway-frozen-inputs.json",
+      "sha256": "984d541bfcfd5f53bcf3860f9ee30562cf2ef86bfcefe5b93845e3aa7087b6f3",
+      "bytes": 7146
+    },
+    {
+      "path": "source/gateway-owned-files.json",
+      "source": "/tmp/iter63-r30-primary/gateway-owned-files.json",
+      "sha256": "df0a4fdc50c169edcda8358fc1e16241e9b3daed972a61c4048d85d5b638e514",
+      "bytes": 410
+    },
+    {
+      "path": "source/gateway-ruff.log",
+      "source": "/tmp/iter63-r30-primary/gateway-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "source/gateway-source.log",
+      "source": "/tmp/iter63-r30-primary/gateway-source.log",
+      "sha256": "f219bfd9fa98c5fb90dc932e861b2f8d8444cf67ede9a305415af6dbfa3e8c5e",
+      "bytes": 1719
+    },
+    {
+      "path": "source/gateway-source.xml",
+      "source": "/tmp/iter63-r30-primary/gateway-source.xml",
+      "sha256": "3e244f9440c329111722ad2e85da332d8597f8415a3539838c2c1ff3c81b7827",
+      "bytes": 126589
+    },
+    {
+      "path": "source/launcher-executions.jsonl",
+      "source": "/tmp/iter63-r30-primary/launcher-executions.jsonl",
+      "sha256": "fd500d42e3d8848e6c8f72508255f656eafd20f0d86b229e5f1cbd2659dff4e1",
+      "bytes": 3509
+    },
+    {
+      "path": "source/new-codec.json",
+      "source": "/tmp/iter63-r30-primary/new-codec.json",
+      "sha256": "2a85166a3eab68bdf3a011fb5caef9651acf534fce430861a9236d0e9c6808ab",
+      "bytes": 6750
+    },
+    {
+      "path": "source/old-codec-origin.json",
+      "source": "/tmp/iter63-r30-primary/old-codec-origin.json",
+      "sha256": "34ba71a1d03aba8977b45db6b3b34422abe81e123581f2efb90909efc19c8b25",
+      "bytes": 298
+    },
+    {
+      "path": "source/old-codec-pinned-comparison.log",
+      "source": "/tmp/iter63-r30-primary/old-codec-pinned-comparison.log",
+      "sha256": "a41340abfa168911e06be1141657955cbd0470089a09b3b4a6fb0fcd401082c3",
+      "bytes": 220
+    },
+    {
+      "path": "source/old-codec.json",
+      "source": "/tmp/iter63-r30-primary/old-codec.json",
+      "sha256": "2a85166a3eab68bdf3a011fb5caef9651acf534fce430861a9236d0e9c6808ab",
+      "bytes": 6750
+    },
+    {
+      "path": "source/primary-delivery-committed.json",
+      "source": "/tmp/iter63-r30-primary/primary-delivery-committed.json",
+      "sha256": "5d06b33ff61a03b4e3b8c16cb42e7cdc1bd49240eaea5b0f2e2874ead37b6152",
+      "bytes": 875
+    },
+    {
+      "path": "source/primary-payload-verification.json",
+      "source": "/tmp/iter63-r30-primary/primary-payload-verification.json",
+      "sha256": "5667bf679329af8fd0c548945d209e2f73553c6b62e1ad8e7adfcaf5b5f73cce",
+      "bytes": 1831
+    },
+    {
+      "path": "source/primary-verifier-correction.json",
+      "source": "/tmp/iter63-r30-primary/primary-verifier-correction.json",
+      "sha256": "f11d3d23a46bec9aa190aef3ebad268f63f4b5604b582480156369b2e0f70f51",
+      "bytes": 679
+    },
+    {
+      "path": "source/primary_verify_delivery.py",
+      "source": "/tmp/iter63-r30-primary/primary_verify_delivery.py",
+      "sha256": "9dda0814a9f17010df7508210c577411d3ad1d1267c2691fdb4362703f524a6f",
+      "bytes": 2171
+    },
+    {
+      "path": "source/primary_verify_payloads.py",
+      "source": "/tmp/iter63-r30-primary/primary_verify_payloads.py",
+      "sha256": "4ffdc94c3526d013c334414b4f64285773bf9cec187c9381799ac3ed7358af60",
+      "bytes": 2889
+    },
+    {
+      "path": "source/primary_verify_payloads_v2.py",
+      "source": "/tmp/iter63-r30-primary/primary_verify_payloads_v2.py",
+      "sha256": "4a57356e13f0e95fa0995e108ae3116424445699c1761da6243e78d08aececc7",
+      "bytes": 3237
+    },
+    {
+      "path": "source/primary_verify_payloads_v3.py",
+      "source": "/tmp/iter63-r30-primary/primary_verify_payloads_v3.py",
+      "sha256": "b59e1638822d65ad37529a2ce63dce1304c81df05d39f3b1cb8bd5d198561daa",
+      "bytes": 3302
+    },
+    {
+      "path": "source/product-commits.json",
+      "source": "/tmp/iter63-r30-primary/product-commits.json",
+      "sha256": "2d557569956fb84cd69569a05f07480644fde60bae7417917f07e985a5bb8fbf",
+      "bytes": 3099
+    },
+    {
+      "path": "source/run.py",
+      "source": "/tmp/iter63-r30-primary/run.py",
+      "sha256": "a6bc40768e5f0771c4ce7dedcb7929aae0eea8ae6090f7ae21144037886f6d47",
+      "bytes": 4447
+    },
+    {
+      "path": "source/run_source.py",
+      "source": "/tmp/iter63-r30-primary/run_source.py",
+      "sha256": "653f2a62b5503a481b32568242314bbbfb0cf6d6b38c93693360b7fda2bf53f2",
+      "bytes": 2885
+    },
+    {
+      "path": "source/sdk-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary/sdk-frozen-inputs.json",
+      "sha256": "64056ce09f697f01a7380f5639b1d56d19e0305a6bb4f90dd307d6e269ed270e",
+      "bytes": 1419
+    },
+    {
+      "path": "source/sdk-owned-files.json",
+      "source": "/tmp/iter63-r30-primary/sdk-owned-files.json",
+      "sha256": "423daa8d9c362a5a3f90e5acbdb09a4e9263ef8eb10d183801331c802343a63e",
+      "bytes": 125
+    },
+    {
+      "path": "source/sdk-ruff.log",
+      "source": "/tmp/iter63-r30-primary/sdk-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "source/sdk-source-native.json",
+      "source": "/tmp/iter63-r30-primary/sdk-source-native.json",
+      "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+      "bytes": 302
+    },
+    {
+      "path": "source/sdk-source.log",
+      "source": "/tmp/iter63-r30-primary/sdk-source.log",
+      "sha256": "af8da8c7bd3184bc05bc1a55e5be5e8a09aac699d88dc38f492b30e18877a4f6",
+      "bytes": 1597
+    },
+    {
+      "path": "source/sdk-source.xml",
+      "source": "/tmp/iter63-r30-primary/sdk-source.xml",
+      "sha256": "ddb5fe1ba5d38aafa174125556141e549c1b1396dda79f6812892d799ce8af84",
+      "bytes": 13269
+    },
+    {
+      "path": "source/selectors-DRAFT.json",
+      "source": "/tmp/iter63-r30-primary/selectors-DRAFT.json",
+      "sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2",
+      "bytes": 4235
+    },
+    {
+      "path": "source/selectors.json",
+      "source": "/tmp/iter63-r30-primary/selectors.json",
+      "sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2",
+      "bytes": 4235
+    },
+    {
+      "path": "source/source-audit-summary.json",
+      "source": "/tmp/iter63-r30-primary/source-audit-summary.json",
+      "sha256": "32d604d71c71ed948e1c8a8d4b55785bd4c0f8e2801b371676b52de50cc73d2d",
+      "bytes": 7813
+    },
+    {
+      "path": "source/source-executions.jsonl",
+      "source": "/tmp/iter63-r30-primary/source-executions.jsonl",
+      "sha256": "6adddabb33907fbe16808a9efc260d6850fc1a264a0ff8b05fb5eeaf8f7c7aab",
+      "bytes": 1618
+    },
+    {
+      "path": "source/bootstrap/offline_guard.py",
+      "source": "/tmp/iter63-r30-primary/bootstrap/offline_guard.py",
+      "sha256": "63aafec282aefe795c6ae65edcf64110dc202587ab70578c8ca1239ba12fe6b6",
+      "bytes": 5947
+    },
+    {
+      "path": "source/bootstrap/origin_guard.py",
+      "source": "/tmp/iter63-r30-primary/bootstrap/origin_guard.py",
+      "sha256": "1117316d4d957a032319d3936adf041db47f3340ee2f825f859d2cfde2bd04a0",
+      "bytes": 3166
+    },
+    {
+      "path": "source/bootstrap/sitecustomize.py",
+      "source": "/tmp/iter63-r30-primary/bootstrap/sitecustomize.py",
+      "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "bytes": 165
+    },
+    {
+      "path": "source/origin-logs/base-68450-1794188145784947000/68450.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/base-68450-1794188145784947000/68450.jsonl",
+      "sha256": "316c15c8c07d60a171c9f7e5f7ef52a78b211abb542a40a842f93c485b7f2c9c",
+      "bytes": 6873
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68448.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68448.jsonl",
+      "sha256": "a020d289d874ab79636d30f19c87d19ec4a4733c062334043de6023eb10249cc",
+      "bytes": 421922
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68459.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68459.jsonl",
+      "sha256": "2ac4f7d2f13678516eab3c730bf630e9ac9675012adaf5093d7519ef830eac50",
+      "bytes": 328978
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68462.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68462.jsonl",
+      "sha256": "802bd3f68e4436063da0f85e17bd3bdae2225bd6c179690ca061c642ba402c52",
+      "bytes": 328978
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68464.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68464.jsonl",
+      "sha256": "5584f7937fcaa6ffa327062470e956f40695e80091e44eca1d42dca20808eb51",
+      "bytes": 328978
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68469.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68469.jsonl",
+      "sha256": "4d8d0f7ce98d9ab9d439c95d7c79c87f622a000b64b27539f55197b746021112",
+      "bytes": 310059
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68473.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68473.jsonl",
+      "sha256": "bc301908985704f4d043e8a43050c6e2fa731284ebcc47bf6899484c2d5c56e5",
+      "bytes": 310059
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68480.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68480.jsonl",
+      "sha256": "4a4fd8a9d9afeb76cedc5cc6456297710756424c1d3bc94264d962ef880865c5",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68481.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68481.jsonl",
+      "sha256": "66caa9e0aa1517b9b746d2e36905274c77727d97eb9e263ce66793c90a6d6a32",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68494.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68494.jsonl",
+      "sha256": "014fc68a4122f09c80c7d3ede6ebdffbf222ab8900b576707d7e331ed6703b2a",
+      "bytes": 253605
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68503.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68503.jsonl",
+      "sha256": "fe2ac98af450f0658a0e3f1807afe52304c3d0bc097a398decf364bb15796957",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68504.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68504.jsonl",
+      "sha256": "405813c56eab9aac204ca8374005942ace845773912ebaa68d4495bb5f5eae31",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68508.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68508.jsonl",
+      "sha256": "22c5e1ea55fc447b502012748346e882be3e71047e45be09df9b543298702909",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68509.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68509.jsonl",
+      "sha256": "551f0e249bc4c8394ebbdaf4379220a6b0ac5a6518d0854735fe84473ddf454e",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68517.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68517.jsonl",
+      "sha256": "abd33f6dc363c1648ead6b745ae889abbd800702639668abc6073a2f03e3043d",
+      "bytes": 307660
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68523.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68523.jsonl",
+      "sha256": "f3263ca9fe5f3702ab6d11af6e0de6aa738178d6aa5d3925814948335904eb60",
+      "bytes": 64852
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68524.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68524.jsonl",
+      "sha256": "6c48600735858ce08f56098d6cfc415714c6cbed544c78022590c0ec10aab780",
+      "bytes": 64852
+    },
+    {
+      "path": "source/origin-logs/bt-68448-1794188145735095000/68527.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/bt-68448-1794188145735095000/68527.jsonl",
+      "sha256": "9984db8ee7944d33bb58f83f7566caf2351f03dd4b63176e1a28ebd523369595",
+      "bytes": 65798
+    },
+    {
+      "path": "source/origin-logs/ctp-68446-1794188145721954000/68446.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/ctp-68446-1794188145721954000/68446.jsonl",
+      "sha256": "32a7d8e6f64787ee897c16aa8bf2bad8400333a969ce00e8ed4df7db1b7d87fa",
+      "bytes": 119591
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68449.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68449.jsonl",
+      "sha256": "985f213c93a4f90838e4dd62a4ac32093b1b9e3648ac6d97b5c8d8c9d5c16a6a",
+      "bytes": 92623
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68452.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68452.jsonl",
+      "sha256": "8e0a03668461bcaeda003eefc6e5514bd4474cd380a024331fc2b2d51c932fba",
+      "bytes": 14089
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68475.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68475.jsonl",
+      "sha256": "49d7fbf450f0817ccbb60e4b2355e8f5705ae4e0551d61d209c0aa2faaae89f4",
+      "bytes": 7099
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68476.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68476.jsonl",
+      "sha256": "d9756c7f870de9183056873c57c7d2ed5f7a4ed9240cf05bfcdd9a216c13b704",
+      "bytes": 7099
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68505.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68505.jsonl",
+      "sha256": "fc245c2b1886656689e95bd059e0472df02159042b138f9c5e6982c18927f5ca",
+      "bytes": 3991
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68506.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68506.jsonl",
+      "sha256": "f573d2cc6bb511c2d867b110bcd3a3da28d08655beadaea26b6d251522f19566",
+      "bytes": 8613
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68507.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68507.jsonl",
+      "sha256": "05d1b105e9b9d15e61e32b689b7d840257f656d4c573de7616a02e3e2d3d6f91",
+      "bytes": 4261
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68510.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68510.jsonl",
+      "sha256": "bebed900a1c07f9c21240fc2ada13c867f632e0e645b8b140ce3b700e865754a",
+      "bytes": 8059
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68511.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68511.jsonl",
+      "sha256": "f8a1fb438a9db6052d356edd88c021bd0d3fade5e67225ede457d3a199f9f407",
+      "bytes": 3991
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68512.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68512.jsonl",
+      "sha256": "8398f0bdb5ebba264533c9bea20009659446911f2f07069f8902ee0c56e7e34e",
+      "bytes": 3991
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68513.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68513.jsonl",
+      "sha256": "3ce2d37487a423b50ec06e9fcf042bab800c4605be86b4e0f8f189856f149a18",
+      "bytes": 3991
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68514.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68514.jsonl",
+      "sha256": "dc6251f2f4841c65536b17435ba3b6ffede69cc723f3c4d6a24f2f3fc38e4eb3",
+      "bytes": 3991
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68515.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68515.jsonl",
+      "sha256": "332e4b69c4875b790fd4e893a3885eaf6c7895d4ae32fb009444797a2f01afd8",
+      "bytes": 8059
+    },
+    {
+      "path": "source/origin-logs/gateway-68449-1794188145726270000/68516.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/gateway-68449-1794188145726270000/68516.jsonl",
+      "sha256": "868d55880bda65a480ff9281e0af52934a5a8431e29871cb81c41d8ddb60b2b6",
+      "bytes": 8059
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68447.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68447.jsonl",
+      "sha256": "7ae1d72fe2220ba6145a62f72d928322cb70fe16fbc79087eae2702fd22e916b",
+      "bytes": 484661
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68457.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68457.jsonl",
+      "sha256": "ffa8c364465b11a4cc111a55ae278f3d5b5109acf722632b064c23fefa747a8c",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68460.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68460.jsonl",
+      "sha256": "d84eedcbdb6e233486fbe3def50174a68d86dce69dba623a423b0f99a60a0214",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68461.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68461.jsonl",
+      "sha256": "f7e76a6c349599380ab31e570e4651d19adda78f32fd47bca5d196a5bbba8e1b",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68463.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68463.jsonl",
+      "sha256": "8a185a170e57a4dd8152d8e829d3e5087401035633a8bd2258563578070c6ab7",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68465.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68465.jsonl",
+      "sha256": "6c371cb06c44db0fa29e083a2f470a89d7455aaae9f06b4d008b2fb724a8379e",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68468.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68468.jsonl",
+      "sha256": "20790bfb9262ae2f38539278f53d2a280626689f8d1616293697525f1b97c72c",
+      "bytes": 114680
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68472.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68472.jsonl",
+      "sha256": "7590311daaad7b756708aabedbb5993465dc0af1ba7c96e47875baeee6058e1d",
+      "bytes": 118386
+    },
+    {
+      "path": "source/origin-logs/sdk-68447-1794188145730462000/68474.jsonl",
+      "source": "/tmp/iter63-r30-primary/origin-logs/sdk-68447-1794188145730462000/68474.jsonl",
+      "sha256": "5eb9790ea2570a95529de28b61a5c06a3b78d0135a54225c066a9d9ac2cb0003",
+      "bytes": 372844
+    },
+    {
+      "path": "source-bt-v2/SOURCE_FROZEN",
+      "source": "/tmp/iter63-r30-primary-bt-v2/SOURCE_FROZEN",
+      "sha256": "52b0bede9b0cfa8feb0337d5d7b1a83ec2ade04eaac3a04caccab26a3c632f62",
+      "bytes": 86
+    },
+    {
+      "path": "source-bt-v2/audit_run.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/audit_run.py",
+      "sha256": "b2ff7f0e796d63c86abcd61be26a2e1a3ab07d282fd28eadc227a9012a8fa77e",
+      "bytes": 1297
+    },
+    {
+      "path": "source-bt-v2/bt-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-frozen-inputs.json",
+      "sha256": "49882105d34f97e8ee8e6a5a96f9af43abc6fb93992c3b5b99f811f694b43c0c",
+      "bytes": 2804
+    },
+    {
+      "path": "source-bt-v2/bt-owned-files.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-owned-files.json",
+      "sha256": "47822508e2eb02ec081bb05a0908a122a7e68be93874d49cc42fee06022fb242",
+      "bytes": 126
+    },
+    {
+      "path": "source-bt-v2/bt-ruff.log",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "source-bt-v2/bt-source-native.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-source-native.json",
+      "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69",
+      "bytes": 302
+    },
+    {
+      "path": "source-bt-v2/bt-source.log",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-source.log",
+      "sha256": "e1e89d43d24d54fd09e735ef32ac5ef25b297375dd50b3c363d96d42ca5094b7",
+      "bytes": 1543
+    },
+    {
+      "path": "source-bt-v2/bt-source.xml",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bt-source.xml",
+      "sha256": "f10dd9fbc794b6bb2612d6dd657f82522a4e163cee7267ffffd76cbede17d658",
+      "bytes": 45633
+    },
+    {
+      "path": "source-bt-v2/candidate-change.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/candidate-change.json",
+      "sha256": "696304eeff85a4c65a21eb7056e13ef5148c13b9b990fbb8f36c5e50f32ad3e7",
+      "bytes": 253
+    },
+    {
+      "path": "source-bt-v2/launcher-executions.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/launcher-executions.jsonl",
+      "sha256": "fdac788784919ec170aff22fc8e32e7110a9659e96034f219d8293526a4edd66",
+      "bytes": 824
+    },
+    {
+      "path": "source-bt-v2/run.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/run.py",
+      "sha256": "9590bbaee6834727f33dff0c98a82296191e91bc88afd9bfe4d272d1999c77f8",
+      "bytes": 4453
+    },
+    {
+      "path": "source-bt-v2/run_source.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/run_source.py",
+      "sha256": "0b9de1e7eb9e831f940c8d78e67729c73f1eabe727ebd9d2b92f1e7c72d933a6",
+      "bytes": 2891
+    },
+    {
+      "path": "source-bt-v2/selectors.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/selectors.json",
+      "sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2",
+      "bytes": 4235
+    },
+    {
+      "path": "source-bt-v2/source-audit-summary.json",
+      "source": "/tmp/iter63-r30-primary-bt-v2/source-audit-summary.json",
+      "sha256": "9c00b0ea33513ee591f319c69b09229d538d52a72f5e6708d0bacb3115267b62",
+      "bytes": 2678
+    },
+    {
+      "path": "source-bt-v2/source-executions.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/source-executions.jsonl",
+      "sha256": "72b27523346488288a6e1c8dd71532d1b8a5e7e183a5b0859cef9c8eda27659b",
+      "bytes": 326
+    },
+    {
+      "path": "source-bt-v2/bootstrap/offline_guard.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bootstrap/offline_guard.py",
+      "sha256": "63aafec282aefe795c6ae65edcf64110dc202587ab70578c8ca1239ba12fe6b6",
+      "bytes": 5947
+    },
+    {
+      "path": "source-bt-v2/bootstrap/origin_guard.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bootstrap/origin_guard.py",
+      "sha256": "7b8242bec74edfcd4c2b62fac8943fde9a010819da2167bfb55044a948df5acd",
+      "bytes": 3172
+    },
+    {
+      "path": "source-bt-v2/bootstrap/sitecustomize.py",
+      "source": "/tmp/iter63-r30-primary-bt-v2/bootstrap/sitecustomize.py",
+      "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "bytes": 165
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69933.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69933.jsonl",
+      "sha256": "050953e0e5ab8118b8fe1645262695d033232c93f9e7487fd5c7c98bbc606c14",
+      "bytes": 421922
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69935.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69935.jsonl",
+      "sha256": "a3270cb57042c9c479a5c647b994e72276b541278c70946dc3c24f239f865af4",
+      "bytes": 328978
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69936.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69936.jsonl",
+      "sha256": "eb40e56cdf599ff2f84553c28cbe00aa43e85fa63839e9679ae48cc52bd9a7ef",
+      "bytes": 328978
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69938.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69938.jsonl",
+      "sha256": "8d0204599d747837047d050db016ee65166cf51f8db72d302cfbe1ee1d58df13",
+      "bytes": 328978
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69939.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69939.jsonl",
+      "sha256": "46fb489d5995e88011c504f63488acf906346ca1d15041bc6f37e8da411fd6ce",
+      "bytes": 310059
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69940.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69940.jsonl",
+      "sha256": "6439b9234eb82d0e1fca0e5a9c067f6cf11d7567a70d7be35c9ecadf0fef2a0f",
+      "bytes": 310059
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69941.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69941.jsonl",
+      "sha256": "3c95c5104e4ebdc6f8374ee0fbe9dfd2171bd27b06de27ef7f4b2b0de525a475",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69942.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69942.jsonl",
+      "sha256": "eefd812c386823ca5b6eef203585b526a928b73a43754a4c32a4bab9184d42ec",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69943.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69943.jsonl",
+      "sha256": "7ae7acf8f9224103e785c426c0082371af2999b646951359c66815f6d6f4b52d",
+      "bytes": 253605
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69945.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69945.jsonl",
+      "sha256": "10aff5a031de0a8076a929d053214eddf6e53168fa39f0262b7ea007f88add29",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69946.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69946.jsonl",
+      "sha256": "12a9ffeb664fabfa25675f659a7397419ba7cad9890bc54131f880e3b331484f",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69947.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69947.jsonl",
+      "sha256": "90f09c573e67c93c452aac9b9ffc893884c279ecd286808627641aeb20bf3af4",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69948.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69948.jsonl",
+      "sha256": "7dd2b4319d17c439b6fe5fb6c4b35d239cefca0cbfa06a0af4859d5dbd6a1297",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69949.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69949.jsonl",
+      "sha256": "b98bef59e7193ac07ecb42b90edbed3886f5b693f9df585d0b4c88f4d4663fad",
+      "bytes": 307660
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69951.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69951.jsonl",
+      "sha256": "0d9527ca41aad97c053b3ec64ac4b5c52b8f3b628b14ccb9feeadccbffff7cec",
+      "bytes": 64852
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69952.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69952.jsonl",
+      "sha256": "8fd40819ceb062b17a0a42708885e1d6e63ac46694cd6c64c93d26c8303d3ab8",
+      "bytes": 64852
+    },
+    {
+      "path": "source-bt-v2/origin-logs/bt-69933-1794188400228260000/69953.jsonl",
+      "source": "/tmp/iter63-r30-primary-bt-v2/origin-logs/bt-69933-1794188400228260000/69953.jsonl",
+      "sha256": "bd9181e4bc6e4590e67c6f0ae75c1d8316244a7fdbfd8460b011af27eaab87fc",
+      "bytes": 65798
+    },
+    {
+      "path": "install/SOURCE_FROZEN",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/SOURCE_FROZEN",
+      "sha256": "6e2637b2673ab0b8afe21c821e296d5b798d15099ed3b1120efb6fdc41ffef8b",
+      "bytes": 59
+    },
+    {
+      "path": "install/allowlists.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/allowlists.json",
+      "sha256": "909edb93063fc35b03306f7375f39c4d5e3f119d0dbdc1c60d15f176f4be9d74",
+      "bytes": 517
+    },
+    {
+      "path": "install/audit-final-runs.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/audit-final-runs.log",
+      "sha256": "ebd11f460e1ad4fb5967ec3cbc641544df6484040039c775f251d3dac60dffe0",
+      "bytes": 360
+    },
+    {
+      "path": "install/audit-summary.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/audit-summary.json",
+      "sha256": "6fbeef0100aa3f06fb7cf139a1d60929a66518ac50bd8858191b624e3a784325",
+      "bytes": 663
+    },
+    {
+      "path": "install/audit_final_runs.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/audit_final_runs.py",
+      "sha256": "5b4f183c5dfc26a7db5c8ac6f729ddad8356abba974db26db67c66c01654d5c0",
+      "bytes": 1097
+    },
+    {
+      "path": "install/audit_run.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/audit_run.py",
+      "sha256": "d26fad4debedae8553e3394b42feff8ff343d6c23293aac469b6c0aa40e7ef5e",
+      "bytes": 1309
+    },
+    {
+      "path": "install/base-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/base-frozen-final.log",
+      "sha256": "36383893147b3f5ad5dcf79bdc776e07e291a3c8eb737bc0f920ce5303baf924",
+      "bytes": 1202
+    },
+    {
+      "path": "install/base-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/base-frozen-inputs.json",
+      "sha256": "de8a57a5c05eaa4c6f717c1c50b9c9dae5d77875e90a316b27af1863e54abf18",
+      "bytes": 1191
+    },
+    {
+      "path": "install/base-origin-audit.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/base-origin-audit.json",
+      "sha256": "81370e05b1233ac7d67a5c5f09670579fe03f4ceee05e483ff0773fa6e14f4f4",
+      "bytes": 204
+    },
+    {
+      "path": "install/base-owned-files.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/base-owned-files.json",
+      "sha256": "433076154060ecebd673db17dc2208f4dd3922c65eef906f4cfdea366d8a5ff7",
+      "bytes": 181
+    },
+    {
+      "path": "install/bt-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-frozen-final.log",
+      "sha256": "3cb578399916f26c3a9d3c4862a158506fd4de933ebee6bedfa5d2d9b17bf9a6",
+      "bytes": 1700
+    },
+    {
+      "path": "install/bt-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-frozen-inputs.json",
+      "sha256": "49882105d34f97e8ee8e6a5a96f9af43abc6fb93992c3b5b99f811f694b43c0c",
+      "bytes": 2804
+    },
+    {
+      "path": "install/bt-frozen-inputs.json.v1",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-frozen-inputs.json.v1",
+      "sha256": "9654cfb532fb96363c04efbd9247fa27939f506239a96400255d716003caf2ca",
+      "bytes": 2804
+    },
+    {
+      "path": "install/bt-frozen-v2.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-frozen-v2.log",
+      "sha256": "b4e99a5ab6ce79d098bdae9cb171a4c8f1645ab14fa28270137b75941db79e0b",
+      "bytes": 1688
+    },
+    {
+      "path": "install/bt-origin-audit-v2.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-origin-audit-v2.json",
+      "sha256": "3b9088a0aa545a0b4a9c9feb6079e991f4ca1677d09a6ad224b1e4db312d6389",
+      "bytes": 1722
+    },
+    {
+      "path": "install/bt-origin-audit.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-origin-audit.json",
+      "sha256": "a25c83fab7649603eca696af98b2e43af563170d0218c60b6cae50b9ee9f9b2a",
+      "bytes": 1725
+    },
+    {
+      "path": "install/bt-owned-files.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-owned-files.json",
+      "sha256": "47822508e2eb02ec081bb05a0908a122a7e68be93874d49cc42fee06022fb242",
+      "bytes": 126
+    },
+    {
+      "path": "install/bt-test-refresh-v2.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-test-refresh-v2.log",
+      "sha256": "cb39f587b3bb70eb9a54b72ef387bda6d1ee61e5468812752ce2d3ce6523fe37",
+      "bytes": 243
+    },
+    {
+      "path": "install/bt-trade-date-test-v1.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-trade-date-test-v1.py",
+      "sha256": "6b94245453d6f403508287017c81e4615513071993cdc24a7d15805d0bf102a8",
+      "bytes": 6714
+    },
+    {
+      "path": "install/bt-v2-script-sha256.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bt-v2-script-sha256.txt",
+      "sha256": "108ddab82bec3fab438a906de6153c149272652bb7be3c45d5ed26dee26d50b0",
+      "bytes": 379
+    },
+    {
+      "path": "install/build-ctp.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/build-ctp.log",
+      "sha256": "7a3b91973ef19cb880607d89da5534e4e21642461b8487984def331530f528e4",
+      "bytes": 68442
+    },
+    {
+      "path": "install/build.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/build.log",
+      "sha256": "9dad981a48b0be12286c6131787c91a29f91ea672ee8ccb116539128ddb74fcf",
+      "bytes": 3537
+    },
+    {
+      "path": "install/build_ctp_reuse.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/build_ctp_reuse.py",
+      "sha256": "3784337ea692dc1aa256bb54630f0017ad45e65ab8fcb2a5568bd95be8f08234",
+      "bytes": 3752
+    },
+    {
+      "path": "install/capture-editable-deps.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/capture-editable-deps.log",
+      "sha256": "ed9772220fffa937c2debe7b60548df23a6e173073aea96648e0e947e67a6a35",
+      "bytes": 638
+    },
+    {
+      "path": "install/capture-selectors.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/capture-selectors.log",
+      "sha256": "43bd6c21b4af3e1c4321b9d9f289cb978091d0a186b548de5aea1f15484ec0b0",
+      "bytes": 82
+    },
+    {
+      "path": "install/capture_editable_deps.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/capture_editable_deps.py",
+      "sha256": "d7bb10200cc9525ba28af41982aca1ddcf860b1bb96f0642b9611484d49ba731",
+      "bytes": 2901
+    },
+    {
+      "path": "install/capture_selectors.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/capture_selectors.py",
+      "sha256": "2a77b24daeb091b63b330bad699766e866f06399a277565d458df77df27938da",
+      "bytes": 1011
+    },
+    {
+      "path": "install/ctp-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-frozen-final.log",
+      "sha256": "b030841883e32e90c54f6e1d7f53e1b08e6d4e7665ac831ca8b4fe1b7ce35c72",
+      "bytes": 1112
+    },
+    {
+      "path": "install/ctp-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-frozen-inputs.json",
+      "sha256": "33d7ef9ebb424b21f3b06a176ea195e796a67f59b2292352cfa221edb2690005",
+      "bytes": 1169
+    },
+    {
+      "path": "install/ctp-native-reuse-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-native-reuse-manifest.json",
+      "sha256": "9a1c9f8494228c4f5897f213bce79047290f58ffd67209c34292d2d6de7a919a",
+      "bytes": 4749
+    },
+    {
+      "path": "install/ctp-origin-audit.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-origin-audit.json",
+      "sha256": "7f7db6c682c86b16bec007d388c81342f15bff8f2bb8d7f85ed09ef260bf34e5",
+      "bytes": 205
+    },
+    {
+      "path": "install/ctp-owned-files.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-owned-files.json",
+      "sha256": "1fd83806a7b965ecfdb2dc793835f6b0391330772ee81d4a81035b80f4672a06",
+      "bytes": 123
+    },
+    {
+      "path": "install/ctp-relocation-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-relocation-manifest.json",
+      "sha256": "702dd7adc092a9f9acbb2b9ccb8e8ab4ec77dacb3d6be93c3195720329602efa",
+      "bytes": 3949
+    },
+    {
+      "path": "install/editable-deps-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/editable-deps-manifest.json",
+      "sha256": "4ba97ba1ed796ca2445569b1631b42d6b57f335a72357912f27fbb6c1e2f706f",
+      "bytes": 14048
+    },
+    {
+      "path": "install/executions.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/executions.jsonl",
+      "sha256": "2ccea10d688fc01d76435f90dce820e0f71cc53db65619991d61c3b10347526a",
+      "bytes": 14446
+    },
+    {
+      "path": "install/final-check-scripts-sha256.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/final-check-scripts-sha256.txt",
+      "sha256": "160e0a9e1ad2fab987e01c4b4621477a03c1dcd8ccadc23e7f3f46ca6e5708e4",
+      "bytes": 253
+    },
+    {
+      "path": "install/fixed-wheels.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/fixed-wheels.json",
+      "sha256": "f348105afef6ca46162ed92e00f733ff8eac2bc20071c2a466763b97e3d1cf35",
+      "bytes": 794
+    },
+    {
+      "path": "install/fixed.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/fixed.log",
+      "sha256": "dfa6908cebc9bb02ecdcba9c098a1f9f48b480c786f3975dfc1072939d407722",
+      "bytes": 409
+    },
+    {
+      "path": "install/freeze.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/freeze.log",
+      "sha256": "40f908b0e83b88c39494351f0c111829ace91aa934526c8de009c0df9bc506a7",
+      "bytes": 526
+    },
+    {
+      "path": "install/freeze.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/freeze.py",
+      "sha256": "c49cceb1aecc9764a2cf15243453a06eeeba7553ba591185dd60449e7768e9cc",
+      "bytes": 2221
+    },
+    {
+      "path": "install/gateway-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/gateway-frozen-final.log",
+      "sha256": "240959e4730cbbdf0c9b220aefe57f312b0d5c08d0721d55bd7b3d259dd7c779",
+      "bytes": 1815
+    },
+    {
+      "path": "install/gateway-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/gateway-frozen-inputs.json",
+      "sha256": "984d541bfcfd5f53bcf3860f9ee30562cf2ef86bfcefe5b93845e3aa7087b6f3",
+      "bytes": 7146
+    },
+    {
+      "path": "install/gateway-origin-audit.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/gateway-origin-audit.json",
+      "sha256": "2f24eda3d33124a1346203b934c8c1515f373718c26cdf24cd5f131d400d6192",
+      "bytes": 1424
+    },
+    {
+      "path": "install/gateway-owned-files.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/gateway-owned-files.json",
+      "sha256": "df0a4fdc50c169edcda8358fc1e16241e9b3daed972a61c4048d85d5b638e514",
+      "bytes": 410
+    },
+    {
+      "path": "install/guard-preflight.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/guard-preflight.log",
+      "sha256": "74e241024471b560b102856f3652d92f79dc475ff3821743e517c68a26e405a2",
+      "bytes": 467
+    },
+    {
+      "path": "install/guard_preflight.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/guard_preflight.py",
+      "sha256": "40461ba02096ab610c348472acdaa648e72c8b717764894cd50f076c01a0ed1e",
+      "bytes": 1852
+    },
+    {
+      "path": "install/harness-freeze-sha256.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/harness-freeze-sha256.txt",
+      "sha256": "14c8823d82ddd4a2f2f4f328dd555c74f058dd35ecd886bc864a4ea094a7fa83",
+      "bytes": 2027
+    },
+    {
+      "path": "install/install.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/install.log",
+      "sha256": "df798122836a640e8f7760b3485d39c67a697d4f1d5a0896318e794e195d0077",
+      "bytes": 2416
+    },
+    {
+      "path": "install/make_templates.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/make_templates.py",
+      "sha256": "afebfd8d69964bac1c51c7deda4c9cf42244760a92600c4dfa32ad97d827d9b5",
+      "bytes": 4540
+    },
+    {
+      "path": "install/prepare-sdk-layout.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/prepare-sdk-layout.log",
+      "sha256": "221a4284f702783311634357055841fbb2d86873a1a2ef4e066c0cd88b2c7653",
+      "bytes": 457
+    },
+    {
+      "path": "install/prepare.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/prepare.py",
+      "sha256": "e2a837c0ff77cce814b8405c3a74cbe7a6fc1c73b0e3f16c334ad1903cceb2ad",
+      "bytes": 13629
+    },
+    {
+      "path": "install/prepare_sdk_layout.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/prepare_sdk_layout.py",
+      "sha256": "6e798c057788857a5d0e4ed7aaa2a76d82f29372863fc4c77c5273467b2699f5",
+      "bytes": 953
+    },
+    {
+      "path": "install/refresh_bt_test_v2.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/refresh_bt_test_v2.py",
+      "sha256": "690974ef37145569d4d04a0fbe8b26b6837f5eecc3db153da9da5435b51ba246",
+      "bytes": 1577
+    },
+    {
+      "path": "install/relocate-ctp.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/relocate-ctp.log",
+      "sha256": "da5f3f957ebcb0b2c2aef992d497b6f5bc138226456d90195dca164f0e434969",
+      "bytes": 476
+    },
+    {
+      "path": "install/relocate_ctp_tests.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/relocate_ctp_tests.py",
+      "sha256": "fae92f2cac80163ff8505c0f63e9e6697907dcef09ab4902f4756c2a1d03b7b4",
+      "bytes": 1114
+    },
+    {
+      "path": "install/run.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/run.py",
+      "sha256": "30b38d11a5c2fd27a862ecbf81c97ecc1bf415fb9a59f3a13b62222397a780c0",
+      "bytes": 6419
+    },
+    {
+      "path": "install/run_bt_v2.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/run_bt_v2.py",
+      "sha256": "b7ebc575c2377f492fac9262e604000fbb5f4dd78eeb67a27dbc24e84e705f7c",
+      "bytes": 6546
+    },
+    {
+      "path": "install/run_installed.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/run_installed.py",
+      "sha256": "aadaf2af779b32e7c597e616b052f4f4f53530811f515d5b0006f54398ece6a0",
+      "bytes": 3579
+    },
+    {
+      "path": "install/sdk-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/sdk-frozen-final.log",
+      "sha256": "f1a12dfa2cfe4b1f1d61ad69db132bb660cbb8231a152a6ef27ed68f1263f8be",
+      "bytes": 1432
+    },
+    {
+      "path": "install/sdk-frozen-inputs.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/sdk-frozen-inputs.json",
+      "sha256": "64056ce09f697f01a7380f5639b1d56d19e0305a6bb4f90dd307d6e269ed270e",
+      "bytes": 1419
+    },
+    {
+      "path": "install/sdk-layout-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/sdk-layout-manifest.json",
+      "sha256": "b4e67c73334b121b37f5f0a208f557e7a0c18908895e91cf97a9e0e59b6ee941",
+      "bytes": 387
+    },
+    {
+      "path": "install/sdk-origin-audit.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/sdk-origin-audit.json",
+      "sha256": "cebad50d7a634deaa1f06f279ac91d8d9f9d15d97e4a574823fad1861fa6cef4",
+      "bytes": 965
+    },
+    {
+      "path": "install/sdk-owned-files.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/sdk-owned-files.json",
+      "sha256": "423daa8d9c362a5a3f90e5acbdb09a4e9263ef8eb10d183801331c802343a63e",
+      "bytes": 125
+    },
+    {
+      "path": "install/selectors.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/selectors.json",
+      "sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2",
+      "bytes": 4235
+    },
+    {
+      "path": "install/snapshot.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/snapshot.log",
+      "sha256": "95595e485dacc1efc063d05700ac251675ac1f8fae7c4a7e4eb55d1206aa524f",
+      "bytes": 721
+    },
+    {
+      "path": "install/source-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/source-manifest.json",
+      "sha256": "827b13c0bdf4e129d29a3c39399deef701e28ea38a2aa2e1a843e9a16dedd1bd",
+      "bytes": 739980
+    },
+    {
+      "path": "install/test-manifest.json",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/test-manifest.json",
+      "sha256": "7b4083b3aac912dc3a289219c9dae9e3f216dad5ceadeff65048d7c3ab4b5631",
+      "bytes": 112185
+    },
+    {
+      "path": "install/test-manifest.json.v1",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/test-manifest.json.v1",
+      "sha256": "a89c99ecbcadff3e374969f7bedb29a99266a36f197f0e894d0d5dcd3fb3fe6b",
+      "bytes": 112185
+    },
+    {
+      "path": "install/tests-copy.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/tests-copy.log",
+      "sha256": "3a8b4ddbbfed589c1c672dd45bac9175881caee495df5f54d7ba0a767155239f",
+      "bytes": 435
+    },
+    {
+      "path": "install/validate_draft.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/validate_draft.py",
+      "sha256": "59d6cc6d8737eafe54e786677b77e6d3699ffc383cbde6294fb202d80f62d1e8",
+      "bytes": 674
+    },
+    {
+      "path": "install/verify-all-payloads-before.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-all-payloads-before.log",
+      "sha256": "bac29338fe9da53d07006c42c031912202f2d084380884db7af41c6a69b46229",
+      "bytes": 603
+    },
+    {
+      "path": "install/verify-all-payloads-bt-v2.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-all-payloads-bt-v2.log",
+      "sha256": "bac29338fe9da53d07006c42c031912202f2d084380884db7af41c6a69b46229",
+      "bytes": 603
+    },
+    {
+      "path": "install/verify-all-payloads-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-all-payloads-final.log",
+      "sha256": "bac29338fe9da53d07006c42c031912202f2d084380884db7af41c6a69b46229",
+      "bytes": 603
+    },
+    {
+      "path": "install/verify-bt-v2-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-bt-v2-final.log",
+      "sha256": "903a7de4e89cf5146d8e9ad894773cfd48c2b08e46b552b63994b3c833f3bf21",
+      "bytes": 3481
+    },
+    {
+      "path": "install/verify-bt-v2.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-bt-v2.log",
+      "sha256": "903a7de4e89cf5146d8e9ad894773cfd48c2b08e46b552b63994b3c833f3bf21",
+      "bytes": 3481
+    },
+    {
+      "path": "install/verify-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-final.log",
+      "sha256": "d0283144d86d1d150a31a06afd819af80e231586511ace3f056473ba4562b2e3",
+      "bytes": 3885
+    },
+    {
+      "path": "install/verify-frozen-bt-v2-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-frozen-bt-v2-final.log",
+      "sha256": "79752ece0e9344f4c3d358508038405f315205afefe9bd8a3e72c1c15415d9d5",
+      "bytes": 217
+    },
+    {
+      "path": "install/verify-frozen-bt-v2.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-frozen-bt-v2.log",
+      "sha256": "79752ece0e9344f4c3d358508038405f315205afefe9bd8a3e72c1c15415d9d5",
+      "bytes": 217
+    },
+    {
+      "path": "install/verify-frozen-final.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify-frozen-final.log",
+      "sha256": "79752ece0e9344f4c3d358508038405f315205afefe9bd8a3e72c1c15415d9d5",
+      "bytes": 217
+    },
+    {
+      "path": "install/verify.log",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify.log",
+      "sha256": "5051719e3f5ddf874504afa477a00210b8c036e4970bad7607e63c2d84931ca8",
+      "bytes": 3873
+    },
+    {
+      "path": "install/verify.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify.py",
+      "sha256": "1f18a1865b581773ccdd0d27842da758c55bba00b2069e5e9bb334e22f4d307b",
+      "bytes": 7106
+    },
+    {
+      "path": "install/verify_all_payloads.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify_all_payloads.py",
+      "sha256": "ed45e5159b6d649f96c700232c1c3cfa0f65bc7e492cd709c53c2852d44d6cee",
+      "bytes": 1603
+    },
+    {
+      "path": "install/verify_commits.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify_commits.py",
+      "sha256": "d3a0879ccf424c4d79563b0802819ee131dcd0cde522db275eee99b786624d2b",
+      "bytes": 1752
+    },
+    {
+      "path": "install/verify_frozen.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify_frozen.py",
+      "sha256": "dc613fb6ba589c17017db64707d0e1d8fd960c1f691621c5bf2094e9c803cf15",
+      "bytes": 1023
+    },
+    {
+      "path": "install/verify_frozen_v2.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/verify_frozen_v2.py",
+      "sha256": "426b672eed8d6ea9cfcc88f1addc1c2cbdef21976ce0cf282e0f80ffbf8efc7d",
+      "bytes": 1082
+    },
+    {
+      "path": "install/bootstrap/offline_guard.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bootstrap/offline_guard.py",
+      "sha256": "63aafec282aefe795c6ae65edcf64110dc202587ab70578c8ca1239ba12fe6b6",
+      "bytes": 5947
+    },
+    {
+      "path": "install/bootstrap/origin_guard.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bootstrap/origin_guard.py",
+      "sha256": "7a83e4f18d683e78f3f221f5b068cd5d95aba1309401ff63fc6da7d44f11763c",
+      "bytes": 3124
+    },
+    {
+      "path": "install/bootstrap/sitecustomize.py",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/bootstrap/sitecustomize.py",
+      "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf",
+      "bytes": 165
+    },
+    {
+      "path": "install/origin-logs/base-frozen-final-69178-1794188231180328000/69217.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/base-frozen-final-69178-1794188231180328000/69217.jsonl",
+      "sha256": "a45e3e1421a36962f339635c8eff87292b28408d46e77eeb98adb3230bb435c5",
+      "bytes": 6756
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69214.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69214.jsonl",
+      "sha256": "38ce89b5c1b77ed1e0d53f01d455da19cfb1c65ab5d30262ef937338255fa6f7",
+      "bytes": 449734
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69267.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69267.jsonl",
+      "sha256": "e56894cc99856e3daf8ddbf90479f9db02ff4e26dc8ffc504c11a40272545f2e",
+      "bytes": 351380
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69270.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69270.jsonl",
+      "sha256": "9895344a5ba351396e3e90da6dcc75c15ff581fae9910c6197d14384fa848027",
+      "bytes": 351380
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69272.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69272.jsonl",
+      "sha256": "6d2f6c6b489bd900ad3595023b82ca58072c22421d8730d25beb4798dfceee18",
+      "bytes": 351380
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69281.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69281.jsonl",
+      "sha256": "cff7d06bdbb6cba6ea03be392d4bf230b6ab233730e52da1697cfd1948420ef6",
+      "bytes": 334309
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69286.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69286.jsonl",
+      "sha256": "8ba680cda91a2dc4b148d67a37aa384152fc708ec30bea83456befab882a8021",
+      "bytes": 334309
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69288.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69288.jsonl",
+      "sha256": "75c7ebf9473c6b6396f776682b56776634f5f47377cd6403a6a315a06b54b3ad",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69289.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69289.jsonl",
+      "sha256": "0ba7c89c68d85f1a0f5e2e921ed25764b221e37dd4f32d08f736a7082d65e5ef",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69294.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69294.jsonl",
+      "sha256": "37b206bef7ffb6d35a12dc076d58a8bd681d90d9f31a9713267b7d701e636daf",
+      "bytes": 276889
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69296.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69296.jsonl",
+      "sha256": "3ce7a1ed5e4017c23a7a74e6fed1375d1beccf4a5550b539e62ecdef52a79d46",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69297.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69297.jsonl",
+      "sha256": "c3bd04f8497de2e5210dc1713cfdb2e91eee05b754654d854846412567eb2ab5",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69298.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69298.jsonl",
+      "sha256": "0c86f635c28b7c58262739aab953d60ac114ba15cc94c361826f4d50937e450c",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69299.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69299.jsonl",
+      "sha256": "707aa77640d9805464463d2b4971f85a8d3863c0377d77534e41a5f86f024160",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69329.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69329.jsonl",
+      "sha256": "cce2105acbfd590bc86e5e95fcd844b9582c7296c93ce30cb05c5271073e1d2b",
+      "bytes": 331859
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69330.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69330.jsonl",
+      "sha256": "8d52bb1eb562e5e209378fd94e6ce3b4346d07c68cb11007a1aeab052b0d1c2b",
+      "bytes": 71614
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69331.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69331.jsonl",
+      "sha256": "911a31a5757eb850db6fefdeccfe663e0341df955e36f450aaf0d4a2c4a69fb6",
+      "bytes": 71614
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-final-69176-1794188231157514000/69332.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000/69332.jsonl",
+      "sha256": "7033b1ec0ca3d6b38d6a040f86c9f58cbbc18e89dac3443646ac9b4ee1bf8422",
+      "bytes": 72646
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70017.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70017.jsonl",
+      "sha256": "aad53027ec6f1dc685a84b471b6c997b2bdc9293f83816f9e29afe6cf5f9c583",
+      "bytes": 447835
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70021.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70021.jsonl",
+      "sha256": "bbe14bc48a56061a8c0af71063c6e3b038fbffe3afa3eedfc53069dbd7e30cf3",
+      "bytes": 349526
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70033.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70033.jsonl",
+      "sha256": "0a6e9948eb31216e1412720ea91ee07965a2e16a41c110f2e91fa6c2a62ed6f9",
+      "bytes": 349526
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70035.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70035.jsonl",
+      "sha256": "54404e867133f8751fff0aa3feee1f963dbcc419c469739afd5bc9597a7ab199",
+      "bytes": 349526
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70036.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70036.jsonl",
+      "sha256": "10189eeea6f3274fceec654ed4d1e021c8f28f46a53549f93fc8b0649f8e2adb",
+      "bytes": 332551
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70037.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70037.jsonl",
+      "sha256": "23ef2de8c7094a353c3819922dcda241e8a0e8760af290feac7f70c989b7055f",
+      "bytes": 332551
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70038.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70038.jsonl",
+      "sha256": "897dcfa3df2a28a926a5e2becb56b0f8f88c92b9c755c7274371730aa0f461a8",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70039.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70039.jsonl",
+      "sha256": "86ce3268b31ff4aff527115b4412b7057920a5dd1b65549a6bfda8fa71db8e8c",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70040.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70040.jsonl",
+      "sha256": "c6baa04410e8c64259e35b6c41dc487c081de465269ab9d7d3680ff53aa9c09f",
+      "bytes": 275446
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70041.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70041.jsonl",
+      "sha256": "ab6ad177f257d13e1fadf2eb6468f5046a21b646bb7ea737c0f9acb8c7f33585",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70042.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70042.jsonl",
+      "sha256": "a7ec98a3e017d3c48603e922c3bbb9f5a6f969ce3892f0b659b220510cf955a4",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70043.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70043.jsonl",
+      "sha256": "7790197b5eeb976bd466167a6381285359f863634035af157245bb56ba4e442b",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70044.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70044.jsonl",
+      "sha256": "9f4acad333c11b9ffa5f86ac0554f6d0ef5451dc3fbe827356d3e2e90bfe5c00",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70078.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70078.jsonl",
+      "sha256": "dfc4991d99ffe28f664b6cd93dd49dca7285a3a24eacedbda76a8296117c94ff",
+      "bytes": 330113
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70097.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70097.jsonl",
+      "sha256": "9567e7fea1289a4804d1f83194d410b5e9401f5351ff55e60fdc088345a7d725",
+      "bytes": 71176
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70098.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70098.jsonl",
+      "sha256": "a9ae064f71a6dcee6fbe04fea7947a357e2225158146e2147b3f6ac1da9180d6",
+      "bytes": 71176
+    },
+    {
+      "path": "install/origin-logs/bt-frozen-v2-70009-1794188429569618000/70099.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-v2-70009-1794188429569618000/70099.jsonl",
+      "sha256": "c2fd9bd23708c3dffc3bfce0068537e4221dc34dba7b8ea3a7390adcef88bbca",
+      "bytes": 72199
+    },
+    {
+      "path": "install/origin-logs/ctp-frozen-final-69175-1794188231158204000/69216.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/ctp-frozen-final-69175-1794188231158204000/69216.jsonl",
+      "sha256": "8c195aacda156c6c061b000741f89c3682282b23bfa46997687be9717ca7c524",
+      "bytes": 117978
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69213.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69213.jsonl",
+      "sha256": "7665b8fc23a6e4649faf1347586910d9d5cf9fa5714f53324c36a032a074a6f9",
+      "bytes": 93744
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69262.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69262.jsonl",
+      "sha256": "4b56bf19034153dd73f22fee90a5843aff34ca70f59633fd9cbe861286f89ed7",
+      "bytes": 13686
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69290.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69290.jsonl",
+      "sha256": "91b534f332b6aacb9e7cd5eda17ac9bffad9d4ee4b667666d25ff00a0677a267",
+      "bytes": 7246
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69291.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69291.jsonl",
+      "sha256": "3be713b39e4c7b8d16868735c62dc141fd9abeb2c455022536b01eba1df78e8f",
+      "bytes": 7246
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69300.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69300.jsonl",
+      "sha256": "82509be6f66e70c7ed45fc9f54623817e82ef01fae726522267cff956f445c20",
+      "bytes": 4110
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69318.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69318.jsonl",
+      "sha256": "270398788327cd422c1180e3d58196f13ccaa9af86900b90eb27659d070a48f3",
+      "bytes": 8404
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69319.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69319.jsonl",
+      "sha256": "524adf9a6760484e27b1dc8dc700bd5a051e8cf13d9064abec14c0d6efabb49d",
+      "bytes": 4380
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69320.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69320.jsonl",
+      "sha256": "b7161056c534204c3257f0735da502bb9e491910b8deb10f00979663d2e246dc",
+      "bytes": 7876
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69321.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69321.jsonl",
+      "sha256": "883a150c0cde923380dc62918d4804e61adb763463eb14922edaae91a02dce38",
+      "bytes": 4110
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69322.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69322.jsonl",
+      "sha256": "d802c62365c832fbaae3d472ef5f25dd3f73a7871a0c1cf84ae69e9c98f8a14e",
+      "bytes": 4110
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69323.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69323.jsonl",
+      "sha256": "87af8f0f1c7688ee122bc1560e71c6ee825b7c93b5e0579c20d22eed1bee59b3",
+      "bytes": 4110
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69324.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69324.jsonl",
+      "sha256": "4ef5cc924ffa83169180a69efcc4a5a796832e77179a19bfb964e29bd5108dfc",
+      "bytes": 4110
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69325.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69325.jsonl",
+      "sha256": "c4e95ebb5deb073f82e7adcadefdad09f0e0600d3d387d8f84de31fcd1eeef4e",
+      "bytes": 7876
+    },
+    {
+      "path": "install/origin-logs/gateway-frozen-final-69174-1794188231153024000/69326.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/gateway-frozen-final-69174-1794188231153024000/69326.jsonl",
+      "sha256": "afd07f93c63c8fac7ebd41f65ea4fd631e08f678135e7d26ecf2632728164ed0",
+      "bytes": 7876
+    },
+    {
+      "path": "install/origin-logs/guard-preflight-68986-1794188201619190000/68994.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/guard-preflight-68986-1794188201619190000/68994.jsonl",
+      "sha256": "58d6a9256095e2aedf79e1f6ae1036955d84d21a84d37026708f8cb5f175f35d",
+      "bytes": 83135
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69215.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69215.jsonl",
+      "sha256": "9a1f22c304d7ba9c959e490cc9c9f32ad09a89c5fe1ec382b7aab95e43b1061e",
+      "bytes": 510340
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69265.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69265.jsonl",
+      "sha256": "ea71d08c6e2bb7cbce723d895149327528b250437eeceee58994acd40fd2cc74",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69268.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69268.jsonl",
+      "sha256": "c7a9de2ba6ba7918e51c2a2918114dbbfb4f449ded5fe0be1f93bee0a6404d33",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69269.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69269.jsonl",
+      "sha256": "58a765174d3cd7a17c0ee33cab4fae77893fbeb7b088ddf6688515f90df56623",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69271.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69271.jsonl",
+      "sha256": "ae7825b6c0fe23f34d48247cdc5603bd05ae7ae7c3c19a245d9fca1219349c78",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69273.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69273.jsonl",
+      "sha256": "a2ea6f98bd0c9289d22e1247c88ea5774a1404e0f131a656311ec9548ab00693",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69279.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69279.jsonl",
+      "sha256": "4244d0a80803c901bad937bded47872ad5a6c5c8199eecbe958035da58d8470c",
+      "bytes": 112754
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69283.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69283.jsonl",
+      "sha256": "e8ab9da0116d3b33d9f23e13462ed88b3d023c3a7b81c66b702bb46b6df74957",
+      "bytes": 116560
+    },
+    {
+      "path": "install/origin-logs/sdk-frozen-final-69173-1794188231128132000/69287.jsonl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/sdk-frozen-final-69173-1794188231128132000/69287.jsonl",
+      "sha256": "7ce5fa5f05873feae6d3ecb41adde16ac0d6f760888ba93d98c7a7a11110b96d",
+      "bytes": 394462
+    },
+    {
+      "path": "install/plans/base.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/plans/base.txt",
+      "sha256": "a52ab66a846322555e8f2ed9f6c784925e6e9808efba7c288ea46f64fba76f8a",
+      "bytes": 239
+    },
+    {
+      "path": "install/plans/bt.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/plans/bt.txt",
+      "sha256": "83e96c95759b0c46e7dcee07538ce66ba84efbde9c840072e81240b9495268ab",
+      "bytes": 862
+    },
+    {
+      "path": "install/plans/ctp.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/plans/ctp.txt",
+      "sha256": "b3171b5318d1d95c101621e08755f304310bf89316497aa9f97f5e13e46d9fda",
+      "bytes": 272
+    },
+    {
+      "path": "install/plans/gateway.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/plans/gateway.txt",
+      "sha256": "ebcb0a5647e88cead56e5b179e14beffb7b62685ea6f51620b47905dff654242",
+      "bytes": 1791
+    },
+    {
+      "path": "install/plans/sdk.txt",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/plans/sdk.txt",
+      "sha256": "4ba8390e7ce596e55660563f99b89fda02281e6cedb732c44af866308484fd69",
+      "bytes": 415
+    },
+    {
+      "path": "install/wheels/bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_base-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "6adcaf19163bf8a020f3e39653b217280c8d7244c2f3903a4cb5b4b0d6ca70a0",
+      "bytes": 375675
+    },
+    {
+      "path": "install/wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+      "sha256": "696966a55fe378189993c7f150a2fff2e2bc23ce25d3f8b5bdb792b9b7b7729c",
+      "bytes": 200474
+    },
+    {
+      "path": "install/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "668e65387d088dd0994fab18c1e151a6e42011cfea4dc8c4275f5c014860b00f",
+      "bytes": 9380431
+    },
+    {
+      "path": "install/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_py-0.16.0.dev63-py3-none-any.whl",
+      "sha256": "a246f199af2d18113c0646f6ac2c4735b7abd47cba61f325214077b53f34c25b",
+      "bytes": 2129845
+    },
+    {
+      "path": "install/wheels/back_trader_python-1.4.0-py3-none-any.whl",
+      "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/back_trader_python-1.4.0-py3-none-any.whl",
+      "sha256": "58d391e537d43281c3f97d4b1287b8b7262b0d4800186f4b985077c18ba932e9",
+      "bytes": 2025146
+    },
+    {
+      "path": "worker/iter63-r30-sdk-stream.log",
+      "source": "/tmp/iter63-r30-sdk-stream.log",
+      "sha256": "9d3260526c9064a774f8f980fa2e472c5435d50b700ef17dd2b295493f4f9685",
+      "bytes": 1129
+    },
+    {
+      "path": "worker/iter63-r30-sdk-stream-v2.log",
+      "source": "/tmp/iter63-r30-sdk-stream-v2.log",
+      "sha256": "e6c649e59e5603dcfdc2e052cedf668eafc0625e294a29d30d2bfdf64660ab10",
+      "bytes": 98
+    },
+    {
+      "path": "worker/iter63-r30-sdk-stream-regression.log",
+      "source": "/tmp/iter63-r30-sdk-stream-regression.log",
+      "sha256": "70c4f661d0ceaff180e727533711db44ffe1f5b1d6141365476f7d2ff181c23f",
+      "bytes": 180
+    },
+    {
+      "path": "worker/iter63-r30-sdk-stream-regression-final.log",
+      "source": "/tmp/iter63-r30-sdk-stream-regression-final.log",
+      "sha256": "db708cf7ab6e63f2d93496f99b70f48617f8e3bdf2e5b0d6fdba1192191cf871",
+      "bytes": 180
+    },
+    {
+      "path": "worker/iter63-r30-sdk-stream-junit-final.xml",
+      "source": "/tmp/iter63-r30-sdk-stream-junit-final.xml",
+      "sha256": "8c7e154390e3b62794614178fdca0620461b9f46be133b7ddfdc963c9e1374d0",
+      "bytes": 9310
+    },
+    {
+      "path": "worker/r30-review-targeted.log",
+      "source": "/tmp/r30-review-targeted.log",
+      "sha256": "b006fab9de1c1d6629f18abd9c112b37f122905f5d1869e48f1d6e7a9dd296a6",
+      "bytes": 180
+    },
+    {
+      "path": "worker/r30-review-gateway.log",
+      "source": "/tmp/r30-review-gateway.log",
+      "sha256": "9f2de1ee72c33ec2a13b38f3c15be5900ab12b27f5e92f55e695cdb9b273ce43",
+      "bytes": 1061
+    },
+    {
+      "path": "review-summary.json",
+      "source": "primary summary from this chat",
+      "sha256": "5cf031a47712bfb26e77d78313612549f0aacfd3398721e1c577ba5ab963b3db",
+      "bytes": 1681
+    },
+    {
+      "path": "source/check_round30_docs.py",
+      "source": "/tmp/iter63-r30-primary/check_round30_docs.py",
+      "sha256": "5727afdd9b48a4bef0d6118ac809bd5e80b3a3a48207a4c545a9bb1f3c364493",
+      "bytes": 1827
+    },
+    {
+      "path": "source/document-check.json",
+      "source": "/tmp/iter63-r30-primary/document-check.json",
+      "sha256": "73733f48656f60da1173fbd303d35c5aa8021b129e1b92b7f1e600556340854a",
+      "bytes": 1582
+    }
+  ],
+  "exclusions": [
+    "runtime tmp/state databases and generated credential files",
+    "full source/test mirrors, recoverable from committed inputs",
+    "fixed dependency wheels, identified by prior R29 hashes",
+    "real account configuration or captures"
+  ]
+}

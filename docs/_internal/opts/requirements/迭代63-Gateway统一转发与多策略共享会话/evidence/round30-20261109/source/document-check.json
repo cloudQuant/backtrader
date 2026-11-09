@@ -1,0 +1,34 @@
+{
+  "result": "PASS",
+  "docs": [
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发验收状态矩阵.md",
+      "sha256": "ad7c43bcf3b5b38cfff715bb1317682a6e615ab7a7f595713b1f739e85253da3",
+      "utf8_bom": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/实施基线与分轮记录-2026-11-08.md",
+      "sha256": "ede4c522cd25a6c9f74da3a18c48100fc4c6a39777a4cf7738bb444676c53e8c",
+      "utf8_bom": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/开发问题记录.md",
+      "sha256": "3078d618feee3f59b8418bdd399fe0322a30d517be1d30a19a3e9a7e6f7c0b16",
+      "utf8_bom": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/分轮合同冻结稿-2026-11-08.md",
+      "sha256": "9c037b260910be8d3a5bf0408685928be8f1158bab859f1c389517b43b7238b2",
+      "utf8_bom": true
+    },
+    {
+      "path": "docs/_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第三十轮成交日期补充与一致性审阅-2026-11-09.md",
+      "sha256": "3424c33180b23efd7b12a4b89fb613556fe7f4d3e61ba3a4b12729f586f09f7b",
+      "utf8_bom": true
+    }
+  ],
+  "local_links_checked": 162,
+  "evidence_files_checked": 298,
+  "powershell_5_1": "NOT_RUN",
+  "note": "Local link paths checked; full historical heading-anchor audit not claimed. Raw logs preserve original whitespace."
+}

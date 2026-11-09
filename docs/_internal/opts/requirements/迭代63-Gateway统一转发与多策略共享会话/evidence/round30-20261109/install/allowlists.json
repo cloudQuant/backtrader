@@ -1,0 +1,26 @@
+{
+  "runtime": {
+    "base": [],
+    "gateway": [],
+    "ctp": [],
+    "sdk": [],
+    "bt": []
+  },
+  "tests": {
+    "base": [
+      "tests/test_iter63_gateway_trade_date_protocol.py"
+    ],
+    "gateway": [
+      "tests/test_iter63_trade_date_journal.py"
+    ],
+    "ctp": [
+      "tests/test_iter63_gateway_trade_date_projection.py"
+    ],
+    "sdk": [
+      "tests/integration/test_iter63_trade_date_stream.py"
+    ],
+    "bt": [
+      "tests/unit/live_state/test_iter63_gateway_trade_date_pending.py"
+    ]
+  }
+}

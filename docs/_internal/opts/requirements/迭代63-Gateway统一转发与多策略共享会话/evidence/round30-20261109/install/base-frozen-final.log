@@ -1,0 +1,14 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r30-install-20261109-ySExhdil/run_installed.py"], "launcher_pid": 69178, "launcher_ppid": 69127, "run_id": "base-frozen-final-69178-1794188231180328000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "base-frozen-final"}
+RUN_ID base-frozen-final-69178-1794188231180328000 PID 69217 PPID 69191
+ORIGIN_RUN_LOGS /private/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/base-frozen-final-69178-1794188231180328000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION extension blocked
+BASE_TEST_NAMESPACE_ROOT /private/tmp/iter63-r30-install-20261109-ySExhdil/base-tests/tests
+........................................................................ [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 91%]
+.....................                                                    [100%]
+237 passed in 0.38s
+BASE_TEST_HELPER_ORIGINS {}
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

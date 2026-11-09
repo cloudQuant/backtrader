@@ -1,0 +1,5 @@
+tests/test_gateway_execution_protocol.py
+tests/test_gateway_execution_stream_protocol.py
+tests/test_gateway_execution_cancel_attribution.py
+tests/test_gateway_execution_place_attribution.py
+tests/test_iter63_gateway_trade_date_protocol.py

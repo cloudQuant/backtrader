@@ -1,0 +1,28 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r30-install-20261109-ySExhdil/verify.py"], "launcher_pid": 69601, "launcher_ppid": 69563, "run_id": "verify-final-69601-1794188309169582000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "verify-final"}
+REBUILT bt_api_base /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_base/__init__.py 0.16.0.dev63 PY_COUNT 167 README_SHA256 32535a356f11f38352775eb7d626879bb942cd14167a332d2d4872fb543eb627
+REBUILT bt_api_gateway /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_gateway/__init__.py 0.2.0.dev63 PY_COUNT 26 README_SHA256 a29e2a98c04815525c5be7c20c326542a059f277950873544ab7d92581bb242a
+REBUILT bt_api_ctp /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_ctp/__init__.py 2.1.0.dev63 PY_COUNT 182 README_SHA256 969a290bddea174b6db973b01821dffeacc31c545519987dfb00ddee32df482c
+REBUILT bt_api_py /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_py/__init__.py 0.16.0.dev63 PY_COUNT 297 README_SHA256 996edfe182c86c45674497c82deec0c0980799290fde55e3ab8cc6a2a6baa3c1
+REBUILT backtrader /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/backtrader/__init__.py 1.4.0 PY_COUNT 679 README_SHA256 18aac49f7e6a595c3b11740659423585b7dd442d507ef6f76a3fbccdbf8121d8
+FIXED bt_api_okx /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_okx/__init__.py 0.16.0.dev63 100 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+FIXED bt_api_binance /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/bt_api_binance/__init__.py 2.1.0.dev63 86 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+FIXED msgpack /private/tmp/iter63-r30-install-20261109-ySExhdil/install/src/msgpack/__init__.py 1.2.4 5 a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50
+MANIFEST_SHA_MATCH source-manifest.json 1456
+MANIFEST_SHA_MATCH test-manifest.json 216
+EXTERNAL_EDITABLE_TRANSPORT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py
+WHEEL_SHA256 back_trader_python-1.4.0-py3-none-any.whl 58d391e537d43281c3f97d4b1287b8b7262b0d4800186f4b985077c18ba932e9
+WHEEL_SHA256 bt_api_base-0.16.0.dev63-py3-none-any.whl 6adcaf19163bf8a020f3e39653b217280c8d7244c2f3903a4cb5b4b0d6ca70a0
+WHEEL_SHA256 bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be
+WHEEL_SHA256 bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl 668e65387d088dd0994fab18c1e151a6e42011cfea4dc8c4275f5c014860b00f
+WHEEL_SHA256 bt_api_gateway-0.2.0.dev63-py3-none-any.whl 696966a55fe378189993c7f150a2fff2e2bc23ce25d3f8b5bdb792b9b7b7729c
+WHEEL_SHA256 bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07
+WHEEL_SHA256 bt_api_py-0.16.0.dev63-py3-none-any.whl a246f199af2d18113c0646f6ac2c4735b7abd47cba61f325214077b53f34c25b
+WHEEL_SHA256 msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50
+CTP_VERIFIED_REUSE_NO_NATIVE_COMPILATION 21 b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5
+CTP_TEST_RELOCATION_SHA_MATCH
+SDK_LAYOUT_LINKS_RESOLVE_INSTALLED_TARGET 2
+GAP: Python -I and -S children may bypass sitecustomize
+EXTERNAL_EDITABLE_VERIFIED bt_api_monitor 0.1.0 aba1ca273122a4d7a29898b588cc701023a43e39 /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_monitor/src/bt_api_monitor/__init__.py 22
+EXTERNAL_EDITABLE_VERIFIED bt_api_transport_zmq 0.1.0 6a4cf80ca4ff686f55f62ee9a51a0daf875df8ec /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py 7
+NO_FULL_RESOLVER_NO_ACCOUNT_CONNECTIONS
+RUN_EXIT 0

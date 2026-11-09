@@ -1,0 +1,38 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "996edfe182c86c45674497c82deec0c0980799290fde55e3ab8cc6a2a6baa3c1"
+  },
+  {
+    "path": "bt_api_py/gateway_execution_stream_service.py",
+    "sha256": "b13550f7a962451a935e8efbf240fe09ed05f14c44547a6fa3b44405f95ed217"
+  },
+  {
+    "path": "tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+    "sha256": "4f4203f8ec0d900232aa6d2933b496e2efbed0ee3a3662c7599fb5ce8f0b9b21"
+  },
+  {
+    "path": "tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+    "sha256": "4ea341988a65f468e2ab0214a51e7296ca070337c181b87a1e24ee075a378f7a"
+  },
+  {
+    "path": "tests/integration/test_iter63_gateway_api_process.py",
+    "sha256": "5e5f9a0f3e1ca6172cc43224cd6e0681b758e51daca079533ecfcbb8f431557f"
+  },
+  {
+    "path": "tests/integration/test_iter63_gateway_execution_stream_processes.py",
+    "sha256": "d27bca1cdf7d062778cbdc2b4e3d2f6ed2cb60ecf185f04f1bde4cebead221b4"
+  },
+  {
+    "path": "tests/integration/test_iter63_trade_date_stream.py",
+    "sha256": "13889258f74a0dc3095c15bacad8b6acb8be8e60076d2692eced84ffee986460"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "sha256": "6e76522dcbd1ca38f158a3e3214f4bfd0d3ad370b368f8da0120a04e3b7f833c"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_execution_stream_service.py",
+    "sha256": "74e885addce72be1a637d321761bdb4d24003bf53a4abd74e668944570c85fb1"
+  }
+]

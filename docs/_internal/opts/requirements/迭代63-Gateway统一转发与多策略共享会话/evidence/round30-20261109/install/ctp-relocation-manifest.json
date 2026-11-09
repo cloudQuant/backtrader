@@ -1,0 +1,67 @@
+[
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/selected-tests.txt",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/selected-tests.txt",
+    "sha256": "b3171b5318d1d95c101621e08755f304310bf89316497aa9f97f5e13e46d9fda"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/conftest.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/conftest.py",
+    "sha256": "a9e9fe2d9481ecf5f969be6bb4dc384fa376794d9e5d54c78c454c9c25705b3f"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_account_provider_execution_observations.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_account_provider_execution_observations.py",
+    "sha256": "3c20438af08b652a2f32527a7211a172d63c4445d17b661942c2bcdfbf40f097"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter62_settlement_readback_on_write.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter62_settlement_readback_on_write.py",
+    "sha256": "77cb3faa9876ef95f175008f322e08962879aef52e22e1d99563cee3b7eea256"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_cancel_return_projection.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_cancel_return_projection.py",
+    "sha256": "6935c88f5c915d24bc8d5aa3d5c0819677fa216573d44b2b9e4b0704452245c8"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_return_buffer.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_return_buffer.py",
+    "sha256": "892b83bf2ab71d468eb601410efb08a295f4cb0a3ac9330c96ef71a63d4f6a89"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_return_projection.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_return_projection.py",
+    "sha256": "5ac9587b66d6f82794c65b6dc244a494d1f4df9b437945c6b88fb428c98b3f3f"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_return_query.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_return_query.py",
+    "sha256": "5cfbc4a2a62d006fd14ecb0ec3113a75bc429a923980ffb389c1406234d315d5"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_return_source.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_return_source.py",
+    "sha256": "d3412ee217974540555a55fd391731963685b1e0880644795860b504051d263b"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_session.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_session.py",
+    "sha256": "67bcc180dab61e21142b0eccef31c8f90a2d469cb6b366278731be1329632b04"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_gateway_trade_date_projection.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_gateway_trade_date_projection.py",
+    "sha256": "47fbcbe4e3c9bb17f86db7909ecd26ae700d98b822e4ddd0a04b36c5ab258d93"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_iter63_prepared_cancel.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_iter63_prepared_cancel.py",
+    "sha256": "83af98b23d1519ba401af230b7c8b21ebd08f74e8832f2e14140424a0fc72d79"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/ctp-tests/tests/test_market_provider.py",
+    "copy": "/tmp/iter63-r30-install-20261109-ySExhdil/install/tests/test_market_provider.py",
+    "sha256": "40b25816efae96bca4c76c6302b7c7e3816a1d75d56d06f62d6fdc394edb5ec8"
+  }
+]

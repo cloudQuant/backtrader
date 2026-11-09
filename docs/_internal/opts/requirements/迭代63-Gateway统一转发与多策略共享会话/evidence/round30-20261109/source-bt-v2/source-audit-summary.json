@@ -1,0 +1,160 @@
+{
+  "files": 17,
+  "missing_exit_audits": 0,
+  "processes": [
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69933,
+      "ppids": [
+        69927
+      ],
+      "resolved": 630
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69935,
+      "ppids": [
+        69933
+      ],
+      "resolved": 616
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69936,
+      "ppids": [
+        69933
+      ],
+      "resolved": 616
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69938,
+      "ppids": [
+        69933
+      ],
+      "resolved": 616
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69939,
+      "ppids": [
+        69933
+      ],
+      "resolved": 582
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69940,
+      "ppids": [
+        69933
+      ],
+      "resolved": 582
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69941,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69942,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69943,
+      "ppids": [
+        69933
+      ],
+      "resolved": 477
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69945,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69946,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69947,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69948,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69949,
+      "ppids": [
+        69933
+      ],
+      "resolved": 578
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69951,
+      "ppids": [
+        69933
+      ],
+      "resolved": 142
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69952,
+      "ppids": [
+        69933
+      ],
+      "resolved": 142
+    },
+    {
+      "exit_audit_missing": false,
+      "guard": true,
+      "pid": 69953,
+      "ppids": [
+        69933
+      ],
+      "resolved": 145
+    }
+  ],
+  "run_id": "bt-69933-1794188400228260000"
+}

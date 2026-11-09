@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r30-install-20261109-ySExhdil/prepare.py", "fixed"], "launcher_pid": 68600, "launcher_ppid": 68587, "run_id": "fixed-68600-1794188170200156000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "fixed"}
+FIXED_WHEELS 3
+RUN_EXIT 0

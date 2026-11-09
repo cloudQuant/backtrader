@@ -1,0 +1,20 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r30-install-20261109-ySExhdil/run_installed.py"], "launcher_pid": 69176, "launcher_ppid": 69122, "run_id": "bt-frozen-final-69176-1794188231157514000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "bt-frozen-final"}
+RUN_ID bt-frozen-final-69176-1794188231157514000 PID 69214 PPID 69187
+ORIGIN_RUN_LOGS /private/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/bt-frozen-final-69176-1794188231157514000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [ 22%]
+........................................................................ [ 44%]
+........................................................................ [ 67%]
+........................................................................ [ 89%]
+..................................                                       [100%]
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+322 passed, 1 warning in 30.86s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

@@ -1,0 +1,7 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r30-install-20261109-ySExhdil/prepare.py", "snapshot"], "launcher_pid": 68554, "launcher_ppid": 68543, "run_id": "snapshot-68554-1794188166429137000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "snapshot"}
+base HEAD f117c0bea16e77bee87451d8c1dbe3ba790f705c selected 170
+gateway HEAD 152497e4f9a88fdbca528b28b006e0deecdaf2c2 selected 30
+ctp HEAD 0373187a39cdc08acdd3cac1ab5de3bb35140c8c selected 258
+sdk HEAD 643734fab65c3dd0598998a561f18d6d963b4882 selected 314
+bt HEAD 29a11a10700ae72a01e9aba8abb44aa5b6d8acf1 selected 684
+RUN_EXIT 0

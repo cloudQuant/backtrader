@@ -1,0 +1,61 @@
+{
+  "base": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base",
+    "commit": "5d10348ea4ff60d05344a40fa639809ac5caf049",
+    "files": [
+      "src/bt_api_base/gateway_execution_protocol.py",
+      "src/bt_api_base/gateway_execution_stream_protocol.py",
+      "tests/test_iter63_gateway_trade_date_protocol.py",
+      "README.md"
+    ],
+    "output": "[dev 5d10348] feat(gateway): version trade natural date and metadata observations\n 4 files changed, 336 insertions(+), 20 deletions(-)\n create mode 100644 tests/test_iter63_gateway_trade_date_protocol.py\n"
+  },
+  "gateway": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway",
+    "commit": "21c8bdb1ba6b8fa45be11a68619fc13b87e65abb",
+    "files": [
+      "src/bt_api_gateway/direct_command_journal.py",
+      "src/bt_api_gateway/direct_execution_journal.py",
+      "tests/test_iter63_trade_date_journal.py",
+      "tests/test_iter63_cancel_error_attribution.py",
+      "tests/test_iter63_direct_cancel_journal.py",
+      "tests/test_iter63_direct_execution_journal.py",
+      "tests/test_iter63_place_error_attribution.py",
+      "tests/test_iter63_settlement_journal.py",
+      "README.md"
+    ],
+    "output": "[dev 21c8bdb] feat(journal): persist trade date enrichment without duplicate fills\n 9 files changed, 756 insertions(+), 75 deletions(-)\n create mode 100644 tests/test_iter63_trade_date_journal.py\n"
+  },
+  "ctp": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp",
+    "commit": "185920b6b2adfe5b166db17d85fcfca949e3d74e",
+    "files": [
+      "src/bt_api_ctp/gateway_return_projection.py",
+      "tests/test_iter63_gateway_trade_date_projection.py",
+      "README.md"
+    ],
+    "output": "[dev 185920b] feat(gateway): preserve native TradeDate in return facts\n 3 files changed, 106 insertions(+)\n create mode 100644 tests/test_iter63_gateway_trade_date_projection.py\n"
+  },
+  "sdk": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/bt_api_py",
+    "commit": "039779369a1a7081ad884dbb9c83cf7d54854c39",
+    "files": [
+      "bt_api_py/gateway_execution_stream_service.py",
+      "tests/integration/test_iter63_trade_date_stream.py",
+      "README.md",
+      "bt_api/bt_api_base",
+      "bt_api/bt_api_gateway",
+      "bt_api/bt_api_ctp"
+    ],
+    "output": "[dev 03977936] feat(gateway): propagate trade date enrichment through execution stream\n 6 files changed, 364 insertions(+), 4 deletions(-)\n create mode 100644 tests/integration/test_iter63_trade_date_stream.py\n"
+  },
+  "bt": {
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "commit": "7d5a1bd793276a7b0cea4573763d259f9f5d7c0c",
+    "files": [
+      "backtrader/live_state/gateway_execution_state.py",
+      "tests/unit/live_state/test_iter63_gateway_trade_date_pending.py"
+    ],
+    "output": "[dev 7d5a1bd79] fix(gateway): validate persisted trade date enrichment against original fills\n 2 files changed, 148 insertions(+), 1 deletion(-)\n create mode 100644 tests/unit/live_state/test_iter63_gateway_trade_date_pending.py\n"
+  }
+}

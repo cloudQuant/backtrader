@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_date_enrichment_over_curve_preserves_quantity_and_cursor _________
+tests/integration/test_iter63_trade_date_stream.py:295: in test_date_enrichment_over_curve_preserves_quantity_and_cursor
+    assert ingested[0] == "ingested", ingested
+E   AssertionError: ('error', 'DirectCommandJournalError', 'WRONG_OWNER', 'Traceback (most recent call last):
+E       File "/Users/yunjinqi/Doc...ectCommandJournalError("WRONG_OWNER")
+E     bt_api_gateway.direct_command_journal.DirectCommandJournalError: WRONG_OWNER
+E     ')
+E   assert 'error' == 'ingested'
+E     
+E     - ingested
+E     + error
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_trade_date_stream.py::test_date_enrichment_over_curve_preserves_quantity_and_cursor
+1 failed in 5.36s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q tests/integration/test_iter63_trade_date_stream.py` failed. (See above for error)

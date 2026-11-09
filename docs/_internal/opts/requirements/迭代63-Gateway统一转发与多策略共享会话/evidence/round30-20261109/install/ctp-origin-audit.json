@@ -1,0 +1,1 @@
+{"files": 1, "missing_exit_audits": 0, "processes": [{"exit_audit_missing": false, "guard": true, "pid": 69216, "ppids": [69189], "resolved": 173}], "run_id": "ctp-frozen-final-69175-1794188231158204000"}

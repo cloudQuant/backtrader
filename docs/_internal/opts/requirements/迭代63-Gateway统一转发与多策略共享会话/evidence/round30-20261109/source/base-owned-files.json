@@ -1,0 +1,6 @@
+[
+  "src/bt_api_base/gateway_execution_protocol.py",
+  "src/bt_api_base/gateway_execution_stream_protocol.py",
+  "tests/test_iter63_gateway_trade_date_protocol.py",
+  "README.md"
+]

@@ -1,0 +1,27 @@
+{
+  "type": "primary summary of independent reviewer messages, not raw original logs",
+  "issues": [
+    {
+      "id": "E071",
+      "finding": "metadata-only observation accepted without original trade correlation fields",
+      "fix": "Require trade key, quantity, price, side and venue key for metadata-only; ordinary incomplete observations unchanged",
+      "review_evidence": "Independent inline before/after checks; scripts/stdout not saved as separate files. Final product tests are included in primary source and install Base suites."
+    },
+    {
+      "id": "E072",
+      "finding": "Changing conflict reason to retained and removing conflict evidence could pass reopen",
+      "fix": "Audit retained conflicts against actual original conflict evidence and flags",
+      "review_evidence": "Independent inline SQLite reproducer and fixed recheck; no separate original artifacts. Final regression is in Gateway suite."
+    },
+    {
+      "id": "E073",
+      "finding": "Live read could return a metadata event as an ordinary fill after mutating reason",
+      "fix": "Verify applied pointer or metadata side-table/original-event links before returning effect",
+      "review_evidence": "Independent inline before/after checks; no saved original artifacts. Final regression is in Gateway suite."
+    }
+  ],
+  "limitations": [
+    "Primary initial payload verifier incorrectly required all multi-platform CTP source files in one wheel; v2 then omitted declared public config YAML. Scripts and correction record retained, terminal failures have no separate raw log file.",
+    "Worker and reviewer assertions alone are not whole-iteration or real-account acceptance."
+  ]
+}

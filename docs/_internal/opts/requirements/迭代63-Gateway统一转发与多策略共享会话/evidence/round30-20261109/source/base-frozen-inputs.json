@@ -1,0 +1,34 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "32535a356f11f38352775eb7d626879bb942cd14167a332d2d4872fb543eb627"
+  },
+  {
+    "path": "src/bt_api_base/gateway_execution_protocol.py",
+    "sha256": "5951bbb07c7a800ca6c18619eb9d860b710d3117fc05cac37bcd863d24cb5797"
+  },
+  {
+    "path": "src/bt_api_base/gateway_execution_stream_protocol.py",
+    "sha256": "8a448e0b310dc2240a77173911c1c390a71f13f4208ebc56b4d0f358781623ff"
+  },
+  {
+    "path": "tests/test_gateway_execution_cancel_attribution.py",
+    "sha256": "64782b930e257e579f3d20f1615e9bbe4faa69923d3d41fc910d16f34a581e7b"
+  },
+  {
+    "path": "tests/test_gateway_execution_place_attribution.py",
+    "sha256": "6add59441c31e7ccb7cedd919c84efb61109426b532abfda79b79ad950fb9c81"
+  },
+  {
+    "path": "tests/test_gateway_execution_protocol.py",
+    "sha256": "10f8455dfb4cd4b1adbc47e393bd45c3ba5d814bf09d86610b8a0be4ac27d607"
+  },
+  {
+    "path": "tests/test_gateway_execution_stream_protocol.py",
+    "sha256": "48f2e2189b0488c2cc5e87213fb754bcaa1b0dc9cdfc676f19443fc317035f13"
+  },
+  {
+    "path": "tests/test_iter63_gateway_trade_date_protocol.py",
+    "sha256": "8e7df72bf3212d17ba8549e5db6a6b088e477b22b15472e5ea0da76f93c9a398"
+  }
+]

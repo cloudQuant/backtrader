@@ -1,0 +1,12 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r30-install-20261109-ySExhdil/run_installed.py"], "launcher_pid": 69175, "launcher_ppid": 69123, "run_id": "ctp-frozen-final-69175-1794188231158204000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2", "stage": "ctp-frozen-final"}
+RUN_ID ctp-frozen-final-69175-1794188231158204000 PID 69216 PPID 69189
+ORIGIN_RUN_LOGS /private/tmp/iter63-r30-install-20261109-ySExhdil/origin-logs/ctp-frozen-final-69175-1794188231158204000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [ 29%]
+........................................................................ [ 58%]
+........................................................................ [ 87%]
+..............................                                           [100%]
+246 passed in 3.01s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

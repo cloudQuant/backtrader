@@ -1,0 +1,6 @@
+{
+  "base_commit": "f117c0bea16e77bee87451d8c1dbe3ba790f705c",
+  "same_mapping_bytes": true,
+  "sha256": "2a85166a3eab68bdf3a011fb5caef9651acf534fce430861a9236d0e9c6808ab",
+  "scope": "Synthetic public v1/v2/v3 fixtures; old modules loaded from pinned Git blobs. No historical account database."
+}

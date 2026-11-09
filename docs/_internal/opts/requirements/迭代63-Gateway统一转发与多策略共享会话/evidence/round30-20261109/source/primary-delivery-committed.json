@@ -1,0 +1,18 @@
+{
+  "result": "PASS",
+  "manifest_rows": {
+    "source-manifest.json": 1456,
+    "test-manifest.json": 216
+  },
+  "unique_paths": 1670,
+  "commits": {
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base": "5d10348ea4ff60d05344a40fa639809ac5caf049",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_gateway": "21c8bdb1ba6b8fa45be11a68619fc13b87e65abb",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "185920b6b2adfe5b166db17d85fcfca949e3d74e",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "039779369a1a7081ad884dbb9c83cf7d54854c39",
+    "/Users/yunjinqi/Documents/new_projects/backtrader": "7d5a1bd793276a7b0cea4573763d259f9f5d7c0c"
+  },
+  "gitlinks": "MATCH",
+  "frozen_inputs": 93,
+  "scope": "Only listed product/test/README files and three SDK gitlinks committed; unrelated files preserved."
+}

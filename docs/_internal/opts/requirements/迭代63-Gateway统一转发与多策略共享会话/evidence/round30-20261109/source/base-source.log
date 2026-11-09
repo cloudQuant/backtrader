@@ -1,0 +1,13 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r30-primary/run.py"], "origin_log_group": "base-68450-1794188145784947000", "pid": 68450, "ppid": 68424, "run_id": "base-68450-1794188145784947000", "selector_sha256": "cb06fe3f5dfaf8567a986eaceb6976aa43e5e363f6860835ca4b1f0848c0a0c2"}
+SOURCE_ROOT base /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base SELECTORS /tmp/iter63-r30-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+BASE_TEST_NAMESPACE_ROOT /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/tests
+........................................................................ [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 91%]
+.....................                                                    [100%]
+--------- generated xml file: /tmp/iter63-r30-primary/base-source.xml ----------
+237 passed in 0.46s
+BASE_TEST_HELPER_ORIGINS {}
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID base-68450-1794188145784947000

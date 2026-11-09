@@ -1,0 +1,11 @@
+[
+  "src/bt_api_gateway/direct_command_journal.py",
+  "src/bt_api_gateway/direct_execution_journal.py",
+  "tests/test_iter63_trade_date_journal.py",
+  "tests/test_iter63_cancel_error_attribution.py",
+  "tests/test_iter63_direct_cancel_journal.py",
+  "tests/test_iter63_direct_execution_journal.py",
+  "tests/test_iter63_place_error_attribution.py",
+  "tests/test_iter63_settlement_journal.py",
+  "README.md"
+]

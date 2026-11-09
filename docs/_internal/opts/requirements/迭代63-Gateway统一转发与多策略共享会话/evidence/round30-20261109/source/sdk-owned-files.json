@@ -1,0 +1,5 @@
+[
+  "bt_api_py/gateway_execution_stream_service.py",
+  "tests/integration/test_iter63_trade_date_stream.py",
+  "README.md"
+]

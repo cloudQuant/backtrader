@@ -1,0 +1,6 @@
+{
+  "initial_script": "primary_verify_payloads.py",
+  "failure": "CTP full source tree contains Windows/Linux API, SWIG inputs, backup and other CPython native variants intentionally excluded by setup.py package data. Requiring all source files to be in selected platform wheel is invalid.",
+  "correction": "CTP exact member set must equal all Python members plus 21 explicitly verified selected native members; every emitted member still matches source and target bytes. Other packages retain exact full runtime-set check.",
+  "second_failure": "v2 omitted the single tracked public configs/ctp.yaml declared by setup.py package_data; v3 includes that exact config pattern."
+}

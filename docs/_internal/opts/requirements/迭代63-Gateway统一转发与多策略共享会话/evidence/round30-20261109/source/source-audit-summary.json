@@ -1,0 +1,420 @@
+[
+  {
+    "files": 1,
+    "missing_exit_audits": 0,
+    "processes": [
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68450,
+        "ppids": [
+          68424
+        ],
+        "resolved": 9
+      }
+    ],
+    "run_id": "base-68450-1794188145784947000",
+    "kind": "base"
+  },
+  {
+    "files": 1,
+    "missing_exit_audits": 0,
+    "processes": [
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68446,
+        "ppids": [
+          68417
+        ],
+        "resolved": 173
+      }
+    ],
+    "run_id": "ctp-68446-1794188145721954000",
+    "kind": "ctp"
+  },
+  {
+    "files": 9,
+    "missing_exit_audits": 0,
+    "processes": [
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68447,
+        "ppids": [
+          68419
+        ],
+        "resolved": 719
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68457,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68460,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68461,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68463,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68465,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68468,
+        "ppids": [
+          68447
+        ],
+        "resolved": 209
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68472,
+        "ppids": [
+          68447
+        ],
+        "resolved": 216
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68474,
+        "ppids": [
+          68447
+        ],
+        "resolved": 695
+      }
+    ],
+    "run_id": "sdk-68447-1794188145730462000",
+    "kind": "sdk"
+  },
+  {
+    "files": 14,
+    "missing_exit_audits": 8,
+    "processes": [
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68449,
+        "ppids": [
+          68416
+        ],
+        "resolved": 131
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68452,
+        "ppids": [
+          68449
+        ],
+        "resolved": 24
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68475,
+        "ppids": [
+          68449
+        ],
+        "resolved": 25
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68476,
+        "ppids": [
+          68449
+        ],
+        "resolved": 25
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68505,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68506,
+        "ppids": [
+          68449
+        ],
+        "resolved": 15
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68507,
+        "ppids": [
+          68449
+        ],
+        "resolved": 15
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68510,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68511,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68512,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68513,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": true,
+        "guard": true,
+        "pid": 68514,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68515,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68516,
+        "ppids": [
+          68449
+        ],
+        "resolved": 14
+      }
+    ],
+    "run_id": "gateway-68449-1794188145726270000",
+    "kind": "gateway"
+  },
+  {
+    "files": 17,
+    "missing_exit_audits": 0,
+    "processes": [
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68448,
+        "ppids": [
+          68418
+        ],
+        "resolved": 630
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68459,
+        "ppids": [
+          68448
+        ],
+        "resolved": 616
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68462,
+        "ppids": [
+          68448
+        ],
+        "resolved": 616
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68464,
+        "ppids": [
+          68448
+        ],
+        "resolved": 616
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68469,
+        "ppids": [
+          68448
+        ],
+        "resolved": 582
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68473,
+        "ppids": [
+          68448
+        ],
+        "resolved": 582
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68480,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68481,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68494,
+        "ppids": [
+          68448
+        ],
+        "resolved": 477
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68503,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68504,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68508,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68509,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68517,
+        "ppids": [
+          68448
+        ],
+        "resolved": 578
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68523,
+        "ppids": [
+          68448
+        ],
+        "resolved": 142
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68524,
+        "ppids": [
+          68448
+        ],
+        "resolved": 142
+      },
+      {
+        "exit_audit_missing": false,
+        "guard": true,
+        "pid": 68527,
+        "ppids": [
+          68448
+        ],
+        "resolved": 145
+      }
+    ],
+    "run_id": "bt-68448-1794188145735095000",
+    "kind": "bt"
+  }
+]
