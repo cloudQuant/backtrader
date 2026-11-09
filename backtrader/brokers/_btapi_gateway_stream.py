@@ -42,8 +42,9 @@ class _StreamBinding:
     sequence: object = None
     state: str = "ACTIVE"
     local_deferred: list = field(default_factory=list)
-    # Request keys this process asked the Gateway to dispatch; any other
-    # RESERVED reservation was left by an earlier process and is withdrawn.
+    # Request keys whose dispatch the Gateway acknowledged in this process; any
+    # other RESERVED reservation (earlier process, or an uncertain dispatch) is
+    # read back and withdrawn, decided atomically by version at the Gateway.
     dispatched: set = field(default_factory=set)
 
 
@@ -502,9 +503,12 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "FEED_NOT_TRADABLE_AFTER_RESERVE"
                     self._gateway_release_unsent(binding, order, request_key)
                     return order
-                binding.dispatched.add(request_key)
                 result = binding.api.dispatch_order(binding.policy.route, request_key, market_ref=market_ref,
                                                     timeout_seconds=binding.timeout)
+                if result.outcome in ("QUEUED", "OBSERVED"):
+                    # Only an acknowledged dispatch keeps its reservation; an
+                    # uncertain one is read back and withdrawn by version.
+                    binding.dispatched.add(request_key)
                 if result.outcome == "REQUEST_DENIED":
                     # Refused before the owner queue or any marker: never sent.
                     binding.state = "DISPATCH_DENIED"

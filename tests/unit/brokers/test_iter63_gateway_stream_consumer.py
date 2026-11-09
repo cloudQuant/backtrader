@@ -1483,6 +1483,36 @@ def test_reservation_left_by_an_earlier_process_is_withdrawn_after_restart(
     assert host.load_record(second.info.gateway_request_key).state == 'RESERVED'
 
 
+def test_uncertain_dispatch_reservation_is_withdrawn_in_process(state, ready, inputs, monkeypatch):
+    # A dispatch with an UNKNOWN outcome was never acknowledged: its RESERVED
+    # reservation is read back and released instead of hanging until restart.
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+
+    def unknown(route, key, **kwargs):
+        host.commit_pre_dispatch(key, host.load_record(key))
+        return GatewayClientResult('UNKNOWN', code='RPC_OUTCOME_UNKNOWN')
+    calls = []
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', unknown)
+    monkeypatch.setattr(api, 'command_status', lambda route, k, **kw:
+                        GatewayClientResult('OBSERVED', host.load_record(k)))
+    monkeypatch.setattr(api, 'release_order', _emulated_release(host, calls))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    assert order.status == order.Submitted
+    deliver(broker, strategy)
+    broker.next()
+    assert order.status == order.Canceled and calls
+
+
 def test_reservation_this_process_is_dispatching_is_not_withdrawn(state, ready, inputs, monkeypatch):
     from bt_api_py.gateway_direct_client import GatewayClientResult
     from tests.unit.live_state.test_gateway_pending import observe
