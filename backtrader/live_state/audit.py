@@ -63,7 +63,9 @@ def append_audit(strategy_dir: Any, record: Mapping[str, Any], *, lock_timeout: 
     paths = StatePaths(strategy_dir)
     if not os.path.isdir(paths.state_dir):
         raise LiveStateNotInitialized(paths.state_dir, "state_dir_missing")
-    with FileLock(paths.audit_lock, timeout=lock_timeout):
+    from .coordination import coordinated
+
+    with coordinated(paths, timeout=lock_timeout), FileLock(paths.audit_lock, timeout=lock_timeout):
         created = not os.path.exists(paths.audit)
         flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0)
         fd = os.open(paths.audit, flags, 0o600)

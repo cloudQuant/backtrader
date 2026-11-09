@@ -283,7 +283,9 @@ def initialize_identity(strategy_dir: Any, *, account_binding: Any = None) -> St
     os.makedirs(paths.state_dir, exist_ok=True)
     if created_state_dir:
         fsync_directory(root)
-    with FileLock(paths.identity_lock):
+    from .coordination import coordinated
+
+    with coordinated(paths), FileLock(paths.identity_lock):
         identity = _initialize_locked(paths, binding)
     _audit_best_effort(
         root,
@@ -308,7 +310,9 @@ def bind_account(strategy_dir: Any, account_binding: Mapping[str, str]) -> Strat
     if binding is None:
         raise LiveStateError("account_binding_invalid", "none")
     paths = StatePaths(strategy_dir)
-    with FileLock(paths.identity_lock):
+    from .coordination import coordinated
+
+    with coordinated(paths), FileLock(paths.identity_lock):
         identity = load_identity(paths.strategy_dir, check_host_path=True)
         if identity.account_binding is not None:
             if identity.account_binding == binding:
@@ -377,6 +381,16 @@ def rebind_identity(
     root = paths.strategy_dir
     if not os.path.isdir(paths.state_dir):
         raise LiveStateNotInitialized(paths.state_dir, "state_dir_missing")
+    from .coordination import coordinated
+
+    # E020: the whole check-archive-reinitialize sequence holds the strategy-
+    # root coordination lock, so no cooperating writer can commit between the
+    # active-state check and the rename (it then fails its strategy_uuid check).
+    with coordinated(paths):
+        return _rebind_coordinated(paths, root, mode, operator, reason)
+
+
+def _rebind_coordinated(paths, root, mode, operator, reason):
     run_lock = FileLock(paths.run_lock, timeout=0)
     if not run_lock.try_acquire():
         raise LiveStateLocked(paths.run_lock, "live_run_active")

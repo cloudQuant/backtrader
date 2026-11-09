@@ -21,7 +21,6 @@ from typing import Any, Optional
 
 from ._common import StatePaths, is_strict_int, is_uuid4
 from .atomic import (
-    FileLock,
     LiveStateCorrupt,
     LiveStateError,
     LiveStateIdentityMismatch,
@@ -94,8 +93,10 @@ class SequenceAllocator:
     def path(self) -> str:
         return self.paths.sequence
 
-    def _lock(self) -> FileLock:
-        return FileLock(self.paths.sequence_lock, timeout=self.lock_timeout)
+    def _lock(self):
+        from .coordination import CoordinatedFileLock
+
+        return CoordinatedFileLock(self.paths, self.paths.sequence_lock, timeout=self.lock_timeout)
 
     def read(self) -> dict:
         """Return the validated current state (a copy)."""

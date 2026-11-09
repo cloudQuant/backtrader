@@ -43,7 +43,6 @@ from ._common import (
     utc_now_iso,
 )
 from .atomic import (
-    FileLock,
     LiveStateCorrupt,
     LiveStateError,
     LiveStateIdentityMismatch,
@@ -295,8 +294,10 @@ class WaitingOrderStore:
     def path(self) -> str:
         return self.paths.waiting
 
-    def _lock(self) -> FileLock:
-        return FileLock(self.paths.waiting_lock, timeout=self.lock_timeout)
+    def _lock(self):
+        from .coordination import CoordinatedFileLock
+
+        return CoordinatedFileLock(self.paths, self.paths.waiting_lock, timeout=self.lock_timeout)
 
     def _load(self) -> dict:
         try:

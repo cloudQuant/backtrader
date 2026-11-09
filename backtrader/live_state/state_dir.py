@@ -91,9 +91,23 @@ class StrategyStateDir:
         :class:`LiveStateLocked` if another live run (any process, or another
         holder in this process) owns it.
         """
-        lock = FileLock(self.paths.run_lock, timeout=0)
-        if not lock.try_acquire():
-            raise LiveStateLocked(self.paths.run_lock, "live_run_active")
+        from .atomic import LiveStateIdentityMismatch
+        from .coordination import coordinated
+        from .identity import load_identity
+
+        # Under the coordination lock (E020) the run lock still never waits,
+        # and an instance whose identity was archived meanwhile is refused.
+        with coordinated(self.paths, timeout=self.lock_timeout):
+            lock = FileLock(self.paths.run_lock, timeout=0)
+            if not lock.try_acquire():
+                raise LiveStateLocked(self.paths.run_lock, "live_run_active")
+            try:
+                current = load_identity(self.paths.strategy_dir, check_host_path=False)
+                if current.strategy_uuid != self.identity.strategy_uuid:
+                    raise LiveStateIdentityMismatch("strategy_uuid_mismatch", "run.lock")
+            except BaseException:
+                lock.release()
+                raise
         return RunLock(lock)
 
     def summary(self) -> dict:

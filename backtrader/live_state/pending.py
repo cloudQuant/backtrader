@@ -56,7 +56,6 @@ from ._common import (
     utc_now_iso,
 )
 from .atomic import (
-    FileLock,
     LiveStateCorrupt,
     LiveStateError,
     LiveStateIdentityMismatch,
@@ -523,8 +522,10 @@ class PendingCommandStore:
     def path(self) -> str:
         return self.paths.pending
 
-    def _lock(self) -> FileLock:
-        return FileLock(self.paths.pending_lock, timeout=self.lock_timeout)
+    def _lock(self):
+        from .coordination import CoordinatedFileLock
+
+        return CoordinatedFileLock(self.paths, self.paths.pending_lock, timeout=self.lock_timeout)
 
     def _load(self) -> dict:
         try:

@@ -38,6 +38,8 @@ PENDING_FILE = "pending.json"
 WAITING_FILE = "waiting_orders.json"
 AUDIT_FILE = "audit.log"
 RUN_LOCK_FILE = "run.lock"
+# Strategy-root lock that state archiving never moves (E020, coordination.py).
+COORDINATION_LOCK_FILE = ".state-coordination.lock"
 SNAPSHOT_FILE = "current_position.yaml"
 
 _MAX_DEPTH = 16
@@ -61,6 +63,7 @@ class StatePaths:
         "audit",
         "audit_lock",
         "run_lock",
+        "coordination_lock",
         "snapshot",
         "snapshot_lock",
     )
@@ -83,6 +86,7 @@ class StatePaths:
         self.audit = os.path.join(state, AUDIT_FILE)
         self.audit_lock = os.path.join(state, "audit.lock")
         self.run_lock = os.path.join(state, RUN_LOCK_FILE)
+        self.coordination_lock = os.path.join(root, COORDINATION_LOCK_FILE)
         self.snapshot = os.path.join(logs, SNAPSHOT_FILE)
         self.snapshot_lock = os.path.join(logs, ".current_position.lock")
 
