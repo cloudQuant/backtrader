@@ -1,0 +1,24 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r27-primary/run.py"], "origin_log_group": "bt-41899-1794181963430116000", "pid": 41899, "ppid": 41893, "run_id": "bt-41899-1794181963430116000", "selector_sha256": "cadb567ae853ec90b943a1688c46306d495603bda57aef21907d9ee62cfe18dd"}
+SOURCE_ROOT bt /Users/yunjinqi/Documents/new_projects/backtrader SELECTORS /tmp/iter63-r27-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 31%]
+........................................................................ [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 74%]
+........................................................................ [ 84%]
+........................................................................ [ 95%]
+................................                                         [100%]
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /tmp/iter63-r27-primary/bt-source.xml -----------
+680 passed, 1 warning in 48.84s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID bt-41899-1794181963430116000

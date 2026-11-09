@@ -1,0 +1,8 @@
+{
+  "runtime": {},
+  "tests": {
+    "bt": [
+      "tests/unit/live_state/test_iter63_gateway_notification_state.py"
+    ]
+  }
+}

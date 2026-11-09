@@ -1,0 +1,14 @@
+{
+  "scope": "R27 local notification persistence state, before Broker/Strategy hooks",
+  "reviewed_initial_sha256": "97ae76f57618ca60757cafe2b0476909a4b201094e152c47ab0572569b2bf6c4",
+  "fixed_final_sha256": "64dca815a26169735579910854548592c28b9df927e639376f3c1f7141a2dbfe",
+  "E061": "Confirmed deadlock: confirmed status adds 2 bytes; worker fixed commit/load capacity check, exact boundary tests, primary inspected and ran 40 files source/install 680 each",
+  "compatibility": "Legacy v4 reserved-key collision is explicitly rejected without migration; documented and regression tested",
+  "trust_boundary": "Unsigned local JSON is not authenticated against arbitrary disk rewrites; batch hash proves correlation only",
+  "verification_corrections": [
+    "Installer UTF8 parser wrongly decoded README; compare raw metadata body instead",
+    "Installer post-test inventory includes generated pyc; froze original inputs and classified additions",
+    "Primary initial distribution filename assumption matched none; corrected to observed back_trader_python wheel"
+  ],
+  "reviewer_tests": "Independent reviewer static only; worker 64 tests and primary separate 680 file-set checks"
+}

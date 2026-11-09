@@ -1,0 +1,1 @@
+R27 notification persistence state only; no Strategy/Broker production integration. Final candidate; 40 exact live_state/direct/projection test files.

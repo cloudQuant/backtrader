@@ -1,0 +1,4 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 42984, "ppid": 42978, "run_id": "verify-42976-1794182272174132000"}
+{"data": {"mode": "verification", "target": "/private/tmp/iter63-r27-install-20261109-E3J4NZZw/install/src"}, "event": "guard-installed", "pid": 42984, "ppid": 42978, "run_id": "verify-42976-1794182272174132000"}
+{"data": {}, "event": "audit-ok", "pid": 42984, "ppid": 42978, "run_id": "verify-42976-1794182272174132000"}
+{"data": {}, "event": "audit-ok", "pid": 42984, "ppid": 42978, "run_id": "verify-42976-1794182272174132000"}

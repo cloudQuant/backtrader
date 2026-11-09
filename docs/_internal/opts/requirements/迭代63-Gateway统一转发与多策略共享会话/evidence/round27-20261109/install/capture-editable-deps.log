@@ -1,0 +1,4 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r27-install-20261109-E3J4NZZw/capture_editable_deps.py"], "launcher_pid": 42597, "launcher_ppid": 42566, "run_id": "capture-editable-deps-42597-1794182206696548000", "selector_sha256": "cadb567ae853ec90b943a1688c46306d495603bda57aef21907d9ee62cfe18dd", "stage": "capture-editable-deps"}
+EXTERNAL_EDITABLE_PUBLIC_RUNTIME bt_api_monitor 0.1.0 aba1ca273122a4d7a29898b588cc701023a43e39 22
+EXTERNAL_EDITABLE_PUBLIC_RUNTIME bt_api_transport_zmq 0.1.0 6a4cf80ca4ff686f55f62ee9a51a0daf875df8ec 7
+RUN_EXIT 0

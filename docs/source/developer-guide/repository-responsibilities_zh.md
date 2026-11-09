@@ -1,5 +1,7 @@
 ﻿# 仓库目录与文件职责规范
 
+> 2026-11-09 R27：`backtrader/live_state/gateway_execution_state.py` 在原 pending v4 内持有通知批次和确认水位；`GatewayPendingHost` 提供受限端口，不执行策略回调或网络 ACK。同40文件源码/安装各680通过，Broker/Strategy生产注册及恢复通知仍待接线。[R27审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十七轮通知持久状态端口审阅-2026-11-09.md)。
+
 > 2026-11-09 R26：CTP provider 持有同 TD 的分步合约查询、原生限价规则与严格当前来源探测；SDK 持有规格服务任务/三项账户操作、客户端组合、同源断连暂停及读取 epoch 协调。Gateway 默认仍用 bt_api_transport_zmq；本轮不修改 BT 产品。源码与隔离安装限定切片 CTP811/SDK756 通过，不证明全服务或真实账户；同步账户刷新、既有锁/native 等待和完整 BT 接线仍开放。[R26审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十六轮共享合约规格与重连接线审阅-2026-11-09.md)。
 
 > 2026-11-09 R25：`backtrader/brokers/_btapi_gateway_projection.py` 负责真实 BT Order/Position/Trade 的显式快照、受信框架依赖绑定和共享引用恢复；不签发 provider 事实、不自动安装到 Strategy 或发送 ACK。15个内置标量佣金类的局部源码/安装验证通过，复杂规则模型和自定义模型不在当前支持范围；生产事件消费与通知持久化仍未接通。[本轮审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十五轮真实框架对象快照与恢复审阅-2026-11-09.md)记录证据和限制，以下较早轮次按其日期理解。

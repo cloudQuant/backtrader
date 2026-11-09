@@ -1,0 +1,26 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r27-install-20261109-E3J4NZZw/run_installed.py"], "launcher_pid": 43121, "launcher_ppid": 43111, "run_id": "bt-frozen-final-43121-1794182314988263000", "selector_sha256": "cadb567ae853ec90b943a1688c46306d495603bda57aef21907d9ee62cfe18dd", "stage": "bt-frozen-final"}
+RUN_ID bt-frozen-final-43121-1794182314988263000 PID 43129 PPID 43123
+ORIGIN_RUN_LOGS /private/tmp/iter63-r27-install-20261109-E3J4NZZw/origin-logs/bt-frozen-final-43121-1794182314988263000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+TEMP_MSGPACK 1.2.4 /private/tmp/iter63-r27-install-20261109-E3J4NZZw/install/src/msgpack/__init__.py
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+........................................................................ [ 31%]
+........................................................................ [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 74%]
+........................................................................ [ 84%]
+........................................................................ [ 95%]
+................................                                         [100%]
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+680 passed, 1 warning in 49.61s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

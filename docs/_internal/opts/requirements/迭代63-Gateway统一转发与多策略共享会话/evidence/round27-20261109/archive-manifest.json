@@ -1,0 +1,502 @@
+[
+  {
+    "path": "install/SOURCE_FROZEN",
+    "bytes": 50,
+    "sha256": "f751706e035dfc9f51773cb0870d8d5e0fe8222aafd8aaf6fbbb1eac09fe6de4"
+  },
+  {
+    "path": "install/allowlists.json",
+    "bytes": 128,
+    "sha256": "546779fe56072461f93c8bb4ce8b6d2c4822eefe32b1c049f5eefc9ac793455b"
+  },
+  {
+    "path": "install/audit_run.py",
+    "bytes": 1309,
+    "sha256": "090f07fb067da085aa8a8173e0e060f827b7f5722559eaef8e108becce708dac"
+  },
+  {
+    "path": "install/bootstrap/offline_guard.py",
+    "bytes": 5947,
+    "sha256": "199d8676a2494ec03c3aa062789887fa0ad0485735c0a4db52a7ad16f830d241"
+  },
+  {
+    "path": "install/bootstrap/origin_guard.py",
+    "bytes": 2868,
+    "sha256": "a769d163ba2d55b125c81804039c7429c0e4f072d3d3fe339d7023475cc74a9c"
+  },
+  {
+    "path": "install/bootstrap/sitecustomize.py",
+    "bytes": 165,
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "install/bt-frozen-final.log",
+    "bytes": 2201,
+    "sha256": "56bb5aa98fdd0b617122b7c11cce08fe6e8f72c0cc59cf02be610dffa70900f1"
+  },
+  {
+    "path": "install/bt-source-wheel-members-comparison.json",
+    "bytes": 100,
+    "sha256": "6c53b266fcec0f27b13f38d6677ac804dbb899235850f9a73975ced6abe24f41"
+  },
+  {
+    "path": "install/bt-tests-after.json",
+    "bytes": 16363,
+    "sha256": "ba7b8066e2d7e5ea0097efe1b8dd77acea506778a212c00b9de75e184e679d92"
+  },
+  {
+    "path": "install/bt-tests-before.json",
+    "bytes": 7396,
+    "sha256": "91b1c8327c4de1aeefad226238fafa76c70ee9d8ba65fd01fd3ac1133a6cc352"
+  },
+  {
+    "path": "install/build.log",
+    "bytes": 1301,
+    "sha256": "00d69c567897a6c10129f8d1260a52ddb6144f55c65b77848222ec2fdaa34b9a"
+  },
+  {
+    "path": "install/capture-editable-deps.log",
+    "bytes": 638,
+    "sha256": "5c1759287cbd2769bcc95deaabb5e9be17f86ea7951513de5c2ce5f43726a19b"
+  },
+  {
+    "path": "install/capture_editable_deps.py",
+    "bytes": 2901,
+    "sha256": "cdf72dc3ef20f143e52c51dbf9f042a0a02a802c5c94249e0c33632121afe037"
+  },
+  {
+    "path": "install/copy_testcommon_fixtures.py",
+    "bytes": 1482,
+    "sha256": "2fd627bec078ab4c4c1fc551047e897f42b6236a554300b8802d31ab2b06f5ad"
+  },
+  {
+    "path": "install/editable-deps-manifest.json",
+    "bytes": 14048,
+    "sha256": "4ba97ba1ed796ca2445569b1631b42d6b57f335a72357912f27fbb6c1e2f706f"
+  },
+  {
+    "path": "install/executions.jsonl",
+    "bytes": 9060,
+    "sha256": "d51f66cef24e5dedc2191c24c0377dbc59e4ba170a8365b70b6b274ee045bd72"
+  },
+  {
+    "path": "install/fixed-wheels.json",
+    "bytes": 1871,
+    "sha256": "889260577d1065df4d2392a1914871e7d569987f54d43beb3b1d8b3adbe90fd9"
+  },
+  {
+    "path": "install/fixtures.log",
+    "bytes": 46,
+    "sha256": "4361fb67f31aa123c2343237f9490b1957654ca29170c7a5509806e3ec6141d6"
+  },
+  {
+    "path": "install/guard-preflight.log",
+    "bytes": 467,
+    "sha256": "6cd2fb4512864122a2cbedbbbbeb3981f748b2dd2ebde41b784888c85374cb2b"
+  },
+  {
+    "path": "install/guard_preflight.py",
+    "bytes": 1852,
+    "sha256": "e00c9ee87c1fea8fc06dc80d4b4337c142ccd571979926ff84912a8738b02ac6"
+  },
+  {
+    "path": "install/install-src-after.json",
+    "bytes": 397611,
+    "sha256": "a414a30f95d3e26f40d1b7633c4a7ee44ff902acc847dba537b5fb579c0cd48f"
+  },
+  {
+    "path": "install/install-src-before.json",
+    "bytes": 397611,
+    "sha256": "a414a30f95d3e26f40d1b7633c4a7ee44ff902acc847dba537b5fb579c0cd48f"
+  },
+  {
+    "path": "install/install.log",
+    "bytes": 2416,
+    "sha256": "e1027ec218b2b189fd58bec1885af5f0490c990680a92e2a4507a17b4d193931"
+  },
+  {
+    "path": "install/origin-audit-final.log",
+    "bytes": 1725,
+    "sha256": "aeaaed5a1de3b9b904a8ff8be8954128782da57f252a3af0ff7f32f129e3a2d9"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43129.jsonl",
+    "bytes": 457130,
+    "sha256": "1ad6d74e0afff4e042a6e135a508e830b21842774cd7da6b02808ec2e08871ca"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43301.jsonl",
+    "bytes": 350743,
+    "sha256": "919649d374989e9b0169a4506b0c3163ec75fb25012a6d8b884766e0e9ab173e"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43302.jsonl",
+    "bytes": 350743,
+    "sha256": "25971b2de8a4029fbf7c8ef2afc740e1d6ad0dfa3380d4fe18419680fa7d1b70"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43303.jsonl",
+    "bytes": 350743,
+    "sha256": "f380561be7d5ad0675bb41c0fb2ed6e654b957edf45f56e8a3fbb786f5e32133"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43304.jsonl",
+    "bytes": 333672,
+    "sha256": "87a3ce1057c6334e9ff5c4b6200ee750a796d1c6ad99ac1defa22067eaf965e0"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43314.jsonl",
+    "bytes": 333672,
+    "sha256": "9720a7268567342644313cc9fc9c7a48a5bff3a0a045a2e25a506cb41c1439ba"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43323.jsonl",
+    "bytes": 331222,
+    "sha256": "6baa0b30c358256470d47a931576c4a1a937548c5df5c1dd1b4948431ef64a65"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43324.jsonl",
+    "bytes": 331222,
+    "sha256": "c2917327c4e2a5d707b5154061c0f3bab57dbbffbb024ed0eb49a35ad7779824"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43330.jsonl",
+    "bytes": 276252,
+    "sha256": "8feb6fdc28aed31ace8501ef25c33c6828fa134277cebbafd3a7f8214223983f"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43332.jsonl",
+    "bytes": 331222,
+    "sha256": "6e59dfc62ae51f59700f1716c0cd45c142a2c96a1c35b3431dd2fa6e3da3af53"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43333.jsonl",
+    "bytes": 331222,
+    "sha256": "33ab30a0f2125c84751ef8f64ac38eb8b2d7155b2838625fcf76b0f3a307cc30"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43335.jsonl",
+    "bytes": 331222,
+    "sha256": "10b7aa49f1f35c810ef38f3273bb8a8d22801da59bf3d7c37709c95f1ed24184"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43336.jsonl",
+    "bytes": 331222,
+    "sha256": "e8f2d5625bfdfca928d856411cd53ebe2c888817f675f3135fd97d1c4859c44d"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43337.jsonl",
+    "bytes": 331222,
+    "sha256": "77861ae97da32ff4297dfc6fd4c2586769ac1ca9b345de2d17ff2411cf8e6cdb"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43338.jsonl",
+    "bytes": 71614,
+    "sha256": "3fdc5e964c4cf496e20e0b681dee6921b12f2c993a7a23773c5a6c92b3006e51"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43339.jsonl",
+    "bytes": 71614,
+    "sha256": "0bdbcd5fbff4459d50c728f30b1d04a92b451a34ad928476bfbe418ef33c20f7"
+  },
+  {
+    "path": "install/origin-logs/bt-frozen-final-43121-1794182314988263000/43340.jsonl",
+    "bytes": 72646,
+    "sha256": "648b1412e3c680f160ebd20f7e75d73951b517549ea198e2b2e78e5966846f38"
+  },
+  {
+    "path": "install/origin-logs/guard-preflight-42916-1794182264367960000/42924.jsonl",
+    "bytes": 83135,
+    "sha256": "1263b1acbb02c38e623b364b0bc0f04d2f679547569f640463ac30a35a544462"
+  },
+  {
+    "path": "install/origin-logs/verify-42976-1794182272174132000/42984.jsonl",
+    "bytes": 552,
+    "sha256": "9afdd57eadb923aff75acb42da535e7559ef70c67b65683f2220c3270ac2be6e"
+  },
+  {
+    "path": "install/origin-logs/verify-after-classified-43556-1794182403815196000/43608.jsonl",
+    "bytes": 461166,
+    "sha256": "3df3f6ae891b6aa821ec94806108a17d1921030278aa3f6f374cae700e7b8b51"
+  },
+  {
+    "path": "install/origin-logs/verify-before-43089-1794182306629663000/43105.jsonl",
+    "bytes": 454676,
+    "sha256": "35b5a2c53b27e309ad6c43b393e17285f0fd4a27f4dacdd7e83cb8a70cecf758"
+  },
+  {
+    "path": "install/origin-logs/verify-final-43370-1794182373882994000/43378.jsonl",
+    "bytes": 360965,
+    "sha256": "f01127f2d0a0bd9113c517bd4508641ac465434e2b6ac45b27bb681f1b33e05e"
+  },
+  {
+    "path": "install/prepare.py",
+    "bytes": 19736,
+    "sha256": "e943e93efe84f992a4f2f82ac046e560a955a3744517be33fc150900a0b4270e"
+  },
+  {
+    "path": "install/run.py",
+    "bytes": 5382,
+    "sha256": "0b80bdda58eac4862daa777a0628dd042fe69a43d3629e6c6cad1831f71cf6c9"
+  },
+  {
+    "path": "install/run_installed.py",
+    "bytes": 3884,
+    "sha256": "58293553ffc8c78cb47e28d061a2514f462fce033beb26fe6b8d420281844105"
+  },
+  {
+    "path": "install/selectors.json",
+    "bytes": 2504,
+    "sha256": "cadb567ae853ec90b943a1688c46306d495603bda57aef21907d9ee62cfe18dd"
+  },
+  {
+    "path": "install/snapshot.log",
+    "bytes": 465,
+    "sha256": "c3024ec6a7ed18cf30bf1fcf58f1a228a643ce8689771125e7c0899825983532"
+  },
+  {
+    "path": "install/source-manifest.json",
+    "bytes": 338741,
+    "sha256": "a45fcc8631513d2a60c1a9314e6931d67841bf460fe79493a33ad4af92659ac0"
+  },
+  {
+    "path": "install/test-manifest-before-testcommon.json",
+    "bytes": 29886,
+    "sha256": "65aa1c834a3ea3b4b5b61fe48316b1fd580fd63ed0f5d7aee32731d36ce92b47"
+  },
+  {
+    "path": "install/test-manifest.json",
+    "bytes": 31239,
+    "sha256": "fdbb9f9bfee9c00ea49779abb12dfdcc78371258fe815667df5450d26e0b38f4"
+  },
+  {
+    "path": "install/testcommon-fixtures-manifest.json",
+    "bytes": 1356,
+    "sha256": "0a672d30b161db7a24e31b90a4e9d71072aad17113b5deab96232a8385c9ed02"
+  },
+  {
+    "path": "install/tests-copy.log",
+    "bytes": 433,
+    "sha256": "1838764572c1f7d6987b9039b66b1b2d27588ca279daedbea1a66d559c862bae"
+  },
+  {
+    "path": "install/verify-after-classified.log",
+    "bytes": 3295,
+    "sha256": "cb975d6929af8c04332030246e0e4b0b1c64f468fcad626fc73f527cbf2b9b3f"
+  },
+  {
+    "path": "install/verify-before.log",
+    "bytes": 3208,
+    "sha256": "6d990ed0b01018fd0143b65d63d9b96d8488af36cbac43f156c2d8af968f4f9e"
+  },
+  {
+    "path": "install/verify-final.log",
+    "bytes": 3717,
+    "sha256": "a4d2b803cf882fe0232fd6f99e9858026b2a27baecdb427591c2d1a0f8989c6e"
+  },
+  {
+    "path": "install/verify.log",
+    "bytes": 2660,
+    "sha256": "5f19cef5838ca49aabd226d0b7d679086d84be18a9de47472975cfa25f9eab7b"
+  },
+  {
+    "path": "install/verify.py",
+    "bytes": 4661,
+    "sha256": "a07df39881e6b89434da1545a8f0ca043c8823232682b57a203be02c8ff0fc4e"
+  },
+  {
+    "path": "install/verify_bt_all_payload.py",
+    "bytes": 1133,
+    "sha256": "7972f04a8796751a6d65a1e3f0d406c81845efed00c8e3f83bcbba10531eac0c"
+  },
+  {
+    "path": "install/verify_r27.py",
+    "bytes": 4277,
+    "sha256": "fb126975698a996554aeac58c9dd6c9efbd65b3a20b13f43b522059c75ff151e"
+  },
+  {
+    "path": "install/wheel-members.json",
+    "bytes": 190670,
+    "sha256": "b5b347963756e0ae8a3585147463813b6f7e0ff21c454940dd394d4876cadc23"
+  },
+  {
+    "path": "review-triage.json",
+    "bytes": 1187,
+    "sha256": "6db7d46f0a84d7475593f532c45e68d93c5ee38a597222d0f159a6ddee799172"
+  },
+  {
+    "path": "source/SOURCE_FROZEN",
+    "bytes": 151,
+    "sha256": "1bec961b476597f607f693c25dd0addc93b7d84329bf28145c7057a35e9e0e48"
+  },
+  {
+    "path": "source/audit_run.py",
+    "bytes": 1291,
+    "sha256": "ee6bc1a59d46b19f2bd00080a6a3bfc7b485791f9f8ed9ddc50b0e37f436ec9d"
+  },
+  {
+    "path": "source/bootstrap/offline_guard.py",
+    "bytes": 5947,
+    "sha256": "09e8ab157be4409359f6323bb8a29e7426857496136f7dad903c6392ba564e90"
+  },
+  {
+    "path": "source/bootstrap/origin_guard.py",
+    "bytes": 2922,
+    "sha256": "c91e468627e26f7e6a7fabee68e83275b3386a9c346c8e6f09436f6b3cd682bf"
+  },
+  {
+    "path": "source/bootstrap/sitecustomize.py",
+    "bytes": 165,
+    "sha256": "fd21d5a6dfd1b9d246216d4adc3ead815395f191af56bddde61ae206e01ac9bf"
+  },
+  {
+    "path": "source/bt-commit-verification.json",
+    "bytes": 1489,
+    "sha256": "230a3656da587d39033a7161c92486412401de4a98cefe6723d064e4ede5cc93"
+  },
+  {
+    "path": "source/bt-frozen-inputs.json",
+    "bytes": 12952,
+    "sha256": "7ffc9a687f65e3b13a7984f114d80d95739eb5f89dff3d6804e9da7c02775d32"
+  },
+  {
+    "path": "source/bt-origin-audit.json",
+    "bytes": 2678,
+    "sha256": "645bbd5960e693f811d63f4fae14076fe67b28e9f819e8b38c02df98977dfddd"
+  },
+  {
+    "path": "source/bt-owned-files.json",
+    "bytes": 172,
+    "sha256": "acb1249a5cb8c0ba3b69e87d36689ed94993de313fe846295d8875a558d75fc1"
+  },
+  {
+    "path": "source/bt-primary-package-verification.json",
+    "bytes": 105497,
+    "sha256": "593863af28b99005a9526fcb0210b594262b300fd2eb9e2714b325de56b26e34"
+  },
+  {
+    "path": "source/bt-source-native.json",
+    "bytes": 302,
+    "sha256": "69e84b94019fc7c3708c97817b0ab9a6efa5194af2455104ab4c77e599469c69"
+  },
+  {
+    "path": "source/bt-source.log",
+    "bytes": 1931,
+    "sha256": "767c7c473a1488806c2ff5e51048308a7c7ff8592e7e8dbbff9a635dc6259358"
+  },
+  {
+    "path": "source/bt-source.xml",
+    "bytes": 103396,
+    "sha256": "8cadd8a01f9ec63f4a40d10792281243652b153a2391babb73602b8f556e9519"
+  },
+  {
+    "path": "source/launcher-executions.jsonl",
+    "bytes": 812,
+    "sha256": "97828f93ea7c948e1795fe7f74d48461f23c3152c310f0ee6f0be1d3e78ad7e8"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41899.jsonl",
+    "bytes": 429682,
+    "sha256": "f25aa000361e53266524790bf3d31218b50b0e7419c00c141152bfff2145e6d7"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41924.jsonl",
+    "bytes": 328390,
+    "sha256": "1c0f76e2eb83327590470e2db3237a29ab4e8e9759f06d6c64be73c2fba7d1c6"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41926.jsonl",
+    "bytes": 328390,
+    "sha256": "bc80c60f6d0c9099381dc3cc8e0f6e579f9aeaa161fefcd28e22d6161c084a9c"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41927.jsonl",
+    "bytes": 328390,
+    "sha256": "ae628e8daf465bd7b9e679b5b129d0cb432315cb3a80d3dbd6011558a03bef4e"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41929.jsonl",
+    "bytes": 309471,
+    "sha256": "ff6f23ba9310c32e74520584885714a4e1150122f66d9b994ce85d48869ab025"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41930.jsonl",
+    "bytes": 309471,
+    "sha256": "ba3b2a06f0735faf6423a6ea42263cdc5f7db224846c9f4ee7ea8b28945ae918"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41933.jsonl",
+    "bytes": 307072,
+    "sha256": "4f2b75d8cb0d98f4e2eff49ef27e17e61335352b70b063d9d5dcbd102dea3189"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41934.jsonl",
+    "bytes": 307072,
+    "sha256": "4049031530f34a65a6b71d13d5441d3f31cf67a95ddc768be3c4c1c7a519a619"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41935.jsonl",
+    "bytes": 253017,
+    "sha256": "deb389bc430ed654cc06de0a9d10bf00e2b2eae7e61e96f2deaf732c870cf76f"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41939.jsonl",
+    "bytes": 307072,
+    "sha256": "b4b4276821fec8fd9efa5f8fb8ee29c3c8d75bbcf3c609313ba7a95fb30dc12f"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41940.jsonl",
+    "bytes": 307072,
+    "sha256": "50ff2c34d54a70328aa0f032e372b35b5b1bb476f8f9e49cbffc82dbc546c517"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41941.jsonl",
+    "bytes": 307072,
+    "sha256": "3ca71398a76719f1ccaa1544ca072af6fa72e2ee44d516657d3cf189dc3ad219"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41942.jsonl",
+    "bytes": 307072,
+    "sha256": "bb07135df557fb20ee09eff8f12234ab58affef3a6a18d38295396978248325f"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41945.jsonl",
+    "bytes": 307072,
+    "sha256": "d2430f6d60c2b76ec614f190ebe3bb8a0260295ef141debd84457fcb7487916a"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41946.jsonl",
+    "bytes": 64852,
+    "sha256": "7f02e78b05f47dc0d80a7133d4a1ca4c77b663d013063ac3c7d2fc4eb888e917"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41947.jsonl",
+    "bytes": 64852,
+    "sha256": "772a9f3cc3ef42ee078e730129e3710ddb295e99f90ef5a4b7354322f373dbdd"
+  },
+  {
+    "path": "source/origin-logs/bt-41899-1794181963430116000/41948.jsonl",
+    "bytes": 65798,
+    "sha256": "e484c23a1ef20f3e999cefdd5cfdb2e6b973448cbf2088362fa1b9fd02fc5c51"
+  },
+  {
+    "path": "source/run.py",
+    "bytes": 4440,
+    "sha256": "a33e7914b811f2ccd67198d1a184c5a23c568ad1de9a321984f7407dc71a21e7"
+  },
+  {
+    "path": "source/run_source.py",
+    "bytes": 2878,
+    "sha256": "b57601c040e6ff3334c10a851a7f8d99c0fc87468d112bdb8d64ba21b16cd0c6"
+  },
+  {
+    "path": "source/selectors.json",
+    "bytes": 2504,
+    "sha256": "cadb567ae853ec90b943a1688c46306d495603bda57aef21907d9ee62cfe18dd"
+  },
+  {
+    "path": "source/source-executions.jsonl",
+    "bytes": 320,
+    "sha256": "530200391b6e70f4027683b92c312cd9708ac52c443cb31922c42abb1cd656af"
+  }
+]
