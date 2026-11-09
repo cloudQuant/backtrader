@@ -21,6 +21,7 @@ from ._btapi_owner_fence import finish_dispatch_lease as _finish_owner_lease
 from ._btapi_owner_fence import lease_outcome_for_error as _owner_lease_error_outcome
 from ._btapi_owner_fence import lease_outcome_for_response as _owner_lease_response_outcome
 from ._btapi_gateway_events import GatewayExecutionEventsBrokerMixin
+from ._btapi_gateway_notifications import GatewayNotificationsBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
@@ -67,6 +68,7 @@ _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "
 
 
 class BtApiBroker(
+    GatewayNotificationsBrokerMixin,
     BtApiDirectModeMixin,
     AccountOwnerFenceBrokerMixin,
     StrategyLedgerBrokerMixin,
@@ -306,6 +308,8 @@ class BtApiBroker(
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
+        for binding in self.__dict__.get("_gateway_notification_bindings", {}).values():
+            self._gateway_check_live_scope(binding)
         session = self._managed_runtime_session
         if session is None:
             session = self._service_execution_session
@@ -876,6 +880,8 @@ class BtApiBroker(
 
     def attach_service_execution_session(self, session):
         """Attach one explicit managed-execution owner before startup."""
+        if self.__dict__.get("_gateway_notification_bindings"):
+            raise ValueError("GATEWAY_NOTIFICATION_MODE_CONFLICT")
         from ..service.service_execution_session import ServiceExecutionSession
 
         if not isinstance(session, ServiceExecutionSession):
@@ -899,6 +905,8 @@ class BtApiBroker(
 
     def attach_managed_runtime_session(self, session):
         """Attach the generic SDK host before Store/Broker startup."""
+        if self.__dict__.get("_gateway_notification_bindings"):
+            raise ValueError("GATEWAY_NOTIFICATION_MODE_CONFLICT")
         from ..service.managed_runtime_host import ManagedRuntimeCerebroSession
 
         if not isinstance(session, ManagedRuntimeCerebroSession):

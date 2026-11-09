@@ -2978,6 +2978,10 @@ class Strategy(StrategyBase):
             order: The order that has been updated
             quicknotify: If True, immediately process notification without queueing
         """
+        broker = getattr(self, "broker", None)
+        validate = getattr(broker, "_gateway_validate_notification_entry", None)
+        if callable(validate):
+            validate(self)
         # If not simulated trading, add order to pending orders
         if not order.p.simulated:
             self._orderspending.append(order)
@@ -3158,8 +3162,16 @@ class Strategy(StrategyBase):
         corrections = getter("fee_corrections") if callable(getter) else None
         if not corrections:
             return
-        applied = self.__dict__.setdefault("_fee_corrections_applied", {})
-        done = applied.get(order.ref, 0)
+        applied = self.__dict__.get("_fee_corrections_applied")
+        done = applied.get(order.ref, 0) if applied is not None else 0
+        broker = getattr(self, "broker", None)
+        validate = getattr(broker, "_gateway_validate_fee_notifications", None)
+        if callable(validate):
+            validated_corrections = validate(self, order, corrections, done)
+            if validated_corrections is not None:
+                corrections = validated_corrections
+        if applied is None:
+            applied = self.__dict__.setdefault("_fee_corrections_applied", {})
         for entry in corrections:
             sequence = entry.get("sequence")
             if type(sequence) is not int or sequence <= done:
@@ -3171,12 +3183,31 @@ class Strategy(StrategyBase):
                 trade.commission += delta
                 trade.pnlcomm = trade.pnl - trade.commission
             applied[order.ref] = done = sequence
-            observers = getattr(self, "_lineiterators", {}).get(LineIterator.ObsType, ())
-            listeners = [self, *getattr(self, "analyzers", ()), *observers]
-            for listener in listeners:
-                hook = getattr(listener, "notify_fee_correction", None)
-                if callable(hook):
-                    hook(order, trade, delta, currency)
+            prepare = getattr(broker, "_gateway_prepare_fee_notification", None)
+            receipt = (
+                prepare(self, order, trade, delta, currency, sequence)
+                if callable(prepare) else None
+            )
+            try:
+                self._notify_fee_correction_inner(order, trade, delta, currency)
+                if receipt is not None:
+                    broker._gateway_confirm_notifications(self, receipt)
+            except BaseException:
+                if receipt is not None:
+                    try:
+                        broker._gateway_abort_notifications(self, receipt)
+                    except BaseException:
+                        pass
+                raise
+
+    def _notify_fee_correction_inner(self, order, trade, delta, currency):
+        """Deliver a fee notification without reapplying its Trade update."""
+        observers = getattr(self, "_lineiterators", {}).get(LineIterator.ObsType, ())
+        listeners = [self, *getattr(self, "analyzers", ()), *observers]
+        for listener in listeners:
+            hook = getattr(listener, "notify_fee_correction", None)
+            if callable(hook):
+                hook(order, trade, delta, currency)
 
     def notify_fee_correction(self, order, trade, delta, currency):
         """A late provider fee changed ``order``'s commission by ``delta``.
@@ -3191,7 +3222,13 @@ class Strategy(StrategyBase):
             quicknotify_enabled = self._quicknotify
         except AttributeError:
             quicknotify_enabled = self.cerebro.p.quicknotify
-        tracked_orders = (qorders or []) if quicknotify_enabled else self._orderspending
+        if quicknotify_enabled:
+            tracked_orders = qorders if qorders is not None else []
+            tracked_trades = qtrades if qtrades is not None else []
+        else:
+            tracked_orders = self._orderspending
+            tracked_trades = self._tradespending
+        gateway_broker = getattr(self, "broker", None)
         receipt_ids = []
         seen = set()
         for order in tracked_orders:
@@ -3204,29 +3241,45 @@ class Strategy(StrategyBase):
             if isinstance(receipt_id, str) and receipt_id not in seen:
                 seen.add(receipt_id)
                 receipt_ids.append(receipt_id)
+        gateway_receipt = None
         try:
-            self._notify_inner(qorders=qorders, qtrades=qtrades)
-        except BaseException:
+            try:
+                prepare = getattr(gateway_broker, "_gateway_prepare_notifications", None)
+                gateway_receipt = (
+                    prepare(self, tracked_orders, tracked_trades)
+                    if callable(prepare) else None
+                )
+                self._notify_inner(qorders=qorders, qtrades=qtrades)
+            except BaseException:
+                broker = getattr(self, "broker", None)
+                release = getattr(broker, "release_service_execution_recovery_receipt", None)
+                if callable(release):
+                    for receipt_id in receipt_ids:
+                        release(receipt_id)
+                raise
             broker = getattr(self, "broker", None)
-            release = getattr(broker, "release_service_execution_recovery_receipt", None)
-            if callable(release):
+            acknowledge = getattr(broker, "acknowledge_service_execution_recovery_receipt", None)
+            if callable(acknowledge):
                 for receipt_id in receipt_ids:
-                    release(receipt_id)
-            raise
-        broker = getattr(self, "broker", None)
-        acknowledge = getattr(broker, "acknowledge_service_execution_recovery_receipt", None)
-        if callable(acknowledge):
-            for receipt_id in receipt_ids:
+                    try:
+                        acknowledge(receipt_id)
+                    except BaseException:
+                        release = getattr(
+                            broker, "release_service_execution_recovery_receipt", None
+                        )
+                        if callable(release):
+                            for pending_receipt in receipt_ids:
+                                release(pending_receipt)
+                        raise
+            if gateway_receipt is not None:
+                gateway_broker._gateway_confirm_notifications(self, gateway_receipt)
+        except BaseException:
+            if gateway_receipt is not None:
                 try:
-                    acknowledge(receipt_id)
+                    gateway_broker._gateway_abort_notifications(self, gateway_receipt)
                 except BaseException:
-                    release = getattr(
-                        broker, "release_service_execution_recovery_receipt", None
-                    )
-                    if callable(release):
-                        for pending_receipt in receipt_ids:
-                            release(pending_receipt)
-                    raise
+                    pass
+            raise
 
     def _notify_inner(self, qorders=None, qtrades=None):
         """Notify order and trade events to strategy and analyzers.
