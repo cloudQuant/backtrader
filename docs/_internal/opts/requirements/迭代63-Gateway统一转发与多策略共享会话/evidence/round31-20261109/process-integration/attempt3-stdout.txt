@@ -1,0 +1,4 @@
+..                                                                       [100%]
+---- generated xml file: /tmp/iter63-r31-stream-process/attempt3-junit.xml -----
+2 passed in 7.21s
+

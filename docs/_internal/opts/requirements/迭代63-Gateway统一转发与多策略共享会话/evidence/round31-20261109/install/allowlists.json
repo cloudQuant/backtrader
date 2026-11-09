@@ -1,0 +1,24 @@
+{
+  "runtime": {
+    "sdk": [
+      "bt_api_py/gateway_execution_time.py"
+    ],
+    "bt": [
+      "backtrader/brokers/_btapi_gateway_stream.py",
+      "backtrader/live_state/gateway_order_state.py"
+    ]
+  },
+  "tests": {
+    "sdk": [
+      "tests/unit/test_iter63_gateway_execution_time.py"
+    ],
+    "bt": [
+      "tests/integration/test_iter63_gateway_stream_consumer_process.py",
+      "tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py",
+      "tests/unit/brokers/test_iter63_gateway_stream_consumer.py",
+      "tests/unit/live_state/test_iter63_gateway_order_bootstrap.py",
+      "tests/unit/live_state/test_iter63_gateway_trade_time_pending.py",
+      "tests/unit/test_iter63_gateway_notification_resume_hook.py"
+    ]
+  }
+}

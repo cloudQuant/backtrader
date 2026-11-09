@@ -1,0 +1,377 @@
+.........................x.............................................. [ 54%]
+......................................................FFFFFF             [100%]
+=================================== FAILURES ===================================
+____________ test_restart_durable_notifications[confirm_after-True] ____________
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x13940b450>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x139492810>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x129c70550>
+quick = True, window = 'confirm_after'
+
+    @pytest.mark.parametrize("quick", [False, True])
+    @pytest.mark.parametrize("window", ["before_callback", "callback", "confirm_before", "confirm_after"])
+    def test_restart_durable_notifications(state, ready, monkeypatch, quick, window):
+        host, data, broker, strategy, order = setup(ready, quick)
+        broker.arm_gateway_notification_state(strategy, 3)
+        if window == "before_callback":
+            monkeypatch.setattr(strategy, "_notify_inner", lambda **kw: (_ for _ in ()).throw(RuntimeError("before callback")))
+        elif window == "callback":
+            strategy.fail = "order"
+        else:
+            write = pending_module.atomic_write_json
+            def fail_confirm(*args, **kwargs):
+                if window == "confirm_after":
+                    write(*args, **kwargs)
+                raise OSError("synthetic confirmation failure")
+            original_confirm = host.confirm_execution_notification_batch
+            def confirm(*args, **kwargs):
+                with monkeypatch.context() as patch:
+                    patch.setattr(pending_module, "atomic_write_json", fail_confirm)
+                    return original_confirm(*args, **kwargs)
+            monkeypatch.setattr(host, "confirm_execution_notification_batch", confirm)
+        with pytest.raises((RuntimeError, OSError)):
+            fill(broker, strategy, order, quick)
+            if not quick:
+                strategy._notify()
+        batch = host.load_execution_notification_batch()
+        status = "confirmed" if window == "confirm_after" else "pending"
+        assert batch["status"] == status
+        with pytest.raises(ValueError, match="ACK_BLOCKED"):
+            broker.assert_gateway_notifications_ackable(strategy, 3)
+        ids = [(item["kind"], item["notification_id"], True) for item in batch["notifications"]]
+>       run_child(state, host, order, quick, ids, 3, False, status)
+
+tests/integration/test_iter63_gateway_notification_restart.py:165: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x13940b450>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x139492810>
+order = <backtrader.order.BuyOrder object at 0x1394086d0>, quick = True
+expected_events = [('order', '18609520c259612238d4ebe8e20198daccc81a420ba5c2ee11919e787b7c9efa', True), ('trade', '43d5a395d9ea4965a98c87f27c27e0703c63e0d1a73963cbea84805f7871353c', True)]
+sequence = 3, fee = False, status = 'confirmed'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+___ test_commit_error_candidate_can_retry_then_restart[before_replace-False] ___
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x13934b450>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1060e1450>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x139392e10>
+quick = False, window = 'before_replace'
+
+    @pytest.mark.parametrize("quick", [False, True])
+    @pytest.mark.parametrize("window", ["before_replace", "after_replace"])
+    def test_commit_error_candidate_can_retry_then_restart(state, ready, monkeypatch, quick, window):
+        host, data, broker, strategy, order = setup(ready, quick)
+        broker.arm_gateway_notification_state(strategy, 3)
+        write = pending_module.atomic_write_json
+        def fail_commit(*args, **kwargs):
+            if window == "after_replace":
+                write(*args, **kwargs)
+            raise OSError("synthetic commit failure")
+        with monkeypatch.context() as patch:
+            patch.setattr(pending_module, "atomic_write_json", fail_commit)
+            with pytest.raises(OSError, match="synthetic commit failure"):
+                fill(broker, strategy, order, quick)
+                if not quick:
+                    strategy._notify()
+        assert not strategy.events
+        with pytest.raises(ValueError, match="ACK_BLOCKED"):
+            broker.assert_gateway_notifications_ackable(strategy, 3)
+        batch = host.load_execution_notification_batch()
+        assert (batch is None) == (window == "before_replace")
+        broker.replay_gateway_notifications(strategy)
+        batch = host.load_execution_notification_batch()
+        assert batch["status"] == "confirmed"
+        assert strategy.events == [(item["kind"], item["notification_id"], True)
+                                   for item in batch["notifications"]]
+        broker.assert_gateway_notifications_ackable(strategy, 3)
+>       run_child(state, host, order, quick, [], 3, False, "confirmed")
+
+tests/integration/test_iter63_gateway_notification_restart.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x13934b450>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1060e1450>
+order = <backtrader.order.BuyOrder object at 0x1393d58d0>, quick = False
+expected_events = [], sequence = 3, fee = False, status = 'confirmed'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+___ test_commit_error_candidate_can_retry_then_restart[before_replace-True] ____
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x129c73990>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1393a6910>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x13934b750>
+quick = True, window = 'before_replace'
+
+    @pytest.mark.parametrize("quick", [False, True])
+    @pytest.mark.parametrize("window", ["before_replace", "after_replace"])
+    def test_commit_error_candidate_can_retry_then_restart(state, ready, monkeypatch, quick, window):
+        host, data, broker, strategy, order = setup(ready, quick)
+        broker.arm_gateway_notification_state(strategy, 3)
+        write = pending_module.atomic_write_json
+        def fail_commit(*args, **kwargs):
+            if window == "after_replace":
+                write(*args, **kwargs)
+            raise OSError("synthetic commit failure")
+        with monkeypatch.context() as patch:
+            patch.setattr(pending_module, "atomic_write_json", fail_commit)
+            with pytest.raises(OSError, match="synthetic commit failure"):
+                fill(broker, strategy, order, quick)
+                if not quick:
+                    strategy._notify()
+        assert not strategy.events
+        with pytest.raises(ValueError, match="ACK_BLOCKED"):
+            broker.assert_gateway_notifications_ackable(strategy, 3)
+        batch = host.load_execution_notification_batch()
+        assert (batch is None) == (window == "before_replace")
+        broker.replay_gateway_notifications(strategy)
+        batch = host.load_execution_notification_batch()
+        assert batch["status"] == "confirmed"
+        assert strategy.events == [(item["kind"], item["notification_id"], True)
+                                   for item in batch["notifications"]]
+        broker.assert_gateway_notifications_ackable(strategy, 3)
+>       run_child(state, host, order, quick, [], 3, False, "confirmed")
+
+tests/integration/test_iter63_gateway_notification_restart.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x129c73990>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1393a6910>
+order = <backtrader.order.BuyOrder object at 0x1393b8b90>, quick = True
+expected_events = [], sequence = 3, fee = False, status = 'confirmed'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+___ test_commit_error_candidate_can_retry_then_restart[after_replace-False] ____
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x1396b2110>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x129c21550>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x13811fbd0>
+quick = False, window = 'after_replace'
+
+    @pytest.mark.parametrize("quick", [False, True])
+    @pytest.mark.parametrize("window", ["before_replace", "after_replace"])
+    def test_commit_error_candidate_can_retry_then_restart(state, ready, monkeypatch, quick, window):
+        host, data, broker, strategy, order = setup(ready, quick)
+        broker.arm_gateway_notification_state(strategy, 3)
+        write = pending_module.atomic_write_json
+        def fail_commit(*args, **kwargs):
+            if window == "after_replace":
+                write(*args, **kwargs)
+            raise OSError("synthetic commit failure")
+        with monkeypatch.context() as patch:
+            patch.setattr(pending_module, "atomic_write_json", fail_commit)
+            with pytest.raises(OSError, match="synthetic commit failure"):
+                fill(broker, strategy, order, quick)
+                if not quick:
+                    strategy._notify()
+        assert not strategy.events
+        with pytest.raises(ValueError, match="ACK_BLOCKED"):
+            broker.assert_gateway_notifications_ackable(strategy, 3)
+        batch = host.load_execution_notification_batch()
+        assert (batch is None) == (window == "before_replace")
+        broker.replay_gateway_notifications(strategy)
+        batch = host.load_execution_notification_batch()
+        assert batch["status"] == "confirmed"
+        assert strategy.events == [(item["kind"], item["notification_id"], True)
+                                   for item in batch["notifications"]]
+        broker.assert_gateway_notifications_ackable(strategy, 3)
+>       run_child(state, host, order, quick, [], 3, False, "confirmed")
+
+tests/integration/test_iter63_gateway_notification_restart.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x1396b2110>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x129c21550>
+order = <backtrader.order.BuyOrder object at 0x13978a290>, quick = False
+expected_events = [], sequence = 3, fee = False, status = 'confirmed'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+____ test_commit_error_candidate_can_retry_then_restart[after_replace-True] ____
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x139364610>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1396b2410>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1396b1090>
+quick = True, window = 'after_replace'
+
+    @pytest.mark.parametrize("quick", [False, True])
+    @pytest.mark.parametrize("window", ["before_replace", "after_replace"])
+    def test_commit_error_candidate_can_retry_then_restart(state, ready, monkeypatch, quick, window):
+        host, data, broker, strategy, order = setup(ready, quick)
+        broker.arm_gateway_notification_state(strategy, 3)
+        write = pending_module.atomic_write_json
+        def fail_commit(*args, **kwargs):
+            if window == "after_replace":
+                write(*args, **kwargs)
+            raise OSError("synthetic commit failure")
+        with monkeypatch.context() as patch:
+            patch.setattr(pending_module, "atomic_write_json", fail_commit)
+            with pytest.raises(OSError, match="synthetic commit failure"):
+                fill(broker, strategy, order, quick)
+                if not quick:
+                    strategy._notify()
+        assert not strategy.events
+        with pytest.raises(ValueError, match="ACK_BLOCKED"):
+            broker.assert_gateway_notifications_ackable(strategy, 3)
+        batch = host.load_execution_notification_batch()
+        assert (batch is None) == (window == "before_replace")
+        broker.replay_gateway_notifications(strategy)
+        batch = host.load_execution_notification_batch()
+        assert batch["status"] == "confirmed"
+        assert strategy.events == [(item["kind"], item["notification_id"], True)
+                                   for item in batch["notifications"]]
+        broker.assert_gateway_notifications_ackable(strategy, 3)
+>       run_child(state, host, order, quick, [], 3, False, "confirmed")
+
+tests/integration/test_iter63_gateway_notification_restart.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x139364610>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x1396b2410>
+order = <backtrader.order.BuyOrder object at 0x139543290>, quick = True
+expected_events = [], sequence = 3, fee = False, status = 'confirmed'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+____________________ test_fee_only_callback_failure_restart ____________________
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x139718690>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x129cd0690>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+
+    def test_fee_only_callback_failure_restart(state, ready):
+        host, data, broker, strategy, order = setup(ready, False)
+        broker.arm_gateway_notification_state(strategy, 3)
+        fill(broker, strategy, order, False)
+        strategy._notify()
+        strategy.clear()
+        broker.arm_gateway_notification_state(strategy, 8)
+        order.executed.comm += 0.2  # Explicit synthetic fee; no provider fee claim.
+        order.info["fee_corrections"] = [{"sequence": 1, "delta": 0.2, "currency": "CNY"}]
+        strategy.fail = "fee"
+        with pytest.raises(RuntimeError, match="fee callback"):
+            strategy._addnotification(order.clone())
+        batch = host.load_execution_notification_batch()
+        assert batch["status"] == "pending"
+        assert [item["kind"] for item in batch["notifications"]] == ["fee", "order"]
+        ids = [(item["kind"], item["notification_id"], True) for item in batch["notifications"]]
+>       run_child(state, host, order, False, ids, 8, True, "pending")
+
+tests/integration/test_iter63_gateway_notification_restart.py:214: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x139718690>
+host = <backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x129cd0690>
+order = <backtrader.order.BuyOrder object at 0x139552190>, quick = False
+expected_events = [('fee', '996d5e305dd2c6eb429a9c8e162472abcfd61cbf2f8d5c2095f55b02467b9edf', True), ('order', 'df7e9486b227820e9034a901263640565ae58b05f6d30041c6f99b9bdb49c5b9', True)]
+sequence = 8, fee = True, status = 'pending'
+
+    def run_child(state, host, order, quick, expected_events, sequence, fee, status):
+        expected = {"directory": str(state.strategy_dir), "uuid": state.strategy_uuid,
+                    "old_ref": order.ref, "quick": quick, "events": expected_events,
+                    "sequence": sequence, "fee": fee, "status": status}
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve()), json.dumps(expected)],
+                                cwd=env["PYTHONPATH"], env=env, text=True, capture_output=True,
+                                timeout=60)
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/...atewayExecutionStreamBrokerMixin
+E         ModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '/Users/yunjinqi/Documents/new_projects/backtrader/...atewayExecutionStreamBrokerMixin\nModuleNotFoundError: No module named \'backtrader.brokers._btapi_gateway_stream\'\n').returncode
+
+tests/integration/test_iter63_gateway_notification_restart.py:88: AssertionError
+--------- generated xml file: /tmp/iter63-r31-metadata-checkpoint.xml ----------
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_restart_durable_notifications[confirm_after-True]
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_commit_error_candidate_can_retry_then_restart[before_replace-False]
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_commit_error_candidate_can_retry_then_restart[before_replace-True]
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_commit_error_candidate_can_retry_then_restart[after_replace-False]
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_commit_error_candidate_can_retry_then_restart[after_replace-True]
+FAILED tests/integration/test_iter63_gateway_notification_restart.py::test_fee_only_callback_failure_restart
+6 failed, 125 passed, 1 xfailed in 17.20s

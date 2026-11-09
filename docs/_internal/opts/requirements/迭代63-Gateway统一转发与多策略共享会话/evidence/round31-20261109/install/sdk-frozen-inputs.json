@@ -1,0 +1,86 @@
+[
+  {
+    "path": "bt_api_py/gateway_execution_time.py",
+    "sha256": "574f93541cc3411f8d160f88afe5ed1c5ffdc03ec6bf0eb17e3f6d91c16f5620"
+  },
+  {
+    "path": "tests/integration/test_iter63_ctp_gateway_return_ingestion.py",
+    "sha256": "4f4203f8ec0d900232aa6d2933b496e2efbed0ee3a3662c7599fb5ce8f0b9b21"
+  },
+  {
+    "path": "tests/integration/test_iter63_ctp_gateway_return_maintenance.py",
+    "sha256": "4ea341988a65f468e2ab0214a51e7296ca070337c181b87a1e24ee075a378f7a"
+  },
+  {
+    "path": "tests/integration/test_iter63_gateway_api_process.py",
+    "sha256": "5e5f9a0f3e1ca6172cc43224cd6e0681b758e51daca079533ecfcbb8f431557f"
+  },
+  {
+    "path": "tests/integration/test_iter63_gateway_execution_stream_processes.py",
+    "sha256": "d27bca1cdf7d062778cbdc2b4e3d2f6ed2cb60ecf185f04f1bde4cebead221b4"
+  },
+  {
+    "path": "tests/integration/test_iter63_gateway_strategy_client.py",
+    "sha256": "501c871483d12e4fcaef39cb75d65135c38e3e55847f55a0a8500b7ec83cded7"
+  },
+  {
+    "path": "tests/integration/test_iter63_strategy_read_session.py",
+    "sha256": "36ee8884acbdf944c79e23557533b9cb53da0642f0dba80051a58f395cac7aa3"
+  },
+  {
+    "path": "tests/integration/test_iter63_trade_date_stream.py",
+    "sha256": "13889258f74a0dc3095c15bacad8b6acb8be8e60076d2692eced84ffee986460"
+  },
+  {
+    "path": "tests/test_mig01_gateway_entrypoints_retired.py",
+    "sha256": "fa91c378b4651109c10e42ddc016119ba549a84581aa4a5df07821c9211ab096"
+  },
+  {
+    "path": "tests/unit/test_gateway_strategy_account.py",
+    "sha256": "da6bd5c34f38fe809580f9cf146b30ab1692f3305352d83c2ad4892191775b80"
+  },
+  {
+    "path": "tests/unit/test_gateway_strategy_market.py",
+    "sha256": "1f619fbab843417dbdb17505392dc14172da8ab1fe58ab0f8b6d9cb79a4ed45c"
+  },
+  {
+    "path": "tests/unit/test_iter63_async_market_client.py",
+    "sha256": "02bfc44e0b69e81047d7174ec6138af15c91981c4216b78281951653e4689f93"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_api.py",
+    "sha256": "f3a257fa41f952b333693a3057b5bb7340b1094c551864248d562f0211b465cf"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_cancel_client.py",
+    "sha256": "3834613291b7e5ffc80e514bd1ad68e67bc6093f5ca7d56740cb6e9a97dd3e0c"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_direct_client.py",
+    "sha256": "c24515e3b6603e1d2eea0a9a8e6e89ed2c76fda4a5e74e242616aced16007c90"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_execution_stream_client.py",
+    "sha256": "6e76522dcbd1ca38f158a3e3214f4bfd0d3ad370b368f8da0120a04e3b7f833c"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_execution_stream_service.py",
+    "sha256": "74e885addce72be1a637d321761bdb4d24003bf53a4abd74e668944570c85fb1"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_execution_time.py",
+    "sha256": "de1f7e73586227ccc80e6edcc282ad4ca0cca05b2d1f41af90c3f9b48abb1a6f"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_strategy_client.py",
+    "sha256": "445c6156a5703fb51402cf7f7a0da07f0dbe75021fdb8d52288d3fcac75bc151"
+  },
+  {
+    "path": "tests/unit/test_iter63_gateway_strategy_instrument.py",
+    "sha256": "90e6cf2f8831b5b7cd8e17b780ee9e13cdd12354d370113e34f98fb6e9bd8aa3"
+  },
+  {
+    "path": "tests/unit/test_iter63_service_runtime_thread.py",
+    "sha256": "b3a7d9def119e1a9f641175becbd6f751464abccfce8e83d06e3a0e91dfdee57"
+  }
+]

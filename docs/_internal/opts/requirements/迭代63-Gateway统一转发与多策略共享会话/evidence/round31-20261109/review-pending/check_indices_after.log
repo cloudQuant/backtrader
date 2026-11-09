@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/tmp/iter63-r31-review-pending/check_indices.py", line 17, in <module>
+    host.save_order_intent(make('key-b'),local_seq=2,bt_ref=ref,snapshot=second)
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_pending.py", line 390, in save_order_intent
+    save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref, snapshot=snapshot)
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_order_state.py", line 108, in save_order_intent
+    validate_order_state(state)
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_order_state.py", line 52, in validate_order_state
+    raise ValueError("GATEWAY_ORDER_SNAPSHOT_REF_CONFLICT")
+ValueError: GATEWAY_ORDER_SNAPSHOT_REF_CONFLICT
+ERROR conda.cli.main_run:execute(125): `conda run python /tmp/iter63-r31-review-pending/check_indices.py` failed. (See above for error)

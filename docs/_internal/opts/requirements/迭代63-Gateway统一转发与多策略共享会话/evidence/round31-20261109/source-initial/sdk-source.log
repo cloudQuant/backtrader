@@ -1,0 +1,24 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r31-primary/run.py"], "origin_log_group": "sdk-80764-1794190866489633000", "pid": 80764, "ppid": 80742, "run_id": "sdk-80764-1794190866489633000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45"}
+SOURCE_ROOT sdk /Users/yunjinqi/Documents/new_projects/bt_api_py SELECTORS /tmp/iter63-r31-primary/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 56%]
+........................................................................ [ 75%]
+........................................................................ [ 94%]
+......................                                                   [100%]
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../backtrader/backtrader/feeds/__init__.py:56
+  /Users/yunjinqi/Documents/new_projects/backtrader/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------- generated xml file: /tmp/iter63-r31-primary/sdk-source.xml ----------
+382 passed, 2 warnings in 18.90s
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID sdk-80764-1794190866489633000

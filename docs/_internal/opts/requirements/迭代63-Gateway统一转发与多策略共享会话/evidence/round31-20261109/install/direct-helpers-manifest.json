@@ -1,0 +1,26 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/__init__.py",
+    "copy": "/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/__init__.py",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/__init__.py",
+    "snapshot_head": "2cda80c65bf9df5617cabd1a99484d75dbe89fe2",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/_fakes.py",
+    "copy": "/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/_fakes.py",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/_fakes.py",
+    "snapshot_head": "2cda80c65bf9df5617cabd1a99484d75dbe89fe2",
+    "sha256": "2ed816935ea2dc57e4deb9e4a0d1c14e5fefed67b339d4575b73417cf7d588fa"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/conftest.py",
+    "copy": "/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/conftest.py",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/conftest.py",
+    "snapshot_head": "2cda80c65bf9df5617cabd1a99484d75dbe89fe2",
+    "sha256": "851cebea4e963c1c8554a59b0ef11d3dcafaa37ab779d4601b00669f4dd5fa07"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/iter60_gateway_execution_support.py",
+    "copy": "/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/integration/iter60_gateway_execution_support.py",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/iter60_gateway_execution_support.py",
+    "snapshot_head": "2cda80c65bf9df5617cabd1a99484d75dbe89fe2",
+    "sha256": "20b3a903e975b2db18f8a385ef61062e00d561725881976423514dab92a48bc0"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/__init__.py",
+    "copy": "/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/__init__.py",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/__init__.py",
+    "snapshot_head": "2cda80c65bf9df5617cabd1a99484d75dbe89fe2",
+    "sha256": "28bfce4c0d4b88a0a2910345a16b64efbf4ad75879407695b6e9e22140e71048"
+  }
+]

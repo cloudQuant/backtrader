@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="6.587" timestamp="2026-11-09T10:09:49.198353+08:00" hostname="MacBook-Air-3.local"><testcase classname="tests.integration.test_iter63_gateway_stream_consumer_process" name="test_spawned_gateway_real_bt_notifications_and_recovery[False]" time="3.556"><failure message="AssertionError: ('error', 'resumed', 'Traceback (most recent call last):&#10;    File &quot;/Users/yunjinqi/Documents/new_projects/backtrader/te...st_iter63_gateway_stream_consumer_process.py&quot;, line 285, in _client&#10;      assert not strategy.events&#10;  AssertionError&#10;  ')&#10;assert 'error' == 'metadata'&#10;  &#10;  - metadata&#10;  + error">tmp_path = PosixPath('/private/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/pytest-of-yunjinqi/pytest-4412/test_spawned_gateway_real_bt_n0')
+mismatch = False
+
+    @pytest.mark.parametrize("mismatch", [False, True])
+    def test_spawned_gateway_real_bt_notifications_and_recovery(tmp_path, mismatch):
+        ctx = multiprocessing.get_context("spawn")
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            endpoint = "tcp://127.0.0.1:" + str(sock.getsockname()[1])
+        server_keys, client_keys = zmq.curve_keypair(), zmq.curve_keypair()
+        gateway_messages, gateway_controls = ctx.Queue(), ctx.Queue()
+        client_messages, client_controls = ctx.Queue(), ctx.Queue()
+        server = ctx.Process(target=_gateway, args=(str(tmp_path), endpoint, server_keys, client_keys, gateway_messages, gateway_controls))
+        clients = []
+        server.start()
+        try:
+            ready = _message(gateway_messages, "ready")
+            assert ready[1] == server.pid != os.getpid()
+            phase = "wrong" if mismatch else "first"
+            def start_client(phase):
+                process = ctx.Process(target=_client, args=(str(tmp_path), endpoint, server_keys[0], client_keys, ready[2], phase, client_messages, client_controls))
+                process.start()
+                clients.append(process)
+                bound = _message(client_messages, "bound")
+                assert bound[1:] == (phase, process.pid) and process.pid != os.getpid()
+                return process
+            first = start_client(phase)
+            for command in (("wrong",) if mismatch else ("partial", "date")):
+                gateway_controls.put(command)
+                result = _message(gateway_messages, "ingested")
+                assert result[1:] == (command, "ATTRIBUTED")
+            client_controls.put("continue")
+            if mismatch:
+                _message(client_messages, "wrong_rejected")
+                _join(first)
+            else:
+                failed = _message(client_messages, "failed")
+                assert failed[3] == 1 and failed[1] == failed[2][0]["notification_id"]
+                _join(first)
+                resumed = start_client("resumed")
+                assert resumed.pid != first.pid
+                client_controls.put("continue")
+                replay = _message(client_messages, "replayed")
+                assert replay[1][0][:3] == ("order", failed[1], True)
+                assert replay[2] == failed[2]
+                assert [item[0] for item in replay[1]] == ["order", "trade"]
+&gt;               assert _message(client_messages, "metadata")[1:] == (1, 1)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:368: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+q = &lt;multiprocessing.queues.Queue object at 0x142a12b10&gt;, expected = 'metadata'
+
+    def _message(q, expected):
+        value = q.get(timeout=30)
+&gt;       assert value[0] == expected, value
+E       AssertionError: ('error', 'resumed', 'Traceback (most recent call last):
+E           File "/Users/yunjinqi/Documents/new_projects/backtrader/te...st_iter63_gateway_stream_consumer_process.py", line 285, in _client
+E             assert not strategy.events
+E         AssertionError
+E         ')
+E       assert 'error' == 'metadata'
+E         
+E         - metadata
+E         + error
+
+tests/integration/test_iter63_gateway_stream_consumer_process.py:312: AssertionError</failure></testcase><testcase classname="tests.integration.test_iter63_gateway_stream_consumer_process" name="test_spawned_gateway_real_bt_notifications_and_recovery[True]" time="2.125" /></testsuite></testsuites>

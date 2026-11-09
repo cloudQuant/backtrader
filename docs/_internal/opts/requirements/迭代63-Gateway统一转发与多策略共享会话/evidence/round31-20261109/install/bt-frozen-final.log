@@ -1,0 +1,196 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py"], "launcher_pid": 81850, "launcher_ppid": 81829, "run_id": "bt-frozen-final-81850-1794190962106029000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "bt-frozen-final"}
+RUN_ID bt-frozen-final-81850-1794190962106029000 PID 81867 PPID 81855
+ORIGIN_RUN_LOGS /private/tmp/iter63-r31-install-20261109-mz1EwW5H/origin-logs/bt-frozen-final-81850-1794190962106029000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+
+==================================== ERRORS ====================================
+__ ERROR collecting tests/unit/brokers/direct/test_direct_configured_venue.py __
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_configured_venue.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_configured_venue.py:19: in <module>
+    from ._fakes import SYMBOL, T0, crash, window
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_day_scoped_returns.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_day_scoped_returns.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_day_scoped_returns.py:32: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_day_switch_write_fences.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_day_switch_write_fences.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_day_switch_write_fences.py:33: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+______ ERROR collecting tests/unit/brokers/direct/test_direct_fill_gap.py ______
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_fill_gap.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_fill_gap.py:31: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+__ ERROR collecting tests/unit/brokers/direct/test_direct_fractional_fills.py __
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_fractional_fills.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_fractional_fills.py:28: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_not_found_at_venue.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_not_found_at_venue.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_not_found_at_venue.py:25: in <module>
+    from ._fakes import SYMBOL, T0, crash, drain, window
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_not_found_notices.py __
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_not_found_notices.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_not_found_notices.py:38: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+__ ERROR collecting tests/unit/brokers/direct/test_direct_refusal_reasons.py ___
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_refusal_reasons.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_refusal_reasons.py:21: in <module>
+    from ._fakes import SYMBOL, not_live
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_restart_reconcile.py __
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_restart_reconcile.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_restart_reconcile.py:12: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_____ ERROR collecting tests/unit/brokers/direct/test_direct_return_gap.py _____
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_return_gap.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_return_gap.py:28: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_selection_and_first_init.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_selection_and_first_init.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_selection_and_first_init.py:17: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_settlement_resolution.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_settlement_resolution.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_settlement_resolution.py:33: in <module>
+    from ._fakes import EXCHANGE, TODAY, TOMORROW, quiet, run_day_switch
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+__ ERROR collecting tests/unit/brokers/direct/test_direct_shared_sequence.py ___
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_shared_sequence.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_shared_sequence.py:12: in <module>
+    from ._fakes import SYMBOL, position
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_start_failure_and_retry.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_start_failure_and_retry.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_start_failure_and_retry.py:25: in <module>
+    from ._fakes import EXCHANGE
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+___ ERROR collecting tests/unit/brokers/direct/test_direct_stop_and_facts.py ___
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_stop_and_facts.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_stop_and_facts.py:17: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_______ ERROR collecting tests/unit/brokers/direct/test_direct_submit.py _______
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_submit.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_submit.py:16: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_switch_settlement_readback.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_switch_settlement_readback.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_switch_settlement_readback.py:32: in <module>
+    from ._fakes import EXCHANGE, TOMORROW, quiet, run_day_switch
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+___ ERROR collecting tests/unit/brokers/direct/test_direct_trade_rematch.py ____
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_trade_rematch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_trade_rematch.py:25: in <module>
+    from ._fakes import EXCHANGE, SYMBOL, order_event, quiet, trade_event
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_trading_day_switch.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_trading_day_switch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_trading_day_switch.py:32: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+_ ERROR collecting tests/unit/brokers/direct/test_direct_trading_permissions.py _
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_trading_permissions.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_trading_permissions.py:20: in <module>
+    from ._fakes import EXCHANGE, OTHER_SYMBOL, SYMBOL, TODAY, VENUE, position, snap
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+__ ERROR collecting tests/unit/brokers/direct/test_direct_unqualified_data.py __
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_unqualified_data.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_unqualified_data.py:20: in <module>
+    from ._fakes import SYMBOL, T0, make_feed, not_qualified, window
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+___ ERROR collecting tests/unit/brokers/direct/test_direct_waiting_orders.py ___
+ImportError while importing test module '/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests/unit/brokers/direct/test_direct_waiting_orders.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests/unit/brokers/direct/test_direct_waiting_orders.py:15: in <module>
+    from ._fakes import (
+E   ModuleNotFoundError: No module named 'tests.unit.brokers.direct._fakes'
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/unit/brokers/direct/test_direct_configured_venue.py
+ERROR tests/unit/brokers/direct/test_direct_day_scoped_returns.py
+ERROR tests/unit/brokers/direct/test_direct_day_switch_write_fences.py
+ERROR tests/unit/brokers/direct/test_direct_fill_gap.py
+ERROR tests/unit/brokers/direct/test_direct_fractional_fills.py
+ERROR tests/unit/brokers/direct/test_direct_not_found_at_venue.py
+ERROR tests/unit/brokers/direct/test_direct_not_found_notices.py
+ERROR tests/unit/brokers/direct/test_direct_refusal_reasons.py
+ERROR tests/unit/brokers/direct/test_direct_restart_reconcile.py
+ERROR tests/unit/brokers/direct/test_direct_return_gap.py
+ERROR tests/unit/brokers/direct/test_direct_selection_and_first_init.py
+ERROR tests/unit/brokers/direct/test_direct_settlement_resolution.py
+ERROR tests/unit/brokers/direct/test_direct_shared_sequence.py
+ERROR tests/unit/brokers/direct/test_direct_start_failure_and_retry.py
+ERROR tests/unit/brokers/direct/test_direct_stop_and_facts.py
+ERROR tests/unit/brokers/direct/test_direct_submit.py
+ERROR tests/unit/brokers/direct/test_direct_switch_settlement_readback.py
+ERROR tests/unit/brokers/direct/test_direct_trade_rematch.py
+ERROR tests/unit/brokers/direct/test_direct_trading_day_switch.py
+ERROR tests/unit/brokers/direct/test_direct_trading_permissions.py
+ERROR tests/unit/brokers/direct/test_direct_unqualified_data.py
+ERROR tests/unit/brokers/direct/test_direct_waiting_orders.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 22 errors during collection !!!!!!!!!!!!!!!!!!!
+1 warning, 22 errors in 2.46s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py` failed. (See above for error)
+RUN_EXIT 2

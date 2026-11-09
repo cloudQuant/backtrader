@@ -1,0 +1,20 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py"], "launcher_pid": 81851, "launcher_ppid": 81830, "run_id": "sdk-frozen-final-81851-1794190962106048000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "sdk-frozen-final"}
+RUN_ID sdk-frozen-final-81851-1794190962106048000 PID 81868 PPID 81857
+ORIGIN_RUN_LOGS /private/tmp/iter63-r31-install-20261109-mz1EwW5H/origin-logs/sdk-frozen-final-81851-1794190962106048000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 56%]
+........................................................................ [ 75%]
+........................................................................ [ 94%]
+......................                                                   [100%]
+=============================== warnings summary ===============================
+../install/src/backtrader/feeds/__init__.py:56
+  /private/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/backtrader/feeds/__init__.py:56: DeprecationWarning: backtrader.feeds.quandl is deprecated (Quandl free API sunset). Consider using Nasdaq Data Link or alternative data sources.
+    from .quandl import *
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+382 passed, 1 warning in 19.75s
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

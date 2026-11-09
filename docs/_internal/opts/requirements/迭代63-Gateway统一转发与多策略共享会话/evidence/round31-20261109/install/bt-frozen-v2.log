@@ -1,0 +1,656 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py"], "launcher_pid": 81968, "launcher_ppid": 81958, "run_id": "bt-frozen-v2-81968-1794191023466354000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "bt-frozen-v2"}
+RUN_ID bt-frozen-v2-81968-1794191023466354000 PID 81987 PPID 81971
+ORIGIN_RUN_LOGS /private/tmp/iter63-r31-install-20261109-mz1EwW5H/origin-logs/bt-frozen-v2-81968-1794191023466354000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 21%]
+........................................................................ [ 29%]
+........................................................................ [ 36%]
+........................................................................ [ 43%]
+........................................................................ [ 51%]
+........................................................................ [ 58%]
+........................................................................ [ 65%]
+........................................................................ [ 73%]
+......x...................................................FFFFFFF....... [ 80%]
+.........................................
+notification journal append+ack per pair (us): 179.4, 124.4, 120.4
+............................... [ 87%]
+.................FFFFFFFFFFFFFFFFF...............................F...... [ 95%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+__ test_ledger_execution_totals_reports_filled_quantity_and_fee_per_currency ___
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_ledger_execution_totals_r0')
+
+    def test_ledger_execution_totals_reports_filled_quantity_and_fee_per_currency(tmp_path):
+        from bt_api_py.strategy_ledger import LedgerIntent
+    
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+________ test_a_ledger_fee_that_diverged_from_the_journal_fails_closed _________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_ledger_fee_that_diverge0')
+
+    def test_a_ledger_fee_that_diverged_from_the_journal_fails_closed(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+_______ test_fills_without_a_provider_or_client_order_id_are_not_indexed _______
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_fills_without_a_provider_0')
+
+    def test_fills_without_a_provider_or_client_order_id_are_not_indexed(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:252: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+_ test_a_restarted_correction_is_delivered_once_and_journaled_before_delivery __
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_restarted_correction_is0')
+
+    def test_a_restarted_correction_is_delivered_once_and_journaled_before_delivery(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:267: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+__ test_service_recovery_terminal_fee_evidence_reaches_notify_fee_correction ___
+
+    def test_service_recovery_terminal_fee_evidence_reaches_notify_fee_correction():
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:305: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+______ test_a_correction_queued_at_close_is_replayed_by_the_next_binding _______
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_correction_queued_at_cl0')
+
+    def test_a_correction_queued_at_close_is_replayed_by_the_next_binding(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:378: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+_______ test_fills_stashed_after_their_notification_are_indexed_at_once ________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_fills_stashed_after_their0')
+
+    def test_fills_stashed_after_their_notification_are_indexed_at_once(tmp_path):
+        """Dual-side fills notify before they are remembered: they are flushed directly."""
+    
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:415: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_INTEGRATION) not in sys.path:
+            sys.path.insert(0, str(_INTEGRATION))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/unit/brokers/test_iter60_durable_fee_index.py:47: ModuleNotFoundError
+____ test_direct_and_gateway_give_identical_notifications_and_ledger[True] _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_direct_and_gateway_give_i0')
+per_event = True
+
+    @pytest.mark.parametrize("per_event", [True, False])
+    def test_direct_and_gateway_give_identical_notifications_and_ledger(tmp_path, per_event):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+____ test_direct_and_gateway_give_identical_notifications_and_ledger[False] ____
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_direct_and_gateway_give_i1')
+per_event = False
+
+    @pytest.mark.parametrize("per_event", [True, False])
+    def test_direct_and_gateway_give_identical_notifications_and_ledger(tmp_path, per_event):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+____ test_a_fill_reported_before_its_order_is_deferred_durably_with_parity _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_fill_reported_before_it0')
+
+    def test_a_fill_reported_before_its_order_is_deferred_durably_with_parity(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+_________ test_republished_and_redelivered_facts_have_no_second_effect _________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_republished_and_redeliver0')
+
+    def test_republished_and_redelivered_facts_have_no_second_effect(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+__________ test_restart_rebuilds_the_open_order_and_keeps_projecting ___________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_restart_rebuilds_the_open0')
+
+    def test_restart_rebuilds_the_open_order_and_keeps_projecting(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+_____ test_events_of_unknown_orders_and_other_strategies_are_not_projected _____
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_events_of_unknown_orders_0')
+
+    def test_events_of_unknown_orders_and_other_strategies_are_not_projected(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:172: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+________ test_binding_requires_notification_recovery_and_a_sdk_consumer ________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_binding_requires_notifica0')
+
+    def test_binding_requires_notification_recovery_and_a_sdk_consumer(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:196: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+_________ test_a_consumer_failure_disables_trading_and_commits_nothing _________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_consumer_failure_disabl0')
+
+    def test_a_consumer_failure_disables_trading_and_commits_nothing(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications.py:215: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications.py:31: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_read-71] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav0')
+stage = 'after_read', exit_code = 71
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_append-73] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav1')
+stage = 'after_append', exit_code = 73
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[in_callback-72] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav2')
+stage = 'in_callback', exit_code = 72
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[before_commit-75] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav3')
+stage = 'before_commit', exit_code = 75
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_callback_before_ack-76] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav4')
+stage = 'after_callback_before_ack', exit_code = 76
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_ test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_ack-74] _
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_notifications_hav5')
+stage = 'after_ack', exit_code = 74
+
+    @pytest.mark.parametrize(
+        ("stage", "exit_code"),
+        [
+            ("after_read", 71),
+            ("after_append", 73),
+            ("in_callback", 72),
+            ("before_commit", 75),
+            ("after_callback_before_ack", 76),
+            ("after_ack", 74),
+        ],
+    )
+    def test_gateway_notifications_have_exactly_one_effect_across_a_crash(tmp_path, stage, exit_code):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:143: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+_____ test_recorded_facts_of_a_live_order_are_not_reapplied_after_a_crash ______
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_recorded_facts_of_a_live_0')
+
+    def test_recorded_facts_of_a_live_order_are_not_reapplied_after_a_crash(tmp_path):
+        """Crash after the effects and fact records, before the SDK commit, order still open."""
+    
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_notifications_crash.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_notifications_crash.py:33: ModuleNotFoundError
+__________________ test_gateway_fee_correction_matches_direct __________________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_gateway_fee_correction_ma0')
+
+    @pytest.mark.integration
+    def test_gateway_fee_correction_matches_direct(tmp_path):
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_fee_corrections.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_fee_corrections.py:37: ModuleNotFoundError
+___________ test_a_lower_fill_fee_is_refused_by_the_gateway_producer ___________
+
+tmp_path = PosixPath('/private/tmp/iter63-r31-install-20261109-mz1EwW5H/tmp/pytest-of-yunjinqi/pytest-1/test_a_lower_fill_fee_is_refus0')
+
+    @pytest.mark.integration
+    def test_a_lower_fill_fee_is_refused_by_the_gateway_producer(tmp_path):
+        from bt_api_gateway.execution_event_publisher import GatewayExecutionEventError
+    
+>       t = _support()
+            ^^^^^^^^^^
+
+tests/integration/test_iter60_gateway_fee_corrections.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _support():
+        import sys
+    
+        if str(_HERE) not in sys.path:
+            sys.path.insert(0, str(_HERE))
+>       import iter60_gateway_execution_support as support
+E       ModuleNotFoundError: No module named 'iter60_gateway_execution_support'
+
+tests/integration/test_iter60_gateway_fee_corrections.py:37: ModuleNotFoundError
+____________ test_metadata_checkpoint_restores_in_fresh_interpreter ____________
+
+state = <backtrader.live_state.state_dir.StrategyStateDir object at 0x12ffde590>
+ready = (<backtrader.live_state.gateway_pending.GatewayPendingHost object at 0x16b78fa10>, GatewayCommandBinding(journal_id='j...scope='strategy-a', principal='principal-a'), 'gexec:b138f16d1ed6b0d4a58dbaffdf5ffe9274536831942c8bd1bd795c6835f289cc')
+
+    def test_metadata_checkpoint_restores_in_fresh_interpreter(state, ready):
+        import json
+        import os
+        import subprocess
+        import sys
+    
+        host, binding, data, broker, strategy, order, original, event = prepare(ready)
+        broker.arm_gateway_notification_state(strategy, 6)
+        broker.commit_gateway_trade_metadata(strategy, 6)
+        args = {
+            "directory": str(state.strategy_dir),
+            "uuid": state.strategy_uuid,
+            "binding": {
+                key: getattr(binding, key)
+                for key in ("journal_id", "account_scope", "strategy_scope", "principal")
+            },
+            "trade_key": original.observation.trade_key_digest,
+        }
+        script = r"""
+    import json, sys
+    from bt_api_base.gateway_direct_protocol import GatewayCommandBinding
+    from backtrader.live_state.gateway_pending import GatewayPendingHost
+    from tests.unit.brokers.test_iter63_gateway_notification_delivery import framework
+    args = json.loads(sys.argv[1])
+    data, broker, strategy = framework()
+    host = GatewayPendingHost(args["directory"], args["uuid"], GatewayCommandBinding(**args["binding"]))
+    broker.bind_gateway_notification_state(strategy, host=host, data_by_ref={"rb": data}, orders_by_key={})
+    checkpoint = broker.restore_gateway_notification_state(strategy)
+    order = next(iter(broker.orders.values()))
+    assert order.info["gateway_trade_dates"] == {args["trade_key"]: "20261107"}
+    assert order.executed.size == 1 and broker.positions["rb"].size == 1
+    trade = next(iter(next(iter(strategy._trades.values())).values()))[0]
+    assert trade.size == 1 and trade.commission == 0.1 and strategy.events == []
+    assert broker.assert_gateway_notifications_ackable(strategy, 6) == checkpoint
+    """
+        root = Path(bt.__file__).resolve().parent.parent
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(root)
+        result = subprocess.run(
+            [sys.executable, "-c", script, json.dumps(args)],
+            cwd=str(root),
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=60,
+        )
+>       assert result.returncode == 0, (result.stdout, result.stderr)
+E       AssertionError: ('', 'Traceback (most recent call last):
+E           File "<string>", line 5, in <module>
+E         ModuleNotFoundError: No module named \'tests.unit.brokers\'
+E         ')
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/yunjinqi/opt/anaconda3/bin/python', '-c', '\nimport json, sys\nfrom bt_api_base.gateway...nt call last):\n  File "<string>", line 5, in <module>\nModuleNotFoundError: No module named \'tests.unit.brokers\'\n').returncode
+
+tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py:335: AssertionError
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_ledger_execution_totals_reports_filled_quantity_and_fee_per_currency
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_a_ledger_fee_that_diverged_from_the_journal_fails_closed
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_fills_without_a_provider_or_client_order_id_are_not_indexed
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_a_restarted_correction_is_delivered_once_and_journaled_before_delivery
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_service_recovery_terminal_fee_evidence_reaches_notify_fee_correction
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_a_correction_queued_at_close_is_replayed_by_the_next_binding
+FAILED tests/unit/brokers/test_iter60_durable_fee_index.py::test_fills_stashed_after_their_notification_are_indexed_at_once
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_direct_and_gateway_give_identical_notifications_and_ledger[True]
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_direct_and_gateway_give_identical_notifications_and_ledger[False]
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_a_fill_reported_before_its_order_is_deferred_durably_with_parity
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_republished_and_redelivered_facts_have_no_second_effect
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_restart_rebuilds_the_open_order_and_keeps_projecting
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_events_of_unknown_orders_and_other_strategies_are_not_projected
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_binding_requires_notification_recovery_and_a_sdk_consumer
+FAILED tests/integration/test_iter60_gateway_notifications.py::test_a_consumer_failure_disables_trading_and_commits_nothing
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_read-71]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_append-73]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[in_callback-72]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[before_commit-75]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_callback_before_ack-76]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_gateway_notifications_have_exactly_one_effect_across_a_crash[after_ack-74]
+FAILED tests/integration/test_iter60_gateway_notifications_crash.py::test_recorded_facts_of_a_live_order_are_not_reapplied_after_a_crash
+FAILED tests/integration/test_iter60_gateway_fee_corrections.py::test_gateway_fee_correction_matches_direct
+FAILED tests/integration/test_iter60_gateway_fee_corrections.py::test_a_lower_fill_fee_is_refused_by_the_gateway_producer
+FAILED tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py::test_metadata_checkpoint_restores_in_fresh_interpreter
+25 failed, 959 passed, 1 xfailed, 1 warning in 89.87s (0:01:29)
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py` failed. (See above for error)
+RUN_EXIT 1

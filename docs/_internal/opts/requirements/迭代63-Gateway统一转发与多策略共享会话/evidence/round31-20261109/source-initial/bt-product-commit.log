@@ -1,0 +1,10 @@
+[dev e12750aa5] feat(gateway): consume durable execution streams through BT notifications
+ 15 files changed, 2902 insertions(+), 79 deletions(-)
+ create mode 100644 backtrader/brokers/_btapi_gateway_stream.py
+ create mode 100644 backtrader/live_state/gateway_order_state.py
+ create mode 100644 tests/integration/test_iter63_gateway_stream_consumer_process.py
+ create mode 100644 tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py
+ create mode 100644 tests/unit/brokers/test_iter63_gateway_stream_consumer.py
+ create mode 100644 tests/unit/live_state/test_iter63_gateway_order_bootstrap.py
+ create mode 100644 tests/unit/live_state/test_iter63_gateway_trade_time_pending.py
+ create mode 100644 tests/unit/test_iter63_gateway_notification_resume_hook.py

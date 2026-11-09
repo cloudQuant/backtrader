@@ -1,0 +1,17 @@
+[
+  "backtrader/brokers/_btapi_gateway_stream.py",
+  "backtrader/brokers/_btapi_gateway_notifications.py",
+  "backtrader/brokers/btapibroker.py",
+  "backtrader/live_state/gateway_execution_state.py",
+  "backtrader/live_state/gateway_pending.py",
+  "backtrader/live_state/gateway_order_state.py",
+  "backtrader/live_state/identity.py",
+  "backtrader/live_state/pending.py",
+  "backtrader/strategy.py",
+  "tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py",
+  "tests/unit/brokers/test_iter63_gateway_stream_consumer.py",
+  "tests/unit/live_state/test_iter63_gateway_order_bootstrap.py",
+  "tests/unit/live_state/test_iter63_gateway_trade_time_pending.py",
+  "tests/unit/test_iter63_gateway_notification_resume_hook.py",
+  "tests/integration/test_iter63_gateway_stream_consumer_process.py"
+]

@@ -1,0 +1,6 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r31-install-20261109-mz1EwW5H/prepare.py", "fixed"], "launcher_pid": 80850, "launcher_ppid": 80840, "run_id": "fixed-80850-1794190878779313000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "fixed"}
+FIXED_COMMIT_SOURCE_R30_MATCH base 5d10348ea4ff60d05344a40fa639809ac5caf049 170
+FIXED_COMMIT_SOURCE_R30_MATCH gateway 21c8bdb1ba6b8fa45be11a68619fc13b87e65abb 30
+FIXED_COMMIT_SOURCE_R30_MATCH ctp 185920b6b2adfe5b166db17d85fcfca949e3d74e 258
+FIXED_WHEELS 6
+RUN_EXIT 0

@@ -1,0 +1,28 @@
+{
+  "heads": {
+    "/Users/yunjinqi/Documents/new_projects/backtrader": "e12750aa593bc6ba7560babe44ab398b3ca29cfa",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py": "192614a566713e547a82263f203040cb4e08db8f",
+    "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_ctp": "185920b6b2adfe5b166db17d85fcfca949e3d74e"
+  },
+  "source_rows": 1001,
+  "test_rows": 137,
+  "unique_git_paths_verified": 1138,
+  "bt_owned_files": [
+    "backtrader/brokers/_btapi_gateway_stream.py",
+    "backtrader/brokers/_btapi_gateway_notifications.py",
+    "backtrader/brokers/btapibroker.py",
+    "backtrader/live_state/gateway_execution_state.py",
+    "backtrader/live_state/gateway_pending.py",
+    "backtrader/live_state/gateway_order_state.py",
+    "backtrader/live_state/identity.py",
+    "backtrader/live_state/pending.py",
+    "backtrader/strategy.py",
+    "tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py",
+    "tests/unit/brokers/test_iter63_gateway_stream_consumer.py",
+    "tests/unit/live_state/test_iter63_gateway_order_bootstrap.py",
+    "tests/unit/live_state/test_iter63_gateway_trade_time_pending.py",
+    "tests/unit/test_iter63_gateway_notification_resume_hook.py",
+    "tests/integration/test_iter63_gateway_stream_consumer_process.py"
+  ],
+  "verification_correction": "v1 assumed all helpers belong to SDK or BT; 2 public CTP helpers also require their repository head. Initial v1 stderr was tool output only; no separate raw file."
+}

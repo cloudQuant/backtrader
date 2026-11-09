@@ -1,0 +1,4 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r31-install-20261109-mz1EwW5H/prepare.py", "snapshot"], "launcher_pid": 80812, "launcher_ppid": 80793, "run_id": "snapshot-80812-1794190875968122000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "snapshot"}
+sdk HEAD 039779369a1a7081ad884dbb9c83cf7d54854c39 selected 315
+bt HEAD 2cda80c65bf9df5617cabd1a99484d75dbe89fe2 selected 686
+RUN_EXIT 0

@@ -1,0 +1,32 @@
+[
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_base-0.16.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_base-0.16.0.dev63-py3-none-any.whl",
+    "sha256": "6adcaf19163bf8a020f3e39653b217280c8d7244c2f3903a4cb5b4b0d6ca70a0"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_gateway-0.2.0.dev63-py3-none-any.whl",
+    "sha256": "696966a55fe378189993c7f150a2fff2e2bc23ce25d3f8b5bdb792b9b7b7729c"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+    "filename": "bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl",
+    "sha256": "668e65387d088dd0994fab18c1e151a6e42011cfea4dc8c4275f5c014860b00f"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_okx-0.16.0.dev63-py3-none-any.whl",
+    "sha256": "2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "filename": "bt_api_binance-2.1.0.dev63-py3-none-any.whl",
+    "sha256": "703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be"
+  },
+  {
+    "source": "/tmp/iter63-r30-install-20261109-ySExhdil/wheels/msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl",
+    "filename": "msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl",
+    "sha256": "a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50"
+  }
+]

@@ -1,0 +1,297 @@
+[
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 48,
+      "row": 14
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from typing import Any, DefaultDict, Dict, Optional",
+          "end_location": {
+            "column": 58,
+            "row": 14
+          },
+          "location": {
+            "column": 1,
+            "row": 14
+          }
+        }
+      ],
+      "message": "Remove unused import: `typing.List`"
+    },
+    "location": {
+      "column": 44,
+      "row": 14
+    },
+    "message": "`typing.List` imported but unused",
+    "name": "unused-import",
+    "noqa_row": 14,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 59,
+      "row": 28
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from ..order import BuyOrder, OrderBase, SellOrder",
+          "end_location": {
+            "column": 70,
+            "row": 28
+          },
+          "location": {
+            "column": 1,
+            "row": 28
+          }
+        }
+      ],
+      "message": "Remove unused import: `..order.OrderExecutionBit`"
+    },
+    "location": {
+      "column": 42,
+      "row": 28
+    },
+    "message": "`..order.OrderExecutionBit` imported but unused",
+    "name": "unused-import",
+    "noqa_row": 28,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 24,
+      "row": 32
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from ..position import (\n    Position,\n    POSITION_MODE_DUAL_SIDE,\n    normalize_order_position_meta,\n    normalize_position_mode,\n    normalize_position_offset,\n    normalize_position_side,\n    signed_position_size,\n)",
+          "end_location": {
+            "column": 2,
+            "row": 38
+          },
+          "location": {
+            "column": 1,
+            "row": 29
+          }
+        }
+      ],
+      "message": "Remove unused import: `..position.infer_position_side`"
+    },
+    "location": {
+      "column": 5,
+      "row": 32
+    },
+    "message": "`..position.infer_position_side` imported but unused",
+    "name": "unused-import",
+    "noqa_row": 32,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 19,
+      "row": 4374
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 4374
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4374,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 19,
+      "row": 4387
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 4387
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4387,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 20,
+      "row": 4391
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 4391
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4391,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 23,
+      "row": 4412
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 4412
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4412,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 23,
+      "row": 4432
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 4432
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4432,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 53,
+      "row": 4440
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 46,
+      "row": 4440
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4440,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 23,
+      "row": 4445
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 4445
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4445,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 77,
+      "row": 4465
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 70,
+      "row": 4465
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4465,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 23,
+      "row": 4467
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 4467
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4467,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 19,
+      "row": 4484
+    },
+    "filename": "/tmp/iter63-r31-primary/btapibroker-head.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 4484
+    },
+    "message": "Undefined name `command`",
+    "name": "undefined-name",
+    "noqa_row": 4484,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  }
+]

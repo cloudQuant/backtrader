@@ -1,0 +1,4 @@
+{"data": {}, "event": "preexisting-audit-ok", "pid": 82470, "ppid": 82467, "run_id": "child-layout-preflight"}
+{"data": {"mode": "sitecustomize-subprocess", "target": "/private/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src"}, "event": "guard-installed", "pid": 82470, "ppid": 82467, "run_id": "child-layout-preflight"}
+{"data": {}, "event": "audit-ok", "pid": 82470, "ppid": 82467, "run_id": "child-layout-preflight"}
+{"data": {}, "event": "audit-ok", "pid": 82470, "ppid": 82467, "run_id": "child-layout-preflight"}

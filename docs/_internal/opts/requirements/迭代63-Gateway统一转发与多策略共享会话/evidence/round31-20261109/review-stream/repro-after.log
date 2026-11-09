@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/tmp/iter63-r31-review-stream/repro.py", line 47, in <module>
+    metadata()
+  File "/tmp/iter63-r31-review-stream/repro.py", line 41, in metadata
+    broker.next()
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/brokers/btapibroker.py", line 2656, in next
+    return self._gateway_stream_next()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/brokers/_btapi_gateway_stream.py", line 262, in _gateway_stream_next
+    if not read_once():
+           ^^^^^^^^^^^
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/brokers/_btapi_gateway_stream.py", line 257, in read_once
+    checkpoint = binding.host.ingest_execution_result(result, expected_revision=checkpoint.revision)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_pending.py", line 412, in ingest_execution_result
+    return ingest_result(self, result, expected_revision=expected_revision)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_execution_state.py", line 607, in ingest_result
+    return ingest_page(host, page, expected_revision=expected_revision, after_sequence=after)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_execution_state.py", line 529, in ingest_page
+    _check_event_conflicts(combined)
+  File "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/live_state/gateway_execution_state.py", line 295, in _check_event_conflicts
+    raise ValueError("EXECUTION_TRADE_TIME_CONFLICT")
+ValueError: EXECUTION_TRADE_TIME_CONFLICT
+
+ERROR conda.cli.main_run:execute(125): `conda run python /tmp/iter63-r31-review-stream/repro.py` failed. (See above for error)
+offline stored 8 applied 3 ack 3 size 1.0 state ACTIVE
+

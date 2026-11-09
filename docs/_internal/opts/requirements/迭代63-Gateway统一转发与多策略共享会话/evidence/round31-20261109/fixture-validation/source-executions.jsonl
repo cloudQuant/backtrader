@@ -1,0 +1,1 @@
+{"argv": ["python", "-I", "/tmp/iter63-r31-fixture-validation/run.py"], "exit_code": 0, "finished_ns": 1794191316285588000, "kind": "bt", "pid": 82580, "ppid": 82570, "run_id": "bt-82580-1794191308601482000", "selector_sha256": "d434afc3dccafef0015b9633807a23228742a93f48fdacce0cf8e29561fe2499", "started_ns": 1794191308609036000}

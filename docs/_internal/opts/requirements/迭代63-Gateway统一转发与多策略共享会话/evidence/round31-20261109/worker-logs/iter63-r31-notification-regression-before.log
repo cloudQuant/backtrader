@@ -1,0 +1,50 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_____________ test_fee_preflight_does_not_apply_mixed_or_multiple ______________
+tests/unit/brokers/test_iter63_gateway_notification_delivery.py:199: in test_fee_preflight_does_not_apply_mixed_or_multiple
+    strategy._notify()
+backtrader/strategy.py:3223: in _notify
+    if callable(resume) and resume(self, qorders=qorders, qtrades=qtrades) is True:
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtrader/brokers/_btapi_gateway_notifications.py:767: in _gateway_resume_notifications
+    _error("RESTART_REQUIRED")
+backtrader/brokers/_btapi_gateway_notifications.py:27: in _error
+    raise ValueError("GATEWAY_NOTIFICATION_" + code)
+E   ValueError: GATEWAY_NOTIFICATION_RESTART_REQUIRED
+
+During handling of the above exception, another exception occurred:
+tests/unit/brokers/test_iter63_gateway_notification_delivery.py:198: in test_fee_preflight_does_not_apply_mixed_or_multiple
+    with pytest.raises(ValueError, match="FAULT"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'FAULT'
+E    Input: 'GATEWAY_NOTIFICATION_RESTART_REQUIRED'
+_________ test_later_foreign_order_on_same_feed_blocks_commit_and_ack __________
+tests/unit/brokers/test_iter63_gateway_notification_delivery.py:477: in test_later_foreign_order_on_same_feed_blocks_commit_and_ack
+    strategy._notify()
+backtrader/strategy.py:3223: in _notify
+    if callable(resume) and resume(self, qorders=qorders, qtrades=qtrades) is True:
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtrader/brokers/_btapi_gateway_notifications.py:767: in _gateway_resume_notifications
+    _error("RESTART_REQUIRED")
+backtrader/brokers/_btapi_gateway_notifications.py:27: in _error
+    raise ValueError("GATEWAY_NOTIFICATION_" + code)
+E   ValueError: GATEWAY_NOTIFICATION_RESTART_REQUIRED
+
+During handling of the above exception, another exception occurred:
+tests/unit/brokers/test_iter63_gateway_notification_delivery.py:476: in test_later_foreign_order_on_same_feed_blocks_commit_and_ack
+    with pytest.raises(ValueError, match="FAULT"):
+E   AssertionError: Regex pattern did not match.
+E    Regex: 'FAULT'
+E    Input: 'GATEWAY_NOTIFICATION_RESTART_REQUIRED'
+__ test_reentrant_addnotification_is_rejected_before_framework_mutation[fee] ___
+tests/unit/brokers/test_iter63_gateway_notification_delivery.py:580: in test_reentrant_addnotification_is_rejected_before_framework_mutation
+    assert attempts == [True]
+E   assert [True, True] == [True]
+E     
+E     Left contains one more item: True
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_fee_preflight_does_not_apply_mixed_or_multiple
+FAILED tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_later_foreign_order_on_same_feed_blocks_commit_and_ack
+FAILED tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_reentrant_addnotification_is_rejected_before_framework_mutation[fee]
+3 failed in 1.43s

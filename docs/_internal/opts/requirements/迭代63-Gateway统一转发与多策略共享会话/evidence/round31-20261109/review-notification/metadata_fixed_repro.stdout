@@ -1,0 +1,4 @@
+FIXED: original E075 entry rejected before mutation; date-only checkpoint and ACK succeeded
+.
+1 passed in 1.38s
+

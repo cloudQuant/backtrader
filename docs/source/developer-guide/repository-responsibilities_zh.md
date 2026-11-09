@@ -1,5 +1,7 @@
 ﻿# 仓库目录与文件职责规范
 
+> 2026-11-09 R31：SDK `gateway_execution_time` 持有显式时间解释；BT `_btapi_gateway_stream` 持有真实事件到原Broker对象/原Strategy通知及ACK的显式适配，`gateway_order_state`在原pending v5保存首事件前单订单描述。源码/安装BT984（另1预期失败）/SDK382通过；config/submit/cancel与首次恢复、资金和旧读取隔离尚未交付，不是完整生产Gateway模式。[R31审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第三十一轮BT稀疏事件消费与通知恢复审阅-2026-11-09.md)。
+
 > 2026-11-09 R28：`backtrader/brokers/_btapi_gateway_notifications.py` 持有显式本地通知事务、对象容器恢复与回调重投；Strategy私有入口委托提交/确认/失败及前置校验，复用原Trade计算。已通过同58文件源码/安装各897通过、1预期失败；生产事件消费者和远端ACK仍未接通。[R28审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十八轮Broker与Strategy通知接线审阅-2026-11-09.md)。
 
 > 2026-11-09 R27：`backtrader/live_state/gateway_execution_state.py` 在原 pending v4 内持有通知批次和确认水位；`GatewayPendingHost` 提供受限端口，不执行策略回调或网络 ACK。同40文件源码/安装各680通过，Broker/Strategy生产注册及恢复通知仍待接线。[R27审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第二十七轮通知持久状态端口审阅-2026-11-09.md)。

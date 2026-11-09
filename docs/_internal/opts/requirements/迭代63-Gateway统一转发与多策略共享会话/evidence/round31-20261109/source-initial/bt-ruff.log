@@ -1,0 +1,307 @@
+F401 [*] `typing.List` imported but unused
+  --> backtrader/brokers/btapibroker.py:14:44
+   |
+12 | from copy import copy, deepcopy
+13 | from decimal import Decimal
+14 | from typing import Any, DefaultDict, Dict, List, Optional
+   |                                            ^^^^
+15 |
+16 | from ..broker import BrokerBase
+   |
+help: Remove unused import: `typing.List`
+
+F401 [*] `..order.OrderExecutionBit` imported but unused
+  --> backtrader/brokers/btapibroker.py:29:42
+   |
+27 | from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
+28 | from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
+29 | from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
+   |                                          ^^^^^^^^^^^^^^^^^
+30 | from ..position import (
+31 |     Position,
+   |
+help: Remove unused import: `..order.OrderExecutionBit`
+
+F401 [*] `..position.infer_position_side` imported but unused
+  --> backtrader/brokers/btapibroker.py:33:5
+   |
+31 |     Position,
+32 |     POSITION_MODE_DUAL_SIDE,
+33 |     infer_position_side,
+   |     ^^^^^^^^^^^^^^^^^^^
+34 |     normalize_order_position_meta,
+35 |     normalize_position_mode,
+   |
+help: Remove unused import: `..position.infer_position_side`
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4382:12
+     |
+4380 |         response = update.get("response")
+4381 |
+4382 |         if command == "query":
+     |            ^^^^^^^
+4383 |             # The legacy query worker returns an untyped mapping.  It is not
+4384 |             # evidence that can safely transition an Order in this facade.
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4395:12
+     |
+4393 |             return
+4394 |
+4395 |         if command not in {"submit", "cancel"}:
+     |            ^^^^^^^
+4396 |             return
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4399:13
+     |
+4398 |         if (
+4399 |             command == "submit"
+     |             ^^^^^^^
+4400 |             and isinstance(response, Mapping)
+4401 |             and response.get("local_terminal") is True
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4420:16
+     |
+4418 |         if local_rejection:
+4419 |             error_code = str(response.get("error_code") or "local_execution_rejected")
+4420 |             if command == "submit":
+     |                ^^^^^^^
+4421 |                 order.addinfo(error_code=error_code, error_msg=response.get("error_msg"))
+4422 |                 order.reject(self)
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4440:16
+     |
+4438 |         verified = (
+4439 |             self._verify_order_response(correlation, response)
+4440 |             if command == "submit"
+     |                ^^^^^^^
+4441 |             else self._verify_cancel_response(correlation, response)
+4442 |         )
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4448:46
+     |
+4446 |             and response.get("kind") == "verified_order_ack"
+4447 |             and response.get("verified_order_ack") is True
+4448 |             and response.get("operation") == command
+     |                                              ^^^^^^^
+4449 |             else None
+4450 |         )
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4453:16
+     |
+4451 |         if not verified or ack_status not in {"accepted", "rejected"}:
+4452 |             self._abort_recovery_dispatch(order, "execution_dispatch_outcome_unverified")
+4453 |             if command == "submit":
+     |                ^^^^^^^
+4454 |                 order.addinfo(
+4455 |                     execution_unknown=True,
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4473:70
+     |
+4472 |         if ack_status == "rejected":
+4473 |             error_code = str(response.get("error_code") or f"remote_{command}_rejected")
+     |                                                                      ^^^^^^^
+4474 |             error_msg = response.get("error_msg")
+4475 |             if command == "submit":
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4475:16
+     |
+4473 |             error_code = str(response.get("error_code") or f"remote_{command}_rejected")
+4474 |             error_msg = response.get("error_msg")
+4475 |             if command == "submit":
+     |                ^^^^^^^
+4476 |                 order.addinfo(error_code=error_code, error_msg=error_msg)
+4477 |                 order.reject(self)
+     |
+
+F821 Undefined name `command`
+    --> backtrader/brokers/btapibroker.py:4492:12
+     |
+4490 |             return
+4491 |
+4492 |         if command == "submit":
+     |            ^^^^^^^
+4493 |             if order.status < order.Accepted:
+4494 |                 order.accept(self)
+     |
+
+F401 [*] `tests.unit.live_state.conftest.state` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py:16:44
+   |
+14 |     setup,
+15 | )
+16 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                            ^^^^^
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+18 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.conftest.strategy_dir` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py:16:51
+   |
+14 |     setup,
+15 | )
+16 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                                   ^^^^^^^^^^^^
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+18 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.test_gateway_execution_checkpoint.ready` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py:17:87
+   |
+15 | )
+16 | from tests.unit.live_state.conftest import state, strategy_dir
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+   |                                                                                       ^^^^^
+18 | from tests.unit.live_state.test_gateway_pending import inputs
+19 | from tests.unit.live_state.test_iter63_gateway_trade_date_pending import dated
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_execution_checkpoint.ready`
+
+F401 [*] `tests.unit.live_state.test_gateway_pending.inputs` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_metadata_checkpoint.py:18:56
+   |
+16 | from tests.unit.live_state.conftest import state, strategy_dir
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+18 | from tests.unit.live_state.test_gateway_pending import inputs
+   |                                                        ^^^^^^
+19 | from tests.unit.live_state.test_iter63_gateway_trade_date_pending import dated
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_pending.inputs`
+
+F401 [*] `tests.unit.live_state.conftest.state` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_stream_consumer.py:20:44
+   |
+19 | from tests.unit.brokers.test_iter63_gateway_notification_delivery import framework
+20 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                            ^^^^^
+21 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+22 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.conftest.strategy_dir` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_stream_consumer.py:20:51
+   |
+19 | from tests.unit.brokers.test_iter63_gateway_notification_delivery import framework
+20 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                                   ^^^^^^^^^^^^
+21 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+22 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.test_gateway_execution_checkpoint.ready` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_stream_consumer.py:21:87
+   |
+19 | from tests.unit.brokers.test_iter63_gateway_notification_delivery import framework
+20 | from tests.unit.live_state.conftest import state, strategy_dir
+21 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+   |                                                                                       ^^^^^
+22 | from tests.unit.live_state.test_gateway_pending import inputs
+23 | from tests.unit.live_state.test_iter63_gateway_trade_date_pending import dated
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_execution_checkpoint.ready`
+
+F401 [*] `tests.unit.live_state.test_gateway_pending.inputs` imported but unused
+  --> tests/unit/brokers/test_iter63_gateway_stream_consumer.py:22:56
+   |
+20 | from tests.unit.live_state.conftest import state, strategy_dir
+21 | from tests.unit.live_state.test_gateway_execution_checkpoint import make_event, page, ready
+22 | from tests.unit.live_state.test_gateway_pending import inputs
+   |                                                        ^^^^^^
+23 | from tests.unit.live_state.test_iter63_gateway_trade_date_pending import dated
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_pending.inputs`
+
+F401 [*] `tests.unit.live_state.test_gateway_pending.inputs` imported but unused
+  --> tests/unit/live_state/test_iter63_gateway_order_bootstrap.py:15:68
+   |
+13 | from backtrader.live_state.gateway_pending import GatewayPendingHost
+14 | from tests.unit.live_state.test_gateway_framework_checkpoint import _framework
+15 | from tests.unit.live_state.test_gateway_pending import data, host, inputs, observe
+   |                                                                    ^^^^^^
+16 | from tests.unit.live_state.test_gateway_pending_cancel import plan, record, upgrade
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_pending.inputs`
+
+F401 [*] `tests.unit.live_state.test_gateway_execution_checkpoint.ready` imported but unused
+  --> tests/unit/live_state/test_iter63_gateway_order_bootstrap.py:17:69
+   |
+15 | from tests.unit.live_state.test_gateway_pending import data, host, inputs, observe
+16 | from tests.unit.live_state.test_gateway_pending_cancel import plan, record, upgrade
+17 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+   |                                                                     ^^^^^
+18 | from tests.unit.live_state.test_iter63_gateway_notification_state import ingest, commit
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_execution_checkpoint.ready`
+
+F401 [*] `tests.unit.live_state.conftest.state` imported but unused
+  --> tests/unit/test_iter63_gateway_notification_resume_hook.py:13:44
+   |
+11 |     setup,
+12 | )
+13 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                            ^^^^^
+14 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+15 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.conftest.strategy_dir` imported but unused
+  --> tests/unit/test_iter63_gateway_notification_resume_hook.py:13:51
+   |
+11 |     setup,
+12 | )
+13 | from tests.unit.live_state.conftest import state, strategy_dir
+   |                                                   ^^^^^^^^^^^^
+14 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+15 | from tests.unit.live_state.test_gateway_pending import inputs
+   |
+help: Remove unused import
+
+F401 [*] `tests.unit.live_state.test_gateway_execution_checkpoint.ready` imported but unused
+  --> tests/unit/test_iter63_gateway_notification_resume_hook.py:14:69
+   |
+12 | )
+13 | from tests.unit.live_state.conftest import state, strategy_dir
+14 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+   |                                                                     ^^^^^
+15 | from tests.unit.live_state.test_gateway_pending import inputs
+16 | from tests.unit.test_iter63_gateway_strategy_notification_hooks import _fill, _setup
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_execution_checkpoint.ready`
+
+F401 [*] `tests.unit.live_state.test_gateway_pending.inputs` imported but unused
+  --> tests/unit/test_iter63_gateway_notification_resume_hook.py:15:56
+   |
+13 | from tests.unit.live_state.conftest import state, strategy_dir
+14 | from tests.unit.live_state.test_gateway_execution_checkpoint import ready
+15 | from tests.unit.live_state.test_gateway_pending import inputs
+   |                                                        ^^^^^^
+16 | from tests.unit.test_iter63_gateway_strategy_notification_hooks import _fill, _setup
+   |
+help: Remove unused import: `tests.unit.live_state.test_gateway_pending.inputs`
+
+Found 27 errors.
+[*] 17 fixable with the `--fix` option.

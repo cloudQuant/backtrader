@@ -1,0 +1,4 @@
+duplicate rejected: GATEWAY_ORDER_SNAPSHOT_REF_CONFLICT
+failed save leaves bytes unchanged; same-key retry unchanged
+reopen rejects forged collision: LiveStateCorrupt
+different refs accepted

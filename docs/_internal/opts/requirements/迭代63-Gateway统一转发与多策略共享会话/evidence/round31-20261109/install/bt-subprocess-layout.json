@@ -1,0 +1,20 @@
+{
+  "links": [
+    {
+      "link": "/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/tests",
+      "resolved_target": "/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bt-tests/tests"
+    },
+    {
+      "link": "/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/sitecustomize.py",
+      "resolved_target": "/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bootstrap/sitecustomize.py"
+    },
+    {
+      "link": "/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/origin_guard.py",
+      "resolved_target": "/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bootstrap/origin_guard.py"
+    },
+    {
+      "link": "/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/offline_guard.py",
+      "resolved_target": "/private/tmp/iter63-r31-install-20261109-mz1EwW5H/bootstrap/offline_guard.py"
+    }
+  ]
+}

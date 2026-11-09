@@ -1,0 +1,33 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py"], "launcher_pid": 82798, "launcher_ppid": 82788, "run_id": "bt-frozen-v4-82798-1794191370953823000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "bt-frozen-v4"}
+RUN_ID bt-frozen-v4-82798-1794191370953823000 PID 82806 PPID 82800
+ORIGIN_RUN_LOGS /private/tmp/iter63-r31-install-20261109-mz1EwW5H/origin-logs/bt-frozen-v4-82798-1794191370953823000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 21%]
+........................................................................ [ 29%]
+........................................................................ [ 36%]
+........................................................................ [ 43%]
+........................................................................ [ 51%]
+........................................................................ [ 58%]
+........................................................................ [ 65%]
+........................................................................ [ 73%]
+......x................................................................. [ 80%]
+.........................................
+notification journal append+ack per pair (us): 159.2, 129.1, 130.5
+............................... [ 87%]
+........................................................................ [ 95%]
+.................................................                        [100%]
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+984 passed, 1 xfailed, 1 warning in 104.59s (0:01:44)
+PARENT_ORIGIN_AUDIT_OK
+RUN_EXIT 0

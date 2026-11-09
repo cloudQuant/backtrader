@@ -1,0 +1,573 @@
+{
+  "bt": {
+    "inputs": 74,
+    "run_id": "bt-80763-1794190866489641000",
+    "audit": {
+      "files": 47,
+      "missing_exit_audits": 13,
+      "processes": [
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80763,
+          "ppids": [
+            80741
+          ],
+          "resolved": 670
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81409,
+          "ppids": [
+            80763
+          ],
+          "resolved": 617
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81417,
+          "ppids": [
+            80763
+          ],
+          "resolved": 617
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81418,
+          "ppids": [
+            80763
+          ],
+          "resolved": 617
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81420,
+          "ppids": [
+            80763
+          ],
+          "resolved": 583
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81421,
+          "ppids": [
+            80763
+          ],
+          "resolved": 583
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81433,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81434,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81442,
+          "ppids": [
+            80763
+          ],
+          "resolved": 478
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81446,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81447,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81448,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81449,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81450,
+          "ppids": [
+            80763
+          ],
+          "resolved": 579
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81452,
+          "ppids": [
+            80763
+          ],
+          "resolved": 142
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81453,
+          "ppids": [
+            80763
+          ],
+          "resolved": 142
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81454,
+          "ppids": [
+            80763
+          ],
+          "resolved": 145
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81702,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81706,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81708,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81709,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81710,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81711,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81717,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81718,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81727,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81728,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81733,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81734,
+          "ppids": [
+            80763
+          ],
+          "resolved": 469
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81739,
+          "ppids": [
+            80763
+          ],
+          "resolved": 566
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81744,
+          "ppids": [
+            80763
+          ],
+          "resolved": 566
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81745,
+          "ppids": [
+            80763
+          ],
+          "resolved": 566
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81747,
+          "ppids": [
+            80763
+          ],
+          "resolved": 566
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81751,
+          "ppids": [
+            80763
+          ],
+          "resolved": 567
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81766,
+          "ppids": [
+            80763
+          ],
+          "resolved": 589
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81773,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81784,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81793,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81797,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81802,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": true,
+          "guard": true,
+          "pid": 81812,
+          "ppids": [
+            80763
+          ],
+          "resolved": 593
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81821,
+          "ppids": [
+            80763
+          ],
+          "resolved": 583
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81833,
+          "ppids": [
+            80763
+          ],
+          "resolved": 619
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81854,
+          "ppids": [
+            80763
+          ],
+          "resolved": 626
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81869,
+          "ppids": [
+            80763
+          ],
+          "resolved": 626
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81872,
+          "ppids": [
+            80763
+          ],
+          "resolved": 619
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81880,
+          "ppids": [
+            80763
+          ],
+          "resolved": 622
+        }
+      ],
+      "run_id": "bt-80763-1794190866489641000"
+    }
+  },
+  "sdk": {
+    "inputs": 21,
+    "run_id": "sdk-80764-1794190866489633000",
+    "audit": {
+      "files": 14,
+      "missing_exit_audits": 0,
+      "processes": [
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80764,
+          "ppids": [
+            80742
+          ],
+          "resolved": 729
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80768,
+          "ppids": [
+            80764
+          ],
+          "resolved": 106
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80770,
+          "ppids": [
+            80764
+          ],
+          "resolved": 696
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80771,
+          "ppids": [
+            80764
+          ],
+          "resolved": 89
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80772,
+          "ppids": [
+            80764
+          ],
+          "resolved": 695
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80830,
+          "ppids": [
+            80764
+          ],
+          "resolved": 94
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80837,
+          "ppids": [
+            80764
+          ],
+          "resolved": 97
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80863,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80909,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 80952,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81007,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81053,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81095,
+          "ppids": [
+            80764
+          ],
+          "resolved": 209
+        },
+        {
+          "exit_audit_missing": false,
+          "guard": true,
+          "pid": 81157,
+          "ppids": [
+            80764
+          ],
+          "resolved": 216
+        }
+      ],
+      "run_id": "sdk-80764-1794190866489633000"
+    }
+  }
+}

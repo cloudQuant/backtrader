@@ -1,0 +1,13 @@
+B023 Function definition does not bind loop variable `fact`
+   --> tests/integration/test_iter63_gateway_stream_consumer_process.py:276:74
+    |
+274 |                     wrong=command == "wrong",
+275 |                 )
+276 |                 result = owner.submit_service_call(lambda: ledger.ingest(fact)).result(
+    |                                                                          ^^^^
+277 |                     timeout_seconds=10
+278 |                 )
+    |
+
+Found 1 error.
+

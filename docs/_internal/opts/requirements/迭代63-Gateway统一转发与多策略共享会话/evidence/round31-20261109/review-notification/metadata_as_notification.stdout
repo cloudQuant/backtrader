@@ -1,0 +1,4 @@
+REPRODUCED: metadata-only event emitted order callback, confirmed v1 batch, and authorized ACK without date projection
+.
+1 passed in 1.03s
+

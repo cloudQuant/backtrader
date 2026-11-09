@@ -1,0 +1,21 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py"], "launcher_pid": 82170, "launcher_ppid": 82160, "run_id": "bt-frozen-v3-82170-1794191184847521000", "selector_sha256": "0ba190ad30d41043044990e7ac8e22c9d9e39d00aa74c8940112de024b11db45", "stage": "bt-frozen-v3"}
+RUN_ID bt-frozen-v3-82170-1794191184847521000 PID 82179 PPID 82172
+ORIGIN_RUN_LOGS /private/tmp/iter63-r31-install-20261109-mz1EwW5H/origin-logs/bt-frozen-v3-82170-1794191184847521000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+........................................................................ [  7%]
+................................................................
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/private/tmp/iter63-r31-install-20261109-mz1EwW5H/install/src/backtrader/brokers/_btapi_direct_mode.py:4437: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+136 passed, 1 warning in 14.60s
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r31-install-20261109-mz1EwW5H/run_installed.py` failed. (See above for error)
+RUN_EXIT 2
