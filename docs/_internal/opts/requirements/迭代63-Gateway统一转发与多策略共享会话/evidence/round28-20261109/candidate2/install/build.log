@@ -1,0 +1,11 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-m", "pip", "wheel", "--no-index", "--no-deps", "--no-build-isolation", "--wheel-dir", "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/wheels", "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/source/bt"], "launcher_pid": 49428, "launcher_ppid": 49404, "run_id": "build-49428-1794184339284934000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "build"}
+Processing /tmp/iter63-r28-candidate2-20261109-hLnRZEKN/source/bt
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: back-trader-python
+  Building wheel for back-trader-python (pyproject.toml): started
+  Building wheel for back-trader-python (pyproject.toml): finished with status 'done'
+  Created wheel for back-trader-python: filename=back_trader_python-1.4.0-py3-none-any.whl size=2024895 sha256=edab0e6831c6e55b3e14b4a1e410b84ceb1fdf119f96a17c60cc48794917af1c
+  Stored in directory: /private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/tmp/pip-ephem-wheel-cache-5dnqlxoz/wheels/45/06/4c/f2a28e60f14cfe6e45e8038bfb9c8746824103291d1d6a8eac
+Successfully built back-trader-python
+RUN_EXIT 0

@@ -1,0 +1,8 @@
+{
+  "release": "explicit parent SOURCE_FROZEN",
+  "primary_files_sha256": {
+    "selectors.json": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490",
+    "bt-owned-files.json": "6a926dd475afe13a878fd3a3446d5328752dca90939adcb11df5f2f3156cf301",
+    "bt-frozen-inputs.json": "57eb096fe7ba332308083bdef9461b0148e3026807aa69ae4926b6e864d1f3fa"
+  }
+}

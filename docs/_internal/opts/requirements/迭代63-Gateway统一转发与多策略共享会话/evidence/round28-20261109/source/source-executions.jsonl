@@ -1,0 +1,1 @@
+{"argv": ["python", "-I", "/tmp/iter63-r28-primary-v3/run.py"], "exit_code": 0, "finished_ns": 1794184791981244000, "kind": "bt", "pid": 50618, "ppid": 50558, "run_id": "bt-50618-1794184701324818000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "started_ns": 1794184701335151000}

@@ -1,0 +1,618 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_configured_venue.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_configured_venue.py",
+    "sha256": "6684005a727abf4fc6356cc3186305568e2a664e5ad959e9f96a1cb51901f7a1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_configured_venue.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_day_scoped_returns.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_day_scoped_returns.py",
+    "sha256": "ff9c80c4c3efaafd464d0f68e73ec8f78495853d7255c58b510e0a29c31f9c53",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_day_scoped_returns.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_day_switch_write_fences.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_day_switch_write_fences.py",
+    "sha256": "ce0564071917105fb63b4494c7305a21f0e0ed8c0d7b05e2c38b12729691f1a1",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_day_switch_write_fences.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_fill_gap.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_fill_gap.py",
+    "sha256": "264de42e69392d263e50b920a8f27c18a06b60cf22d1007a88485bf57a3b3cf4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_fill_gap.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_fractional_fills.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_fractional_fills.py",
+    "sha256": "50accbafa985a3783064bd7dea284b7297e80583f11f60204f38aa188a721493",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_fractional_fills.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_not_found_at_venue.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_not_found_at_venue.py",
+    "sha256": "01b48829b57ef5cf3a478fee86e5c31f88af7645007cff76611b420c91aea1b6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_not_found_at_venue.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_not_found_notices.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_not_found_notices.py",
+    "sha256": "ee5c34eacb4aee6b282003a80d0b66d1f2f1ec6f5a80f9355dac6a4e313faf78",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_not_found_notices.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_price_guard.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_price_guard.py",
+    "sha256": "4bf38dfda934b1f18ac9765b4f8962535342068bbda61b92d7de1638bb9b617b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_price_guard.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_refusal_reasons.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_refusal_reasons.py",
+    "sha256": "65ae65a6d1d24b89e384fc7ce149edcdf8bcfb790985649ec1e53475f480b781",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_refusal_reasons.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_restart_reconcile.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_restart_reconcile.py",
+    "sha256": "289f1fc3fce86010a2a738e2aced64bd1ec76eff24f51b5862ded47a98c4083d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_restart_reconcile.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_return_gap.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_return_gap.py",
+    "sha256": "7b12141538c98e8a9e272fcb9b5ec9c64947b76f0714c37a8fcfe6bf2b5069ea",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_return_gap.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_selection_and_first_init.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_selection_and_first_init.py",
+    "sha256": "379389a625ca6e31dc434222167931122a418f2480c2b50e3c8fb8922df51e98",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_selection_and_first_init.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_settlement_resolution.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_settlement_resolution.py",
+    "sha256": "d9ccdecdf3386066b9541949b0e48594ad41ac1a38b006cc7b02b0ca06aa7062",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_settlement_resolution.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_shared_sequence.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_shared_sequence.py",
+    "sha256": "6f93174db4aea566d47d560da0e053760eedb4b027a5ee218bb0893ed871a1da",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_shared_sequence.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_start_failure_and_retry.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_start_failure_and_retry.py",
+    "sha256": "3f61f2e86e5019e6889a1bcce4d515b49c8f4e54bb6305e0bb605ce11eeb7a3b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_start_failure_and_retry.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_stop_and_facts.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_stop_and_facts.py",
+    "sha256": "dd89cf069e1172702dea8a80c028811057a07f76fef519152f7786d667ab83ae",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_stop_and_facts.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_submit.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_submit.py",
+    "sha256": "ddc6b5477757f710df2fae81064d70b25f3b649c6e16a5fe9cdb052e04d19faa",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_submit.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_switch_settlement_readback.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_switch_settlement_readback.py",
+    "sha256": "b0882bef708240ca2db6532e2c27a62874db29b07ab78796d05af4c2f3fb505d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_switch_settlement_readback.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trade_rematch.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_trade_rematch.py",
+    "sha256": "c23402aa928333fa2bd8e71be727e3d4bf24b2750cb76cb0dfe2ff5cf6f43ba0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_trade_rematch.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trading_day_switch.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_trading_day_switch.py",
+    "sha256": "694c7e1323da8af2385091525e6106e75d4ebdc6828be314ceea6c0c6b641db0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_trading_day_switch.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_trading_permissions.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_trading_permissions.py",
+    "sha256": "683dddc1ff137a7abfb20fdb3b503faae4b731b72b8f650d68f677bda4c6afee",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_trading_permissions.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_unqualified_data.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_unqualified_data.py",
+    "sha256": "2e11d05b304e2a260dac3410486068a54b7998437df54b958e8a03aa97ee151b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_unqualified_data.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_direct_waiting_orders.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_direct_waiting_orders.py",
+    "sha256": "b5885097b1df1676b5a585908d6dff2227ef906e93fddee1e9490e656488d269",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_direct_waiting_orders.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "sha256": "9c123385e9be552ef6499dd8402e3972c3fa4e036873d0d0df11e8d5dd341650",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/test_trade_logger_live_state_guard.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_atomic.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_atomic.py",
+    "sha256": "5d67ab60ce97fd2cc3892f520ef24a4bca1b51cb9b1bc530ef8a4eaf7394b2bb",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_atomic.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_execution_checkpoint.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_execution_checkpoint.py",
+    "sha256": "752bd76b6ae61616103841aaea9affa9ecaa9d3c6373323b91e6df85577d80ca",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_execution_checkpoint.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_execution_checkpoint_client.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_execution_checkpoint_client.py",
+    "sha256": "8a059a3db63cee273e996cc23031f0b9ca4aeeb50c73311b6255119bbbdc157a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_execution_checkpoint_client.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_framework_checkpoint.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_framework_checkpoint.py",
+    "sha256": "9a77afd2f3517d036867f433c3b55caf99645fb1015343f9a4b812f47898386c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_framework_checkpoint.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_pending.py",
+    "sha256": "769dfee13da4ca7bf81b6fa7dc449e449843bc6359c75ad5b0e76a4a31dfba95",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_cancel.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_pending_cancel.py",
+    "sha256": "6f4b6617082b83aeab090f6a8e613d0fe85f2584b9bc2fcdd338e6217668e4c3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_cancel.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_client.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_pending_client.py",
+    "sha256": "89cf402e388f92d69140767ff07a3e42b7a7e5e5cb9c76a3dfa93c63c3173e5a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_client.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "sha256": "85b74429a06dffd8dc2de2c932ff09b35e7d01b2d5d73b42371e5fb08a9d766d",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_gateway_pending_enumeration.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_identity.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_identity.py",
+    "sha256": "da5f3a8a0ff1fe365512f3137925454ba19784079eab66a6f2664173c5af8be3",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_identity.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_iter63_gateway_notification_state.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_iter63_gateway_notification_state.py",
+    "sha256": "e464f81169343ff050119139e093d8ece558faad67610d818ca8d9d046d6c6f7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_iter63_gateway_notification_state.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_pending.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_pending.py",
+    "sha256": "1e443a6b19d076b67ffb50cf5de2c98f34c7868bee112fc8e5dd70949ecb7df9",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_pending.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_sequence.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_sequence.py",
+    "sha256": "08333868031b95cf2f8d20acefd37f5d04c380eb2cbedd6fa7d71229a2b5c589",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_sequence.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_snapshot.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_snapshot.py",
+    "sha256": "43297d3cd8da48cee9f5b55750ddf5e8b9ed64e6aedd0ccbe7f27897afbd0520",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_snapshot.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_state_dir_and_cli.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_state_dir_and_cli.py",
+    "sha256": "dd4c0984cc83c8020668590eb8a22e3bf01de62d61761d0ba11f20498823f5a7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_state_dir_and_cli.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/test_waiting.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/test_waiting.py",
+    "sha256": "421e1d0cb4b840375922d88608b9699d64c3f0fe726a28acf2e1f528c1887b99",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/test_waiting.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "sha256": "3a4d913771a6edfc75eaf475881f921f977a07ecec3f59b8457a44ab34eb216e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/test_iter63_gateway_framework_projection.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter63_gateway_strategy_notification_hooks.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_iter63_gateway_strategy_notification_hooks.py",
+    "sha256": "4f0472d1e972f484a7bb6ad360f08b720c9d8bc0738f8a5a9e1b5d54a059765a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_iter63_gateway_strategy_notification_hooks.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/test_iter63_gateway_notification_delivery.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/test_iter63_gateway_notification_delivery.py",
+    "sha256": "f0bd9631b0c0c23c903d5afed6400e2aee53b0f42977cd4a366ae2dfb64c0a5b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/test_iter63_gateway_notification_delivery.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter63_gateway_notification_restart.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter63_gateway_notification_restart.py",
+    "sha256": "77bc4ddc9fd40555b7b6572881267dae75b37c5a95f001e51c03c49b9f48f898",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter63_gateway_notification_restart.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter60_scoped_financial_notifications.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_iter60_scoped_financial_notifications.py",
+    "sha256": "231bafb25626697daedde50536e07f08ae7e8a3fb7b37434cdc509c9f57c9e99",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_iter60_scoped_financial_notifications.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter60_paper_fill_contract.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_iter60_paper_fill_contract.py",
+    "sha256": "e4794690884d325d6c37f1477d73d63c7d85214fd1f9395ec7401fc4be894d53",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_iter60_paper_fill_contract.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/test_iter60_durable_fee_index.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/test_iter60_durable_fee_index.py",
+    "sha256": "7692186e524803120918b970bd97ade86ea8d599d33100f0a5e4a96229649b42",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/test_iter60_durable_fee_index.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/core/test_cerebro_loop_features.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/core/test_cerebro_loop_features.py",
+    "sha256": "f93ec8950e22251ba82d0ebd295499cb11c7dd5e7bd5b9a36f66240e8bb3e67e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/core/test_cerebro_loop_features.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_cerebro_idle_notifications.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_cerebro_idle_notifications.py",
+    "sha256": "7212ba52d2340b75c808a5df3d7cf7e6f1d127e280a3e6bd42e6bbeef6d4cb09",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_cerebro_idle_notifications.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter60_strategy_financial_notifications.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_iter60_strategy_financial_notifications.py",
+    "sha256": "2020f896d6c4c3349ab16d70efec5082c9e0f396b46d4d08b1cceb813c98df01",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_iter60_strategy_financial_notifications.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_iter60_strategy_notify_scope_lock.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_iter60_strategy_notify_scope_lock.py",
+    "sha256": "0425d6270d722ed4cfb979070c64aa9fd7161766dee89d69cbf09ee972cf2cda",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_iter60_strategy_notify_scope_lock.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/analyzers/test_iter60_financial_notification_fence.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/analyzers/test_iter60_financial_notification_fence.py",
+    "sha256": "9e7e61b4cf35b42d35bf5131d25d1ff33c8879bf6fef74887f295f7b2c353ddf",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/analyzers/test_iter60_financial_notification_fence.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/test_strategy_hft_notify.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/test_strategy_hft_notify.py",
+    "sha256": "b288df69f9b14980a3e5ff3263553daf7b7bc9c7e7d5c812371ad89e736fe91b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/test_strategy_hft_notify.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/execution/test_strategy_notification_journal.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/execution/test_strategy_notification_journal.py",
+    "sha256": "1f2cd7a79688758ac0f664a6e5bb63ee2db03eb0cb783559c8432e5059495bef",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/execution/test_strategy_notification_journal.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/execution/test_strategy_notification_outbox.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/execution/test_strategy_notification_outbox.py",
+    "sha256": "a19dd1f50ebdafc019aa44fd49d835926178b95879fdcb914c84cc41a5b155d7",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/execution/test_strategy_notification_outbox.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_notification_recovery.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter60_notification_recovery.py",
+    "sha256": "caa4c9ecf0ca758320d0e6a9f5cefc977d724b4a8600b4227a00de9088f6e16a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_notification_recovery.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_gateway_notifications.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter60_gateway_notifications.py",
+    "sha256": "5e6c1fa26b694d37a6e2b65ba3ae1374185d369d6530fb7bdc79f414b9736a9a",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_gateway_notifications.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_gateway_notifications_crash.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter60_gateway_notifications_crash.py",
+    "sha256": "52eab530f8ac3392df8a7de8d7fc0eb0773b2c4e9e80a76537588fd58c3cf095",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_gateway_notifications_crash.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_gateway_fee_corrections.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter60_gateway_fee_corrections.py",
+    "sha256": "8f65eb17696e8e226b96f5b4a60d038a57f63494ecd34443f23050b446839062",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_gateway_fee_corrections.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/__init__.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/__init__.py",
+    "sha256": "512e1e3b7f30908568916e60ff67f65142b85edf14a00d8b49a2a99d3e19a458",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/__init__.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/conftest.py",
+    "sha256": "5cf3aadf76a1ba7147a6f696aabf5f72839eafa6b7495632788ba4c968268404",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/conftest.py",
+    "sha256": "2212a9bbfcd0234764fb633db18cbf7fa9ee46b752b5024d0e455dc6ab7b4970",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/__init__.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/__init__.py",
+    "sha256": "ee3c0783233286f467937cb3f83ffe96b94e5cb9da7053f22a22cc516c7e91a6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/__init__.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/conftest.py",
+    "sha256": "bedc3e920ded0ee8665bac24b350d0caeb3029159fd14833b55945ad6a649e53",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/conftest.py",
+    "sha256": "8caf3c1c235cf64322dfb3a617b42fdbae3fd14bb01f53d163113b0bb07e823c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/pytest.ini",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/pytest.ini",
+    "sha256": "7cb837c0b98d47472fa75fbd46a782a0cd7681b71de197714aafa33736bac8f6",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "pytest.ini",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/__init__.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/__init__.py",
+    "sha256": "28bfce4c0d4b88a0a2910345a16b64efbf4ad75879407695b6e9e22140e71048",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/__init__.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/__init__.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/__init__.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/_fakes.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/_fakes.py",
+    "sha256": "2ed816935ea2dc57e4deb9e4a0d1c14e5fefed67b339d4575b73417cf7d588fa",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/_fakes.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/brokers/direct/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/brokers/direct/conftest.py",
+    "sha256": "851cebea4e963c1c8554a59b0ef11d3dcafaa37ab779d4601b00669f4dd5fa07",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/brokers/direct/conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/iter60_gateway_execution_support.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/iter60_gateway_execution_support.py",
+    "sha256": "20b3a903e975b2db18f8a385ef61062e00d561725881976423514dab92a48bc0",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/iter60_gateway_execution_support.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/iter60_service_ledger_host_support.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/iter60_service_ledger_host_support.py",
+    "sha256": "e54cb30ecab66fcfdb6edfbe704a3a5cddeb450fd88dd326b8aaffaa2e37fb28",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/iter60_service_ledger_host_support.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/__init__.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/__init__.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_helpers.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/_helpers.py",
+    "sha256": "51f6e0a9ddfcbbcd4e7f0d74e3957edfe2e8bb83c407935201f437c25cb76c2b",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/_helpers.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/_mp_worker.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/_mp_worker.py",
+    "sha256": "b2c0cfa76fd459f9d277cce6a7b49840153ab7c0147e7608b4ed8a6af7de7e2f",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/_mp_worker.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/unit/live_state/conftest.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/unit/live_state/conftest.py",
+    "sha256": "027b2b3279a98e5a9e21d78b801b834c57e9186d8741ce20127c75b299f9531e",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/unit/live_state/conftest.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/fixtures/fake_btapi.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/fixtures/fake_btapi.py",
+    "sha256": "ef5d7a4b6970c9fa6277063609914258330b18689d6cfb9f10502ee923d3e0f4",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/fixtures/fake_btapi.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/integration/test_iter60_direct_strategy_account_book.py",
+    "copy": "/tmp/iter63-r28-install-20261109-Bx3u2bPP/bt-tests/tests/integration/test_iter60_direct_strategy_account_book.py",
+    "sha256": "41e46a55274f264f7c0f1e0b57ff15c80b88d226938588f10d386124b616344c",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/integration/test_iter60_direct_strategy_account_book.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  }
+]

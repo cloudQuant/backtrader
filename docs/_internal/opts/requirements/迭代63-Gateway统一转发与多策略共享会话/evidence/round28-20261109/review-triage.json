@@ -1,0 +1,58 @@
+{
+  "kind": "primary summary of independent review messages; not reconstructed raw tool logs",
+  "final_candidate": 3,
+  "product_commit": "ed125f81fcf2784d274ad7cd798785bb4c276fba",
+  "findings": [
+    {
+      "id": "E062",
+      "finding": "mutable fee input after preflight",
+      "resolution": "bound immutable validated fee records; unbound behavior retained"
+    },
+    {
+      "id": "E063",
+      "finding": "fee applied before durable store failure",
+      "resolution": "fixed candidate and retryable fault; pre-candidate failure requires restart; no fee reapplication"
+    },
+    {
+      "id": "E064",
+      "finding": "fee preflight failure bypassed by ordinary notify",
+      "resolution": "fault lock and confirmation refusal including caught nested preflight errors"
+    },
+    {
+      "id": "E065",
+      "finding": "first callback may replay and confirm early",
+      "resolution": "shared active receipt guard; abort preserves pending and original exception"
+    },
+    {
+      "id": "E066",
+      "finding": "mode exclusivity depends on bind/start/attach ordering",
+      "resolution": "configured direct check, startup check, reverse session attach guards and live checks"
+    },
+    {
+      "id": "E067",
+      "finding": "foreign same-feed order added after binding contaminates Position",
+      "resolution": "ongoing checks before restricted operations; foreign orders must remain represented in broker.orders"
+    },
+    {
+      "id": "E068",
+      "finding": "thread ident reuse accepts different Thread",
+      "resolution": "original Thread object plus PID and ident"
+    },
+    {
+      "id": "E069",
+      "finding": "addnotification mutates queues and Trade before active guard",
+      "resolution": "optional precondition before any original entry mutation; bound checks and unbound behavior"
+    }
+  ],
+  "independent_delta_checks": {
+    "strategy_candidate1": "read only, no new findings after immutable snapshot/managed broker timing correction",
+    "scope_candidate2": "4 passed synthetic",
+    "notification_entry_candidate3": "6 passed synthetic"
+  },
+  "limits": [
+    "no arbitrary Python memory isolation",
+    "no real account or remote ACK",
+    "41 recorded processes per final run; 13 missing exit audits",
+    "legacy SDK-free Broker constructor strict xfail"
+  ]
+}

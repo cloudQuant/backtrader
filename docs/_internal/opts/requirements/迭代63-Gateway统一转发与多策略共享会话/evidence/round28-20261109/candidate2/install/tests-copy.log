@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/prepare.py", "tests"], "launcher_pid": 49205, "launcher_ppid": 49175, "run_id": "tests-copy-49205-1794184329684056000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "tests-copy"}
+test_files 77 ast_visited 76
+RUN_EXIT 0

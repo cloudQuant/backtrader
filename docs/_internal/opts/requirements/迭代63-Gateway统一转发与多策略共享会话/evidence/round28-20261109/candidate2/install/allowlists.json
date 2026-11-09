@@ -1,0 +1,16 @@
+{
+  "runtime": {
+    "bt": [
+      "backtrader/strategy.py",
+      "backtrader/brokers/btapibroker.py",
+      "backtrader/brokers/_btapi_gateway_notifications.py"
+    ]
+  },
+  "tests": {
+    "bt": [
+      "tests/unit/test_iter63_gateway_strategy_notification_hooks.py",
+      "tests/unit/brokers/test_iter63_gateway_notification_delivery.py",
+      "tests/integration/test_iter63_gateway_notification_restart.py"
+    ]
+  }
+}

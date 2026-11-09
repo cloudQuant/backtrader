@@ -1,0 +1,632 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/run_installed.py"], "launcher_pid": 49578, "launcher_ppid": 49568, "run_id": "bt-frozen-final-49578-1794184367498634000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "bt-frozen-final"}
+RUN_ID bt-frozen-final-49578-1794184367498634000 PID 49587 PPID 49581
+ORIGIN_RUN_LOGS /private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/origin-logs/bt-frozen-final-49578-1794184367498634000
+GUARDS Python socket/zmq loopback only; CTP factory entrypoints blocked
+CTP_EXTENSION native structs allowed on demand; factories blocked
+TEMP_MSGPACK 1.2.4 /private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/install/src/msgpack/__init__.py
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+........................................................................ [ 56%]
+........................................................................ [ 64%]
+........................................................................ [ 72%]
+........................................................................ [ 80%]
+...x.....................................................FFFFFFFFFFFFF.. [ 88%]
+.................................
+notification journal append+ack per pair (us): 159.2, 136.0, 128.0
+....................................... [ 97%]
+..........................                                               [100%]
+=================================== FAILURES ===================================
+__________________________ test_loop1_runonce_modern ___________________________
+
+    def test_loop1_runonce_modern():
+        cerebro = _make_cerebro(oldsync=False, runonce=True, preload=True)
+>       _run_and_record("loop1_runonce_modern", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:258: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+_________________________ test_loop2a_runnext_fastpath _________________________
+
+    def test_loop2a_runnext_fastpath():
+        cerebro = _make_cerebro(oldsync=False, runonce=False, stdstats=False)
+        cerebro.addstrategy(BareTraceStrategy)
+        results = cerebro.run()
+        strat = results[0]
+        broker = cerebro.getbroker()
+        trace = list(strat.trace)
+        trace.append(("final_cash", broker.getcash()))
+        trace.append(("final_value", broker.getvalue()))
+>       _run_and_record_probe("loop2a_runnext_fastpath", trace, {"fastpath": _fastpath_hit(strat)})
+
+tests/unit/core/test_cerebro_loop_features.py:270: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:277: in _run_and_record_probe
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+________________________ test_loop2b_runnext_multi_data ________________________
+
+    def test_loop2b_runnext_multi_data():
+        cerebro = bt.Cerebro(oldsync=False, runonce=False)
+        cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False), name="d1")
+        cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False), name="d2")
+>       _run_and_record("loop2b_runnext_multi_data", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:284: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+____________________________ test_loop3_runonce_old ____________________________
+
+    def test_loop3_runonce_old():
+        cerebro = _make_cerebro(oldsync=True, runonce=True, preload=True)
+>       _run_and_record("loop3_runonce_old", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+____________________________ test_loop4_runnext_old ____________________________
+
+    def test_loop4_runnext_old():
+        cerebro = _make_cerebro(oldsync=True, runonce=False)
+>       _run_and_record("loop4_runnext_old", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:294: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+___________________________ test_order_cheat_on_open ___________________________
+
+    def test_order_cheat_on_open():
+        cerebro = _make_cerebro(cheat_on_open=True, runonce=False)
+>       _run_and_record("order_cheat_on_open", cerebro, CheatOpenTraceStrategy)
+
+tests/unit/core/test_cerebro_loop_features.py:304: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+______________________ test_order_timers_and_quicknotify _______________________
+
+    def test_order_timers_and_quicknotify():
+        cerebro = _make_cerebro(runonce=False, quicknotify=True)
+        cerebro.add_timer(when=datetime.time(11, 0), monthdays=[], monthcarry=True, strats=True)
+        cerebro.add_timer(
+            when=datetime.time(14, 30), monthdays=[], monthcarry=True, strats=True, cheat=True
+        )
+>       _run_and_record("order_timers_and_quicknotify", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:313: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+____________________________ test_order_writer_csv _____________________________
+
+    def test_order_writer_csv():
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "writer.csv"
+            cerebro = bt.Cerebro(runonce=False, writer=True)
+            # WriterFile includes ``data._name`` in its header and every data row.
+            # ``DATAPATH`` is checkout-local, so use a fixed display name to keep
+            # this frozen CSV artifact independent of the CI workspace path.
+            data = bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False)
+            cerebro.adddata(data, name="iter28_writer_data")
+            # The Writer emits ``\n``.  Supplying a text stream with explicit LF
+            # translation keeps the frozen byte-level artifact stable on Windows.
+            with out.open("w", encoding="utf-8", newline="\n") as output:
+                cerebro.addwriter(bt.WriterFile, csv=True, out=output, close_out=False)
+                cerebro.addstrategy(TraceStrategy)
+                cerebro.run()
+            content = out.read_bytes()
+            trace = [
+                ("writer_bytes", len(content)),
+                ("writer_sha256", hashlib.sha256(content).hexdigest()),
+            ]
+>           _run_and_record_probe("order_writer_csv", trace, {})
+
+tests/unit/core/test_cerebro_loop_features.py:336: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:277: in _run_and_record_probe
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+----------------------------- Captured stdout call -----------------------------
+===============================================================================
+Cerebro:
+  -----------------------------------------------------------------------------
+  - Datas:
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    - Data0:
+      - Name: iter28_writer_data
+      - Timeframe: Days
+      - Compression: 1
+  -----------------------------------------------------------------------------
+  - Strategies:
+    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    - TraceStrategy:
+      *************************************************************************
+      - Params:
+        - period: 5
+        - movav: None
+        - _movav: None
+        - lookback: 1
+        - upperband: 70.0
+        - lowerband: 30.0
+        - safediv: False
+        - safepct: False
+        - fast: 5
+        - slow: 34
+        - signal: 9
+        - mult: 2.0
+        - matype: 0
+        - stop_at: None
+      *************************************************************************
+      - Indicators:
+        .......................................................................
+        - MovingAverageSimple:
+          - Lines: sma
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          - Params:
+            - period: 5
+            - movav: None
+            - _movav: None
+            - lookback: 1
+            - upperband: 70.0
+            - lowerband: 30.0
+            - safediv: False
+            - safepct: False
+            - fast: 5
+            - slow: 34
+            - signal: 9
+            - mult: 2.0
+            - matype: 0
+        .......................................................................
+        - CrossOver:
+          - Lines: crossover
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          - Params:
+            - period: 14
+            - movav: None
+            - _movav: None
+            - lookback: 1
+            - upperband: 70.0
+            - lowerband: 30.0
+            - safediv: False
+            - safepct: False
+            - fast: 5
+            - slow: 34
+            - signal: 9
+            - mult: 2.0
+            - matype: 0
+      *************************************************************************
+      - Observers:
+      *************************************************************************
+      - Analyzers:
+        .......................................................................
+        - Value:
+          - Begin: 10000.0
+          - End: 10219.239999999998
+__________________________ test_order_signal_strategy __________________________
+
+    def test_order_signal_strategy():
+        cerebro = _make_cerebro(runonce=False)
+        cerebro.add_signal(
+            bt.SIGNAL_LONG,
+            bt.indicators.CrossOver,
+            bt.indicators.SMA(period=5),
+            bt.indicators.SMA(period=10),
+        )
+        results = cerebro.run()
+        strat = results[0]
+        broker = cerebro.getbroker()
+        trace = [
+            ("signal_strat_cls", type(strat).__name__),
+            ("final_cash", broker.getcash()),
+            ("final_value", broker.getvalue()),
+            ("final_position", strat.position.size if strat.position else 0),
+        ]
+>       _run_and_record_probe("order_signal_strategy", trace, {})
+
+tests/unit/core/test_cerebro_loop_features.py:356: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:277: in _run_and_record_probe
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+________________________ test_multi_timeframe_resample _________________________
+
+    def test_multi_timeframe_resample():
+        cerebro = bt.Cerebro(oldsync=False, runonce=False)
+        cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False), name="day")
+        cerebro.resampledata(
+            bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False),
+            name="week",
+            timeframe=bt.TimeFrame.Weeks,
+            compression=1,
+        )
+>       _run_and_record("multi_timeframe_resample", cerebro)
+
+tests/unit/core/test_cerebro_loop_features.py:373: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+__________________________ test_ch1_channel_iterable ___________________________
+
+    def test_ch1_channel_iterable():
+        cerebro = bt.Cerebro()
+        cerebro.addstrategy(ChannelTraceStrategy)
+        strategies = cerebro.run(channel=_channel_events())
+        trace = list(strategies[0].trace)
+>       _run_and_record_probe("ch1_channel_iterable", trace, {})
+
+tests/unit/core/test_cerebro_loop_features.py:430: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:277: in _run_and_record_probe
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+________________________ test_ch2_channel_true_external ________________________
+
+    def test_ch2_channel_true_external():
+        cerebro = bt.Cerebro()
+        cerebro.addstrategy(ChannelTraceStrategy)
+        strategies = cerebro.run(channel=True)
+        assert cerebro._run_active
+        for event in _channel_events():
+            cerebro.dispatch_channel_event(event)
+        trace = list(strategies[0].trace)
+        closed = cerebro.close_channel()
+        assert closed is True
+        assert not cerebro._run_active
+        trace.append(("closed", closed))
+>       _run_and_record_probe("ch2_channel_true_external", trace, {})
+
+tests/unit/core/test_cerebro_loop_features.py:445: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:277: in _run_and_record_probe
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+___________________________ test_stop_runstop_midway ___________________________
+
+    def test_stop_runstop_midway():
+        cerebro = _make_cerebro(runonce=False)
+>       _run_and_record("stop_runstop_midway", cerebro, stop_at=30)
+
+tests/unit/core/test_cerebro_loop_features.py:455: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/unit/core/test_cerebro_loop_features.py:204: in _run_and_record
+    _compare_or_record(name, payload)
+tests/unit/core/test_cerebro_loop_features.py:217: in _compare_or_record
+    baseline = json.loads(BASELINE_PATH.read_text())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1058: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/unit/core/iter28_loop_baseline.json'
+
+/Users/yunjinqi/opt/anaconda3/lib/python3.11/pathlib.py:1044: FileNotFoundError
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_loop1_runonce_modern
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_loop2a_runnext_fastpath
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_loop2b_runnext_multi_data
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_loop3_runonce_old
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_loop4_runnext_old
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_order_cheat_on_open
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_order_timers_and_quicknotify
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_order_writer_csv
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_order_signal_strategy
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_multi_timeframe_resample
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_ch1_channel_iterable
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_ch2_channel_true_external
+FAILED tests/unit/core/test_cerebro_loop_features.py::test_stop_runstop_midway
+13 failed, 876 passed, 1 xfailed, 1 warning in 91.99s (0:01:31)
+PARENT_ORIGIN_AUDIT_OK
+ERROR conda.cli.main_run:execute(125): `conda run python -I /tmp/iter63-r28-candidate2-20261109-hLnRZEKN/run_installed.py` failed. (See above for error)
+RUN_EXIT 1

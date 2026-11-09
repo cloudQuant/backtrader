@@ -1,0 +1,11 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "/tmp/iter63-r28-install-20261109-Bx3u2bPP/prepare.py", "tests"], "launcher_pid": 47678, "launcher_ppid": 47648, "run_id": "tests-copy-47678-1794183942163698000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "tests-copy"}
+Traceback (most recent call last):
+  File "/tmp/iter63-r28-install-20261109-Bx3u2bPP/prepare.py", line 227, in <module>
+    main()
+  File "/tmp/iter63-r28-install-20261109-Bx3u2bPP/prepare.py", line 224, in main
+    {'snapshot':snapshot, 'tests':tests}[sys.argv[1]]()
+  File "/tmp/iter63-r28-install-20261109-Bx3u2bPP/prepare.py", line 203, in tests
+    raise RuntimeError(('ambiguous or unapproved helper', ref, len(candidates)))
+RuntimeError: ('ambiguous or unapproved helper', 'test_iter60_direct_strategy_account_book', 0)
+ERROR conda.cli.main_run:execute(125): `conda run python /tmp/iter63-r28-install-20261109-Bx3u2bPP/prepare.py tests` failed. (See above for error)
+RUN_EXIT 1

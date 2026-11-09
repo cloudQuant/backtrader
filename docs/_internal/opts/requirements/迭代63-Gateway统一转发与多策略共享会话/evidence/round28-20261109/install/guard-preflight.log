@@ -1,0 +1,3 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r28-candidate3-20261109-ijqQ26LC/guard_preflight.py"], "launcher_pid": 50786, "launcher_ppid": 50766, "run_id": "guard-preflight-50786-1794184742424709000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "guard-preflight"}
+LAZY_CTP_FACTORY_GUARD_AND_NON_LOOPBACK_BLOCKED
+RUN_EXIT 0

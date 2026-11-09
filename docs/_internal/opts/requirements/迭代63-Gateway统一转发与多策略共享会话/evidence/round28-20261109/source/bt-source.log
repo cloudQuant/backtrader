@@ -1,0 +1,31 @@
+RUN_METADATA {"argv": ["python", "-I", "/tmp/iter63-r28-primary-v3/run.py"], "origin_log_group": "bt-50618-1794184701324818000", "pid": 50618, "ppid": 50558, "run_id": "bt-50618-1794184701324818000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490"}
+SOURCE_ROOT bt /Users/yunjinqi/Documents/new_projects/backtrader SELECTORS /tmp/iter63-r28-primary-v3/selectors.json
+LAZY_ORIGIN_AND_OFFLINE_GUARDS active; CTP native factories blocked
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+........................................................................ [ 56%]
+........................................................................ [ 64%]
+........................................................................ [ 72%]
+........................................................................ [ 80%]
+......x................................................................. [ 88%]
+.........................................
+notification journal append+ack per pair (us): 183.2, 133.8, 135.3
+............................... [ 96%]
+..................................                                       [100%]
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--------- generated xml file: /tmp/iter63-r28-primary-v3/bt-source.xml ---------
+=========================== short test summary info ============================
+XFAIL tests/unit/brokers/test_iter63_gateway_notification_delivery.py::test_cold_broker_import_does_not_attempt_sdk_imports[True] - btapibroker.py _normalise_startup_account_state imports bt_api_py
+897 passed, 1 xfailed, 1 warning in 89.81s (0:01:29)
+SOURCE_ORIGIN_AUDIT_OK
+RUN_EXIT 0 RUN_ID bt-50618-1794184701324818000

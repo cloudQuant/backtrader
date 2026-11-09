@@ -1,0 +1,27 @@
+RUN_METADATA {"argv": ["/Users/yunjinqi/opt/anaconda3/bin/conda", "run", "--no-capture-output", "-n", "base", "python", "-I", "/tmp/iter63-r28-candidate3-20261109-ijqQ26LC/verify.py"], "launcher_pid": 51031, "launcher_ppid": 51010, "run_id": "verify-after-classified-51031-1794184849879785000", "selector_sha256": "e3f78e84900667a26aa059a1ca391f7ec08f221f195cda8c6cf416950ca1d490", "stage": "verify-after-classified"}
+MANIFEST_VERIFIED source-manifest.json 684
+MANIFEST_VERIFIED test-manifest.json 81
+PRIMARY_FROZEN_INPUTS_VERIFIED
+EDITABLE_DEPENDENCY bt_api_monitor 0.1.0 aba1ca273122a4d7a29898b588cc701023a43e39 /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_monitor/src/bt_api_monitor/__init__.py 22
+EDITABLE_DEPENDENCY bt_api_transport_zmq 0.1.0 6a4cf80ca4ff686f55f62ee9a51a0daf875df8ec /Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_transport_zmq/src/bt_api_transport_zmq/__init__.py 7
+WHEEL_INSTALL_MEMBERS_MATCH back_trader_python-1.4.0-py3-none-any.whl 3435b1df02d50bdb5a6135605a86cc6de4b8a85c715d13885a8c04e7a7ba6981 685 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_base-0.16.0.dev63-py3-none-any.whl 67f2e489053c06cc154c8edb1f05015aa9ec8be77e9e723e270e9a726072671f 172 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_binance-2.1.0.dev63-py3-none-any.whl 703f312d1889052293b49c390855f2df50d38084ced8a80029f4794ca6e1c5be 92 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_ctp-2.1.0.dev63-cp311-cp311-macosx_11_0_arm64.whl bf25c4c171ffbcf5e4cca872ce8f9d4d5454210f311ba28de2bb9947defbbc6a 209 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_gateway-0.2.0.dev63-py3-none-any.whl 52a4ac9f1b3c671eada2b3314f7a1766afccef78051109d02070e7b820abe685 32 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_okx-0.16.0.dev63-py3-none-any.whl 2243f8427d282e53f08b50e88832b149dfde0729afcbd8b3e768eb7a81ce1c07 105 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH bt_api_py-0.16.0.dev63-py3-none-any.whl f53cc1428ccc77d9143a615c36e52439326cd2170d70b5b491fc0ab7f8d132fe 314 RECORD_EXCLUDED
+WHEEL_INSTALL_MEMBERS_MATCH msgpack-1.2.4-cp311-cp311-macosx_11_0_arm64.whl a4b47ec7422bef149223786a87df80067ac65bfc7c0565e5cf1dfbdc40acee50 10 RECORD_EXCLUDED
+BT_README_MATCH 18aac49f7e6a595c3b11740659423585b7dd442d507ef6f76a3fbccdbf8121d8 PY_SET 679 ALL_PAYLOAD_MEMBERS 680
+IMPORT_ORIGIN backtrader /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/backtrader/__init__.py
+IMPORT_ORIGIN bt_api_base /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_base/__init__.py
+IMPORT_ORIGIN bt_api_gateway /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_gateway/__init__.py
+IMPORT_ORIGIN bt_api_ctp /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_ctp/__init__.py
+IMPORT_ORIGIN bt_api_py /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_py/__init__.py
+IMPORT_ORIGIN bt_api_okx /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_okx/__init__.py
+IMPORT_ORIGIN bt_api_binance /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/bt_api_binance/__init__.py
+IMPORT_ORIGIN msgpack /tmp/iter63-r28-candidate3-20261109-ijqQ26LC/install/src/msgpack/__init__.py
+INVENTORY_UNCHANGED_FROZEN_INPUTS install/src 3185 GENERATED_PYC 0
+INVENTORY_UNCHANGED_FROZEN_INPUTS bt-tests 82 GENERATED_PYC 83
+NO_FULL_RESOLVER_NO_REAL_ACCOUNT
+RUN_EXIT 0

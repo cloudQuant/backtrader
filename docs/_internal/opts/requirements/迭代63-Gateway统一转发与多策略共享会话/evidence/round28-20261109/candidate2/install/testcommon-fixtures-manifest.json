@@ -1,0 +1,26 @@
+[
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/testcommon.py",
+    "copy": "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/testcommon.py",
+    "sha256": "4264eae6b03cedfc89bc6912e565aa8b34c5f22cc7df037eff3decd3a85c92af",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/testcommon.py",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/2006-day-001.txt",
+    "copy": "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/datas/2006-day-001.txt",
+    "sha256": "18b458e6440c241776ca9bf4d469d7af8428cb39b0af153859edae8c5caf3fc2",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/datas/2006-day-001.txt",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  },
+  {
+    "source": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/2006-week-001.txt",
+    "copy": "/tmp/iter63-r28-candidate2-20261109-hLnRZEKN/bt-tests/tests/datas/2006-week-001.txt",
+    "sha256": "5ddbe4f8e605dd4cb91bb7228194e32a5223aaf17fe9c2a0b8443d3aafd46bdb",
+    "repo": "/Users/yunjinqi/Documents/new_projects/backtrader",
+    "relative": "tests/datas/2006-week-001.txt",
+    "snapshot_head": "9d0fe0314fa0c467999362816f4e5e49885fc980"
+  }
+]
