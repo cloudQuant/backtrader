@@ -1046,15 +1046,22 @@ class GatewayNotificationsBrokerMixin:
             return [restored.trades[k] for k in keys]
 
         originals = {}
+        local_notices = binding.host.local_order_notifications()
         for request_key, object_key in metadata["originals"].items():
             if (
                 not _text(request_key)
                 or type(object_key) is not str
                 or object_key not in restored.orders
                 or binding.host.load_intent(request_key) is None
-                or binding.host.load_record(request_key) is None
             ):
                 _error("RESTORE_INVALID")
+            if binding.host.load_record(request_key) is None:
+                # A validated reserve denial has no Gateway record; it was
+                # finalized locally as Rejected with a durable reject: notice.
+                order = restored.orders[object_key]
+                if ("reject:" + request_key not in local_notices
+                        or order.status != order.Rejected):
+                    _error("RESTORE_INVALID")
             originals[request_key] = restored.orders[object_key]
         if len({o.ref for o in originals.values()}) != len(originals):
             _error("RESTORE_INVALID")

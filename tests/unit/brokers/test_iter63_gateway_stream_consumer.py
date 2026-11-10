@@ -1686,3 +1686,50 @@ def test_gateway_financial_requires_explicit_strategy_and_verified_currency(read
     broker.store.gateway_strategy_config.strategy_finance_currency = None
     with pytest.raises(RuntimeError, match='CURRENCY_REQUIRED'):
         broker.get_strategy_cash(strategy)
+
+
+def test_restore_accepts_locally_rejected_original_without_gateway_record(
+        state, ready, inputs, monkeypatch):
+    # SimNow 63.09 (2026-11-10 09:17): a reserve denial finalized locally as
+    # Rejected has no Gateway record. Once a later execution event wrote a
+    # projection listing it among the originals, every restart failed with
+    # GATEWAY_NOTIFICATION_RESTORE_INVALID.
+    from backtrader.live_state.gateway_pending import GatewayPendingHost
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+
+    host, broker, strategy, original, calls, api = attach(
+        ready, inputs, monkeypatch, [event_for(ready[0])])
+    monkeypatch.setattr(broker, '_gateway_require_trade_qualification', lambda *_: SYNTHETIC_MARKET_REF)  # synthetic order-path test
+    GatewayPendingHost.upgrade_for_order_state(state.strategy_dir, state.strategy_uuid, host._binding)
+    host.upgrade_for_local_notifications()
+    state.sequence.allocate(original.ref)  # key-a was created by a synthetic fixture
+    broker._gateway_stream_binding.sequence = state.sequence
+    monkeypatch.setattr(api, 'reserve_order', lambda *a, **kw:
+                        GatewayClientResult('REQUEST_DENIED', code='ADMISSION_DENIED'))
+    denied = bt.BuyOrder(owner=strategy, data=original.data, size=1, price=11, exectype=bt.Order.Limit)
+    denied.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+    broker.submit(denied)
+    key = denied.info.gateway_request_key
+    assert denied.status == denied.Rejected and host.load_record(key) is None
+    def drain():
+        while (notice := broker.get_notification()) is not None:
+            strategy._addnotification(notice, quicknotify=False)
+            strategy._notify()
+            strategy.clear()
+
+    for _ in range(6):  # local notices first, then key-a's event writes a new projection
+        drain()
+        broker.next()
+    drain()
+    checkpoint = host.load_execution_checkpoint()
+    assert checkpoint.applied_sequence == 3, broker.gateway_execution_stream_status()
+    assert key in checkpoint.projection['state']['_gateway_strategy']['originals']
+    data2, broker2, strategy2 = framework()
+    broker2.bind_gateway_execution_stream(strategy2, api=api, host=host, data_by_ref={'rb': data2},
+        orders_by_key={}, instrument_by_ref={'rb': INSTRUMENT},
+        time_policy=GatewayExecutionTimePolicy('CTP___FUTURE', 'UTC'), sequence=state.sequence)
+    restored = broker2._gateway_binding(strategy2, required=True).orders
+    assert restored[key].status == restored[key].Rejected
+    assert restored['key-a'].executed.size == 0.4
+    broker2.next()
+    assert broker2.gateway_execution_stream_status() not in ('RECOVERY_PENDING', 'RESTART_REQUIRED')
