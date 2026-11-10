@@ -128,6 +128,8 @@ gateway_strategy:
   - direct.events.read_after
   - direct.events.ack
   - direct.events.progress
+  - direct.strategy_position
+  - direct.strategy_close_capacity
   execution_time_policy:
     route: CTP___FUTURE
     timezone: Asia/Shanghai

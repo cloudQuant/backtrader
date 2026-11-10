@@ -242,6 +242,8 @@ BT_API_CTP_GATEWAY_RESOURCES_FILE=/PRIVATE/DIRECTORY/resource.json \
 
 会话：一个 Gateway 只维持该账户的一个 TD 会话和按需的 MD 会话，所有策略共用。首启：新策略先在策略侧 `--first-init` 并由运营把身份登记进资源文件。停止：SIGINT/SIGTERM 经 owner 关闭 Gateway；停止策略不会停止 Gateway，停止 Gateway 也不会撤销或重发策略委托。Gateway 不可用：策略等待或拒绝，不回退 direct，不推断委托已撤销。手工交易：账户上的手工或其他来源成交归 external，不计入任何策略持仓。以上离线检查与合成测试不是 SimNow 或真实账户证据。
 
+平仓：Gateway 模式下平仓（`close`、`close_today`、`close_yesterday`）前，策略须从 Gateway 读取自己的可平量，因此运营方须启用策略账本：资源包加 `"strategy_ledger": {"upgrade_from_v10": true}`，运营配置加 `strategy_ledger_enabled: true`（journal 由 v10 升级到 v11，不降级）。11 个 `_gateway` 示例已请求 `direct.strategy_position` 与 `direct.strategy_close_capacity`。未启用时，平仓在发出前即被拒（`STRATEGY_POSITION_UNAVAILABLE`），开仓不受影响。
+
 异常退出：Gateway 被强杀或崩溃后，重启会报 `SESSION_RECONCILIATION_REQUIRED`，等待不会自行解除。运营方用以下命令对账：
 
 ```bash
