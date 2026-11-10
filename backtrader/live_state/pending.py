@@ -40,6 +40,9 @@ the active set plus that history.
 from __future__ import annotations
 
 import copy
+import hashlib
+import os
+import threading
 from typing import Any, Iterable, List, Mapping, Optional, Union
 
 from ._common import (
@@ -61,7 +64,7 @@ from .atomic import (
     LiveStateIdentityMismatch,
     LiveStateNotInitialized,
     atomic_write_json,
-    read_json,
+    read_json_bytes,
 )
 from .audit import append_audit
 
@@ -243,6 +246,12 @@ def validate_pending_state(raw: Any, path: str, strategy_uuid: Optional[str]) ->
         from .gateway_pending import validate_gateway_state
         validate_gateway_state(raw, path)
     return raw
+
+
+# (realpath, strategy uuid) -> sha256 of the last pending.json bytes that passed
+# validate_pending_state in this process (see PendingStore._load).
+_VALIDATED_DIGESTS: dict = {}
+_VALIDATED_LOCK = threading.Lock()
 
 
 def is_pristine_pending(raw: Any, path: str) -> bool:
@@ -528,11 +537,28 @@ class PendingCommandStore:
         return CoordinatedFileLock(self.paths, self.paths.pending_lock, timeout=self.lock_timeout)
 
     def _load(self) -> dict:
+        """Read and validate the pending state; return a fresh parsed object.
+
+        Validation is a pure function of the file bytes, its path and the
+        strategy uuid, but on a large Gateway state it costs ~0.1 s and the
+        broker reads the state several times per bar (SimNow 63.09: a 0.5 MB
+        state made one bar take seconds and every feed stale). The bytes are
+        always re-read; only bytes identical to the last validated content of
+        this path skip re-validation, so any change is fully validated.
+        """
         try:
-            raw = read_json(self.paths.pending)
+            content, raw = read_json_bytes(self.paths.pending)
         except FileNotFoundError:
             raise LiveStateNotInitialized(self.paths.pending) from None
-        return validate_pending_state(raw, self.paths.pending, self.strategy_uuid)
+        key = (os.path.realpath(self.paths.pending), self.strategy_uuid)
+        digest = hashlib.sha256(content).digest()
+        with _VALIDATED_LOCK:
+            if _VALIDATED_DIGESTS.get(key) == digest:
+                return raw
+        state = validate_pending_state(raw, self.paths.pending, self.strategy_uuid)
+        with _VALIDATED_LOCK:
+            _VALIDATED_DIGESTS[key] = digest
+        return state
 
     def _store(self, state: dict, *, trim_history: bool = True) -> None:
         if not trim_history:

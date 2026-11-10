@@ -37,6 +37,7 @@ __all__ = (
     "atomic_write_text",
     "fsync_directory",
     "read_json",
+    "read_json_bytes",
 )
 
 #: The finite set of ``LiveStateError.code`` values.  Any other code passed to
@@ -281,9 +282,18 @@ def read_json(path: Any) -> Any:
     :class:`LiveStateNotInitialized`) and :class:`LiveStateCorrupt` for empty
     files, invalid UTF-8, parse errors, duplicate keys or NaN/Infinity.
     """
+    return read_json_bytes(path)[1]
+
+
+def read_json_bytes(path: Any) -> "tuple[bytes, Any]":
+    """Like :func:`read_json`, also returning the exact bytes that were parsed."""
     target = os.fspath(path)
     with open(target, "rb") as handle:
         raw = handle.read()
+    return raw, _parse_json_bytes(raw, target)
+
+
+def _parse_json_bytes(raw: bytes, target: str) -> Any:
     if not raw.strip():
         raise LiveStateCorrupt(target, "empty_file")
     try:
