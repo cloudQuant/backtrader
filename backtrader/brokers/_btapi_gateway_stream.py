@@ -48,6 +48,12 @@ class _StreamBinding:
     dispatched: set = field(default_factory=set)
 
 
+def _bt_terminal(order):
+    """Completed, Canceled, Rejected, Expired or Margin in BT (status is final)."""
+    return order.status in (order.Completed, order.Canceled, order.Rejected, order.Expired,
+                            order.Margin)
+
+
 def _fail(code):
     raise GatewayExecutionStreamError("GATEWAY_STREAM_" + code)
 
@@ -442,6 +448,8 @@ class GatewayExecutionStreamBrokerMixin:
             if (prior_order.data is not order.data or "reject:" + prior_key in local_notices
                     or "cancel:" + prior_key in local_notices):
                 continue  # finalized locally (never sent)
+            if _bt_terminal(prior_order):
+                continue  # its outcome is known; a stale local record cannot block
             record = binding.host.load_record(prior_key)
             context = binding.host.load_context(prior_key)
             if (record is None or record.state == "UNKNOWN" or not record.generation_current
@@ -779,7 +787,9 @@ class GatewayExecutionStreamBrokerMixin:
             return
         local_notices = binding.host.local_order_notifications()
         for key in notice.orders:
-            if "reject:" + key in local_notices:
+            if "reject:" + key in local_notices or _bt_terminal(notice.orders[key]):
+                # Terminal in BT: nothing left to drive. Skipping them keeps a
+                # step O(open orders), not O(all orders) full state loads (E108).
                 continue
             record = binding.host.load_record(key)
             if "cancel:" + key in local_notices:

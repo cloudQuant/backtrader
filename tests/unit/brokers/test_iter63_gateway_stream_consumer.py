@@ -1733,3 +1733,42 @@ def test_restore_accepts_locally_rejected_original_without_gateway_record(
     assert restored['key-a'].executed.size == 0.4
     broker2.next()
     assert broker2.gateway_execution_stream_status() not in ('RECOVERY_PENDING', 'RESTART_REQUIRED')
+
+
+def test_terminal_orders_are_skipped_by_submit_and_step_checks(state, ready, inputs, monkeypatch):
+    # SimNow 63.09 (E108): every broker step loaded the full state once or twice
+    # per known order, terminal ones included; a terminal order's stale local
+    # record must also never block a new submit.
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+
+    calls = []
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', lambda route, key, **kw:
+                        (calls.append(('dispatch', key)) or GatewayClientResult('TRANSPORT_NOT_STARTED')))
+    monkeypatch.setattr(api, 'command_status', lambda route, key, **kw:
+                        (calls.append(('status', key)) or GatewayClientResult('OBSERVED', host.load_record(key))))
+    order = bt.BuyOrder(owner=strategy, data=data, size=1, price=10, exectype=bt.Order.Limit)
+    order.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    deliver(broker, strategy)
+    tracked = broker._gateway_binding(strategy, required=True).orders[key]
+    tracked.status = tracked.Canceled  # its outcome became final (e.g. a venue cancel event)
+    loads = []
+    real_load = host.load_record
+    monkeypatch.setattr(host, 'load_record', lambda k: loads.append(k) or real_load(k))
+    calls.clear()
+    broker.next()
+    assert key not in loads and ('status', key) not in calls
+    second = bt.BuyOrder(owner=strategy, data=data, size=1, price=11, exectype=bt.Order.Limit)
+    second.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
+    broker.submit(second)  # no ORDER_RECONCILE_REQUIRED from the terminal order
+    assert second.info.gateway_request_key != key
