@@ -46,6 +46,15 @@ class _StreamBinding:
     # other RESERVED reservation (earlier process, or an uncertain dispatch) is
     # read back and withdrawn, decided atomically by version at the Gateway.
     dispatched: set = field(default_factory=set)
+    # Reservations this session sent without learning the outcome, with the
+    # monotonic time of the attempt (see _gateway_reservation_absent).
+    reserve_unknown: dict = field(default_factory=dict)
+
+
+# A reserve whose reply was lost may still be waiting for the Gateway's owner
+# thread. This long after the attempt it can no longer be committed: the
+# service bounds the call and the owner's longest native wait is far shorter.
+_RESERVE_ABSENT_AFTER_SECONDS = 20.0
 
 
 def _bt_terminal(order):
@@ -499,7 +508,10 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "RESTART_REQUIRED"
             raise
         try:
+            binding.reserve_unknown[request_key] = time.monotonic()
             result = binding.api.reserve_order(binding.policy.route, request, timeout_seconds=binding.timeout)
+            if result.outcome in ("REQUEST_DENIED", "OBSERVED"):
+                binding.reserve_unknown.pop(request_key, None)  # the outcome is known
             if result.outcome == "REQUEST_DENIED":
                 # A validated denial: the Gateway created no reservation.
                 self._gateway_finalize_rejection(binding, order, request_key, result.code)
@@ -533,6 +545,17 @@ class GatewayExecutionStreamBrokerMixin:
         if result.outcome not in ("OBSERVED", "QUEUED"):
             binding.state = "SUBMIT_UNKNOWN"
         return order
+
+    def _gateway_reservation_absent(self, binding, key):
+        """Whether "not found" at the Gateway is final for this request key.
+
+        It is for a reserve sent by an earlier process or an earlier session
+        (that connection is gone, so the request cannot arrive any more), and
+        for one sent by this session long enough ago. A dispatch outcome that
+        is unknown is a different case and is never decided here.
+        """
+        sent = binding.reserve_unknown.get(key)
+        return sent is None or time.monotonic() - sent >= _RESERVE_ABSENT_AFTER_SECONDS
 
     def _gateway_release_unsent(self, binding, order, key):
         """Release a reservation BT never dispatched (or that was refused)."""
@@ -757,6 +780,7 @@ class GatewayExecutionStreamBrokerMixin:
             _fail("SCOPE")
         binding.api, binding.stream = api, stream
         binding.dispatched.clear()
+        binding.reserve_unknown.clear()  # requests of the old connection cannot arrive any more
 
     def _gateway_stream_check(self, binding, *, connected_required=True):
         if binding.pid != os.getpid() or binding.thread is not threading.current_thread():
@@ -950,6 +974,20 @@ class GatewayExecutionStreamBrokerMixin:
             if record is None or record.state == "UNKNOWN":
                 result = binding.api.command_status(binding.policy.route, key,
                                                     timeout_seconds=binding.timeout)
+                if (record is None and result.outcome == "REQUEST_DENIED"
+                        and result.code == "NOT_FOUND"
+                        and self._gateway_reservation_absent(binding, key)):
+                    # The reserve reply was lost and the Gateway has no command
+                    # under this request key: nothing was reserved, so nothing
+                    # can have been sent. The order ends Rejected and is never
+                    # re-sent; without this it blocked the strategy for good
+                    # (SimNow 2026-11-10, after a Gateway that died mid-reserve).
+                    order = notice.orders[key]
+                    if order.status == order.Submitted and order.executed.size == 0:
+                        self._gateway_finalize_rejection(binding, order, key, "RESERVATION_NOT_FOUND")
+                        binding.reserve_unknown.pop(key, None)
+                        binding.state = "WAITING_NOTIFICATIONS"
+                        return
                 if result.outcome != "OBSERVED" or result.record is None:
                     binding.state = "RECOVERY_PENDING"
                     return

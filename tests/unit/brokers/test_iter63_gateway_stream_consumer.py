@@ -719,10 +719,69 @@ def test_gateway_unknown_submission_restart_replays_local_notice_without_new_res
     monkeypatch.setattr(api, 'command_status', lambda _route, original_key, **_kw:
         (status_calls.append(original_key) or GatewayClientResult('REQUEST_DENIED', code='NOT_FOUND')))
     broker2.next()
+    # The reply of that reserve was lost in an earlier process and the Gateway
+    # has no command under the key: nothing was reserved, nothing can have been
+    # sent. The order ends Rejected (it used to stay RECOVERY_PENDING for good
+    # and blocked every later order of the strategy) and is never sent again.
+    assert status_calls == [key] and calls == [key]
+    assert restored.status == restored.Rejected and not restored.executed.size
+    assert restored.info.gateway_request_denied == 'RESERVATION_NOT_FOUND'
+    assert host.local_order_notifications()['reject:' + key]['status'] == 'pending'
+    strategy2.clear()  # as Cerebro does after each notification cycle
+    deliver(broker2, strategy2)
+    assert host.local_order_notifications()['reject:' + key]['status'] == 'confirmed'
     broker2.next()
-    assert status_calls == [key, key] and calls == [key]
-    assert broker2.gateway_execution_stream_status() == 'RECOVERY_PENDING'
-    assert restored.status == restored.Submitted and not restored.executed.size
+    assert status_calls == [key] and calls == [key]  # terminal: not asked about again
+    # (this fixture has no stream to read; the point is that recovery is over)
+    assert broker2.gateway_execution_stream_status() != 'RECOVERY_PENDING'
+    third = _limit_order(strategy2, data2, price=12)
+    monkeypatch.setattr(broker2, "_gateway_require_trade_qualification", lambda *_: SYNTHETIC_MARKET_REF)
+    broker2.submit(third)  # no ORDER_RECONCILE_REQUIRED any more
+    assert len(calls) == 2 and calls[1] != key
+
+
+def test_unknown_reserve_of_this_session_is_not_called_absent_too_early(state, ready, inputs, monkeypatch):
+    # In the same session a lost reply may belong to a reserve that is still
+    # waiting for the Gateway's owner thread: "not found" is final only later.
+    import backtrader.brokers._btapi_gateway_stream as module
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+    monkeypatch.setattr(api, 'reserve_order', lambda route, request, **kw:
+                        GatewayClientResult('UNKNOWN', code='RPC_OUTCOME_UNKNOWN'))
+    statuses = []
+    monkeypatch.setattr(api, 'command_status', lambda _route, key, **_kw:
+        (statuses.append(key) or GatewayClientResult('REQUEST_DENIED', code='NOT_FOUND')))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    deliver(broker, strategy)
+    broker.next()
+    assert order.status == order.Submitted and statuses == [key]
+    assert broker.gateway_execution_stream_status() == 'RECOVERY_PENDING'
+    binding = broker._gateway_stream_binding
+    binding.reserve_unknown[key] -= module._RESERVE_ABSENT_AFTER_SECONDS  # that long ago
+    broker.next()
+    assert order.status == order.Rejected and order.info.gateway_request_denied == 'RESERVATION_NOT_FOUND'
+    assert key not in binding.reserve_unknown
+
+
+@pytest.mark.parametrize('outcome,code', [('REQUEST_DENIED', 'SCOPE_DENIED'), ('UNKNOWN', 'RPC_OUTCOME_UNKNOWN'),
+                                          ('TRANSPORT_NOT_STARTED', 'TIMEOUT_BEFORE_START')])
+def test_only_a_validated_not_found_ends_an_unknown_reserve(state, ready, inputs, monkeypatch, outcome, code):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+    monkeypatch.setattr(api, 'reserve_order', lambda route, request, **kw:
+                        GatewayClientResult('UNKNOWN', code='RPC_OUTCOME_UNKNOWN'))
+    monkeypatch.setattr(api, 'command_status', lambda *_a, **_kw: GatewayClientResult(outcome, code=code))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    deliver(broker, strategy)
+    broker._gateway_stream_binding.reserve_unknown.clear()  # as after a restart
+    broker.next()
+    assert order.status == order.Submitted
+    assert broker.gateway_execution_stream_status() == 'RECOVERY_PENDING'
 
 
 def test_local_submitted_callback_can_submit_next_order(state, ready, inputs, monkeypatch):
