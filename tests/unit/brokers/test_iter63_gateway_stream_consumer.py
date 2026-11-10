@@ -1781,7 +1781,8 @@ def test_unreachable_gateway_waits_instead_of_ending_the_strategy(ready, inputs,
     from types import SimpleNamespace
 
     host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
-    store = SimpleNamespace(_gateway_mode=True, is_connected=False)
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False,
+                            gateway_session_state=lambda: "UNAVAILABLE")
     monkeypatch.setattr(broker, "store", store)
     broker.next()
     broker.next()
@@ -1795,3 +1796,22 @@ def test_unreachable_gateway_waits_instead_of_ending_the_strategy(ready, inputs,
     broker.next()  # reconnected: the same binding reads again
     assert calls["read"] >= 1
     assert broker.gateway_execution_stream_status() != "GATEWAY_UNAVAILABLE"
+
+
+def test_lost_gateway_session_ends_the_strategy_instead_of_waiting(ready, inputs, monkeypatch):
+    # A session that cannot come back in this process (SDK runtime failed
+    # after its lease expired, Store stopped) must not leave the strategy
+    # waiting forever: it ends with SESSION_LOST so it can be restarted.
+    from types import SimpleNamespace
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    state = {"value": "UNAVAILABLE"}
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False,
+                            gateway_session_state=lambda: state["value"])
+    monkeypatch.setattr(broker, "store", store)
+    broker.next()
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    state["value"] = "LOST"
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_SESSION_LOST"):
+        broker.next()
+    assert calls["read"] == 0 and not calls["ack"]

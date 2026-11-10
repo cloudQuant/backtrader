@@ -642,8 +642,18 @@ class GatewayExecutionStreamBrokerMixin:
             raise
 
     def _gateway_unreachable(self):
-        """The bound Gateway session is not running or not healthy right now."""
-        return bool(getattr(self.store, "_gateway_mode", False)) and not self.store.is_connected
+        """The bound Gateway session is momentarily unavailable (wait).
+
+        A session that can no longer come back in this process ends the
+        strategy with ``GATEWAY_STREAM_SESSION_LOST`` instead of waiting
+        forever, so it can be restarted (I63-E112).
+        """
+        store = self.store
+        if not getattr(store, "_gateway_mode", False) or store.is_connected:
+            return False
+        if store.gateway_session_state() == "LOST":
+            _fail("SESSION_LOST")
+        return True
 
     def _gateway_stream_check(self, binding, *, connected_required=True):
         if (binding.pid != os.getpid() or binding.thread is not threading.current_thread()

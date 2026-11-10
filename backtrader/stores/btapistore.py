@@ -769,6 +769,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             return status.state == "running" and status.healthy is True
         return self._connected
 
+    def gateway_session_state(self) -> str:
+        """Gateway mode only: ``CONNECTED``, ``UNAVAILABLE`` or ``LOST``.
+
+        ``UNAVAILABLE`` is a live SDK session that is momentarily not healthy
+        (for example while the Gateway is paused or restarting); it may come
+        back in this process. ``LOST`` means it cannot: the Store stopped or
+        lost its run lock, or the SDK runtime failed or closed (I63-E112).
+        """
+        if not self._gateway_mode:
+            raise RuntimeError("GATEWAY_MODE_REQUIRED")
+        if (self._gateway_pid != os.getpid() or not self._connected or self._api is None
+                or self._gateway_run_lock is None
+                or not self._gateway_run_lock.held):
+            return "LOST"
+        status = self._api.status()
+        if status.state == "running" and status.healthy is True:
+            return "CONNECTED"
+        if status.state in ("starting", "running") and status.thread_alive is True:
+            return "UNAVAILABLE"
+        return "LOST"
+
     @property
     def uses_async_commands(self) -> bool:
         """Whether this SDK facade exposes the typed asynchronous command contract.

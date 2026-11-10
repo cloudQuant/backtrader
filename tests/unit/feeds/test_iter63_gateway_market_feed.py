@@ -443,3 +443,78 @@ def test_one_gateway_subscription_cannot_be_claimed_by_two_threads(monkeypatch):
     assert len(adapters) == 1
     assert sum(item == 'GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED' for item in results) == 1
     adapters[0].close()
+
+
+def test_sdk_failure_while_gateway_unreachable_recovers_after_backoff(monkeypatch):
+    # SimNow 63.09 (I63-E112): pausing the Gateway made the SDK fail a poll
+    # with a code the adapter had no retry for (here RUNTIME_MAINTENANCE_FAILED);
+    # the feed then stayed dead after the Gateway resumed. The adapter now
+    # re-reads the SDK status after backoff and recovers as it says.
+    from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
+    from bt_api_py.service_market import ServiceMarketError
+    client, status = client_with(monkeypatch, [])
+    boot = MarketBootstrap(None, 'latest_event', False, False, SOURCE.stream_id,
+                           SOURCE.epoch, 0, SOURCE.epoch, 0, False, SOURCE)
+    calls = []
+    def poll(**kw):
+        if not calls:
+            calls.append('poll-failed')
+            status['recovery_required'] = True
+            raise ServiceMarketError('RUNTIME_MAINTENANCE_FAILED')
+        calls.append('poll')
+        return frame(1)
+    def recover(**kw):
+        calls.append('recover')
+        status['recovery_required'] = False
+        return boot
+    monkeypatch.setattr(client, 'poll', poll)
+    monkeypatch.setattr(client, 'recover', recover)
+    adapter = GatewayMarketAdapter(_gateway_store(client), 'SA609', object())
+    adapter.start()
+    assert adapter.poll() is None
+    assert adapter.recovery_reason() == 'RUNTIME_MAINTENANCE_FAILED'
+    adapter._next_retry = 0  # elapsed backoff
+    assert adapter.poll() is None
+    assert adapter.recovery_reason() == 'RECOVERY_REQUIRED'
+    adapter._next_retry = 0
+    event = adapter.poll()
+    assert event is not None and adapter.recovery_reason() is None
+    assert calls == ['poll-failed', 'recover', 'poll']
+
+
+def test_failing_status_while_unreachable_is_retried_not_terminal(monkeypatch):
+    from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
+    from bt_api_py.service_runtime_thread import ThreadedRuntimeError
+    client, status = client_with(monkeypatch, [frame(1)])
+    adapter = GatewayMarketAdapter(_gateway_store(client), 'SA609', object())
+    adapter.start()
+    healthy_status = client.status
+    def unreachable(**kw):
+        raise ThreadedRuntimeError('NOT_READY')
+    monkeypatch.setattr(client, 'poll', lambda **kw: (_ for _ in ()).throw(ThreadedRuntimeError('NOT_READY')))
+    assert adapter.poll() is None and adapter.recovery_reason() == 'NOT_READY'
+    monkeypatch.setattr(client, 'status', unreachable)
+    adapter._next_retry = 0
+    assert adapter.poll() is None and adapter.recovery_reason() == 'NOT_READY'
+    # The Gateway is back: the next status read clears the reason and polling resumes.
+    monkeypatch.setattr(client, 'status', healthy_status)
+    frames = [frame(1)]
+    monkeypatch.setattr(client, 'poll', lambda **kw: frames.pop(0) if frames else None)
+    adapter._next_retry = 0
+    assert adapter.poll() is not None and adapter.recovery_reason() is None
+
+
+def test_projection_failure_stays_terminal(monkeypatch):
+    from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
+    client, status = client_with(monkeypatch, [])
+    adapter = GatewayMarketAdapter(_gateway_store(client), 'SA609', object())
+    adapter.start()
+    def bad(**kw):
+        raise GatewayMarketProjectionError('GATEWAY_MARKET_SOURCE_CHANGED')
+    monkeypatch.setattr(adapter._projector, 'poll', bad)
+    status_calls = []
+    monkeypatch.setattr(client, 'status', lambda **kw: status_calls.append(1) or dict(status))
+    assert adapter.poll() is None
+    adapter._next_retry = 0
+    assert adapter.poll() is None
+    assert adapter.recovery_reason() == 'GATEWAY_MARKET_SOURCE_CHANGED' and status_calls == []

@@ -7,7 +7,10 @@ import time
 from types import MappingProxyType
 
 from bt_api_base.service_protocol import WireScope
-from bt_api_py.gateway_market_projection import GatewayMarketTickProjector
+from bt_api_py.gateway_market_projection import (
+    GatewayMarketProjectionError,
+    GatewayMarketTickProjector,
+)
 
 
 
@@ -157,7 +160,10 @@ class GatewayMarketAdapter:
         if self._pending_operation == "status":
             self._reason = self._status_reason(self._projector.status())
             self._pending_operation = None
-            return self._reason is None
+            if self._reason is None:
+                self._attempt = 0
+                return True
+            return False
         if self._pending_operation == "resync" or self._reason == "PROVIDER_RESYNC_REQUIRED":
             self._pending_operation = "resync"
             self._projector.accept_resync()
@@ -206,6 +212,15 @@ class GatewayMarketAdapter:
             code = getattr(exc, "code", None)
             if code in _TRANSIENT_OWNER_CODES:
                 # The pending operation is retried unchanged after backoff.
+                self._reason = code
+            elif (type(code) is str and code not in ("RECOVERY_REQUIRED", "PROVIDER_RESYNC_REQUIRED")
+                  and not isinstance(exc, GatewayMarketProjectionError)):
+                # Any other SDK failure (for example while the Gateway is
+                # paused or restarting) used to stop this feed for good: after
+                # backoff, re-read the SDK status to learn whether to recover,
+                # resync or simply resume (I63-E112). Projection checks of this
+                # adapter stay terminal.
+                self._pending_operation = "status"
                 self._reason = code
             else:
                 self._pending_operation = None
