@@ -2282,3 +2282,112 @@ def test_unbound_broker_of_a_stopped_store_ends_with_session_lost():
     with pytest.raises(RuntimeError, match="GATEWAY_STREAM_SESSION_LOST"):
         broker.next()
     assert asked == []
+
+
+def _closable_fixture(ready, inputs, monkeypatch, *, today, yesterday, short=("0", "0"), capacities):
+    """A bound Gateway-mode broker whose ledger answers the given buckets."""
+    from types import SimpleNamespace
+
+    from bt_api_py.gateway_strategy_position import (
+        GatewayStrategyPositionObservation, GatewayStrategyPositionResult,
+    )
+
+    host, broker, strategy, order, _, api = attach(ready, inputs, monkeypatch)
+    broker.store = SimpleNamespace(_gateway_mode=True, is_connected=True, gateway_api=api,
+                                   contract_metadata={
+        'rb': {'instrument_key': INSTRUMENT.to_dict(), 'exchange_name': 'CTP___FUTURE',
+               'quantity_unit': 'lots'}})
+    position = {"long": [today, yesterday], "short": list(short)}
+
+    def observation(available=None, reserved=None):
+        return GatewayStrategyPositionObservation(
+            INSTRUMENT, 'lots', '20261111', Decimal(position["long"][0]),
+            Decimal(position["long"][1]), Decimal(position["short"][0]),
+            Decimal(position["short"][1]), False, 'owner', 'UNKNOWN',
+            None if available is None else Decimal(available),
+            None if reserved is None else Decimal(reserved), 1, host._binding, 'registration',
+            'epoch')
+
+    asked = []
+
+    def capacity(_route, instrument, *, quantity_unit, side, offset, quantity, position_side,
+                 timeout_seconds):
+        asked.append((side, offset, quantity, position_side))
+        answer = capacities.get(offset)
+        if answer is None:
+            return GatewayStrategyPositionResult('UNAVAILABLE', code='STRATEGY_LEDGER_UNAVAILABLE')
+        if callable(answer):
+            answer = answer(position)
+        return GatewayStrategyPositionResult('OBSERVED', observation(*answer))
+
+    monkeypatch.setattr(api, 'get_strategy_position',
+                        lambda *_a, **_kw: GatewayStrategyPositionResult('OBSERVED', observation()))
+    monkeypatch.setattr(api, 'get_strategy_close_capacity', capacity)
+    current = [True]
+    monkeypatch.setattr(api, 'strategy_position_is_current', lambda *_a, **_kw: current[0])
+    return broker, order.data, asked, position, current
+
+
+def test_gateway_closable_view_comes_from_the_strategy_ledger(ready, inputs, monkeypatch):
+    # The 007_ctp Gateway examples plan their closes from broker.get_closable();
+    # in Gateway mode it raised closable_view_requires_direct_mode, so no
+    # example could close through a Gateway (found 2026-11-10).
+    # A venue with separate today/yesterday closes: a plain close is refused.
+    broker, data, asked, position, current = _closable_fixture(
+        ready, inputs, monkeypatch, today="2", yesterday="1",
+        capacities={"close_today": ("1", "1"), "close_yesterday": ("1", "1")})
+    view = broker.get_closable(data, "long")
+    assert view == {"total": 3.0, "today": 2.0, "yesterday": 1.0, "frozen_close": 1.0,
+                    "closable": None, "closable_today": 1.0, "closable_yesterday": 1.0,
+                    "venue": INSTRUMENT.venue}
+    # Closing a long position is a sell; the asked quantity does not matter.
+    assert asked == [("sell", "close", Decimal(1), None), ("sell", "close_today", Decimal(1), None),
+                     ("sell", "close_yesterday", Decimal(1), None)]
+    with pytest.raises(RuntimeError, match="POSITION_SIDE_REQUIRED"):
+        broker.get_closable(data, None)
+    # Nothing is served from a position that is not current.
+    current[0] = False
+    with pytest.raises(RuntimeError, match="STRATEGY_POSITION_UNAVAILABLE"):
+        broker.get_closable(data, "long")
+
+
+def test_gateway_closable_view_of_a_short_side_on_a_plain_close_venue(ready, inputs, monkeypatch):
+    broker, data, asked, position, current = _closable_fixture(
+        ready, inputs, monkeypatch, today="0", yesterday="0", short=("1", "3"),
+        capacities={"close": ("4", "0")})
+    view = broker.get_closable(data, "short")
+    assert (view["total"], view["today"], view["yesterday"]) == (4.0, 1.0, 3.0)
+    assert view["closable"] == 4.0 and view["frozen_close"] == 0.0
+    assert view["closable_today"] is None and view["closable_yesterday"] is None
+    assert {side for side, *_ in asked} == {"buy"}
+    assert broker.get_closable(data, "long")["total"] == 0.0
+
+
+def test_gateway_closable_is_unknown_when_the_position_moved_between_reads(ready, inputs, monkeypatch):
+    def moved(position):
+        position["long"][0] = "1"  # a fill landed after the first read
+        return ("1", "0")
+
+    broker, data, asked, position, current = _closable_fixture(
+        ready, inputs, monkeypatch, today="2", yesterday="0",
+        capacities={"close_today": moved, "close_yesterday": ("0", "0")})
+    view = broker.get_closable(data, "long")
+    assert view["today"] == 2.0 and view["closable_today"] is None
+    assert view["closable_yesterday"] is None and view["closable"] is None
+
+
+def test_gateway_closable_without_a_capacity_figure_is_unknown(ready, inputs, monkeypatch):
+    broker, data, asked, position, current = _closable_fixture(
+        ready, inputs, monkeypatch, today="2", yesterday="0",
+        capacities={"close_today": (None, None), "close_yesterday": ("0", "0")})
+    view = broker.get_closable(data, "long")
+    assert view["closable_today"] is None and view["closable_yesterday"] == 0.0
+
+
+def test_closable_view_outside_gateway_mode_is_still_the_direct_one(ready, inputs, monkeypatch):
+    from types import SimpleNamespace
+
+    host, broker, strategy, order, _, api = attach(ready, inputs, monkeypatch)
+    broker.store = SimpleNamespace(_gateway_mode=False)
+    with pytest.raises(Exception, match="closable_view_requires_direct_mode"):
+        broker.get_closable(order.data, "long")

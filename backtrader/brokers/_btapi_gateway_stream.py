@@ -333,16 +333,27 @@ class GatewayExecutionStreamBrokerMixin:
         except (TypeError, ValueError, KeyError):
             _fail("FEED_NOT_TRADABLE")
 
-    def _gateway_strategy_position_observation(self, binding, instrument, unit, *, order=None):
-        """Read a freshly authenticated observation for this exact strategy."""
+    def _gateway_strategy_position_observation(self, binding, instrument, unit, *, order=None,
+                                               close=None):
+        """Read a freshly authenticated observation for this exact strategy.
+
+        ``order`` asks for the close capacity of that order; ``close`` is
+        ``(order side, offset)`` and asks for the capacity of that bucket
+        without an order (the closable view).
+        """
         from bt_api_py.gateway_strategy_position import (
             GatewayStrategyPositionObservation, GatewayStrategyPositionResult,
         )
 
         try:
-            if order is None:
+            if order is None and close is None:
                 result = binding.api.get_strategy_position(binding.policy.route, instrument,
                     quantity_unit=unit, timeout_seconds=binding.timeout)
+            elif order is None:
+                # The Gateway's capacity does not depend on the asked quantity.
+                result = binding.api.get_strategy_close_capacity(binding.policy.route, instrument,
+                    quantity_unit=unit, side=close[0], offset=close[1], quantity=Decimal(1),
+                    position_side=None, timeout_seconds=binding.timeout)
             else:
                 result = binding.api.get_strategy_close_capacity(binding.policy.route, instrument,
                     quantity_unit=unit, side="buy" if order.isbuy() else "sell",
@@ -366,9 +377,9 @@ class GatewayExecutionStreamBrokerMixin:
         except Exception:
             _fail("STRATEGY_POSITION_UNAVAILABLE")
 
-    def _gateway_position_view(self, data, side=None):
+    def _gateway_position_scope(self, data):
+        """(binding, instrument, quantity unit) of a bound feed, from its declared rules."""
         from bt_api_base.market_protocol import MarketInstrumentKey
-        from ..position import Position
 
         binding = self.__dict__.get("_gateway_stream_binding")
         if binding is None:
@@ -393,6 +404,69 @@ class GatewayExecutionStreamBrokerMixin:
                 or row.get("exchange_name") != binding.policy.route
                 or type(unit) is not str or unit not in {"base", "contracts", "lots", "native"}):
             _fail("STRATEGY_POSITION_UNIT_UNAVAILABLE")
+        return binding, instrument, unit
+
+    @staticmethod
+    def _gateway_exact_float(size):
+        try:
+            value = float(size)
+        except (ValueError, OverflowError):
+            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
+        if not math.isfinite(value) or Decimal(str(value)) != size:
+            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
+        return value
+
+    def get_closable(self, data, side):
+        """Closable view of one side; in Gateway mode from this strategy's own ledger.
+
+        Same keys as the direct view (``None`` means unknown, never zero), so a
+        strategy plans explicit close offsets the same way in both modes
+        (D62-18/22/26). ``total``/``today``/``yesterday`` are what the strategy
+        itself holds on that side. ``closable_today``/``closable_yesterday``
+        and ``closable`` are what the Gateway would let it close with
+        ``close_today``/``close_yesterday``/``close`` now, after its own
+        working close orders; an offset the venue's rule does not accept (a
+        plain ``close`` on SHFE/INE, a bucket close while the buckets are only
+        projected) is unknown. Nothing here is an account total, and none of it
+        reserves capacity: the Gateway decides again when the order arrives.
+        """
+        if not getattr(self.store, "_gateway_mode", False):
+            return super().get_closable(data, side)
+        if side not in ("long", "short"):
+            _fail("STRATEGY_POSITION_SIDE_REQUIRED")
+        if self.__dict__.get("_gateway_stream_binding") is None:
+            self._gateway_auto_bind()
+        binding, instrument, unit = self._gateway_position_scope(data)
+        observation = self._gateway_strategy_position_observation(binding, instrument, unit)
+        with localcontext() as context:
+            context.prec = 160
+            today = getattr(observation, side + "_today")
+            yesterday = getattr(observation, side + "_yesterday")
+            total = today + yesterday
+        view = {"total": self._gateway_exact_float(total), "today": self._gateway_exact_float(today),
+                "yesterday": self._gateway_exact_float(yesterday), "frozen_close": None,
+                "closable": None, "closable_today": None, "closable_yesterday": None,
+                "venue": instrument.venue}
+        order_side = "sell" if side == "long" else "buy"
+        for name, offset in (("closable", "close"), ("closable_today", "close_today"),
+                             ("closable_yesterday", "close_yesterday")):
+            try:
+                capacity = self._gateway_strategy_position_observation(
+                    binding, instrument, unit, close=(order_side, offset))
+            except GatewayExecutionStreamError:
+                continue  # this offset is not usable now: unknown, never zero
+            if (capacity.strategy_close_available is None or capacity.strategy_close_reserved is None
+                    or getattr(capacity, side + "_today") != today
+                    or getattr(capacity, side + "_yesterday") != yesterday):
+                continue  # the position moved between the reads: unknown
+            view[name] = self._gateway_exact_float(capacity.strategy_close_available)
+            view["frozen_close"] = self._gateway_exact_float(capacity.strategy_close_reserved)
+        return view
+
+    def _gateway_position_view(self, data, side=None):
+        from ..position import Position
+
+        binding, instrument, unit = self._gateway_position_scope(data)
         observation = self._gateway_strategy_position_observation(binding, instrument, unit)
         with localcontext() as context:
             context.prec = 160
@@ -408,12 +482,7 @@ class GatewayExecutionStreamBrokerMixin:
                 size = short_size
             else:
                 _fail("STRATEGY_POSITION_SIDE_REQUIRED")
-        try:
-            value = float(size)
-        except (ValueError, OverflowError):
-            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
-        if not math.isfinite(value) or Decimal(str(value)) != size:
-            _fail("STRATEGY_POSITION_PRECISION_UNAVAILABLE")
+        value = self._gateway_exact_float(size)
         return Position(size=value, price=float("nan") if value else 0.0)
 
     def _gateway_submit_order(self, order):
