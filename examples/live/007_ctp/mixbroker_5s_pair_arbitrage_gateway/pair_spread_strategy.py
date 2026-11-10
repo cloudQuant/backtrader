@@ -386,6 +386,12 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         return order
 
     def _submit_one(self, side, symbol, data, quantity, offset, signal_tag):
+        if isinstance(data, PlaceholderData):
+            # Gateway mode binds every order to the feed it was built on. Before
+            # the feed has its first line there is nothing to bind to, and a
+            # placeholder would only be refused (GATEWAY_STREAM_INSTRUMENT_SCOPE).
+            self.log(f"{signal_tag}: {symbol} feed has no line yet, order not sent")
+            return None
         kwargs = {"data": data, "size": quantity}
         if str(self.p.order_exectype).lower() == "limit":
             price = self._limit_price(data, side)
