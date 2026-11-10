@@ -2780,6 +2780,44 @@ class TradeLogger(Observer):
             ),
         )
 
+    def _position_to_log(self, data):
+        """The position to log for ``data``; ``None`` when it cannot be read now.
+
+        In Gateway mode several strategies share the account and the
+        account-scope ``getposition()`` is deliberately unavailable, so the
+        strategy's own position (the Gateway's ledger of it) is logged, net of
+        its long and short sides and without a price. Before this, every bar
+        of a Gateway-mode run recorded an internal error and skipped the
+        indicator and snapshot logs that follow (SimNow 2026-11-10). While the
+        ledger cannot answer, the row is skipped and one warning says so.
+        """
+        owner = self._owner
+        broker = getattr(owner, "broker", None)
+        if not getattr(getattr(broker, "store", None), "_gateway_mode", False):
+            return owner.getposition(data)
+        from ..position import Position
+
+        # One read per feed and bar serves both the position log and the snapshot.
+        cached = self.__dict__.get("_gateway_position_read")
+        key = (id(data), len(data))
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        try:
+            size = (owner.get_strategy_position(data, side="long").size
+                    - owner.get_strategy_position(data, side="short").size)
+            position = Position(size=size, price=float("nan") if size else 0.0)
+            self._gateway_position_unavailable = None
+        except RuntimeError as exc:
+            position = None
+            reason = str(exc)
+            if self.__dict__.get("_gateway_position_unavailable") != reason:
+                self._gateway_position_unavailable = reason
+                logger.warning(
+                    "[TradeLogger] strategy position unavailable in Gateway mode (%s); "
+                    "position rows are skipped until it can be read", reason)
+        self._gateway_position_read = (key, position)
+        return position
+
     def _log_positions(self):
         """Log position information for all data feeds."""
         if not self._position_logger and not (self.p.mysql_enabled and self._mysql_conn):
@@ -2796,7 +2834,9 @@ class TradeLogger(Observer):
         broker_cash = self._get_broker_cash()
 
         for data in position_datas:
-            position = self._owner.getposition(data)
+            position = self._position_to_log(data)
+            if position is None:
+                continue
             data_name = getattr(data, "_name", str(data))
             contract_fields = self._position_contract_fields(data, position, data_name)
             market_value = (
@@ -2963,7 +3003,9 @@ class TradeLogger(Observer):
         }
 
         for data in self._iter_position_datas():
-            position = self._owner.getposition(data)
+            position = self._position_to_log(data)
+            if position is None:
+                continue
             data_name = getattr(data, "_name", str(data))
             contract_fields = self._position_contract_fields(data, position, data_name)
 
