@@ -55,6 +55,16 @@ def api_for(host, route):
     return GatewayBtApi(session, exchange_name="CTP___FUTURE")
 
 
+@pytest.fixture(autouse=True)
+def _every_step_runs(monkeypatch):
+    # A step that found nothing to do pauses the next ones (see
+    # _IDLE_READ_INTERVAL_SECONDS). The tests of this module step a broker in
+    # a tight loop and assert on each step; the pacing tests set the interval.
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 0.0)
+
+
 def attach(ready, inputs, monkeypatch, events=(), quick=False):
     host, binding, consumer = ready
     _, route, _ = inputs
@@ -1232,7 +1242,7 @@ def test_gateway_waits_for_first_feed_bar_without_direct_fallback(monkeypatch):
     data._start()
     strategy.datas, strategy.data = [data], data
     calls = []
-    store = SimpleNamespace(_gateway_mode=True,
+    store = SimpleNamespace(_gateway_mode=True, is_connected=True,
         gateway_strategy_config=SimpleNamespace(instruments_by_ref={'rb': INSTRUMENT}),
         gateway_sequence=object())
     def bind(_strategy, **_kwargs):
@@ -2097,3 +2107,178 @@ def test_broker_stop_reports_gateway_working_orders_and_plain_brokers_are_unchan
     assert broker._shutdown_summary["gateway_working_orders"]["confirmed_terminal"] == 1
     _, plain, _ = framework()
     assert plain._gateway_stop_working_orders() is None
+
+
+def test_idle_strategy_does_not_ask_the_gateway_on_every_step(ready, inputs, monkeypatch):
+    # SimNow 2026-11-10: one idle example stepped its broker hundreds of times
+    # per second. Each step re-read the durable state several times and asked
+    # the Gateway for events: one core busy, the Gateway minutes behind on
+    # market data for every strategy.
+    import time
+
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    binding = broker._gateway_stream_binding
+    loads = []
+    real_load = host.load_execution_checkpoint
+    monkeypatch.setattr(host, "load_execution_checkpoint",
+                        lambda: loads.append(1) or real_load())
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 30.0)
+    before = time.monotonic()
+    for _ in range(200):
+        broker.next()
+    assert calls["read"] == 1 and broker.gateway_execution_stream_status() == "ACTIVE"
+    assert before + 29.0 < binding.next_idle_read <= time.monotonic() + 30.0
+    durable_reads = len(loads)
+    for _ in range(200):
+        broker.next()
+    assert len(loads) == durable_reads  # a paused step does not touch the durable state
+    binding.next_idle_read = time.monotonic()  # the interval has passed
+    for _ in range(200):
+        broker.next()
+    assert calls["read"] == 2 and len(loads) > durable_reads
+
+
+def test_a_local_cancel_ends_the_idle_pause(ready, inputs, monkeypatch):
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    binding = broker._gateway_stream_binding
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 3600.0)
+    broker.next()
+    assert calls["read"] == 1 and binding.next_idle_read > 0
+    # The cancel itself may be refused here (no native identity in this fixture);
+    # what matters is that local work lets the very next step run.
+    try:
+        broker._gateway_cancel_order(order)
+    except Exception:
+        pass
+    assert binding.next_idle_read == 0.0
+    broker.next()
+    assert calls["read"] == 2
+
+
+def test_a_local_submit_ends_the_idle_pause(ready, inputs, monkeypatch):
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    binding = broker._gateway_stream_binding
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 3600.0)
+    broker.next()
+    assert binding.next_idle_read > 0
+    second = bt.BuyOrder(owner=strategy, data=order.data, size=1, price=11, exectype=bt.Order.Limit)
+    try:
+        broker._gateway_submit_order(second)
+    except Exception:
+        pass  # refused in this fixture; the pause must be over all the same
+    assert binding.next_idle_read == 0.0
+
+
+def test_waiting_for_an_unreachable_gateway_is_paced(ready, inputs, monkeypatch):
+    # After a Gateway restart the example spun at 100 % CPU while it waited.
+    from types import SimpleNamespace
+
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    binding = broker._gateway_stream_binding
+    states = []
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False, gateway_api=api,
+                            gateway_session_state=lambda: states.append(1) or "UNAVAILABLE")
+    monkeypatch.setattr(broker, "store", store)
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 3600.0)
+    broker.next()
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    asked = len(states)
+    for _ in range(50):
+        broker.next()
+    assert len(states) == asked and calls["read"] == 0  # 50 paused steps asked nothing
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    binding.next_idle_read = 0.0  # the interval has passed
+    store.is_connected = True
+    broker.next()
+    assert calls["read"] == 1 and broker.gateway_execution_stream_status() == "ACTIVE"
+
+
+def test_reads_are_not_paced_while_events_keep_coming(ready, inputs, monkeypatch):
+    import backtrader.brokers._btapi_gateway_stream as module
+
+    monkeypatch.setattr(module, "_IDLE_READ_INTERVAL_SECONDS", 3600.0)
+    first = event_for(ready[0], 3, quantity="0.4")
+    second = event_for(ready[0], 4, quantity="0.6", fact="c" * 64, trade="d" * 64)
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch, [first, second])
+    broker._gateway_stream_binding.limit = 1  # one event per read: the second needs its own read
+    broker.next()
+    assert calls["read"] == 1 and abs(order.executed.size - 0.4) < 1e-9
+    deliver(broker, strategy)
+    for _ in range(6):
+        broker.next()
+        if broker.notifs:
+            deliver(broker, strategy)
+    assert abs(order.executed.size - 1.0) < 1e-9 and order.status == order.Completed
+    # After the last event one empty read follows, then the strategy is idle.
+    reads = calls["read"]
+    for _ in range(50):
+        broker.next()
+    assert calls["read"] in (reads, reads + 1)
+
+
+def _unbound(session, *, recoverable=True):
+    from types import SimpleNamespace
+
+    data, broker, strategy = framework()
+    asked = []
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False,
+        gateway_strategy_config=SimpleNamespace(instruments_by_ref={'rb': INSTRUMENT}),
+        gateway_sequence=object(), gateway_session_state=lambda: session[0],
+        gateway_session_recoverable=lambda: recoverable)
+
+    def reconnect():
+        asked.append(session[0])
+        if session[-1] == "gateway back":
+            store.is_connected = True
+            return True
+        return False
+
+    def bind(_strategy, **_kwargs):
+        if not store.is_connected:
+            raise RuntimeError("GATEWAY_SESSION_UNAVAILABLE")
+        asked.append("bind")
+        broker._gateway_stream_binding = object()
+
+    store.gateway_reconnect, store.bind_gateway_strategy = reconnect, bind
+    broker.store = store
+    broker.cerebro = SimpleNamespace(runningstrats=[strategy])
+    return data, broker, strategy, store, asked
+
+
+def test_unbound_broker_waits_and_registers_again_when_the_gateway_restarts():
+    # SimNow 2026-11-10 22:49: a 1-minute strategy binds at its first bar. The
+    # Gateway was restarted in that first minute; the first bar then ended the
+    # strategy with GATEWAY_SESSION_UNAVAILABLE, and before that nothing asked
+    # for a new registration (only a bound broker did).
+    session = ["UNAVAILABLE"]
+    data, broker, strategy, store, asked = _unbound(session)
+    broker.next()  # momentarily unhealthy: wait, do not ask for a registration
+    assert asked == [] and broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    session[0] = "LOST"
+    broker.next()
+    broker.next()
+    assert asked == ["LOST", "LOST"] and broker.__dict__.get("_gateway_stream_binding") is None
+    order = bt.BuyOrder(owner=strategy, data=data, size=1, price=10, exectype=bt.Order.Limit)
+    with pytest.raises(RuntimeError, match="FEED_NOT_READY"):
+        broker.submit(order)  # refused while waiting, never sent another way
+    session.append("gateway back")  # this attempt succeeds
+    assert broker._gateway_auto_bind() is strategy
+    # (the refused submit asked once more; the real Store spaces attempts by a backoff)
+    assert asked == ["LOST", "LOST", "LOST", "LOST", "bind"]
+    assert broker.__dict__.get("_gateway_stream_binding") is not None
+    assert broker.__dict__.get("_gateway_waiting_for_session") is False
+
+
+def test_unbound_broker_of_a_stopped_store_ends_with_session_lost():
+    data, broker, strategy, store, asked = _unbound(["LOST"], recoverable=False)
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_SESSION_LOST"):
+        broker.next()
+    assert asked == []

@@ -10,7 +10,7 @@ from tests.unit.brokers.test_iter63_gateway_notification_delivery import framewo
 @pytest.fixture
 def gateway_strategy(monkeypatch):
     data, broker, strategy = framework()
-    broker.store = SimpleNamespace(_gateway_mode=True, gateway_sequence=None,
+    broker.store = SimpleNamespace(_gateway_mode=True, gateway_sequence=None, is_connected=True,
         gateway_strategy_config=SimpleNamespace(
             instruments_by_ref={'rb': SimpleNamespace(native_symbol='rb')},
             strategy_finance_currency='CNY'))

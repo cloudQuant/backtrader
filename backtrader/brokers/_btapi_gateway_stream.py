@@ -49,7 +49,20 @@ class _StreamBinding:
     # Reservations this session sent without learning the outcome, with the
     # monotonic time of the attempt (see _gateway_reservation_absent).
     reserve_unknown: dict = field(default_factory=dict)
+    # Earliest monotonic time of the next step after one that found nothing to
+    # do (see _IDLE_READ_INTERVAL_SECONDS); a local submit or cancel clears it.
+    next_idle_read: float = 0.0
 
+
+# A stream step that found nothing to do (no Gateway event, no local work) is
+# followed by the next one after this pause. A Cerebro live loop can step the
+# broker hundreds of times per second, and one step reads the durable local
+# state several times and asks the Gateway for events: a single idle strategy
+# kept one core busy, starved its own SDK threads and loaded the Gateway enough
+# to delay every strategy's market data (SimNow 2026-11-10). A step that
+# delivered an event, a local submit and a local cancel are followed by the
+# next step at once; while the Gateway is unreachable the wait is paced too.
+_IDLE_READ_INTERVAL_SECONDS = 0.2
 
 # A reserve whose reply was lost may still be waiting for the Gateway's owner
 # thread. This long after the attempt it can no longer be committed: the
@@ -85,6 +98,20 @@ class GatewayExecutionStreamBrokerMixin:
             strategy = strategies[0]
         if getattr(strategy, "broker", None) is not self:
             _fail("STRATEGY_SCOPE")
+        if not store.is_connected:
+            # D63-03 before a binding exists (a bar feed binds at its first
+            # bar): the bound per-step path is not running yet, so this is the
+            # only place that can ask for a new registration. Wait instead of
+            # failing; SimNow 2026-11-10: a Gateway restart in the first minute
+            # of a 1-minute strategy ended it with GATEWAY_SESSION_UNAVAILABLE.
+            self._gateway_waiting_for_session = True
+            if store.gateway_session_state() == "LOST":
+                if not store.gateway_session_recoverable():
+                    _fail("SESSION_LOST")
+                store.gateway_reconnect()
+            if not store.is_connected:
+                return None
+        self._gateway_waiting_for_session = False
         config = getattr(store, "gateway_strategy_config", None)
         configured = getattr(config, "instruments_by_ref", None)
         if not isinstance(configured, Mapping) or not configured:
@@ -247,6 +274,8 @@ class GatewayExecutionStreamBrokerMixin:
     def gateway_execution_stream_status(self):
         binding = self.__dict__.get("_gateway_stream_binding")
         if binding is None:
+            if self.__dict__.get("_gateway_waiting_for_session"):
+                return "GATEWAY_UNAVAILABLE"
             return "WAITING_FEED" if self.__dict__.get("_gateway_waiting_for_feed") else "UNBOUND"
         if self._gateway_unreachable() or self._gateway_session_stale(binding):
             self._gateway_stream_check(binding, connected_required=False)
@@ -255,6 +284,7 @@ class GatewayExecutionStreamBrokerMixin:
         return binding.state
 
     def _gateway_notify_local(self, binding, order):
+        binding.next_idle_read = 0.0  # local work: the next step runs at once
         notice = self._gateway_binding(binding.strategy, required=True)
         before = len(self.notifs)
         self.notify(order)
@@ -395,6 +425,7 @@ class GatewayExecutionStreamBrokerMixin:
         binding = self._gateway_stream_binding
         if binding is None:
             _fail("FEED_NOT_READY")
+        binding.next_idle_read = 0.0  # local work: the next step runs at once
         self._gateway_stream_check(binding)
         notice = self._gateway_binding(binding.strategy, required=True)
         if binding.sequence is None:
@@ -610,6 +641,7 @@ class GatewayExecutionStreamBrokerMixin:
 
     def _gateway_cancel_order(self, order):
         binding = self._gateway_stream_binding
+        binding.next_idle_read = 0.0  # local work: the next step runs at once
         self._gateway_stream_check(binding)
         if binding.sequence is None:
             raise RuntimeError("GATEWAY_WRITE_ADAPTER_UNAVAILABLE")
@@ -909,6 +941,8 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectOrderStatus
 
         binding = self._gateway_stream_binding
+        if time.monotonic() < binding.next_idle_read:
+            return  # the previous step found nothing to do; the state stands
         if self._gateway_unreachable(reconnect=True):
             # I63-E112 / D63-03: the Gateway is paused, restarting or
             # unreachable. Wait: no read, ack or local finalization this step
@@ -918,6 +952,7 @@ class GatewayExecutionStreamBrokerMixin:
             if binding.state == "RESTART_REQUIRED":
                 _fail("RESTART_REQUIRED")
             binding.state = "GATEWAY_UNAVAILABLE"
+            binding.next_idle_read = time.monotonic() + _IDLE_READ_INTERVAL_SECONDS
             return
         if self._gateway_session_stale(binding):
             if binding.state == "RESTART_REQUIRED":
@@ -1060,8 +1095,10 @@ class GatewayExecutionStreamBrokerMixin:
                 return
             events = binding.host.read_execution_events(limit=1)
             if not events:
+                binding.next_idle_read = time.monotonic() + _IDLE_READ_INTERVAL_SECONDS
                 binding.state = "ACTIVE"
                 return
+        binding.next_idle_read = 0.0
         event = events[0]
         order = notice.orders.get(event.request_key)
         if order is None:

@@ -230,6 +230,48 @@ def test_feed_consumes_gateway_tick_without_direct_store_poll(monkeypatch):
         feed.stop()
 
 
+def test_gateway_feed_without_qcheck_pauses_after_an_empty_poll(monkeypatch):
+    # SimNow 2026-11-10: the 007_ctp Gateway example configures no qcheck. Its
+    # live loop asked the SDK owner again at once after every empty poll and
+    # kept one core busy (95-100 % CPU for an idle strategy).
+    import backtrader.feeds.btapifeed as module
+
+    client, status = client_with(monkeypatch, [frame(1)])
+    store = _gateway_store(client)
+    store._gateway_strategy_config = store.gateway_strategy_config
+    store.start = lambda data=None: None
+    feed = BtApiFeed(dataname='SA609', store=store, timeframe=bt.TimeFrame.Ticks,
+                     backfill_start=False, price_tick=1.0)
+    assert feed.p.qcheck == 0.0 and feed._gateway_market_enabled_for_store(store)
+    feed._start()
+    sleeps = []
+    monkeypatch.setattr(module._time, 'sleep', sleeps.append)
+    try:
+        assert feed.load() is True and sleeps == []  # a delivered tick is never delayed
+        assert feed.load() is None
+        assert sleeps == [module._GATEWAY_IDLE_POLL_SECONDS] and 0 < sleeps[0] <= 0.05
+        feed._qcheck = 0.3  # a configured qcheck (set per loop by Cerebro) takes precedence
+        assert feed.load() is None and sleeps[-1] == 0.3 and len(sleeps) == 2
+    finally:
+        feed.stop()
+
+    # A bar feed: a tick that was consumed into an unfinished bar yields no
+    # line either, but more ticks may be queued, so that turn does not pause.
+    client, status = client_with(monkeypatch, [frame(1)])
+    store = _gateway_store(client)
+    store._gateway_strategy_config = store.gateway_strategy_config
+    store.start = lambda data=None: None
+    bars = BtApiFeed(dataname='SA609', store=store, timeframe=bt.TimeFrame.Minutes, compression=1,
+                     backfill_start=False, price_tick=1.0)
+    bars._start()
+    del sleeps[:]
+    try:
+        assert bars.load() is None and sleeps == []
+        assert bars.load() is None and sleeps == [module._GATEWAY_IDLE_POLL_SECONDS]
+    finally:
+        bars.stop()
+
+
 def _gateway_store(client):
     setting = GatewayMarketSubscriptionSettings(SUBSCRIPTION, require_source_descriptor=True)
     config = SimpleNamespace(market_settings=SimpleNamespace(subscriptions={'main': setting}),

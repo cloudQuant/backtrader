@@ -72,6 +72,10 @@ _TRADE_ONLY_TICK_FLAGS = frozenset(
     }
 ) | MARKET_TICK_QUALIFICATION_REASONS
 
+# A Gateway-mode feed without ``qcheck`` waits this long after a poll that
+# returned nothing (see ``_load``); a configured ``qcheck`` takes precedence.
+_GATEWAY_IDLE_POLL_SECONDS = 0.02
+
 # Iteration 62, D62-38 (user decision 2026-11-06): feed health (LIVE/DELAYED)
 # and live-order use gate only on price freshness, the current connection
 # without local message loss, quote validity and the trading phase. The flag
@@ -1375,6 +1379,14 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 self._mark_live()
             if self._qcheck > 0:
                 _time.sleep(self._qcheck)
+            elif (self.__dict__.get("_gateway_market_adapter") is not None
+                  and not drained_ticks and not drained_orderbooks):
+                # No ``qcheck`` was configured and the Gateway had nothing
+                # for this feed. Without a pause the live loop asks the SDK
+                # owner thread again at once, thousands of times per second:
+                # the 007_ctp Gateway example kept one core busy and starved
+                # its own SDK threads (SimNow 2026-11-10).
+                _time.sleep(_GATEWAY_IDLE_POLL_SECONDS)
             return None
 
         self._mark_live()

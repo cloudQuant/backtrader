@@ -385,6 +385,12 @@ def _deliver(broker, strategy):
 
 
 def _client(root, endpoint, server_public, keys, journal_id, phase, messages, controls):
+    # This client asserts what each single broker step does. A step that found
+    # nothing to do pauses the following ones (_IDLE_READ_INTERVAL_SECONDS); the
+    # spawned process therefore steps without that pause.
+    import backtrader.brokers._btapi_gateway_stream as _stream_module
+
+    _stream_module._IDLE_READ_INTERVAL_SECONDS = 0.0
     api = None
     try:
         path = Path(root) / "strategy"
