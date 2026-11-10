@@ -1931,3 +1931,110 @@ def test_new_session_for_another_host_is_refused(ready, inputs, monkeypatch, sta
     assert binding.state == "RESTART_REQUIRED" and binding.api is api
     with pytest.raises(RuntimeError, match="GATEWAY_STREAM_RESTART_REQUIRED"):
         broker.next()
+
+
+# ---------------------------------------------------------------------------
+# D62-19 in Gateway mode: a stopping strategy cancels its own working orders
+# ---------------------------------------------------------------------------
+def _cancelled_event(host):
+    from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectOrderStatus
+    from bt_api_base.gateway_execution_stream_protocol import GatewayExecutionObservation
+
+    source = make_event(host)
+    original = source.observation
+    obs = GatewayExecutionObservation(account_scope=original.account_scope, route=original.route,
+        instrument=original.instrument, trading_day=original.trading_day,
+        kind=DirectExecutionEventKind.ORDER, native_identity_digest=original.native_identity_digest,
+        identity_key_digests=original.identity_key_digests, binding_key_digests=original.binding_key_digests,
+        venue_key_digest=original.venue_key_digest, status=DirectOrderStatus.CANCELLED,
+        side="buy", order_quantity="1", filled_quantity="0", remaining_quantity="1")
+    return replace(source, observation=obs)
+
+
+def _stop_fixture(ready, inputs, monkeypatch, events, *, timeout):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch, events)
+    broker._gateway_stream_binding.sequence = object()  # a write-capable binding
+    monkeypatch.setattr(broker.p, "stop_cancel_timeout", timeout, raising=False)
+    cancels = []
+
+    def cancel(route, key, *, operation_id, timeout_seconds):
+        cancels.append((key, operation_id))
+        return GatewayClientResult("QUEUED")
+
+    monkeypatch.setattr(api, "cancel_order", cancel)
+    return host, broker, strategy, order, calls, api, cancels
+
+
+def test_stopping_gateway_strategy_cancels_its_working_order_and_waits_for_the_venue(ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, api, cancels = _stop_fixture(
+        ready, inputs, monkeypatch, [_cancelled_event(ready[0])], timeout=5.0)
+    assert order.alive()
+    summary = broker._gateway_stop_working_orders()
+    assert [key for key, _ in cancels] == ["key-a"] and calls["read"] >= 1
+    assert order.status == order.Canceled
+    assert summary == {"cancel_requested": 1, "confirmed_terminal": 1, "awaiting_confirmation": 0,
+                       "refused": {}, "unresolved_working_orders": 0}
+    # Nothing is left to cancel on a second stop.
+    assert broker._gateway_stop_working_orders()["cancel_requested"] == 0 and len(cancels) == 1
+
+
+def test_stop_never_reports_an_unconfirmed_cancel_as_cancelled(ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, api, cancels = _stop_fixture(
+        ready, inputs, monkeypatch, [], timeout=0.2)  # the venue does not answer in time
+    summary = broker._gateway_stop_working_orders()
+    assert len(cancels) == 1 and order.alive() and order.status == order.Accepted
+    assert summary == {"cancel_requested": 1, "confirmed_terminal": 0, "awaiting_confirmation": 1,
+                       "refused": {}, "unresolved_working_orders": 1}
+
+
+def test_stop_while_the_gateway_is_unreachable_reports_the_cancel_as_not_requested(ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, api, cancels = _stop_fixture(
+        ready, inputs, monkeypatch, [], timeout=0.2)
+    state = {"session": "UNAVAILABLE"}
+    monkeypatch.setattr(broker, "store", _lost_session_store(api, state))
+    summary = broker._gateway_stop_working_orders()
+    assert cancels == [] and order.alive()
+    assert summary == {"cancel_requested": 0, "confirmed_terminal": 0, "awaiting_confirmation": 0,
+                       "refused": {"GATEWAY_STREAM_GATEWAY_UNAVAILABLE": 1},
+                       "unresolved_working_orders": 1}
+
+
+def test_stop_releases_a_reservation_that_was_never_sent(state, ready, inputs, monkeypatch):
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+    calls = []
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult("OBSERVED", record)
+
+    monkeypatch.setattr(api, "reserve_order", reserve)
+    monkeypatch.setattr(api, "dispatch_order", lambda *a, **kw: GatewayClientResult("TRANSPORT_NOT_STARTED"))
+    monkeypatch.setattr(api, "release_order", _emulated_release(host, calls))
+    monkeypatch.setattr(api, "cancel_order", lambda *a, **kw: calls.append(("cancel",)))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    assert order.alive()
+    summary = broker._gateway_stop_working_orders()
+    assert [name for name, *_ in calls] == ["release"]  # withdrawn, never sent to the venue
+    assert order.status == order.Canceled
+    assert (summary["cancel_requested"], summary["confirmed_terminal"],
+            summary["unresolved_working_orders"]) == (1, 1, 0)
+
+
+def test_broker_stop_reports_gateway_working_orders_and_plain_brokers_are_unchanged(ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, api, cancels = _stop_fixture(
+        ready, inputs, monkeypatch, [_cancelled_event(ready[0])], timeout=5.0)
+    stopped = []
+    monkeypatch.setattr(broker, "_stop_registered_session", lambda: stopped.append(order.status) or "store-result")
+    assert broker.stop() == "store-result"
+    # The cancel was requested and observed before the session was closed.
+    assert stopped == [order.Canceled] and len(cancels) == 1
+    assert broker._shutdown_summary["gateway_working_orders"]["confirmed_terminal"] == 1
+    _, plain, _ = framework()
+    assert plain._gateway_stop_working_orders() is None

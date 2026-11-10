@@ -978,6 +978,17 @@ class BtApiBroker(
         """Run the existing shutdown path and report its result to an owner."""
         if self._direct_owns_stop():
             return self._direct_stop()
+        # Gateway mode (D62-19): first ask the Gateway to cancel this strategy's
+        # own working orders, then close the session as before.
+        working_orders = self._gateway_stop_working_orders()
+        if working_orders is not None:
+            try:
+                return self._stop_registered_session()
+            finally:
+                self._shutdown_summary = dict(self._shutdown_summary, gateway_working_orders=working_orders)
+        return self._stop_registered_session()
+
+    def _stop_registered_session(self):
         session = self._managed_runtime_session
         if session is None:
             session = self._service_execution_session

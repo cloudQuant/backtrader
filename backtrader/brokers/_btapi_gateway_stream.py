@@ -641,6 +641,63 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "RESTART_REQUIRED"
             raise
 
+    def _gateway_stop_working_orders(self):
+        """Stopping a Gateway-mode strategy: cancel its own working orders (D62-19).
+
+        Only this strategy's orders are named, each by its original identity
+        (an unsent reservation is released instead); nothing is flattened and
+        no other strategy's order can be reached through this session. The
+        stop then waits up to ``stop_cancel_timeout`` for the venue's answer.
+
+        The summary never calls an order cancelled that was not observed so:
+        ``confirmed_terminal`` are orders this process saw end,
+        ``awaiting_confirmation`` are cancels that were requested but whose
+        answer was not applied before the stop ended (the durable stream
+        delivers it at the next start), ``refused`` are cancels that could not
+        even be requested (for example while the Gateway is unreachable).
+        Returns ``None`` when no Gateway stream is bound.
+        """
+        binding = self.__dict__.get("_gateway_stream_binding")
+        if binding is None:
+            return None
+        summary = {"cancel_requested": 0, "confirmed_terminal": 0, "awaiting_confirmation": 0,
+                   "refused": {}, "unresolved_working_orders": 0}
+        try:
+            notice = self._gateway_binding(binding.strategy, required=True)
+            working = [order for order in notice.orders.values() if order.alive()]
+        except Exception as exc:
+            summary["refused"][type(exc).__name__] = 1
+            summary["unresolved_working_orders"] = None  # the working set could not be read
+            return summary
+        requested = []
+        for order in working:
+            try:
+                self._gateway_cancel_order(order)
+            except Exception as exc:
+                code = str(exc) if type(exc) is GatewayExecutionStreamError else type(exc).__name__
+                summary["refused"][code] = summary["refused"].get(code, 0) + 1
+            else:
+                requested.append(order)
+        summary["cancel_requested"] = len(requested)
+        timeout = getattr(self.p, "stop_cancel_timeout", 10.0)
+        timeout = float(timeout) if type(timeout) in (int, float) and math.isfinite(timeout) else 0.0
+        deadline = time.monotonic() + max(timeout, 0.0)
+        while time.monotonic() < deadline and any(order.alive() for order in requested):
+            try:
+                self._gateway_stream_next()
+            except Exception:
+                break
+            time.sleep(0.05)
+        summary["confirmed_terminal"] = sum(1 for order in requested if not order.alive())
+        summary["awaiting_confirmation"] = len(requested) - summary["confirmed_terminal"]
+        summary["unresolved_working_orders"] = sum(1 for order in working if order.alive())
+        if summary["unresolved_working_orders"]:
+            _logger.warning("Gateway stop left %d of this strategy's working orders unresolved "
+                         "(%d cancel(s) awaiting confirmation, %d not requested)",
+                         summary["unresolved_working_orders"], summary["awaiting_confirmation"],
+                         len(working) - len(requested))
+        return summary
+
     def _gateway_unreachable(self, *, reconnect=False):
         """The Gateway session is not usable now: the strategy waits (D63-03).
 
