@@ -586,3 +586,168 @@ def test_gateway_contract_rules_allow_identical_explicit_metadata(setup_gateway)
     store = BtApiStore(config={"gateway_strategy": config, "contracts": rules}, gateway_host=host,
                        gateway_security_profiles=keys, contract_metadata=explicit)
     assert store.contract_metadata["IF2612"]["instrument_key"] == explicit["IF2612"]["instrument_key"]
+
+
+# ---------------------------------------------------------------------------
+# D63-03: a lost SDK session is replaced inside the same process
+# ---------------------------------------------------------------------------
+class ReconnectApi(FakeApi):
+    """A session whose start and close outcomes the test controls."""
+
+    def __init__(self, *, start_ok=True, start_raises=False):
+        super().__init__()
+        self.start_ok, self.start_raises = start_ok, start_raises
+        self.cleanup_failures = self.owner_cleanup_uncertainties = self.unregister_uncertainties = 0
+
+    def start(self, *, timeout_seconds):
+        self.starts += 1
+        if self.start_raises:
+            self.state = "failed"
+            raise RuntimeError("REGISTRATION_REFUSED")
+        self.state = "running" if self.start_ok else "starting"
+        return self.status()
+
+    def status(self):
+        return SimpleNamespace(state=self.state, healthy=self.state == "running",
+                               thread_alive=self.state in ("running", "starting", "stopping"),
+                               cleanup_failures=self.cleanup_failures,
+                               unregister_uncertainties=self.unregister_uncertainties,
+                               owner_cleanup_uncertainties=self.owner_cleanup_uncertainties)
+
+    def close(self, *, timeout_seconds):
+        # As the SDK runtime: a failed runtime stays "failed" after its own
+        # cleanup; an unfinished close leaves the worker thread alive.
+        self.closes += 1
+        if not self.close_complete:
+            self.state = "stopping"
+        elif self.state != "failed":
+            self.state = "closed"
+        return self.status()
+
+
+def _reconnect_store(setup_gateway, monkeypatch, sessions):
+    created = []
+
+    def create(_self, *, host, cancel_host, security_profiles):
+        api = sessions.pop(0)
+        created.append((api, host, cancel_host, security_profiles))
+        return api
+
+    monkeypatch.setattr(GatewayStrategyConfig, "create_api", create)
+    monkeypatch.setattr("backtrader.service.gateway_config._RECONNECT_BACKOFF", (0.0,))
+    store = make_store(setup_gateway)
+    store.start()
+    return store, created
+
+
+def test_lost_session_is_closed_and_a_new_one_registered_in_the_same_store(setup_gateway, monkeypatch):
+    first, second = ReconnectApi(), ReconnectApi()
+    store, created = _reconnect_store(setup_gateway, monkeypatch, [first, second])
+    lock = store._gateway_run_lock
+    assert store.gateway_session_recoverable() and store.gateway_session_generation == 0
+    assert store.gateway_reconnect() is True and first.closes == 0  # nothing to do while healthy
+    first.state = "running"
+    first.status = lambda: SimpleNamespace(state="running", healthy=False, thread_alive=True)
+    assert store.gateway_session_state() == "UNAVAILABLE"
+    assert store.gateway_reconnect() is False and first.closes == 0  # may still come back by itself
+    del first.status
+    first.state = "failed"  # the lease ran out or the Gateway has a new service epoch
+    # What the old Gateway side could not be told does not hold the strategy back.
+    first.unregister_uncertainties = first.cleanup_failures = first.owner_cleanup_uncertainties = 1
+    assert store.gateway_session_state() == "LOST" and not store.is_connected
+    assert store.gateway_reconnect() is True
+    assert first.closes == 1 and second.starts == 1
+    assert store.gateway_api is second and store.is_connected
+    assert store.gateway_session_state() == "CONNECTED" and store.gateway_session_generation == 1
+    # Same host, same keys, same run lock: only the connection was replaced.
+    assert created[1][1] is created[1][2] is setup_gateway[1] and created[1][3] == created[0][3]
+    assert store._gateway_run_lock is lock and lock.held
+    store.stop()
+    assert second.closes == 1 and store.gateway_api is None
+
+
+def test_reconnect_waits_until_the_gateway_accepts_a_registration(setup_gateway, monkeypatch):
+    first = ReconnectApi()
+    refused, pending, accepted = (ReconnectApi(start_raises=True), ReconnectApi(start_ok=False),
+                                  ReconnectApi())
+    store, _ = _reconnect_store(setup_gateway, monkeypatch, [first, refused, pending, accepted])
+    first.state = "failed"
+    assert store.gateway_reconnect() is False
+    assert store._gateway_reconnect_reason == "REGISTRATION_FAILED:RuntimeError"
+    # The refused session is kept so that it is closed before another is made.
+    assert store.gateway_api is refused and store.gateway_session_state() == "LOST"
+    assert store.gateway_session_recoverable()
+    assert store.gateway_reconnect() is False
+    assert refused.closes == 1 and store.gateway_api is pending and pending.starts == 1
+    # Still starting: its thread is alive, so no second runtime is created beside it.
+    assert store.gateway_session_state() == "UNAVAILABLE"
+    assert store.gateway_reconnect() is False and pending.closes == 0
+    pending.state = "failed"
+    assert store.gateway_reconnect() is True
+    assert pending.closes == 1 and store.gateway_api is accepted
+    assert store.gateway_session_generation == 1 and store._gateway_reconnect_reason is None
+
+
+@pytest.mark.parametrize("held", ["thread", "timeout", "cleanup_failed"])
+def test_no_second_runtime_while_the_lost_one_is_not_closed(setup_gateway, monkeypatch, held):
+    first, second = ReconnectApi(), ReconnectApi()
+    store, created = _reconnect_store(setup_gateway, monkeypatch, [first, second])
+    first.state = "failed"
+    if held == "thread":
+        first.close_complete = False  # its worker thread is still alive after close
+    else:
+        def broken(*, timeout_seconds):
+            # The SDK raises while a transport or owner resource is still open.
+            error = RuntimeError("close incomplete")
+            error.code = "CLOSE_TIMEOUT_WORKER_ALIVE" if held == "timeout" else "CLEANUP_FAILED"
+            raise error
+        first.close = broken
+    assert store.gateway_reconnect(timeout=0.3) is False
+    assert store.gateway_api is first and len(created) == 1 and second.starts == 0
+    assert store._gateway_reconnect_reason == {
+        "thread": "OLD_SESSION_STILL_RUNNING", "timeout": "OLD_SESSION_CLOSE_FAILED:CLOSE_TIMEOUT_WORKER_ALIVE",
+        "cleanup_failed": "OLD_SESSION_CLOSE_FAILED:CLEANUP_FAILED"}[held]
+    # Once the old runtime has closed, the next attempt proceeds.
+    first.close_complete = True
+    first.__dict__.pop("close", None)
+    first.state = "failed"
+    assert store.gateway_reconnect() is True and store.gateway_api is second
+
+
+def test_reconnect_attempts_are_spaced_by_a_backoff(setup_gateway, monkeypatch):
+    import backtrader.service.gateway_config as module
+
+    first = ReconnectApi()
+    store, created = _reconnect_store(
+        setup_gateway, monkeypatch, [first] + [ReconnectApi(start_raises=True) for _ in range(4)])
+    monkeypatch.setattr(module, "_RECONNECT_BACKOFF", (0.0, 60.0))
+    clock = [1000.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: clock[0])
+    first.state = "failed"
+    assert store.gateway_reconnect() is False and len(created) == 2
+    assert store.gateway_reconnect() is False and len(created) == 3  # first retry is immediate
+    assert store.gateway_reconnect() is False and len(created) == 3  # then spaced
+    clock[0] += 59.0
+    assert store.gateway_reconnect() is False and len(created) == 3
+    clock[0] += 2.0
+    assert store.gateway_reconnect() is False and len(created) == 4
+
+
+def test_stopped_store_never_registers_again(setup_gateway, monkeypatch):
+    first, second = ReconnectApi(), ReconnectApi()
+    store, created = _reconnect_store(setup_gateway, monkeypatch, [first, second])
+    first.state = "failed"
+    first.close_complete = False
+    store.stop(timeout=1)  # stopped; the lost session's close is still unconfirmed
+    assert store.gateway_api is first and store._shutdown_state == "INCOMPLETE"
+    assert not store.gateway_session_recoverable()
+    first.close_complete = True
+    assert store.gateway_reconnect() is False and len(created) == 1 and second.starts == 0
+    assert first.closes == 1  # the reconnect path did not even touch the retained session
+    store.stop(timeout=1)
+    assert store.gateway_api is None
+    plain = BtApiStore.__new__(BtApiStore)
+    plain._gateway_mode = False
+    for method in (plain.gateway_reconnect, plain.gateway_session_recoverable):
+        with pytest.raises(RuntimeError, match="GATEWAY_MODE_REQUIRED"):
+            method()

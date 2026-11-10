@@ -12,6 +12,12 @@ import time
 from collections.abc import Mapping
 from copy import deepcopy
 
+from ..utils.log_message import get_logger
+
+_LOG = get_logger(__name__)
+# Seconds between attempts to register a new session after one was lost.
+_RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 10.0, 30.0)
+
 
 def compose_gateway_contract_metadata(strategy_config, contracts, explicit, error_type):
     """Combine local declarations with exact configured SDK instrument keys.
@@ -212,6 +218,102 @@ def start_gateway_store(store, *, data, broker, error_type):
     store._connected = True
     store._started = True
     store._shutdown_state = "RUNNING"
+
+
+def gateway_session_recoverable(store):
+    """Whether this Store still runs its Gateway session slot in this process.
+
+    True while the Store is started, owns its run lock and has not been
+    stopped; only then may a lost SDK session be replaced by a new one.
+    """
+    return bool(
+        getattr(store, "_gateway_mode", False) and store._gateway_pid == os.getpid()
+        and store._connected and store._started and not store._gateway_closed
+        and store._api is not None and store._gateway_run_lock is not None
+        and store._gateway_run_lock.held
+    )
+
+
+def reconnect_gateway_store(store, *, timeout=None):
+    """Replace a lost SDK Gateway session inside the same process (D63-03).
+
+    A strategy keeps running while its Gateway is restarted or its lease ran
+    out: the old client runtime is closed and a new session registers with the
+    Gateway again (a restarted Gateway has a new service epoch, so the old
+    registration can never be renewed). Returns True once a new healthy
+    session is installed. Returns False while that is not possible yet (the
+    old runtime has not released its resources, the Gateway is unreachable,
+    the old lease has not expired); the caller keeps waiting and calls again,
+    and attempts are spaced by a backoff.
+
+    This only re-establishes the connection. It never changes the strategy
+    state, the run lock or the pending host, never retries a command, and
+    never falls back to a direct connection. Whether orders may be sent again
+    is decided afterwards by the usual recovery and admission checks.
+    """
+    if not gateway_session_recoverable(store):
+        return False
+    state = store.gateway_session_state()
+    if state == "CONNECTED":
+        return True
+    if state != "LOST":
+        return False
+    now = time.monotonic()
+    if now < store._gateway_reconnect_next:
+        return False
+    attempt = store._gateway_reconnect_attempt
+    store._gateway_reconnect_next = now + _RECONNECT_BACKOFF[min(attempt, len(_RECONNECT_BACKOFF) - 1)]
+    store._gateway_reconnect_attempt = attempt + 1
+    if timeout is None:
+        timeout = store._command_shutdown_timeout
+
+    def waiting(reason, error=None):
+        # Name why the strategy is still waiting, once per distinct cause.
+        code = getattr(error, "code", None)
+        if error is not None:
+            reason += ":" + (code if type(code) is str and code.isupper() else type(error).__name__)
+        if reason != store._gateway_reconnect_reason:
+            store._gateway_reconnect_reason = reason
+            _LOG.warning("Gateway session not re-registered yet: %s", reason)
+        return False
+
+    try:
+        closed = _close_with_cleanup_retry(store._api, timeout)
+    except Exception as error:
+        return waiting("OLD_SESSION_CLOSE_FAILED", error)
+    # The SDK close returns only after the runtime closed every transport and
+    # owner resource (otherwise it raises CLEANUP_FAILED or a timeout). A
+    # runtime that failed (lease lost, Gateway restarted) ends in "failed",
+    # not "closed". A second runtime is never started beside a live thread.
+    if closed.state not in ("closed", "failed") or closed.thread_alive is not False:
+        return waiting("OLD_SESSION_STILL_RUNNING")
+    # Its counters now only say what the old Gateway side could not be told
+    # (unregister, unsubscribe): that registration ends with its lease or
+    # with its Gateway and is not a reason to keep the strategy waiting.
+    unresolved = (closed.cleanup_failures, closed.unregister_uncertainties,
+                  closed.owner_cleanup_uncertainties)
+    api = store._gateway_strategy_config.create_api(
+        host=store._gateway_host, cancel_host=store._gateway_host,
+        security_profiles=store._gateway_security_profiles
+    )
+    # Retained even when its start is ambiguous, exactly as on the first
+    # start: the next attempt closes this session before creating another.
+    store._api = api
+    try:
+        started = api.start(timeout_seconds=timeout)
+    except Exception as error:
+        return waiting("REGISTRATION_FAILED", error)
+    if (started.state != "running" or started.healthy is not True
+            or started.thread_alive is not True):
+        return waiting("REGISTRATION_NOT_HEALTHY")
+    store._gateway_reconnect_reason = None
+    store._gateway_reconnect_attempt = 0
+    store._gateway_reconnect_next = 0.0
+    store._gateway_session_generation += 1
+    _LOG.info("Gateway session re-registered in this process (session %d, after %d attempt(s); "
+              "old session left %d/%d/%d unconfirmed cleanup, unregister, owner item(s))",
+              store._gateway_session_generation, attempt + 1, *unresolved)
+    return True
 
 
 def _close_with_cleanup_retry(api, timeout):

@@ -374,6 +374,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._gateway_state = None
         self._gateway_closed = False
         self._gateway_start_attempted = False
+        self._gateway_reconnect_next = 0.0
+        self._gateway_reconnect_attempt = 0
+        self._gateway_reconnect_reason = None
+        self._gateway_session_generation = 0
         if self._gateway_mode:
             from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
             from ..live_state.gateway_pending import GatewayPendingHost
@@ -774,8 +778,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
         ``UNAVAILABLE`` is a live SDK session that is momentarily not healthy
         (for example while the Gateway is paused or restarting); it may come
-        back in this process. ``LOST`` means it cannot: the Store stopped or
-        lost its run lock, or the SDK runtime failed or closed (I63-E112).
+        back by itself. ``LOST`` means this SDK session cannot: the Store
+        stopped or lost its run lock, or the SDK runtime failed or closed
+        (I63-E112). While the Store is still running
+        (:meth:`gateway_session_recoverable`), a lost session is replaced by a
+        new registration with :meth:`gateway_reconnect` (D63-03).
         """
         if not self._gateway_mode:
             raise RuntimeError("GATEWAY_MODE_REQUIRED")
@@ -789,6 +796,32 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if status.state in ("starting", "running") and status.thread_alive is True:
             return "UNAVAILABLE"
         return "LOST"
+
+    def gateway_session_recoverable(self) -> bool:
+        """Gateway mode only: the Store still runs, so a lost session may be replaced."""
+        if not self._gateway_mode:
+            raise RuntimeError("GATEWAY_MODE_REQUIRED")
+        from ..service.gateway_config import gateway_session_recoverable
+
+        return gateway_session_recoverable(self)
+
+    def gateway_reconnect(self, timeout: Optional[float] = None) -> bool:
+        """Gateway mode only: register a new SDK session after the old one was lost.
+
+        Returns ``True`` once a healthy session is installed, ``False`` while
+        the caller has to keep waiting (D63-03). Bound objects must then adopt
+        :attr:`gateway_api`; nothing is retried or re-sent by this call.
+        """
+        if not self._gateway_mode:
+            raise RuntimeError("GATEWAY_MODE_REQUIRED")
+        from ..service.gateway_config import reconnect_gateway_store
+
+        return reconnect_gateway_store(self, timeout=timeout)
+
+    @property
+    def gateway_session_generation(self) -> int:
+        """Number of SDK sessions this Store re-registered after the first one."""
+        return self._gateway_session_generation
 
     @property
     def uses_async_commands(self) -> bool:

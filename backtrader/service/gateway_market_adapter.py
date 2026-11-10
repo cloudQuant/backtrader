@@ -58,6 +58,8 @@ class GatewayMarketAdapter:
         self._clock_started = False
         self._qualifier = None
         self._clock_interval = 300.0
+        self._timeout_seconds = timeout_seconds
+        self._qualifier_options = None
         self._projector = GatewayMarketTickProjector(
             self._api.market_subscription(config.exchange_name, name),
             key=setting.key, scope=WireScope(config.route.scope.execution_domain_ref),
@@ -100,11 +102,12 @@ class GatewayMarketAdapter:
                     or type(requested_limit) not in (int, float)
                     or not math.isfinite(requested_limit) or requested_limit <= 0):
                 raise ValueError("GATEWAY_CLOCK_CONFIGURATION_INVALID")
+            self._qualifier_options = {
+                "max_latency_seconds": min(requested_limit, feed_limit),
+                "max_clock_error_ms": options.get("max_clock_error_ms", 500),
+                "timeout_seconds": options.get("rpc_timeout_seconds", 1)}
             self._qualifier = GatewayTradeClockQualifier(
-                self._projector._client, self._clock_verifier,
-                max_latency_seconds=min(requested_limit, feed_limit),
-                max_clock_error_ms=options.get("max_clock_error_ms", 500),
-                timeout_seconds=options.get("rpc_timeout_seconds", 1))
+                self._projector._client, self._clock_verifier, **self._qualifier_options)
         with self._claim_lock:
             if name in claims and claims[name] is not feed:
                 raise ValueError("GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED")
@@ -180,8 +183,45 @@ class GatewayMarketAdapter:
             return True
         return False
 
+    def _adopt_session(self):
+        """Follow the Store to its new SDK session after a reconnect (D63-03).
+
+        The old subscription client died with its runtime. A new projector
+        starts from the subscription's bootstrap, so nothing of the old cursor
+        is carried over and the feed is not tradable until fresh real-time
+        ticks arrive (the feed reports DELAYED, then LIVE again).
+        """
+        store = self._store
+        if not store.is_connected:
+            return False
+        api = store.gateway_api
+        config = store.gateway_strategy_config
+        try:
+            client = api.market_subscription(config.exchange_name, self._name)
+            projector = GatewayMarketTickProjector(
+                client, key=self._key, scope=WireScope(config.route.scope.execution_domain_ref),
+                peer=config.peer, timeout_seconds=self._timeout_seconds)
+            qualifier = None
+            if self._qualifier_options is not None:
+                from bt_api_py.clock_verification import GatewayTradeClockQualifier
+
+                qualifier = GatewayTradeClockQualifier(client, self._clock_verifier,
+                                                       **self._qualifier_options)
+        except Exception:
+            return False
+        self._api, self._projector, self._qualifier = api, projector, qualifier
+        self._reason, self._pending_operation = "STARTING", "start"
+        self._attempt, self._next_retry = 0, 0.0
+        return True
+
     def poll(self):
         self._last_event = self._last_receipt = None
+        if self._store.gateway_api is not self._api:
+            self._latest_event = self._latest_receipt = None
+            if not self._adopt_session():
+                self._pending_operation = None
+                self._reason = "GATEWAY_SESSION_REPLACED"
+                return None
         try:
             if self._reason is not None:
                 self._latest_event = self._latest_receipt = None

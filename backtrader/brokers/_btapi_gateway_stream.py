@@ -239,7 +239,7 @@ class GatewayExecutionStreamBrokerMixin:
         binding = self.__dict__.get("_gateway_stream_binding")
         if binding is None:
             return "WAITING_FEED" if self.__dict__.get("_gateway_waiting_for_feed") else "UNBOUND"
-        if self._gateway_unreachable():
+        if self._gateway_unreachable() or self._gateway_session_stale(binding):
             self._gateway_stream_check(binding, connected_required=False)
             return "GATEWAY_UNAVAILABLE"
         self._gateway_stream_check(binding)
@@ -641,23 +641,81 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "RESTART_REQUIRED"
             raise
 
-    def _gateway_unreachable(self):
-        """The bound Gateway session is momentarily unavailable (wait).
+    def _gateway_unreachable(self, *, reconnect=False):
+        """The Gateway session is not usable now: the strategy waits (D63-03).
 
-        A session that can no longer come back in this process ends the
-        strategy with ``GATEWAY_STREAM_SESSION_LOST`` instead of waiting
-        forever, so it can be restarted (I63-E112).
+        A strategy does not stop because its Gateway is paused, restarted or
+        unreachable, and never falls back to a direct connection. A session
+        that is only momentarily unhealthy comes back by itself. A lost one
+        (lease expired, Gateway restarted with a new service epoch) is replaced
+        by a new registration; only the per-step path asks for that
+        (``reconnect=True``), spaced by the Store's backoff. The strategy ends
+        with ``GATEWAY_STREAM_SESSION_LOST`` only when the Store itself was
+        stopped or lost its run lock.
         """
         store = self.store
         if not getattr(store, "_gateway_mode", False) or store.is_connected:
             return False
         if store.gateway_session_state() == "LOST":
-            _fail("SESSION_LOST")
+            if not store.gateway_session_recoverable():
+                _fail("SESSION_LOST")
+            if reconnect and store.gateway_reconnect():
+                return False
         return True
 
+    def _gateway_session_stale(self, binding):
+        """The binding still holds a session the Store replaced or is closing."""
+        store = self.store
+        if not getattr(store, "_gateway_mode", False):
+            return False
+        return binding.api is not store.gateway_api or binding.api.lifecycle_state != "open"
+
+    def _gateway_rebind_session(self, binding):
+        """Adopt the Store's new SDK session after a reconnect (D63-03).
+
+        Only the connection objects change. The durable host, its consumer
+        cursor and every order stay; reading resumes after the stored
+        sequence. Reservations whose dispatch the old session acknowledged are
+        no longer trusted as queued (a restarted Gateway lost its queue): each
+        is read back by its original identity and withdrawn or continued as
+        the Gateway decides, never re-sent.
+        """
+        from bt_api_py.gateway_api import GatewayBtApi
+        from bt_api_py.gateway_execution_stream_client import GatewayExecutionStreamClient
+
+        api = self.store.gateway_api
+        try:
+            stream = api.gateway_execution_stream(binding.policy.route)
+            valid = (
+                type(api) is GatewayBtApi and api._host is binding.host
+                and api._exchange_name == binding.policy.route
+                and type(stream) is GatewayExecutionStreamClient
+                and stream._binding == binding.host._binding
+                and stream._consumer_ref == binding.host.load_execution_checkpoint().consumer_ref
+            )
+        except Exception:
+            valid = False
+        if not valid:
+            binding.state = "RESTART_REQUIRED"
+            _fail("SCOPE")
+        binding.api, binding.stream = api, stream
+        binding.dispatched.clear()
+
     def _gateway_stream_check(self, binding, *, connected_required=True):
-        if (binding.pid != os.getpid() or binding.thread is not threading.current_thread()
-                or binding.api._host is not binding.host
+        if binding.pid != os.getpid() or binding.thread is not threading.current_thread():
+            _fail("SCOPE")
+        if self._gateway_session_stale(binding):
+            # The session is being replaced (D63-03): its facade is closed, so
+            # only the durable identity can be checked until the per-step path
+            # adopts the new one. Nothing may be sent through it.
+            if (binding.api._host is not binding.host
+                    or binding.stream._binding != binding.host._binding
+                    or binding.stream._consumer_ref
+                    != binding.host.load_execution_checkpoint().consumer_ref):
+                _fail("SCOPE")
+            if connected_required:
+                _fail("GATEWAY_UNAVAILABLE")
+        elif (binding.api._host is not binding.host
                 or binding.api.gateway_execution_stream(binding.policy.route) is not binding.stream
                 or binding.stream._binding != binding.host._binding
                 or binding.stream._consumer_ref != binding.host.load_execution_checkpoint().consumer_ref):
@@ -770,15 +828,20 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectOrderStatus
 
         binding = self._gateway_stream_binding
-        if self._gateway_unreachable():
-            # I63-E112: the Gateway is paused, restarting or unreachable. Wait:
-            # no read, ack or local finalization this step (the strategy keeps
-            # running; submits are refused). Identity checks still apply.
+        if self._gateway_unreachable(reconnect=True):
+            # I63-E112 / D63-03: the Gateway is paused, restarting or
+            # unreachable. Wait: no read, ack or local finalization this step
+            # (the strategy keeps running; submits are refused). Identity
+            # checks still apply.
             self._gateway_stream_check(binding, connected_required=False)
             if binding.state == "RESTART_REQUIRED":
                 _fail("RESTART_REQUIRED")
             binding.state = "GATEWAY_UNAVAILABLE"
             return
+        if self._gateway_session_stale(binding):
+            if binding.state == "RESTART_REQUIRED":
+                _fail("RESTART_REQUIRED")
+            self._gateway_rebind_session(binding)
         self._gateway_stream_check(binding)
         if binding.state == "RESTART_REQUIRED":
             _fail("RESTART_REQUIRED")

@@ -1602,7 +1602,8 @@ def test_gateway_getposition_only_returns_fresh_strategy_position(ready, inputs,
     from types import SimpleNamespace
     from bt_api_py.gateway_strategy_position import GatewayStrategyPositionResult
     host, broker, strategy, order, _, api = attach(ready, inputs, monkeypatch)
-    broker.store = SimpleNamespace(_gateway_mode=True, is_connected=True, contract_metadata={
+    broker.store = SimpleNamespace(_gateway_mode=True, is_connected=True, gateway_api=api,
+                                   contract_metadata={
         'rb': {'instrument_key': INSTRUMENT.to_dict(), 'exchange_name': 'CTP___FUTURE',
                'quantity_unit': 'lots'}})
     observation = [_strategy_position_observation(host._binding)]
@@ -1665,7 +1666,7 @@ def test_gateway_financial_requires_explicit_strategy_and_verified_currency(read
     from types import SimpleNamespace
     from bt_api_py.gateway_strategy_financial import GatewayStrategyFinancialObservation, GatewayStrategyFinancialResult
     host, broker, strategy, _, _, api = attach(ready, inputs, monkeypatch)
-    broker.store = SimpleNamespace(_gateway_mode=True, is_connected=True,
+    broker.store = SimpleNamespace(_gateway_mode=True, is_connected=True, gateway_api=api,
         gateway_strategy_config=SimpleNamespace(strategy_finance_currency='CNY'))
     observation = GatewayStrategyFinancialObservation('CNY', 'futures_linear_v1', 1, 'cut', 'owner',
         'a' * 64, Decimal('42'), Decimal('-2'), 1, host._binding, 'registration', 'epoch')
@@ -1781,7 +1782,7 @@ def test_unreachable_gateway_waits_instead_of_ending_the_strategy(ready, inputs,
     from types import SimpleNamespace
 
     host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
-    store = SimpleNamespace(_gateway_mode=True, is_connected=False,
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False, gateway_api=api,
                             gateway_session_state=lambda: "UNAVAILABLE")
     monkeypatch.setattr(broker, "store", store)
     broker.next()
@@ -1798,20 +1799,135 @@ def test_unreachable_gateway_waits_instead_of_ending_the_strategy(ready, inputs,
     assert broker.gateway_execution_stream_status() != "GATEWAY_UNAVAILABLE"
 
 
-def test_lost_gateway_session_ends_the_strategy_instead_of_waiting(ready, inputs, monkeypatch):
-    # A session that cannot come back in this process (SDK runtime failed
-    # after its lease expired, Store stopped) must not leave the strategy
-    # waiting forever: it ends with SESSION_LOST so it can be restarted.
+def test_lost_session_of_a_stopped_store_ends_the_strategy(ready, inputs, monkeypatch):
+    # Only a Store that was stopped or lost its run lock ends the strategy with
+    # SESSION_LOST (it cannot register again); see the D63-03 tests below for a
+    # lost session of a running Store.
     from types import SimpleNamespace
 
     host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
     state = {"value": "UNAVAILABLE"}
-    store = SimpleNamespace(_gateway_mode=True, is_connected=False,
-                            gateway_session_state=lambda: state["value"])
+    reconnects = []
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False, gateway_api=api,
+                            gateway_session_state=lambda: state["value"],
+                            gateway_session_recoverable=lambda: False,
+                            gateway_reconnect=lambda: reconnects.append(1) or False)
     monkeypatch.setattr(broker, "store", store)
     broker.next()
     assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
     state["value"] = "LOST"
     with pytest.raises(RuntimeError, match="GATEWAY_STREAM_SESSION_LOST"):
         broker.next()
+    assert calls["read"] == 0 and not calls["ack"] and not reconnects
+
+
+def _lost_session_store(api, state):
+    class Store:
+        _gateway_mode = True
+        reconnects = 0
+
+        def __init__(self):
+            self.gateway_api = api
+
+        @property
+        def is_connected(self):
+            return state["session"] == "CONNECTED"
+
+        def gateway_session_state(self):
+            return state["session"]
+
+        def gateway_session_recoverable(self):
+            return True
+
+        def gateway_reconnect(self):
+            self.reconnects += 1
+            replacement = state.get("replacement")
+            if replacement is None:
+                return False
+            self.gateway_api = replacement
+            state["session"] = "CONNECTED"
+            return True
+
+    return Store()
+
+
+def test_lost_session_of_a_running_store_waits_and_registers_again(ready, inputs, monkeypatch):
+    # D63-03: a Gateway restart (new service epoch) or an expired lease loses
+    # the SDK session for good. The strategy keeps running, refuses submits,
+    # and continues with a newly registered session: same orders, same durable
+    # cursor, nothing re-sent.
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    _, route, _ = inputs
+    binding = broker._gateway_stream_binding
+    binding.dispatched.add("key-a")
+    state = {"session": "LOST"}
+    store = _lost_session_store(api, state)
+    monkeypatch.setattr(broker, "store", store)
+    for _ in range(3):
+        broker.next()  # the Gateway is still away: wait, never raise
+    assert store.reconnects == 3 and binding.api is api
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
     assert calls["read"] == 0 and not calls["ack"]
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_GATEWAY_UNAVAILABLE"):
+        broker._gateway_stream_check(binding)
+    # A status read or a submit check never starts a registration by itself.
+    assert store.reconnects == 3
+
+    replacement = api_for(host, route)
+    new_stream = replacement.gateway_execution_stream("CTP___FUTURE")
+    reads = []
+
+    def read(after, epoch, limit, *, timeout_seconds):
+        reads.append(after)
+        _, bound, consumer = ready
+        return GatewayExecutionStreamClientResult(
+            "OBSERVED", page=page(bound, consumer, []),
+            request_context=GatewayExecutionReadContext(bound, consumer, after, epoch, limit))
+
+    monkeypatch.setattr(new_stream, "read_after", read)
+    api.close()  # the Store closed the lost session before registering again
+    state["replacement"] = replacement
+    stored = host.load_execution_checkpoint().stored_sequence
+    broker.next()
+    assert binding.api is replacement and binding.stream is new_stream
+    assert reads == [stored] and calls["read"] == 0  # resumes after the stored sequence
+    assert not binding.dispatched  # old acknowledgements are read back, not trusted
+    assert broker.gateway_execution_stream_status() == "ACTIVE"
+    assert broker._gateway_binding(strategy, required=True).orders["key-a"] is order
+    broker._gateway_stream_check(binding)  # usable again
+
+
+def test_replaced_session_is_not_used_before_the_step_adopts_it(ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    _, route, _ = inputs
+    binding = broker._gateway_stream_binding
+    replacement = api_for(host, route)
+    state = {"session": "CONNECTED"}
+    store = _lost_session_store(replacement, state)  # the Store already holds the new session
+    monkeypatch.setattr(broker, "store", store)
+    api.close()
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_GATEWAY_UNAVAILABLE"):
+        broker._gateway_stream_check(binding)
+    assert binding.api is api and calls["read"] == 0
+
+
+def test_new_session_for_another_host_is_refused(ready, inputs, monkeypatch, state):
+    from backtrader.live_state.gateway_pending import GatewayPendingHost
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    binding = broker._gateway_stream_binding
+    # A valid session of the same strategy state, but over another host object:
+    # the binding's durable host must stay the exact one it was bound with.
+    other_host = GatewayPendingHost.upgrade_for_execution(
+        state.strategy_dir, state.strategy_uuid, ready[1], consumer_ref=ready[2])
+    assert other_host is not host and other_host._binding == host._binding
+    foreign = api_for(other_host, inputs[1])
+    state = {"session": "CONNECTED"}
+    monkeypatch.setattr(broker, "store", _lost_session_store(foreign, state))
+    api.close()
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_SCOPE"):
+        broker.next()
+    assert binding.state == "RESTART_REQUIRED" and binding.api is api
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_RESTART_REQUIRED"):
+        broker.next()

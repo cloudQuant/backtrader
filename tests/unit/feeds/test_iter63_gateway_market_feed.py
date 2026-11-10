@@ -518,3 +518,45 @@ def test_projection_failure_stays_terminal(monkeypatch):
     adapter._next_retry = 0
     assert adapter.poll() is None
     assert adapter.recovery_reason() == 'GATEWAY_MARKET_SOURCE_CHANGED' and status_calls == []
+
+
+def test_adapter_follows_the_store_to_a_newly_registered_session(monkeypatch):
+    # D63-03: after a Gateway restart the Store registers a new SDK session.
+    # The old subscription client is dead; the adapter must start the new
+    # one from its bootstrap instead of polling the old client forever.
+    from backtrader.service.gateway_market_adapter import GatewayMarketAdapter
+    old_client, _ = client_with(monkeypatch, [frame(1)])
+    store = _gateway_store(old_client)
+    store.is_connected = True
+    feed = object()
+    adapter = GatewayMarketAdapter(store, 'SA609', feed)
+    adapter.start()
+    assert adapter.poll() is not None
+    old_api = store.gateway_api
+    new_client, _ = client_with(monkeypatch, [frame(1), frame(2)])
+    starts = []
+    real_start = new_client.start
+    monkeypatch.setattr(new_client, 'start', lambda **kw: starts.append(1) or real_start(**kw))
+    offered = []
+    def subscription(route, name):
+        offered.append((route, name))
+        if broken[0]:
+            raise RuntimeError('GATEWAY_FACADE_CLOSED')
+        return new_client
+    broken = [True]
+    store.gateway_api = SimpleNamespace(market_subscription=subscription)
+    store.is_connected = False
+    # Replaced but not usable yet: wait, and never deliver through the old client.
+    assert adapter.poll() is None and adapter.recovery_reason() == 'GATEWAY_SESSION_REPLACED'
+    assert adapter.latest_realtime() is None and offered == []
+    assert adapter._api is old_api and adapter._projector._client is old_client
+    store.is_connected = True
+    assert adapter.poll() is None and adapter.recovery_reason() == 'GATEWAY_SESSION_REPLACED'
+    assert offered == [('test', 'main')] and adapter._projector._client is old_client
+    broken[0] = False
+    event = adapter.poll()
+    assert event is not None and event.cursor.sequence == 1 and starts == [1]
+    assert adapter._api is store.gateway_api and adapter._projector._client is new_client
+    assert adapter.recovery_reason() is None
+    assert adapter.poll().cursor.sequence == 2 and starts == [1]
+    assert adapter.matches(store, feed, INSTRUMENT)
