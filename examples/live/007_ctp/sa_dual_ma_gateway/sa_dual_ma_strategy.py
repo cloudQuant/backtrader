@@ -1,10 +1,18 @@
-"""SA (soda ash) dual moving-average strategy for the CTP direct mode.
+"""SA (soda ash) dual moving-average strategy for the CTP Gateway mode.
 
 Signals (unchanged): fast SMA crossing above the slow SMA goes long, crossing
 below goes short; at most one direction is held.
 
-Direct-mode rules this example demonstrates (iteration 62):
+Gateway-mode rules this example demonstrates (iterations 62 and 63):
 
+* the strategy shares one account with other strategies, so it only ever acts
+  on what it holds itself: positions come from ``get_strategy_position()`` and
+  the closable view from ``broker.get_closable()``, both answered by the
+  Gateway's ledger of this strategy. The account-scope ``getposition()``,
+  ``broker.getcash()`` and ``broker.getvalue()`` are not available in this
+  mode (strategy cash and equity are not provided yet);
+* a read that cannot be answered now (the Gateway is restarting, the ledger is
+  not ready) skips the decision of that bar; nothing is assumed to be flat;
 * every CTP order carries an explicit ``offset`` (D62-26): ``open``, or the
   close offsets the venue allows; closes are planned from the broker's closable
   view and submitted separately for today's and yesterday's positions on
@@ -25,7 +33,7 @@ _SPLIT_VENUES = ("SHFE", "INE")
 
 
 class DualMAStrategy(bt.Strategy):
-    """Dual moving average crossover for SA futures (direct mode).
+    """Dual moving average crossover for SA futures (Gateway mode).
 
     Params:
         fast_period: fast SMA period.
@@ -118,10 +126,11 @@ class DualMAStrategy(bt.Strategy):
 
     def _close_plan(self, side, quantity):
         """Explicit close offsets from the broker's closable view (D62-18/22/26)."""
-        view_reader = getattr(self.broker, "get_closable", None)
-        if not callable(view_reader):
-            return [("close", quantity)]
-        view = view_reader(self.data, side)
+        try:
+            view = self.broker.get_closable(self.data, side)
+        except RuntimeError as exc:
+            self.log(f"closable view unavailable for {side} ({exc}); no close sent")
+            return []
         if view.get("venue") in _SPLIT_VENUES:
             plan = []
             today = view.get("closable_today")
@@ -141,8 +150,15 @@ class DualMAStrategy(bt.Strategy):
     def _submit(self, buy, size, offset, label):
         price = self._limit_price(buy)
         method = self.buy if buy else self.sell
-        order = method(data=self.data, size=size, exectype=bt.Order.Limit, price=price,
-                       offset=offset)
+        try:
+            order = method(data=self.data, size=size, exectype=bt.Order.Limit, price=price,
+                           offset=offset)
+        except RuntimeError as exc:
+            # The Gateway-mode broker refuses, before anything is sent, an order
+            # it cannot stand behind (feed not tradable, more than this strategy
+            # can close, Gateway unreachable). The next signal plans again.
+            self.log(f"SIGNAL {label}: refused before sending ({exc})")
+            return None
         self.log(f"SIGNAL {label}: {'buy' if buy else 'sell'} {size} {offset} @ {price:.2f} "
                  f"ref={order.ref}")
         return order
@@ -150,42 +166,45 @@ class DualMAStrategy(bt.Strategy):
     def prenext(self):
         self.bar_count += 1
 
+    def _own_sizes(self):
+        """(long, short) lots this strategy itself holds, or None when unknown now."""
+        try:
+            long_size = abs(self.get_strategy_position(self.data, side="long").size)
+            short_size = abs(self.get_strategy_position(self.data, side="short").size)
+        except RuntimeError as exc:
+            self.log(f"own position unavailable ({exc}); no decision this bar")
+            return None
+        return long_size, short_size
+
     def next(self):
         self.bar_count += 1
-        pos = self.getposition(self.data)
+        sizes = self._own_sizes()
+        held = "unknown" if sizes is None else f"long={sizes[0]:g} short={sizes[1]:g}"
         self.log(
             f"bar#{self.bar_count} C={self.data.close[0]:.2f} fast={self.fast_ma[0]:.2f} "
-            f"slow={self.slow_ma[0]:.2f} cross={self.crossover[0]:.0f} pos={pos.size} "
-            f"cash={self.broker.getcash():.2f} value={self.broker.getvalue():.2f}"
+            f"slow={self.slow_ma[0]:.2f} cross={self.crossover[0]:.0f} {held}"
         )
-        if not self.live_data or self.crossover[0] == 0:
+        if sizes is None or not self.live_data or self.crossover[0] == 0:
             return
         if self.close_orders or self.open_order is not None:
             return  # earlier orders still working; never duplicate exposure
 
+        long_size, short_size = sizes
         size = self.p.order_size
         if self.crossover[0] > 0:  # golden cross: close short, open long
-            short = abs(self.getposition(self.data, side="short").size) if self._dual() else max(
-                -pos.size, 0
-            )
-            for offset, qty in self._close_plan("short", short) if short else []:
+            for offset, qty in self._close_plan("short", short_size) if short_size else []:
                 order = self._submit(True, qty, offset, "golden cross close short")
-                self.close_orders[order.ref] = order
-            if pos.size <= 0:
+                if order is not None:
+                    self.close_orders[order.ref] = order
+            if long_size <= short_size:
                 self.open_order = self._submit(True, size, "open", "golden cross open long")
         else:  # death cross: close long, open short
-            long_size = abs(self.getposition(self.data, side="long").size) if self._dual() else max(
-                pos.size, 0
-            )
             for offset, qty in self._close_plan("long", long_size) if long_size else []:
                 order = self._submit(False, qty, offset, "death cross close long")
-                self.close_orders[order.ref] = order
-            if pos.size >= 0:
+                if order is not None:
+                    self.close_orders[order.ref] = order
+            if short_size <= long_size:
                 self.open_order = self._submit(False, size, "open", "death cross open short")
 
-    def _dual(self):
-        mode = getattr(getattr(self.broker, "p", None), "position_mode", "net")
-        return str(mode) == "dual_side"
-
     def stop(self):
-        self.log(f"Strategy stopped. bars={self.bar_count} value={self.broker.getvalue():.2f}")
+        self.log(f"Strategy stopped. bars={self.bar_count}")

@@ -224,7 +224,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         symbol = str(symbol)
         data = self._resolve_data(symbol)
         try:
-            position = self.broker.getposition(data)
+            # Gateway mode: several strategies share the account, so only this
+            # strategy's own position (the Gateway's ledger of it) counts. The
+            # account-scope broker.getposition() is not available here.
+            position = self.get_strategy_position(data)
             size = float(getattr(position, "size", 0.0) or 0.0)
         except Exception:
             size = float(self.position_cache.get(symbol, 0.0))
@@ -322,7 +325,12 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         reader = getattr(self.broker, "get_closable", None)
         if not callable(reader):
             return [("close", quantity)]
-        view = reader(data, "short" if side == "buy" else "long")
+        try:
+            view = reader(data, "short" if side == "buy" else "long")
+        except RuntimeError as exc:
+            # Not answerable now (Gateway restarting, ledger not ready): no close.
+            self.log(f"closable view unavailable ({exc}): no close planned")
+            return []
         if view.get("venue") in ("SHFE", "INE"):
             today, yesterday = view.get("closable_today"), view.get("closable_yesterday")
             if today is None or yesterday is None:
@@ -395,7 +403,17 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         )
         if is_live_btapi_broker:
             kwargs.update(extra_info)
-        order = self.buy(**kwargs) if side == "buy" else self.sell(**kwargs)
+        try:
+            order = self.buy(**kwargs) if side == "buy" else self.sell(**kwargs)
+        except RuntimeError as exc:
+            # The Gateway-mode broker refuses, before anything is sent, an order
+            # it cannot stand behind (feed not tradable, more than this strategy
+            # can close, Gateway unreachable). Wait as after a rejection.
+            self.log(f"{signal_tag}: {side.upper()} {symbol} refused before sending ({exc})")
+            self._refusal_backoff()[str(symbol)] = time.monotonic() + float(
+                self.p.reject_backoff_seconds or 0.0
+            )
+            return None
         if order is not None:
             if not is_live_btapi_broker:
                 order.addinfo(**extra_info)
