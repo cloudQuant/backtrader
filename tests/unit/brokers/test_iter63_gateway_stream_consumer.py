@@ -1772,3 +1772,26 @@ def test_terminal_orders_are_skipped_by_submit_and_step_checks(state, ready, inp
     second.addinfo(offset='open', quantity_unit='lots', time_in_force='GFD')
     broker.submit(second)  # no ORDER_RECONCILE_REQUIRED from the terminal order
     assert second.info.gateway_request_key != key
+
+
+def test_unreachable_gateway_waits_instead_of_ending_the_strategy(ready, inputs, monkeypatch):
+    # SimNow 63.09 (I63-E112): pausing or restarting the Gateway ended the
+    # strategy with GATEWAY_STREAM_SCOPE; it must wait, refuse submits and
+    # resume reading once the session is healthy again.
+    from types import SimpleNamespace
+
+    host, broker, strategy, order, calls, api = attach(ready, inputs, monkeypatch)
+    store = SimpleNamespace(_gateway_mode=True, is_connected=False)
+    monkeypatch.setattr(broker, "store", store)
+    broker.next()
+    broker.next()
+    assert broker.gateway_execution_stream_status() == "GATEWAY_UNAVAILABLE"
+    assert calls["read"] == 0 and not calls["ack"]
+    second = bt.BuyOrder(owner=strategy, data=order.data, size=1, price=11, exectype=bt.Order.Limit)
+    second.addinfo(offset="open", quantity_unit="lots", time_in_force="GFD")
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_GATEWAY_UNAVAILABLE"):
+        broker._gateway_stream_check(broker._gateway_stream_binding)
+    store.is_connected = True
+    broker.next()  # reconnected: the same binding reads again
+    assert calls["read"] >= 1
+    assert broker.gateway_execution_stream_status() != "GATEWAY_UNAVAILABLE"

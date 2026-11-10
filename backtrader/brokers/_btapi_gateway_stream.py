@@ -239,6 +239,9 @@ class GatewayExecutionStreamBrokerMixin:
         binding = self.__dict__.get("_gateway_stream_binding")
         if binding is None:
             return "WAITING_FEED" if self.__dict__.get("_gateway_waiting_for_feed") else "UNBOUND"
+        if self._gateway_unreachable():
+            self._gateway_stream_check(binding, connected_required=False)
+            return "GATEWAY_UNAVAILABLE"
         self._gateway_stream_check(binding)
         return binding.state
 
@@ -638,14 +641,21 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "RESTART_REQUIRED"
             raise
 
-    def _gateway_stream_check(self, binding):
+    def _gateway_unreachable(self):
+        """The bound Gateway session is not running or not healthy right now."""
+        return bool(getattr(self.store, "_gateway_mode", False)) and not self.store.is_connected
+
+    def _gateway_stream_check(self, binding, *, connected_required=True):
         if (binding.pid != os.getpid() or binding.thread is not threading.current_thread()
-                or (getattr(self.store, "_gateway_mode", False) and not self.store.is_connected)
                 or binding.api._host is not binding.host
                 or binding.api.gateway_execution_stream(binding.policy.route) is not binding.stream
                 or binding.stream._binding != binding.host._binding
                 or binding.stream._consumer_ref != binding.host.load_execution_checkpoint().consumer_ref):
             _fail("SCOPE")
+        if connected_required and self._gateway_unreachable():
+            # Submits and cancels are refused while the Gateway is unreachable;
+            # the per-step path waits instead (I63-E112).
+            _fail("GATEWAY_UNAVAILABLE")
         self._gateway_binding(binding.strategy, required=True)
         if self.__dict__.get("_gateway_execution_bindings"):
             _fail("MODE_CONFLICT")
@@ -750,6 +760,15 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectOrderStatus
 
         binding = self._gateway_stream_binding
+        if self._gateway_unreachable():
+            # I63-E112: the Gateway is paused, restarting or unreachable. Wait:
+            # no read, ack or local finalization this step (the strategy keeps
+            # running; submits are refused). Identity checks still apply.
+            self._gateway_stream_check(binding, connected_required=False)
+            if binding.state == "RESTART_REQUIRED":
+                _fail("RESTART_REQUIRED")
+            binding.state = "GATEWAY_UNAVAILABLE"
+            return
         self._gateway_stream_check(binding)
         if binding.state == "RESTART_REQUIRED":
             _fail("RESTART_REQUIRED")
