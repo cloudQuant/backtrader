@@ -77,9 +77,14 @@ class TestPercentSizerZeroPrice:
         sizer.broker = MagicMock()
         sizer.strategy = MagicMock()
         # PercentSizer reads positions through the (unbound) strategy, which
-        # resolves to the Broker.
+        # resolves to the Broker. Sizer._strategy_position prefers the
+        # strategy's order-helper scope (Gateway / account book binding); an
+        # unbound strategy's helper also resolves to the Broker.
         sizer.strategy.getposition.side_effect = (
             lambda data, broker=None: sizer.broker.getposition(data)
+        )
+        sizer.strategy._order_helper_position.side_effect = (
+            lambda data, side=None: sizer.broker.getposition(data)
         )
         return sizer
 

@@ -140,7 +140,9 @@ def test_factor_strategy_counts_only_declared_aliases_without_trimming_metadata(
     spec = strategy._factor_specs_by_name["close_factor"]
     assert metadata is not None
     assert set(metadata["field_present"]) == set(source.columns)
-    assert strategy._input_aliases_by_spec[id(spec)] == ("close",)
+    # Required inputs are tracked per source feed since iteration 61.
+    assert spec.field_bindings == {"close": "feed:target:close"}
+    assert strategy._required_input_fields[id(aligned.feed)] == {"close"}
     assert set(strategy._field_counts) == {(id(aligned.feed), "close")}
 
 
@@ -201,3 +203,35 @@ def test_aligned_feed_datetime_hint_falls_back_after_in_place_index_mutation(vie
     assert feed._dt_dtnum is not cached
     assert feed._dt_dtnum == expected
     feed.stop()
+
+
+def test_source_close_time_check_compares_day_numbers_only(monkeypatch) -> None:
+    """G7: one numeric comparison per source time, no num2date conversions."""
+    from types import SimpleNamespace
+
+    import pytz
+
+    import backtrader.strategies.factor_strategy as factor_strategy_module
+    from backtrader.errors import DatasetError
+
+    def no_num2date(*_args, **_kwargs):
+        raise AssertionError("close-time validation must not convert numbers back to dates")
+
+    monkeypatch.setattr(factor_strategy_module, "num2date", no_num2date)
+    grid = pd.DatetimeIndex(["2030-01-02 01:30", "2030-01-03 01:30", "2030-01-04 01:30"], tz="UTC")
+    check = FactorStrategy._validate_source_close_times
+
+    def feed(index, tzinput=None):
+        frame = pd.DataFrame({"close": [1.0, 2.0, 3.0]}, index=index)
+        return SimpleNamespace(p=SimpleNamespace(dataname=frame, datetime=None), _tzinput=tzinput)
+
+    owner = SimpleNamespace(_research=SimpleNamespace(grid_sha256="unused"))
+    check(owner, feed(grid), {}, grid)  # same UTC instants
+    check(owner, feed(grid.tz_convert("America/New_York")), {}, grid)  # same instants, other zone
+    shanghai = grid.tz_convert("Asia/Shanghai").tz_localize(None)
+    check(owner, feed(shanghai, pytz.timezone("Asia/Shanghai")), {}, grid)  # naive + tzinput
+    shifted = grid.insert(1, grid[1] + pd.Timedelta(seconds=1)).delete(2)
+    with pytest.raises(DatasetError, match="does not match the research grid"):
+        check(owner, feed(shifted), {}, grid)
+    with pytest.raises(DatasetError, match="cannot be established"):
+        check(owner, feed(pd.Index(["a", "b", "c"])), {}, grid)

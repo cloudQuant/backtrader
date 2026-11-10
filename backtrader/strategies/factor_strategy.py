@@ -512,22 +512,28 @@ class FactorStrategy(Strategy):
             if metadata.get("grid_sha256") == self._research.grid_sha256:
                 return
             raise DatasetError("factor source close-time alignment cannot be established")
+        # Compare backtrader's UTC day numbers only (G7): date2num normalizes an
+        # aware time to UTC, so one instant always gives one number, and no
+        # per-value num2date conversion is needed for a one-time check.
         try:
             tzinput = getattr(data, "_tzinput", None)
-            source_times = []
+            source_numbers = []
             for value in time_values:
                 when = value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
-                number = date2num(when)
                 if tzinput:
-                    number = date2num(tzinput.localize(num2date(number)))
-                source_times.append(num2date(number, tz=timezone.utc, naive=False))
-            expected = [
-                item.to_pydatetime() if hasattr(item, "to_pydatetime") else item
+                    # As before: the source wall clock (an aware value's UTC
+                    # wall clock) is read as tzinput local time.
+                    if getattr(when, "tzinfo", None) is not None:
+                        when = when.astimezone(timezone.utc).replace(tzinfo=None)
+                    when = tzinput.localize(when)
+                source_numbers.append(date2num(when))
+            expected_numbers = [
+                date2num(item.to_pydatetime() if hasattr(item, "to_pydatetime") else item)
                 for item in expected_times
             ]
         except (AttributeError, TypeError, ValueError, OverflowError) as exc:
             raise DatasetError("factor source close-time alignment cannot be established") from exc
-        if source_times != expected:
+        if source_numbers != expected_numbers:
             raise DatasetError(
                 "factor source close-time alignment does not match the research grid"
             )
