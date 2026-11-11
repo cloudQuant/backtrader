@@ -113,8 +113,11 @@ class DualMAStrategy(bt.Strategy):
 
     # ------------------------------------------------------------------
     def _limit_price(self, buy):
-        offset = self.p.slippage_ticks * self.p.price_tick
-        return self.data.close[0] + offset if buy else self.data.close[0] - offset
+        tick = float(self.p.price_tick)
+        offset = self.p.slippage_ticks * tick
+        price = self.data.close[0] + offset if buy else self.data.close[0] - offset
+        # Stay on the price grid (a fractional tick leaves binary rounding dust).
+        return round(round(price / tick) * tick, 10) if tick > 0 else price
 
     def _close_plan(self, side, quantity):
         """Explicit close offsets from the broker's closable view (D62-18/22/26)."""

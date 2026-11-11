@@ -291,8 +291,13 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
                 break
         if last is None:
             return None
-        offset = float(self.p.slippage_ticks) * float(self.p.price_tick)
+        tick = float(self.p.price_tick)
+        offset = float(self.p.slippage_ticks) * tick
         price = last + offset if side == "buy" else last - offset
+        if tick > 0:
+            # Stay on the price grid: with a fractional tick (0.2, 0.005, ...) the
+            # sum carries binary rounding dust that is not a valid order price.
+            price = round(round(price / tick) * tick, 10)
         return price if price > 0 else None
 
     def _last_price_candidates(self, data):
