@@ -10,7 +10,10 @@ Gateway-mode rules this example demonstrates (iterations 62 and 63):
   the closable view from ``broker.get_closable()``, both answered by the
   Gateway's ledger of this strategy. The account-scope ``getposition()``,
   ``broker.getcash()`` and ``broker.getvalue()`` are not available in this
-  mode (strategy cash and equity are not provided yet);
+  mode. The strategy's own cash and value are optional and off in this
+  example: see the README for the two config lines and the Gateway section
+  they need, then read them with ``broker.get_strategy_cash(strategy)`` and
+  ``broker.get_strategy_value(strategy)``;
 * a read that cannot be answered now (the Gateway is restarting, the ledger is
   not ready) skips the decision of that bar; nothing is assumed to be flat;
 * every CTP order carries an explicit ``offset`` (D62-26): ``open``, or the

@@ -13,4 +13,6 @@
 
 策略只按自己的持仓行事：持仓用 `get_strategy_position()` 读取，可平数量用 `broker.get_closable()` 读取，两者都由 Gateway 中本策略的账本回答；账户级的 `getposition()`、`broker.getcash()`、`broker.getvalue()` 在本模式不可用。读不到时（Gateway 正在重启、账本尚未就绪）本次不做决策，不当作空仓。Broker 在发送前拒绝的委托（行情不可交易、超过本策略可平数量、Gateway 不可达）以异常返回，示例记录后等待下一次信号。
 
-当前功能仍在开发验收中：策略资金与权益、部分订单类型和完整恢复尚未完成。示例中的占位配置、手续费参数或离线检查均不证明真实账户可交易。
+策略自己的资金与权益是可选功能，本示例默认不开启。开启需要两边同时配置：Gateway 的资源包里有 `strategy_financial` 段（共享费率文件、币种、本策略的初始预算，见 bt_api_py 仓 `examples/services/ctp-gateway-simnow-trading.example.md`），本目录 `config.yaml` 里取消两行注释（`strategy_finance_currency` 和 `direct.strategy_financial`）。只开启策略这一侧而 Gateway 没有开启策略资金时，策略登记会被拒绝；Gateway 已开启但没有给本策略配置预算时，读取结果是不可用。开启后用 `broker.get_strategy_cash(strategy)`、`broker.get_strategy_value(strategy)` 读取；读不到时（Gateway 正在重启、行情价格过旧、有未归属的回报等）抛出 `RuntimeError`，不返回 0。数值是 Gateway 按共享费率文件估算的：权益 = 初始预算 + 调整 + 已实现盈亏 + 浮动盈亏 − 手续费，资金 = 权益 − 占用保证金 − 未成交开仓委托的预留；费率是运营填写的估计值，不是期货公司的实际结算结果。
+
+当前功能仍在开发验收中：部分订单类型和完整恢复尚未完成，策略资金与权益已有实现（见上一段）但尚未验收。示例中的占位配置、手续费参数或离线检查均不证明真实账户可交易。

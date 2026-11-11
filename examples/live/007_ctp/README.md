@@ -263,4 +263,4 @@ conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --run-s
 
 `config.yaml` 为公开占位配置，须与实际 Gateway 的账户、策略、会话、合约和授权配置对齐。默认 `local_files` 加载器从受保护文件读取 CURVE 密钥，并要求首次显式 `--first-init` 创建本地身份及示例初始化标记、登记授权后再 `--upgrade-state`；标记仅防误用，不证明账户空仓、writer fence 或授权；也可选择安装可信 `bt_api_py.gateway_example_resources` entry point。密钥不应放进 YAML、命令行或日志；加载器不授予账户权限。文件权限、初始化和受信工厂接口见各示例 README；离线 `--dry-run` 不加载密钥也不联网。
 
-Gateway 会话/行情断线不触发 direct 回退或假设委托已取消；策略停止不会停止共享 Gateway。行情时钟校准默认关闭，必须显式提供受信 SNTP 配置且两端证据有效才可能取得交易资格。当前策略资金和可平仓账本、真实 CTP 一致基线、部分订单类型与完整恢复尚未验收；合成测试和离线配置检查均不是 SimNow 或真实账户证据。详见各目录 README 与迭代 63 验收矩阵。
+Gateway 会话/行情断线不触发 direct 回退或假设委托已取消；策略停止不会停止共享 Gateway。行情时钟校准默认关闭，必须显式提供受信 SNTP 配置且两端证据有效才可能取得交易资格。策略资金与权益是可选功能（各 Gateway 示例目录的 README 说明如何开启）；策略资金和可平仓账本、真实 CTP 一致基线、部分订单类型与完整恢复尚未验收；合成测试和离线配置检查均不是 SimNow 或真实账户证据。详见各目录 README 与迭代 63 验收矩阵。

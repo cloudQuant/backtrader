@@ -119,9 +119,15 @@ gateway_strategy:
     principal_ref: service-principal
     actor_ref: gateway
     delegate_ref: null
+  # Optional: this strategy's own cash and value (broker.get_strategy_cash / get_strategy_value).
+  # Uncomment this line and '- direct.strategy_financial' below only when the Gateway serves
+  # strategy cash (its bundle has a strategy_financial section); otherwise the registration
+  # is refused. Without a budget for this strategy in that section the reads are unavailable.
+  # strategy_finance_currency: CNY
   requested_operations:
   - direct.reserve
   - direct.release
+  # - direct.strategy_financial
   - direct.dispatch
   - direct.command_status
   - direct.cancel
