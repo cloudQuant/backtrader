@@ -229,10 +229,20 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             # account-scope broker.getposition() is not available here.
             position = self.get_strategy_position(data)
             size = float(getattr(position, "size", 0.0) or 0.0)
+            self._unreadable_positions().discard(symbol)
         except Exception:
+            # Not readable right now. The cached value is kept only so that the
+            # numeric comparisons keep working; the symbol is marked and no
+            # order is sent for it until a read has succeeded again. An unknown
+            # position is not a flat one.
             size = float(self.position_cache.get(symbol, 0.0))
+            self._unreadable_positions().add(symbol)
         self.position_cache[symbol] = size
         return size
+
+    def _unreadable_positions(self):
+        """Symbols whose own position could not be read at the last attempt."""
+        return self.__dict__.setdefault("_position_unreadable", set())
 
     def _position_size(self, symbol):
         """Get cached position size for symbol.
@@ -366,6 +376,12 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
         """
         quantity = int(round(abs(float(size or 0.0))))
         if quantity <= 0:
+            return None
+        if str(symbol) in self._unreadable_positions():
+            # The decision behind this order used a position that could not be
+            # read. Read it again and let the next signal decide on real data.
+            self._refresh_position(str(symbol))
+            self.log(f"{signal_tag}: own position of {symbol} was not readable, no order on stale data")
             return None
         backoff = self._refusal_backoff().get(str(symbol), 0.0) - time.monotonic()
         if backoff > 0:

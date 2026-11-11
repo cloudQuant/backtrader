@@ -1,5 +1,6 @@
 """R31: real BT, pending host and SDK facade, with an offline RPC stub."""
 from dataclasses import replace
+from types import SimpleNamespace
 from decimal import Decimal
 import math
 
@@ -1605,6 +1606,117 @@ def test_reservation_this_process_is_dispatching_is_not_withdrawn(state, ready, 
     deliver(broker, strategy)
     broker.next()
     assert not calls and order.status == order.Submitted
+
+
+def _queued_then_left_reserved(state, ready, inputs, monkeypatch):
+    """A dispatch the Gateway acknowledged as queued and then never carried out (I63-E136)."""
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+    from tests.unit.live_state.test_gateway_pending import observe
+
+    host, api, data, broker, strategy = _bound_submit_fixture(state, ready, inputs, monkeypatch)
+
+    def reserve(route, request, *, timeout_seconds):
+        record = observe(host.load_intent(request.idempotency_key))
+        host.save_record(request.idempotency_key, record)
+        return GatewayClientResult('OBSERVED', record)
+
+    def queued(route, key, **kwargs):
+        host.commit_pre_dispatch(key, host.load_record(key))
+        return GatewayClientResult('QUEUED', host.load_record(key))
+    calls, gateway = [], {'record': None, 'outcome': 'OBSERVED'}
+
+    def status(route, key, **kwargs):
+        calls.append(('status', key))
+        if gateway['outcome'] != 'OBSERVED':
+            return GatewayClientResult(gateway['outcome'], code='RPC_OUTCOME_UNKNOWN')
+        if gateway['record'] is not None:
+            host.save_record(key, gateway['record'](host.load_record(key)))
+        return GatewayClientResult('OBSERVED', host.load_record(key))
+    monkeypatch.setattr(api, 'reserve_order', reserve)
+    monkeypatch.setattr(api, 'dispatch_order', queued)
+    monkeypatch.setattr(api, 'command_status', status)
+    monkeypatch.setattr(api, 'release_order', _emulated_release(host, calls))
+    import backtrader.brokers._btapi_gateway_stream as stream_module
+    clock = [1000.0]
+    monkeypatch.setattr(stream_module, 'time', SimpleNamespace(
+        monotonic=lambda: clock[0], monotonic_ns=lambda: int(clock[0] * 1e9)))
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    deliver(broker, strategy)
+
+    def step(seconds=0.0):
+        clock[0] += seconds
+        broker._gateway_stream_binding.next_idle_read = 0.0
+        broker.next()
+    return host, broker, strategy, order, calls, gateway, step
+
+
+@pytest.mark.parametrize('reason', ['time_over', 'older_generation'])
+def test_queued_dispatch_that_can_no_longer_happen_is_withdrawn_in_process(
+        state, ready, inputs, monkeypatch, reason):
+    host, broker, strategy, order, calls, gateway, step = _queued_then_left_reserved(
+        state, ready, inputs, monkeypatch)
+    key = order.info.gateway_request_key
+    step()                                                # first sight: only the next read is planned
+    step(1.9)
+    assert calls == [] and order.status == order.Submitted
+    step(0.2)                                             # still dispatchable at the Gateway: untouched
+    assert calls == [('status', key)] and order.status == order.Submitted
+    gateway['record'] = (
+        (lambda record: replace(record, remaining_ttl_seconds=0, expiry_pending=True))
+        if reason == 'time_over' else
+        (lambda record: replace(record, owner_generation=record.reservation_generation + '-restarted',
+                                generation_current=False, remaining_ttl_seconds=0, expiry_pending=True)))
+    step(1.0)                                             # not yet due again
+    assert len(calls) == 1
+    step(1.1)
+    assert order.status == order.Canceled
+    assert [call[0] for call in calls[1:]] == ['status', 'release']
+    assert host.load_record(key).state == 'RELEASED'
+    deliver(broker, strategy)
+    assert all(row['status'] == 'confirmed' for row in host.local_order_notifications().values())
+    step(5.0)
+    assert len(calls) == 3                                # a finished order is not read again
+
+
+def test_queued_dispatch_found_expired_at_the_gateway_is_finalized(state, ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, gateway, step = _queued_then_left_reserved(
+        state, ready, inputs, monkeypatch)
+    gateway['record'] = lambda record: replace(record, state='EXPIRED', version=record.version + 1,
+                                               remaining_ttl_seconds=None, expiry_pending=False)
+    step()
+    step(2.1)
+    assert order.status == order.Canceled and [call[0] for call in calls] == ['status']
+
+
+def test_queued_dispatch_with_an_unreadable_status_is_left_alone(state, ready, inputs, monkeypatch):
+    host, broker, strategy, order, calls, gateway, step = _queued_then_left_reserved(
+        state, ready, inputs, monkeypatch)
+    gateway['outcome'] = 'UNKNOWN'
+    step()
+    step(2.1)
+    assert order.status == order.Submitted and [call[0] for call in calls] == ['status']
+    assert broker._gateway_stream_binding.state == 'RECOVERY_PENDING'
+
+
+def test_queued_dispatch_whose_release_is_refused_is_not_ended_locally(state, ready, inputs, monkeypatch):
+    """The dispatch won at the Gateway while the release was on its way: the order proceeds."""
+    from bt_api_py.gateway_direct_client import GatewayClientResult
+
+    host, broker, strategy, order, calls, gateway, step = _queued_then_left_reserved(
+        state, ready, inputs, monkeypatch)
+    gateway['record'] = lambda record: replace(record, remaining_ttl_seconds=0, expiry_pending=True)
+
+    def refused(route, key, *, operation_id, timeout_seconds):
+        calls.append(('release', operation_id))
+        return GatewayClientResult('REQUEST_DENIED', code='STATE_CONFLICT')
+    monkeypatch.setattr(broker._gateway_stream_binding.api, 'release_order', refused)
+    step()
+    step(2.1)
+    assert [call[0] for call in calls] == ['status', 'release', 'status']
+    assert order.status == order.Submitted
+    assert order.info.gateway_request_key in broker._gateway_stream_binding.dispatched
+    assert broker._gateway_stream_binding.state == 'RESERVATION_RECOVERY_PENDING'
 
 
 @pytest.mark.parametrize('lost_ref', [False, True])

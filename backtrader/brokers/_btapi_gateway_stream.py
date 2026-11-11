@@ -49,6 +49,10 @@ class _StreamBinding:
     # Reservations this session sent without learning the outcome, with the
     # monotonic time of the attempt (see _gateway_reservation_absent).
     reserve_unknown: dict = field(default_factory=dict)
+    # Request keys whose dispatch was acknowledged as queued while the command
+    # was still RESERVED, with the monotonic time of the next status read
+    # (see _DISPATCH_RECHECK_SECONDS).
+    dispatch_recheck: dict = field(default_factory=dict)
     # Earliest monotonic time of the next step after one that found nothing to
     # do (see _IDLE_READ_INTERVAL_SECONDS); a local submit or cancel clears it.
     next_idle_read: float = 0.0
@@ -68,6 +72,12 @@ _IDLE_READ_INTERVAL_SECONDS = 0.2
 # thread. This long after the attempt it can no longer be committed: the
 # service bounds the call and the owner's longest native wait is far shorter.
 _RESERVE_ABSENT_AFTER_SECONDS = 20.0
+
+# The Gateway acknowledges a dispatch request as queued; the owner then runs it.
+# An attempt that ends before the dispatch marker sends nothing and leaves the
+# command RESERVED, and nothing reports that to the strategy (I63-E136). While a
+# dispatched order is still RESERVED its status is read this often.
+_DISPATCH_RECHECK_SECONDS = 2.0
 
 
 def _bt_terminal(order):
@@ -1121,6 +1131,41 @@ class GatewayExecutionStreamBrokerMixin:
                         return
                     binding.state = "RESERVATION_RECOVERY_PENDING"
                     return
+            elif record.state == "RESERVED":
+                # Dispatched by this process and acknowledged as queued, yet still
+                # RESERVED. Once the Gateway says the reservation can no longer be
+                # dispatched (its time is over, or it belongs to an older owner
+                # generation) it is withdrawn like any unsent one. A dispatch that
+                # won meanwhile makes the release fail and the order proceeds.
+                now = time.monotonic()
+                due = binding.dispatch_recheck.get(key)
+                if due is None:
+                    binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+                elif now >= due:
+                    binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+                    result = binding.api.command_status(binding.policy.route, key,
+                                                        timeout_seconds=binding.timeout)
+                    if result.outcome != "OBSERVED" or result.record is None:
+                        binding.state = "RECOVERY_PENDING"
+                        return
+                    current = result.record
+                    if current.state == "EXPIRED":
+                        binding.dispatch_recheck.pop(key, None)
+                        self._gateway_finalize_release(binding, notice.orders[key], key)
+                        binding.state = "WAITING_NOTIFICATIONS"
+                        return
+                    # expiry_pending also covers a reservation of an older owner
+                    # generation: the record carries no remaining time for one.
+                    if current.state == "RESERVED" and current.expiry_pending:
+                        order = notice.orders[key]
+                        if (order.status == order.Submitted and order.executed.size == 0
+                                and self._gateway_release_unsent(binding, order, key)):
+                            binding.dispatch_recheck.pop(key, None)
+                            binding.dispatched.discard(key)
+                            binding.state = "WAITING_NOTIFICATIONS"
+                            return
+                        binding.state = "RESERVATION_RECOVERY_PENDING"
+                        return
         did_read = False
 
         def read_once():

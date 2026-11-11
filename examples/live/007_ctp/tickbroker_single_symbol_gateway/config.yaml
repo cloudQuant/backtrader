@@ -111,6 +111,7 @@ gateway_strategy:
     delegate_ref: null
   requested_operations:
   - direct.reserve
+  - direct.release
   - direct.dispatch
   - direct.command_status
   - direct.cancel
