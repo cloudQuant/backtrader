@@ -405,6 +405,37 @@ def test_terminal_order_waits_for_separate_fill(ready, inputs, monkeypatch):
     assert calls["ack"] == [3, 8]
 
 
+@pytest.mark.parametrize("ended", ["CANCELLED", "REJECTED"])
+def test_fill_after_the_venue_ended_the_order_is_applied_and_notified(ready, inputs, monkeypatch, ended):
+    """A trade that arrives after the venue reported the order cancelled or rejected is still
+    this order's trade: it is applied, the order ends Completed and the strategy hears about it
+    (the Gateway-mode side of I63-D001; the direct path is tracked there)."""
+    from bt_api_base.direct_write_protocol import DirectExecutionEventKind, DirectOrderStatus
+    from bt_api_base.gateway_execution_stream_protocol import GatewayExecutionObservation
+
+    source = make_event(ready[0])
+    original = source.observation
+    obs = GatewayExecutionObservation(account_scope=original.account_scope, route=original.route,
+        instrument=original.instrument, trading_day=original.trading_day,
+        kind=DirectExecutionEventKind.ORDER, native_identity_digest=original.native_identity_digest,
+        identity_key_digests=original.identity_key_digests, binding_key_digests=original.binding_key_digests,
+        venue_key_digest=original.venue_key_digest, status=DirectOrderStatus[ended],
+        side="buy", order_quantity="1", filled_quantity="0", remaining_quantity="1")
+    trade = event_for(ready[0], 8, quantity="1", fact="f" * 64)
+    host, broker, strategy, order, calls, _ = attach(
+        ready, inputs, monkeypatch, [replace(source, observation=obs), trade])
+    broker.next()
+    assert order.status == (order.Canceled if ended == "CANCELLED" else order.Rejected)
+    assert order.executed.size == 0
+    deliver(broker, strategy)
+    broker.next()
+    assert order.status == order.Completed and order.executed.size == 1   # the late trade counts
+    deliver(broker, strategy)
+    broker.next()
+    assert [event[0] for event in strategy.events] == ["order", "order", "trade"]
+    assert calls["ack"] == [3, 8]                                          # both events are consumed once
+
+
 def test_restored_snapshot_rejects_changed_time_policy(ready, inputs, monkeypatch):
     host, broker, strategy, order, calls, api = attach(
         ready, inputs, monkeypatch, [event_for(ready[0])])
