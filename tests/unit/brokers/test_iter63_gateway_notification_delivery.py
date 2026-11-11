@@ -238,19 +238,7 @@ def test_fee_callback_mutation_rejected_before_order_notification(ready):
     assert host.load_execution_notification_batch()["status"] == "pending"
 
 
-@pytest.mark.parametrize(
-    "construct",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.xfail(
-                reason="btapibroker.py _normalise_startup_account_state imports bt_api_py",
-                strict=True,
-            ),
-        ),
-    ],
-)
+@pytest.mark.parametrize("construct", [False, True])
 def test_cold_broker_import_does_not_attempt_sdk_imports(construct):
     import os
     import pathlib
@@ -281,6 +269,20 @@ if sys.argv[2] == "construct":
         cwd=os.path.dirname(source_root),
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_startup_evidence_that_was_not_provided_equals_the_sdk_summary():
+    # The broker answers "no evidence" itself so that it needs no SDK import; the SDK owns the
+    # shape, so the two must stay equal.
+    from bt_api_py.startup_recovery import normalise_startup_account_state as sdk_summary
+
+    broker_summary = bt.brokers.BtApiBroker._normalise_startup_account_state
+    assert broker_summary(None) == sdk_summary(None)
+    supplied = dict.fromkeys(
+        ("nonzero_position_record_count", "gross_position_lots", "active_orders_count"), 0
+    )
+    assert broker_summary(supplied) == sdk_summary(supplied)
+    assert broker_summary(supplied)["provided"] is True
 
 
 def test_fee_then_order_confirmation(ready):

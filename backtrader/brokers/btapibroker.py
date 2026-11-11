@@ -766,6 +766,21 @@ class BtApiBroker(
 
     @staticmethod
     def _normalise_startup_account_state(value):
+        if value is None:
+            # No evidence was supplied: the summary is fixed and needs no SDK import, so a
+            # broker can be constructed where the optional SDK is not installed. It equals
+            # what bt_api_py.startup_recovery returns for None (a test compares the two).
+            return {
+                "provided": False,
+                "validation_status": "not_provided",
+                "is_final_state": False,
+                "proves_nonflat": False,
+                "requires_nonflat": False,
+                "nonzero_position_record_count": None,
+                "gross_position_lots": None,
+                "active_orders_count": None,
+                "validation_errors": [],
+            }
         from bt_api_py.startup_recovery import normalise_startup_account_state
 
         return normalise_startup_account_state(
