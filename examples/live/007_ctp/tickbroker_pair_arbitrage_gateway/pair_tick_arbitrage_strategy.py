@@ -254,7 +254,10 @@ class ConfigurableFuturesStrategyBase(bt.Strategy):
             Cached position size.
         """
         symbol = str(symbol)
-        if symbol not in self.position_cache:
+        if symbol not in self.position_cache or symbol in self._unreadable_positions():
+            # A value kept from a failed read is not a position: read again, so that a
+            # decision never rests on it (an unreadable position at start-up used to stay
+            # cached as 0 until an order attempt re-read it).
             return self._refresh_position(symbol)
         return float(self.position_cache[symbol])
 
