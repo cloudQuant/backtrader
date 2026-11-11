@@ -165,6 +165,10 @@ def _open_key(path, *, private):
 def validate_security_file_config(config, raw, strategy_dir):
     """Validate references only; do not open paths or inspect private files."""
     names = {item["security_profile_ref"] for item in config.client_config.communication["profiles"].values()}
+    risk = getattr(config, "risk_selection", None)
+    if risk is not None:
+        # The Risk service has its own server key, under its own profile name.
+        names.add(risk.security_profile_ref)
     if type(raw) is not dict or set(raw) != names:
         raise RuntimeError("SECURITY_PROFILES_INVALID")
     result = {}

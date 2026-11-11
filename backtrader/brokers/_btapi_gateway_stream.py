@@ -188,6 +188,9 @@ class GatewayExecutionStreamBrokerMixin:
                 _fail("SEQUENCE_SCOPE")
             sequence.restore_ref_basis()
             host.upgrade_for_local_notifications()
+            if getattr(api, "risk_selected", False) is True:
+                # Pending state v7 (delegated command records) only with Risk.
+                host.upgrade_for_risk_routing()
         stream = api.gateway_execution_stream(time_policy.route)
         checkpoint = host.load_execution_checkpoint()
         if (
@@ -263,6 +266,11 @@ class GatewayExecutionStreamBrokerMixin:
                     elif (host.load_record(key) is not None
                           and host.load_record(key).state in ("RELEASED", "EXPIRED")):
                         self._gateway_finalize_release(binding, current, key)
+                    elif (current.info.get("gateway_risk_routed") is True
+                          and host.load_delegated_command(key) is not None
+                          and host.load_delegated_command(key).gateway_state
+                          in ("RELEASED", "EXPIRED")):
+                        self._gateway_finalize_release(binding, current, key)
             for key, order in notices.orders.items():
                 self._gateway_stream_order(binding, key, order, allow_unreserved=sequence is not None)
                 feed_ref = next(ref for ref, data in binding.feeds.items() if data is order.data)
@@ -280,6 +288,25 @@ class GatewayExecutionStreamBrokerMixin:
             binding.state = "RESTART_REQUIRED"
             raise
         return host.load_execution_checkpoint()
+
+    def gateway_risk_summary(self):
+        """Risk section of the Gateway execution summary (local view, no RPC).
+
+        ``selected`` follows the strategy's configuration (D64-01);
+        ``available`` is the SDK client's view of its Risk route, None when
+        Risk is not selected or the session has not started; ``refusals``
+        counts the Risk-path refusal codes this process projected.
+        """
+        store = self.store
+        config = getattr(store, "gateway_strategy_config", None)
+        selected = getattr(config, "risk_selection", None) is not None
+        available = None
+        if selected:
+            api = getattr(store, "gateway_api", None)
+            value = getattr(api, "risk_available", None) if api is not None else None
+            available = value if type(value) is bool else None
+        refusals = dict(self.__dict__.get("_gateway_risk_refusals") or {})
+        return {"selected": selected, "available": available, "refusals": refusals}
 
     def gateway_execution_stream_status(self):
         binding = self.__dict__.get("_gateway_stream_binding")
@@ -572,6 +599,16 @@ class GatewayExecutionStreamBrokerMixin:
                 continue  # finalized locally (never sent)
             if _bt_terminal(prior_order):
                 continue  # its outcome is known; a stale local record cannot block
+            if prior_order.info.get("gateway_risk_routed") is True:
+                # D63-04 for an order placed through Risk: an unknown Risk or
+                # Gateway outcome, or a reservation not asked to dispatch, blocks.
+                delegated = binding.host.load_delegated_command(prior_key)
+                if (delegated is None or delegated.gateway_state == "UNKNOWN"
+                        or (delegated.gateway_state in (None, "RESERVED")
+                            and (not delegated.dispatch_requested
+                                 or prior_key not in binding.dispatched))):
+                    _fail("ORDER_RECONCILE_REQUIRED")
+                continue
             record = binding.host.load_record(prior_key)
             context = binding.host.load_context(prior_key)
             if (record is None or record.state == "UNKNOWN" or not record.generation_current
@@ -594,6 +631,10 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_base.order_intent import position_intent
         position_intent(request)
         intent = build_gateway_order_intent(binding.host._binding, binding.stream._route, request)
+        # D64-01: with Risk selected this PLACE goes through Risk only (the SDK
+        # facade never falls back to the Gateway). The durable marker keeps the
+        # order off the own-command paths after a restart, in any selection.
+        risk_routed = getattr(binding.api, "risk_selected", False) is True
         if order.comminfo is None:
             order.addcomminfo(self.getcommissioninfo(order.data))
         try:
@@ -604,6 +645,8 @@ class GatewayExecutionStreamBrokerMixin:
                           gateway_time_in_force=fields["time_in_force"], gateway_offset=offset,
                           gateway_reduce_only=reduce_only, gateway_exchange_id=key.venue,
                           local_seq=seq)
+            if risk_routed:
+                order.addinfo(gateway_risk_routed=True)
             order.submit(self)
             snapshot = capture_framework_state(orders={request_key: order}, positions={}, trades={},
                 data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
@@ -623,9 +666,24 @@ class GatewayExecutionStreamBrokerMixin:
             if result.outcome in ("REQUEST_DENIED", "OBSERVED"):
                 binding.reserve_unknown.pop(request_key, None)  # the outcome is known
             if result.outcome == "REQUEST_DENIED":
-                # A validated denial: the Gateway created no reservation.
-                self._gateway_finalize_rejection(binding, order, request_key, result.code)
+                # A validated denial: the Gateway created no reservation. With
+                # Risk selected (D64-01) the refusal may be Risk's own, or Risk
+                # being unavailable (D64-02); nothing reached the Gateway then.
+                risk_code = getattr(result, "risk_code", None)
+                if type(risk_code) is str:
+                    refusals = self.__dict__.setdefault("_gateway_risk_refusals", {})
+                    refusals[risk_code] = refusals.get(risk_code, 0) + 1
+                risk_denied = getattr(result, "risk_denied", None)
+                self._gateway_finalize_rejection(
+                    binding, order, request_key, result.code,
+                    info=None if risk_denied is None else {"risk_denied": risk_denied})
                 return order
+            if (risk_routed and result.outcome == "OBSERVED" and result.record is not None
+                    and result.record.state == "RESERVED"):
+                # PREPARED: Risk's permit and the Gateway reservation it holds
+                # for this strategy are durable before anything else, then the
+                # delegate principal is read once from the Gateway.
+                self._gateway_risk_prepare(binding, request_key, result.record)
             if result.outcome == "OBSERVED" and result.record is not None and result.record.state == "RESERVED":
                 try:
                     market_ref = self._gateway_require_trade_qualification(order.data, key)
@@ -636,16 +694,32 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "FEED_NOT_TRADABLE_AFTER_RESERVE"
                     self._gateway_release_unsent(binding, order, request_key)
                     return order
+                if risk_routed:
+                    # Durable "asked to dispatch" before the request (the own
+                    # path's pre-dispatch marker): never released blindly later.
+                    prepared = binding.host.load_delegated_command(request_key)
+                    binding.host.save_delegated_command(request_key,
+                        reservation_id=prepared.reservation_id, digest=prepared.digest,
+                        dispatch_requested=True)
                 result = binding.api.dispatch_order(binding.policy.route, request_key, market_ref=market_ref,
                                                     timeout_seconds=binding.timeout)
                 if result.outcome in ("QUEUED", "OBSERVED"):
                     # Only an acknowledged dispatch keeps its reservation; an
                     # uncertain one is read back and withdrawn by version.
                     binding.dispatched.add(request_key)
+                    if risk_routed:
+                        self._gateway_risk_learn(binding, request_key)
                 if result.outcome == "REQUEST_DENIED":
                     # Refused before the owner queue or any marker: never sent.
                     binding.state = "DISPATCH_DENIED"
                     order.addinfo(gateway_dispatch_denied=result.code)
+                    risk_denied = getattr(result, "risk_denied", None)
+                    if risk_denied is not None:
+                        order.addinfo(risk_denied=risk_denied)
+                    risk_code = getattr(result, "risk_code", None)
+                    if type(risk_code) is str:
+                        refusals = self.__dict__.setdefault("_gateway_risk_refusals", {})
+                        refusals[risk_code] = refusals.get(risk_code, 0) + 1
                     self._gateway_release_unsent(binding, order, request_key)
                     return order
         except BaseException:
@@ -669,6 +743,8 @@ class GatewayExecutionStreamBrokerMixin:
 
     def _gateway_release_unsent(self, binding, order, key):
         """Release a reservation BT never dispatched (or that was refused)."""
+        if order.info.get("gateway_risk_routed") is True:
+            return self._gateway_risk_release_unsent(binding, order, key)
         digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
         try:
             result = binding.api.release_order(binding.policy.route, key,
@@ -698,7 +774,7 @@ class GatewayExecutionStreamBrokerMixin:
         binding.state = "RELEASE_PENDING"
         return False
 
-    def _gateway_finalize_rejection(self, binding, order, key, code):
+    def _gateway_finalize_rejection(self, binding, order, key, code, info=None):
         from ._btapi_gateway_projection import capture_framework_state
 
         if order.status == order.Rejected:
@@ -707,7 +783,9 @@ class GatewayExecutionStreamBrokerMixin:
             _fail("REJECTION_SCOPE")
         try:
             order.reject(self)
-            order.addinfo(gateway_request_denied=code)
+            # A Risk refusal names itself (risk_denied, lowercase) instead of
+            # gateway_request_denied; the persisted notice keeps ``code``.
+            order.addinfo(**(info if info is not None else {"gateway_request_denied": code}))
             snapshot = capture_framework_state(orders={key: order}, positions={}, trades={},
                 data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
             notice = binding.host.save_rejected_order_notification(
@@ -727,6 +805,8 @@ class GatewayExecutionStreamBrokerMixin:
         notice = self._gateway_binding(binding.strategy, required=True)
         key = self._gateway_request(notice, order)
         order = notice.orders[key]
+        if order.info.get("gateway_risk_routed") is True:
+            return self._gateway_risk_cancel(binding, order, key)
         record = binding.host.load_record(key)
         if record is None:
             result = binding.api.command_status(binding.policy.route, key, timeout_seconds=binding.timeout)
@@ -774,6 +854,212 @@ class GatewayExecutionStreamBrokerMixin:
         except BaseException:
             binding.state = "RESTART_REQUIRED"
             raise
+
+    # --- Orders placed through the Risk service (iteration 64, pending state v7) ---
+    #
+    # The Gateway holds such an order as a command of the Risk delegate on
+    # behalf of this strategy and writes its returns into this strategy's own
+    # stream. Backtrader keeps a delegated command record per request key and
+    # binds a return only to a key it recorded as Risk-routed, under the
+    # delegate principal the Gateway reported for that key.
+
+    def _gateway_risk_prepare(self, binding, key, permit):
+        intent = binding.host.load_intent(key)
+        binding.host.save_delegated_command(key, reservation_id=permit.reservation_id,
+            digest=intent.digest, permit_id=permit.permit_id, view_digest=permit.view_digest)
+        self._gateway_risk_learn(binding, key)
+
+    def _gateway_risk_observation(self, binding, key):
+        """One direct.delegated_command_status read, checked against this strategy."""
+        try:
+            result = binding.api.delegated_command_status(binding.policy.route, key,
+                                                          timeout_seconds=binding.timeout)
+        except Exception as error:
+            _logger.warning("delegated command status failed: %s", type(error).__name__)
+            return None
+        observation = getattr(result, "observation", None)
+        if result.outcome != "OBSERVED" or observation is None:
+            return None
+        own = binding.host._binding
+        intent = binding.host.load_intent(key)
+        if (intent is None or observation.request_key != key
+                or observation.account_scope != own.account_scope
+                or observation.strategy_scope != own.strategy_scope
+                or observation.digest != intent.digest
+                or observation.actor_principal == own.principal):
+            binding.state = "RISK_BINDING_CONFLICT"
+            return None
+        return observation
+
+    def _gateway_risk_learn(self, binding, key):
+        """Persist the delegate principal (once) and the observed command state."""
+        record = binding.host.load_delegated_command(key)
+        if record is None:
+            return None
+        observation = self._gateway_risk_observation(binding, key)
+        if observation is None:
+            return None
+        if (observation.reservation_id != record.reservation_id
+                or (record.actor_principal is not None
+                    and observation.actor_principal != record.actor_principal)):
+            # Never bind under another principal or reservation than recorded.
+            binding.state = "RISK_BINDING_CONFLICT"
+            return None
+        try:
+            binding.host.save_delegated_command(key, reservation_id=record.reservation_id,
+                digest=record.digest, actor_principal=observation.actor_principal,
+                gateway_state=observation.state, gateway_version=observation.version)
+        except ValueError:
+            binding.state = "RISK_BINDING_CONFLICT"
+            return None
+        return observation
+
+    def _gateway_risk_release_unsent(self, binding, order, key):
+        """Withdraw an undispatched Risk reservation; proof comes from the Gateway."""
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        try:
+            binding.api.release_order(binding.policy.route, key,
+                operation_id="release-" + digest, timeout_seconds=binding.timeout)
+        except Exception as error:
+            _logger.warning("risk release of an unsent reservation failed: %s",
+                            type(error).__name__)
+        self._gateway_risk_learn(binding, key)
+        record = binding.host.load_delegated_command(key)
+        if record is not None and record.gateway_state in ("RELEASED", "EXPIRED"):
+            self._gateway_finalize_release(binding, order, key)
+            return True
+        binding.state = "RELEASE_PENDING"
+        return False
+
+    def _gateway_risk_cancel(self, binding, order, key):
+        """Cancel through this strategy's delegated Gateway operations, never via Risk."""
+        record = binding.host.load_delegated_command(key)
+        if record is None:
+            # Risk's reserve outcome is not known yet: nothing to name.
+            binding.state = "CANCEL_UNKNOWN"
+            return order
+        self._gateway_risk_learn(binding, key)
+        record = binding.host.load_delegated_command(key)
+        if record.gateway_state in ("RELEASED", "EXPIRED"):
+            self._gateway_finalize_release(binding, order, key)
+            return order
+        if record.gateway_state in (None, "RESERVED"):
+            # Not dispatched: withdraw it through Risk, which decides against a
+            # concurrent dispatch atomically; a dispatch that won proceeds.
+            if not self._gateway_risk_release_unsent(binding, order, key):
+                binding.state = "CANCEL_UNKNOWN"
+            return order
+        if record.actor_principal is None:
+            binding.state = "CANCEL_UNKNOWN"
+            return order
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        try:
+            result = binding.api.cancel_order(binding.policy.route, key,
+                operation_id="cancel-" + digest, timeout_seconds=binding.timeout)
+        except BaseException:
+            if binding.state != "RESTART_REQUIRED":
+                binding.state = "CANCEL_UNKNOWN"
+            raise
+        if result.outcome not in ("OBSERVED", "QUEUED"):
+            binding.state = "CANCEL_UNKNOWN"
+        return order
+
+    def _gateway_risk_recover(self, binding, order, key):
+        """A Risk-routed key without a record: Risk's reserve outcome was not learned.
+
+        Resolved from Risk (risk.order.status) and the Gateway
+        (direct.delegated_command_status); nothing is resent. A command the
+        Gateway holds for the key becomes this key's delegated record; only a
+        definite Risk refusal ends the order; anything else stays UNKNOWN and
+        keeps blocking new orders on the instrument (D63-04).
+        """
+        if order.status != order.Submitted or order.executed.size != 0:
+            return
+        observation = self._gateway_risk_observation(binding, key)
+        answer = None
+        status = getattr(binding.api, "risk_order_status", None)
+        if callable(status):
+            try:
+                call = status(binding.policy.route, key, timeout_seconds=binding.timeout)
+                answer = call.answer if call.outcome == "ANSWERED" else None
+            except Exception as error:
+                _logger.warning("risk order status failed: %s", type(error).__name__)
+        if observation is not None:
+            intent = binding.host.load_intent(key)
+            permit = (answer if answer is not None and answer.reservation_id
+                      == observation.reservation_id and answer.permit_id is not None else None)
+            try:
+                binding.host.save_delegated_command(key,
+                    reservation_id=observation.reservation_id, digest=intent.digest,
+                    permit_id=None if permit is None else permit.permit_id,
+                    view_digest=None if permit is None else permit.view_digest,
+                    actor_principal=observation.actor_principal,
+                    gateway_state=observation.state, gateway_version=observation.version)
+            except ValueError:
+                binding.state = "RISK_BINDING_CONFLICT"
+            return
+        if answer is not None and answer.outcome == "DENIED":
+            # Risk's definite refusal: the Gateway holds no command for the key.
+            refusals = self.__dict__.setdefault("_gateway_risk_refusals", {})
+            refusals[answer.code] = refusals.get(answer.code, 0) + 1
+            if answer.code == "risk_gateway_refused":
+                self._gateway_finalize_rejection(binding, order, key, answer.gateway_code)
+            else:
+                code = "RISK_" + answer.code.removeprefix("risk_").upper()
+                self._gateway_finalize_rejection(binding, order, key, code,
+                                                 info={"risk_denied": answer.code})
+            return
+        binding.state = "RISK_RECOVERY_PENDING"
+
+    def _gateway_risk_step(self, binding, notice, key):
+        """Drive one open Risk-routed order; True stops this step (like the own path)."""
+        order = notice.orders[key]
+        record = binding.host.load_delegated_command(key)
+        if record is None:
+            # Never dispatched without a record, so no return can exist for it:
+            # it waits without holding up the other orders' returns.
+            self._gateway_risk_recover(binding, order, key)
+            if order.status == order.Rejected:
+                binding.state = "WAITING_NOTIFICATIONS"
+                return True
+            return False
+        undispatched = not record.dispatch_requested or key not in binding.dispatched
+        if record.actor_principal is None or (record.gateway_state in (None, "RESERVED")
+                                              and undispatched):
+            if self._gateway_risk_learn(binding, key) is None:
+                if binding.state != "RISK_BINDING_CONFLICT":
+                    binding.state = "RECOVERY_PENDING"
+                return True
+            record = binding.host.load_delegated_command(key)
+        if record.gateway_state in ("RELEASED", "EXPIRED"):
+            self._gateway_finalize_release(binding, order, key)
+            binding.state = "WAITING_NOTIFICATIONS"
+            return True
+        if record.gateway_state == "RESERVED" and undispatched:
+            # Not asked to dispatch, or asked by an earlier process: withdrawn
+            # through Risk; a dispatch that won keeps the order going.
+            if (order.status == order.Submitted and order.executed.size == 0
+                    and self._gateway_risk_release_unsent(binding, order, key)):
+                binding.state = "WAITING_NOTIFICATIONS"
+                return True
+            binding.state = "RESERVATION_RECOVERY_PENDING"
+            return True
+        if record.gateway_state in (None, "RESERVED"):
+            # Dispatched by this process and still RESERVED: read it back now
+            # and then, so an expired reservation ends the order (I63-E136).
+            now = time.monotonic()
+            due = binding.dispatch_recheck.get(key)
+            if due is None:
+                binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+            elif now >= due:
+                binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+                observation = self._gateway_risk_learn(binding, key)
+                if observation is not None and observation.state in ("RELEASED", "EXPIRED"):
+                    binding.dispatch_recheck.pop(key, None)
+                    self._gateway_finalize_release(binding, order, key)
+                    binding.state = "WAITING_NOTIFICATIONS"
+                    return True
+        return False
 
     def _gateway_stop_working_orders(self):
         """Stopping a Gateway-mode strategy: cancel its own working orders (D62-19).
@@ -926,11 +1212,18 @@ class GatewayExecutionStreamBrokerMixin:
         intent = binding.host.load_intent(key)
         record = binding.host.load_record(key)
         context = binding.host.load_context(key)
-        if (intent is None or (record is None and not allow_unreserved) or context is None
+        delegated = None
+        if record is None and order.info.get("gateway_risk_routed") is True:
+            # A Risk-placed order: its delegated command record stands in.
+            delegated = binding.host.load_delegated_command(key)
+        if (intent is None or (record is None and delegated is None and not allow_unreserved)
+                or context is None
                 or intent.binding != binding.host._binding
                 or intent.route != binding.stream._route
                 or (record is not None and (record.binding != intent.binding or record.request_key != key
                 or record.digest != intent.digest))
+                or (delegated is not None and (delegated.request_key != key
+                    or delegated.digest != intent.digest))
                 or type(context.bt_ref) is not int or context.bt_ref !=
                     order.info.get("gateway_original_bt_ref", order.ref)):
             _fail("ORDER_BINDING")
@@ -970,7 +1263,7 @@ class GatewayExecutionStreamBrokerMixin:
         if ((restored or old_policy is not None or old_digest is not None)
                 and (old_policy != binding.policy.to_mapping() or old_digest != binding.policy.digest)):
             _fail("TIME_POLICY_CONFLICT")
-        return intent, record, request
+        return intent, (record if record is not None else delegated), request
 
     def _gateway_stream_events(self, host, after=0):
         # Bound total scanning to avoid unbounded per-tick CPU/memory use.
@@ -992,20 +1285,31 @@ class GatewayExecutionStreamBrokerMixin:
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind
         from ..live_state.gateway_execution_state import verify_gateway_trade_attribution
 
+        from ..live_state.gateway_order_state import GatewayDelegatedCommandRecord
+
         intent, record, request = self._gateway_stream_order(binding, event.request_key, order)
         obs = event.observation
         feed_ref = next(ref for ref, data in binding.feeds.items() if data is order.data)
-        matched_identity = bool(set(record.strong_identity_key_digests).intersection(obs.binding_key_digests))
-        bridged_identity = verify_gateway_trade_attribution(event, record, binding.host._binding)
-        request_error = (
-            (obs.kind is DirectExecutionEventKind.ORDER_ERROR and event.place_attribution is not None)
-            or (obs.kind is DirectExecutionEventKind.CANCEL_ERROR and event.cancel_attribution is not None)
-        )
+        if type(record) is GatewayDelegatedCommandRecord:
+            # Placed through Risk: bound by request key, reservation, digest and
+            # the delegate principal persisted for this key (the delegate's own
+            # identity keys are not visible to this strategy).
+            principal = record.actor_principal
+            identified = principal is not None and principal != intent.binding.principal
+        else:
+            principal = intent.binding.principal
+            matched_identity = bool(set(record.strong_identity_key_digests).intersection(obs.binding_key_digests))
+            bridged_identity = verify_gateway_trade_attribution(event, record, binding.host._binding)
+            request_error = (
+                (obs.kind is DirectExecutionEventKind.ORDER_ERROR and event.place_attribution is not None)
+                or (obs.kind is DirectExecutionEventKind.CANCEL_ERROR and event.cancel_attribution is not None)
+            )
+            identified = matched_identity or bridged_identity or request_error
         if (event.reservation_id != record.reservation_id or event.command_digest != intent.digest
-                or event.command_principal != intent.binding.principal
+                or event.command_principal != principal
                 or obs.account_scope != intent.binding.account_scope
                 or obs.route != binding.policy.route
-                or not (matched_identity or bridged_identity or request_error)
+                or not identified
                 or request.symbol != obs.instrument.native_symbol
                 or obs.instrument != binding.instruments[feed_ref]
                 or (request.instrument is not None and request.instrument != obs.instrument)
@@ -1077,6 +1381,12 @@ class GatewayExecutionStreamBrokerMixin:
             if "reject:" + key in local_notices or _bt_terminal(notice.orders[key]):
                 # Terminal in BT: nothing left to drive. Skipping them keeps a
                 # step O(open orders), not O(all orders) full state loads (E108).
+                continue
+            if notice.orders[key].info.get("gateway_risk_routed") is True:
+                # Placed through Risk: driven by its delegated command record,
+                # never by the own-command paths below.
+                if self._gateway_risk_step(binding, notice, key):
+                    return
                 continue
             record = binding.host.load_record(key)
             if "cancel:" + key in local_notices:
@@ -1187,6 +1497,18 @@ class GatewayExecutionStreamBrokerMixin:
                     key = event.request_key
                     if key not in notice.orders:
                         continue  # normal page validation will reject the orphan
+                    if notice.orders[key].info.get("gateway_risk_routed") is True:
+                        # A Risk-placed order's returns bind only under the
+                        # delegate principal persisted for its key.
+                        delegated = binding.host.load_delegated_command(key)
+                        if delegated is not None and delegated.actor_principal is None:
+                            self._gateway_risk_learn(binding, key)
+                            delegated = binding.host.load_delegated_command(key)
+                        if delegated is None or delegated.actor_principal is None:
+                            if binding.state != "RISK_BINDING_CONFLICT":
+                                binding.state = "RECOVERY_PENDING"
+                            return False
+                        continue
                     record = binding.host.load_record(key)
                     if record is None or record.native_identity is None:
                         try:
@@ -1218,7 +1540,12 @@ class GatewayExecutionStreamBrokerMixin:
         if order is None:
             binding.state = "ORDER_UNAVAILABLE"
             return
-        if binding.host.load_record(event.request_key) is None:
+        if order.info.get("gateway_risk_routed") is True:
+            delegated = binding.host.load_delegated_command(event.request_key)
+            if delegated is None or delegated.actor_principal is None:
+                binding.state = "ORDER_UNAVAILABLE"
+                return
+        elif binding.host.load_record(event.request_key) is None:
             result = binding.api.command_status(binding.policy.route, event.request_key,
                                                 timeout_seconds=binding.timeout)
             if result.outcome != "OBSERVED" or result.record is None:

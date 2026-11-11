@@ -1534,7 +1534,18 @@ class BtApiBroker(
         return safe_receipt
 
     def get_execution_summary(self):
-        """Return the SDK execution-session summary through a safe public view."""
+        """Return the SDK execution-session summary through a safe public view.
+
+        In Gateway mode the summary also carries ``risk``: whether this
+        strategy's PLACE goes through Risk, the local view of Risk's
+        availability and the Risk refusal codes projected by this process.
+        """
+        summary = self._execution_summary_view()
+        if getattr(self.store, "_gateway_mode", False) and isinstance(summary, dict):
+            summary["risk"] = self.gateway_risk_summary()
+        return summary
+
+    def _execution_summary_view(self):
         reconcile = self._last_reconcile_result
         if isinstance(reconcile, dict) and isinstance(reconcile.get("execution_summary"), dict):
             return deepcopy(self._redact_runtime_value(reconcile["execution_summary"]))

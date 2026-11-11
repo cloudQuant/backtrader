@@ -158,7 +158,7 @@ def has_unresolved_gateway_intents(state: dict) -> bool:
 
 
 def has_unresolved_gateway_cancels(state: dict) -> bool:
-    if state["version"] not in (3, 4, 5, 6):
+    if state["version"] not in (3, 4, 5, 6, 7):
         return False
     entries = state["gateway"]["intents"]
     markers = _marker_index(state)
@@ -169,6 +169,11 @@ def has_unresolved_gateway_cancels(state: dict) -> bool:
         if record["state"] == "SENT":
             marker = markers.get(entries[attempt["plan"]["request_key"]]["marker_id"])
             if marker is None or marker["status"] != "TERMINAL":
+                return True
+    if state["version"] == 7:
+        for attempt in state["gateway"]["delegated_cancel_attempts"].values():
+            observation = attempt["observation"]
+            if observation is None or observation["state"] in {"REQUESTED", "DISPATCHING", "UNKNOWN"}:
                 return True
     return False
 
@@ -209,14 +214,16 @@ def validate_gateway_state(state: dict, path: str) -> None:
     try:
         gateway = state["gateway"]
         gateway_keys = {"binding", "max_entries", "intents"}
-        if state["version"] in (3, 4, 5, 6):
+        if state["version"] in (3, 4, 5, 6, 7):
             gateway_keys |= {"max_cancel_entries", "cancel_attempts"}
-        if state["version"] in (4, 5, 6):
+        if state["version"] in (4, 5, 6, 7):
             gateway_keys.add("execution")
-        if state["version"] in (5, 6):
+        if state["version"] in (5, 6, 7):
             gateway_keys |= {"order_snapshots", "max_order_snapshot_bytes"}
-        if state["version"] == 6:
+        if state["version"] in (6, 7):
             gateway_keys.add("local_notifications")
+        if state["version"] == 7:
+            gateway_keys |= {"delegated_commands", "delegated_cancel_attempts"}
         if type(gateway) is not dict or set(gateway) != gateway_keys:
             raise ValueError("gateway_shape")
         binding = _binding_from_mapping(gateway["binding"])
@@ -313,7 +320,7 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if seq in unresolved_sequences or active_sequences.get(seq, set()) - {entry["marker_id"]}:
                     raise ValueError("duplicate_local_seq")
                 unresolved_sequences.add(seq)
-        if state["version"] in (3, 4, 5, 6):
+        if state["version"] in (3, 4, 5, 6, 7):
             max_cancels, attempts = gateway["max_cancel_entries"], gateway["cancel_attempts"]
             if (not is_strict_int(max_cancels, minimum=1) or max_cancels > _MAX_ENTRIES
                     or type(attempts) is not dict or len(attempts) > max_cancels):
@@ -327,10 +334,10 @@ def validate_gateway_state(state: dict, path: str) -> None:
                 if attempt["record"] is not None:
                     record = _cancel_record(attempt["record"], binding, plan)
                     validate_gateway_cancel_record_progress(None, record)
-        if state["version"] in (4, 5, 6):
+        if state["version"] in (4, 5, 6, 7):
             from .gateway_execution_state import validate_execution_state
             validate_execution_state(state, binding)
-        if state["version"] in (5, 6):
+        if state["version"] in (5, 6, 7):
             from .gateway_order_state import validate_order_state
             validate_order_state(state)
     except Exception as exc:
@@ -418,6 +425,38 @@ class GatewayPendingHost:
         from .gateway_order_state import confirm_local_notifications
         return confirm_local_notifications(self, entries)
 
+    # Pending state version 7: orders placed through the Risk service.
+
+    def upgrade_for_risk_routing(self):
+        from .gateway_order_state import upgrade_for_risk_routing
+        return upgrade_for_risk_routing(self)
+
+    def load_delegated_command(self, request_key):
+        from .gateway_order_state import load_delegated_command
+        return load_delegated_command(self, request_key)
+
+    def save_delegated_command(self, request_key, **fields):
+        from .gateway_order_state import save_delegated_command
+        return save_delegated_command(self, request_key, **fields)
+
+    # SDK delegated cancel host port (GatewayStrategyDelegatedClient).
+
+    def save_delegated_cancel_plan(self, plan):
+        from .gateway_order_state import save_delegated_cancel_plan
+        return save_delegated_cancel_plan(self, plan)
+
+    def load_delegated_cancel_plan(self, operation_id):
+        from .gateway_order_state import load_delegated_cancel_plan
+        return load_delegated_cancel_plan(self, operation_id)
+
+    def save_delegated_cancel_observation(self, operation_id, observation):
+        from .gateway_order_state import save_delegated_cancel_observation
+        return save_delegated_cancel_observation(self, operation_id, observation)
+
+    def load_delegated_cancel_observation(self, operation_id):
+        from .gateway_order_state import load_delegated_cancel_observation
+        return load_delegated_cancel_observation(self, operation_id)
+
     def load_order_snapshot(self, request_key: str):
         from .gateway_order_state import load_order_snapshot
         return load_order_snapshot(self, request_key)
@@ -473,7 +512,7 @@ class GatewayPendingHost:
         return record_ack(self, progress)
 
     def _check_state(self, state: dict) -> dict:
-        if state["version"] not in (2, 3, 4, 5, 6) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
+        if state["version"] not in (2, 3, 4, 5, 6, 7) or _binding_from_mapping(state["gateway"]["binding"]) != self._binding:
             raise ValueError("GATEWAY_BINDING_MISMATCH")
         return state["gateway"]["intents"]
 
@@ -499,7 +538,7 @@ class GatewayPendingHost:
 
     def _cancel_attempts(self, state: dict) -> dict:
         self._check_state(state)
-        if state["version"] not in (3, 4, 5, 6):
+        if state["version"] not in (3, 4, 5, 6, 7):
             raise ValueError("GATEWAY_CANCEL_UPGRADE_REQUIRED")
         return state["gateway"]["cancel_attempts"]
 

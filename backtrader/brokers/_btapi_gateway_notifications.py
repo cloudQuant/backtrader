@@ -1055,9 +1055,12 @@ class GatewayNotificationsBrokerMixin:
                 or binding.host.load_intent(request_key) is None
             ):
                 _error("RESTORE_INVALID")
-            if binding.host.load_record(request_key) is None:
+            delegated = getattr(binding.host, "load_delegated_command", None)
+            if (binding.host.load_record(request_key) is None
+                    and (not callable(delegated) or delegated(request_key) is None)):
                 # A validated reserve denial has no Gateway record; it was
                 # finalized locally as Rejected with a durable reject: notice.
+                # (An order placed through Risk has a delegated command record.)
                 order = restored.orders[object_key]
                 if ("reject:" + request_key not in local_notices
                         or order.status != order.Rejected):

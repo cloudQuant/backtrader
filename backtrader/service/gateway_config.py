@@ -92,6 +92,21 @@ def compose_gateway_contract_metadata(strategy_config, contracts, explicit, erro
     return result
 
 
+def _create_gateway_api(store):
+    """Compose the SDK facade; with Risk selected the pending host also keeps
+    durable delegated cancel plans (orders placed through Risk are cancelled as
+    this strategy's delegated commands, D64-02)."""
+    options = {}
+    if getattr(store._gateway_strategy_config, "risk_selection", None) is not None:
+        store._gateway_host.upgrade_for_local_notifications()  # v5 -> v6 first
+        store._gateway_host.upgrade_for_risk_routing()          # v6 -> v7
+        options["delegated_cancel_host"] = store._gateway_host
+    return store._gateway_strategy_config.create_api(
+        host=store._gateway_host, cancel_host=store._gateway_host,
+        security_profiles=store._gateway_security_profiles, **options
+    )
+
+
 def _release_owned_gateway_lock(store):
     if store._gateway_owns_run_lock:
         store._gateway_run_lock.release()
@@ -106,7 +121,7 @@ def _check_gateway_sequence_consistency(host, state, error_type):
 
     path = state.pending.path
     raw = validate_pending_state(read_json(path), path, state.strategy_uuid)
-    if raw["version"] not in (5, 6):
+    if raw["version"] not in (5, 6, 7):
         raise error_type("GATEWAY_ORDER_STATE_UPGRADE_REQUIRED")
     initial_sequence = state.sequence.read()
     intents = host.list_intents()
@@ -132,7 +147,7 @@ def _check_gateway_sequence_consistency(host, state, error_type):
             raise error_type("GATEWAY_SEQUENCE_BEHIND_PENDING")
         refs[ref] = key
         local_sequences.add(local_seq)
-    if raw["version"] == 6:
+    if raw["version"] in (6, 7):
         notices = host.local_order_notifications()
         for notice_key, notice in notices.items():
             prefix = next((p for p in ("cancel:", "reject:") if notice_key.startswith(p)), None)
@@ -200,10 +215,7 @@ def start_gateway_store(store, *, data, broker, error_type):
         _release_owned_gateway_lock(store)
         raise
     store._gateway_start_attempted = True
-    api = store._gateway_strategy_config.create_api(
-        host=store._gateway_host, cancel_host=store._gateway_host,
-        security_profiles=store._gateway_security_profiles
-    )
+    api = _create_gateway_api(store)
     # Retain even on an ambiguous start failure, so stop can close this exact
     # session and no second runtime is created while cleanup is uncertain.
     store._api = api
@@ -292,10 +304,7 @@ def reconnect_gateway_store(store, *, timeout=None):
     # with its Gateway and is not a reason to keep the strategy waiting.
     unresolved = (closed.cleanup_failures, closed.unregister_uncertainties,
                   closed.owner_cleanup_uncertainties)
-    api = store._gateway_strategy_config.create_api(
-        host=store._gateway_host, cancel_host=store._gateway_host,
-        security_profiles=store._gateway_security_profiles
-    )
+    api = _create_gateway_api(store)
     # Retained even when its start is ambiguous, exactly as on the first
     # start: the next attempt closes this session before creating another.
     store._api = api

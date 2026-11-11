@@ -239,6 +239,11 @@ def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
         event.to_mapping(schema_version=3), schema_version=3
     )
     entry = state["gateway"]["intents"].get(event.request_key)
+    delegated = None
+    if state["version"] == 7 and entry is not None and entry["record"] is None:
+        delegated = state["gateway"]["delegated_commands"].get(event.request_key)
+    if delegated is not None:
+        return _delegated_event(event, state, binding, entry, delegated)
     if entry is None or entry["record"] is None:
         raise ValueError("EXECUTION_EVENT_ORPHAN")
     intent = gateway_intent_from_mapping(entry["intent"], expected_binding=binding)
@@ -275,6 +280,70 @@ def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
             raise ValueError("EXECUTION_CANCEL_ATTRIBUTION_MISMATCH")
         if attempt["record"] is not None:
             cancel = _cancel_record(attempt["record"], binding, plan)
+            if cancel.attempt_id != attribution.attempt_id:
+                raise ValueError("EXECUTION_CANCEL_ATTRIBUTION_MISMATCH")
+    return event.to_mapping(schema_version=3)
+
+
+def _delegated_event(event, state: dict, binding, entry: dict, delegated: dict) -> dict:
+    """Bind a return of an order the Risk delegate placed for this strategy (v7).
+
+    The strategy holds no own command record for it: the event is bound by its
+    request key (one Backtrader recorded as Risk-routed), the reservation and
+    digest of that command and the delegate principal the Gateway reported for
+    the key, persisted before any return is accepted. Anything else is refused.
+    """
+    from .gateway_order_state import _delegated_record
+
+    record = _delegated_record(delegated, event.request_key, state["gateway"]["intents"], binding)
+    intent = gateway_intent_from_mapping(entry["intent"], expected_binding=binding)
+    obs = event.observation
+    payload = json.loads(intent.canonical_payload)
+    if record.actor_principal is None:
+        raise ValueError("GATEWAY_DELEGATED_ACTOR_REQUIRED")
+    if (
+        event.command_principal != record.actor_principal
+        or event.command_principal == binding.principal
+        or event.command_digest != intent.digest
+        or event.command_digest != record.digest
+        or event.reservation_id != record.reservation_id
+        or obs.account_scope != binding.account_scope
+        or obs.instrument.native_symbol != payload["symbol"]
+    ):
+        raise ValueError("EXECUTION_EVENT_BINDING_MISMATCH")
+    proof = obs.trade_attribution
+    if proof is not None:
+        # The alias bridge is checked on every field this strategy can see; the
+        # delegate's strong identity keys are not visible to it.
+        from bt_api_base.direct_write_protocol import DirectExecutionEventKind
+        from bt_api_base.gateway_execution_stream_protocol import GatewayTradeAttribution
+
+        if type(proof) is not GatewayTradeAttribution:
+            raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+        proof = GatewayTradeAttribution.from_mapping(proof.to_mapping())
+        if (obs.kind is not DirectExecutionEventKind.TRADE
+                or proof.account_scope != binding.account_scope
+                or proof.strategy_scope != binding.strategy_scope
+                or proof.fact_digest != event.fact_digest
+                or proof.reservation_id != event.reservation_id
+                or proof.command_digest != event.command_digest
+                or proof.anchor_sequence >= event.sequence
+                or proof.venue_key_digest != obs.venue_key_digest
+                or proof.venue_key_digest not in obs.identity_key_digests):
+            raise ValueError("EXECUTION_TRADE_ATTRIBUTION_MISMATCH")
+    attribution = event.cancel_attribution
+    if attribution is not None:
+        from .gateway_order_state import _delegated_cancel_observation, _delegated_cancel_plan
+
+        attempt = state["gateway"]["delegated_cancel_attempts"].get(attribution.operation_id)
+        if attempt is None:
+            raise ValueError("EXECUTION_CANCEL_ATTRIBUTION_MISMATCH")
+        plan = _delegated_cancel_plan(attempt["plan"], state, binding)
+        if (plan.request_key != event.request_key or plan.reservation_id != event.reservation_id
+                or plan.digest != event.command_digest):
+            raise ValueError("EXECUTION_CANCEL_ATTRIBUTION_MISMATCH")
+        if attempt["observation"] is not None:
+            cancel = _delegated_cancel_observation(attempt["observation"], plan, binding)
             if cancel.attempt_id != attribution.attempt_id:
                 raise ValueError("EXECUTION_CANCEL_ATTRIBUTION_MISMATCH")
     return event.to_mapping(schema_version=3)
@@ -480,7 +549,7 @@ def upgrade_for_execution(
             }
             validate_execution_state(state, host._binding)
             host._store._store(state, trim_history=False)
-        elif state["version"] in (4, 5, 6):
+        elif state["version"] in (4, 5, 6, 7):
             execution = state["gateway"]["execution"]
             if (
                 execution["consumer_ref"] != consumer_ref
@@ -497,7 +566,7 @@ def upgrade_for_execution(
 def _load(host):
     state = host._store._load()
     host._check_state(state)
-    if state["version"] not in (4, 5, 6):
+    if state["version"] not in (4, 5, 6, 7):
         raise ValueError("GATEWAY_EXECUTION_UPGRADE_REQUIRED")
     return state, state["gateway"]["execution"]
 
@@ -832,7 +901,7 @@ def record_ack(host, progress):
 
 def has_unresolved_gateway_execution(state: dict) -> bool:
     """Check watermarks and the explicitly persisted notification batch."""
-    if state["version"] not in (4, 5, 6):
+    if state["version"] not in (4, 5, 6, 7):
         return False
     execution = state["gateway"]["execution"]
     return (

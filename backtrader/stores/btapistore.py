@@ -365,6 +365,15 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self.backend = _resolve_backend(self.provider, backend)
         gateway_tree = config.get("gateway_strategy") if isinstance(config, Mapping) else None
         self._gateway_mode = isinstance(config, Mapping) and "gateway_strategy" in config
+        # D64-01/U64-5: Risk exists only with the Gateway and is selected only
+        # inside gateway_strategy (parsed by the SDK). Any other risk key is
+        # refused, never ignored; Backtrader does not parse Risk settings.
+        if any(isinstance(source, Mapping) and "risk" in source
+               for source in (config, api_kwargs, kwargs)):
+            code = "risk_selection_invalid" if self._gateway_mode else "risk_requires_gateway"
+            error = BtApiStoreError(code)
+            error.code = code
+            raise error
         self._gateway_pid = os.getpid() if self._gateway_mode else None
         self._gateway_strategy_config = None
         self._gateway_host = None

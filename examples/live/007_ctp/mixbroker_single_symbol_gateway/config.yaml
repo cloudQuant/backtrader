@@ -50,6 +50,9 @@ gateway_resource_provider: local_files
 gateway_strategy:
   schema_version: 1
   exchange_name: CTP___FUTURE
+  # Required (D64-01): none, or the Risk service client through which every new
+  # order is placed. A risk key outside gateway_strategy is refused at start.
+  risk: none
   client_config:
     client_config_schema_version: 1
     process_role: strategy_client

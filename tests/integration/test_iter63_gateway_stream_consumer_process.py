@@ -721,7 +721,7 @@ def test_spawned_gateway_strategy_rejects_unqualified_feed_before_intent(tmp_pat
 
 
 def _configured_raw(endpoint, journal_id):
-    raw = {'schema_version': 1, 'exchange_name': ROUTE,
+    raw = {'schema_version': 1, 'exchange_name': ROUTE, 'risk': 'none',
         'client_config': {'client_config_schema_version': 1, 'process_role': 'strategy_client',
             'registration': {'strategy_ref': CLIENT.actor_ref},
             'clients': {'gateway': {'config_schema_version': 1, 'settings': {'bindings': [{

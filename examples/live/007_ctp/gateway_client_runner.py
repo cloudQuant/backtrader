@@ -33,6 +33,9 @@ def validate_config(config):
 
     if any(name in config for name in ("gateway", "ctp", "direct")):
         raise ValueError("LEGACY_CONFIG_UNSUPPORTED")
+    if "risk" in config:
+        # Risk is selected only as gateway_strategy.risk (D64-01).
+        raise ValueError("RISK_SELECTION_INVALID")
     provider = config.get("gateway_resource_provider")
     if type(provider) is not str or not _REF.fullmatch(provider):
         raise ValueError("RESOURCE_PROVIDER_REQUIRED")
