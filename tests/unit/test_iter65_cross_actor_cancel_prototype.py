@@ -15,6 +15,7 @@ It does not model a crash or prove recovery of a real provider session.
 
 from dataclasses import asdict
 from decimal import Decimal
+import hashlib
 import itertools
 import json
 from pathlib import Path
@@ -291,6 +292,32 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
             time.sleep(.01)
         assert status == "SENT"
         assert parts["synthetic_calls"] == ["synthetic-place"]
+        # Persist the SENT observation through the authorized actor client before
+        # rebuilding the owner; the dispatch response only saved RESERVED.
+        sent_status = old_delegate.actor_status(command.request_key)
+        assert sent_status.outcome == "OBSERVED"
+        sent_observation = old_host.load_delegate_observation(command.request_key)
+        assert sent_observation == sent_status.observation.command
+        assert sent_observation.state == "SENT" and sent_observation.version == 3
+        assert sent_observation.account_scope == account and sent_observation.strategy_scope == strategy
+        assert sent_observation.actor_principal == identity.principal_ref
+        assert sent_observation.request_key == command.request_key
+        assert sent_observation.reservation_id == reservation.reservation_id
+        assert sent_observation.digest == digest
+        assert sent_observation.owner_generation == owner.binding().generation
+        assert sent_observation.reservation_generation == owner.binding().generation
+        operation, sent_response = responses[-1]
+        assert operation == "direct.delegate_actor_status"
+        assert sent_response == {"status": "OBSERVED", "schema_version": 1,
+            **asdict(sent_observation), "native_identity_digest": sent_status.observation.native_identity_digest}
+        with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
+            native_json = db.execute("SELECT native_identity_json FROM direct_journal_commands WHERE request_key=?",
+                                     (command.request_key,)).fetchone()[0]
+        original_native = NativeOrderIdentity("CTP", "synthetic-native", {"trading_day": "20261109"}, 1)
+        serialized_native = json.loads(native_json)
+        assert {**serialized_native, "fields": json.loads(serialized_native["fields_json"])} == {
+            **original_native.to_dict(), "fields_json": serialized_native["fields_json"]}
+        assert sent_response["native_identity_digest"] == hashlib.sha256(native_json.encode("ascii")).hexdigest()
         assert old.cancel("parent-1", "parent-cancel-1", 1)["cancel_state"] == "REQUESTED"
         frozen_row = store._connection.execute(
             "SELECT operation_id,frozen_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?",
@@ -301,6 +328,7 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
         assert frozen["reservation_id"] == reservation.reservation_id
         assert frozen["payload_digest"] == digest
         assert frozen["target_principal"] == identity.principal_ref
+        assert frozen["native_identity"] == serialized_native
         assert frozen["cancel_operation_id"] == frozen_row["operation_id"]
 
         strategy_issued = strategy_registration["result"]
@@ -438,6 +466,17 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
             strategy_replay = strategy_call("direct.delegated_cancel", strategy_cancel_args)
             assert strategy_replay["ok"] and strategy_replay["result"]["cancel_queue_state"] == "OBSERVED"
             assert strategy_replay["result"]["record"]["state"] == "UNKNOWN"
+            child_status = old_delegate.actor_status(command.request_key)
+            assert child_status.outcome == "UNKNOWN"
+            assert child_status.code == "INVALID_OR_UNAVAILABLE_REPLY"
+            operation, child_response = responses[-1]
+            assert operation == "direct.delegate_actor_status"
+            assert child_response["owner_generation"] == owner.binding().generation
+            assert child_response["owner_generation"] != sent_observation.owner_generation
+            assert child_response["reservation_generation"] == old_generation
+            assert child_response["version"] == sent_observation.version == 3
+            assert dict(child_response, owner_generation=old_generation) == sent_response
+            assert old_host.load_delegate_observation(command.request_key) == sent_observation
             previous_observation = old_host.load_delegate_cancel_observation(frozen["cancel_operation_id"])
             execution_replay = old.advance_cancel_children("parent-1", old_delegate)
             assert len(execution_replay) == 1 and execution_replay[0].outcome == "UNKNOWN"
