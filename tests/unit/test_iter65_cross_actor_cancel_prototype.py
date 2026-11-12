@@ -8,8 +8,12 @@ retained host is involved. Native callbacks and claimed coverage are
 synthetic; SENT does not prove venue acceptance or completed cancellation.
 In the UNKNOWN case, the first synthetic callback commits its local dispatch
 marker before raising; this deliberately models a may-have-sent outcome.
+That vector also reconstructs the owner and an in-memory Registry after a
+clean shutdown, preserving the SQLite journal and using a new guard generation.
+It does not model a crash or prove recovery of a real provider session.
 """
 
+from dataclasses import asdict
 from decimal import Decimal
 import itertools
 import json
@@ -45,7 +49,9 @@ from bt_api_py.gateway_delegation_service import (
     GatewayDelegationService, GatewayDelegationSettings, OPERATIONS as DELEGATE_OPERATIONS,
 )
 from bt_api_py.gateway_delegate_actor_service import GatewayDelegateActorService, OPERATIONS as ACTOR_OPERATIONS
-from bt_api_py.gateway_direct_owner import GatewayDirectOwner, GatewayDirectOwnerResources
+from bt_api_py.gateway_direct_owner import (
+    GatewayDirectOwner, GatewayDirectOwnerResources, GatewayOwnerStartupCleanupError,
+)
 from bt_api_py.gateway_direct_service import GatewayDirectGrant, GatewayDirectServiceBinding
 from bt_api_py.gateway_dispatch_claim import (
     GATEWAY_DISPATCH_COVERAGE, GatewayDispatchClaimCoordinator, GatewayJournalDispatchChangePort,
@@ -95,15 +101,28 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
     guard_dir = tmp_path / "guard"
     guard_dir.mkdir()
     parts = {}
+    reopen_anchor = None
 
     def factory():
         guard = LocalAccountSessionGuard(guard_dir, account, "synthetic-gateway-owner")
+        try:
+            return make_resources(guard)
+        except BaseException as exc:
+            raise GatewayOwnerStartupCleanupError(guard.release) from exc
+
+    def make_resources(guard):
         generation = guard.acquire()
-        journal = GatewayDirectCommandJournal.create(tmp_path / "gateway.sqlite", account, generation=generation)
-        journal.enable_controls(guard)
-        journal.enable_strategy_ledger(guard)
-        journal.enable_account_extensions(guard)
-        journal.enable_parent_authority(guard)
+        if reopen_anchor is None:
+            journal = GatewayDirectCommandJournal.create(tmp_path / "gateway.sqlite", account, generation=generation)
+            journal.enable_controls(guard)
+            journal.enable_strategy_ledger(guard)
+            journal.enable_account_extensions(guard)
+            journal.enable_parent_authority(guard)
+        else:
+            journal = GatewayDirectCommandJournal(tmp_path / "gateway.sqlite", account, generation=generation,
+                expected_journal_id=reopen_anchor[0], minimum_revision=reopen_anchor[1],
+                controls_enabled=True, strategy_ledger_enabled=True, account_extensions_enabled=True,
+                parent_authority_enabled=True)
         authority = GatewayParentAuthority(journal, guard, now_ns=time.time_ns,
                                           trading_day=lambda: "20261109",
                                           transfer_completed=lambda _db, _spec: "0", same_day_only=True)
@@ -226,6 +245,7 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
         monkeypatch.setattr(runtime, "status", lambda: RuntimeSnapshot(
             "running", True, True, None, (binding,), 0, 0, identity, "synthetic-run"))
         calls = []
+        responses = []
 
         def envelope(operation, arguments):
             return wire_request(operation, {"registration_id": issued["registration_id"],
@@ -237,6 +257,7 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
             request = envelope(operation, arguments)
             response = registry.handle(identity.principal_ref, request)
             assert response["ok"], response
+            responses.append((operation, response["result"]))
             return response["result"]
 
         monkeypatch.setattr(runtime, "call", rpc)
@@ -343,6 +364,98 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
         with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
             assert db.execute("SELECT state FROM direct_execution_parents WHERE parent_ref=?", ("parent-1",)).fetchall() == [("CANCEL_REQUESTED",)]
             assert db.execute("SELECT status FROM direct_journal_commands WHERE request_key=?", ("child-request-1",)).fetchall() == [("SENT",)]
+        if first_cancel_result == "UNKNOWN":
+            # Clean shutdown only: the fake provider has no session to close.
+            # This is not an abandoned active guard or a crash takeover.
+            before_rows = attempts()
+            before_calls = parts["synthetic_calls"]
+            before_cancels = parts["synthetic_cancels"]
+            old_generation = owner.binding().generation
+            with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
+                reopen_anchor = db.execute("SELECT journal_id,revision FROM direct_journal_meta WHERE account=?",
+                                           (account,)).fetchone()
+            assert owner.close(2) and owner.closed
+            registry.close()
+            registry = None
+            assert attempts() == before_rows
+
+            owner = GatewayDirectOwner(factory, queue_size=4, max_queue_wait_seconds=2, busy_timeout_seconds=2)
+            assert owner.start(2), owner.status()
+            assert owner.binding().generation != old_generation
+            assert owner.binding().journal_id == reopen_anchor[0]
+            assert owner.submit_service_call(lambda: None).result(timeout_seconds=1) is None
+            assert attempts() == before_rows
+            assert before_calls == ["synthetic-place"] and len(before_cancels) == 2
+            assert parts["synthetic_calls"] == [] and parts["synthetic_cancels"] == []
+
+            # Rebuild an in-memory Registry and re-register both synthetic actors;
+            # no old registration or grant is treated as proof of a new session.
+            registry = ServiceRegistry(":memory:", service_id="synthetic-gateway",
+                capabilities=(ServiceCapability("instance", "service.direct_write", operations | strategy_ops, writes),),
+                grants={identity.principal_ref: (PrincipalGrant(identity, (
+                    ResourceGrant("instance", "service.direct_write", "scope", template, operations),)),),
+                    strategy_identity.principal_ref: (PrincipalGrant(strategy_identity, (
+                    ResourceGrant("instance", "service.direct_write", "scope", template, strategy_ops),)),)},
+                policy_version="synthetic-policy", requirements_version="synthetic-requirements")
+            service = GatewayParentService(GatewayParentSettings((grant,)), owner=owner, journal=parts["journal"],
+                                           authority=parts["parent"], instance_id="instance", scope_ref="scope")
+            service.configure(registry)
+            delegate = GatewayDelegationService(GatewayDelegationSettings((delegate_grant,),
+                lambda value: value == instrument, parent_recheck=parts["parent"].recheck_child),
+                owner=owner, journal=parts["journal"], instance_id="instance", scope_ref="scope")
+            delegate.configure(registry)
+            actor_service = GatewayDelegateActorService(delegate,
+                parent_cancel_recheck=parts["parent"].check_cancel_target,
+                release_target_recheck=parts["parent"].check_release_target,
+                parent_grant_resolver=lambda ctx, op: registry.gateway_parent_grant(
+                    instance_id="instance", scope_ref="scope", identity=ctx.identity, scope=ctx.scope, operation=op))
+            strategy_service = GatewayDirectServiceBinding(parts["journal"], {
+                strategy_identity.principal_ref: GatewayDirectGrant(strategy, frozenset({instrument.native_symbol}))},
+                owner=owner, cancel_enabled=True)
+            for operation in ACTOR_OPERATIONS:
+                registry.register_handler("instance", operation,
+                    lambda ctx, args, operation=operation: actor_service.handle(operation, ctx, args))
+            for operation in ("direct.delegated_cancel", "direct.delegated_cancel_status"):
+                registry.register_handler("instance", operation,
+                    lambda ctx, args, operation=operation: strategy_service.handle(operation, context=ctx, arguments=args))
+            strategy_registration = registry.handle(strategy_identity.principal_ref, wire_request("service.register", {
+                "registration_key": "synthetic-strategy-registration", "client_session_id": "synthetic-strategy-session",
+                "instance_id": "instance", "port": "service.direct_write", "scope_ref": "scope",
+                "operations": tuple(strategy_ops)}, actor=strategy_identity))
+            assert strategy_registration["ok"], strategy_registration
+            registration = registry.handle(identity.principal_ref, wire_request("service.register", {
+                "registration_key": "synthetic-registration", "client_session_id": "synthetic-session",
+                "instance_id": "instance", "port": "service.direct_write", "scope_ref": "scope",
+                "operations": tuple(operations)}))
+            assert registration["ok"], registration
+            strategy_issued = strategy_registration["result"]
+            issued = registration["result"]
+            binding = BindingSnapshot(issued["registration_id"], issued["service_epoch"], True, route.mount,
+                route.service_id, route.instance_id, route.scope_ref, wire_scope, operations, True)
+            strategy_status = strategy_call("direct.delegated_cancel_status", {"operation_id": "strategy-cancel-1"})
+            assert strategy_status["ok"] and strategy_status["result"]["record"]["state"] == "UNKNOWN"
+            assert strategy_status["result"]["record"]["attempt_generation"] == old_generation
+            strategy_replay = strategy_call("direct.delegated_cancel", strategy_cancel_args)
+            assert strategy_replay["ok"] and strategy_replay["result"]["cancel_queue_state"] == "OBSERVED"
+            assert strategy_replay["result"]["record"]["state"] == "UNKNOWN"
+            previous_observation = old_host.load_delegate_cancel_observation(frozen["cancel_operation_id"])
+            execution_replay = old.advance_cancel_children("parent-1", old_delegate)
+            assert len(execution_replay) == 1 and execution_replay[0].outcome == "UNKNOWN"
+            assert execution_replay[0].code == "INVALID_OR_UNAVAILABLE_REPLY"
+            operation, result = responses[-1]
+            assert operation == "direct.delegate_actor_cancel_status" and result["status"] == "OK"
+            assert result["record"]["operation_id"] == frozen["cancel_operation_id"]
+            assert result["record"]["state"] == "SENT"
+            assert result["record"]["attempt_generation"] == old_generation
+            assert result["record"]["owner_generation"] == owner.binding().generation
+            original_generation_record = dict(result["record"], owner_generation=old_generation)
+            assert original_generation_record == asdict(previous_observation)
+            # The existing same-version Execution observation is unchanged.
+            assert old_host.load_delegate_cancel_observation(frozen["cancel_operation_id"]) == previous_observation
+            assert owner.submit_service_call(lambda: None).result(timeout_seconds=1) is None
+            assert attempts() == before_rows
+            assert before_calls == ["synthetic-place"] and len(before_cancels) == 2
+            assert parts["synthetic_calls"] == [] and parts["synthetic_cancels"] == []
     finally:
         if store is not None:
             store.close()
