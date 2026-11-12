@@ -1,0 +1,120 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_place_right_after_a_risk_restart_is_refused_or_placed_never_unknown ___
+
+env = <tests.integration._iter64_risk_fixture.RiskScenarioEnv object at 0x10436ced0>
+
+    def test_place_right_after_a_risk_restart_is_refused_or_placed_never_unknown(env):
+        # D4 (fixed): right after a restart the strategy's client still holds its old Risk
+        # registration and the new Risk Registry answers STALE_EPOCH before any handler runs.
+        env.restart_risk()  # returns once the new host serves (stream replayed)
+        first = env.call("a", "place", key="a-after-restart", cid="a-after-restart")
+        reserve = first["reserve"]
+        assert reserve["outcome"] in ("OBSERVED", "REQUEST_DENIED"), first  # never UNKNOWN
+        if reserve["outcome"] == "REQUEST_DENIED":
+            assert reserve["risk_denied"] == "risk_unavailable", first
+            assert "dispatch" not in first
+            assert "a-after-restart" not in env.gateway_commands()
+        # The client re-registers (lease renewal, then reconnect); the next PLACE is placed.
+>       env.wait_risk_route("a")
+
+iter64-package-strict-CYO1BQfE/testpack/tests/integration/test_iter64_risk_scenarios.py:696: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tests.integration._iter64_risk_fixture.RiskScenarioEnv object at 0x10436ced0>
+which = 'a'
+
+    def wait_risk_route(self, which, *, available=True, seconds=60.0):
+        """Wait until the strategy's Risk route is (un)available, using reads only.
+    
+        ``risk_status`` of a probe key goes through the facade, which re-registers a
+        lost Risk route (bounded backoff) before reading; it never places anything.
+        """
+        def read():
+            if not available:
+                return self.call(which, "risk_available")
+            return self.call(which, "risk_status", key="route-probe")
+    
+        def done(value):
+            if not available:
+                return value is False
+            return value["outcome"] == "ANSWERED" and value["answer"]["outcome"] == "NOT_FOUND"
+    
+        value = until(read, done, seconds, step=0.2)
+>       assert done(value), (which, value)
+E       AssertionError: ('a', {'outcome': 'NOT_SENT', 'code': 'ROUTE_UNAVAILABLE'})
+
+iter64-package-strict-CYO1BQfE/testpack/tests/integration/_iter64_risk_fixture.py:926: AssertionError
+=============================== warnings summary ===============================
+::test_place_right_after_a_risk_restart_is_refused_or_placed_never_unknown
+  /private/tmp/iter64-package-strict-CYO1BQfE/testpack/tests/integration/test_service_account_instrument_metadata.py:319: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../tmp/iter64-package-strict-CYO1BQfE/testpack::test_place_right_after_a_risk_restart_is_refused_or_placed_never_unknown
+1 failed, 14 deselected, 1 warning in 65.82s (0:01:05)
+CHECKED_RISK_HOST_CHILDREN= 2
+{
+  "packages": [
+    {
+      "package": "bt_api_base",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_base/__init__.py",
+      "distribution_version": "0.16.0.dev64"
+    },
+    {
+      "package": "bt_api_risk",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_risk/__init__.py",
+      "distribution_version": "0.1.1.dev64"
+    },
+    {
+      "package": "bt_api_py",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_py/__init__.py",
+      "distribution_version": "0.16.0.dev64"
+    },
+    {
+      "package": "bt_api_gateway",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_gateway/__init__.py",
+      "distribution_version": "0.2.0.dev64"
+    },
+    {
+      "package": "bt_api_transport_zmq",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_transport_zmq/__init__.py",
+      "distribution_version": "0.1.0"
+    },
+    {
+      "package": "bt_api_ctp",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_ctp/__init__.py",
+      "distribution_version": "2.1.0.dev64"
+    },
+    {
+      "package": "bt_api_okx",
+      "file": "/private/tmp/iter64-package-strict-CYO1BQfE/install/bt_api_okx/__init__.py",
+      "distribution_version": "0.16.0.dev63"
+    },
+    {
+      "dependency": "yaml",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/yaml/__init__.py"
+    },
+    {
+      "dependency": "zmq",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/zmq/__init__.py"
+    },
+    {
+      "dependency": "msgpack",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/msgpack/__init__.py"
+    }
+  ],
+  "wrong_paths": [],
+  "sdk_commit": "9385f567f81d5b1717ddaeec47992216aa85592e",
+  "risk_commit": "1c1b85e0dd030bebc7ee940d89daa877f72e3ca4",
+  "base_commit": "99d2bd381dbc750e743ff3bb1fd4291080134cc5",
+  "gateway_commit": "3fdbf84acd7e175dcf66b3a0c6271563b766ab9d",
+  "ctp_commit": "59bbfb4f5d27f45d0ac9cf089fdf450adfde3b74",
+  "okx_commit": "5c21b8fade058468678acf367af46ae98b03b462",
+  "transport_commit": "043cb87a891ce8dbe24b82bdc9edf49d9f4d4671",
+  "branch": "dev",
+  "pytest_rc": 1,
+  "excluded": "scenario skip reasons captured in pytest output"
+}
+ERROR conda.cli.main_run:execute(125): `conda run python -I -S /tmp/iter64-package-strict-CYO1BQfE/run_sdk_repro.py` failed. (See above for error)
