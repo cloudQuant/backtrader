@@ -190,6 +190,87 @@ def test_cancel_with_reported_fill_waits_for_late_trade(ready, inputs, monkeypat
     assert calls["ack"] == [3, 8]
 
 
+def test_older_trade_after_newer_fill_cancel_and_checkpoint_restart(state, ready, inputs, monkeypatch):
+    """Single synthetic command only: this does not prove a cross-day parent or provider behavior."""
+    newer = event_for(ready[0], 3, quantity="0.4", fact="a" * 64, trade="b" * 64)
+    newer = replace(newer, observation=replace(newer.observation,
+        trading_day="20261109", trade_date="20261109"))
+    original = newer.observation
+    cancel_observation = GatewayExecutionObservation(
+        account_scope=original.account_scope, route=original.route,
+        instrument=original.instrument, trading_day=original.trading_day,
+        kind=DirectExecutionEventKind.ORDER, native_identity_digest=original.native_identity_digest,
+        identity_key_digests=original.identity_key_digests,
+        binding_key_digests=original.binding_key_digests,
+        venue_key_digest=original.venue_key_digest, status=DirectOrderStatus.CANCELLED,
+        side="buy", order_quantity="1", filled_quantity="0.7", remaining_quantity="0.3")
+    cancelled = replace(newer, sequence=6, fact_digest="f" * 64, observation=cancel_observation)
+    older = event_for(ready[0], 8, quantity="0.3", fact="9" * 64, trade="c" * 64)
+    duplicate = replace(older, sequence=9, fact_digest="8" * 64)
+    events = [newer, cancelled]
+    host, broker, strategy, order, calls, _ = attach(ready, inputs, monkeypatch, events)
+    broker.next()
+    assert order.executed.size == 0.4 and broker.positions["rb"].size == 0.4
+    deliver(broker, strategy)
+    broker.next()
+    assert order.info["execution_pending_trades"] is True
+    assert order.executed.size == 0.4 and order.status != order.Canceled
+    deliver(broker, strategy)
+    broker.next()
+    checkpoint = host.load_execution_checkpoint()
+    assert (checkpoint.applied_sequence, checkpoint.acknowledged_sequence) == (6, 6)
+
+    reopened = GatewayPendingHost(state.strategy_dir, state.strategy_uuid, host._binding)
+    data2, broker2, strategy2 = framework()
+    api2 = api_for(reopened, inputs[1])
+    stream2 = api2.gateway_execution_stream("CTP___FUTURE")
+    events.extend([older, duplicate])
+    def read(after, epoch, limit, *, timeout_seconds):
+        selected = [event for event in events if event.sequence > after][:limit]
+        return GatewayExecutionStreamClientResult("OBSERVED", page=page(ready[1], ready[2], selected),
+            request_context=GatewayExecutionReadContext(ready[1], ready[2], after, epoch, limit))
+    def ack(sequence, expected_epoch, *, timeout_seconds):
+        calls["ack"].append(sequence)
+        return GatewayExecutionStreamClientResult("OBSERVED", progress=GatewayExecutionStreamProgress(
+            ready[1], ready[2], expected_epoch, 10, sequence))
+    monkeypatch.setattr(stream2, "read_after", read)
+    monkeypatch.setattr(stream2, "ack", ack)
+    broker2.bind_gateway_execution_stream(strategy2, api=api2, host=reopened,
+        data_by_ref={"rb": data2}, orders_by_key={}, instrument_by_ref={"rb": INSTRUMENT},
+        time_policy=GatewayExecutionTimePolicy("CTP___FUTURE", "UTC"))
+    (restored,) = broker2.orders.values()
+    assert restored.executed.size == 0.4 and broker2.positions["rb"].size == 0.4
+    broker2.next()
+    assert restored.executed.size == pytest.approx(0.7)
+    assert broker2.positions["rb"].size == pytest.approx(0.7)
+    assert restored.status == restored.Canceled
+    # The late fill's source time is kept per execution bit, but cancel()
+    # overwrites the cumulative executed.dt with the fixture's data clock.
+    assert [bt.num2date(bit.dt).isoformat() for bit in restored.executed.exbits] == [
+        "2026-11-09T09:00:00", "2026-11-07T09:00:00"]
+    assert bt.num2date(restored.executed.dt).isoformat() == "2026-11-03T09:00:00"
+    facts = restored.info["gateway_execution_time_facts"]
+    assert facts[newer.observation.trade_key_digest]["trade_date"] == "20261109"
+    assert facts[older.observation.trade_key_digest]["trade_date"] == "20261107"
+    deliver(broker2, strategy2)
+    # The trade was already open before restart: BT sends an order notification
+    # for this partial increase, not a second opening trade notification.
+    assert [event[0] for event in strategy2.events] == ["order"]
+    restored_trade = next(iter(next(iter(strategy2._trades.values())).values()))[0]
+    assert restored_trade.size == pytest.approx(0.7)
+    broker2.next()
+    assert restored.executed.size == pytest.approx(0.7)
+    deliver(broker2, strategy2)
+    assert [event[0] for event in strategy2.events] == ["order", "order"]
+    assert restored_trade.size == pytest.approx(0.7)
+    assert [event[3] for event in strategy2.events] == pytest.approx([0.7, 0.7])
+    broker2.next()
+    assert calls["ack"] == [3, 6, 8, 9]
+    checkpoint = reopened.load_execution_checkpoint()
+    assert (checkpoint.applied_sequence, checkpoint.acknowledged_sequence) == (9, 9)
+    assert restored.executed.size == pytest.approx(0.7)
+
+
 def test_reused_trade_digest_on_another_day_is_rejected(ready, inputs, monkeypatch):
     """Synthetic digest collision, not a statement about a venue's ID scope."""
     first = event_for(ready[0], 3, quantity="0.4", fact="a" * 64, trade="b" * 64)
