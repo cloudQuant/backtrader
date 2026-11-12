@@ -15,11 +15,13 @@ import datetime as _dt
 import functools
 import math
 import os
+import re
 import threading
 import time
 import uuid
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
@@ -182,6 +184,62 @@ _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
 _BACKENDS = frozenset({"direct"})
 _UTC = _dt.timezone.utc
 _WRITE_ROUTE_API_UNSET = object()
+
+
+@dataclass(frozen=True)
+class _CalendarStatusUnavailable:
+    """Store-side failure; successful route observations stay SDK-owned."""
+
+    status: str = "UNKNOWN"
+    reason: str = "UNAVAILABLE"
+
+
+def _safe_calendar_observation(value, status_type):
+    """Accept only the SDK's bounded public status vocabulary and identifiers."""
+    if type(value) is not status_type:
+        return False
+    enums = {
+        "status": {"UNKNOWN", "OBSERVED_UNAUTHENTICATED"},
+        "reason": {"INVALID_ROUTE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                   "CONFIGURATION_CHANGED", "CURRENT_RECEIPTS_CONSISTENT"},
+        "published": {"UNKNOWN", "CURRENT_OBSERVED"},
+        "coverage_status": {"UNKNOWN", "NOT_PRESENT", "DECLARED_UNVERIFIED"},
+        "bound": {"NOT_BOUND"},
+        "binding_reason": {"RUNTIME_BINDING_NOT_IMPLEMENTED"},
+        "source_authentication": {"NOT_PROVEN"},
+        "identity_authentication": {"NOT_PROVEN"},
+        "route_mapping": {"CALLER_DECLARED_ONLY"},
+        "publication_authentication": {"NOT_PROVEN"},
+        "durability": {"UNCONFIRMED"},
+        "observation": {"CURRENT_NOT_PINNED"},
+    }
+    if any(type(getattr(value, field)) is not str or getattr(value, field) not in choices
+           for field, choices in enums.items()):
+        return False
+    for field in ("publication_id", "version_id"):
+        field_value = getattr(value, field)
+        if field_value is not None and (
+            type(field_value) is not str
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", field_value) is None
+        ):
+            return False
+    for field in ("publication_sha256", "content_sha256"):
+        field_value = getattr(value, field)
+        if field_value is not None and (
+            type(field_value) is not str or re.fullmatch(r"[0-9a-f]{64}", field_value) is None
+        ):
+            return False
+    identity_fields = (value.publication_id, value.version_id,
+                       value.publication_sha256, value.content_sha256)
+    if value.status == "OBSERVED_UNAUTHENTICATED":
+        return (value.reason == "CURRENT_RECEIPTS_CONSISTENT"
+                and value.published == "CURRENT_OBSERVED"
+                and value.coverage_status in {"NOT_PRESENT", "DECLARED_UNVERIFIED"}
+                and all(field is not None for field in identity_fields))
+    return (value.reason in {"INVALID_ROUTE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                             "CONFIGURATION_CHANGED"}
+            and value.published == "UNKNOWN" and value.coverage_status == "UNKNOWN"
+            and all(field is None for field in identity_fields))
 
 
 def _is_supported_api_facade(api: Any) -> Tuple[bool, bool]:
@@ -653,6 +711,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._last_open_orders_refresh = 0.0
         self._connected = False
         self._started = False
+        self._calendar_status_lock = threading.Lock()
+        self._calendar_status_generation = 0
+        self._calendar_status_transitions = 0
+        self._calendar_status_stopping = False
         from bt_api_py.bounded_metadata_probe import BoundedMetadataProbeService
 
         self._metadata_probe_service = BoundedMetadataProbeService(
@@ -1178,11 +1240,25 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def start(self, data=None, broker=None):
         """Start the Store and attach framework objects through its lifecycle bridge."""
-        return _start_store(
-            self, data, broker, error_type=BtApiStoreError,
-            gateway_entrypoint=_legacy_gateway_entrypoint,
-            gateway_error_type=LegacyGatewayMigrationRequiredError,
-        )
+        with self._calendar_status_lock:
+            self._calendar_status_generation += 1
+            generation = self._calendar_status_generation
+            self._calendar_status_transitions += 1
+            self._calendar_status_stopping = True
+        started = False
+        try:
+            result = _start_store(
+                self, data, broker, error_type=BtApiStoreError,
+                gateway_entrypoint=_legacy_gateway_entrypoint,
+                gateway_error_type=LegacyGatewayMigrationRequiredError,
+            )
+            started = True
+            return result
+        finally:
+            with self._calendar_status_lock:
+                self._calendar_status_transitions -= 1
+                if started and self._calendar_status_generation == generation:
+                    self._calendar_status_stopping = False
 
     @staticmethod
     def _bounded_metadata_probe_shutdown_proven(health: Any) -> bool:
@@ -1513,10 +1589,18 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def stop(self, timeout: Optional[float] = None):
         """Coordinate shutdown through the Backtrader lifecycle bridge."""
-        resync = getattr(self, "_tick_stream_resync", None)
-        if resync is not None:
-            resync.fence()  # no automatic tick-stream resync once stop began
-        return _stop_store(self, timeout, safe_log=_safe_log)
+        with self._calendar_status_lock:
+            self._calendar_status_generation += 1
+            self._calendar_status_transitions += 1
+            self._calendar_status_stopping = True
+        try:
+            resync = getattr(self, "_tick_stream_resync", None)
+            if resync is not None:
+                resync.fence()  # no automatic tick-stream resync once stop began
+            return _stop_store(self, timeout, safe_log=_safe_log)
+        finally:
+            with self._calendar_status_lock:
+                self._calendar_status_transitions -= 1
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
         """Coordinate synchronous SDK shutdown through the lifecycle bridge."""
@@ -3796,6 +3880,125 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self._assert_write_route_identity(require_live_route=True, expected_api=api)
         return result
+
+    def trading_calendar_status(self, exchange_name: Optional[str] = None):
+        """Observe local SDK calendar status for exact configured routes.
+
+        Return ``{status, reason, routes}`` for both single and multiple routes;
+        each successful value in ``routes`` is the unchanged SDK observation.
+        The aggregate is ``OBSERVED`` if every route observed CURRENT,
+        ``PARTIAL`` if only some did, and ``UNKNOWN`` if none did.
+        Store-side failures have ``status`` and ``reason`` attributes. No route
+        argument selects every configured route; an explicit argument must be
+        an exact configured key. An observation does not authorize trading.
+        """
+        with self._calendar_status_lock:
+            configured_routes = tuple(self._sdk_exchanges)
+            generation = self._calendar_status_generation
+            stream_generation = self._stream_generation
+            api = self._api
+            ready = (
+                self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                and self._started and self._connected and self._sdk_configured
+                and api is not None and not self._calendar_status_transitions
+                and not self._calendar_status_stopping
+            )
+
+        routes = tuple(
+            route for route in configured_routes
+            if type(route) is str
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", route)
+        )
+        invalid_routes = len(routes) != len(configured_routes)
+        if exchange_name is not None:
+            if type(exchange_name) is not str or exchange_name not in routes:
+                return {"status": "UNKNOWN", "reason": "ROUTE_UNCONFIGURED", "routes": {}}
+            routes = (exchange_name,)
+            invalid_routes = False
+        if not routes:
+            return {"status": "UNKNOWN",
+                    "reason": "INVALID_CONFIGURED_ROUTE" if invalid_routes else "ROUTE_UNAVAILABLE",
+                    "routes": {}}
+
+        def unavailable(reason):
+            return {route: _CalendarStatusUnavailable(reason=reason) for route in routes}
+
+        def valid_live_routes(value):
+            return (type(value) is list and all(
+                type(route) is str and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", route)
+                for route in value
+            )
+                    and len(set(value)) == len(value))
+
+        if not ready:
+            return {"status": "UNKNOWN", "reason": "STORE_UNAVAILABLE",
+                    "routes": unavailable("STORE_UNAVAILABLE")}
+        try:
+            from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatus
+
+            reader = getattr(api, "trading_calendar_status", None)
+            list_routes = getattr(api, "list_exchanges", None)
+            if not callable(reader) or not callable(list_routes):
+                return {"status": "UNKNOWN", "reason": "CAPABILITY_UNAVAILABLE",
+                        "routes": unavailable("CAPABILITY_UNAVAILABLE")}
+            live_routes = list_routes()
+            if not valid_live_routes(live_routes):
+                raise ValueError("invalid route projection")
+        except Exception:
+            return {"status": "UNKNOWN", "reason": "ROUTE_UNAVAILABLE",
+                    "routes": unavailable("ROUTE_UNAVAILABLE")}
+
+        observations = {}
+        observed_count = 0
+        for route in routes:
+            if route not in live_routes:
+                observations[route] = _CalendarStatusUnavailable(reason="ROUTE_UNAVAILABLE")
+                continue
+            try:
+                value = reader(route)
+                if not _safe_calendar_observation(value, TradingCalendarStatus):
+                    raise ValueError("invalid status")
+                observations[route] = value
+                if value.status == "OBSERVED_UNAUTHENTICATED":
+                    observed_count += 1
+            except Exception:
+                observations[route] = _CalendarStatusUnavailable(reason="READ_UNAVAILABLE")
+
+        try:
+            list_routes_after = getattr(api, "list_exchanges", None)
+            if not callable(list_routes_after):
+                raise ValueError("route projection unavailable")
+            live_routes_after = list_routes_after()
+            if (not valid_live_routes(live_routes_after)
+                    or set(live_routes_after) != set(live_routes)):
+                raise ValueError("route projection changed")
+        except Exception:
+            return {"status": "UNKNOWN", "reason": "ROUTE_SET_CHANGED",
+                    "routes": unavailable("ROUTE_SET_CHANGED")}
+
+        with self._calendar_status_lock:
+            current = (
+                generation == self._calendar_status_generation
+                and stream_generation == self._stream_generation and self._api is api
+                and tuple(self._sdk_exchanges) == configured_routes
+                and self._started and self._connected and self._sdk_configured
+                and not self._calendar_status_transitions and not self._calendar_status_stopping
+            )
+            if not current:
+                return {"status": "UNKNOWN", "reason": "STORE_CHANGED",
+                        "routes": unavailable("STORE_CHANGED")}
+            if not observed_count:
+                status = "UNKNOWN"
+            elif invalid_routes or observed_count != len(routes):
+                status = "PARTIAL"
+            else:
+                status = "OBSERVED"
+            return {"status": status,
+                    "reason": ("INVALID_CONFIGURED_ROUTE" if invalid_routes else
+                               "ROUTE_RESULTS" if status == "OBSERVED" else
+                               "PARTIAL_ROUTE_RESULTS" if status == "PARTIAL" else
+                               "ROUTES_UNAVAILABLE"),
+                    "routes": observations}
 
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.
