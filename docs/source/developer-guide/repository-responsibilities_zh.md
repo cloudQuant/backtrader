@@ -1,5 +1,7 @@
 ﻿# 仓库目录与文件职责规范
 
+> 迭代 64 当前为 IN_PROGRESS / NO-GO：Risk 持有预交易政策、占用与受信规则文件解析，SDK 装配独立 Risk 服务、Gateway 客户端及来源与运行时清理；BT 保留 Broker 和本地状态投影。R-11 v2 元数据不是场所事实；活动订单共同切点、日内覆盖、财务来源、Execution 写者授权及跨代恢复证明仍缺失，相关路径失败关闭。源码、模拟和限定 wheel 证据及未完成项见[后续复核](../../_internal/opts/requirements/迭代64-bt_api_risk功能梳理与完善/后续复核-2026-11-12.md)。
+
 > 2026-11-09 R32：Base `claim_fence` 持有覆盖封印与 claim 回收；SDK `gateway_dispatch_claim` 持有 Gateway 域覆盖清单、claim 端口与 journal 变更端口，ServiceHost 在 Registry 接入后封印；Gateway dispatcher 在 marker 前取得单次 claim，owner 对 BUSY 重排队；SDK `gateway_settlement` 与 CTP provider 实现决定 A 的结算确认。BT 本轮只修复 Broker 完成路由（E081）并按 D63-41 对齐测试。均为合成源码证据，未重建发行包、未做账户验收。[R32审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第三十二轮派发与结算已准入在途恢复审阅-2026-11-09.md)。
 
 > 2026-11-09 R31：SDK `gateway_execution_time` 持有显式时间解释；BT `_btapi_gateway_stream` 持有真实事件到原Broker对象/原Strategy通知及ACK的显式适配，`gateway_order_state`在原pending v5保存首事件前单订单描述。源码/安装BT984（另1预期失败）/SDK382通过；config/submit/cancel与首次恢复、资金和旧读取隔离尚未交付，不是完整生产Gateway模式。[R31审阅](../../_internal/opts/requirements/迭代63-Gateway统一转发与多策略共享会话/archived/实施第三十一轮BT稀疏事件消费与通知恢复审阅-2026-11-09.md)。
@@ -14,7 +16,7 @@
 
 > 2026-11-08 迭代 63 开发：Gateway 拥有两阶段命令日志、本地耐久派发桥和事务内准入复核挂点；SDK 拥有认证上下文、延后派发准入、规范 OrderRequest 校验、native coordinator 组合、独立租约线程及有界账户 owner 队列，CTP provider 拥有受信 flow 目录映射。Gateway 的目标部署为独立服务进程，默认使用 bt_api_transport_zmq，策略仅配置连接；storage RPC 默认发布 reserve/release/status，显式 dispatch_enabled 且匹配 owner 时增加派发排队。尚未接成完整交易 owner、远端 provider、BT Gateway 模式或策略账本。局部离线与回环证据及未通过项见迭代 63 分轮记录，不把类名、排队回执或端口名当作账户能力已通过。 R05 新增 Base 命令观察/摘要合同和 SDK 策略客户端；持久 host 由调用方注入，BT pending 适配未接。CTP 结算状态每次从来源绑定的只读查询分类，可信空/旧日期维持既有本地政策；日期语义和 SDK 读后日/会话竞态仍未关闭。
 
-> 当前 SDK 工作树的直连范围保留 Base、CTP、OKX、Binance，其余 17 个子仓整体迁入 `bt_api/deperated/`，仍是 Git 子模块且未卸载发行包。旧路径的部分历史验收和治理基线待单独审阅；本次目录迁移不证明直连或安装行为通过。
+> 当前 SDK checkout 的 `bt_api/` 包含各 SDK 子仓；历史目录迁移描述不能代替当前 Git 状态。各 provider 的直连范围、安装及行为分别验收，路径存在不证明能力通过。
 
 > 持仓模式写入确认码由 provider 显式声明；Base 默认不再选择原生码。Binance、CTP 和 OKX 非 SWAP 保留原有 `200`，OKX SWAP 保留 `0`，其他十家通过历史策略保留 `200`；这些旧值不证明各场所能力或实际协议。第三方仅继承 Base 时不再隐式获得确认码；动态策略、发行及行为待审阅后验收。
 
