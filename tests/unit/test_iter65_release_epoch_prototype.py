@@ -72,7 +72,8 @@ def isolated_sources():
     assert not escaped, escaped
 
 
-def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch):
+@pytest.mark.parametrize("expire_before_freeze", [False, True], ids=["freeze-first", "expire-first"])
+def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch, expire_before_freeze):
     account, strategy, domain = "synthetic-account", "synthetic-strategy", "synthetic-domain"
     identity = WireIdentity(WireRole.SERVICE, "synthetic-principal", "synthetic-actor")
     scope = ExecutionScope("FAKE", "test", account, strategy, "20261109")
@@ -287,15 +288,23 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch):
         with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
             row = db.execute("SELECT reservation_id,digest,generation,status,version FROM direct_journal_commands WHERE request_key=?", (command.request_key,)).fetchone()
         assert row[1:] == (digest, owner.binding().generation, "RESERVED", 1)
-        assert old.cancel("parent-1", "parent-cancel-1", 1)["cancel_state"] == "REQUESTED"
-        frozen_row = store._connection.execute(
-            "SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?",
-            ("parent-1", "child-1")).fetchone()
-        frozen = json.loads(frozen_row["frozen_json"])
-        assert frozen["phase"] == "RELEASE_PENDING"
-        assert frozen["reservation_id"] == row[0] and frozen["payload_digest"] == digest
-        assert frozen["cancel_operation_id"] == frozen_row["operation_id"]
-        assert frozen_row["intent_json"] is None
+        if not expire_before_freeze:
+            cancelled = old.cancel("parent-1", "parent-cancel-1", 1)
+            assert cancelled["cancel_state"] == "REQUESTED"
+            frozen_row = store._connection.execute(
+                "SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?",
+                ("parent-1", "child-1")).fetchone()
+            frozen = json.loads(frozen_row["frozen_json"])
+            assert frozen["phase"] == "RELEASE_PENDING"
+            assert frozen["reservation_id"] == row[0] and frozen["payload_digest"] == digest
+            assert frozen["cancel_operation_id"] == frozen_row["operation_id"]
+            assert frozen_row["intent_json"] is None
+            assert json.loads(cancelled["cancel_receipt_json"])["result"]["targets"] == [frozen]
+        else:
+            # No parent freeze or target exists before this owner is closed.
+            assert store._connection.execute(
+                "SELECT COUNT(*) FROM execution_parent_child_cancels WHERE parent_id=?", ("parent-1",)
+            ).fetchone()[0] == 0
         old_generation = owner.binding().generation
         with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
             reopen_anchor = db.execute("SELECT journal_id,revision FROM direct_journal_meta WHERE account=?", (account,)).fetchone()
@@ -358,7 +367,35 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch):
         issued = registration["result"]
         binding = BindingSnapshot(issued["registration_id"], issued["service_epoch"], True, route.mount,
             route.service_id, route.instance_id, route.scope_ref, wire_scope, operations, True)
+        if expire_before_freeze:
+            # The sole old reservation is already EXPIRED before this client
+            # asks the newly authorized service to freeze the parent.
+            cancelled = old.cancel("parent-1", "parent-cancel-1", 1)
+            assert cancelled["cancel_state"] == "REQUESTED"
+            assert json.loads(cancelled["cancel_receipt_json"])["result"]["targets"] == []
+            assert store._connection.execute(
+                "SELECT COUNT(*) FROM execution_parent_child_cancels WHERE parent_id=?", ("parent-1",)
+            ).fetchone()[0] == 0
+            before_calls = len(calls)
+            assert old.cancel("parent-1", "parent-cancel-1", 1)["cancel_state"] == "REQUESTED"
+            assert old.advance_cancel_children("parent-1", old_delegate) == ()
+            assert old.advance_cancel_children("parent-1", old_delegate) == ()
+            assert len(calls) == before_calls
+            assert old_host.load_delegate_observation(command.request_key) is None
+            child = store._connection.execute(
+                "SELECT request_json,quantity,state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?",
+                ("parent-1", "child-1")).fetchone()
+            assert tuple(child)[1:] == ("3", "UNKNOWN", "0")
+            assert json.loads(child["request_json"])["request_key"] == command.request_key
+            assert json.loads(child["request_json"])["payload_digest"] == digest
+            assert parts["synthetic_calls"] == [] and parts["synthetic_cancels"] == []
+            with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
+                assert db.execute("SELECT reservation_id,digest,generation,status,version FROM direct_journal_commands WHERE request_key=?", (command.request_key,)).fetchone() == (row[0], digest, old_generation, "EXPIRED", 2)
+                assert db.execute("SELECT COUNT(*) FROM direct_journal_releases").fetchone() == (0,)
+            return
         before_calls = len(calls)
+        assert old.cancel("parent-1", "parent-cancel-1", 1)["cancel_state"] == "REQUESTED"
+        assert len(calls) == before_calls
         result = old.advance_cancel_children("parent-1", old_delegate)
         assert len(result) == 1 and result[0].outcome == "OBSERVED"
         observed = result[0].observation.command
@@ -378,8 +415,8 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch):
             assert db.execute("SELECT status,version FROM direct_journal_commands WHERE request_key=?", (command.request_key,)).fetchone() == ("EXPIRED", 2)
             assert db.execute("SELECT COUNT(*) FROM direct_journal_releases").fetchone() == (0,)
         assert store._connection.execute("SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?", ("parent-1", "child-1")).fetchone() == frozen_row
-        child = store._connection.execute("SELECT state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?", ("parent-1", "child-1")).fetchone()
-        assert tuple(child) == ("UNKNOWN", "0")
+        child = store._connection.execute("SELECT quantity,state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?", ("parent-1", "child-1")).fetchone()
+        assert tuple(child) == ("3", "UNKNOWN", "0")
     finally:
         if store is not None:
             store.close()
