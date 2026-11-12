@@ -6,6 +6,8 @@ account, admission, registration, grant and transport are synthetic. No real
 account, CTP owner, provider, network, cross-process crash, or pre-existing
 retained host is involved. Native callbacks and claimed coverage are
 synthetic; SENT does not prove venue acceptance or completed cancellation.
+In the UNKNOWN case, the first synthetic callback commits its local dispatch
+marker before raising; this deliberately models a may-have-sent outcome.
 """
 
 from decimal import Decimal
@@ -72,7 +74,8 @@ def isolated_sources():
     assert not escaped, escaped
 
 
-def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_path, monkeypatch):
+@pytest.mark.parametrize("first_cancel_result", ["SENT", "UNKNOWN"], ids=["first_sent", "first_unknown"])
+def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_path, monkeypatch, first_cancel_result):
     account, strategy, domain = "synthetic-account", "synthetic-strategy", "synthetic-domain"
     identity = WireIdentity(WireRole.SERVICE, "synthetic-principal", "synthetic-actor")
     scope = ExecutionScope("FAKE", "test", account, strategy, "20261109")
@@ -136,6 +139,8 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
             marker = port.commit(PreDispatchRecord(WriteOperation.CANCEL, account_scope, "CTP",
                 symbol, None, target, {}, prepared.trading_day, prepared.session_generation,
                 "synthetic", prepared))
+            if number == 1 and first_cancel_result == "UNKNOWN":
+                raise TimeoutError("synthetic failure after cancel dispatch marker")
             return NativeDispatchOutcome(True, target, marker)
 
         cancel_dispatcher = GatewayDirectCancelDispatcher(GatewayDirectCancelJournal(journal), dispatcher,
@@ -290,44 +295,46 @@ def test_strategy_and_execution_cancel_same_child_with_distinct_operations(tmp_p
         def attempts():
             with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
                 return db.execute("SELECT operation_id,principal,target_principal,request_key,status,prepared_json,"
-                    "target_reservation_id,target_digest,target_identity_json "
+                    "target_reservation_id,target_digest,target_identity_json,marker_id,attempt_id,version "
                     "FROM direct_cancel_attempts ORDER BY operation_id").fetchall()
         deadline = time.monotonic() + 5
         rows = []
         while time.monotonic() < deadline:
             rows = attempts()
-            if rows and rows[0][4] != "REQUESTED":
+            if rows and rows[0][4] in {"SENT", "NOT_SENT", "UNKNOWN"}:
                 break
             time.sleep(.01)
-        assert rows and rows[0][4] == "SENT", rows
+        assert rows and rows[0][4] == first_cancel_result, rows
         assert len(parts["synthetic_cancels"]) == 1
         execution_result = old.advance_cancel_children("parent-1", old_delegate)
         assert len(execution_result) == 1
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             rows = attempts()
-            if len(rows) >= 2 and all(row[4] != "REQUESTED" for row in rows):
+            if len(rows) >= 2 and all(row[4] in {"SENT", "NOT_SENT", "UNKNOWN"} for row in rows):
                 break
             time.sleep(.01)
         assert execution_result[0].outcome == "QUEUED"
-        assert len(rows) == 2 and all(row[4] == "SENT" for row in rows), rows
+        assert len(rows) == 2, rows
         assert len(parts["synthetic_cancels"]) == 2
         by_operation = {row[0]: row for row in rows}
         strategy_row = by_operation["strategy-cancel-1"]
         execution_row = by_operation[frozen["cancel_operation_id"]]
+        assert strategy_row[4] == first_cancel_result and execution_row[4] == "SENT"
         assert strategy_row[1] == strategy_identity.principal_ref
         assert execution_row[1] == identity.principal_ref
         for row in (strategy_row, execution_row):
             assert row[2] == identity.principal_ref and row[3] == command.request_key
             assert row[6] == reservation.reservation_id and row[7] == digest
+            assert row[9] == row[10] and row[9] is not None and row[11] == 3
         assert json.loads(strategy_row[8]) == json.loads(execution_row[8]) == frozen["native_identity"]
         assert json.loads(strategy_row[5])["request_keys"] == ["synthetic-cancel-key-1"]
         assert json.loads(execution_row[5])["request_keys"] == ["synthetic-cancel-key-2"]
         # Replaying either original operation is idempotent for that operation;
-        # neither SENT means the venue confirmed cancellation.
+        # neither SENT nor UNKNOWN establishes venue cancellation.
         strategy_replay = strategy_call("direct.delegated_cancel", strategy_cancel_args)
         assert strategy_replay["ok"] and strategy_replay["result"]["cancel_queue_state"] == "OBSERVED"
-        assert strategy_replay["result"]["record"]["state"] == "SENT"
+        assert strategy_replay["result"]["record"]["state"] == first_cancel_result
         execution_replay = old.advance_cancel_children("parent-1", old_delegate)
         assert len(execution_replay) == 1 and execution_replay[0].outcome == "OBSERVED"
         assert execution_replay[0].cancel.state == "SENT"
