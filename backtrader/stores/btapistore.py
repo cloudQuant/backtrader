@@ -354,6 +354,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         gateway_host: Any = None,
         gateway_security_profiles: Any = None,
         gateway_run_lock: Any = None,
+        calendar_config_file: Any = None,
+        calendar_config: Any = None,
+        calendar_ctp_routes: Any = None,
         **kwargs: Any,
     ):
         """Initialize the BtApiStore.
@@ -410,6 +413,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 embedded in the public configuration mapping.
             gateway_run_lock: Reserved; externally held locks are rejected
                 because their process ownership cannot currently be verified.
+            calendar_config_file: Absolute path of the parsed configuration file.
+            calendar_config: Parsed mapping containing the explicit calendars section.
+            calendar_ctp_routes: Caller-declared exact CTP routes for status only.
+                These configure a Store-local reader, not the SDK facade or trading.
             **kwargs: Additional SDK configuration values.
         """
         super().__init__()
@@ -564,6 +571,34 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             raise BtApiStoreError(
                 "symbol_routes must refer only to exchanges explicitly present in exchange_kwargs"
             )
+        self._calendar_local_reader = None
+        self._calendar_local_routes = frozenset()
+        if any(value is not None for value in (
+            calendar_config_file, calendar_config, calendar_ctp_routes
+        )):
+            if self._gateway_mode or self._service_read_only or not self._sdk_mode:
+                raise BtApiStoreError("calendar_configuration_requires_direct_sdk")
+            from ..service.trading_calendar_config import parse_direct_calendar_status
+            try:
+                candidate, route_roots = parse_direct_calendar_status(
+                    calendar_config, config_file=calendar_config_file,
+                    ctp_routes=calendar_ctp_routes, configured_routes=set(self._sdk_exchanges),
+                )
+            except ValueError as exc:
+                if exc.args == ("calendar_package_seed_unsupported",):
+                    raise BtApiStoreError("calendar_package_seed_unsupported") from None
+                raise BtApiStoreError("calendar_configuration_invalid") from None
+            except Exception:
+                raise BtApiStoreError("calendar_configuration_invalid") from None
+            if candidate.root_kind == "directory":
+                try:
+                    from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatusReader
+                    reader = TradingCalendarStatusReader()
+                    reader.configure(route_roots)
+                except Exception:
+                    raise BtApiStoreError("calendar_status_configuration_failed") from None
+                self._calendar_local_reader = reader
+                self._calendar_local_routes = frozenset(route_roots)
         if self.provider != "btapi" and not self._service_read_only:
             if configured_route_names != {self.provider.upper()}:
                 raise BtApiStoreError(
@@ -3890,13 +3925,17 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         ``PARTIAL`` if only some did, and ``UNKNOWN`` if none did.
         Store-side failures have ``status`` and ``reason`` attributes. No route
         argument selects every configured route; an explicit argument must be
-        an exact configured key. An observation does not authorize trading.
+        an exact configured key. With local configuration, ``sources`` maps
+        routes to ``LOCAL_CONFIG`` or ``SDK_FACADE``. Local observations are
+        unauthenticated and not bound to strategy use or trading authorization.
         """
         with self._calendar_status_lock:
             configured_routes = tuple(self._sdk_exchanges)
             generation = self._calendar_status_generation
             stream_generation = self._stream_generation
             api = self._api
+            local_reader = self._calendar_local_reader
+            local_routes = self._calendar_local_routes
             ready = (
                 self._sdk_mode and not self._gateway_mode and not self._service_read_only
                 and self._started and self._connected and self._sdk_configured
@@ -3936,9 +3975,17 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         try:
             from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatus
 
-            reader = getattr(api, "trading_calendar_status", None)
             list_routes = getattr(api, "list_exchanges", None)
-            if not callable(reader) or not callable(list_routes):
+            if local_reader is not None and all(route in local_routes for route in routes):
+                reader = None
+            else:
+                try:
+                    reader = getattr(api, "trading_calendar_status", None)
+                except Exception:
+                    if local_reader is None:
+                        raise
+                    reader = None
+            if not callable(list_routes) or (local_reader is None and not callable(reader)):
                 return {"status": "UNKNOWN", "reason": "CAPABILITY_UNAVAILABLE",
                         "routes": unavailable("CAPABILITY_UNAVAILABLE")}
             live_routes = list_routes()
@@ -3949,13 +3996,21 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     "routes": unavailable("ROUTE_UNAVAILABLE")}
 
         observations = {}
+        sources = {}
         observed_count = 0
         for route in routes:
+            is_local = local_reader is not None and route in local_routes
+            if local_reader is not None:
+                sources[route] = "LOCAL_CONFIG" if is_local else "SDK_FACADE"
             if route not in live_routes:
                 observations[route] = _CalendarStatusUnavailable(reason="ROUTE_UNAVAILABLE")
                 continue
             try:
-                value = reader(route)
+                selected_reader = local_reader.status if is_local else reader
+                if not callable(selected_reader):
+                    observations[route] = _CalendarStatusUnavailable(reason="CAPABILITY_UNAVAILABLE")
+                    continue
+                value = selected_reader(route)
                 if not _safe_calendar_observation(value, TradingCalendarStatus):
                     raise ValueError("invalid status")
                 observations[route] = value
@@ -3993,12 +4048,15 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 status = "PARTIAL"
             else:
                 status = "OBSERVED"
-            return {"status": status,
+            result = {"status": status,
                     "reason": ("INVALID_CONFIGURED_ROUTE" if invalid_routes else
                                "ROUTE_RESULTS" if status == "OBSERVED" else
                                "PARTIAL_ROUTE_RESULTS" if status == "PARTIAL" else
                                "ROUTES_UNAVAILABLE"),
                     "routes": observations}
+            if local_reader is not None:
+                result["sources"] = sources
+            return result
 
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.

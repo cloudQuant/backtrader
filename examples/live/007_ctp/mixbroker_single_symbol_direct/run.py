@@ -28,6 +28,7 @@ import json
 import math
 import os
 import threading
+from collections.abc import Mapping
 from pathlib import Path
 
 import backtrader as bt
@@ -89,7 +90,7 @@ def load_config(config_arg, base_dir, default_name):
         path = (base_dir / path).resolve()
     with path.open("r", encoding="utf-8") as handle:
         if path.suffix.lower() in {".yaml", ".yml"}:
-            return yaml.safe_load(handle) or {}, path
+            return yaml.safe_load(handle), path
         if path.suffix.lower() == ".json":
             return json.load(handle), path
     raise ValueError(f"Unsupported config format: {path}")
@@ -246,7 +247,7 @@ def configure_run_logging(config):
     return describe_logging(config)
 
 
-def create_store(config, credentials):
+def create_store(config, credentials, config_path=None):
     """BtApiStore in SDK direct mode: write admission on, no execution component."""
     configure_catalog_cache(config)
     from backtrader.stores.btapistore import BtApiStore
@@ -280,6 +281,9 @@ def create_store(config, credentials):
     }
     return BtApiStore(
         provider="ctp",
+        calendar_config_file=config_path if "calendars" in config else None,
+        calendar_config={"calendars": config["calendars"]} if "calendars" in config else None,
+        calendar_ctp_routes=(ROUTE,) if "calendars" in config else None,
         contract_metadata=contract_metadata,
         exchange_kwargs=exchange_kwargs,
         write_admission={ROUTE: bool(direct.get("write_admission", True))},
@@ -372,15 +376,44 @@ def main(argv=None):
                         help="stop after N seconds (default: run_timeout_seconds in config)")
     args = parser.parse_args(argv)
 
-    config, config_path = load_config(args.config, RUN_DIR, "config.yaml")
-    symbols = validate_live_config(config)
+    try:
+        config, config_path = load_config(args.config, RUN_DIR, "config.yaml")
+        if not isinstance(config, Mapping):
+            raise ValueError("invalid configuration root")
+        symbols = validate_live_config(config)
+    except Exception:
+        print("Configuration invalid or unavailable")
+        return EXIT_BLOCKED
+    calendar_kind = "unconfigured"
+    if "calendars" in config:
+        from backtrader.service.trading_calendar_config import parse_direct_calendar_status
+        try:
+            calendar, _ = parse_direct_calendar_status(
+                {"calendars": config["calendars"]}, config_file=config_path,
+                ctp_routes=(ROUTE,), configured_routes={ROUTE},
+            )
+            calendar_kind = calendar.root_kind
+        except ValueError as exc:
+            if exc.args == ("calendar_package_seed_unsupported",):
+                print("Calendar package_seed is unsupported")
+            else:
+                print("Calendar configuration invalid")
+            return EXIT_BLOCKED
+        except Exception:
+            print("Calendar configuration invalid")
+            return EXIT_BLOCKED
     if args.dry_run:
-        print(f"Dry run OK for {config_path}")
+        print("Dry run OK")
         print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
         for symbol in symbols:
             print(f"Feed {symbol}: {describe_feed(config, symbol)}")
-        print(f"Logging: {describe_logging(config)}")
-        print(f"State directory: {RUN_DIR / 'state'}")
+        settings = logging_settings(config)
+        target = "configured file" if settings["file"] else "stderr"
+        print(f"Logging: bt_api_ctp={settings['level']} other={settings['other_level']} to={target}")
+        print("State directory: configured locally")
+        print("Calendar: " + ("external directory configured; local status only"
+                              if calendar_kind == "directory"
+                              else "unconfigured; direct write requirement pending"))
         return EXIT_PASS
 
     print(f"Logging: {configure_run_logging(config)}", flush=True)
@@ -392,7 +425,7 @@ def main(argv=None):
 
     from backtrader.brokers._btapi_direct_mode import DirectModeError
 
-    store = create_store(config, credentials)
+    store = create_store(config, credentials, config_path)
     credentials.clear()
     broker = create_broker(store, config, args.first_init)
     cerebro = bt.Cerebro(stdstats=False)
