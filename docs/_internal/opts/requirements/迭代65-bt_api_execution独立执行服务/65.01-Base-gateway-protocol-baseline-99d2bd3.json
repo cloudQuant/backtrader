@@ -1,0 +1,1148 @@
+{
+  "scope": "Six specified Gateway protocol test files only; not the complete Base test suite and not installed-distribution evidence.",
+  "base_branch": "iter65",
+  "base_commit": "99d2bd381dbc750e743ff3bb1fd4291080134cc5",
+  "cwd": "/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base",
+  "base_import_path": "/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py",
+  "python_version": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+  "python_executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+  "pytest_version": "8.4.2",
+  "command": "env -i PATH=/usr/bin:/bin HOME=/nonexistent PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -B - < <inline-recorder>; recorder sets HOME to a temporary directory and invokes pytest.main with: -p no:cacheprovider --basetemp <temporary-directory>/pytest-tmp -q tests/test_gateway_direct_protocol.py tests/test_gateway_cancel_protocol.py tests/test_gateway_execution_protocol.py tests/test_gateway_execution_stream_protocol.py tests/test_gateway_execution_place_attribution.py tests/test_gateway_execution_cancel_attribution.py",
+  "offline_guard": "Python audit hook blocks socket events and process creation; HOME is an empty temporary directory; no account or secret environment variables supplied.",
+  "counts": {
+    "collected": 280,
+    "passed": 280,
+    "skipped": 0,
+    "failed": 0,
+    "incomplete": 0,
+    "pytest_exit_code": 0,
+    "blocked_operations": 0
+  },
+  "tests": [
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_roundtrip_reservation_and_nested_readonly_wire_values",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_post_dispatch_requires_identity_and_digest[DISPATCHING-2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_post_dispatch_requires_identity_and_digest[SENT-3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_post_dispatch_requires_identity_and_digest[NOT_SENT-3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_post_dispatch_requires_identity_and_digest[UNKNOWN-3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_expired_may_preserve_release_idempotency[None-None]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_expired_may_preserve_release_idempotency[release-1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_expired_may_preserve_release_idempotency[release-2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_released_requires_exact_release_pair",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_generation_and_ttl_are_bounded_relative_observations",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change7]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change8]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change9]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change10]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_record_values_fail_closed[change11]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_binding_is_required_exact_and_wire_fields_are_closed",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity7]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_bad_identity_or_sensitive_field_rejected[bad_identity8]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_digest_set_is_bounded_strict_and_unique",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_tampered_frozen_binding_and_identity_still_fail_closed",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_canonical_payload_unicode_order_and_digest_are_stable",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[1.0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[nan]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value7]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_invalid_or_oversized_payloads_fail[value8]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_payload_nesting_limit",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_direct_protocol.py::test_payload_limits_accept_valid_boundary_values",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_strict_roundtrip_and_detached_binding",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[REQUESTED-1-None]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[DISPATCHING-2-None]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[SENT-3-None]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[NOT_SENT-3-CANCEL_NOT_SENT]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[NOT_SENT-3-CANCEL_FAILED]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[UNKNOWN-3-CANCEL_OUTCOME_UNKNOWN]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_state_versions_and_error_codes[UNKNOWN-3-CANCEL_FAILED]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes7]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes8]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes9]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes10]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes11]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_bad_fields_fail_closed[changes12]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_cancel_protocol.py::test_extra_wire_fields_and_mutation_are_rejected",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_roundtrip_copies_and_freezes_nested_data",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change7]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change8]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change9]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change10]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change11]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change12]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change13]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change14]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change15]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change16]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change17]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change18]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change19]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change20]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change21]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change22]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change23]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change24]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_invalid_exact_fields_rejected[change25]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[True-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_0-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[-1-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[+1-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[01-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.0_1-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.00-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1e2-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[NaN-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[Infinity-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[1.1111111111111111111-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-filled_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-remaining_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_noncanonical_numeric_values_rejected[9999999999999999999999999999999999999-trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_positive_fields_reject_zero[order_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_positive_fields_reject_zero[limit_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_positive_fields_reject_zero[trade_quantity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_positive_fields_reject_zero[trade_price]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_zero_is_valid_for_filled_and_remaining",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_trade_and_nontrade_have_distinct_field_contracts",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_identity_route_day_sensitive_fields_and_large_payload",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_mapping_is_exact_and_rejects_type_confusion",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_protocol.py::test_digests_ignore_only_their_documented_fields",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_digest_is_fixed_and_stable",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[ ]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[\\ud800]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_consumer_rejects_bad_refs[None]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_projection_redacts_raw_keys_and_roundtrips",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_progress_roundtrip_sparse_sequences_and_historical_offer",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[sequence-True]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[sequence-0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[sequence-9223372036854775808]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[request_key-]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[reservation_id-\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[command_digest-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[fact_digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_event_invalid_fields[command_principal-\\ud800]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[offered_sequence-True]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[offered_sequence--1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[offered_sequence-9223372036854775808]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[acknowledged_sequence-True]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[acknowledged_sequence-4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[epoch-]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[epoch-\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c\\u754c]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[has_more-1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_invalid_progress[consumer_ref-gexec:bad]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_rejects_reordered_duplicates_other_account_and_overflow",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[identity_key_digests-value0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[identity_key_digests-value1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[binding_key_digests-value2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[venue_key_digest-1111111111111111111111111111111111111111111111111111111111111111]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[trade_key_digest-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[trading_day-20260229]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[trade_quantity-NaN]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[trade_quantity-1.0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[trade_quantity-0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[filled_quantity--1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_observation_reuses_fact_validation[error_code-raw error text]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[identity]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[identity_keys]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[binding_keys]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[venue_key]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[trade_key]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[source_ref]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_raw_fields_are_rejected_on_input[session_generation]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_strict_mapping_unknown_fields_and_bindings",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_trade_key_digest_uses_canonical_json_array",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_native_identity_digest_hides_all_nested_provider_fields",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_native_identity_digest_required_for_strong_keys",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_absent_native_identity_can_project_without_strong_keys",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamPage-fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamPage-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamPage-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamPage-True]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamProgress-fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamProgress-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamProgress-gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_epoch_must_be_lowercase_sha256_in_construction_and_mapping[GatewayExecutionStreamProgress-True]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_stream_protocol.py::test_page_rejects_empty_has_more_for_constructor_and_mapping",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_v3_digests_and_strict_mapping",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_fact_rejects_invalid_place_combinations[changes6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_page_v3_attribution_and_old_event_versions",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_place_attribution.py::test_event_attribution_must_match_kind_and_not_coexist",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v1_shape_and_digests_are_pinned",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_v2_cancel_attempt_key_distinguishes_same_error_and_excludes_source",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_v2_rejects_missing_or_bad_attempt_key_and_version[change6]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change4]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_wrong_shape_and_types[change5]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_fact_wire_rejects_v2_for_any_non_cancel_kind",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_page_v3_exposes_only_attribution_and_accepts_old_pages",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_attribution_shape_and_values_are_strict[bad0]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_attribution_shape_and_values_are_strict[bad1]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_attribution_shape_and_values_are_strict[bad2]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_attribution_shape_and_values_are_strict[bad3]",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_attribution_requires_cancel_error_and_strict_event_page_versions",
+      "outcome": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_execution_cancel_attribution.py::test_corrupted_attribution_and_fact_are_not_serialized",
+      "outcome": "passed"
+    }
+  ],
+  "warnings": [
+    "PytestConfigWarning: Unknown config option asyncio_default_fixture_loop_scope; plugin autoload was explicitly disabled."
+  ],
+  "recorder_source": "import json\nimport os\nimport sys\nimport tempfile\nfrom pathlib import Path\n\nbase = Path('/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base').resolve()\ndestination = Path('/Users/yunjinqi/Documents/new_projects/wt-iter65/backtrader/docs/_internal/opts/requirements/迭代65-bt_api_execution独立执行服务/65.01-Base-gateway-protocol-baseline-99d2bd3.json')\ntest_files = [\n    'tests/test_gateway_direct_protocol.py',\n    'tests/test_gateway_cancel_protocol.py',\n    'tests/test_gateway_execution_protocol.py',\n    'tests/test_gateway_execution_stream_protocol.py',\n    'tests/test_gateway_execution_place_attribution.py',\n    'tests/test_gateway_execution_cancel_attribution.py',\n]\nif Path.cwd().resolve() != base or destination.exists():\n    raise RuntimeError('Unexpected cwd or evidence already exists')\nviolations = []\ndef audit(event, args):\n    if event.startswith('socket.') or event in {'subprocess.Popen', 'os.system', 'os.posix_spawn', 'os.spawn', 'os.fork', 'os.forkpty'}:\n        violations.append(event)\n        raise RuntimeError('Offline baseline blocked operation: ' + event)\nsys.addaudithook(audit)\nsys.path.insert(0, str(base / 'src'))\nimport bt_api_base\nimport pytest\nsource = Path(bt_api_base.__file__).resolve()\nif not source.is_relative_to(base / 'src'):\n    raise RuntimeError('Base imported outside isolated source checkout')\nclass Recorder:\n    def __init__(self):\n        self.nodeids = []\n        self.reports = {}\n    def pytest_collection_modifyitems(self, items):\n        self.nodeids = [item.nodeid for item in items]\n    def pytest_runtest_logreport(self, report):\n        self.reports.setdefault(report.nodeid, []).append((report.when, report.outcome))\nrecorder = Recorder()\nwith tempfile.TemporaryDirectory(prefix='iter65-base-baseline-') as temp_dir:\n    os.environ['HOME'] = temp_dir\n    args = ['-p', 'no:cacheprovider', '--basetemp', os.path.join(temp_dir, 'pytest-tmp'), '-q'] + test_files\n    exitcode = int(pytest.main(args, plugins=[recorder]))\n    results = []\n    for nodeid in recorder.nodeids:\n        phases = recorder.reports.get(nodeid, [])\n        if any(outcome == 'failed' for _, outcome in phases):\n            result = 'failed'\n        elif any(outcome == 'skipped' for _, outcome in phases):\n            result = 'skipped'\n        elif any(phase == 'call' and outcome == 'passed' for phase, outcome in phases) and any(phase == 'teardown' and outcome == 'passed' for phase, outcome in phases):\n            result = 'passed'\n        else:\n            result = 'incomplete'\n        results.append({'nodeid': nodeid, 'outcome': result})\n    counts = {name: sum(item['outcome'] == name for item in results) for name in ('passed', 'skipped', 'failed', 'incomplete')}\n    print('BASELINE_COUNTS', json.dumps({'collected': len(results), **counts, 'pytest_exit_code': exitcode, 'blocked_operations': len(violations)}))\n    print('BASELINE_IMPORT', str(source))\n    if violations or exitcode != 0 or not results or counts['incomplete']:\n        raise SystemExit('Baseline not written: execution was incomplete, failed, or attempted a blocked operation')\n    evidence = {\n        'scope': 'Six specified Gateway protocol test files only; not the complete Base test suite and not installed-distribution evidence.',\n        'base_branch': 'iter65',\n        'base_commit': '99d2bd381dbc750e743ff3bb1fd4291080134cc5',\n        'cwd': str(base),\n        'base_import_path': str(source),\n        'python_version': sys.version,\n        'python_executable': sys.executable,\n        'pytest_version': pytest.__version__,\n        'command': 'env -i PATH=/usr/bin:/bin HOME=/nonexistent PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -B - < <inline-recorder>; recorder sets HOME to a temporary directory and invokes pytest.main with: ' + ' '.join(args).replace(temp_dir, '<temporary-directory>'),\n        'offline_guard': 'Python audit hook blocks socket events and process creation; HOME is an empty temporary directory; no account or secret environment variables supplied.',\n        'counts': {'collected': len(results), **counts, 'pytest_exit_code': exitcode, 'blocked_operations': len(violations)},\n        'tests': results,\n    }\n    with destination.open('x', encoding='utf-8') as stream:\n        json.dump(evidence, stream, ensure_ascii=False, indent=2)\n        stream.write('\\n')\n    print('BASELINE_EVIDENCE', destination)\n",
+  "recorder_source_note": "Recorder source was added after the test run for audit and reproduction; it was not collected during the run. The fixed destination is checked for existence and opened with mode x, so it refuses to overwrite existing evidence; select a different destination to rerun."
+}
