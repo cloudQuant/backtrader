@@ -36,7 +36,7 @@ CONDA = '/Users/yunjinqi/opt/anaconda3/bin/conda'
 
 # Each worker creates its own store and authority on its own main thread.
 CHILD = r'''
-import base64, json, os, socket, sys
+import base64, json, os, socket, sys, threading
 from pathlib import Path
 
 def forbidden(*args, **kwargs):
@@ -60,6 +60,7 @@ from bt_api_execution.store import SqliteExecutionStore
 from bt_api_py.gateway_delegate_service_client import GatewayDelegateRoute
 from bt_api_py.gateway_parent_client import GatewayParentServiceClient
 from bt_api_py.gateway_parent_service import OPERATIONS, REGISTER
+from bt_api_py.gateway_parent_client import OPERATION
 from bt_api_py.service_runtime_thread import BindingSnapshot, RuntimeSnapshot, ThreadedServiceClientRuntime
 workspace = Path(sys.argv[1]).resolve()
 assert Path(sys.executable).resolve() == Path('/Users/yunjinqi/opt/anaconda3/bin/python').resolve()
@@ -119,6 +120,43 @@ try:
                 reply(status='registered', state=state, envelope=captured[0])
             elif op == 'read':
                 reply(status='read', state=authority.get('parent-1')['gateway_state'])
+            elif op == 'reconcile':
+                issued = cmd['issued']
+                identity = WireIdentity(WireRole.SERVICE, 'synthetic-principal', 'synthetic-actor')
+                wire_scope = WireScope('synthetic-domain', account_ref='synthetic-account',
+                                       strategy_ref='synthetic-strategy', run_id='synthetic-run')
+                route = GatewayDelegateRoute('upstream.direct_write', 'synthetic-gateway',
+                    'instance', 'scope', wire_scope, identity)
+                runtime = ThreadedServiceClientRuntime(lambda: None)
+                binding = BindingSnapshot(issued['registration_id'], issued['service_epoch'], True,
+                    route.mount, route.service_id, route.instance_id, route.scope_ref, wire_scope, OPERATIONS, True)
+                runtime.status = lambda: RuntimeSnapshot('running', True, True, None, (binding,), 0, 0,
+                                                         identity, 'synthetic-run')
+                calls = []
+                creator_thread = threading.get_ident()
+                def rpc(mount, operation, arguments, **kwargs):
+                    assert threading.get_ident() == creator_thread
+                    assert operation == OPERATION and not calls
+                    calls.append(operation)
+                    request = WireEnvelope(header=WireHeader(protocol_version=WIRE_PROTOCOL_VERSION,
+                        kind=WireMessageKind.REQUEST, message_id='synthetic-reconcile-message', correlation_id=None,
+                        identity=identity, scope=wire_scope, operation=operation, schema_id='sdk.service.call',
+                        schema_version=1, sent_at_utc='2026-11-09T00:00:00Z'), payload={
+                        'registration_id': issued['registration_id'], 'service_epoch': issued['service_epoch'],
+                        'instance_id': 'instance', 'arguments': arguments})
+                    reply(status='rpc', pid=os.getpid(), thread=creator_thread,
+                          envelope=base64.b64encode(encode_envelope(request)).decode('ascii'))
+                    response = json.loads(sys.stdin.readline())
+                    assert response['op'] == 'rpc_result'
+                    if not response['response']['ok']:
+                        raise RuntimeError('synthetic transport received registry rejection')
+                    return response['response']['result']
+                runtime.call = rpc
+                authority.bind_gateway(GatewayParentServiceClient(runtime, route=route, host=authority))
+                assert authority.get('parent-1')['gateway_state'] == 'UNKNOWN'
+                state = authority.reconcile('parent-1', 'gateway')['gateway_state']
+                reply(status='reconciled', pid=os.getpid(), thread=threading.get_ident(),
+                      state=state, calls=calls)
             elif op == 'stale_write':
                 authority.accept(cmd['parent'])
                 reply(status='unexpected_write')
@@ -165,10 +203,13 @@ class Child:
         return json.loads(line)
 
     def request(self, op, **values):
+        self.send(op, **values)
+        return self.receive()
+
+    def send(self, op, **values):
         assert self.process.poll() is None
         self.process.stdin.write(json.dumps({'op': op, **values}) + '\n')
         self.process.stdin.flush()
-        return self.receive()
 
     def close(self):
         if self.process.poll() is None:
@@ -286,7 +327,10 @@ def test_late_parent_after_process_writer_handoff(tmp_path, monkeypatch, revoke)
         assert b.request('read') == {'status': 'read', 'state': 'UNKNOWN'}
         request = decode_envelope(base64.b64decode(captured['envelope'], validate=True))
         assert request.header.identity == identity and request.header.scope == wire_scope
+        assert request.header.operation == REGISTER
         assert request.payload['registration_id'] == issued['registration_id']
+        assert request.payload['service_epoch'] == issued['service_epoch']
+        assert request.payload['arguments']['spec']['parent_ref'] == 'parent-1'
         assert request.payload['arguments']['spec']['registration_operation_id'] == 'register-1'
         if revoke:
             assert registry.revoke_principal(identity.principal_ref) is True
@@ -305,12 +349,35 @@ def test_late_parent_after_process_writer_handoff(tmp_path, monkeypatch, revoke)
             assert replay_request.payload == request.payload
             replay = registry.handle(identity.principal_ref, replay_request)
             assert replay['ok'] and replay['result'] == response['result']
+        b.send('reconcile', issued=issued)
+        query = b.receive()
+        assert query['status'] == 'rpc' and query['pid'] == b_info['pid']
+        query_request = decode_envelope(base64.b64decode(query['envelope'], validate=True))
+        assert query_request.header.identity == identity and query_request.header.scope == wire_scope
+        assert query_request.header.operation == 'direct.parent.operation'
+        assert query_request.header.message_id != request.header.message_id
+        assert query_request.payload['registration_id'] == issued['registration_id']
+        assert query_request.payload['service_epoch'] == issued['service_epoch']
+        assert query_request.payload['instance_id'] == request.payload['instance_id']
+        assert query_request.payload['arguments'] == {
+            'account_scope': account, 'strategy_scope': strategy, 'parent_ref': 'parent-1',
+            'registration_operation_id': 'register-1', 'operation_id': 'register-1'}
+        query_response = registry.handle(identity.principal_ref, query_request)
+        assert query_response['ok'] is not revoke
+        if not revoke:
+            assert query_response['result']['result']['operation_id'] == 'register-1'
+            assert query_response['result']['result']['result']['state'] == 'ACTIVE'
+        b.send('rpc_result', response=query_response)
+        reconciled = b.receive()
+        assert reconciled == {'status': 'reconciled', 'pid': b_info['pid'], 'thread': query['thread'],
+                              'state': 'UNKNOWN' if revoke else 'ACCEPTED',
+                              'calls': ['direct.parent.operation']}
         with sqlite3.connect(tmp_path / 'gateway.sqlite') as db:
             parents = db.execute('SELECT state FROM direct_execution_parents WHERE parent_ref=?', ('parent-1',)).fetchall()
             operations = db.execute('SELECT operation_id FROM direct_execution_parent_operations WHERE parent_ref=?', ('parent-1',)).fetchall()
         assert parents == ([] if revoke else [('ACTIVE',)])
         assert operations == ([] if revoke else [('register-1',)])
-        assert b.request('read') == {'status': 'read', 'state': 'UNKNOWN'}
+        assert b.request('read') == {'status': 'read', 'state': 'UNKNOWN' if revoke else 'ACCEPTED'}
         for child in children:
             assert child.request('quit') == {'status': 'bye'}
             assert child.process.wait(timeout=10) == 0
