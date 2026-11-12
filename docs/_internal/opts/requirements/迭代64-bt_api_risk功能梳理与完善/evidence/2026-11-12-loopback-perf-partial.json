@@ -1,0 +1,163 @@
+{
+  "claim_throughput": [
+    {
+      "claim_latency": {
+        "first_decile_mean_ms": 289.863,
+        "last_decile_mean_ms": 502.467,
+        "max_ms": 707.748,
+        "mean_ms": 331.679,
+        "n": 20,
+        "p50_ms": 286.956,
+        "p99_ms": 707.748
+      },
+      "claims": 20,
+      "claims_per_second": 3.01,
+      "client_processes": 1,
+      "concurrency": 1,
+      "outcomes": {
+        "DISPATCHED": 20
+      },
+      "risk_permits_by_state_after_fills": {
+        "DENIED": 1,
+        "DISPATCHED": 11,
+        "TERMINAL": 224
+      },
+      "risk_permits_by_state_at_end": {
+        "DENIED": 1,
+        "DISPATCHED": 31,
+        "TERMINAL": 204
+      },
+      "risk_permits_by_state_at_start": {
+        "DENIED": 1,
+        "DISPATCHED": 10,
+        "TERMINAL": 204
+      },
+      "wall_seconds": 6.634
+    },
+    {
+      "claim_latency": {
+        "first_decile_mean_ms": 1075.675,
+        "last_decile_mean_ms": 1242.392,
+        "max_ms": 1404.382,
+        "mean_ms": 1211.493,
+        "n": 60,
+        "p50_ms": 1219.958,
+        "p99_ms": 1404.382
+      },
+      "claims": 60,
+      "claims_per_second": 2.42,
+      "client_processes": 3,
+      "concurrency": 3,
+      "outcomes": {
+        "DISPATCHED": 60
+      },
+      "risk_permits_by_state_after_fills": {
+        "DENIED": 1,
+        "DISPATCHED": 24,
+        "TERMINAL": 284
+      },
+      "risk_permits_by_state_at_end": {
+        "DENIED": 1,
+        "DISPATCHED": 84,
+        "TERMINAL": 224
+      },
+      "risk_permits_by_state_at_start": {
+        "DENIED": 1,
+        "DISPATCHED": 21,
+        "TERMINAL": 224
+      },
+      "wall_seconds": 24.751
+    }
+  ],
+  "config": {
+    "clients": "round trips and lag: strategy 0 in the measuring process; concurrent claims: one OS process per strategy (own Gateway session and Risk client); a fresh Risk process (same files) before each phase",
+    "instruments": 1,
+    "lag_samples": 30,
+    "orders": 200,
+    "per_client_claims": 20,
+    "reservation_ttl_seconds": 30,
+    "risk_loop_timeout_ms": 5,
+    "risk_maintain_seconds": 1,
+    "risk_observation_poll_seconds": "0.02",
+    "strategies": 10
+  },
+  "evidence": "INTEGRATION_SIM (loopback Gateway, synthetic dispatcher and returns)",
+  "load_average": {
+    "after_claims_1": [
+      5.98,
+      6.04,
+      6.73
+    ],
+    "after_claims_3": [
+      4.14,
+      5.21,
+      6.27
+    ],
+    "after_round_trips": [
+      5.86,
+      6.01,
+      6.85
+    ],
+    "start": [
+      5.32,
+      5.88,
+      6.89
+    ]
+  },
+  "machine": {
+    "cpu_count": 8,
+    "machine": "arm64",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.8"
+  },
+  "notes": [],
+  "risk_first_start_seconds": 0.352,
+  "round_trips": {
+    "direct_dispatch": {
+      "first_decile_mean_ms": 7.181,
+      "last_decile_mean_ms": 37.535,
+      "max_ms": 40.959,
+      "mean_ms": 23.156,
+      "n": 200,
+      "p50_ms": 23.379,
+      "p99_ms": 40.599
+    },
+    "direct_reserve": {
+      "first_decile_mean_ms": 11.524,
+      "last_decile_mean_ms": 63.174,
+      "max_ms": 90.441,
+      "mean_ms": 36.305,
+      "n": 200,
+      "p50_ms": 35.79,
+      "p99_ms": 72.89
+    },
+    "risk_dispatch": {
+      "first_decile_mean_ms": 30.754,
+      "last_decile_mean_ms": 65.466,
+      "max_ms": 143.077,
+      "mean_ms": 48.83,
+      "n": 200,
+      "p50_ms": 48.026,
+      "p99_ms": 67.53
+    },
+    "risk_outcomes_including_warmup": {
+      "DENIED": 1,
+      "DISPATCHED": 204
+    },
+    "risk_permits_by_state_at_end": {
+      "DENIED": 1,
+      "DISPATCHED": 1,
+      "TERMINAL": 203
+    },
+    "risk_permits_by_state_at_start": {},
+    "risk_reserve": {
+      "first_decile_mean_ms": 35.806,
+      "last_decile_mean_ms": 196.874,
+      "max_ms": 378.205,
+      "mean_ms": 114.387,
+      "n": 200,
+      "p50_ms": 112.494,
+      "p99_ms": 222.495
+    }
+  }
+}

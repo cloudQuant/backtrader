@@ -1,0 +1,50 @@
+{
+  "packages": [
+    {
+      "package": "bt_api_base",
+      "file": "/private/tmp/iter64-package-U76VZEIL/install/bt_api_base/__init__.py",
+      "distribution_version": "0.16.0.dev64"
+    },
+    {
+      "package": "bt_api_risk",
+      "file": "/private/tmp/iter64-package-U76VZEIL/install/bt_api_risk/__init__.py",
+      "distribution_version": "0.1.1.dev64"
+    },
+    {
+      "package": "bt_api_py",
+      "file": "/private/tmp/iter64-package-U76VZEIL/install/bt_api_py/__init__.py",
+      "distribution_version": "0.16.0.dev64"
+    },
+    {
+      "package": "bt_api_gateway",
+      "file": "/private/tmp/iter64-package-U76VZEIL/install/bt_api_gateway/__init__.py",
+      "distribution_version": "0.2.0.dev64"
+    },
+    {
+      "package": "bt_api_transport_zmq",
+      "file": "/private/tmp/iter64-package-U76VZEIL/install/bt_api_transport_zmq/__init__.py",
+      "distribution_version": "0.1.0"
+    },
+    {
+      "dependency": "yaml",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/yaml/__init__.py"
+    },
+    {
+      "dependency": "zmq",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/zmq/__init__.py"
+    },
+    {
+      "dependency": "msgpack",
+      "file": "/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/msgpack/__init__.py"
+    }
+  ],
+  "wrong_paths": [],
+  "sdk_commit": "2ffa600d1305c06f7c5b62f08fce22b6f2398c0b",
+  "risk_commit": "7c21fc61e882f474daa4f9dc02c87047140d5622",
+  "base_commit": "99d2bd381dbc750e743ff3bb1fd4291080134cc5",
+  "gateway_commit": "3fdbf84acd7e175dcf66b3a0c6271563b766ab9d",
+  "transport_commit": "043cb87a891ce8dbe24b82bdc9edf49d9f4d4671",
+  "branch": "dev",
+  "pytest_rc": 0,
+  "excluded": "ctp_profile tests, no CTP wheel tested"
+}
