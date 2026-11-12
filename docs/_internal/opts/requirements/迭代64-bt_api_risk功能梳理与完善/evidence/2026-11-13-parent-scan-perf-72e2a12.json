@@ -1,0 +1,177 @@
+{
+  "kind": "local diagnostic with fake gateway, facts, clock and setup-only assumed parent grant",
+  "risk_commit": "72e2a1284fe46a37501ab74947aac546808207ae",
+  "base_commit": "99d2bd381dbc750e743ff3bb1fd4291080134cc5",
+  "risk_module": "/tmp/iter64-parent-perf-SjECZnFb/risk/src/bt_api_risk/__init__.py",
+  "base_module": "/Users/yunjinqi/Documents/new_projects/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py",
+  "machine": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.8",
+    "cpu_count": 8
+  },
+  "samples_per_metric": 20,
+  "warmups": 3,
+  "setup_assumption": "Only while creating historic parent/child rows, _parent_contract_verified is patched True; it is restored to production False before timed calls. No provider or account operations.",
+  "percentile_method": "nearest-rank; with 20 samples p99 is max",
+  "cases": [
+    {
+      "parents": 0,
+      "parent_states": {},
+      "child_states": {},
+      "children_per_parent": 3,
+      "setup_seconds": 0.003,
+      "one_scan_query_counts": {
+        "holding_parent_selects": 1,
+        "child_selects": 0
+      },
+      "integrity_scans_per_reserve": 3,
+      "integrity_scans_per_dispatch": 3,
+      "scan_transaction": {
+        "n": 20,
+        "min_ms": 0.459,
+        "p50_ms": 0.463,
+        "p95_ms": 0.47,
+        "p99_ms": 0.472,
+        "max_ms": 0.472,
+        "mean_ms": 0.464
+      },
+      "ordinary_new_reserve_fake_gateway": {
+        "n": 20,
+        "min_ms": 2.816,
+        "p50_ms": 3.086,
+        "p95_ms": 3.313,
+        "p99_ms": 3.458,
+        "max_ms": 3.458,
+        "mean_ms": 3.102
+      },
+      "ordinary_idempotent_reserve": {
+        "n": 20,
+        "min_ms": 0.554,
+        "p50_ms": 0.561,
+        "p95_ms": 0.568,
+        "p99_ms": 0.572,
+        "max_ms": 0.572,
+        "mean_ms": 0.562
+      },
+      "ordinary_dispatch_fake_gateway": {
+        "n": 20,
+        "min_ms": 4.667,
+        "p50_ms": 4.845,
+        "p95_ms": 5.034,
+        "p99_ms": 5.053,
+        "max_ms": 5.053,
+        "mean_ms": 4.856
+      }
+    },
+    {
+      "parents": 10,
+      "parent_states": {
+        "ACTIVE": 5,
+        "FROZEN": 5
+      },
+      "child_states": {
+        "DENIED": 5,
+        "RESERVED": 30
+      },
+      "children_per_parent": 3,
+      "setup_seconds": 0.226,
+      "one_scan_query_counts": {
+        "holding_parent_selects": 1,
+        "child_selects": 10
+      },
+      "integrity_scans_per_reserve": 3,
+      "integrity_scans_per_dispatch": 3,
+      "scan_transaction": {
+        "n": 20,
+        "min_ms": 1.584,
+        "p50_ms": 1.594,
+        "p95_ms": 1.602,
+        "p99_ms": 1.937,
+        "max_ms": 1.937,
+        "mean_ms": 1.61
+      },
+      "ordinary_new_reserve_fake_gateway": {
+        "n": 20,
+        "min_ms": 7.601,
+        "p50_ms": 7.831,
+        "p95_ms": 8.163,
+        "p99_ms": 8.363,
+        "max_ms": 8.363,
+        "mean_ms": 7.897
+      },
+      "ordinary_idempotent_reserve": {
+        "n": 20,
+        "min_ms": 1.718,
+        "p50_ms": 1.733,
+        "p95_ms": 1.888,
+        "p99_ms": 1.972,
+        "max_ms": 1.972,
+        "mean_ms": 1.758
+      },
+      "ordinary_dispatch_fake_gateway": {
+        "n": 20,
+        "min_ms": 9.763,
+        "p50_ms": 9.826,
+        "p95_ms": 10.022,
+        "p99_ms": 10.318,
+        "max_ms": 10.318,
+        "mean_ms": 9.875
+      }
+    },
+    {
+      "parents": 100,
+      "parent_states": {
+        "ACTIVE": 50,
+        "FROZEN": 50
+      },
+      "child_states": {
+        "DENIED": 50,
+        "RESERVED": 300
+      },
+      "children_per_parent": 3,
+      "setup_seconds": 13.558,
+      "one_scan_query_counts": {
+        "holding_parent_selects": 1,
+        "child_selects": 100
+      },
+      "integrity_scans_per_reserve": 3,
+      "integrity_scans_per_dispatch": 3,
+      "scan_transaction": {
+        "n": 20,
+        "min_ms": 14.867,
+        "p50_ms": 14.998,
+        "p95_ms": 15.312,
+        "p99_ms": 15.365,
+        "max_ms": 15.365,
+        "mean_ms": 15.037
+      },
+      "ordinary_new_reserve_fake_gateway": {
+        "n": 20,
+        "min_ms": 63.88,
+        "p50_ms": 64.579,
+        "p95_ms": 65.813,
+        "p99_ms": 66.196,
+        "max_ms": 66.196,
+        "mean_ms": 64.682
+      },
+      "ordinary_idempotent_reserve": {
+        "n": 20,
+        "min_ms": 15.288,
+        "p50_ms": 15.412,
+        "p95_ms": 15.635,
+        "p99_ms": 15.844,
+        "max_ms": 15.844,
+        "mean_ms": 15.43
+      },
+      "ordinary_dispatch_fake_gateway": {
+        "n": 20,
+        "min_ms": 67.811,
+        "p50_ms": 68.971,
+        "p95_ms": 69.909,
+        "p99_ms": 72.476,
+        "max_ms": 72.476,
+        "mean_ms": 69.064
+      }
+    }
+  ]
+}
