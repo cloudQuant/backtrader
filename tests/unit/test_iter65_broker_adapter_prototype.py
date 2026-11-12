@@ -146,7 +146,7 @@ class SyntheticTransferBroker(bt.BrokerBase):
 
 
 class CaptureStrategy(bt.Strategy):
-    params = (("label", None), ("direction", None), ("parent_id", None))
+    params = (("label", None), ("direction", None), ("parent_id", None), ("order_size", 2))
 
     def __init__(self):
         self.events = []
@@ -156,7 +156,7 @@ class CaptureStrategy(bt.Strategy):
     def next(self):
         if len(self) == 1:
             order_method = self.buy if self.p.direction == "buy" else self.sell
-            self.parent_order = order_method(size=2, price=100, exectype=bt.Order.Limit,
+            self.parent_order = order_method(size=self.p.order_size, price=100, exectype=bt.Order.Limit,
                                              parent_id=self.p.parent_id)
         self.snapshots.append((self.get_strategy_position().size, self.getposition().size))
 
@@ -196,3 +196,113 @@ def test_cerebro_delivers_two_synthetic_transfer_legs_without_venue_trade():
                         ("trade", -2, 100.0, 0.0, 0.0, None)]
     assert a.snapshots[-1] == (2, 0) and b.snapshots[-1] == (-2, 0)
     assert len(adapter.applied) == 1 and not adapter.facts
+
+
+@dataclass(frozen=True)
+class SyntheticAllocation:
+    """A test-only allocation, not a provider fill or an implemented SDK event."""
+    event_id: str
+    strategy: str
+    parent: str
+    quantity: int
+    price: float
+    fee: float
+    source: str = "synthetic_strategy_allocation"
+
+
+class MixedSourceBroker(SyntheticTransferBroker):
+    """Test-only extension: separate partial events and in-memory ID checks."""
+
+    def next(self):
+        if not self.facts:
+            return
+        fact = self.facts[0]
+        key = fact.transfer_id if isinstance(fact, InternalTransfer) else fact.event_id
+        if key in self.applied:
+            if self.applied[key] != fact:
+                raise ValueError("synthetic identity conflict")
+            self.facts.popleft()
+            return
+        legs = fact.legs if isinstance(fact, InternalTransfer) else (
+            TransferLeg(fact.strategy, fact.parent, fact.quantity),
+        )
+        if any(leg.parent not in self.orders for leg in legs):
+            return
+        if isinstance(fact, InternalTransfer) and (
+                fact.source != "internal_transfer" or sum(leg.quantity for leg in legs) != 0):
+            raise ValueError("invalid synthetic transfer")
+        for leg in legs:
+            order = self.orders[leg.parent]
+            if (order.owner.p.label != leg.strategy or order.executed.remsize * leg.quantity <= 0
+                    or abs(leg.quantity) > abs(order.executed.remsize)):
+                raise ValueError("synthetic leg binding mismatch")
+        self.facts.popleft()
+        for leg in legs:
+            order = self.orders[leg.parent]
+            pos = self.get_strategy_position(order.owner, order.data)
+            size, price, opened, closed = pos.update(leg.quantity, fact.price)
+            fee = fact.fee if isinstance(fact, SyntheticAllocation) else 0.0
+            order.addinfo(execution_source=fact.source, latest_event_id=key)
+            order.execute(order.data.datetime[0], leg.quantity, fact.price, closed, 0, 0,
+                opened, abs(opened) * fact.price, fee, 0, 0, size, price)
+            self.notifications.append(order.clone())
+        self.applied[key] = fact
+
+
+class MixedCapture(CaptureStrategy):
+    def __init__(self):
+        super().__init__()
+        self.order_observations = []
+        self.notices = []
+
+    def notify_order(self, order):
+        super().notify_order(order)
+        self.notices.append(order)
+        self.order_observations.append({
+            "status": order.status,
+            "size": order.executed.size,
+            "commission": order.executed.comm,
+            "source": order.info.get("execution_source"),
+            "event_id": order.info.get("latest_event_id"),
+            "bits": tuple((bit.size, bit.price, bit.comm,
+                           getattr(bit, "execution_source", None),
+                           getattr(bit, "event_id", None))
+                          for bit in order.executed.iterpending()),
+        })
+
+
+def test_one_parent_partial_transfer_then_synthetic_allocation_with_replays():
+    transfer = InternalTransfer("transfer-2", "internal_transfer", 100.0,
+        (TransferLeg("a", "parent-a", 2), TransferLeg("b", "parent-b", -2)))
+    allocation = SyntheticAllocation("allocation-1", "a", "parent-a", 2, 99.5, 0.5)
+    adapter = MixedSourceBroker([transfer, transfer, allocation, allocation])
+    cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
+    cerebro.setbroker(adapter)
+    bars = pd.DataFrame({"open": [100.0] * 7, "high": [100.0] * 7, "low": [99.0] * 7,
+        "close": [100.0] * 7, "volume": [10.0] * 7},
+        index=pd.date_range("2026-11-12", periods=7, freq="min"))
+    cerebro.adddata(bt.feeds.PandasData(dataname=bars, name="synthetic"))
+    cerebro.addstrategy(MixedCapture, label="a", direction="buy", parent_id="parent-a", order_size=4)
+    cerebro.addstrategy(MixedCapture, label="b", direction="sell", parent_id="parent-b", order_size=2)
+    a, b = cerebro.run()
+    assert a.get_strategy_position().size == 4 and b.get_strategy_position().size == -2
+    assert a.parent_order.status == bt.Order.Completed and a.parent_order.executed.size == 4
+    assert a.parent_order.executed.comm == 0.5
+    assert a.order_observations == [
+        {"status": bt.Order.Partial, "size": 2, "commission": 0.0,
+         "source": "internal_transfer", "event_id": "transfer-2",
+         "bits": ((2, 100.0, 0.0, None, None),)},
+        {"status": bt.Order.Completed, "size": 4, "commission": 0.5,
+         "source": "synthetic_strategy_allocation", "event_id": "allocation-1",
+         "bits": ((2, 99.5, 0.5, None, None),)},
+    ]
+    # A Trade notification is emitted on the first opening; adding to the same
+    # Trade does not emit a second Trade notification in this BT lifecycle.
+    assert [event for event in a.events if event[0] == "trade"] == [
+        ("trade", 2, 100.0, 0.0, 0.0, None)
+    ]
+    # Order.clone() shares info: an earlier retained notification now exposes
+    # the latest source, even though the callback snapshot above was correct.
+    assert a.notices[0].info is a.notices[1].info
+    assert a.notices[0].info.get("execution_source") == "synthetic_strategy_allocation"
+    assert set(adapter.applied) == {"transfer-2", "allocation-1"} and not adapter.facts
