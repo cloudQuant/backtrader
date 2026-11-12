@@ -8,6 +8,7 @@ NOT_RUN. No BT private method is invoked by this prototype.
 """
 
 from collections import deque
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 import sys
@@ -306,3 +307,66 @@ def test_one_parent_partial_transfer_then_synthetic_allocation_with_replays():
     assert a.notices[0].info is a.notices[1].info
     assert a.notices[0].info.get("execution_source") == "synthetic_strategy_allocation"
     assert set(adapter.applied) == {"transfer-2", "allocation-1"} and not adapter.facts
+
+
+class SnapshotNotificationBroker(MixedSourceBroker):
+    """Test candidate only: detach each queued notification's mutable info."""
+
+    def next(self):
+        before = len(self.notifications)
+        super().next()
+        for notice in list(self.notifications)[before:]:
+            notice.info = deepcopy(notice.info)
+            # This is a test-only dynamic attribute, not an advertised BT
+            # execution-bit extension or a persisted SDK identity contract.
+            for bit in notice.executed.iterpending():
+                bit.execution_source = notice.info.get("execution_source")
+                bit.event_id = notice.info.get("latest_event_id")
+
+
+def test_detached_order_info_preserves_each_synthetic_event_in_memory():
+    transfer = InternalTransfer("transfer-snapshot", "internal_transfer", 100.0,
+        (TransferLeg("a", "parent-a", 2), TransferLeg("b", "parent-b", -2)))
+    allocation = SyntheticAllocation("allocation-snapshot", "a", "parent-a", 2, 99.5, 0.5)
+    adapter = SnapshotNotificationBroker([transfer, transfer, allocation, allocation])
+    cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
+    cerebro.setbroker(adapter)
+    bars = pd.DataFrame({"open": [100.0] * 7, "high": [100.0] * 7, "low": [99.0] * 7,
+        "close": [100.0] * 7, "volume": [10.0] * 7},
+        index=pd.date_range("2026-11-12", periods=7, freq="min"))
+    cerebro.adddata(bt.feeds.PandasData(dataname=bars, name="synthetic"))
+    cerebro.addstrategy(MixedCapture, label="a", direction="buy", parent_id="parent-a", order_size=4)
+    cerebro.addstrategy(MixedCapture, label="b", direction="sell", parent_id="parent-b", order_size=2)
+    a, b = cerebro.run()
+    assert a.get_strategy_position().size == 4 and b.get_strategy_position().size == -2
+    assert a.parent_order.executed.size == 4 and a.parent_order.executed.comm == 0.5
+    assert len(a.notices) == 2 and a.notices[0].info is not a.notices[1].info
+    assert [(order.info.get("execution_source"), order.info.get("latest_event_id"))
+            for order in a.notices] == [
+        ("internal_transfer", "transfer-snapshot"),
+        ("synthetic_strategy_allocation", "allocation-snapshot"),
+    ]
+    assert [entry["bits"] for entry in a.order_observations] == [
+        ((2, 100.0, 0.0, "internal_transfer", "transfer-snapshot"),),
+        ((2, 99.5, 0.5, "synthetic_strategy_allocation", "allocation-snapshot"),),
+    ]
+    assert [(bit.execution_source, bit.event_id) for bit in a.parent_order.executed.exbits] == [
+        ("internal_transfer", "transfer-snapshot"),
+        ("synthetic_strategy_allocation", "allocation-snapshot"),
+    ]
+    assert [event for event in a.events if event[0] == "trade"] == [
+        ("trade", 2, 100.0, 0.0, 0.0, None)
+    ]
+    assert set(adapter.applied) == {"transfer-snapshot", "allocation-snapshot"} and not adapter.facts
+
+    # Current Gateway's framework serializer has a fixed execution-bit schema.
+    # This is a snapshot test, not use of a private method to advance BT.
+    from backtrader.brokers._btapi_gateway_projection import capture_framework_state
+    args = dict(orders={"parent-a": a.parent_order}, positions={"synthetic": a.get_strategy_position()},
+                trades={}, data_by_ref={"synthetic": a.data}, owner=a, broker=adapter)
+    with pytest.raises(ValueError, match="GATEWAY_FRAMEWORK_SNAPSHOT_INVALID"):
+        capture_framework_state(**args)
+    for bit in a.parent_order.executed.exbits:
+        del bit.execution_source
+        del bit.event_id
+    assert capture_framework_state(**args)["schema_version"] == 1
