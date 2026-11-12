@@ -85,12 +85,12 @@ class FuturesVector(bt.Strategy):
             self.sell(size=1)
 
 
-def backbroker_vector():
+def backbroker_vector(automargin):
     cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
     cerebro.broker.setcash(100000)
     # BackBroker's percentage fee applies to price*size; Gateway's 0.0001
     # applies to price*size*multiplier, hence these produce the same per-fill fee.
-    cerebro.broker.setcommission(commission=0.001, margin=3000, mult=10,
+    cerebro.broker.setcommission(commission=0.001, margin=3000, mult=10, automargin=automargin,
         commtype=bt.CommInfoBase.COMM_PERC, stocklike=False, percabs=True)
     prices = [3000., 3000., 3100., 3100.]
     bars = pd.DataFrame({"open": prices, "high": prices, "low": prices,
@@ -101,14 +101,17 @@ def backbroker_vector():
     return cerebro.run()[0]
 
 
-def test_single_strategy_fills_reach_backbroker_and_gateway_getters(tmp_path, monkeypatch):
-    strategy_bt = backbroker_vector()
+@pytest.mark.parametrize(("automargin", "marked_bt_value"), [(False, 100997.), (1.0, 101097.)],
+                         ids=["fixed_margin", "price_based_automargin"])
+def test_single_strategy_fills_reach_backbroker_and_gateway_getters(
+        tmp_path, monkeypatch, automargin, marked_bt_value):
+    strategy_bt = backbroker_vector(automargin)
     assert strategy_bt.fills == [
         {"side": "buy", "quantity": 1, "price": 3000., "commission": 3.},
         {"side": "sell", "quantity": 1, "price": 3100., "commission": 3.1},
     ]
     assert strategy_bt.cuts[2] == pytest.approx((96997., 99997., 1.))
-    assert strategy_bt.cuts[3] == pytest.approx((97997., 100997., 1.))
+    assert strategy_bt.cuts[3] == pytest.approx((97997., marked_bt_value, 1.))
     assert strategy_bt.cuts[4] == pytest.approx((100993.9, 100993.9, 0.))
     holder = {}
 
@@ -216,9 +219,13 @@ def test_single_strategy_fills_reach_backbroker_and_gateway_getters(tmp_path, mo
         marked = owner_call(mark)
         assert (marked.cash, marked.value, Decimal(marked.unrealized_pnl)) == (
             Decimal("97897"), Decimal("100997"), Decimal("1000"))
-        assert strategy_gateway.get_strategy_value() == pytest.approx(strategy_bt.cuts[3][1])
+        assert strategy_gateway.get_strategy_value() == pytest.approx(100997.)
         assert strategy_gateway.get_strategy_cash() == pytest.approx(97897.)
         assert strategy_bt.cuts[3][0] - strategy_gateway.get_strategy_cash() == pytest.approx(100.)
+        # BackBroker's auto margin changes marked position value, not its
+        # strategy cash; the observed value discrepancy is not normalized away.
+        assert strategy_bt.cuts[3][1] - strategy_gateway.get_strategy_value() == pytest.approx(
+            100. if automargin else 0.)
 
         closed, close_position = replay_fill(1)
         assert (closed.cash, closed.value, Decimal(closed.fees), Decimal(close_position)) == (
