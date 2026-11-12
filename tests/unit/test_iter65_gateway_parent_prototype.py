@@ -288,7 +288,8 @@ def test_reused_trade_digest_on_another_day_is_rejected(ready, inputs, monkeypat
     assert calls["ack"] == [3]
 
 
-def test_gateway_submit_rejects_explicit_parent_expiry_before_sdk(state, ready, inputs, monkeypatch):
+@pytest.fixture
+def gateway_submit_probe(state, ready, inputs, monkeypatch):
     _, binding, _ = ready
     host = GatewayPendingHost.upgrade_for_order_state(state.strategy_dir, state.strategy_uuid, binding)
     state.sequence.allocate()
@@ -298,14 +299,45 @@ def test_gateway_submit_rejects_explicit_parent_expiry_before_sdk(state, ready, 
         orders_by_key={}, instrument_by_ref={"rb": INSTRUMENT},
         time_policy=GatewayExecutionTimePolicy("CTP___FUTURE", "UTC"), sequence=state.sequence)
     calls = []
-    monkeypatch.setattr(api, "reserve_order", lambda *args, **kwargs: calls.append("reserve"))
+    get_stream = api.gateway_execution_stream
+    def observe_stream(route):
+        calls.append(("stream_getter", route))
+        return get_stream(route)
+    monkeypatch.setattr(api, "gateway_execution_stream", observe_stream)
+    monkeypatch.setattr(api, "reserve_order", lambda *args, **kwargs: calls.append(("reserve",)))
+    monkeypatch.setattr(api, "dispatch_order", lambda *args, **kwargs: calls.append(("dispatch",)))
+    return state, host, data, broker, strategy, calls
+
+
+@pytest.mark.parametrize("valid", [dt.datetime(2026, 11, 9, 14, 0), bt.Order.DAY], ids=["datetime", "day"])
+def test_gateway_submit_rejects_explicit_expiry_before_reserve(gateway_submit_probe, valid):
+    state, host, data, broker, strategy, calls = gateway_submit_probe
     before = state.sequence.local_seq
     order = bt.BuyOrder(owner=strategy, data=data, size=1, price=10, exectype=bt.Order.Limit,
-                        valid=dt.datetime(2026, 11, 9, 14, 0))
+                        valid=valid)
     assert type(order.valid) is float
-    assert order.valid == bt.date2num(dt.datetime(2026, 11, 9, 14, 0))
+    assert order.valid is not None
+    if isinstance(valid, dt.datetime):
+        assert order.valid == bt.date2num(valid)
     order.addinfo(offset="open", quantity_unit="lots", time_in_force="GFD")
     with pytest.raises(RuntimeError, match="GATEWAY_STREAM_ORDER_UNSUPPORTED"):
         broker.submit(order)
     assert state.sequence.local_seq == before and order.status == order.Created
-    assert host.iter_order_snapshots() == {} and calls == []
+    assert host.iter_order_snapshots() == {}
+    assert calls == [("stream_getter", "CTP___FUTURE")]
+
+
+@pytest.mark.parametrize("order_type", [bt.BuyOrder, bt.SellOrder], ids=["buy", "sell"])
+@pytest.mark.parametrize("valid", [None, dt.datetime(2026, 11, 9, 14, 0)], ids=["no_valid", "valid"])
+def test_gateway_market_rejected_before_reserve(gateway_submit_probe, order_type, valid):
+    """Current Gateway Broker guard, not a claim about other paths or Execution routing."""
+    state, host, data, broker, strategy, calls = gateway_submit_probe
+    before = state.sequence.local_seq
+    order = order_type(owner=strategy, data=data, size=1, exectype=bt.Order.Market, valid=valid)
+    assert (order.valid is None) == (valid is None)
+    order.addinfo(offset="open", quantity_unit="lots", time_in_force="GFD")
+    with pytest.raises(RuntimeError, match="GATEWAY_STREAM_ORDER_UNSUPPORTED"):
+        broker.submit(order)
+    assert state.sequence.local_seq == before and order.status == order.Created
+    assert host.iter_order_snapshots() == {}
+    assert calls == [("stream_getter", "CTP___FUTURE")]
