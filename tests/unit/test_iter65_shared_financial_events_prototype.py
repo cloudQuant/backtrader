@@ -3,8 +3,8 @@
 No provider, account, credentials or network is used.  Gateway commands are
 pre-created in an isolated test journal before its schema upgrade; this does
 not exercise Gateway's real close-order admission.  The market/rates, grant and
-in-process transport are controlled substitutes.  This is one comparable
-single-strategy futures vector, not D63-44/45 or iteration acceptance.
+in-process transport are controlled substitutes.  These are bounded
+single-strategy long/short futures vectors, not D63-44/45 or iteration acceptance.
 """
 
 from decimal import Decimal
@@ -66,6 +66,8 @@ def isolated_sources():
 
 
 class FuturesVector(bt.Strategy):
+    params = (("short", False),)
+
     def __init__(self):
         self.fills = []
         self.cuts = {}
@@ -80,39 +82,47 @@ class FuturesVector(bt.Strategy):
         self.cuts[len(self)] = (self.get_strategy_cash(), self.get_strategy_value(),
                                 self.get_strategy_position().size)
         if len(self) == 1:
-            self.buy(size=1)
+            self.sell(size=1) if self.p.short else self.buy(size=1)
         elif len(self) == 3:
-            self.sell(size=1)
+            self.buy(size=1) if self.p.short else self.sell(size=1)
 
 
-def backbroker_vector(automargin):
+def backbroker_vector(automargin, short=False):
     cerebro = bt.Cerebro(stdstats=False, runonce=False, preload=False)
     cerebro.broker.setcash(100000)
     # BackBroker's percentage fee applies to price*size; Gateway's 0.0001
     # applies to price*size*multiplier, hence these produce the same per-fill fee.
-    cerebro.broker.setcommission(commission=0.001, margin=3000, mult=10, automargin=automargin,
+    cerebro.broker.setcommission(commission=0.001, margin=3600 if short else 3000, mult=10, automargin=automargin,
         commtype=bt.CommInfoBase.COMM_PERC, stocklike=False, percabs=True)
-    prices = [3000., 3000., 3100., 3100.]
+    prices = [3000., 3000., 2900., 2900.] if short else [3000., 3000., 3100., 3100.]
     bars = pd.DataFrame({"open": prices, "high": prices, "low": prices,
                          "close": prices, "volume": [1.] * len(prices)},
                         index=pd.date_range("2026-11-09", periods=len(prices), freq="min"))
     cerebro.adddata(bt.feeds.PandasData(dataname=bars, name="rb2601"))
-    cerebro.addstrategy(FuturesVector)
+    cerebro.addstrategy(FuturesVector, short=short)
     return cerebro.run()[0]
 
 
-@pytest.mark.parametrize(("automargin", "marked_bt_value"), [(False, 100997.), (1.0, 101097.)],
-                         ids=["fixed_margin", "price_based_automargin"])
+@pytest.mark.parametrize(("short", "automargin", "marked_bt_value"), [
+    (False, False, 100997.), (False, 1.0, 101097.),
+    (True, False, 100997.), (True, 1.2, 100877.),
+], ids=["long_fixed_margin", "long_price_based_automargin",
+        "short_fixed_margin", "short_price_based_automargin"])
 def test_single_strategy_fills_reach_backbroker_and_gateway_getters(
-        tmp_path, monkeypatch, automargin, marked_bt_value):
-    strategy_bt = backbroker_vector(automargin)
+        tmp_path, monkeypatch, short, automargin, marked_bt_value):
+    strategy_bt = backbroker_vector(automargin, short)
+    closing_price = 2900. if short else 3100.
+    opening_side, closing_side = ("sell", "buy") if short else ("buy", "sell")
+    opening_cash = 96397. if short else 96997.
+    marked_cash = 97397. if short else 97997.
+    closed_cash = 100994.1 if short else 100993.9
     assert strategy_bt.fills == [
-        {"side": "buy", "quantity": 1, "price": 3000., "commission": 3.},
-        {"side": "sell", "quantity": 1, "price": 3100., "commission": 3.1},
+        {"side": opening_side, "quantity": 1, "price": 3000., "commission": 3.},
+        {"side": closing_side, "quantity": 1, "price": closing_price, "commission": closing_price * 0.001},
     ]
-    assert strategy_bt.cuts[2] == pytest.approx((96997., 99997., 1.))
-    assert strategy_bt.cuts[3] == pytest.approx((97997., marked_bt_value, 1.))
-    assert strategy_bt.cuts[4] == pytest.approx((100993.9, 100993.9, 0.))
+    assert strategy_bt.cuts[2] == pytest.approx((opening_cash, 99997., -1. if short else 1.))
+    assert strategy_bt.cuts[3] == pytest.approx((marked_cash, marked_bt_value, -1. if short else 1.))
+    assert strategy_bt.cuts[4] == pytest.approx((closed_cash, closed_cash, 0.))
     holder = {}
 
     def factory():
@@ -208,28 +218,30 @@ def test_single_strategy_fills_reach_backbroker_and_gateway_getters(
 
         opened, open_position = replay_fill(0)
         assert (opened.cash, opened.value, Decimal(opened.fees), Decimal(open_position)) == (
-            Decimal("96997"), Decimal("99997"), Decimal("3"), Decimal("1"))
+            Decimal(str(opening_cash)), Decimal("99997"), Decimal("3"), Decimal("-1" if short else "1"))
+        assert Decimal(opened.margin) == Decimal("3600" if short else "3000")
         assert (strategy_gateway.get_strategy_cash(), strategy_gateway.get_strategy_value()) == pytest.approx(
             strategy_bt.cuts[2][:2])
 
         def mark():
-            world.tick(3100)
+            world.tick(int(closing_price))
             world.step()
             return world.read()
         marked = owner_call(mark)
         assert (marked.cash, marked.value, Decimal(marked.unrealized_pnl)) == (
-            Decimal("97897"), Decimal("100997"), Decimal("1000"))
+            Decimal("97517" if short else "97897"), Decimal("100997"), Decimal("1000"))
+        assert Decimal(marked.margin) == Decimal("3480" if short else "3100")
         assert strategy_gateway.get_strategy_value() == pytest.approx(100997.)
-        assert strategy_gateway.get_strategy_cash() == pytest.approx(97897.)
-        assert strategy_bt.cuts[3][0] - strategy_gateway.get_strategy_cash() == pytest.approx(100.)
+        assert strategy_gateway.get_strategy_cash() == pytest.approx(97517. if short else 97897.)
+        assert strategy_bt.cuts[3][0] - strategy_gateway.get_strategy_cash() == pytest.approx(-120. if short else 100.)
         # BackBroker's auto margin changes marked position value, not its
         # strategy cash; the observed value discrepancy is not normalized away.
         assert strategy_bt.cuts[3][1] - strategy_gateway.get_strategy_value() == pytest.approx(
-            100. if automargin else 0.)
+            (-120. if short else 100.) if automargin else 0.)
 
         closed, close_position = replay_fill(1)
         assert (closed.cash, closed.value, Decimal(closed.fees), Decimal(close_position)) == (
-            Decimal("100993.9"), Decimal("100993.9"), Decimal("6.1"), Decimal("0"))
+            Decimal(str(closed_cash)), Decimal(str(closed_cash)), Decimal("5.9" if short else "6.1"), Decimal("0"))
         assert (strategy_gateway.get_strategy_cash(), strategy_gateway.get_strategy_value()) == pytest.approx(
             strategy_bt.cuts[4][:2])
     finally:
