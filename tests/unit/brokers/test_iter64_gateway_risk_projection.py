@@ -82,8 +82,12 @@ def test_gateway_store_refuses_misplaced_or_missing_risk_selection(setup_gateway
 def _risk_api(host, route):
     """A real risk-selected facade whose Risk runtime is never started."""
     plain = api_for(host, route)
-    risk = RiskServiceClient(ThreadedServiceClientRuntime(lambda: None), route=RiskClientRoute(
-        "broker.risk_order", "risk", "risk-a", "risk-scope", route.scope, route.identity))
+    risk = RiskServiceClient(
+        ThreadedServiceClientRuntime(lambda: None, require_unregister_ack=True),
+        route=RiskClientRoute(
+            "broker.risk_order", "risk", "risk-a", "risk-scope", route.scope, route.identity
+        ),
+    )
     return GatewayBtApi(plain._session, exchange_name="CTP___FUTURE", risk_client=risk)
 
 
@@ -106,8 +110,11 @@ def _risk_wire(api, monkeypatch, replies, *, registered=True):
     route = api._risk.route
     binding = BindingSnapshot("reg-1", "epoch-1", True, route.mount, route.service_id,
                               route.instance_id, route.scope_ref, route.scope, OPS, True)
+    # This fabricated status selects a strict-policy scenario for projection;
+    # no runtime is started and it is not evidence of a Registry acknowledgement.
     snap = RuntimeSnapshot("running" if registered else "failed", registered, registered, None,
-                           (binding,), 0, 0, route.identity, route.scope.run_id)
+                           (binding,), 0, 0, route.identity, route.scope.run_id,
+                           strict_unregister_ack=True)
     calls = []
     runtime = api._risk._runtime
     monkeypatch.setattr(runtime, "status", lambda: snap)

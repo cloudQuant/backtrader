@@ -435,13 +435,17 @@ def _strategy_api(endpoint, server_public, keys, host, standin, monkeypatch):
         security_profiles={"security-a": ClientCurveKeys(server_public, *keys)}, host=host,
         delegated_cancel_host=host, requested_operations=_strategy_ops())
     risk_route = RiskClientRoute("broker.risk_order", "risk", "risk-a", "risk-scope", SCOPE, STRATEGY)
-    risk = RiskServiceClient(ThreadedServiceClientRuntime(lambda: None), route=risk_route)
+    risk = RiskServiceClient(
+        ThreadedServiceClientRuntime(lambda: None, require_unregister_ack=True), route=risk_route
+    )
     snapshot = RuntimeSnapshot("running", True, True, None, (BindingSnapshot(
         "risk-registration", "risk-epoch", True, risk_route.mount, risk_route.service_id,
         risk_route.instance_id, risk_route.scope_ref, SCOPE,
         frozenset({"risk.order.reserve", "risk.order.dispatch", "risk.order.release",
-                   "risk.order.status"}), True),), 0, 0, STRATEGY, RUN)
-    # The stand-in Risk answers in this process instead of a Risk host.
+                   "risk.order.status"}), True),), 0, 0, STRATEGY, RUN,
+        strict_unregister_ack=True)
+    # Simulated strict-policy status: Risk answers in this process rather than a
+    # Risk host; this snapshot is not a Registry or unregister acknowledgement.
     monkeypatch.setattr(risk._runtime, "status", lambda: snapshot)
     monkeypatch.setattr(risk._runtime, "start", lambda **kw: snapshot)
     monkeypatch.setattr(risk._runtime, "close", lambda **kw: snapshot)
