@@ -24,7 +24,7 @@ Risk 的 WIP 为 policy/exchange rules 的数值规范化设置各自 **1 MiB** 
 
 WIP 将 audit 查询限制为 `after` 有效游标及 `limit` 1–1000，成功返回所请求的完整页面；页无法装入时拒绝并保留游标，而不是成功返回短页让旧客户端误认为 EOF。调用方需自行用较小 limit 重试；系统没有自动降页。单行不可表示或超限时不能靠缩页跨越；其他账户持续产生较长记录、消耗候选扫描预算也可能让目标账户长期无法前进。
 
-响应错误包含 `risk_audit_record_too_large`、`risk_audit_page_too_large`、`risk_audit_corrupt`、`risk_audit_unavailable`、`risk_audit_number_unrepresentable`、`risk_audit_size_unavailable`；请求无效和未授权另用对应拒绝。Risk 侧读取/页面预算为 **768 KiB、100,000 节点、详情深度 14 层、100,000 候选行**，组件另有自己的响应节点预算。历史数据中的负零、NaN、无穷大或无法无损表达的数字等，不能静默转换为看似正确的结果；不兼容历史行可能阻塞读取，须保留拒绝并处理历史兼容。
+响应错误包含 `risk_audit_record_too_large`、`risk_audit_page_too_large`、`risk_audit_corrupt`、`risk_audit_unavailable`、`risk_audit_number_unrepresentable`、`risk_audit_size_unavailable`；请求无效和未授权另用对应拒绝。Risk 侧读取/页面预算为 **768 KiB、100,000 节点、详情深度 14 层、100,000 候选行**，组件另有自己的响应节点预算。历史数据中的负零整数 token `-0`、NaN、无穷大或无法无损表达的数字等（浮点 `-0.0` 有时可以保留），不能静默转换为看似正确的结果；不兼容历史行可能阻塞读取，须保留拒绝并处理历史兼容。
 
 标准 Registry 提供结果大小检查，配置的 ServiceHost frame checker 还可检查封装帧；裸 Registry 中单独提供的 checker 不证明实际传输帧受限。缺少可用检查或有界 reader 时返回拒绝，不回退到无界旧读取。已知 GAP：非规范 TEXT scope 的异常可能漏检；SQL 层内部的内存和执行时间上界未由这些应用层预算证明。上限不会证明所有 SQLite 实现、数据分布或持续写入负载下的可用性。
 
@@ -43,5 +43,5 @@ WIP 将 audit 查询限制为 `after` 有效游标及 `limit` 1–1000，成功�
 
 - **GAP**：活动订单共同来源切点、账户及日内事实、母子单授权和跨代未发送证明等仍缺失；默认自成交检查涉及的 Risk OPEN/CLOSE 路径继续失败关闭。
 - **NOT_RUN**：本记录未运行真实 socket、真实账户或生产验收；未重跑上述测试，也未读取真实凭据、私有配置或操作现有 host。
-- **NOT_RUN**：本机未发现 Windows PowerShell 5.1，无法在其默认读取方式下检查中文；本文件将另做 BOM、严格 UTF-8 解码和替换符检查，该本地检查不能替代 Windows 读取验证。
+- **NOT_RUN**：本机未发现 Windows PowerShell 5.1，无法在其默认读取方式下检查中文；本机 BOM、严格 UTF-8 解码及无替换符检查已完成并通过；该本地检查不能替代 Windows 读取验证。
 - 后续应固定待验收源码与测试清单、保留完整命令和环境、定位全套失败并复测；分别补齐授权来源、历史数据兼容、真实传输和账户证据后再讨论相应验收。整期仍为 **NO-GO**。
