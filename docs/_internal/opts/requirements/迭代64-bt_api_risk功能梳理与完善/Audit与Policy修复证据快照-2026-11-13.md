@@ -195,3 +195,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 SDK freshness 纳秒精度局部提交
 
 据主会话提供的局部证据，SDK 本地 commit `f321d13f` 对 account / strategy 两个 `max_age` 字段按 host 相同的 `int(float秒 * 1e9)` 验证至少 1 ns，并通过与原始 Decimal 精确比较拒绝会扩大 freshness 上限的输入。pure fake 覆盖正常 / 可选字段、1 ns、1.5 ns 向下、接近 2 ns 向上舍入及低精度 / 陷阱；主会话以 Conda base 指定节点独立 **17 passed / 1 warning**（禁用 pytest 插件导致未知配置项），独立审核先前 **16 passed**。未运行真实 host / SQLite / fence，不可推断来源、账户或发行；poll / TTL / 其他 timeout 未由此修复。此前误跑记录保持原样，整期 **NO-GO**。
+
+## 2026-11-14 SDK host 轮询 deadline WIP
+
+据主会话提供的 WIP 快照，SDK host SHA-256 `7780c021b95777971586e4acf93f766e8c241619ecb2a8cc7fbb91242e78deee`，fake 测试 SHA-256 `45ee8820f67b7d80d6cb904d2d963e48473da44f26c304c7cfdecb495b525360`，均未提交。启动时最终时钟非有限则拒绝；`run_once` 检查启用项已有 deadline 及所有到期项新 deadline 有限且大于实际 now，再执行 poll / maintain，非法时不改 `_next`。主会话独立 pure fake **83 passed / 230 deselected**，独立静态复核通过。初始 `pump.poll` 与 `run_once` 的 `serve_once` 分别在相应 clock 检查前，不能声称验证前无动作。此 WIP 与 global cleanup 改动同文件未提交，不代表实际资源、账户或整体验收；旧 SQLite 误跑等记录不变，GAP 与 **NO-GO** 保持。
