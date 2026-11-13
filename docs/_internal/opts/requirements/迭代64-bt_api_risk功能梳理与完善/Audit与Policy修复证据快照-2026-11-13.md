@@ -91,3 +91,7 @@ Risk `fa2243a` / SDK gitlink `b5feed39` 已本地提交规则插件异常处理�
 ## 2026-11-13 64.13 运营测试拆分快照
 
 64.13 运营测试拆分：SDK `a3032c35` 仅本地提交共用 helper 与通用 real-local HTTP/CURVE/Registry/Risk + fake Gateway 测试。提交前 clean SDK `adef9b4a` / Risk `fa2243a` archive 和 WIP 各 **1 passed / 3 warnings**；测试强制 `self_trade=true`，服务器返回 `SCOPE_DENIED` 且策略版本不变，覆盖 Web CSRF、成功发布审计、Web 重启和独立 admin/Risk 保活。`available` 仅校验 bool 一致性，不授予交易授权。独立且未提交的严格来源测试要求三次 `available=false`：clean archive 实际为 true，**1 failed / 1 warning**；WIP **1 passed / 3 warnings**，无 skip/xfail。四组日志及清单位于 `/tmp/iter64-web-split.Vt6fcD`，clean 和 WIP 各 11 个文件的前后 SHA 清单分别一致；主会话报告四组各自新建的 fake Gateway/Risk 均自行退出码 0、进程表无匹配。非真实账户、provider 或浏览器测试，未断言拒绝审计；临时证据可能清理。此前测试和提交均为历史快照，不据此宣称 64.13 或整期完成，仍为 **NO-GO**。
+
+## 2026-11-13 只读混装风险与建议验证
+
+只读混装风险，建议验证 **NOT_RUN**：BT `live` / `execution` extra 允许 `bt-api-py>=0.15.5`，旧 SDK `0fa07542` 的 `reserve_order` 不接受当前 BT WIP 的 `first_send_ticket`。源码显示 WIP 搭配旧 SDK 时 `NOT_SENT` → `REQUEST_DENIED` 可能将本次未送达误认为历史已决，不能据此认定旧键安全。版本号 `0.16.0.dev64` 可能对应不同源码与合同，需固定 commit / wheel，再以新旧 SDK ↔ Risk、BT ↔ SDK 双向混装及旧键、取消、来源门进行隔离 fake 验证；现有 WIP 测试不是混装证据。Risk 测试源码记载的负例显示旧 binary 持有连接时，测试性版本变更后仍可写；本轮未重跑，不能推断真实旧进程已排空。跨代来源与在途证明 **NOT_RUN**，整期仍为 **NO-GO**。
