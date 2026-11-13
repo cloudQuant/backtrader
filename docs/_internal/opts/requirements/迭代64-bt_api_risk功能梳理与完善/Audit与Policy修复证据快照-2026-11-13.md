@@ -171,3 +171,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 Sticky cleanup 合成测试行为记录
 
 以下仅据主会话提供的事实：SDK Risk host sticky cleanup 执行方先运行两轮自行新建的 fake / 临时 SQLite 单元，各 **54 passed / rc 0**。第一轮的 7 个本次测试创建 host 随 pytest 进程自然退出释放，并产生解释器 generator 提示；不能据此声称 fence 仍持有。第二轮测试曾新增 teardown，在断言后对同轮 7 个临时 host 直接 `_stack.close()`，并从该 pytest 进程的 `_RETAINED_HOSTS` discard，随后 rc 0；该 teardown 在主会话指示后已撤销。后续仅使用 fake stack / 局部 mock retained set，不再自行释放任何 retained。两次执行器仅有 session ID `70439` / `62941`，未保存 OS PID 或 tmp 绝对路径，无法独立验证更强身份；测试源码表明均由本轮 `tmp_path` 创建，执行方报告未触及既有 / 用户 retained host。新版无真实 fence 的 fake 结果 **31 passed** 仅为 WIP；observer / delegate 自动 cleanup 重试仍有 GAP，不能说全局关闭安全。原 PID 43513 / 43516 保持 **cleanup_unknown**，整期 **NO-GO**。
+
+## 2026-11-14 Risk Web 请求体上限局部提交
+
+以下为主会话提供的局部证据：Risk Web 请求体上限改为逐块读取，超限后不调用 admin 且不继续读取；Risk `b3bc6f54f4bac88806ecbcc36e5c1bda1506747c`、SDK gitlink `bd01f05e` 已本地提交。纯 ASGI fake / 单元独立验证 **260 passed / 1 deselected**，未选中的子进程测试 **NOT_RUN**；覆盖认证 / CSRF、三个端点恰好限制、流超限和断流。Ruff check 通过；两个文件的 format check 在 HEAD 同样不通过。上游单个 chunk 的分配、真实网络及生产账户未证明；host / delegate sticky WIP 仍未闭合，不能声称完成。整期 **NO-GO**。
