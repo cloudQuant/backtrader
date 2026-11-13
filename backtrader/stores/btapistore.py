@@ -4058,6 +4058,170 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 result["sources"] = sources
             return result
 
+    def trading_calendar_query(self, route, *, venue, kind, product, contract, trading_day,
+                               mode=None):
+        """Read a CTP-format simulation calendar for one explicit configured route.
+
+        Route selects a local root or SDK facade route; it does not authenticate
+        provider identity. Results do not bind a strategy or authorize account use.
+        """
+        def unavailable(reason):
+            return _CalendarStatusUnavailable(reason=reason)
+
+        if type(mode) is not str or mode != "SIMULATION_ONLY":
+            return unavailable("SIMULATION_MODE_REQUIRED")
+        route_pattern = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}"
+        if (type(route) is not str or re.fullmatch(route_pattern, route) is None
+                or any(type(value) is not str or re.fullmatch(route_pattern, value) is None
+                       for value in (venue, kind, product, contract))
+                or type(trading_day) is not _dt.date):
+            return unavailable("INVALID_QUERY_SCOPE")
+        with self._calendar_status_lock:
+            configured_routes = tuple(self._sdk_exchanges)
+            generation = self._calendar_status_generation
+            stream_generation = self._stream_generation
+            api = self._api
+            local_reader = self._calendar_local_reader
+            local_routes = self._calendar_local_routes
+            ready = (
+                self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                and self._started and self._connected and self._sdk_configured
+                and api is not None and not self._calendar_status_transitions
+                and not self._calendar_status_stopping
+            )
+        if route not in configured_routes:
+            return unavailable("ROUTE_UNCONFIGURED")
+        if not ready:
+            return unavailable("STORE_UNAVAILABLE")
+
+        def valid_live_routes(value):
+            return (type(value) is list and all(
+                type(item) is str and re.fullmatch(route_pattern, item) is not None
+                for item in value
+            ) and len(set(value)) == len(value))
+
+        try:
+            from bt_api_py.trading_calendar_runtime_status import (
+                TradingCalendarCurrentQuery, TradingCalendarQueryWindow, TradingCalendarStatusReader,
+            )
+            from zoneinfo import ZoneInfo
+
+            list_routes = getattr(api, "list_exchanges", None)
+            is_local = local_reader is not None and route in local_routes
+            reader = (getattr(local_reader, "query", None)
+                      if is_local
+                      else getattr(api, "trading_calendar_query", None))
+            generation_reader = (local_reader if is_local else
+                                 getattr(api, "_trading_calendar_status_reader", None))
+            if type(generation_reader) is not TradingCalendarStatusReader:
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            with generation_reader._lock:
+                reader_generation = generation_reader._generation
+            if not callable(list_routes) or not callable(reader):
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            live_routes = list_routes()
+            if not valid_live_routes(live_routes):
+                return unavailable("ROUTE_UNAVAILABLE")
+        except Exception:
+            return unavailable("ROUTE_UNAVAILABLE")
+
+        value = unavailable("ROUTE_UNAVAILABLE")
+        if route in live_routes:
+            try:
+                result = reader(route, venue=venue, kind=kind, product=product,
+                                contract=contract, trading_day=trading_day, mode=mode)
+                enums = {
+                    "source_authentication": "NOT_PROVEN", "identity_authentication": "NOT_PROVEN",
+                    "publication_authentication": "NOT_PROVEN", "route_mapping": "CALLER_DECLARED_ONLY",
+                    "bound": "NOT_BOUND", "observation": "CURRENT_NOT_PINNED",
+                    "trading_day_transition": "NOT_PROVEN", "environment": "SIMULATION_ONLY",
+                    "account_use": "NOT_AUTHORIZED", "provider": "CTP",
+                    "provider_selection": "EXPLICIT_CTP_ONLY_ROUTE_UNVERIFIED",
+                }
+                if (type(result) is not TradingCalendarCurrentQuery
+                        or any(type(getattr(result, key)) is not str for key in
+                               ("status", "reason", "coverage_status", "source_classification"))
+                        or any(type(getattr(result, key)) is not str or getattr(result, key) != expected
+                               for key, expected in enums.items())
+                        or type(result.windows) is not tuple or len(result.windows) > 10000
+                        or type(result.source_ids) is not tuple or len(result.source_ids) > 1000
+                        or any(type(item) is not str or re.fullmatch(route_pattern, item) is None
+                               for item in result.source_ids)
+                        or len(set(result.source_ids)) != len(result.source_ids)):
+                    raise ValueError("invalid query result")
+                if result.status == "UNKNOWN":
+                    if (result.reason not in {"SIMULATION_MODE_REQUIRED", "INVALID_ROUTE",
+                            "INVALID_QUERY_SCOPE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE", "COVERAGE_UNAVAILABLE", "CALENDAR_UNAVAILABLE",
+                            "SCOPE_OR_DATA_UNAVAILABLE", "CONFIGURATION_CHANGED"}
+                            or result.windows or result.source_ids
+                            or result.source_classification != "UNVERIFIED"
+                            or result.coverage_status != "UNKNOWN"
+                            or any(item is not None for item in (result.calendar_ref,
+                                   result.publication_id, result.content_sha256, result.version_sha256))):
+                        raise ValueError("invalid unknown query result")
+                elif result.status == "COMPLETE":
+                    if (result.reason != "EXPLICIT_DATA" or result.coverage_status != "DECLARED_UNVERIFIED"
+                            or result.source_classification != (
+                                "DECLARED_MOCK" if "MOCK.simulation_only" in result.source_ids
+                                else "UNVERIFIED")
+                            or not result.source_ids
+                            or any(type(item) is not str or re.fullmatch(
+                                r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", item) is None
+                                for item in (result.calendar_ref, result.publication_id))
+                            or any(type(item) is not str or re.fullmatch(r"[0-9a-f]{64}", item) is None
+                                   for item in (result.content_sha256, result.version_sha256))):
+                        raise ValueError("invalid complete query result")
+                    previous_end = None
+                    for window in result.windows:
+                        if (type(window) is not TradingCalendarQueryWindow
+                                or type(window.window_id) is not str
+                                or re.fullmatch(route_pattern, window.window_id) is None
+                                or type(window.phase) is not str or window.phase not in {"continuous", "auction"}
+                                or type(window.trading_day) is not _dt.date or window.trading_day != trading_day
+                                or type(window.interval_semantics) is not str
+                                or window.interval_semantics != "START_INCLUSIVE_END_EXCLUSIVE"
+                                or any(type(item) is not _dt.datetime for item in
+                                       (window.start_utc, window.end_utc, window.start_local, window.end_local))
+                                or window.start_utc.tzinfo is not _UTC or window.end_utc.tzinfo is not _UTC
+                                or type(window.start_local.tzinfo) is not ZoneInfo
+                                or type(window.end_local.tzinfo) is not ZoneInfo
+                                or window.start_local.tzinfo.key != "Asia/Shanghai"
+                                or window.end_local.tzinfo.key != "Asia/Shanghai"
+                                or window.start_local.astimezone(_UTC) != window.start_utc
+                                or window.end_local.astimezone(_UTC) != window.end_utc
+                                or window.start_utc >= window.end_utc
+                                or (previous_end is not None and window.start_utc < previous_end)):
+                            raise ValueError("invalid query window")
+                        previous_end = window.end_utc
+                else:
+                    raise ValueError("invalid query status")
+                value = result
+            except Exception:
+                value = unavailable("READ_UNAVAILABLE")
+
+        try:
+            list_routes_after = getattr(api, "list_exchanges", None)
+            live_routes_after = list_routes_after() if callable(list_routes_after) else None
+            if not valid_live_routes(live_routes_after) or set(live_routes_after) != set(live_routes):
+                return unavailable("ROUTE_SET_CHANGED")
+        except Exception:
+            return unavailable("ROUTE_SET_CHANGED")
+        with generation_reader._lock:
+            if reader_generation != generation_reader._generation:
+                return unavailable("CONFIGURATION_CHANGED")
+        with self._calendar_status_lock:
+            if not (generation == self._calendar_status_generation
+                    and stream_generation == self._stream_generation and self._api is api
+                    and tuple(self._sdk_exchanges) == configured_routes
+                    and self._calendar_local_reader is local_reader
+                    and self._calendar_local_routes == local_routes
+                    and self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                    and self._started and self._connected and self._sdk_configured
+                    and not self._calendar_status_transitions and not self._calendar_status_stopping):
+                return unavailable("STORE_CHANGED")
+            return value
+
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.
 
