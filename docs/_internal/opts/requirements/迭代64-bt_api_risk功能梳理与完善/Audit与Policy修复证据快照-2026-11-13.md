@@ -191,3 +191,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 SDK 秒数转换局部提交
 
 据主会话提供的局部证据，SDK commit `09942183` 在秒数转为 float 后拒绝下溢为 0、无穷及转换错误，覆盖 10 个实际字段。独立指定纯内存 fake **14 passed / 1 pytest 配置警告**，审核 **13 passed / 同警告**；未执行 host / SQLite / fence。极小正浮点可能不足以使 `monotonic + interval` 前进，调度粒度仍为 GAP；该提交不证明服务、账户或验收。此前误跑 SQLite 等证据保持原样，整期 **NO-GO**。
+
+## 2026-11-14 SDK freshness 纳秒精度局部提交
+
+据主会话提供的局部证据，SDK 本地 commit `f321d13f` 对 account / strategy 两个 `max_age` 字段按 host 相同的 `int(float秒 * 1e9)` 验证至少 1 ns，并通过与原始 Decimal 精确比较拒绝会扩大 freshness 上限的输入。pure fake 覆盖正常 / 可选字段、1 ns、1.5 ns 向下、接近 2 ns 向上舍入及低精度 / 陷阱；主会话以 Conda base 指定节点独立 **17 passed / 1 warning**（禁用 pytest 插件导致未知配置项），独立审核先前 **16 passed**。未运行真实 host / SQLite / fence，不可推断来源、账户或发行；poll / TTL / 其他 timeout 未由此修复。此前误跑记录保持原样，整期 **NO-GO**。
