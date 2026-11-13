@@ -189,8 +189,12 @@ def test_reused_delegate_key_preserves_original_intent_and_occupied_children(tmp
         client = GatewayDelegateServiceClient(runtime, route=route, host=host)
         for parent_id, child_id, original in ((first_parent, first_id, first),
                                               (second_parent, second_id, second)):
-            with pytest.raises(InvalidStateTransition, match='child is not prepared'):
+            error, message = ((ContractValidationError, 'delegate child identity mismatch')
+                              if original.request_key != child_id
+                              else (InvalidStateTransition, 'child is not prepared'))
+            with pytest.raises(error, match=message):
                 authority.dispatch_child(parent_id, child_id, original, order, client)
+            assert rows(store, authority) == before
         for parent_id in dict.fromkeys((first_parent, second_parent)):
             with pytest.raises(InvalidStateTransition, match='parent capacity exhausted'):
                 authority.prepare_child(parent_id, child('child-extra', digest, request_key='child-extra'))
