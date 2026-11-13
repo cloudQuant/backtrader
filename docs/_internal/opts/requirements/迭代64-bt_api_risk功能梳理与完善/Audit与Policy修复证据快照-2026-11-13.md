@@ -45,3 +45,13 @@ WIP 将 audit 查询限制为 `after` 有效游标及 `limit` 1–1000，成功�
 - **NOT_RUN**：本记录未运行真实 socket、真实账户或生产验收；未重跑上述测试，也未读取真实凭据、私有配置或操作现有 host。
 - **NOT_RUN**：本机未发现 Windows PowerShell 5.1，无法在其默认读取方式下检查中文；本机 BOM、严格 UTF-8 解码及无替换符检查已完成并通过；该本地检查不能替代 Windows 读取验证。
 - 后续应固定待验收源码与测试清单、保留完整命令和环境、定位全套失败并复测；分别补齐授权来源、历史数据兼容、真实传输和账户证据后再讨论相应验收。整期仍为 **NO-GO**。
+
+## 2026-11-13 后续提交与 scope 扫描快照
+
+Risk `7c88116` / SDK `23f60dcb` 的政策解析预算与 snapshot helper，及 Risk `718a79b` / SDK `e9584a98` 的政策发布快照均已本地提交；干净 archive 的限定测试分别为 **81 passed / 1 warning** 和 **105 passed / 1 warning**。上述较早记录中的 WIP 描述按当时快照理解；audit reader 与 SDK 接线仍是未提交 WIP。
+
+最新范围键规范扫描消除当前窗口已测试的空白或键序导致的伪 EOF；合成测试中的合法极端 `U+FFFD` 字符及异常子类会返回 unavailable，游标已越过的历史行不能由此补回。100,000 行 / 16 MiB 工作预算下可能无法继续推进；SQLite 内部内存上界未证明，写锁约 0.9 秒仅为小样本观察，均为 **GAP**，不证明完整来源。联合本地测试 `/tmp/iter64-audit-final-pinned.log` 为 **313 passed / 1 warning**，SHA-256 `0bf34325cf735c69da26a0d40bacb11af69659f1cc49bfa45d4fd8fb2ca08c10`；主会话报告涉及的 15 个文件运行前后哈希一致，本日志不含逐文件哈希，本次未独立复核。该结果无真实账户或网络证据。并发修改中的 `/tmp/iter64-risk-full-after-scope-guard.log` 不作为固定快照；Risk 最终全套正在执行，结果待更新。临时日志可能被清理，整期保持 **NO-GO**。
+
+## 2026-11-13 固定源码全套结果
+
+Risk 最终固定源码全套 `/tmp/iter64-risk-stable-full.log`：**1620 passed、578 failed、82 errors，exit 1**；完整日志 SHA-256 `d44b5ae0ef3110765b15dedf31945dad67b3080c8cbd8bcbf63d756119fbd460`。选定 6 个源码/测试文件的运行前后 SHA 列表 `/tmp/iter64-risk-stable-before.sha` 与 `/tmp/iter64-risk-stable-after.sha` 经 `cmp` 一致；这不证明其他文件未改变。与此前 1594 passed 的完整历史快照比较，660 个 FAILED/ERROR 测试 ID 完全相同；ID 相同不能证明无行为回归。此前“全套正在执行”按记录时点理解。最新一致 audit 联合快照为上述 **313 passed / 1 warning**，是本地 fake 和临时 SQLite 证据，没有真实账户或网络验证。真实来源、CI 与发行仍为 **GAP / NO-GO**；临时日志可能被清理。
