@@ -235,3 +235,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 R03b 纯规则测试局部提交
 
 据主会话提供的局部证据，Risk 子仓 `52fa4ee` / SDK gitlink `c9a74af2` 新增 R03b 纯规则合成测试 31 项：覆盖 SHFE / INE 与 DCE、平今 / 普通平 / 显式平昨、BUY / SELL、今昨桶、两个占用扣减、零可平及 coverage / continuity 未证拒绝。主会话独立 **31 passed**，禁插件产生 1 个 pytest 配置警告；审核者 HEAD controls 内存加载的混合环境 **31 passed**，不是完整干净 checkout。纯函数 offset 映射不证明 Q39 跨日原目标 / 受信日切映射、真实账户共同切点或并发 / dispatch；未运行 SQLite / host / fence / network。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
+
+## 2026-11-14 R07 损失阈值纯分类测试局部提交
+
+据主会话提供的局部证据，Risk 子仓 `a0c6e8f` / SDK gitlink `5eb376da` 新增 R07 损失阈值纯分类测试 20 项，覆盖 warn / block 边界与相等优先、账户 / 策略 breach scope / latch 字段。主会话独立 **20 passed**，禁插件产生 1 个 pytest 配置警告；审核者以内存加载 HEAD engine 的混合环境 **20 passed**，不是干净 checkout。仅为内存规则返回，不证明真实损益、跨日资金基线、UNKNOWN、持久锁存、告警或派发；未运行 SQLite / host / fence / network。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
