@@ -259,3 +259,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 bounded UNKNOWN 元数据 WIP
 
 据主会话提供的 bounded UNKNOWN 元数据未提交 WIP 快照，Risk ledger SHA-256 `285986d25b4601b0560536762bcc459037d11ec34863e5ea11edf130949b226c`，新 pure fake 测试 SHA-256 `a4d27acd8f8678a27d8de1876604e062cc8510d2e85ce340c45bb0b919b9485c`。直接调用真实 `LedgerTxn` / engine 的内存 fake 验证：负 created / updated 与非空但不符合既有 8 字符 `isdigit` 交易日的元数据固定为 corrupt，整批拒绝。历史拒单可能存空交易日；空日返回 unavailable 而非 corrupt，属于读取兼容变化。主会话及独立审核各 **14 passed / 1 warning**，警告为禁插件后的 pytest 配置警告。未验证日历真实性、日期与 view 一致性或 updated 顺序，未运行真实 SQLite / host / fence / network。SDK UNKNOWN 投影不转发交易日 / updated，不能声称 Web 泄露；其他 WIP、660 失败 / 错误历史、误跑记录及整期 **NO-GO** 保持。
+
+## 2026-11-14 Risk 七文件纯 fake 组合回归
+
+据主会话提供的局部证据，Conda base 在 Risk 工作树对 R01 / R02 / R03b / R07 / R08、`corrupt_permit_guard_fake` 与 `unknown_metadata_fake` 七文件的纯 fake 组合为 **168 passed / 1 warning**，警告为禁用 pytest 插件引发的配置警告。当前 ledger / engine 为 WIP，metadata 项未提交；此前 154 为六文件旧快照。未运行真实 SQLite / host / fence / socket / network，不能证明账户、事务或整体验收；历史 660 失败 / 错误统计不变。主会话源码核对显示 `list_unknown_bounded` 文档仅保证有限拒绝，既有 WIP 测试要求 `PRETRADE_V2_COMMIT_UNCERTAIN` 原始 `RiskOrderJournalError` 传播，SDK 外层映射 unavailable；不能仅以类型不同断言为 bug，本次未改该异常边界。误跑事件与整期 **NO-GO** 保持。
