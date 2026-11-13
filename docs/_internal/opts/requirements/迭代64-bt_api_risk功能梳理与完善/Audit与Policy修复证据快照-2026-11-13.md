@@ -55,3 +55,7 @@ Risk `7c88116` / SDK `23f60dcb` 的政策解析预算与 snapshot helper，及 R
 ## 2026-11-13 固定源码全套结果
 
 Risk 最终固定源码全套 `/tmp/iter64-risk-stable-full.log`：**1620 passed、578 failed、82 errors，exit 1**；完整日志 SHA-256 `d44b5ae0ef3110765b15dedf31945dad67b3080c8cbd8bcbf63d756119fbd460`。选定 6 个源码/测试文件的运行前后 SHA 列表 `/tmp/iter64-risk-stable-before.sha` 与 `/tmp/iter64-risk-stable-after.sha` 经 `cmp` 一致；这不证明其他文件未改变。与此前 1594 passed 的完整历史快照比较，660 个 FAILED/ERROR 测试 ID 完全相同；ID 相同不能证明无行为回归。此前“全套正在执行”按记录时点理解。最新一致 audit 联合快照为上述 **313 passed / 1 warning**，是本地 fake 和临时 SQLite 证据，没有真实账户或网络验证。真实来源、CI 与发行仍为 **GAP / NO-GO**；临时日志可能被清理。
+
+## 2026-11-13 已提交 audit 读取的后续快照
+
+Risk `6efeb25` 的有界及规范 scope 审计读取、`0a1a47a` / `16cfd2f` 的说明，以及 SDK `b711f222` 的审计接线和 Risk gitlink 已本地提交；Risk 其他 WIP 保留。Risk 基线 archive 四文件 **362 passed**；SDK + Risk clean archives 四文件 **152 passed / 1 warning**，主会话日志 `/tmp/iter64-audit-committed-cross-check.log` SHA-256 `733bf0933e9661a3b440fea44942a57aece18c6f48ace9516c08e7026e0c5e2e`。这是 fake 身份、临时 SQLite 与 Registry 的本地切片，无真实 socket 或账户；临时日志可能清理。先前 audit WIP、非规范 scope 漏检和 313 passed 均按历史快照理解；当前扫描窗口检查 canonical scope 并拒绝异常，不能恢复游标已越过的历史行。100,000 行 / 16 MiB 预算、其他账户长间隙导致不能前进、极端合法 scope unavailable、SQLite 内部内存及持锁性能、旧客户端自动降页、超小帧、CI 和真实来源仍是 **GAP**。Risk 全套 **1620 passed / 578 failed / 82 errors** 是 WIP 固定运行，局部提交不改变失败或整期 **NO-GO**。
