@@ -4104,6 +4104,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             from bt_api_py.trading_calendar_runtime_status import (
                 TradingCalendarCurrentQuery, TradingCalendarQueryWindow, TradingCalendarStatusReader,
             )
+            from bt_api_py.bt_api import BtApi
             from zoneinfo import ZoneInfo
 
             list_routes = getattr(api, "list_exchanges", None)
@@ -4111,12 +4112,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             reader = (getattr(local_reader, "query", None)
                       if is_local
                       else getattr(api, "trading_calendar_query", None))
-            generation_reader = (local_reader if is_local else
-                                 getattr(api, "_trading_calendar_status_reader", None))
-            if type(generation_reader) is not TradingCalendarStatusReader:
+            if ((is_local and type(local_reader) is not TradingCalendarStatusReader)
+                    or (not is_local and not isinstance(api, BtApi))):
                 return unavailable("CAPABILITY_UNAVAILABLE")
-            with generation_reader._lock:
-                reader_generation = generation_reader._generation
+            token_owner = local_reader if is_local else api
+            token_method = getattr(token_owner, "configuration_token" if is_local else
+                                   "trading_calendar_configuration_token", None)
+            token_check = getattr(token_owner, "configuration_is_current" if is_local else
+                                  "trading_calendar_configuration_is_current", None)
+            if not callable(token_method) or not callable(token_check):
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            try:
+                reader_token = token_method()
+            except Exception:
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            if reader_token is None:
+                return unavailable("CAPABILITY_UNAVAILABLE")
             if not callable(list_routes) or not callable(reader):
                 return unavailable("CAPABILITY_UNAVAILABLE")
             live_routes = list_routes()
@@ -4207,9 +4218,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 return unavailable("ROUTE_SET_CHANGED")
         except Exception:
             return unavailable("ROUTE_SET_CHANGED")
-        with generation_reader._lock:
-            if reader_generation != generation_reader._generation:
-                return unavailable("CONFIGURATION_CHANGED")
+        try:
+            token_current = token_check(reader_token)
+        except Exception:
+            return unavailable("CAPABILITY_UNAVAILABLE")
+        if token_current is False:
+            return unavailable("CONFIGURATION_CHANGED")
+        if token_current is not True:
+            return unavailable("CAPABILITY_UNAVAILABLE")
         with self._calendar_status_lock:
             if not (generation == self._calendar_status_generation
                     and stream_generation == self._stream_generation and self._api is api

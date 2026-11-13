@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from bt_api_ctp.calendar_snapshot import CalendarSnapshot
+from bt_api_py.bt_api import BtApi
 from bt_api_py.trading_calendar_binding import SIMULATION_ONLY
 from bt_api_py.trading_calendar_composite import compose_simulated
 from bt_api_py.trading_calendar_store import (
@@ -20,6 +21,7 @@ from bt_api_py.trading_calendar_store import (
 from bt_api_py.trading_calendar_update_simulation import VenueContent
 
 from backtrader.stores import btapistore as module
+from backtrader.stores.btapistore import BtApiStore
 from tests.unit.stores.test_iter67_calendar_config_wiring import local_store
 from tests.unit.stores.test_iter67_trading_calendar_status import ROUTE, OTHER, make_store
 
@@ -228,6 +230,88 @@ def test_unknown_reader_or_facade_generation_is_rejected(monkeypatch, tmp_path):
     result = query(facade)
     assert (result.status, result.reason) == ("UNKNOWN", "CAPABILITY_UNAVAILABLE")
     assert not calls
+
+
+def test_missing_public_configuration_capability_is_rejected(monkeypatch, tmp_path):
+    publish(tmp_path / "calendars/ctp")
+    store, _ = local_store(monkeypatch, tmp_path)
+    monkeypatch.setattr(store._calendar_local_reader, "configuration_token", None)
+    assert query(store).reason == "CAPABILITY_UNAVAILABLE"
+
+    facade, api = make_store(monkeypatch)
+    monkeypatch.setattr(api, "trading_calendar_configuration_token", None)
+    assert query(facade).reason == "CAPABILITY_UNAVAILABLE"
+
+
+def test_facade_reconfiguration_after_read_is_rejected(monkeypatch, tmp_path):
+    root = tmp_path / "calendars/ctp"
+    publish(root)
+    store, api = make_store(monkeypatch)
+    api.configure_trading_calendar_status(route_roots={ROUTE: str(root)})
+    original = api.trading_calendar_query
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed(*args, **kwargs):
+        result = original(*args, **kwargs)
+        entered.set()
+        assert release.wait(5)
+        return result
+
+    monkeypatch.setattr(api, "trading_calendar_query", delayed)
+    results = []
+    thread = threading.Thread(target=lambda: results.append(query(store)))
+    thread.start()
+    try:
+        assert entered.wait(5)
+        api.configure_trading_calendar_status(route_roots={ROUTE: str(root)})
+    finally:
+        release.set()
+        thread.join(5)
+    assert not thread.is_alive()
+    assert (results[0].status, results[0].reason) == ("UNKNOWN", "CONFIGURATION_CHANGED")
+
+
+def test_btapi_subclass_facade_query_and_configuration_generation(monkeypatch, tmp_path):
+    class CustomBtApi(BtApi):
+        pass
+
+    root = tmp_path / "calendars/ctp"
+    publish(root)
+    api = CustomBtApi(debug=False)
+    api.exchange_feeds[ROUTE] = object()
+    api.configure_trading_calendar_status(route_roots={ROUTE: str(root)})
+    store = BtApiStore(api=api, config={"exchange_kwargs": {ROUTE: {}}})
+
+    def start(instance, *_args, **_kwargs):
+        instance._started = instance._connected = instance._sdk_configured = True
+
+    monkeypatch.setattr(module, "_start_store", start)
+    store.start()
+    assert query(store).status == "COMPLETE"
+    token = api.trading_calendar_configuration_token()
+    assert BtApi(debug=False).trading_calendar_configuration_is_current(token) is False
+    original = api.trading_calendar_query
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed(*args, **kwargs):
+        result = original(*args, **kwargs)
+        entered.set()
+        assert release.wait(5)
+        return result
+
+    monkeypatch.setattr(api, "trading_calendar_query", delayed)
+    results = []
+    thread = threading.Thread(target=lambda: results.append(query(store)))
+    thread.start()
+    try:
+        assert entered.wait(5)
+        api.configure_trading_calendar_status(route_roots={ROUTE: str(root)})
+    finally:
+        release.set()
+        thread.join(5)
+    assert not thread.is_alive()
+    assert api.trading_calendar_configuration_is_current(token) is False
+    assert (results[0].status, results[0].reason) == ("UNKNOWN", "CONFIGURATION_CHANGED")
 
 
 @pytest.mark.parametrize("change", ["stop", "restart", "stream", "route", "reader", "reconfigure"])
