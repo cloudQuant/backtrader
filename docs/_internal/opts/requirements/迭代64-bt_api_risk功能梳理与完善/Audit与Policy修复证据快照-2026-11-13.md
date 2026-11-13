@@ -243,3 +243,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 损坏许可内存 fake 局部验证
 
 据主会话提供的局部证据，Risk 子仓 `1e9b7b5` / SDK gitlink `d9895183` 新增损坏许可内存 fake 验证。在 `object.__new__` 绕过真实 engine 构造器并注入严格内存 fake 的前提下，使用真实 Permit / RiskOrderView / canonical digest 先确认合成 holding 记录一致；按复合身份替换恰 1 个内存对象后，真实 `apply_observations` 在读取 cursor / 事件前抛出 `risk_permit_mismatch`。空批次未损坏对照到达 fake cursor，fake 覆盖 9 种状态分类。主会话 Conda base **13 passed / 1 warning**（禁插件配置警告）；独立审核以内存加载 HEAD engine + ledger、其他依赖使用当前 WIP 的混合环境 **13 passed**，不是干净 checkout。无真实 SQLite / host / fence / network；内存匹配数不证明 SQL rowcount、事务回滚 / 持久、事件推进、来源或账户。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
+
+## 2026-11-14 Risk 六组纯内存组合回归
+
+据主会话提供的局部证据，Conda base 对 R01、R02、R03b、R07 threshold、R08 五个纯规则测试文件及 `tests/test_iter64_corrupt_permit_guard_fake.py` 的纯内存组合回归为 **154 passed / 1 warning**，警告为禁用 pytest 插件导致的配置警告；该结果运行当前 Risk controls / engine WIP。此前 HEAD 控制单文件仅为内存混合对照，非完整干净 checkout。未执行 SQLite / host / fence / socket / network，真实数据库、账户来源与派发仍为 GAP；历史 660 失败 / 错误快照不改计数，误跑事件及整期 **NO-GO** 保持。
