@@ -231,3 +231,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 R08 warn 保证金纯规则测试局部提交
 
 据主会话提供的局部证据，Risk 子仓 `338bada` / SDK gitlink `a6128070` 新增 R08 warn 保证金纯规则测试：覆盖 long / short 费率、可用资金等额 / 不足、已有占用、`envelope_credit`、缺费率 / 账户 / 可用额、off / CLOSE 与 deny OPEN 失败关闭。主会话独立 **20 passed**，禁插件产生 1 个 pytest 配置警告；审核者 HEAD controls 内存加载、其他模块使用当前环境的混合对照 **20 passed**，不是干净 checkout。仅证明合成输入返回码，不证明实际告警、账户费率 / 来源、并发额度或完整准入；未运行 SQLite / host / fence / network。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
+
+## 2026-11-14 R03b 纯规则测试局部提交
+
+据主会话提供的局部证据，Risk 子仓 `52fa4ee` / SDK gitlink `c9a74af2` 新增 R03b 纯规则合成测试 31 项：覆盖 SHFE / INE 与 DCE、平今 / 普通平 / 显式平昨、BUY / SELL、今昨桶、两个占用扣减、零可平及 coverage / continuity 未证拒绝。主会话独立 **31 passed**，禁插件产生 1 个 pytest 配置警告；审核者 HEAD controls 内存加载的混合环境 **31 passed**，不是完整干净 checkout。纯函数 offset 映射不证明 Q39 跨日原目标 / 受信日切映射、真实账户共同切点或并发 / dispatch；未运行 SQLite / host / fence / network。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
