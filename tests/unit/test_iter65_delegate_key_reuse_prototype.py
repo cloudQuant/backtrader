@@ -16,8 +16,8 @@ from bt_api_base.gateway_delegation_protocol import GatewayDelegatedCommand
 from bt_api_base.gateway_direct_protocol import canonical_gateway_payload, gateway_payload_digest
 from bt_api_base.market_protocol import MarketInstrumentKey
 from bt_api_base.service_protocol import WireIdentity, WireRole, WireScope
-from bt_api_execution.contracts import ExecutionScope
-from bt_api_execution.errors import IntentConflictError, InvalidStateTransition
+from bt_api_execution.contracts import ExecutionScope, canonical_json, payload_sha256
+from bt_api_execution.errors import ContractValidationError, IntentConflictError, InvalidStateTransition
 from bt_api_execution.gateway_delegate_host import ExecutionGatewayDelegateHost
 from bt_api_execution.parent_authority import ParentAuthority
 from bt_api_execution.store import SqliteExecutionStore
@@ -84,8 +84,8 @@ def rows(store, authority):
         (authority.parent_scope_key,)).fetchall()]
 
 
-@pytest.mark.parametrize('separate_parents', [False, True], ids=['same-parent', 'different-parents'])
-def test_reused_delegate_key_preserves_original_intent_and_both_claims(tmp_path, monkeypatch, separate_parents):
+@pytest.mark.parametrize('separate_parents', [False, True], ids=['legacy-same-parent-unknown', 'different-parents'])
+def test_reused_delegate_key_preserves_original_intent_and_occupied_children(tmp_path, monkeypatch, separate_parents):
     scope = ExecutionScope('FAKE', 'test', ACCOUNT, STRATEGY, '20261109')
     wire_scope = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=STRATEGY, run_id='synthetic-run')
     route = GatewayDelegateRoute('upstream.direct_write', 'synthetic-gateway', 'instance',
@@ -124,13 +124,20 @@ def test_reused_delegate_key_preserves_original_intent_and_both_claims(tmp_path,
         assert parent_calls == [REGISTER] * (2 if separate_parents else 1)
         order = request()
         digest = gateway_payload_digest(order.to_dict())
-        first = command(first_parent, 'child-a', digest)
-        second = command(second_parent, 'child-b', digest)
-        assert authority.prepare_child(first_parent, child('child-a', digest))['state'] == 'PREPARED'
-        assert authority.prepare_child(second_parent, child('child-b', digest))['state'] == 'PREPARED'
+        first_id, second_id = KEY, KEY if separate_parents else 'legacy-child'
+        first = command(first_parent, first_id, digest)
+        second = command(second_parent, second_id, digest)
+        assert authority.prepare_child(first_parent, child(first_id, digest))['state'] == 'PREPARED'
+        if separate_parents:
+            assert authority.prepare_child(second_parent, child(second_id, digest))['state'] == 'PREPARED'
+        else:
+            # Current admission cannot create the unequal-key historical record.
+            with pytest.raises(ContractValidationError, match='child request_key'):
+                authority.prepare_child(second_parent, child(second_id, digest))
+            assert len(rows(store, authority)) == 1
         host = ExecutionGatewayDelegateHost(authority)
         client = GatewayDelegateServiceClient(runtime, route=route, host=host)
-        first_result = authority.dispatch_child(first_parent, 'child-a', first, order, client)
+        first_result = authority.dispatch_child(first_parent, first_id, first, order, client)
         assert first_result.outcome == 'UNKNOWN'
         assert calls == parent_calls + ['direct.delegated_reserve']
         saved = host.load_delegate_intent(KEY)
@@ -138,7 +145,19 @@ def test_reused_delegate_key_preserves_original_intent_and_both_claims(tmp_path,
         assert host.load_delegate_observation(KEY) is None
         assert host.load_delegate_dispatch_marker(KEY) is None
 
-        second_result = authority.dispatch_child(second_parent, 'child-b', second, order, client)
+        if separate_parents:
+            second_result = authority.dispatch_child(second_parent, second_id, second, order, client)
+        else:
+            # Simulate a child claimed by an older version. The row is already
+            # UNKNOWN; it is not evidence that current admission can claim it.
+            legacy = child(second_id, digest)
+            with store._transaction() as cursor:
+                cursor.execute('INSERT INTO execution_parent_children VALUES (?,?,?,?,?,?,?,?,?)',
+                    (authority.parent_scope_key, second_parent, second_id, canonical_json(legacy),
+                     payload_sha256(legacy), '1', '0', 'UNKNOWN', time.time_ns()))
+            with pytest.raises(InvalidStateTransition, match='child is not prepared'):
+                authority.claim_child(second_parent, second_id)
+            second_result = client.reserve(second, order)
         assert (second_result.outcome, second_result.code) == ('TRANSPORT_NOT_STARTED', 'INTENT_NOT_DURABLE')
         assert calls == parent_calls + ['direct.delegated_reserve']
         assert host.load_delegate_intent(KEY) == saved
@@ -148,13 +167,13 @@ def test_reused_delegate_key_preserves_original_intent_and_both_claims(tmp_path,
         with pytest.raises(IntentConflictError, match='delegate key was reused'):
             host.save_delegate_intent(conflict)
         before = rows(store, authority)
-        assert [(r['parent_id'], r['child_id'], r['state'], r['quantity'], r['filled_quantity']) for r in before] == [
-            (first_parent, 'child-a', 'UNKNOWN', '1', '0'),
-            (second_parent, 'child-b', 'UNKNOWN', '1', '0')]
+        assert [(r['parent_id'], r['child_id'], r['state'], r['quantity'], r['filled_quantity']) for r in before] == sorted([
+            (first_parent, first_id, 'UNKNOWN', '1', '0'),
+            (second_parent, second_id, 'UNKNOWN', '1', '0')])
         assert all(json.loads(r['request_json'])['request_key'] == KEY for r in before)
         for parent_id in dict.fromkeys((first_parent, second_parent)):
             with pytest.raises(InvalidStateTransition, match='parent capacity exhausted'):
-                authority.prepare_child(parent_id, child('child-extra', digest, request_key='other-key'))
+                authority.prepare_child(parent_id, child('child-extra', digest, request_key='child-extra'))
     finally:
         store.close()
 
@@ -168,13 +187,13 @@ def test_reused_delegate_key_preserves_original_intent_and_both_claims(tmp_path,
         assert host.load_delegate_dispatch_marker(KEY) is None
         assert rows(store, authority) == before
         client = GatewayDelegateServiceClient(runtime, route=route, host=host)
-        for parent_id, child_id, original in ((first_parent, 'child-a', first),
-                                              (second_parent, 'child-b', second)):
+        for parent_id, child_id, original in ((first_parent, first_id, first),
+                                              (second_parent, second_id, second)):
             with pytest.raises(InvalidStateTransition, match='child is not prepared'):
                 authority.dispatch_child(parent_id, child_id, original, order, client)
         for parent_id in dict.fromkeys((first_parent, second_parent)):
             with pytest.raises(InvalidStateTransition, match='parent capacity exhausted'):
-                authority.prepare_child(parent_id, child('child-extra', digest, request_key='other-key'))
+                authority.prepare_child(parent_id, child('child-extra', digest, request_key='child-extra'))
         assert calls == parent_calls + ['direct.delegated_reserve']
     finally:
         store.close()

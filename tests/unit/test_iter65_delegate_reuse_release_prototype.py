@@ -21,7 +21,8 @@ from bt_api_base.gateway_direct_protocol import gateway_payload_digest
 from bt_api_base.service_protocol import (
     WIRE_PROTOCOL_VERSION, WireEnvelope, WireHeader, WireIdentity, WireMessageKind, WireRole, WireScope,
 )
-from bt_api_execution.contracts import ExecutionScope
+from bt_api_execution.contracts import ExecutionScope, canonical_json, payload_sha256
+from bt_api_execution.errors import ContractValidationError
 from bt_api_execution.gateway_delegate_host import ExecutionGatewayDelegateHost
 from bt_api_execution.parent_authority import ParentAuthority
 from bt_api_execution.store import SqliteExecutionStore
@@ -69,7 +70,7 @@ def isolated_sources():
     assert not escaped, escaped
 
 
-def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
+def test_legacy_unknown_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
     account, strategy, domain = "synthetic-account", "synthetic-strategy", "synthetic-domain"
     identity = WireIdentity(WireRole.SERVICE, "synthetic-principal", "synthetic-actor")
     scope = ExecutionScope("FAKE", "test", account, strategy, "20261109")
@@ -245,18 +246,20 @@ def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
         digest = gateway_payload_digest(request.to_dict())
         first = GatewayDelegatedCommand(account, strategy, domain, identity.principal_ref,
             identity.actor_ref, "execution", "synthetic-run", "shared-key", digest,
-            instrument, "g1", "parent-1", "child-1")
+            instrument, "g1", "parent-1", "shared-key")
         second = GatewayDelegatedCommand(account, strategy, domain, identity.principal_ref,
             identity.actor_ref, "execution", "synthetic-run", "shared-key", digest,
             instrument, "g1", "parent-1", "child-2")
-        for child_id in ("child-1", "child-2"):
-            result = authority.prepare_child("parent-1", {"child_id": child_id,
-                "request_key": "shared-key", "trading_day": "20261109", "offset": "open",
-                "quantity": "2", "payload_digest": digest})
-            assert result["state"] == "PREPARED"
+        first_child = {"child_id": "shared-key", "request_key": "shared-key",
+            "trading_day": "20261109", "offset": "open", "quantity": "2", "payload_digest": digest}
+        legacy_child = {**first_child, "child_id": "child-2"}
+        assert authority.prepare_child("parent-1", first_child)["state"] == "PREPARED"
+        with pytest.raises(ContractValidationError, match="child request_key"):
+            authority.prepare_child("parent-1", legacy_child)
+        assert store._connection.execute("SELECT COUNT(*) FROM execution_parent_children").fetchone()[0] == 1
         host = ExecutionGatewayDelegateHost(authority)
         client = GatewayDelegateServiceClient(runtime, route=route, host=host)
-        assert authority.claim_child("parent-1", "child-1")["request_key"] == "shared-key"
+        assert authority.claim_child("parent-1", "shared-key")["request_key"] == "shared-key"
         reserved = client.reserve(first, request)
         assert reserved.outcome == "OBSERVED" and reserved.observation.state == "RESERVED"
         assert calls == [REGISTER, "direct.delegated_reserve"]
@@ -265,7 +268,15 @@ def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
                              ("shared-key",)).fetchone()
         assert row == (reserved.observation.reservation_id, "RESERVED", 1)
         before = calls.copy()
-        collision = authority.dispatch_child("parent-1", "child-2", second, request, client)
+        # Simulate an unequal-key child already claimed by an older version;
+        # current prepare/claim cannot create this UNKNOWN historical state.
+        with store._transaction() as cursor:
+            cursor.execute("INSERT INTO execution_parent_children VALUES (?,?,?,?,?,?,?,?,?)",
+                (authority.parent_scope_key, "parent-1", "child-2", canonical_json(legacy_child),
+                 payload_sha256(legacy_child), "2", "0", "UNKNOWN", time.time_ns()))
+        with pytest.raises(InvalidStateTransition, match="child is not prepared"):
+            authority.claim_child("parent-1", "child-2")
+        collision = client.reserve(second, request)
         assert (collision.outcome, collision.code) == ("TRANSPORT_NOT_STARTED", "INTENT_NOT_DURABLE")
         assert calls == before and host.load_delegate_intent("shared-key").command == first
         observed = client.actor_status("shared-key")
@@ -274,15 +285,15 @@ def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
         actor_args = arguments_seen[-1]
         assert actor_args[0] == "direct.delegate_actor_status"
         assert GatewayDelegatedCommand.from_mapping(actor_args[1]["command"]) == first
-        assert first.child_id == "child-1" and second.child_id == "child-2"
+        assert first.child_id == "shared-key" and second.child_id == "child-2"
         cancelled = authority.cancel("parent-1", "parent-cancel-1", 1)
         assert cancelled["cancel_state"] == "REQUESTED"
         frozen_rows = store._connection.execute(
             "SELECT child_id,operation_id,frozen_json FROM execution_parent_child_cancels WHERE parent_id=?",
             ("parent-1",)).fetchall()
-        assert len(frozen_rows) == 1 and frozen_rows[0]["child_id"] == "child-1"
+        assert len(frozen_rows) == 1 and frozen_rows[0]["child_id"] == "shared-key"
         frozen = json.loads(frozen_rows[0]["frozen_json"])
-        assert frozen["phase"] == "RELEASE_PENDING" and frozen["child_id"] == "child-1"
+        assert frozen["phase"] == "RELEASE_PENDING" and frozen["child_id"] == "shared-key"
         assert frozen["request_key"] == "shared-key" and frozen["reservation_id"] == row[0]
         assert json.loads(cancelled["cancel_receipt_json"])["result"]["targets"] == [frozen]
 
@@ -310,7 +321,7 @@ def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
             "SELECT child_id,request_json,quantity,state,filled_quantity FROM execution_parent_children "
             "WHERE parent_id=? ORDER BY child_id", ("parent-1",)).fetchall()
         assert [(r["child_id"], r["quantity"], r["state"], r["filled_quantity"]) for r in children] == [
-            ("child-1", "2", "TERMINAL", "0"), ("child-2", "2", "UNKNOWN", "0")]
+            ("child-2", "2", "UNKNOWN", "0"), ("shared-key", "2", "TERMINAL", "0")]
         assert all(json.loads(r["request_json"])["request_key"] == "shared-key" for r in children)
         assert store._connection.execute(
             "SELECT COUNT(*) FROM execution_parent_child_evidence WHERE parent_id=? AND child_id=?",
@@ -326,7 +337,7 @@ def test_key_reuse_cannot_release_another_child(tmp_path, monkeypatch):
         assert [tuple(r) for r in store._connection.execute(
             "SELECT child_id,quantity,state,filled_quantity FROM execution_parent_children "
             "WHERE parent_id=? ORDER BY child_id", ("parent-1",)).fetchall()] == [
-            ("child-1", "2", "TERMINAL", "0"), ("child-2", "2", "UNKNOWN", "0")]
+            ("child-2", "2", "UNKNOWN", "0"), ("shared-key", "2", "TERMINAL", "0")]
     finally:
         if store is not None:
             store.close()

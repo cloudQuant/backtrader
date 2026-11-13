@@ -69,7 +69,7 @@ def parent_spec():
 
 
 def child_spec(child_id, quantity, digest):
-    return {"child_id": child_id, "request_key": "request-" + child_id,
+    return {"child_id": child_id, "request_key": child_id,
             "trading_day": "20261109", "offset": "open", "quantity": quantity,
             "payload_digest": digest * 64}
 

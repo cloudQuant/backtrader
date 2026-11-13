@@ -236,12 +236,13 @@ def test_strategy_cancel_after_execution_offline_with_manual_grant(tmp_path, mon
         digest = gateway_payload_digest(request.to_dict())
         command = GatewayDelegatedCommand(account, strategy, domain, identity.principal_ref,
             identity.actor_ref, "execution", "synthetic-run", "child-request-1", digest,
-            instrument, "g1", "parent-1", "child-1")
-        old.prepare_child("parent-1", {"child_id": "child-1", "request_key": "child-request-1",
+            instrument, "g1", "parent-1", "child-request-1")
+        assert request.client_order_id == "child-1" and command.child_id == command.request_key == "child-request-1"
+        old.prepare_child("parent-1", {"child_id": "child-request-1", "request_key": "child-request-1",
             "trading_day": "20261109", "offset": "open", "quantity": "3", "payload_digest": digest})
         old_host = ExecutionGatewayDelegateHost(old)
         old_delegate = GatewayDelegateServiceClient(runtime, route=route, host=old_host)
-        assert old.dispatch_child("parent-1", "child-1", command, request, old_delegate).outcome == "QUEUED"
+        assert old.dispatch_child("parent-1", "child-request-1", command, request, old_delegate).outcome == "QUEUED"
         assert calls == [REGISTER, "direct.delegated_reserve", "direct.delegated_dispatch"]
         deadline = time.monotonic() + 5
         status = None

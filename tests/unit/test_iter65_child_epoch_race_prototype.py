@@ -197,12 +197,13 @@ def test_old_child_reservation_arrives_after_synthetic_writer_takeover(tmp_path,
         digest = gateway_payload_digest(request.to_dict())
         command = GatewayDelegatedCommand(account, strategy, domain, identity.principal_ref,
             identity.actor_ref, "execution", "synthetic-run", "child-request-1", digest,
-            instrument, "g1", "parent-1", "child-1")
-        old.prepare_child("parent-1", {"child_id": "child-1", "request_key": "child-request-1",
+            instrument, "g1", "parent-1", "child-request-1")
+        assert request.client_order_id == "child-1" and command.child_id == command.request_key == "child-request-1"
+        old.prepare_child("parent-1", {"child_id": "child-request-1", "request_key": "child-request-1",
             "trading_day": "20261109", "offset": "open", "quantity": "3", "payload_digest": digest})
         old_host = ExecutionGatewayDelegateHost(old)
         old_delegate = GatewayDelegateServiceClient(runtime, route=route, host=old_host)
-        assert old.dispatch_child("parent-1", "child-1", command, request, old_delegate).outcome == "UNKNOWN"
+        assert old.dispatch_child("parent-1", "child-request-1", command, request, old_delegate).outcome == "UNKNOWN"
         assert calls == [REGISTER, "direct.delegated_reserve"] and len(captured) == 1
         assert old_host.load_delegate_intent("child-request-1").command == command
         assert old_host.load_delegate_observation("child-request-1") is None
@@ -215,7 +216,7 @@ def test_old_child_reservation_arrives_after_synthetic_writer_takeover(tmp_path,
         assert new.get("parent-1")["gateway_state"] == "ACCEPTED"
         child = store._connection.execute(
             "SELECT request_json,state FROM execution_parent_children WHERE parent_id=? AND child_id=?",
-            ("parent-1", "child-1")).fetchone()
+            ("parent-1", "child-request-1")).fetchone()
         assert child["state"] == "UNKNOWN"
         assert json.loads(child["request_json"])["request_key"] == "child-request-1"
         new_host = ExecutionGatewayDelegateHost(new)
@@ -239,7 +240,7 @@ def test_old_child_reservation_arrives_after_synthetic_writer_takeover(tmp_path,
                 assert db.execute("SELECT COUNT(*) FROM direct_journal_commands WHERE request_key=?", ("child-request-1",)).fetchone()[0] == 0
             assert store._connection.execute(
                 "SELECT state FROM execution_parent_children WHERE parent_id=? AND child_id=?",
-                ("parent-1", "child-1")).fetchone()[0] == "UNKNOWN"
+                ("parent-1", "child-request-1")).fetchone()[0] == "UNKNOWN"
             assert calls.count("direct.delegated_reserve") == 1
             return
         assert delivered["ok"], delivered
@@ -249,7 +250,7 @@ def test_old_child_reservation_arrives_after_synthetic_writer_takeover(tmp_path,
         assert new_host.load_delegate_observation("child-request-1") is None
         assert store._connection.execute(
             "SELECT state FROM execution_parent_children WHERE parent_id=? AND child_id=?",
-            ("parent-1", "child-1")).fetchone()[0] == "UNKNOWN"
+            ("parent-1", "child-request-1")).fetchone()[0] == "UNKNOWN"
         assert calls.count("direct.delegated_reserve") == 1
 
         # An exact reservation payload under a fresh wire message retains the

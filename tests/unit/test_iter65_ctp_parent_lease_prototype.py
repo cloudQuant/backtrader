@@ -101,7 +101,7 @@ def test_ctp_parent_data_survives_but_public_family_owner_cannot_be_reacquired(t
         assert accepted["gateway_state"] == "PENDING"
         assert authority.register("synthetic-parent")["gateway_state"] == "ACCEPTED"
         child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-request", "trading_day": DAY,
+            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
             "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
         })
         assert child["state"] == "PREPARED"
@@ -151,7 +151,7 @@ def test_fake_scope_control_can_reopen_with_original_writer(tmp_path):
         authority.accept(make_spec(scope))
         authority.register("synthetic-parent")
         authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-request", "trading_day": DAY,
+            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
             "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
         })
     finally:
@@ -163,7 +163,7 @@ def test_fake_scope_control_can_reopen_with_original_writer(tmp_path):
         authority = ParentAuthority(reopened, scope, lease, admission=lambda action, value: True, gateway=gateway)
         assert authority.get("synthetic-parent")["gateway_state"] == "ACCEPTED"
         child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child-2", "request_key": "synthetic-request-2", "trading_day": DAY,
+            "child_id": "synthetic-child-2", "request_key": "synthetic-child-2", "trading_day": DAY,
             "offset": "open", "quantity": "2", "payload_digest": "c" * 64,
         })
         assert child["state"] == "PREPARED"
@@ -191,7 +191,7 @@ def test_factory_bound_ctp_parent_records_reopen_but_family_owner_is_not_reissue
         authority.accept(make_spec(scope))
         assert authority.register("synthetic-parent")["gateway_state"] == "ACCEPTED"
         child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-request", "trading_day": DAY,
+            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
             "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
         })
         assert child["state"] == "PREPARED"

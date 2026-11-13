@@ -87,7 +87,7 @@ def make_spec(parent_id='p1'):
 
 
 def child(child_id='c1'):
-    return dict(child_id=child_id, request_key='key-' + child_id, trading_day='20261109',
+    return dict(child_id=child_id, request_key=child_id, trading_day='20261109',
                 offset='open', quantity='1', payload_digest='b' * 64)
 
 

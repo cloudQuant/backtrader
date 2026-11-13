@@ -272,15 +272,16 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch, exp
         digest = gateway_payload_digest(request.to_dict())
         command = GatewayDelegatedCommand(account, strategy, domain, identity.principal_ref,
             identity.actor_ref, "execution", "synthetic-run", "child-request-1", digest,
-            instrument, "g1", "parent-1", "child-1")
-        old.prepare_child("parent-1", {"child_id": "child-1", "request_key": "child-request-1",
+            instrument, "g1", "parent-1", "child-request-1")
+        assert request.client_order_id == "child-1" and command.child_id == command.request_key == "child-request-1"
+        old.prepare_child("parent-1", {"child_id": "child-request-1", "request_key": "child-request-1",
             "trading_day": "20261109", "offset": "open", "quantity": "3", "payload_digest": digest})
         old_host = ExecutionGatewayDelegateHost(old)
         old_delegate = GatewayDelegateServiceClient(runtime, route=route, host=old_host)
 
         # Reserve is durably handled by the actual service, then the transport
         # drops only its reply; dispatch never begins.
-        lost = old.dispatch_child("parent-1", "child-1", command, request, old_delegate)
+        lost = old.dispatch_child("parent-1", "child-request-1", command, request, old_delegate)
         assert lost.outcome == "UNKNOWN", lost
         assert calls[-1] == "direct.delegated_reserve"
         assert responses[-1][1]["state"] == "RESERVED"
@@ -293,7 +294,7 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch, exp
             assert cancelled["cancel_state"] == "REQUESTED"
             frozen_row = store._connection.execute(
                 "SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?",
-                ("parent-1", "child-1")).fetchone()
+                ("parent-1", "child-request-1")).fetchone()
             frozen = json.loads(frozen_row["frozen_json"])
             assert frozen["phase"] == "RELEASE_PENDING"
             assert frozen["reservation_id"] == row[0] and frozen["payload_digest"] == digest
@@ -384,7 +385,7 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch, exp
             assert old_host.load_delegate_observation(command.request_key) is None
             child = store._connection.execute(
                 "SELECT request_json,quantity,state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?",
-                ("parent-1", "child-1")).fetchone()
+                ("parent-1", "child-request-1")).fetchone()
             assert tuple(child)[1:] == ("3", "UNKNOWN", "0")
             assert json.loads(child["request_json"])["request_key"] == command.request_key
             assert json.loads(child["request_json"])["payload_digest"] == digest
@@ -414,8 +415,8 @@ def test_lost_reserve_freeze_then_clean_gateway_epoch(tmp_path, monkeypatch, exp
         with sqlite3.connect(tmp_path / "gateway.sqlite") as db:
             assert db.execute("SELECT status,version FROM direct_journal_commands WHERE request_key=?", (command.request_key,)).fetchone() == ("EXPIRED", 2)
             assert db.execute("SELECT COUNT(*) FROM direct_journal_releases").fetchone() == (0,)
-        assert store._connection.execute("SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?", ("parent-1", "child-1")).fetchone() == frozen_row
-        child = store._connection.execute("SELECT quantity,state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?", ("parent-1", "child-1")).fetchone()
+        assert store._connection.execute("SELECT operation_id,frozen_json,intent_json FROM execution_parent_child_cancels WHERE parent_id=? AND child_id=?", ("parent-1", "child-request-1")).fetchone() == frozen_row
+        child = store._connection.execute("SELECT quantity,state,filled_quantity FROM execution_parent_children WHERE parent_id=? AND child_id=?", ("parent-1", "child-request-1")).fetchone()
         assert tuple(child) == ("3", "UNKNOWN", "0")
     finally:
         if store is not None:
