@@ -99,3 +99,7 @@ Risk `fa2243a` / SDK gitlink `b5feed39` 已本地提交规则插件异常处理�
 ## 2026-11-13 旧 SDK 签名 fake 实测
 
 BT WIP 新增未提交 `tests/unit/brokers/test_iter64_old_sdk_ticket_compat.py`，以旧 SDK commit `0fa07542` 的真实 `reserve_order` 参数 AST 核对替身。定向 **1 passed / 1 warning**，主会话报告独立复核 **1 passed**；在该 fake 中当前 BT WIP 持久化 Submitted intent 后传入 `first_send_ticket`，`TypeError` 向调用者传播，binding 为 `SUBMIT_UNKNOWN`，同订单/同 Feed 被阻断，两次假恢复仅读，未观察到 Risk/Gateway 写或 direct 回退。日志与清单位于 `/tmp/iter64-bt-old-signature-verified.RjE1EB`，`pytest.log` SHA-256 `35af42e3c87ca2bc32423158aa5db898061127c8a0dba28808053bd74fc408cf`，7 文件前后 SHA 清单一致；首次 AST 比较因遗漏类型注解失败，更正后重验。这是当前 SDK 对象加旧签名 fake，不是真正旧 SDK 完整模块或 wheel 混装，也不证明真实跨代结果；`TypeError` 兼容风险未修复，整期仍为 **NO-GO**。临时证据可能清理。
+
+## 2026-11-13 Risk 来源隔离临时闭包实验
+
+Risk `fa2243a` archive 的 v3-only、bounded UNKNOWN 与 L4 最小依赖临时闭包，在同一固定快照得到 **95 passed / 8 deselected / 1 warning**，另 L4 **5 passed / 1 warning**；选定 7 文件前后 SHA 清单一致。仅为临时 fake，未跑全量；8 项未选包括 3 个旧 writer / binary 子进程测试（含 kill 清理，未运行）和 5 个关闭隔离的 synthetic 分支。说明及实验材料位于 `/tmp/iter64-source-isolation.wovc8M/EXPERIMENT-README.txt` 与同目录 `EXPERIMENT-NOT-FOR-APPLY.patch`，后者 SHA-256 `20017d2c934d700a09a9b35ab25e946aca2404ce75ea89f38a183b5b326d2d54`；这是不可应用的实验材料，不得应用或提交。风险包括仅测试调用的无界 `all_permits`、Decimal 异常语义、缺 SDK 初始化不确定 fence / BT 恢复、L4 持久健康、旧 writer / 跨 host 和真实来源未证明；不证明准入或整期完成，保持 **NO-GO**。临时材料可能清理。
