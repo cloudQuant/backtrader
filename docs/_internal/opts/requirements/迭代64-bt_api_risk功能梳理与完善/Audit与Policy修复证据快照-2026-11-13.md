@@ -219,3 +219,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 SDK Risk 配置 YAML 预算局部提交
 
 据主会话提供的局部证据，SDK commit `c696e5fb` 对 Risk 服务配置 YAML 的 compose / alias graph / flatten 先预算再展开，深度上限 64、累计预算 100,000，保留空 merge / 正常合并与重复键拒绝；默认 traceback 隐藏底层 YAML 异常显示，但 `__context__` 仍可反射。主会话和独立复核的 Conda base 纯内存测试均为 **33 passed / 31 deselected**；禁用插件导致 1 个 pytest 配置警告。预算不覆盖词法扫描 / 标量全部成本，不等于绝对 CPU 时间上限。未运行真实 host / SQLite / fence / account，不证明来源或整体验收；此前误跑和所有 WIP 记录保留，整期 **NO-GO**。
+
+## 2026-11-14 R01 纯规则测试局部提交
+
+据主会话提供的局部证据，Risk 子仓 commit `9136817` / SDK gitlink `6313f23f` 新增独立 `test_iter64_r01_pure_rules.py`：真实 controls 函数使用合成事实验证开平数量 / 名义边界、缺配置、缺乘数 / 市价；未改默认来源门或原测试。主会话与独立审核各 **30 passed / 1 warning**，警告为禁插件后的 pytest 配置警告。审核者将 HEAD controls 内存加载、其他模块仍用当前环境时另有 **30 passed**；该混合对照不是干净 checkout。未运行 host / SQLite / fence / 网络；原 660 个失败 / 错误快照不变，原 reserve / Gateway、账户、来源与 schema 迁移仍未验，整期 **NO-GO**。
