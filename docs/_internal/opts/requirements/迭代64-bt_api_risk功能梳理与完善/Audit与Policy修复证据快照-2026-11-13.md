@@ -187,3 +187,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 清理合同 438 项旧固定快照
 
 以下仅据主会话提供的上一固定快照：7 个明确 fake 文件联合 **438 passed**、无 deselect，执行方报告 stderr 0、16 文件前后 hash 一致；主会话独立复跑 **438 passed**。host `02ad5acb…`、market `12469034…`、thread `c69d3f6a…`、raw `de64241d…` 均为该快照 SHA 前缀。命令：`/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m pytest -q tests/unit/test_iter64_risk_sticky_cleanup.py tests/unit/test_iter64_delegate_sticky_cleanup.py tests/unit/test_iter64_raw_runtime_sticky.py tests/unit/test_iter64_runtime_sticky_cleanup.py tests/unit/test_iter64_market_owner_sticky.py tests/unit/test_iter64_account_owner_cleanup.py bt_api/bt_api_risk/tests/test_iter64_fence_entry_cleanup_contract.py`。执行后只读审查发现 market 构造 / 关闭状态读取和 thread snapshot 回调后检查缺口，market / thread 仍在修；438 仅为旧快照，不证明全链路。单个 `ServiceMarketClient` 内部、SQLite BUSY、全局跨线程 TOCTOU 和真实资源仍为 GAP；进程级保守熔断还涉及跨账户可用性代价。此前合成 SQLite 误跑及 retained 事件记录保留，整期 **NO-GO**。
+
+## 2026-11-14 SDK 秒数转换局部提交
+
+据主会话提供的局部证据，SDK commit `09942183` 在秒数转为 float 后拒绝下溢为 0、无穷及转换错误，覆盖 10 个实际字段。独立指定纯内存 fake **14 passed / 1 pytest 配置警告**，审核 **13 passed / 同警告**；未执行 host / SQLite / fence。极小正浮点可能不足以使 `monotonic + interval` 前进，调度粒度仍为 GAP；该提交不证明服务、账户或验收。此前误跑 SQLite 等证据保持原样，整期 **NO-GO**。
