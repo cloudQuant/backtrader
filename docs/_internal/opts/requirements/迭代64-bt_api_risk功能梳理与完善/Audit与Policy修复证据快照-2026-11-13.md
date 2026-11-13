@@ -139,3 +139,7 @@ SDK + BT + host 票据合同仍为未提交 WIP：host 公开本地无 I/O 声�
 ## 2026-11-13 SDK 并发节点独立补跑
 
 SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原 deselected 的 dispatch / release 两个参数项在新建专用 fake 进程补跑，各 passed，合计 **2 passed / 1 warning**，pytest 与 wrapper rc 0。日志 `/tmp/iter64-concurrency-bounded.sjamW829/pytest.log` SHA-256 `90a693b703a74bcbc3e7ee78f6f197a2d250db245ba69542c090fe847501487c`；watchdog 未触发、未发信号，记录父子标识，原进程组检查为空且 ps 无匹配，36 文件前后 SHA 清单一致。原 `proof.json` 因 `.NODE_RESULT` 同行解析遗漏，保守标为 INCOMPLETE，保留不覆盖；事后 `verify.py` 生成的 `verified-proof.json` 正确匹配两节点，主会话报告独立复核通过。runner 只检查原 PGID，未覆盖同一 SID 下所有进程组，proof 中 session 清理字段名过宽，不能据此声称整个会话为空。Python 审计 hook 不是 OS 沙箱，范围限已列事件，且仅被阻断事件列表为空；Barrier 只同步开始，不证明全部锁交错、真实账户或跨代来源。整期 **NO-GO**；临时证据可能清理。
+
+## 2026-11-13 SDK 原锁竞争确定性观察 WIP
+
+未提交 WIP `test_iter64_risk_lock_contention.py` 以 fake 确定性观察原 SDK 锁竞争：A 在产品原 `_risk_reserve` 持原 `threading.Lock` 且发出意图前暂停；B 在实际更早的 `_check` 同一原锁语句处非阻塞探测为 False 后释放 A。不替换原锁或 host 方法；线程局部 trace / profile 检查同对象 ticket create / consume 各 1 次、两结果 UNKNOWN、fake wire / direct 0 次，后续 dispatch / release 为 UNKNOWN。本机最终 **2 passed / 1 warning**，日志 `/tmp/iter64-lock-portable.FqnVhZyO/pytest.log` SHA-256 `ce7bc142657487aea005dd1caacf133fe74051283452cc7bc54212b1a091a505`，37 个选定文件前后 SHA 清单一致；主会话报告独立只读复审。首轮两个失败来自错误假设 B 先到 `_risk_reserve`，后改为实际 `_check`，旧日志保留。动态 Conda base / `ps` 不可用、非 POSIX 等条件显式 skip，属 **NOT_RUN**；本机独立 fake 子组正常退出、未发信号，检查仅限原 PGID 及记录 PID。超时条件下信号仅针对本测试可识别组，但仍有 TOCTOU / `cleanup_unknown`；hook 非 OS 沙箱，异常路径和其他平台未验。该观察不证明 B 已进入 blocking acquire、所有调度或真实账户来源；依赖 SDK 其他 WIP，不可单独交付，整期 **NO-GO**。临时证据可能清理。
