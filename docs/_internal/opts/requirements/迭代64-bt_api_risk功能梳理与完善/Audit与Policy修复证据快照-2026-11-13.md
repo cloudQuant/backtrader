@@ -1,0 +1,47 @@
+﻿# 迭代 64：Audit 与 Policy 修复证据快照
+
+日期：2026-11-13（本机时间）  
+状态：**局部源码/模拟测试 PASS；整期 IN_PROGRESS / NO-GO**。
+
+本文记录本轮提供的运行快照和本次只读核对，不是完整验收结论。Risk 为业务政策、账本和受信规则解析的 owner；SDK 负责服务组件与 Registry 装配，Web 只做有界响应检查。来源、账户权限或生产能力不能由本记录中的政策解析和模拟结果推导。测试运行后工作树仍可能变化，以下日志结果只对应各自运行时快照；日志本身没有完整命令行、逐文件版本和所有输入清单，不能仅凭本文独立重建全套运行环境。
+
+## 本地提交与工作树
+
+- Risk 本地 `dev` HEAD `6dd43a7a6909ad4b0de69c82587e54109a177b47`，提交 `fix(risk): validate policy reads with bounded identifiers`，只提交 `src/bt_api_risk/web/app.py` 和 `tests/test_risk_web_api.py` 两个文件。
+- SDK 本地 HEAD `f7dfcb6323b2c694ea6947c1df71805dece09837`，提交 `build: update risk policy web validation`，将 Risk gitlink 更新到上述提交。这些是本地提交；未以此声称推送、发布或安装包验收。
+- 核对时 Risk 的 `pretrade/policy.py`、`engine.py`、`ledger.py` 等及其相关测试仍是未提交 WIP；SDK `risk_service_component.py` 和 audit 合同测试也未提交。相关工作树还包含其他改动，不应把当前整个工作树视作上述两个提交的内容。
+- Web 的独立 clean archive 测试在 Risk HEAD 的两文件覆盖范围得到 **187 passed**；这是隔离源码测试，不覆盖其他 WIP。
+
+## Policy 与 Web 读取
+
+已提交的 Web policy read 修复按明确的 policy-v1 策略和品种映射位置识别动态 identifier，避免对其一般性子串规则产生不必要拒绝；递归扫描仍作用于子项，精确敏感键仍拒绝，整个响应还要检查合同形状。它依赖可信服务提供已授权、已校验的 policy，文档衍生的规则 allowlist 只用于形状校验，不授权规则或证明规则文件。伪装成动态 ID 的内容并未因这项检查获得来源可信度；合法 ID 若恰好命中精确敏感键仍可能误拒，不能承诺任意合法名称都能读回。
+
+`policy_id` 读取要求非空、首尾无空白、可打印且最多 256 字符，允许满足合同的 Unicode；数值字段在规范化前按识别出的路径执行有界展开预算，避免小输入在固定小数展开时消耗无界资源。该预算是保守限制，服务此前接受的某些政策仍可能在 Web 读取时遭拒；标识符和自定义规则参数不作为数值统一展开。Web 请求体与 Risk 解析器的预算各有边界，不能把它们等同为通用权限或来源校验。
+
+Risk 的 WIP 为 policy/exchange rules 的数值规范化设置各自 **1 MiB** 展开预算，约束 YAML merge 扩张，并在发布前生成有界快照，修复校验、摘要与发布使用不一致输入的问题。对应快照检查 **255 passed、7 deselected**。外部 `Mapping` 的读取不是原子快照，其方法可执行调用方代码，边界检查不是沙箱；并发修改和恶意或阻塞的实现仍需由调用方信任与隔离。超过新预算的历史政策可能无法重新解析或发布，应单独评估兼容和迁移，不能假定旧数据全部可用。
+
+## Audit 读取合同与限制
+
+WIP 将 audit 查询限制为 `after` 有效游标及 `limit` 1–1000，成功返回所请求的完整页面；页无法装入时拒绝并保留游标，而不是成功返回短页让旧客户端误认为 EOF。调用方需自行用较小 limit 重试；系统没有自动降页。单行不可表示或超限时不能靠缩页跨越；其他账户持续产生较长记录、消耗候选扫描预算也可能让目标账户长期无法前进。
+
+响应错误包含 `risk_audit_record_too_large`、`risk_audit_page_too_large`、`risk_audit_corrupt`、`risk_audit_unavailable`、`risk_audit_number_unrepresentable`、`risk_audit_size_unavailable`；请求无效和未授权另用对应拒绝。Risk 侧读取/页面预算为 **768 KiB、100,000 节点、详情深度 14 层、100,000 候选行**，组件另有自己的响应节点预算。历史数据中的负零、NaN、无穷大或无法无损表达的数字等，不能静默转换为看似正确的结果；不兼容历史行可能阻塞读取，须保留拒绝并处理历史兼容。
+
+标准 Registry 提供结果大小检查，配置的 ServiceHost frame checker 还可检查封装帧；裸 Registry 中单独提供的 checker 不证明实际传输帧受限。缺少可用检查或有界 reader 时返回拒绝，不回退到无界旧读取。已知 GAP：非规范 TEXT scope 的异常可能漏检；SQL 层内部的内存和执行时间上界未由这些应用层预算证明。上限不会证明所有 SQLite 实现、数据分布或持续写入负载下的可用性。
+
+## 验证记录与 SHA-256
+
+| 证据 | 结果与范围 | 完整日志 SHA-256 |
+|---|---|---|
+| `/tmp/iter64-web-clean-archive.log` | Risk HEAD clean archive，Web 两文件限定切片：187 passed | `73b59dd0deffb85b1387f0bdb6ff91adadb431919599f4f6ec31fe3417e4058f` |
+| `/tmp/iter64-policy-audit-snapshot-final2.log` | policy、audit 与 snapshot 局部 WIP 快照：255 passed，7 deselected | `2ad25f80af6f77c927ab94bff8b5593fd2c2c577b48689d3928866aa31a2ddac` |
+| `/tmp/iter64-audit-last.log` | Web → Registry → 真实 Risk 服务组件 → 临时 SQLite 的本地联合切片：287 passed | `214e4758f164b92805b6bf954a4e74e679ecb7eeb5dcf4ceb7cc9cbd8f5ac7b3` |
+| `/tmp/iter64-risk-full-after-policy-audit.log` | Risk 全套快照：1594 passed、578 failed、82 errors，命令失败 | `ac0e088cc7ee493afd467da180635ff56ee586fb4080b87e13e4d10794ba0890` |
+
+联合切片使用本地模拟上下文和临时 SQLite，真实组件不等于真实 socket、真实账户或生产端到端。运行方报告该联合切片涉及的 15 个文件在运行前后 hash 一致；上述日志本身不包含这组逐文件 hash，本次未独立重建该快照。主会话报告全套与旧日志比较后，660 个 FAILED/ERROR 测试 ID 相同；本次仅核对新日志的数量和哈希，未独立复核旧日志或各失败根因。测试还报告 pytest 配置项 `asyncio_default_fixture_loop_scope` 未识别的警告。旧失败 ID 相同不能证明本轮没有行为回归，也不能把全套标为通过。
+
+## 未完成验收
+
+- **GAP**：活动订单共同来源切点、账户及日内事实、母子单授权和跨代未发送证明等仍缺失；默认自成交检查涉及的 Risk OPEN/CLOSE 路径继续失败关闭。
+- **NOT_RUN**：本记录未运行真实 socket、真实账户或生产验收；未重跑上述测试，也未读取真实凭据、私有配置或操作现有 host。
+- **NOT_RUN**：本机未发现 Windows PowerShell 5.1，无法在其默认读取方式下检查中文；本文件将另做 BOM、严格 UTF-8 解码和替换符检查，该本地检查不能替代 Windows 读取验证。
+- 后续应固定待验收源码与测试清单、保留完整命令和环境、定位全套失败并复测；分别补齐授权来源、历史数据兼容、真实传输和账户证据后再讨论相应验收。整期仍为 **NO-GO**。
