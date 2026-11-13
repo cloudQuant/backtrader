@@ -251,3 +251,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 行情 strict 失败关闭 WIP
 
 据主会话提供的未提交行情 strict WIP 快照，`service_market.py` SHA-256 `11c32789b083fe58eddde1127cb487b8d21b395d950dad974da7e7e09a15c1c3`、`GatewayMarketOwner` SHA-256 `165fa74f0dccc9703e0917f0ea196cfc1dd73d6de2bb7079a2d86b3a99670fe4`。strict 将 start / recover / accept_resync / resync_after_regrant 及对应 begin / batch / bootstrap 在 binding / factory / RPC 前明确拒绝 `STRICT_MARKET_FACTORY_UNAVAILABLE`，owner 透传 client guard；strict 空 new close 不读 binding，污染或非空状态 close 拒绝并保留，legacy 默认不变。poll / clock / history 未显式禁用，可能执行 maintenance / RPC / revoke，不能证明安全。主会话及独立复核的两个纯内存 fake 测试文件各 **76 passed / 1 warning**，警告为禁插件后的 pytest 配置警告；未运行真实 host / SQLite / socket / fence / account。strict 行情当前不可获取；真实工厂 quiescence / partial / 内部 socket lease、动态 token / custody 未接线、跨线程 TOCTOU / 旧 SQLite BUSY 与账户来源仍为 GAP，不能声称交付或验收。此前误跑及 660 失败 / 错误快照保留，整期 **NO-GO**。
+
+## 2026-11-14 Risk ledger 无界测试辅助方法 WIP 缩减
+
+据主会话提供的未提交 WIP 事实，Risk ledger SHA-256 从 `0de94c536f724561731ace60f1271410c54f5585e088533eae5d7f2b0423ac78` 变为 `0785db06c940f678b0790e2858e608e60e8fe7c4d0718b8f1149e3f435e2eda3`，删除 WIP 内仅测试使用的无界 `LedgerTxn.all_permits`。未跟踪 golden 测试改为按 9 个固定 ID 读取 scoped `txn.permit`，保留 9 条、顺序、字段及其他 scope 排除断言。执行方报告 AST / 内存 fake 通过；独立只读检索 SDK / BT Python 无引用，不排除外部或动态调用。完整 golden 因需要 SQLite / fence 未运行，不证明 SQL / 事务。该方法也不在 HEAD，变更前旧 WIP 无法从 Git 独立恢复；执行方报告前后 SHA 与反向逐字节对照。本步骤未提交，不闭合 v1 / v3 / SDK / BT 来源隔离或总验收；保留 660 失败 / 错误历史、SQLite 误跑及整期 **NO-GO**。
