@@ -263,3 +263,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 Risk 七文件纯 fake 组合回归
 
 据主会话提供的局部证据，Conda base 在 Risk 工作树对 R01 / R02 / R03b / R07 / R08、`corrupt_permit_guard_fake` 与 `unknown_metadata_fake` 七文件的纯 fake 组合为 **168 passed / 1 warning**，警告为禁用 pytest 插件引发的配置警告。当前 ledger / engine 为 WIP，metadata 项未提交；此前 154 为六文件旧快照。未运行真实 SQLite / host / fence / socket / network，不能证明账户、事务或整体验收；历史 660 失败 / 错误统计不变。主会话源码核对显示 `list_unknown_bounded` 文档仅保证有限拒绝，既有 WIP 测试要求 `PRETRADE_V2_COMMIT_UNCERTAIN` 原始 `RiskOrderJournalError` 传播，SDK 外层映射 unavailable；不能仅以类型不同断言为 bug，本次未改该异常边界。误跑事件与整期 **NO-GO** 保持。
+
+## 2026-11-14 Base 合同差异与参考价时间 GAP
+
+据主会话提供的本轮证据，Base 历史 `417a575^` 与 HEAD `b70e920` 均声明版本 `0.16.0.dev64`，但前者缺少 `gateway_risk_first_reserve_v2`，Risk 未提交 ledger 的顶层导入可能导致 pretrade 导入失败；该历史版本未证明已发布或安装。Risk ledger 已局部惰性导入，在缺失且通过既有来源 / schema 门时固定返回 `PRETRADE_V4_REQUEST_CONTRACT_UNAVAILABLE`。纯内存首次 **3 passed**，此前 v4 + metadata 组合 **17 passed / 1 warning** 为类型反射修订前快照，警告为禁插件配置警告。后续类型注解改为 `object`，运行时严格类型校验保留；合同存在 / 缺失时均覆盖 `get_type_hints`，主会话独立 **3 passed / 1 warning**，两文件 Ruff F821 通过。最终 ledger SHA-256 `e478b41930d50e46d6a823eb34e00173a4715d2f242ab5f8258ff8170181aaf8`、测试 SHA-256 `dfea1c75a654828d635e16f28251254c507acc328686189d71fc3c5885197e31`；该测试临时改进程全局 import hook / sys.modules，仅限单线程独立执行。现有未提交状态和其他 WIP 保留，不证明旧 wheel、真实账本或发行兼容。参考价未来时间目前只有纯函数复现：source / received 晚于 now 仍可能被接受。engine 先采 now 再取行情，本机 received、远端 provider source、不同时钟域、校时和最大允许偏差均未证明；直接修改可能误拒并改变其他事实与 TTL 边界，因此未修改，记为 GAP，不声称实盘绕过或来源已证。原 660 失败 / 错误快照、误跑及整期 **NO-GO** 保留。
