@@ -135,3 +135,7 @@ SDK + BT + host 票据合同仍为未提交 WIP：host 公开本地无 I/O 声�
 ## 2026-11-13 SDK WIP 固定回归快照
 
 固定 SDK WIP 的 10 文件回归 **277 passed / 11 failed / 2 deselected / 1 warning，rc 1**；日志 `/tmp/iter64-sdk-regression.BqPcnAWD/pytest.log` SHA-256 `a617302546fb13328e4f06fc7dddefba5fb2f6bd71696836ee6f8c7f15e235f7`，同目录 `run.zsh` 保存命令；33 个指定文件前后 SHA 清单一致，主会话报告已独立复核。11 项均在 `test_iter64_risk_service_component`：5 项首先期待 v1 RESERVED，3 项 fake payload 期待 DENIED，1 项数量规则 code 被 SDK 已认证 v1 写 guard 的 UNKNOWN 覆盖；另 parent 预约被 Risk quarantine 返回 UNKNOWN，及 available 旧期望 true、实际 false。这些仅解释首个失败，不证明其后策略隔离、母子单、字段或计数等逻辑通过。另两个 dispatch / release 的 `ThreadPoolExecutor` 参数项因死锁时退出无界而未运行，**NOT_RUN**，不是 xfail。这是本地 fake / 临时 SQLite 的限定回归，不是全套、发行或账户验收；整期 **NO-GO**。临时证据可能清理。
+
+## 2026-11-13 SDK 并发节点独立补跑
+
+SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原 deselected 的 dispatch / release 两个参数项在新建专用 fake 进程补跑，各 passed，合计 **2 passed / 1 warning**，pytest 与 wrapper rc 0。日志 `/tmp/iter64-concurrency-bounded.sjamW829/pytest.log` SHA-256 `90a693b703a74bcbc3e7ee78f6f197a2d250db245ba69542c090fe847501487c`；watchdog 未触发、未发信号，记录父子标识，原进程组检查为空且 ps 无匹配，36 文件前后 SHA 清单一致。原 `proof.json` 因 `.NODE_RESULT` 同行解析遗漏，保守标为 INCOMPLETE，保留不覆盖；事后 `verify.py` 生成的 `verified-proof.json` 正确匹配两节点，主会话报告独立复核通过。runner 只检查原 PGID，未覆盖同一 SID 下所有进程组，proof 中 session 清理字段名过宽，不能据此声称整个会话为空。Python 审计 hook 不是 OS 沙箱，范围限已列事件，且仅被阻断事件列表为空；Barrier 只同步开始，不证明全部锁交错、真实账户或跨代来源。整期 **NO-GO**；临时证据可能清理。
