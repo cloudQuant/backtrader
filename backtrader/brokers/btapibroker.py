@@ -1537,8 +1537,10 @@ class BtApiBroker(
         """Return the SDK execution-session summary through a safe public view.
 
         In Gateway mode the summary also carries ``risk``: whether this
-        strategy's PLACE goes through Risk, the local view of Risk's
-        availability and the Risk refusal codes projected by this process.
+        strategy's PLACE goes through Risk, the local reserve-route
+        registration and runtime health observation, and Risk refusal codes
+        projected by this process. That observation does not verify remote
+        risk sources, order admission, or trading safety.
         """
         summary = self._execution_summary_view()
         if getattr(self.store, "_gateway_mode", False) and isinstance(summary, dict):

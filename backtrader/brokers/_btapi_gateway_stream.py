@@ -292,10 +292,13 @@ class GatewayExecutionStreamBrokerMixin:
     def gateway_risk_summary(self):
         """Risk section of the Gateway execution summary (local view, no RPC).
 
-        ``selected`` follows the strategy's configuration (D64-01);
-        ``available`` is the SDK client's view of its Risk route, None when
-        Risk is not selected or the session has not started; ``refusals``
-        counts the Risk-path refusal codes this process projected.
+        ``selected`` follows the strategy's configuration (D64-01).
+        ``available`` is the SDK client's local reserve-route registration
+        and runtime health observation. It is None when Risk is not selected,
+        the facade is absent, or it has no boolean observation; a selected
+        route whose local registration check fails reports False. It does not
+        verify remote risk sources, order admission, or trading safety.
+        ``refusals`` counts the Risk-path refusal codes this process projected.
         """
         store = self.store
         config = getattr(store, "gateway_strategy_config", None)
