@@ -95,3 +95,7 @@ Risk `fa2243a` / SDK gitlink `b5feed39` 已本地提交规则插件异常处理�
 ## 2026-11-13 只读混装风险与建议验证
 
 只读混装风险，建议验证 **NOT_RUN**：BT `live` / `execution` extra 允许 `bt-api-py>=0.15.5`，旧 SDK `0fa07542` 的 `reserve_order` 不接受当前 BT WIP 的 `first_send_ticket`。源码显示 WIP 搭配旧 SDK 时 `NOT_SENT` → `REQUEST_DENIED` 可能将本次未送达误认为历史已决，不能据此认定旧键安全。版本号 `0.16.0.dev64` 可能对应不同源码与合同，需固定 commit / wheel，再以新旧 SDK ↔ Risk、BT ↔ SDK 双向混装及旧键、取消、来源门进行隔离 fake 验证；现有 WIP 测试不是混装证据。Risk 测试源码记载的负例显示旧 binary 持有连接时，测试性版本变更后仍可写；本轮未重跑，不能推断真实旧进程已排空。跨代来源与在途证明 **NOT_RUN**，整期仍为 **NO-GO**。
+
+## 2026-11-13 旧 SDK 签名 fake 实测
+
+BT WIP 新增未提交 `tests/unit/brokers/test_iter64_old_sdk_ticket_compat.py`，以旧 SDK commit `0fa07542` 的真实 `reserve_order` 参数 AST 核对替身。定向 **1 passed / 1 warning**，主会话报告独立复核 **1 passed**；在该 fake 中当前 BT WIP 持久化 Submitted intent 后传入 `first_send_ticket`，`TypeError` 向调用者传播，binding 为 `SUBMIT_UNKNOWN`，同订单/同 Feed 被阻断，两次假恢复仅读，未观察到 Risk/Gateway 写或 direct 回退。日志与清单位于 `/tmp/iter64-bt-old-signature-verified.RjE1EB`，`pytest.log` SHA-256 `35af42e3c87ca2bc32423158aa5db898061127c8a0dba28808053bd74fc408cf`，7 文件前后 SHA 清单一致；首次 AST 比较因遗漏类型注解失败，更正后重验。这是当前 SDK 对象加旧签名 fake，不是真正旧 SDK 完整模块或 wheel 混装，也不证明真实跨代结果；`TypeError` 兼容风险未修复，整期仍为 **NO-GO**。临时证据可能清理。
