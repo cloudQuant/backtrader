@@ -207,3 +207,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 Gateway TTL 局部提交
 
 据主会话提供的局部证据，Gateway 子仓 `9e2cc56b9382948b8bd7bca8087642b320b90036` / SDK gitlink `0b1832b7` 对新 key reserve 在采集 now 后、UUID / INSERT 前计算不超过传入二进制 float TTL 的正 deadline；若向上舍入则使用相邻浮点向下，不可表示时返回 `INVALID_TTL`。旧 key 仍按原路径返回、不续期，明确拒绝白名单未变。主会话及独立复核 pure math / 内存 fake **23 passed**，未执行真实 SQLite / host / socket / fence / account。此时事务、fence 和权限路径此前已进入，不能声称无副作用、回滚或未发送；非 owner 映射 `HANDLER_FAILED`，再由标准 `GatewayDirectClient` 映射 UNKNOWN 仅为源码静态分析，未经端到端验证。既有 `_reserve` 输入校验可能调用数值子类覆写、超大 int 可能触发 `OverflowError`，本次未改变；现有记录不追溯，剩余 TTL 减法、V2 毫秒 / 原十进制、持久化及实际账户仍为 GAP。旧误跑记录保留，整期 **NO-GO**。
+
+## 2026-11-14 Gateway 剩余 TTL 局部提交
+
+据主会话提供的局部证据，Gateway `099f00f` / SDK gitlink `9c790f8f` 已本地提交剩余 TTL 修复：合法非负 SQLite int / 有限 float 的 `expires - now` 按精确二进制值差向下量化，供 observe / first receipt 使用；旧代 RESERVED 为 0、非 RESERVED 为 None。历史 `int(2**53+1) - float(2**53)` 从误算 0 修为 1。postcommit 剩余计算的 `Exception` 纳入 `FIRST_RESERVATION_UNCERTAIN`，`BaseException` 保持原传播。主会话与独立复核在 Conda base 使用 pure Fraction 和内存 fake 的两个测试文件各 **34 passed**，未运行真实 SQLite / host / socket / fence。该值是远端观察，不是本地授权、freshness 或未发送证明；提交 / 回滚、V2 少于 1 ms 的 UNKNOWN 接线、跨进程时钟及账户仍未验，整期 **NO-GO**；原 SQLite 误跑记录保留。
