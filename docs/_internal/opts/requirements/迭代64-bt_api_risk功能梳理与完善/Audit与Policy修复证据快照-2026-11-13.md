@@ -227,3 +227,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 R02 纯规则测试局部提交
 
 据主会话提供的局部证据，Risk 子仓 `a8b7a3b` / SDK gitlink `6b88333e` 新增 R02 纯规则测试：source / received 双时钟各 1000 ms 及超出 1 ns、quality / 字段缺失、market / close 开关、5 tick 双向边界和 tick 0.2 的非 1 示例；合成价格不证明市场网格。主会话独立 **40 passed**，禁插件产生 1 个 pytest 配置警告；独立审核在 HEAD controls 内存加载、其他模块使用当前环境的混合对照中 **40 passed**，不是完整干净 checkout。未改默认 source gate，未运行真实 host / SQLite / fence / account；reserve → dispatch 复查、Gateway 不发送、bps 与真实来源未证明，660 失败 / 错误历史快照不能改计数；误跑记录与整期 **NO-GO** 保持。
+
+## 2026-11-14 R08 warn 保证金纯规则测试局部提交
+
+据主会话提供的局部证据，Risk 子仓 `338bada` / SDK gitlink `a6128070` 新增 R08 warn 保证金纯规则测试：覆盖 long / short 费率、可用资金等额 / 不足、已有占用、`envelope_credit`、缺费率 / 账户 / 可用额、off / CLOSE 与 deny OPEN 失败关闭。主会话独立 **20 passed**，禁插件产生 1 个 pytest 配置警告；审核者 HEAD controls 内存加载、其他模块使用当前环境的混合对照 **20 passed**，不是干净 checkout。仅证明合成输入返回码，不证明实际告警、账户费率 / 来源、并发额度或完整准入；未运行 SQLite / host / fence / network。历史 660 失败 / 错误快照不改计数，误跑记录及整期 **NO-GO** 保持。
