@@ -194,6 +194,100 @@ class _CalendarStatusUnavailable:
     reason: str = "UNAVAILABLE"
 
 
+def _safe_calendar_mixed_provenance(result, venue, kind, product, contract, trading_day):
+    """Check query attribution consistency; digest shapes do not authenticate its source."""
+    def exact(actual, expected):
+        if type(actual) is not type(expected):
+            return False
+        if type(expected) is dict:
+            return (set(actual) == set(expected)
+                    and all(exact(actual[key], value) for key, value in expected.items()))
+        return actual == expected
+
+    provenance = result.simulation_provenance
+    if (type(provenance) is not dict or set(provenance) != {
+            "schema", "environment", "alignment", "target", "windows", "evidence_locator",
+            "semantic_sha256", "evidence_sha256"}
+            or provenance["schema"] != "bt_api.calendar-mixed-window-provenance/2"
+            or provenance["environment"] != "SIMULATION_ONLY"
+            or provenance["alignment"] != "REPEAT_OVER_MOCK_OWNER_DAY_MAPPING"):
+        return False
+    digest = r"[0-9a-f]{64}"
+    if any(type(provenance[key]) is not str or re.fullmatch(digest, provenance[key]) is None
+           for key in ("semantic_sha256", "evidence_sha256")):
+        return False
+    locator = provenance["evidence_locator"]
+    if (type(locator) is not dict or set(locator) != {
+            "candidate_id", "parent_candidate_id", "observation_id", "observation_run_id",
+            "capture_id", "response_digest"}
+            or any(type(locator[key]) is not str or re.fullmatch(r"[0-9a-f]{32}", locator[key]) is None
+                   for key in ("candidate_id", "parent_candidate_id", "observation_id",
+                               "observation_run_id"))
+            or type(locator["capture_id"]) is not str
+            or re.fullmatch(r"akshare\.capture\.[0-9a-f]{32}", locator["capture_id"]) is None
+            or type(locator["response_digest"]) is not str
+            or re.fullmatch(digest, locator["response_digest"]) is None):
+        return False
+    target = provenance["target"]
+    if (type(target) is not dict or set(target) != {
+            "venue", "kind", "product", "mock_contract", "valid_from", "valid_to"}
+            or (target["venue"], target["kind"], target["product"], target["mock_contract"])
+            != (venue, kind, product, contract)
+            or kind != "future" or not contract.startswith("mock_")):
+        return False
+    try:
+        first, last = (_dt.date.fromisoformat(target[key]) for key in ("valid_from", "valid_to"))
+        if (any(type(target[key]) is not str or target[key] != value.isoformat()
+                for key, value in (("valid_from", first), ("valid_to", last)))
+                or not first <= trading_day <= last):
+            return False
+    except (TypeError, ValueError):
+        return False
+    rows = provenance["windows"]
+    if (type(rows) is not list or len(rows) != len(result.windows)
+            or not {"AKSHARE.simulation_unverified", "MOCK.simulation_only"} <= set(result.source_ids)):
+        return False
+    windows = {window.window_id: window for window in result.windows}
+    if len(windows) != len(result.windows):
+        return False
+    seen = set()
+    for row in rows:
+        if (type(row) is not dict or set(row) != {
+                "scope", "window_id", "source_type", "fields", "observation", "simulation"}
+                or type(row["window_id"]) is not str or row["window_id"] in seen
+                or row["window_id"] not in windows or row["scope"] not in ("DAY", "NIGHT")
+                or row["source_type"] not in ("AKSHARE", "MOCK")):
+            return False
+        seen.add(row["window_id"])
+        window = windows[row["window_id"]]
+        offset = (window.end_local.date() - window.start_local.date()).days
+        if (offset not in (0, 1)
+                or (row["scope"] == "DAY"
+                    and (offset != 0 or window.start_local.date() != trading_day))
+                or (row["scope"] == "NIGHT" and window.start_local.date() >= trading_day)):
+            return False
+        basis = "AKSHARE_SYNTAX_CANDIDATE" if row["source_type"] == "AKSHARE" else "MOCK_ASSUMPTION"
+        transition = (("EXPLICIT_NEXT_DAY" if offset else "SAME_CLOCK_DAY")
+                      if row["source_type"] == "AKSHARE" else offset)
+        if (not exact(row["fields"], {
+                "scope": {"value": row["scope"], "basis": basis},
+                "start": {"value": window.start_local.strftime("%H:%M"), "basis": basis},
+                "end": {"value": window.end_local.strftime("%H:%M"), "basis": basis},
+                "day_transition": {"value": transition, "basis": basis}})
+                or window.start_local.second or window.start_local.microsecond
+                or window.end_local.second or window.end_local.microsecond
+                or not exact(row["observation"], dict.fromkeys(
+                    ("phase", "identity", "effective_period", "trading_day", "coverage"), "UNKNOWN"))
+                or not exact(row["simulation"], {
+                    "phase": {"value": window.phase, "basis": "MOCK_ASSUMPTION"},
+                    "timezone": {"value": "Asia/Shanghai", "basis": "MOCK_ASSUMPTION"},
+                    "local_date": {"value": "UNKNOWN", "basis": "UNKNOWN"},
+                    "trading_day": {"value": "UNKNOWN", "basis": "UNKNOWN"},
+                    "night_ownership": {"value": "UNKNOWN", "basis": "UNKNOWN"}})):
+            return False
+    return seen == set(windows)
+
+
 def _safe_calendar_observation(value, status_type):
     """Accept only the SDK's bounded public status vocabulary and identifiers."""
     if type(value) is not status_type:
@@ -4168,14 +4262,33 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                             or result.windows or result.source_ids
                             or result.source_classification != "UNVERIFIED"
                             or result.coverage_status != "UNKNOWN"
+                            or getattr(result, "data_origin", "UNSPECIFIED") != "UNSPECIFIED"
+                            or getattr(result, "simulation_provenance", None) is not None
                             or any(item is not None for item in (result.calendar_ref,
                                    result.publication_id, result.content_sha256, result.version_sha256))):
                         raise ValueError("invalid unknown query result")
                 elif result.status == "COMPLETE":
+                    origin = getattr(result, "data_origin", "UNSPECIFIED")
+                    provenance = getattr(result, "simulation_provenance", None)
+                    if type(origin) is not str or origin not in {"UNSPECIFIED", "AKSHARE_MOCK"}:
+                        raise ValueError("invalid query origin")
+                    if ("AKSHARE.simulation_unverified" in result.source_ids
+                            and (origin != "AKSHARE_MOCK" or provenance is None)):
+                        raise ValueError("missing mixed query provenance")
+                    if provenance is not None:
+                        expected_classification = "AKSHARE_MOCK"
+                        if origin != "AKSHARE_MOCK":
+                            raise ValueError("invalid mixed query origin")
+                    elif origin == "AKSHARE_MOCK":
+                        expected_classification = (
+                            "DECLARED_MOCK" if set(result.source_ids) == {"MOCK.simulation_only"}
+                            else "UNVERIFIED")
+                    else:
+                        expected_classification = (
+                            "DECLARED_MOCK" if "MOCK.simulation_only" in result.source_ids
+                            else "UNVERIFIED")
                     if (result.reason != "EXPLICIT_DATA" or result.coverage_status != "DECLARED_UNVERIFIED"
-                            or result.source_classification != (
-                                "DECLARED_MOCK" if "MOCK.simulation_only" in result.source_ids
-                                else "UNVERIFIED")
+                            or result.source_classification != expected_classification
                             or not result.source_ids
                             or any(type(item) is not str or re.fullmatch(
                                 r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", item) is None
@@ -4205,6 +4318,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                                 or (previous_end is not None and window.start_utc < previous_end)):
                             raise ValueError("invalid query window")
                         previous_end = window.end_utc
+                    if provenance is not None and not _safe_calendar_mixed_provenance(
+                            result, venue, kind, product, contract, trading_day):
+                        raise ValueError("invalid mixed query provenance")
                 else:
                     raise ValueError("invalid query status")
                 value = result
