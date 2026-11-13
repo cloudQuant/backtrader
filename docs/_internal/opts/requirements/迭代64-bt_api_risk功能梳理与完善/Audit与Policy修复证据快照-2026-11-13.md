@@ -255,3 +255,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 Risk ledger 无界测试辅助方法 WIP 缩减
 
 据主会话提供的未提交 WIP 事实，Risk ledger SHA-256 从 `0de94c536f724561731ace60f1271410c54f5585e088533eae5d7f2b0423ac78` 变为 `0785db06c940f678b0790e2858e608e60e8fe7c4d0718b8f1149e3f435e2eda3`，删除 WIP 内仅测试使用的无界 `LedgerTxn.all_permits`。未跟踪 golden 测试改为按 9 个固定 ID 读取 scoped `txn.permit`，保留 9 条、顺序、字段及其他 scope 排除断言。执行方报告 AST / 内存 fake 通过；独立只读检索 SDK / BT Python 无引用，不排除外部或动态调用。完整 golden 因需要 SQLite / fence 未运行，不证明 SQL / 事务。该方法也不在 HEAD，变更前旧 WIP 无法从 Git 独立恢复；执行方报告前后 SHA 与反向逐字节对照。本步骤未提交，不闭合 v1 / v3 / SDK / BT 来源隔离或总验收；保留 660 失败 / 错误历史、SQLite 误跑及整期 **NO-GO**。
+
+## 2026-11-14 bounded UNKNOWN 元数据 WIP
+
+据主会话提供的 bounded UNKNOWN 元数据未提交 WIP 快照，Risk ledger SHA-256 `285986d25b4601b0560536762bcc459037d11ec34863e5ea11edf130949b226c`，新 pure fake 测试 SHA-256 `a4d27acd8f8678a27d8de1876604e062cc8510d2e85ce340c45bb0b919b9485c`。直接调用真实 `LedgerTxn` / engine 的内存 fake 验证：负 created / updated 与非空但不符合既有 8 字符 `isdigit` 交易日的元数据固定为 corrupt，整批拒绝。历史拒单可能存空交易日；空日返回 unavailable 而非 corrupt，属于读取兼容变化。主会话及独立审核各 **14 passed / 1 warning**，警告为禁插件后的 pytest 配置警告。未验证日历真实性、日期与 view 一致性或 updated 顺序，未运行真实 SQLite / host / fence / network。SDK UNKNOWN 投影不转发交易日 / updated，不能声称 Web 泄露；其他 WIP、660 失败 / 错误历史、误跑记录及整期 **NO-GO** 保持。
