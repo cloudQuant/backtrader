@@ -1,0 +1,19 @@
+CHILD_ID {"pgid": 33449, "pid": 33460, "ppid": 33450, "run_token": "iter64-concurrency-af63d437d707485f8f9cbdbf043e2651", "sid": 33449}
+ISOLATION_ARMED_BEFORE_PRODUCT_IMPORT
+SELECTED_NODES ["tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[dispatch]", "tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[release]"]
+NODE_FIXTURES {"fixtures": ["_isolated_execution_ledger_registry", "followup", "monkeypatch", "request", "tmp_path", "tmp_path_factory"], "node": "tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[dispatch]"}
+NODE_FIXTURES {"fixtures": ["_isolated_execution_ledger_registry", "followup", "monkeypatch", "request", "tmp_path", "tmp_path_factory"], "node": "tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[release]"}
+.NODE_RESULT {"node": "tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[dispatch]", "outcome": "passed"}
+.NODE_RESULT {"node": "tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate[release]", "outcome": "passed"}
+                                                                       [100%]
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 1 warning in 0.41s
+BLOCKED_EVENTS []
+PYTEST_EXIT 0
+CHILD_LIVE_NONDAEMON []

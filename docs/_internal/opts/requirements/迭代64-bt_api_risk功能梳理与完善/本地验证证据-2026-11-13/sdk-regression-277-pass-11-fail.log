@@ -1,0 +1,101 @@
+.FFFF..F.FFFFF......F................................................... [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 75%]
+........................................................................ [100%]
+=================================== FAILURES ===================================
+________ test_reserve_dispatch_with_the_authenticated_strategy_and_run _________
+tests/unit/test_iter64_risk_service_component.py:200: in test_reserve_dispatch_with_the_authenticated_strategy_and_run
+    assert reply["outcome"] == "RESERVED", reply
+E   AssertionError: {'code': 'risk_permit_mismatch', 'gateway_code': None, 'gateway_state': None, 'outcome': 'UNKNOWN', ...}
+E   assert 'UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN
+_________ test_old_run_status_does_not_replace_the_current_write_route _________
+tests/unit/test_iter64_risk_service_component.py:224: in test_old_run_status_does_not_replace_the_current_write_route
+    assert old["outcome"] == "RESERVED"
+E   AssertionError: assert 'UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN
+__ test_existing_key_from_other_run_or_principal_is_unknown_without_identity ___
+tests/unit/test_iter64_risk_service_component.py:262: in test_existing_key_from_other_run_or_principal_is_unknown_without_identity
+    assert old["outcome"] == "RESERVED"
+E   AssertionError: assert 'UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN
+____ test_registry_old_reader_cannot_displace_new_writer_or_use_old_permit _____
+tests/unit/test_iter64_risk_service_component.py:306: in test_registry_old_reader_cannot_displace_new_writer_or_use_old_permit
+    assert old["outcome"] == "RESERVED"
+E   AssertionError: assert 'UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN
+_ test_existing_execution_parent_and_child_cannot_bypass_missing_writer_claim __
+tests/unit/test_iter64_risk_service_component.py:412: in test_existing_execution_parent_and_child_cannot_bypass_missing_writer_claim
+    assert service._engine.parent_reserve(caller, parent).outcome == "RESERVED"
+E   AssertionError: assert 'UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN
+_ test_payload_refusals_never_reach_the_gateway[change0-risk_limit_unconfigured] _
+tests/unit/test_iter64_risk_service_component.py:574: in test_payload_refusals_never_reach_the_gateway
+    assert reply["outcome"] == "DENIED" and reply["code"] == code
+E   AssertionError: assert ('UNKNOWN' == 'DENIED'
+E     
+E     - DENIED
+E     + UNKNOWN)
+_ test_payload_refusals_never_reach_the_gateway[change1-risk_request_invalid] __
+tests/unit/test_iter64_risk_service_component.py:574: in test_payload_refusals_never_reach_the_gateway
+    assert reply["outcome"] == "DENIED" and reply["code"] == code
+E   AssertionError: assert ('UNKNOWN' == 'DENIED'
+E     
+E     - DENIED
+E     + UNKNOWN)
+_ test_payload_refusals_never_reach_the_gateway[change2-risk_request_invalid] __
+tests/unit/test_iter64_risk_service_component.py:574: in test_payload_refusals_never_reach_the_gateway
+    assert reply["outcome"] == "DENIED" and reply["code"] == code
+E   AssertionError: assert ('UNKNOWN' == 'DENIED'
+E     
+E     - DENIED
+E     + UNKNOWN)
+__________ test_r01_refusal_is_counted_for_the_callers_strategy_only ___________
+tests/unit/test_iter64_risk_service_component.py:580: in test_r01_refusal_is_counted_for_the_callers_strategy_only
+    assert reply["code"] == "risk_order_quantity_exceeds_cap" and service.gateway.calls == []
+E   AssertionError: assert ('risk_permit_mismatch' == 'risk_order_q...y_exceeds_cap'
+E     
+E     - risk_order_quantity_exceeds_cap
+E     + risk_permit_mismatch)
+_______________ test_a_strategy_cannot_act_for_another_strategy ________________
+tests/unit/test_iter64_risk_service_component.py:608: in test_a_strategy_cannot_act_for_another_strategy
+    assert first["outcome"] == "RESERVED" and other["outcome"] == "NOT_FOUND"
+E   AssertionError: assert ('UNKNOWN' == 'RESERVED'
+E     
+E     - RESERVED
+E     + UNKNOWN)
+____________ test_built_component_passes_the_authenticated_context _____________
+tests/unit/test_iter64_risk_service_component.py:770: in test_built_component_passes_the_authenticated_context
+    assert reply["available"] is True and reply["policy_version"] == "1"
+E   assert (False is True)
+=============================== warnings summary ===============================
+../../../opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_iter64_risk_service_component.py::test_reserve_dispatch_with_the_authenticated_strategy_and_run
+FAILED tests/unit/test_iter64_risk_service_component.py::test_old_run_status_does_not_replace_the_current_write_route
+FAILED tests/unit/test_iter64_risk_service_component.py::test_existing_key_from_other_run_or_principal_is_unknown_without_identity
+FAILED tests/unit/test_iter64_risk_service_component.py::test_registry_old_reader_cannot_displace_new_writer_or_use_old_permit
+FAILED tests/unit/test_iter64_risk_service_component.py::test_existing_execution_parent_and_child_cannot_bypass_missing_writer_claim
+FAILED tests/unit/test_iter64_risk_service_component.py::test_payload_refusals_never_reach_the_gateway[change0-risk_limit_unconfigured]
+FAILED tests/unit/test_iter64_risk_service_component.py::test_payload_refusals_never_reach_the_gateway[change1-risk_request_invalid]
+FAILED tests/unit/test_iter64_risk_service_component.py::test_payload_refusals_never_reach_the_gateway[change2-risk_request_invalid]
+FAILED tests/unit/test_iter64_risk_service_component.py::test_r01_refusal_is_counted_for_the_callers_strategy_only
+FAILED tests/unit/test_iter64_risk_service_component.py::test_a_strategy_cannot_act_for_another_strategy
+FAILED tests/unit/test_iter64_risk_service_component.py::test_built_component_passes_the_authenticated_context
+11 failed, 277 passed, 2 deselected, 1 warning in 3.25s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -p no:cacheprovider --basetemp /tmp/iter64-sdk-regression.BqPcnAWD/pytest --maxfail=0 --deselect=tests/unit/test_iter64_gateway_existing_permit_unknown.py::test_concurrent_same_facade_reserve_never_bypasses_v1_gate tests/unit/test_iter64_risk_service_component.py tests/unit/test_iter64_risk_service_client.py tests/unit/test_iter64_gateway_existing_permit_unknown.py tests/unit/test_iter64_risk_quarantine_sdk.py tests/unit/test_iter64_risk_service_v1_write_gate.py tests/unit/test_iter64_risk_v1_first_proof_gap.py tests/unit/test_iter64_risk_ticket_capability.py tests/unit/test_iter64_risk_unknown_bounded.py tests/unit/test_iter64_risk_client_registry_refusals.py tests/unit/test_iter64_risk_arithmetic_observer_ack.py` failed. (See above for error)

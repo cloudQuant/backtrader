@@ -1,0 +1,22 @@
+TEST_CLEANUP complete risk_pid=91332 risk_exit=0 gateway_pid=91331 gateway_exit=0
+F
+=================================== FAILURES ===================================
+____ test_web_and_independent_admin_share_real_risk_with_source_gate_closed ____
+tests/integration/test_iter64_web_real_host_integration.py:15: in test_web_and_independent_admin_share_real_risk_with_source_gate_closed
+    exercise_web_admin_scenario(tmp_path, check_available=_require_source_quarantine)
+tests/integration/_iter64_web_real_host_support.py:253: in exercise_web_admin_scenario
+    check_available(before_available)
+tests/integration/test_iter64_web_real_host_integration.py:11: in _require_source_quarantine
+    assert available is False
+E   assert True is False
+=============================== warnings summary ===============================
+../../../../Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_iter64_web_real_host_integration.py::test_web_and_independent_admin_share_real_risk_with_source_gate_closed
+1 failed, 1 warning in 2.69s
+ERROR conda.cli.main_run:execute(125): `conda run python -m pytest -q -s -p no:cacheprovider --basetemp /tmp/iter64-web-split.Vt6fcD/clean-gate-tmp tests/integration/test_iter64_web_real_host_integration.py` failed. (See above for error)
