@@ -247,3 +247,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 Risk 六组纯内存组合回归
 
 据主会话提供的局部证据，Conda base 对 R01、R02、R03b、R07 threshold、R08 五个纯规则测试文件及 `tests/test_iter64_corrupt_permit_guard_fake.py` 的纯内存组合回归为 **154 passed / 1 warning**，警告为禁用 pytest 插件导致的配置警告；该结果运行当前 Risk controls / engine WIP。此前 HEAD 控制单文件仅为内存混合对照，非完整干净 checkout。未执行 SQLite / host / fence / socket / network，真实数据库、账户来源与派发仍为 GAP；历史 660 失败 / 错误快照不改计数，误跑事件及整期 **NO-GO** 保持。
+
+## 2026-11-14 行情 strict 失败关闭 WIP
+
+据主会话提供的未提交行情 strict WIP 快照，`service_market.py` SHA-256 `11c32789b083fe58eddde1127cb487b8d21b395d950dad974da7e7e09a15c1c3`、`GatewayMarketOwner` SHA-256 `165fa74f0dccc9703e0917f0ea196cfc1dd73d6de2bb7079a2d86b3a99670fe4`。strict 将 start / recover / accept_resync / resync_after_regrant 及对应 begin / batch / bootstrap 在 binding / factory / RPC 前明确拒绝 `STRICT_MARKET_FACTORY_UNAVAILABLE`，owner 透传 client guard；strict 空 new close 不读 binding，污染或非空状态 close 拒绝并保留，legacy 默认不变。poll / clock / history 未显式禁用，可能执行 maintenance / RPC / revoke，不能证明安全。主会话及独立复核的两个纯内存 fake 测试文件各 **76 passed / 1 warning**，警告为禁插件后的 pytest 配置警告；未运行真实 host / SQLite / socket / fence / account。strict 行情当前不可获取；真实工厂 quiescence / partial / 内部 socket lease、动态 token / custody 未接线、跨线程 TOCTOU / 旧 SQLite BUSY 与账户来源仍为 GAP，不能声称交付或验收。此前误跑及 660 失败 / 错误快照保留，整期 **NO-GO**。
