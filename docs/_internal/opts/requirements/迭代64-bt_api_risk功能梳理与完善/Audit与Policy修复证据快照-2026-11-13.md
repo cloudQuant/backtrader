@@ -71,3 +71,7 @@ Risk `646003b` / SDK gitlink `85c588a4` 已本地提交 Web UNKNOWN 回复去重
 ## 2026-11-13 撤单状态新鲜度局部快照
 
 SDK `013ad628` 已本地提交撤单状态新鲜度局部修复：查询失败、超时、拒绝、operation_id 不匹配、回复无效或状态矛盾时，当前查询返回 `None`，不回退旧缓存，也不触发撤单或重试。`OBSERVED` 仅含 Gateway 前 256 条和全部 counts，状态按 producer 合同校验；`NOT_FOUND` 仅原样传递可信有限回复。当时快照 **137 passed / 1 warning**，日志 `/var/folders/7d/hnmknylj1w91h3cvq6mh3thm0000gn/T/iter64-cancel-status-final4.bFWKiE/pytest.log`，SHA-256 `e52dea1e0adbc61951d2b3cd989ba774706aae437b5b0f578e424cb920324e11`；主会话报告独立复审 **131 passed**。均为 fake、临时 SQLite 和本地 owner / 合成 provider；超过 256 条仅 fake 覆盖，`last_cancel_status` 外部并发时序、实际多页、真实账户与来源及撤成均未证明。临时日志可能清理，整期仍为 **NO-GO**。
+
+## 2026-11-13 规则插件异常处理局部快照
+
+Risk `fa2243a` / SDK gitlink `b5feed39` 已本地提交规则插件异常处理：规则版本读取与比较、`evaluate` 和结果校验的普通异常固定返回 `DENY risk_rule_failed`，不吞掉 `KeyboardInterrupt` 或 `SystemExit`。干净归档专项 **16 passed / 1 warning**，日志 `/tmp/iter64-rule-failure.obEjgq9w/final2.log` SHA-256 `9388eb0d2d46e6ca164061e3933e84b23104a7018d2983995cdccb44d69fd661`；主会话报告独立复核 **14 passed**。两者均是纯 fake 插件，不证明 engine 审计、真实账户或整期通过；临时日志可能清理，整期仍为 **NO-GO**。
