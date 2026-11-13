@@ -223,3 +223,7 @@ SDK 原回归仍为 **277 passed / 11 failed / 2 deselected，rc 1**；其中原
 ## 2026-11-14 R01 纯规则测试局部提交
 
 据主会话提供的局部证据，Risk 子仓 commit `9136817` / SDK gitlink `6313f23f` 新增独立 `test_iter64_r01_pure_rules.py`：真实 controls 函数使用合成事实验证开平数量 / 名义边界、缺配置、缺乘数 / 市价；未改默认来源门或原测试。主会话与独立审核各 **30 passed / 1 warning**，警告为禁插件后的 pytest 配置警告。审核者将 HEAD controls 内存加载、其他模块仍用当前环境时另有 **30 passed**；该混合对照不是干净 checkout。未运行 host / SQLite / fence / 网络；原 660 个失败 / 错误快照不变，原 reserve / Gateway、账户、来源与 schema 迁移仍未验，整期 **NO-GO**。
+
+## 2026-11-14 R02 纯规则测试局部提交
+
+据主会话提供的局部证据，Risk 子仓 `a8b7a3b` / SDK gitlink `6b88333e` 新增 R02 纯规则测试：source / received 双时钟各 1000 ms 及超出 1 ns、quality / 字段缺失、market / close 开关、5 tick 双向边界和 tick 0.2 的非 1 示例；合成价格不证明市场网格。主会话独立 **40 passed**，禁插件产生 1 个 pytest 配置警告；独立审核在 HEAD controls 内存加载、其他模块使用当前环境的混合对照中 **40 passed**，不是完整干净 checkout。未改默认 source gate，未运行真实 host / SQLite / fence / account；reserve → dispatch 复查、Gateway 不发送、bps 与真实来源未证明，660 失败 / 错误历史快照不能改计数；误跑记录与整期 **NO-GO** 保持。
