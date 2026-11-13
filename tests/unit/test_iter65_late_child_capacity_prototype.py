@@ -1,10 +1,10 @@
-"""Current local capacity behavior under deliberately contradictory test evidence.
+"""Local claim capacity under deliberately contradictory test evidence.
 
 The temporary journal and ParentAuthority are real.  The account, admission,
 Gateway and evidence are synthetic: the late cumulative fill deliberately
 contradicts the earlier test-only assertion that the terminal watermark was
 aligned.  No actual Gateway, provider, account or network is involved.  These
-assertions describe a baseline, not the intended iteration 65 contract.
+assertions cover one local transaction, not the complete iteration 65 contract.
 """
 
 from decimal import Decimal
@@ -98,7 +98,7 @@ def evidence_count(store):
     ).fetchone()[0]
 
 
-def test_late_corrected_terminal_evidence_after_reallocation_is_baseline_only(tmp_path):
+def test_late_corrected_terminal_evidence_fences_prepared_claim(tmp_path):
     path = tmp_path / "synthetic-parent.sqlite"
     store, authority = open_authority(path)
     first = evidence("terminal-1", "3", aligned=True)
@@ -132,11 +132,11 @@ def test_late_corrected_terminal_evidence_after_reallocation_is_baseline_only(tm
             authority.observe_child("parent-1", "child-1", {**late, "filled_quantity": "5"})
         assert evidence_count(store) == 2
 
-        # This is only a local durable claim: no SDK call or Gateway dispatch
-        # is made.  Record whether the already prepared child is rechecked.
-        assert authority.claim_child("parent-1", "child-2")["child_id"] == "child-2"
+        # This local transaction rechecks capacity; it does not contact SDK or Gateway.
+        with pytest.raises(InvalidStateTransition, match="parent capacity exhausted"):
+            authority.claim_child("parent-1", "child-2")
         rows = child_rows(store)
-        assert rows[1]["state"] == "UNKNOWN"
+        assert rows[1]["state"] == "PREPARED"
         assert occupied(rows) == Decimal("6")
     finally:
         store.close()
@@ -145,7 +145,7 @@ def test_late_corrected_terminal_evidence_after_reallocation_is_baseline_only(tm
     try:
         rows = child_rows(reopened)
         assert [(row["child_id"], row["state"], row["filled_quantity"]) for row in rows] == [
-            ("child-1", "TERMINAL", "4"), ("child-2", "UNKNOWN", "0")]
+            ("child-1", "TERMINAL", "4"), ("child-2", "PREPARED", "0")]
         assert occupied(rows) == Decimal("6")
         assert evidence_count(reopened) == 2
         assert authority.observe_child("parent-1", "child-1", late)["filled_quantity"] == "4"

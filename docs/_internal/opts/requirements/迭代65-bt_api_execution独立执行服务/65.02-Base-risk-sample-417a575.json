@@ -1,0 +1,1355 @@
+{
+  "scope": "65.02 targeted existing Risk/Base regression sample; NOT full baseline",
+  "baseline_commit": "417a57546da89145c7d26793614091314aa3cc3c",
+  "candidate_commit": "f15e230",
+  "python": "3.11.8",
+  "pytest": "8.4.2",
+  "execution": "same conda base interpreter, pytest autoload and cache disabled, network and non-temp writes denied; source checkout for candidate and git archive for baseline",
+  "tests": [
+    "tests/test_risk_service_protocol.py",
+    "tests/test_gateway_risk_first_reserve_v2.py",
+    "tests/test_risk_service_capability_v2.py",
+    "tests/test_service_wire_capability_repr.py"
+  ],
+  "baseline_test_files_identical_to_candidate": true,
+  "source_sha256": "80791d585e974042f4f1bbf4479f687821b742d575efdcc91595de73d9ab8038",
+  "new_test_sha256": "6d245224af1db2797240ec3775782667f9c3126beeeb94555ed0728723113dbc",
+  "counts": {
+    "baseline_passed": 265,
+    "candidate_passed": 265,
+    "changed_outcomes": 0
+  },
+  "nodeid_derivation": "JUnit classname tests.test_module plus testcase name; all selected cases are module-level",
+  "nodeids": [
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_bound_decode_requires_original_request",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[attempt_nonce_digest-000000000000000000000000000000000000000000000000000000000000000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[command-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[requested_ttl_ms-0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[requested_ttl_ms-1.0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[requested_ttl_ms-30001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[requested_ttl_ms-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_instance_id- padded]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_permit_id-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_registration_id-line\\nbreak]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_service_epoch-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_service_id-]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[risk_view_digest-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[schema_version-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[schema_version-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_invalid_request_fields_raise_finite_error_without_value[strategy_principal-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nested_exception_does_not_expose_object_claims[request]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nested_exception_does_not_expose_object_claims[result]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_digest_is_exact_and_domain_separated_without_persisting_nonce",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[bad5]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_nonce_helper_rejects_non_exact_bytes_without_echo[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_binds_parent_and_child_when_present",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[attempt_nonce_digest-1212121212121212121212121212121212121212121212121212121212121212]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[requested_ttl_ms-5001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_instance_id-risk-instance-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_permit_id-permit-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_registration_id-registration-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_service_epoch-epoch-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_service_id-risk-service-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[risk_view_digest-efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_binding[strategy_principal-strategy-principal-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[account_scope-account-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[actor_principal-risk-principal-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[actor_ref-risk-actor-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[execution_domain_ref-domain-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[grant_revision-grant-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[instrument-value8]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[payload_digest-3434343434343434343434343434343434343434343434343434343434343434]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[request_key-request-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[run_id-run-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_commitment_changes_with_each_nested_scope_binding[strategy_scope-strategy-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_mapping_roundtrip_commitment_and_redacted_repr",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_requires_risk_actor_not_execution_actor",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_accepts_positive_bounded_integer_ms[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_accepts_positive_bounded_integer_ms[29999]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_accepts_positive_bounded_integer_ms[2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_accepts_positive_bounded_integer_ms[30000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[1.0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[30001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[False]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_ttl_rejects_noninteger_and_out_of_range_values[nan]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_request_wire_shape_refuses_extra_secret_or_contradictory_nested_command",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[attempt_nonce_digest-1212121212121212121212121212121212121212121212121212121212121212]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[requested_ttl_ms-5001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_instance_id-risk-instance-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_permit_id-permit-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_registration_id-registration-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_service_epoch-epoch-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_service_id-risk-service-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[risk_view_digest-efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_commitment_binds_nonduplicated_request_fields[strategy_principal-strategy-principal-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[account_scope-account-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[execution_domain_ref-domain-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[payload_digest-9898989898989898989898989898989898989898989898989898989898989898]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[request_commitment_digest-9999999999999999999999999999999999999999999999999999999999999999]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[request_key-request-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[run_id-run-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_does_not_match_conflicting_request_fields[strategy_scope-strategy-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[account_scope- padded]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[execution_domain_ref-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[journal_id-]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[owner_generation-generation-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[payload_digest-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[request_commitment_digest-111111111111111111111111111111111111111111111111111111111111111]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[request_key-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[reservation_generation-generation-b]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[reservation_id-]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[run_id-line\\nbreak]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[schema_version-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[schema_version-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[state-DISPATCHING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[state-UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[strategy_scope-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[version-2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_rejects_invalid_fields_with_value_free_error[version-True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_roundtrip_matches_request_and_hides_identities_in_repr",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_above_requested_limit_fails_bound_decode[30000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_above_requested_limit_fails_bound_decode[5001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_accepts_only_positive_bounded_integer_ms[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_accepts_only_positive_bounded_integer_ms[29999]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_accepts_only_positive_bounded_integer_ms[2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_accepts_only_positive_bounded_integer_ms[30000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_at_or_below_requested_limit_matches[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_at_or_below_requested_limit_matches[4999]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_at_or_below_requested_limit_matches[5000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_matches_request_at_protocol_boundaries[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_matches_request_at_protocol_boundaries[30000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[1.0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[30001]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[False]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_ttl_rejects_expired_noninteger_and_out_of_range_values[nan]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_gateway_risk_first_reserve_v2.py::test_result_wire_shape_rejects_duplicate_secret_and_wrong_schema_fields",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_both_v2_messages_reject_invalid_versions[1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_both_v2_messages_reject_invalid_versions[2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_both_v2_messages_reject_invalid_versions[3]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_both_v2_messages_reject_invalid_versions[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_both_v2_messages_reject_invalid_versions[True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_codec_rejects_extra_missing_and_wrong_schema[dispatch]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_codec_rejects_extra_missing_and_wrong_schema[reserve]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_a_gateway_reservation_or_unpersisted_permit[DENIED-None-reservation-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_a_gateway_reservation_or_unpersisted_permit[DENIED-permit-1-reservation-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_a_gateway_reservation_or_unpersisted_permit[None-None-reservation-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_a_gateway_reservation_or_unpersisted_permit[None-permit-1-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_a_gateway_reservation_or_unpersisted_permit[None-permit-1-reservation-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-DENIED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-DISPATCHING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-EXPIRED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-NOT_SENT]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-PENDING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-RESERVED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-SENT]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[DENIED-p-1-UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-DENIED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-DISPATCHING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-EXPIRED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-NOT_SENT]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-PENDING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-RESERVED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-SENT]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_cannot_claim_any_gateway_state[None-None-UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_retains_gateway_refusal_code_without_gateway_state[DENIED-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_retains_gateway_refusal_code_without_gateway_state[DENIED-p-1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_denial_retains_gateway_refusal_code_without_gateway_state[None-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[dispatch_capability-1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[permit_id-None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[request_key- padded]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[request_key-]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[reservation_id-with\\nnewline]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[view_digest-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_rejects_invalid_identity_and_digest[view_digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_dispatch_round_trip_and_repr_redaction",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_malformed_nested_v1_result_has_finite_error_without_untrusted_value",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_non_reserved_reply_cannot_carry_capability[DENIED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_non_reserved_reply_cannot_carry_capability[DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_non_reserved_reply_cannot_carry_capability[RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_non_reserved_reply_cannot_carry_capability[TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_non_reserved_reply_cannot_carry_capability[UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_cannot_also_be_a_refusal[DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_cannot_also_be_a_refusal[RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_cannot_also_be_a_refusal[TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[CLAIMED-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[CLAIMED-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[CLAIMED-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DENIED-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DENIED-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DENIED-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DISPATCHED-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DISPATCHED-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[DISPATCHED-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[None-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[None-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[None-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASED-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASED-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASED-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASING-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASING-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RELEASING-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVED-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVED-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVED-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVING-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVING-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[RESERVING-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[TERMINAL-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[TERMINAL-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[TERMINAL-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[UNKNOWN-DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[UNKNOWN-RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_observed_result_requires_its_matching_state[UNKNOWN-TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_accepts_only_its_own_state_or_none[DENIED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_accepts_only_its_own_state_or_none[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[CLAIMED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[RELEASING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[RESERVED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[RESERVING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_denial_cannot_describe_another_permit_state[UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserve_reply_round_trips_without_exposing_capability_in_repr",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[00000000000000000000000000000000000000000000000000000000000000000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[0000000000000000000000000000000000000000000000000000000000000000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[000000000000000000000000000000000000000000000000000000000000000]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[True]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11\\uff11]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_and_dispatch_reject_malformed_capabilities_without_echo[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes3]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes4]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_reserved_reply_needs_complete_identity_and_non_refusal[changes5]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_status_result_is_not_a_capability_reply_and_v1_codec_rejects_v2",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[CLAIMED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[DENIED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[DISPATCHED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[None]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[RELEASED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[RELEASING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[RESERVED]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[RESERVING]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[TERMINAL]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_can_preserve_any_prior_state_without_capability[UNKNOWN]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_unknown_may_keep_gateway_state_without_granting_capability",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_capability_v2.py::test_v1_mapping_and_canonical_representation_are_unchanged",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_canonical_json_refuses_floats_and_sorts_keys",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_empty_optional_fields_mean_unknown_not_zero",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_execution_child_requires_parent_identity",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_kill_switch_vocabulary_matches_gateway_strings",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_parent_view_roundtrip_and_bounds",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_refusal_codes_cover_plan_names",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_result_codes_are_finite_and_denied_requires_a_code",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_digest_changes_with_any_semantic_field",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_from_mapping_rejects_unknown_or_missing_keys_and_float_numbers",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change0]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change10]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change11]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change12]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change13]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change14]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change15]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change1]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change2]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change3]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change4]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change5]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change6]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change7]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change8]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_rejects_invalid_values_with_a_finite_code[change9]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_risk_service_protocol.py::test_view_roundtrip_keeps_exact_decimals_and_digest",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_service_wire_capability_repr.py::test_capability_envelopes_hide_payload_in_repr_nested_repr_and_exceptions[reply]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_service_wire_capability_repr.py::test_capability_envelopes_hide_payload_in_repr_nested_repr_and_exceptions[request]",
+      "baseline": "passed",
+      "candidate": "passed"
+    },
+    {
+      "nodeid": "tests/test_service_wire_capability_repr.py::test_payload_still_participates_in_equality",
+      "baseline": "passed",
+      "candidate": "passed"
+    }
+  ],
+  "limitations": [
+    "Four existing files only, not Base full suite",
+    "No actual provider, account, or service acceptance",
+    "One pytest unknown asyncio configuration warning in each run"
+  ]
+}
