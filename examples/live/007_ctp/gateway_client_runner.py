@@ -183,8 +183,28 @@ def main(strategy, title, run_dir, argv=None):
         print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_CONFIG_INVALID"}))
         return 2
     if args.dry_run:
+        try:
+            if "calendars" not in config:
+                calendar_status = "calendar_root_unconfigured"
+            else:
+                from bt_api_py.trading_calendar_config import parse_trading_calendar_config
+
+                calendar = parse_trading_calendar_config(
+                    config, config_file=path, gateway_enabled=True, direct_write_enabled=False
+                )
+                if calendar.root_kind == "package_seed":
+                    print(json.dumps({"status": "BLOCKED", "error_code": "calendar_package_seed_unsupported",
+                                      "calendar": "package_seed_declared_runtime_unsupported"}))
+                    return 2
+                if calendar.root_kind != "directory":
+                    raise ValueError("calendar configuration invalid")
+                calendar_status = "external_directory_configured_not_bound"
+        except Exception:
+            print(json.dumps({"status": "BLOCKED", "error_code": "CALENDAR_CONFIG_INVALID"}))
+            return 2
         print(json.dumps({"status": "PASS", "mode": "offline_config_validation",
-                          "strategy": strategy.__name__, "symbols": config["symbols"]}))
+                          "strategy": strategy.__name__, "symbols": config["symbols"],
+                          "calendar": calendar_status}))
         return 0
 
     try:
