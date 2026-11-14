@@ -363,13 +363,45 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self.provider = self._resolve_provider(provider)
         self.backend = _resolve_backend(self.provider, backend)
-        gateway_tree = config.get("gateway_strategy") if isinstance(config, Mapping) else None
-        self._gateway_mode = isinstance(config, Mapping) and "gateway_strategy" in config
         # D64-01/U64-5: Risk exists only with the Gateway and is selected only
         # inside gateway_strategy (parsed by the SDK). Any other risk key is
-        # refused, never ignored; Backtrader does not parse Risk settings.
-        if any(isinstance(source, Mapping) and "risk" in source
-               for source in (config, api_kwargs, kwargs)):
+        # refused before merging sources, where one section could hide another.
+        try:
+            # Inspect and later consume the same snapshots. A lazy Mapping may
+            # otherwise change between membership checks and dict conversion.
+            snapshots = []
+            for source in (config, api_kwargs, kwargs):
+                snapshot = dict(source) if source is not None else {}
+                for section_name in ("gateway", "gateway_strategy"):
+                    section = snapshot.get(section_name)
+                    if isinstance(section, Mapping):
+                        snapshot[section_name] = dict(section)
+                snapshots.append(snapshot)
+            config, api_kwargs, kwargs = snapshots
+            self._gateway_mode = "gateway_strategy" in config
+            gateway_tree = config.get("gateway_strategy") if self._gateway_mode else None
+            misplaced_risk = False
+            for index, source in enumerate((config, api_kwargs, kwargs)):
+                if "risk" in source:
+                    misplaced_risk = True
+                    break
+                for section_name in ("gateway", "gateway_strategy"):
+                    # Only config.gateway_strategy is the selected Gateway
+                    # configuration; its risk selection belongs to the SDK.
+                    if index == 0 and self._gateway_mode and section_name == "gateway_strategy":
+                        continue
+                    if section_name in source:
+                        section = source[section_name]
+                        if isinstance(section, Mapping) and "risk" in section:
+                            misplaced_risk = True
+                            break
+                if misplaced_risk:
+                    break
+        except Exception:
+            error = BtApiStoreError("risk_selection_invalid")
+            error.code = "risk_selection_invalid"
+            raise error from None
+        if misplaced_risk:
             code = "risk_selection_invalid" if self._gateway_mode else "risk_requires_gateway"
             error = BtApiStoreError(code)
             error.code = code
@@ -443,8 +475,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._api = api
         self._api_cls = api_cls
         self._sdk_custom_api_factory = api_cls is not None
-        self._config = dict(config or {})
-        self._api_kwargs = dict(api_kwargs or {})
+        self._config = config
+        self._api_kwargs = api_kwargs
         # Merge extra SDK settings into _api_kwargs.
         if kwargs:
             self._api_kwargs.update(kwargs)
