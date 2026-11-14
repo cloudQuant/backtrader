@@ -24,7 +24,7 @@
 
 | 步骤 | 开发工作与依赖 | 对应本地检查 |
 | --- | --- | --- |
-| 1 | **只读投影前移**：把 `strategy_ledger_journal_identity`、`strategy_ledger_events_after`、`has_intent_id` 从 SDK journal 移入 Risk core，SDK 现有调用继续指向同一 core 能力；不改写/接管账本。相关修改当前正在工作树中开发，是否提交以仓库记录为准。 | fake connection 验证 scope、revision/limit、结果投影、异常与关闭；原 SDK 调用及 core 方法行为对照。 |
+| 1 | **只读投影前移：本地完成**。`strategy_ledger_journal_identity`、`strategy_ledger_events_after`、`has_intent_id` 已从 SDK journal 移入 Risk core，SDK 现有调用使用该能力；不改写/接管账本。已本地提交 Risk `139e975` / SDK `bb28c892`。这不表示 core/facade 组合或 fence 已完成。 | 独立源码快照的 fake 定向测试由主线程复跑：Risk **23 passed**、SDK **1 passed**；覆盖范围以相应测试为准，不证明真实来源或账本权限。 |
 | 2 | 固定 core、facade、原 manager/fence 与三个来源端口的实例级合同；缺失能力的具体写操作保持不可用。借用、长持锁和短持锁为不同路径，不靠再次获取同一账户 fence 证明身份。 | 纯 fake 覆盖同一实例、第二 core、同路径不同对象、错 scope/线程/代际、原 context 退出和端口变化；不以 fake 证明真实锁。 |
 | 3 | 把 Execution 撤单来源、provider profile 和 Gateway 仓位来源验证由继承钩子迁为实例绑定端口；同步原有 gate 的来源与历史重验。 | 假来源/错 store、scope、run、profile、receipt 或记录链必须拒绝；回调异常、事务中失效及不确定提交保持 `UNKNOWN`。 |
 | 4 | 成组切换 SDK 装配、Gate authority、Risk entry、CTP bridge/cancel、Group 和 strategy-ledger host 的同一 core/facade 关系。CTP cancel 只能借用明确绑定的原 bridge/context/fence；首次获取、最终退出及没有持有凭证的独立路径仍各自获取。 | 同一 authority 正反例、CTP/Group 持有期与跨代、回调重入/关闭竞态、未决占用及不重发；本地替身仅证明对应模拟路径。 |
