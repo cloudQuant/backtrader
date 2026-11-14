@@ -692,8 +692,9 @@ Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
   other middleware transports may be added later. Without a gateway, the SDK
   connects to the exchange adapter directly.
 - **Execution and risk:** When selected, `bt_api_execution` receives orders and
-  cancellations for centralized execution. `bt_api_risk` applies controls to
-  order submission and cancellation before provider writes.
+  cancellations for centralized execution. When selected, `bt_api_risk`
+  applies admission controls to new orders. In Gateway mode, strategy-initiated
+  cancellations go directly to Gateway without waiting for a Risk decision.
 - **Monitoring:** `bt_api_monitor` observes account, strategy, order, and
   cancellation state; it consumes status and events rather than acting as a
   serial order-forwarding hop.
@@ -1364,7 +1365,8 @@ Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
   `bt_api_transport_zmq` 使用 `pyzmq` 完成转发，后续可接入其他中间件。
   不选择网关时，SDK 经交易所适配层直连交易所。
 - **集中执行与风控**：选择 `bt_api_execution` 时，订单和撤单可交由它集中执行；
-  `bt_api_risk` 对下单和撤单实施风控，在写入交易所前做决策。
+  选择 `bt_api_risk` 时，新单经过其风控准入。Gateway 模式下，策略主动撤单由 SDK
+  直接发给 Gateway，不等待 Risk 决策。
 - **监控**：`bt_api_monitor` 观察账户、策略、订单和撤单状态；它消费状态与事件，
   并非订单必须经过的串行转发节点。
 - **交易所接口**：`bt_api_py` 提供统一交易所接口，`bt_api_base` 提供共用的
