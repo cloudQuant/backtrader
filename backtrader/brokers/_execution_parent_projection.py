@@ -8,7 +8,9 @@ notifications the strategy receives.  This module is the boundary between the
 two: it consumes a read-only Execution parent status through injected ports (or
 plain mappings) and returns immutable facts.  It never calls a provider, opens
 a socket, reads a credential, sends an order, cancels an order or installs an
-object into a Strategy or Broker.  It is not wired into any Broker yet.
+object into a Strategy or Broker.  Application to routed orders lives in
+``_execution_routing_apply`` and is opt-in through an injected facts port; this
+module itself remains a pure projection.
 
 Inputs (each port is a mapping keyed by ``request_id``, a callable taking the
 ``request_id``, or an object exposing the method of the same name):
