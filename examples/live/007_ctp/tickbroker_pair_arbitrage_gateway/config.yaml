@@ -16,6 +16,17 @@ contracts:
     quantity_unit: contracts
     time_in_force: GFD
 run_timeout_seconds: 180
+
+# Iteration 67 (D67-01): explicit, read-only trading-calendar root for this example.
+# Local operator-installed directory; not shipped data, not exchange truth, and the
+# synthetic seed is MOCK (no trading authorization). Relative paths resolve against
+# this config file's directory; environment variables are not expanded. Keep this an
+# example-local path, never a production absolute path. Without a published CURRENT
+# every calendar query is explicit UNKNOWN, never a guessed session. Install a
+# calendar explicitly (../README.md, docs/TRADING_CALENDAR_OPERATIONS.md).
+calendars:
+  root: ../calendars
+
 feed:
   timeframe: ticks
   compression: 1

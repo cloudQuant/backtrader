@@ -190,6 +190,116 @@ feed 的 LIVE 和下单资格只看 tick 本身。Gateway 的恢复与资格另�
 backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防线。上面的重同步成功行是 backtrader 的 INFO 行，
 要看到它把 `logging.other_level` 设为 `INFO`。独立 Gateway 有自己的日志配置；策略进程的配置不控制 Gateway 服务日志。
 
+## 交易日历（迭代 67，2026-11-15）
+
+22 个示例的 `config.yaml` 都显式声明一个只读的日历根：
+
+```yaml
+calendars:
+  root: ../calendars      # 相对本文件所在目录；示例只写相对路径
+```
+
+- 根目录由运营人员在本机创建，仓库不附带真实日历数据；`<root>/ctp/` 是 CTP 的固定子目录。
+- 示例只写相对路径，按 `config.yaml` 所在目录解析；不写 `~`，也不依赖环境变量（SDK 不展开环境变量）。
+  根目录建议放在本地磁盘；同一主机的多个策略可以指向同一个根目录，运行时只读。
+- 未配置 `calendars` 时，按 D67-01 Gateway 模式或 direct 写入准入应拒绝启动（`calendar_root_unconfigured`）。
+  当前 007 入口只在配置了 `calendars` 时校验：direct 未配置的 dry-run 打印
+  `unconfigured; direct write requirement pending`，Gateway 报告 `calendar_root_unconfigured`；
+  强制拒绝是否已接线以运行代码为准。示例现在声明了根，dry-run 分别输出
+  `external directory configured; local status only`（direct）和
+  `external_directory_configured_not_bound`（Gateway）；这只证明配置被解析，不证明目录存在、已发布或可用于交易。
+- 目录不存在、`CURRENT.json` 缺失、版本校验失败、品种不在覆盖范围或作用域不明时，查询结果是显式 `UNKNOWN`；
+  框架不会用“工作日/周末”或其他规则补一个会话。`UNKNOWN` 既不是“休市”，也不是“开市”。
+
+### 文件与指针
+
+`<root>/ctp/` 下的当前 SDK 实现布局（计划中的 inbox/sources/staging/reports 尚未全部落地）：
+
+```text
+<root>/ctp/
+  CURRENT.json          # 指针：当前已提交发布记录及摘要，只经原子替换更新
+  versions/             # 不可变版本内容（按 version_id 命名）
+  publications/         # 不可变发布记录（按 publication_id 命名）
+  receipts/             # 提交回执（按 publication_id 命名）
+  .lock                 # 单写者锁；运行时只读
+  REVIEW_POLICY.json / REVIEW_POLICY_INITIALIZED.json  # 发布审核策略及初始化标记
+  observation-runs/ detail-collections/ supplement-captures/  # 采集/公告补充记录（工具写入）
+  schedule-once-*.json schedule-once-ledger.sqlite3            # 每日检查状态与账本（工具写入）
+```
+
+`versions/`、`publications/`、`receipts/` 一经写入不可覆盖；`version_id`、`publication_id` 和
+`content_sha256` 会出现在查询结果与待发单的 `calendar_ref` 中，便于追溯。策略、Feed 和 Store 都不读取文件路径或内容，
+只通过 SDK 的只读端口查询（INV67-09）。
+
+### 策略怎样读取时段
+
+```python
+day = ...  # 由提供方/BT 确认的交易日，exact datetime.date；不由本机时钟或星期推断
+state = self.data0.trading_calendar_binding()      # 不产生 I/O 的当前绑定视图
+# 作用域必须显式给出（或配置在 feed.calendar_*）；缺少任一字段的结果是 UNKNOWN。
+session = self.data0.trading_session(
+    day, venue="SHFE", kind="future", product="<产品标识>", contract="<合约>"
+)
+windows = self.data0.trading_windows(
+    start, end, venue="SHFE", kind="future", product="<产品标识>", contract="<合约>"
+)
+```
+
+- `trading_session(at=None, trading_day=None, ...)`：`trading_day` 必须是 `datetime.date`。返回 `status`
+  （`COMPLETE` / `UNKNOWN`）、`phase`、`active`、`windows`、`calendar_ref`、`coverage_status` 等。
+  `COMPLETE` 且 `windows` 为空表示日历明确给出“该交易日休市”；`UNKNOWN` 表示没有可用答案，不得当作休市或开市。
+  `at` 必须带时区；跨午夜时段归属其发布的交易日，不从自然日推断。
+- `trading_windows(start, end)`：`start`/`end` 为带时区 `datetime`，范围为半开；返回 `COMPLETE`（全部候选日都有答案，
+  空元组表示明确的全休市范围）、`PARTIAL`（附 `gaps`）或 `UNKNOWN`。跨版本变更时整次读取作废为
+  `CONFIGURATION_CHANGED`，不会混用版本。
+- 作用域：`route` 缺省取 Store 的合约路由；`venue`、`kind`（`future`/`option`）、`product` 和 `contract`
+  没有推断，必须在调用时显式传入，或在 `feed:` 里配置对应的 `calendar_route`/`calendar_venue`/`calendar_kind`/
+  `calendar_product`/`calendar_contract`。缺少任一作用域是 `CALENDAR_SCOPE_UNAVAILABLE`，结果为 `UNKNOWN`。
+  多品种策略分别用各自的 Feed（`self.data0`、`self.data1`）查询。
+- 日切与陈旧：同一进程按已绑定的交易日固定使用一个日历版本；调用方在提供方/BT 确认的交易日前进时显式请求重读
+  （`refresh_trading_calendar(exact_day)`），失败则保留旧版本并报告 `STALE`，回退到更早的交易日被拒绝
+  （`TRADING_DAY_REGRESSION`）。进程重启可重新绑定已发布的最新有效版本；尚未发布的候选不会被加载。日切不由挂钟推断。
+- 目录缺失或未配置：`trading_session`/`trading_windows` 返回 `UNKNOWN`（如 `STORE_UNAVAILABLE`、
+  `TRADING_DAY_REQUIRED`、`CALENDAR_SCOPE_UNAVAILABLE`），不会被猜成会话。Store 的
+  `trading_calendar_status()` 是未经认证的 `CURRENT` 观察（聚合 `OBSERVED`/`PARTIAL`/`UNKNOWN`），其 SDK 观察里的
+  `bound` 目前报告 `NOT_BOUND`/`RUNTIME_BINDING_NOT_IMPLEMENTED`；Feed 自己的绑定在成功读取后才是 `BOUND`。
+
+### 包内种子是 MOCK，不是交易所事实
+
+SDK 提供显式安装的合成种子 `seed-2026-2027-v1`（六所、期货/期权、当年与下一年，所有行和文件都带
+`SYNTHETIC_MOCK` 标签）。它只用于开发/联调，不是交易所规则、不是每日数据，也不授予交易权限。
+安装是显式操作，只接受已初始化为 `auto` 审核策略且 `CURRENT` 为空的 store：
+
+```bash
+# 绝对路径按本机实际位置；先创建 700 目录，再初始化审核策略并安装
+mkdir -p /ABS/PATH/examples/live/007_ctp/calendars/ctp
+chmod 700 /ABS/PATH/examples/live/007_ctp/calendars/ctp
+python - <<'PY'
+from bt_api_py.trading_calendar_store import TradingCalendarStore
+from bt_api_py.trading_calendar_package_seed import install_package_seed
+
+root = "/ABS/PATH/examples/live/007_ctp/calendars/ctp"
+TradingCalendarStore(root).initialize_review_policy(config_read_succeeded=True, mode="auto")
+print(install_package_seed(root, dry_run=True).describe())
+print(install_package_seed(root).describe())
+PY
+```
+
+`calendars.root: package_seed` 在 22 个 007 示例中会被明确拒绝（direct 和 Gateway 都输出
+`calendar_package_seed_unsupported`），所以示例使用外部目录。种子安装成功只证明本地 store 的完整性
+（`OBSERVED_UNAUTHENTICATED`）；当前构建仍不能把它的 `SYNTH_*` 范围当作可用的运行时会话，对真实品种/合约
+（如 `SA`/`SA701`）或覆盖之外的日期查询仍返回 `UNKNOWN`。真实六所覆盖与每日更新仍是 GAP（D67-37、交接说明）。
+
+### 与迭代 63 Gateway 的关系
+
+Gateway 示例同样声明 `calendars.root`，离线 dry-run 只解析并报告
+`external_directory_configured_not_bound`。Gateway 进程读取日历根、向策略转发合约状态属于迭代 63
+（§3.10 / U63-4），本仓库的 Gateway 示例不证明该转发已经实现。没有有效的实时状态时，策略只用日历；
+两者冲突按 D67-08 B 处理（有效实时状态优先）。本节的查询接口不会改写日历文件，也不推导未来窗口。
+
+运维（目录、审核和自动发布、公告输入模板、三平台 20:30 计划任务、锁与部分失败、备份与回滚、禁止事项）见
+[`docs/TRADING_CALENDAR_OPERATIONS.md`](../../../docs/TRADING_CALENDAR_OPERATIONS.md)。
+
 ## 订单规则
 
 - **显式 offset（D62-26）**：每笔 CTP 订单都要写 `offset`：`open`，或场所允许的 `close` / `close_today` /
