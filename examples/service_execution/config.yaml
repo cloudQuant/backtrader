@@ -1,0 +1,211 @@
+# Iteration 65 example: one strategy client selects Execution routing for a limit
+# parent order, lets the Execution service schedule it (PASS / SLICE / TWAP), consumes
+# the Execution -> Monitor relay and cancels by the original identity.
+#
+# EVERY VALUE BELOW IS AN OPERATOR-SUPPLIED PLACEHOLDER. Nothing here is a credential,
+# an account capability, a provider fact or trading authorization. The offline
+# `python run.py --dry-run` accepts this template as-is (it only validates shape);
+# `python run.py --live` refuses while any value still starts with `REPLACE-`.
+#
+# Contract references:
+#   D65-02  the strategy selects its execution route inside the account grant
+#   D65-08  built-in PASS / SLICE / TWAP, selected by configuration
+#   D65-10  an unmatched / unselected request keeps the ordinary direct path
+#   D65-13  Gateway does not additionally enforce the strategy route
+#   D65-11  the retired ServiceExecutionSession path is NOT used here
+#   D67-01  write admission requires an explicit `calendars.root`
+
+example:
+  name: service-execution-routing
+
+# ---------------------------------------------------------------------------
+# SDK strategy-client configuration (bt_api_py.service_config v1).
+# This tree is validated by `bt_api_py.service_config.parse_client_config`
+# without I/O. The `execution_routing` option lives at the exact SDK path
+#   clients.execution.settings.options.execution_routing
+# and is parsed by `bt_api_py.execution_routing.parse_execution_routing`.
+# ---------------------------------------------------------------------------
+client_config:
+  client_config_schema_version: 1
+  process_role: strategy_client
+  registration:
+    # The one subject allowed to write this (account, strategy) on the
+    # deployment. Must equal execution_routing.strategy_ref.
+    strategy_ref: REPLACE-strategy-ref
+
+  clients:
+    execution:
+      config_schema_version: 1
+      settings:
+        bindings:
+          # The parent writer route. The SDK requires this binding to share the
+          # account and instance with the selection below, and requires a
+          # matching Gateway `broker.direct_write` binding (EXECUTION_REQUIRES_GATEWAY).
+          - mount: broker.execution_parent
+            service_id: REPLACE-execution-service-id
+            instance_id: REPLACE-execution-instance-id
+            scope_ref: REPLACE-execution-parent-scope-v1
+            transport_ref: REPLACE-execution-transport-v1
+            account_ref: REPLACE-account-ref
+            required: true
+        options:
+          request_timeout_ms: 2000
+          # The selection itself: trusted account / strategy / domain references,
+          # the Execution component (its instance id), the grant revision, the
+          # delegated principal, the exact instrument keys and an ordered rule list.
+          execution_routing:
+            schema_version: 1
+            component: REPLACE-execution-instance-id
+            account_ref: REPLACE-account-ref
+            strategy_ref: REPLACE-strategy-ref
+            execution_domain_ref: REPLACE-execution-domain-ref
+            # Must look like `<name>-v<positive integer>`.
+            grant_revision: REPLACE-grant-v1
+            delegation:
+              delegation_id: REPLACE-delegation-ref
+              principal_ref: REPLACE-principal-ref
+            instruments:
+              # Complete neutral identity: no name-based guessing.
+              - provider: REPLACE-provider
+                venue: REPLACE-venue
+                environment: REPLACE-environment
+                product_type: future
+                instrument_id: REPLACE-INSTRUMENT
+                native_symbol: REPLACE-SYMBOL
+            rules:
+              # First matching rule wins; there is no rule merging. This example
+              # routes one buy-open limit order. An order below
+              # `minimum_quantity`, a non-limit type or a different instrument
+              # does not match and keeps the ordinary direct path (D65-10).
+              - id: REPLACE-rule-id
+                match:
+                  instrument:
+                    provider: REPLACE-provider
+                    venue: REPLACE-venue
+                    environment: REPLACE-environment
+                    product_type: future
+                    instrument_id: REPLACE-INSTRUMENT
+                    native_symbol: REPLACE-SYMBOL
+                  side: buy
+                  offset: open
+                  order_types: [limit]
+                  minimum_quantity: "1"
+                  quantity_unit: lots
+                scheme:
+                  name: REPLACE-scheme
+                  version: 1
+                # Scheduler selection (D65-08). The Execution service revalidates
+                # this against its own registry; the client selection is not the
+                # authority. v1 built-in parameter sets:
+                #
+                #   class: PASS   params: {}
+                #     one child for the whole parent at the parent limit.
+                #
+                #   class: SLICE  params:
+                #     max_child_qty: "3"          # positive decimal on the quantity grid
+                #     child_price: limit          # limit | passive | cross
+                #     child_timeout_s: 30         # positive integer seconds
+                #
+                #   class: TWAP   params:
+                #     slices: 4                   # 1..4096
+                #     start_ns: 4102444800000000000
+                #     end_ns:   4102446600000000000
+                #     child_price: limit          # limit | passive | cross
+                #     missed_slice_policy: DROP   # DROP | ROLL_FORWARD
+                #
+                # `params` for PASS is exactly empty. SLICE / TWAP require the
+                # exact key sets above; this template therefore ships PASS.
+                algorithm:
+                  class: PASS
+                  version: 1
+                  params: {}
+                # Absolute, timezone-aware deadline frozen at acceptance. This
+                # far-future value only lets the offline dry-run prove the shape:
+                # replace it with the operator's real deadline. Execution never
+                # extends, replaces or silently drops it across a day cut.
+                deadline:
+                  kind: absolute
+                  at: "2099-12-31T08:00:00+08:00"
+                time_in_force: DAY
+                # The trading day and allowed days are bound at acceptance. A
+                # DAY order defaults allowed_trading_days to [trading_day]; GTD
+                # requires an explicit sorted list starting with trading_day.
+                trading_day: "20991231"
+
+    gateway:
+      config_schema_version: 1
+      settings:
+        bindings:
+          # Required companion route: the SDK refuses a selection without an
+          # enabled Gateway direct-write route for the same account.
+          - mount: broker.direct_write
+            service_id: REPLACE-gateway-service-id
+            instance_id: REPLACE-gateway-instance-id
+            scope_ref: REPLACE-gateway-write-scope-v1
+            transport_ref: REPLACE-gateway-transport-v1
+            account_ref: REPLACE-account-ref
+            required: true
+
+  communication:
+    config_schema_version: 1
+    profiles:
+      # One loopback endpoint per service. Replace host/port with the operator's
+      # deployment. The example only validates these as rpc client endpoints in
+      # dry-run; --live probes TCP reachability and fails closed when absent.
+      REPLACE-execution-transport-v1:
+        backend: zmq
+        config_schema_version: 1
+        endpoints:
+          rpc_connect: "tcp://127.0.0.1:17620"
+        security_profile_ref: REPLACE-execution-security-v1
+        options:
+          request_timeout_ms: 2000
+          high_water_mark: 32
+          max_message_bytes: 65536
+      REPLACE-gateway-transport-v1:
+        backend: zmq
+        config_schema_version: 1
+        endpoints:
+          rpc_connect: "tcp://127.0.0.1:17621"
+        security_profile_ref: REPLACE-gateway-security-v1
+        options:
+          request_timeout_ms: 2000
+          high_water_mark: 32
+          max_message_bytes: 65536
+
+# ---------------------------------------------------------------------------
+# Example-local sections (NOT frozen SDK service-config keys).
+# ---------------------------------------------------------------------------
+monitor_relay:
+  # Explicit single-source selection for
+  # `bt_api_py.service_execution_monitor_composition`.
+  #   projection  parent/child projection relay (outbox sink)
+  #   journal     Execution journal relay
+  #   none        no relay; imports neither relay module
+  # The selection is a constructor argument, never a service-config key, because
+  # the service schema has no frozen relay-selection key yet.
+  source: projection
+  # Trusted Monitor scope used when the projection sink is built from a
+  # registered runtime. Required for projection/journal; omit for none.
+  scope_ref: REPLACE-monitor-scope-v1
+  # Directory for the durable relay checkpoint. The file name is derived by the
+  # SDK from the source and the trusted account/strategy/domain scope. Relative
+  # paths are resolved against this config file's directory; the directory is
+  # never created or read by the dry-run.
+  checkpoint_dir: state/monitor
+
+netting:
+  # Internal netting is a separate, independently enabled capability (D65-09).
+  # This example demonstrates routing + scheduling only, so it ships disabled.
+  # The dry-run refuses `true` as `netting_not_covered_by_example`; enabling it
+  # needs the account/service contracts and evidence outside this folder.
+  enabled: false
+
+calendars:
+  # D67-01: a Gateway entry or a write-admission entry must declare
+  # `calendars.root` explicitly. Missing or invalid configuration refuses the
+  # live start with `calendar_root_unconfigured` / `calendar_config_invalid`.
+  # `root: package_seed` is refused by this example (it does not bind the
+  # package seed). The dry-run only reports configuration and never reads the
+  # directory; relative paths resolve against this file's directory.
+  root: ../calendars
