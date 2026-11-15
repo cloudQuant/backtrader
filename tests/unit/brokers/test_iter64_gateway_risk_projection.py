@@ -3,11 +3,14 @@
 UNIT/FAKE: real BT broker, real pending host and real SDK facade; the Risk
 client's runtime is never started (its status/call are replaced). No Risk
 host, Gateway or socket exists. Nothing here is account or venue evidence.
+Tests named ``synthetic_facade`` replace that facade's operation itself and
+only verify BT projections, not that the current SDK can produce the reply.
+D64-02's new-order refusal remains unresolved without cross-host first proof.
 """
-from types import SimpleNamespace
+import sys
+from types import MethodType, SimpleNamespace
 
 import pytest
-from bt_api_base.risk_service_protocol import RiskOrderResult
 from bt_api_py.gateway_api import GatewayBtApi, GatewayRiskRoutedResult
 from bt_api_py.gateway_direct_client import GatewayClientResult
 from bt_api_py.gateway_execution_time import GatewayExecutionTimePolicy
@@ -133,30 +136,39 @@ def _no_gateway_place(api, monkeypatch):
                             lambda *a, _n=name, **kw: pytest.fail("Gateway " + _n + " called"))
 
 
-def test_risk_refusal_rejects_with_lowercase_info_and_upper_case_notice(state, ready, inputs,
-                                                                         monkeypatch):
+def _declare_synthetic_reserve_contract(api, monkeypatch):
+    """Explicit test-only wrapper; it is not the SDK ticket implementation."""
+    def call_bound(self, *args, **kwargs):
+        return self.reserve_order(*args, **kwargs)
+
+    bound = MethodType(call_bound, api)
+    monkeypatch.setattr(api, "risk_first_send_reserve_contract",
+                        lambda: ("local-first-send-ticket-v1", bound,
+                                 api._host.risk_first_send_host_contract()))
+
+
+def test_synthetic_facade_risk_refusal_projects_info_and_notice(state, ready, inputs,
+                                                               monkeypatch):
+    """BT projection only: the current v1 SDK write gate cannot yield this reply."""
     host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
     _no_gateway_place(api, monkeypatch)
     order = _limit_order(strategy, data)
-    key_holder = {}
+    requests = []
 
-    def denied():
-        return RiskOrderResult(key_holder["key"], "DENIED", state="DENIED",
-                               code="risk_order_quantity_exceeds_cap").to_mapping()
+    def synthetic_reserve(route, request, **kwargs):
+        requests.append((route, request.idempotency_key, kwargs.get("first_send_ticket")))
+        assert host.load_intent(request.idempotency_key) is not None
+        return GatewayRiskRoutedResult(
+            "REQUEST_DENIED", code="RISK_ORDER_QUANTITY_EXCEEDS_CAP",
+            risk_code="risk_order_quantity_exceeds_cap",
+            risk_denied="risk_order_quantity_exceeds_cap",
+        )
 
-    replies = []
-    calls = _risk_wire(api, monkeypatch, replies)
-    original = api._risk.reserve
-
-    def reserve(request, *, request_key, **kw):
-        key_holder["key"] = request_key
-        replies.append(denied())
-        return original(request, request_key=request_key, **kw)
-
-    monkeypatch.setattr(api._risk, "reserve", reserve)
+    monkeypatch.setattr(api, "reserve_order", synthetic_reserve)
+    _declare_synthetic_reserve_contract(api, monkeypatch)
     broker.submit(order)
     key = order.info.gateway_request_key
-    assert [c[0] for c in calls] == ["risk.order.reserve"] and calls[0][1]["request_key"] == key
+    assert len(requests) == 1 and requests[0][1] == key and requests[0][2] is not None
     assert order.status == order.Rejected and not order.executed.size
     assert order.info.risk_denied == "risk_order_quantity_exceeds_cap"
     assert order.info.get("gateway_request_denied") is None
@@ -164,7 +176,77 @@ def test_risk_refusal_rejects_with_lowercase_info_and_upper_case_notice(state, r
     assert broker.gateway_risk_summary()["refusals"] == {"risk_order_quantity_exceeds_cap": 1}
 
 
-def test_unavailable_risk_rejects_and_never_reaches_the_gateway(state, ready, inputs, monkeypatch):
+def test_synthetic_facade_permit_uses_submitted_host_ticket(state, ready, inputs, monkeypatch):
+    """BT preparation/dispatch projection only; no source or v1 SDK proof."""
+    host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
+    _no_gateway_place(api, monkeypatch)
+    monkeypatch.setattr(broker, "_gateway_risk_learn", lambda *_args: None)
+    calls = []
+
+    def synthetic_reserve(route, request, *, first_send_ticket, **_kwargs):
+        key = request.idempotency_key
+        intent = host.load_intent(key)
+        assert intent is not None and first_send_ticket is not None
+        assert host.consume_risk_reserve_ticket(intent, first_send_ticket) is True
+        assert host.consume_risk_reserve_ticket(intent, first_send_ticket) is False
+        calls.append(("reserve", key))
+        permit = SimpleNamespace(state="RESERVED", permit_id="permit-1",
+                                 reservation_id="res-1", view_digest="a" * 64)
+        return GatewayRiskRoutedResult("OBSERVED", record=permit)
+
+    def synthetic_dispatch(route, key, **_kwargs):
+        calls.append(("dispatch", key))
+        return GatewayRiskRoutedResult("QUEUED")
+
+    monkeypatch.setattr(api, "reserve_order", synthetic_reserve)
+    _declare_synthetic_reserve_contract(api, monkeypatch)
+    monkeypatch.setattr(api, "dispatch_order", synthetic_dispatch)
+    order = _limit_order(strategy, data)
+    broker.submit(order)
+    key = order.info.gateway_request_key
+    assert calls == [("reserve", key), ("dispatch", key)]
+    assert order.status == order.Submitted
+    assert host.load_intent(key) is not None
+    assert host.load_delegated_command(key).dispatch_requested is True
+
+
+def test_v1_risk_is_not_sent_without_first_proof(state, ready, inputs, monkeypatch):
+    """A real ticket reaches the v1 gate, which does not send a Risk request."""
+    host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
+    _no_gateway_place(api, monkeypatch)
+    replies = []
+    calls = _risk_wire(api, monkeypatch, replies)
+    consumed = []
+    consume_code = type(host).consume_risk_reserve_ticket.__code__
+    previous_profile = sys.getprofile()
+
+    def observe_consumption(frame, event, value):
+        if previous_profile is not None:
+            previous_profile(frame, event, value)
+        if frame.f_code is consume_code and event == "return":
+            consumed.append((frame.f_locals["intent"].request_key, value))
+
+    monkeypatch.setattr(api._risk, "reserve", lambda *a, **kw: pytest.fail("Risk reserve called"))
+    order = _limit_order(strategy, data)
+    try:
+        sys.setprofile(observe_consumption)
+        broker.submit(order)
+    finally:
+        sys.setprofile(previous_profile)
+    key = order.info.gateway_request_key
+    assert consumed == [(key, True)]
+    assert key in api._risk_keys and key in api._risk_uncertain_keys
+    assert order.status == order.Submitted
+    assert broker._gateway_stream_binding.state == "SUBMIT_UNKNOWN"
+    assert "reject:" + key not in host.local_order_notifications()
+    assert host.load_intent(key) is not None and broker.orders[order.ref] is order
+    assert host.load_delegated_command(key) is None
+    assert calls == []
+    assert replies == []
+
+
+def test_unavailable_risk_keeps_unknown_without_a_cross_host_proof(state, ready, inputs, monkeypatch):
+    """The v1 gate wins; this does not test Risk status or D64-02 refusal."""
     host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
     _no_gateway_place(api, monkeypatch)
     calls = _risk_wire(api, monkeypatch, [], registered=False)
@@ -172,15 +254,21 @@ def test_unavailable_risk_rejects_and_never_reaches_the_gateway(state, ready, in
     broker.submit(order)
     key = order.info.gateway_request_key
     assert calls == []  # the request never left the process
-    assert order.status == order.Rejected and order.info.risk_denied == "risk_unavailable"
-    assert host.local_order_notifications()["reject:" + key]["code"] == "RISK_UNAVAILABLE"
+    assert order.status == order.Submitted and not order.executed.size
+    assert broker.orders[order.ref] is order
+    assert broker._gateway_stream_binding.state == "SUBMIT_UNKNOWN"
+    assert order.info.get("risk_denied") is None
+    assert "reject:" + key not in host.local_order_notifications()
+    assert host.load_delegated_command(key) is None
     assert host.load_intent(key) is not None  # durable before any attempt
 
 
 def test_gateway_refusal_through_risk_keeps_the_gateway_projection(state, ready, inputs, monkeypatch):
+    """A mock facade supplies this refusal; only BT projection is exercised."""
     host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
     monkeypatch.setattr(api, "reserve_order", lambda route, request, **kw: GatewayRiskRoutedResult(
         "REQUEST_DENIED", code="CONTROL_STOP_NEW", risk_code="risk_gateway_refused"))
+    _declare_synthetic_reserve_contract(api, monkeypatch)
     order = _limit_order(strategy, data)
     broker.submit(order)
     key = order.info.gateway_request_key
@@ -197,8 +285,10 @@ def test_gateway_refusal_through_risk_keeps_the_gateway_projection(state, ready,
 ])
 def test_risk_unknown_keeps_the_order_pending_without_a_fake_rejection(state, ready, inputs,
                                                                        monkeypatch, result):
+    """A mock facade supplies the result; no Risk/Gateway reply is validated."""
     host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
     monkeypatch.setattr(api, "reserve_order", lambda route, request, **kw: result)
+    _declare_synthetic_reserve_contract(api, monkeypatch)
     monkeypatch.setattr(api, "dispatch_order", lambda *a, **kw: pytest.fail("dispatched"))
     order = _limit_order(strategy, data)
     broker.submit(order)
@@ -211,10 +301,12 @@ def test_risk_unknown_keeps_the_order_pending_without_a_fake_rejection(state, re
 
 
 def test_risk_refusal_survives_restart_replay(state, ready, inputs, monkeypatch):
+    """Replay a mock-facade refusal; this does not prove SDK refusal delivery."""
     host, api, data, broker, strategy = _bound(state, ready, inputs, monkeypatch)
     monkeypatch.setattr(api, "reserve_order", lambda route, request, **kw: GatewayRiskRoutedResult(
         "REQUEST_DENIED", code="RISK_DUPLICATE_ORDER", risk_code="risk_duplicate_order",
         risk_denied="risk_duplicate_order"))
+    _declare_synthetic_reserve_contract(api, monkeypatch)
     order = _limit_order(strategy, data)
     broker.submit(order)
     key = order.info.gateway_request_key

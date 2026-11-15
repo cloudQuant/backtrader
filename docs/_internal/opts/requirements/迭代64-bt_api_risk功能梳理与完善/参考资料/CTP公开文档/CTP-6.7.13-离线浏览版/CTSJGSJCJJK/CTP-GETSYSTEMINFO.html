@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+CTP-GetSystemInfo</title>
+<meta name="info" content="CTP-GETSYSTEMINFO.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>CTP-GetSystemInfo</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#256fd43a-3300-45dc-bd34-aae3d6360696">1. 函数原型</a></p><p><a href="#493b70df-5665-4384-b813-c193bbcb8471">2. 参数</a></p><p><a href="#648676d3-bf80-44e8-9b23-87549f329197">3. 返回</a></p><p><a href="#a2f08e5c-fc42-4617-9495-9f08ba3227d9">4. 调用示例</a></p><p><a href="#44c39620-4351-49c8-a85d-5f08bad01b12">5. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="CJFAQ.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="CTP-GETDATACOLLECTAPIVERSION.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>获取AES加密和RSA加密的终端信息。该函数来自采集终端信息的动态链接库（安卓版的函数名和使用方法较windows和linux有所区别，请注意阅读API包相关说明文档）。</p>
+<p>仅中继模式下的客户端需要调用此函数来采集信息。中继需要将客户端采集到的信息上报给CTP。</p>
+<p>直连模式下，登录的时候自动采集并上报终端信息，所以无需调用。</p>
+<blockquote>
+  <p>采集库在win、linux、android上不是线程安全的，不要并发调用，ios是线程安全的</p>
+  
+  <p>采集库暂时不采集IPv6地址</p>
+</blockquote>
+<span id="256fd43a-3300-45dc-bd34-aae3d6360696" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>int CTP_GetSystemInfo(char* pSystemInfo, int&amp; nLen);</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="493b70df-5665-4384-b813-c193bbcb8471" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>pSystemInfo：空间需要调用者自己分配至少270个字节。</p>
+<blockquote>
+  <p>要注意这并不是一个字符串，而是数组，因为多次加密后可能断串，<strong>使用memcpy拷贝值而不是strcpy</strong>。</p>
+</blockquote>
+<p>nLen：获取到的采集信息的长度。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="648676d3-bf80-44e8-9b23-87549f329197" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>0 为正确，非0为错误。</p>
+<p>具体哪个采集项有问题需要做如下判断：</p>
+<pre><code>windows返回值定义:
+    从低位开始分别标示 终端信息 -&gt;系统盘分区信息
+    返回值 &amp; （0x01 &lt;&lt; 0） 不为0 表示终端类型未采集到
+    返回值 &amp; （0x01 &lt;&lt; 1） 不为0 表示 信息采集时间获取异常
+    返回值 &amp; （0x01 &lt;&lt; 2） 不为0 表示ip 获取失败  （采集多个相同类型信息的场景有一个采集到 即表示采集成功）
+    返回值 &amp; （0x01 &lt;&lt; 3） 不为0 表示mac 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 4） 不为0 表示 设备名 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 5） 不为0 表示 操作系统版本 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 6） 不为0 表示 硬盘序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 7） 不为0 表示 CPU序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 8） 不为0 表示 BIOS 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 9） 不为0 表示 系统盘分区信息 获取失败
+Linux返回值定义：
+    从低位开始分别标示 终端信息 -&gt; BIOS信息
+    返回值 &amp; （0x01 &lt;&lt; 0） 不为0 表示终端类型未采集到
+    返回值 &amp; （0x01 &lt;&lt; 1） 不为0 表示 信息采集时间获取异常
+    返回值 &amp; （0x01 &lt;&lt; 2） 不为0 表示ip 获取失败  （采集多个相同类型信息的场景有一个采集到 即表示采集成功）
+    返回值 &amp; （0x01 &lt;&lt; 3） 不为0 表示mac 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 4） 不为0 表示 设备名 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 5） 不为0 表示 操作系统版本 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 6） 不为0 表示 硬盘序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 7） 不为0 表示 CPU序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 8） 不为0 表示 BIOS 获取失败
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="a2f08e5c-fc42-4617-9495-9f08ba3227d9" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. 调用示例</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<pre><code>char pSystemInfo[344];
+int len;
+CTP_GetSystemInfo(pSystemInfo, len);
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="44c39620-4351-49c8-a85d-5f08bad01b12" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. FAQ</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>终端采集到的信息，保存到数据库里后显示为乱码，怎么办？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>可以使用BASE64转码成可见字符后再存储。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_2' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>在windows下调用该函数后，控制台窗口打印出一些日志，提示找不到wmic之类的信息，这个有关系吗？</p><div class='region_panel' id='region_panel_2' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>有关系，采集函数需要调用相关windows组件来采集设备信息，如果没有对应组件，则会采集不到相应信息，不符合监管要求。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_3' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>在linux下调用该函数后，控制台窗口会输出一些报错日志，提示没有权限之类的错误，这个有关系吗？</p><div class='region_panel' id='region_panel_3' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>有关系，采集函数需要调用linux命令来采集设备信息，如果没有对应权限，则会采集不到相应信息，不符合监管要求。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="CJFAQ.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="CTP-GETDATACOLLECTAPIVERSION.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='CJFAQ.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='CTP-GETDATACOLLECTAPIVERSION.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

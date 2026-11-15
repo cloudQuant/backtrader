@@ -424,6 +424,7 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submit
                     "snapshot": snap}
         previous = gateway["order_snapshots"].get(canonical.request_key)
         entry = entries.get(canonical.request_key)
+        first_intent = entry is None
         if previous is None and entry is not None and any(
             entry[name] is not None for name in ("record", "marker_id", "release")
         ):
@@ -448,6 +449,9 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submit
         validate_order_state(state)
         if changed:
             host._store._store(state)
+        if local_submitted and first_intent:
+            return host._issue_risk_reserve_ticket(mapping)
+    return None
 
 
 def iter_order_snapshots(host):

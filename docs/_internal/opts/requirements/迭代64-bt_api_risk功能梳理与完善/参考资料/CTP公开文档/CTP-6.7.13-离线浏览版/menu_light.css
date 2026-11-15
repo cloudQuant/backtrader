@@ -1,0 +1,82 @@
+@charset "utf-8";
+
+/*LME 实现了左边栏菜单，菜单中有些链接，*/
+/*这些链接大多是根据一级标题来生成的。*/
+/*这个边栏可以在 Markdown 文件中以注释的方式指定，*/
+/*也可以在“Html 编译选项”中指定强制编译。*/
+/*但前提是当前文档中必须存在一级标题(H1)。*/
+#left_menu {
+    margin: 0;                                        /*取消外间距*/
+    padding: 0;                                       /*取消内间距*/
+    position: fixed;                                  /*位置相对于页面可视区域固定*/
+    top: 200px;                                       /*距离页面可视区域顶端200像素*/
+    left: 0px;                                        /*距离页面左边距为零（靠左停靠）*/
+    z-index: 900000000;                               /*在最上层*/
+    _position: absolute;                              /*兼容IE6*/
+    /*_top: expression(offsetParent.scrollTop+document.documentElement.clientHeight-this.offsetHeight);始终位于底部*/
+    _top: expression(documentElement.scrollTop+200);  /*随页面滚动，保持可见*/
+}
+
+/*兼容IE6*/
+/*html {
+    background-image: url(about:blank);  
+    background-attachment: fixed;        
+}
+*/
+
+body{
+    padding-left: 26px;  /*给左侧边栏的标题留下足够的空间，点击标题可以折叠/展开左边栏*/
+}
+
+/*左边栏的标题*/
+.left_menu_title {
+    background: url('./Images~/menu_dark.png') no-repeat center center;  /*左边栏标题的图标*/
+    border-bottom-right-radius: 10px;   /*左边栏右下角圆角（其实在IE8及以下版本中圆角效果是出不来的，所以实际上是用图像实现的圆角）*/
+    border-top-right-radius: 10px;      /*左边栏右上角圆角（其实在IE8及以下版本中圆角效果是出不来的，所以实际上是用图像实现的圆角）*/
+    width: 16px;                        /*宽度：16像素*/
+    height: 200px;                      /*高度：200像素*/
+    text-align: center;                 /*文本居中对齐（实际上是用图标，没用文本，文本效果极差）*/
+    display: block;                     /*按块状元素显示*/
+    margin: 0;                          /*取消外间距*/
+    padding: 0;                         /*取消内间距*/
+    float: left;                        /*漂浮在页面左侧*/
+    cursor: pointer;                    /*指定鼠标指针*/
+    color: #FFF;                        /*前景色：白色*/
+}
+
+/*左边栏的主显示区域*/
+.left_menu_content {
+    width: 0px;                      /*宽度0*/
+    height: 198px;                   /*高度：198像素*/
+    float: left;                     /*漂浮在左侧*/
+    background-color: white;         /*背景色：白色*/
+    overflow-y: scroll;              /*随页面滚动*/
+    display: none;                   /*按块状元素显示*/
+    border-top: 1px solid black;     /*顶边框：1像素，实线，黑色*/
+    border-bottom: 1px solid black;  /*底边框：1像素，实线，黑色*/
+}
+
+/*左边栏主显示区域中的段落格式*/
+.left_menu_content p {
+    text-indent: 0;  /*取消文本缩进，节省空间*/
+}
+
+/*左边栏标题中的文本片段样式（现在改用图标实现了，这个其实已经没大用了）*/
+.left_menu_title span {
+    width: 1.5em;        /*宽度：1.5字符*/
+    text-indent: 0;      /*取消文本缩进*/
+    position: relative;  /*位置：相对位置*/
+    top: 50%;            /*顶部位置：50%（使标题上的文本垂直接近居中）*/
+    display: block;      /*按块状元素显示*/
+    z-index: 910000000;  /*总在最前*/
+}
+
+/*左边栏展开时的样式*/
+.left_menu_expand {
+    /*background-color: gray;*/ /*背景色变灰（已取消）*/
+}
+
+/*左边栏中链接的样式*/
+.left_menu_content a {
+    padding: 0.5em;  /*内间距：0.5字符宽*/
+}

@@ -1,0 +1,530 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+6.6.9版本更新说明</title>
+<meta name="info" content="6.6.9BBGXSM.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>6.6.9版本更新说明</p><hr class="headerline"/><div id="content"><script src="jquery-1.7.0.min.js"></script><script src="menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#78266b94-f787-44c4-88f5-4c5c9100a94f">1. API变动</a></p><p>　<a href="#0dec7602-6022-4374-b94c-05cd3cbc8462">1.1. 新增接口：SPBM期货合约参数查询（查询对冲参数X、Y、Z）</a></p><p>　<a href="#bec3489f-09b5-464f-aae7-e5e3b3f7325c">1.2. 新增接口：SPBM期权合约参数查询</a></p><p>　<a href="#fecf1d46-f0ab-4f6d-b0d5-a203459faca9">1.3. 新增接口：SPBM品种内对锁仓折扣参数查询</a></p><p>　<a href="#f703d710-158d-4a48-8dd3-0ed2979ddb9e">1.4. 新增接口：SPBM跨品种抵扣参数查询</a></p><p>　<a href="#39dc68ba-38c8-45ab-98b0-b1ca4a60838f">1.5. 新增接口：SPBM组合保证金套餐查询</a></p><p>　<a href="#ec70c126-ad93-4d13-808a-5cdaf39c55c0">1.6. 新增接口：投资者SPBM套餐选择查询（操作员可以查所有投资者，投资者只能查自己的）</a></p><p>　<a href="#3e3520f4-2852-4319-bc02-ca7652cde931">1.7. 新增接口：投资者SPBM组合保证金系数查询</a></p><p>　<a href="#a0c34429-5f6f-4f34-b604-1d5a8e525c35">1.8. 新增接口：投资者产品SPBM明细查询</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="6.6.8BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.7.0BBGXSM.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>版本号：v6.6.9_20220914_traderapi</p>
+<p>后台版本：V6.6.9</p>
+<p>注意：此版本为支持郑商所SPBM组保业务而变更，新增8个交易查询接口。</p>
+<p>变更说明：（请各终端厂商根据自身情况进行开发）</p>
+<span id="78266b94-f787-44c4-88f5-4c5c9100a94f" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. API变动</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<span id="0dec7602-6022-4374-b94c-05cd3cbc8462" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1. 新增接口：SPBM期货合约参数查询（查询对冲参数X、Y、Z）</h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_1' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_1'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>///SPBM期货合约参数查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMFUTUREPARAMETER.html">ReqQrySPBMFutureParameter</a>(CThostFtdcQrySPBMFutureParameterField *pQrySPBMFutureParameter, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMFutureParameterField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_2' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_2'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>///SPBM期货合约参数查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMFUTUREPARAMETER.html">OnRspQrySPBMFutureParameter</a>(CThostFtdcSPBMFutureParameterField *pSPBMFutureParameter, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcSPBMFutureParameterField
+{
+    ///交易日
+    TThostFtdcDateType  TradingDay;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+    ///期货合约因子
+    TThostFtdcVolumeMultipleType    Cvf;
+    ///阶段标识
+    TThostFtdcTimeRangeType TimeRange;
+    ///品种保证金标准
+    TThostFtdcRatioType MarginRate;
+    ///期货合约内部对锁仓费率折扣比例
+    TThostFtdcRatioType LockRateX;
+    ///提高保证金标准
+    TThostFtdcRatioType AddOnRate;
+    ///昨结算价
+    TThostFtdcPriceType PreSettlementPrice;
+};
+</code></pre>
+<span id="bec3489f-09b5-464f-aae7-e5e3b3f7325c" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2. 新增接口：SPBM期权合约参数查询</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_3' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_3'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>///SPBM期权合约参数查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMOPTIONPARAMETER.html">ReqQrySPBMOptionParameter</a>(CThostFtdcQrySPBMOptionParameterField *pQrySPBMOptionParameter, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMOptionParameterField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_4' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_4'><table><tr><td><script>$(document).ready(function() {$('#region_header_4').click(function() {$('#region_panel_4').toggle();});}); </script>
+<p>///SPBM期权合约参数查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMOPTIONPARAMETER.html">OnRspQrySPBMOptionParameter</a>(CThostFtdcSPBMOptionParameterField *pSPBMOptionParameter, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_4'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_4').click(function() {$('#region_panel_4').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcSPBMOptionParameterField
+{
+    ///交易日
+    TThostFtdcDateType  TradingDay;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+    ///期权合约因子
+    TThostFtdcVolumeMultipleType    Cvf;
+    ///期权冲抵价格
+    TThostFtdcPriceType DownPrice;
+    ///Delta值
+    TThostFtdcDeltaType Delta;
+    ///卖方期权风险转换最低值
+    TThostFtdcDeltaType SlimiDelta;
+    ///昨结算价
+    TThostFtdcPriceType PreSettlementPrice;
+};
+</code></pre>
+<span id="fecf1d46-f0ab-4f6d-b0d5-a203459faca9" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3. 新增接口：SPBM品种内对锁仓折扣参数查询</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_5' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_5'><table><tr><td><script>$(document).ready(function() {$('#region_header_5').click(function() {$('#region_panel_5').toggle();});}); </script>
+<p>///SPBM品种内对锁仓折扣参数查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINTRAPARAMETER.html">ReqQrySPBMIntraParameter</a>(CThostFtdcQrySPBMIntraParameterField *pQrySPBMIntraParameter, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_5'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_5').click(function() {$('#region_panel_5').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMIntraParameterField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_6' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_6'><table><tr><td><script>$(document).ready(function() {$('#region_header_6').click(function() {$('#region_panel_6').toggle();});}); </script>
+<p>///SPBM品种内对锁仓折扣参数查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINTRAPARAMETER.html">OnRspQrySPBMIntraParameter</a>(CThostFtdcSPBMIntraParameterField *pSPBMIntraParameter, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_6'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_6').click(function() {$('#region_panel_6').toggle();});}); </script></p>
+<pre><code>///SPBM品种内对锁仓折扣参数
+struct CThostFtdcSPBMIntraParameterField
+{
+    ///交易日
+    TThostFtdcDateType  TradingDay;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+    ///品种内合约间对锁仓费率折扣比例
+    TThostFtdcRatioType IntraRateY;
+};
+</code></pre>
+<span id="f703d710-158d-4a48-8dd3-0ed2979ddb9e" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4. 新增接口：SPBM跨品种抵扣参数查询</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_7' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_7'><table><tr><td><script>$(document).ready(function() {$('#region_header_7').click(function() {$('#region_panel_7').toggle();});}); </script>
+<p>///SPBM跨品种抵扣参数查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINTERPARAMETER.html">ReqQrySPBMInterParameter</a>(CThostFtdcQrySPBMInterParameterField *pQrySPBMInterParameter, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_7'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_7').click(function() {$('#region_panel_7').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMInterParameterField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///第一腿构成品种
+    TThostFtdcInstrumentIDType  Leg1ProdFamilyCode;
+    ///第二腿构成品种
+    TThostFtdcInstrumentIDType  Leg2ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_8' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_8'><table><tr><td><script>$(document).ready(function() {$('#region_header_8').click(function() {$('#region_panel_8').toggle();});}); </script>
+<p>///SPBM跨品种抵扣参数查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINTERPARAMETER.html">OnRspQrySPBMInterParameter</a>(CThostFtdcSPBMInterParameterField *pSPBMInterParameter, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_8'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_8').click(function() {$('#region_panel_8').toggle();});}); </script></p>
+<pre><code>///SPBM跨品种抵扣参数
+struct CThostFtdcSPBMInterParameterField
+{
+    ///交易日
+    TThostFtdcDateType  TradingDay;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///优先级
+    TThostFtdcSpreadIdType  SpreadId;
+    ///品种间对锁仓费率折扣比例
+    TThostFtdcRatioType InterRateZ;
+    ///第一腿构成品种
+    TThostFtdcInstrumentIDType  Leg1ProdFamilyCode;
+    ///第二腿构成品种
+    TThostFtdcInstrumentIDType  Leg2ProdFamilyCode;
+};
+</code></pre>
+<span id="39dc68ba-38c8-45ab-98b0-b1ca4a60838f" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5. 新增接口：SPBM组合保证金套餐查询</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_9' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_9'><table><tr><td><script>$(document).ready(function() {$('#region_header_9').click(function() {$('#region_panel_9').toggle();});}); </script>
+<p>///SPBM组合保证金套餐查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMPORTFDEFINITION.html">ReqQrySPBMPortfDefinition</a>(CThostFtdcQrySPBMPortfDefinitionField *pQrySPBMPortfDefinition, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_9'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_9').click(function() {$('#region_panel_9').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMPortfDefinitionField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///组合保证金套餐代码
+    TThostFtdcPortfolioDefIDType    PortfolioDefID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_10' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_10'><table><tr><td><script>$(document).ready(function() {$('#region_header_10').click(function() {$('#region_panel_10').toggle();});}); </script>
+<p>///SPBM组合保证金套餐查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMPORTFDEFINITION.html">OnRspQrySPBMPortfDefinition</a>(CThostFtdcSPBMPortfDefinitionField *pSPBMPortfDefinition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_10'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_10').click(function() {$('#region_panel_10').toggle();});}); </script></p>
+<pre><code>///组合保证金套餐
+struct CThostFtdcSPBMPortfDefinitionField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///组合保证金套餐代码
+    TThostFtdcPortfolioDefIDType    PortfolioDefID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+    ///是否启用SPBM
+    TThostFtdcBoolType  IsSPBM;
+};
+</code></pre>
+<span id="ec70c126-ad93-4d13-808a-5cdaf39c55c0" class="anchor"></span></div><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>1.6. 新增接口：投资者SPBM套餐选择查询（操作员可以查所有投资者，投资者只能查自己的）</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_11' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_11'><table><tr><td><script>$(document).ready(function() {$('#region_header_11').click(function() {$('#region_panel_11').toggle();});}); </script>
+<p>///投资者SPBM套餐选择查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINVESTORPORTFDEF.html">ReqQrySPBMInvestorPortfDef</a>(CThostFtdcQrySPBMInvestorPortfDefField *pQrySPBMInvestorPortfDef, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_11'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_11').click(function() {$('#region_panel_11').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQrySPBMInvestorPortfDefField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_12' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_12'><table><tr><td><script>$(document).ready(function() {$('#region_header_12').click(function() {$('#region_panel_12').toggle();});}); </script>
+<p>///投资者SPBM套餐选择查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINVESTORPORTFDEF.html">OnRspQrySPBMInvestorPortfDef</a>(CThostFtdcSPBMInvestorPortfDefField *pSPBMInvestorPortfDef, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_12'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_12').click(function() {$('#region_panel_12').toggle();});}); </script></p>
+<pre><code>///投资者套餐选择
+struct CThostFtdcSPBMInvestorPortfDefField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///组合保证金套餐代码
+    TThostFtdcPortfolioDefIDType    PortfolioDefID;
+};
+</code></pre>
+<span id="3e3520f4-2852-4319-bc02-ca7652cde931" class="anchor"></span></div><h2 class='title' id='title8' title='点击展开/折叠'><span id='header_span8' class='header_span'>◇ </span>1.7. 新增接口：投资者SPBM组合保证金系数查询</h2><script>$(document).ready(function(){$("#title8").click(function(){$("#panel8").toggle();if($("#panel8").is(":hidden")){$("#header_span8").html('◆ ');}else{$("#header_span8").html('◇ ');}});});</script><div class='panel_title_h2' id='panel8'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_13' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_13'><table><tr><td><script>$(document).ready(function() {$('#region_header_13').click(function() {$('#region_panel_13').toggle();});}); </script>
+<p>///投资者新型组合保证金系数查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPORTFMARGINRATIO.html">ReqQryInvestorPortfMarginRatio</a>(CThostFtdcQryInvestorPortfMarginRatioField *pQryInvestorPortfMarginRatio, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_13'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_13').click(function() {$('#region_panel_13').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQryInvestorPortfMarginRatioField
+{
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_14' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_14'><table><tr><td><script>$(document).ready(function() {$('#region_header_14').click(function() {$('#region_panel_14').toggle();});}); </script>
+<p>///投资者新型组合保证金系数查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPORTFMARGINRATIO.html">OnRspQryInvestorPortfMarginRatio</a>(CThostFtdcInvestorPortfMarginRatioField *pInvestorPortfMarginRatio, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_14'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_14').click(function() {$('#region_panel_14').toggle();});}); </script></p>
+<pre><code>///投资者新型组合保证金系数
+struct CThostFtdcInvestorPortfMarginRatioField
+{
+    ///投资者范围
+    TThostFtdcInvestorRangeType InvestorRange;
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///会员对投资者收取的保证金和交易所对投资者收取的保证金的比例
+    TThostFtdcRatioType MarginRatio;
+};
+</code></pre>
+<span id="a0c34429-5f6f-4f34-b604-1d5a8e525c35" class="anchor"></span></div><h2 class='title' id='title9' title='点击展开/折叠'><span id='header_span9' class='header_span'>◇ </span>1.8. 新增接口：投资者产品SPBM明细查询</h2><script>$(document).ready(function(){$("#title9").click(function(){$("#panel9").toggle();if($("#panel9").is(":hidden")){$("#header_span9").html('◆ ');}else{$("#header_span9").html('◇ ');}});});</script><div class='panel_title_h2' id='panel9'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_15' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_15'><table><tr><td><script>$(document).ready(function() {$('#region_header_15').click(function() {$('#region_panel_15').toggle();});}); </script>
+<p>///投资者产品SPBM明细查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPRODSPBMDETAIL.html">ReqQryInvestorProdSPBMDetail</a>(CThostFtdcQryInvestorProdSPBMDetailField *pQryInvestorProdSPBMDetail, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_15'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_15').click(function() {$('#region_panel_15').toggle();});}); </script></p>
+<pre><code>struct CThostFtdcQryInvestorProdSPBMDetailField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+};
+</code></pre>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_16' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_16'><table><tr><td><script>$(document).ready(function() {$('#region_header_16').click(function() {$('#region_panel_16').toggle();});}); </script>
+<p>///投资者产品SPBM明细查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPRODSPBMDETAIL.html">OnRspQryInvestorProdSPBMDetail</a>(CThostFtdcInvestorProdSPBMDetailField *pInvestorProdSPBMDetail, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_16'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_16').click(function() {$('#region_panel_16').toggle();});}); </script></p>
+<pre><code>///投资者产品SPBM明细
+struct CThostFtdcInvestorProdSPBMDetailField
+{
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///品种代码
+    TThostFtdcInstrumentIDType  ProdFamilyCode;
+    ///合约内对锁保证金
+    TThostFtdcMoneyType IntraInstrMargin;
+    ///买归集保证金
+    TThostFtdcMoneyType BCollectingMargin;
+    ///卖归集保证金
+    TThostFtdcMoneyType SCollectingMargin;
+    ///品种内合约间对锁保证金
+    TThostFtdcMoneyType IntraProdMargin;
+    ///净保证金
+    TThostFtdcMoneyType NetMargin;
+    ///产品间对锁保证金
+    TThostFtdcMoneyType InterProdMargin;
+    ///裸保证金
+    TThostFtdcMoneyType SingleMargin;
+    ///附加保证金
+    TThostFtdcMoneyType AddOnMargin;
+    ///交割月保证金
+    TThostFtdcMoneyType DeliveryMargin;
+    ///看涨期权最低风险
+    TThostFtdcMoneyType CallOptionMinRisk;
+    ///看跌期权最低风险
+    TThostFtdcMoneyType PutOptionMinRisk;
+    ///卖方期权最低风险
+    TThostFtdcMoneyType OptionMinRisk;
+    ///买方期权冲抵价值
+    TThostFtdcMoneyType OptionValueOffset;
+    ///卖方期权权利金
+    TThostFtdcMoneyType OptionRoyalty;
+    ///价值冲抵
+    TThostFtdcMoneyType RealOptionValueOffset;
+    ///保证金
+    TThostFtdcMoneyType Margin;
+    ///交易所保证金
+    TThostFtdcMoneyType ExchMargin;
+};
+</code></pre>
+
+</div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="6.6.8BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.7.0BBGXSM.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='6.6.8BBGXSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='6.7.0BBGXSM.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

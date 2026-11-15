@@ -35,7 +35,10 @@ from tests.unit.brokers.test_iter63_gateway_stream_consumer import (
     deliver,
     framework,
 )
-from tests.unit.brokers.test_iter64_gateway_risk_projection import _risk_api
+from tests.unit.brokers.test_iter64_gateway_risk_projection import (
+    _declare_synthetic_reserve_contract,
+    _risk_api,
+)
 from tests.unit.live_state.conftest import state as state, strategy_dir as strategy_dir
 from tests.unit.live_state.test_gateway_execution_checkpoint import page
 from tests.unit.live_state.test_gateway_execution_checkpoint import ready as ready
@@ -105,6 +108,7 @@ def install(api, venue, monkeypatch, binding, consumer):
             key, "RELEASED", "permit-1", "res-r", None, None))
 
     monkeypatch.setattr(api, "reserve_order", reserve)
+    _declare_synthetic_reserve_contract(api, monkeypatch)
     monkeypatch.setattr(api, "dispatch_order", dispatch)
     monkeypatch.setattr(api, "delegated_command_status", delegated_status)
     monkeypatch.setattr(api, "release_order", release)
@@ -256,13 +260,19 @@ def test_unknown_risk_dispatch_keeps_the_order_and_blocks_new_orders(state, read
     assert venue.calls.count("reserve") == 1
 
 
-def test_risk_dispatch_refusal_withdraws_the_reservation(state, ready, inputs, monkeypatch):
+def test_risk_dispatch_refusal_keeps_reservation_without_cross_generation_proof(
+    state, ready, inputs, monkeypatch
+):
     host, api, venue, data, broker, strategy = bound(state, ready, inputs, monkeypatch)
     venue.dispatch = "DENIED"
     order, key = submit(broker, strategy, data)
-    assert "release" in venue.calls
-    assert order.status == order.Canceled and order.info.risk_denied == "risk_price_band_exceeded"
-    assert host.load_delegated_command(key).gateway_state == "RELEASED"
+    # A denial of this dispatch does not prove that an older host has no
+    # in-flight dispatch; the reservation cannot yet be safely released.
+    assert "release" not in venue.calls
+    assert order.status == order.Submitted and order.info.risk_denied == "risk_price_band_exceeded"
+    assert host.load_delegated_command(key).gateway_state == "RESERVED"
+    with pytest.raises(GatewayExecutionStreamError, match="ORDER_RECONCILE_REQUIRED"):
+        broker.submit(_limit_order(strategy, data, price=11))
     assert broker.gateway_risk_summary()["refusals"] == {"risk_price_band_exceeded": 1}
 
 
@@ -280,30 +290,39 @@ def unknown_reserve_then_restart(state, ready, inputs, monkeypatch):
     return host, api, venue, data2, broker2, strategy2, restored, key
 
 
-def test_restart_resolves_a_held_reservation_and_withdraws_it(state, ready, inputs, monkeypatch):
+def test_restart_keeps_held_reservation_unknown_without_local_binding(state, ready, inputs, monkeypatch):
     host, api, venue, data, broker, strategy, order, key = unknown_reserve_then_restart(
         state, ready, inputs, monkeypatch)
     monkeypatch.setattr(api, "risk_order_status", lambda route, k, **kw: RiskCallResult(
         "ANSWERED", RiskOrderResult(k, "RESERVED", state="RESERVED", permit_id="permit-1",
                                     reservation_id="res-r", view_digest="d" * 64)))
-    broker.next()  # recover: the Gateway holds the delegated command
-    record = host.load_delegated_command(key)
-    assert (record.actor_principal, record.permit_id, record.dispatch_requested) == (RISK, "permit-1", False)
-    broker.next()  # never asked to dispatch: withdrawn through Risk, never resent
-    assert "release" in venue.calls and not any(c[0] == "dispatch" for c in venue.calls
-                                                 if isinstance(c, tuple))
-    assert order.status == order.Canceled
+    # Matching statuses do not prove the recovered records cover every earlier
+    # host and in-flight request. No local delegated binding can be recreated.
+    broker.next()
+    broker.next()
+    assert host.load_delegated_command(key) is None
+    assert order.status == order.Submitted
+    assert not any(c == "release" or (isinstance(c, tuple) and c[0] == "dispatch")
+                   for c in venue.calls)
+    with pytest.raises(GatewayExecutionStreamError, match="ORDER_RECONCILE_REQUIRED"):
+        broker.submit(_limit_order(strategy, data, price=11))
 
 
-def test_restart_ends_a_definite_risk_refusal(state, ready, inputs, monkeypatch):
+def test_restart_risk_refusal_without_gateway_proof_stays_unknown(state, ready, inputs, monkeypatch):
     host, api, venue, data, broker, strategy, order, key = unknown_reserve_then_restart(
         state, ready, inputs, monkeypatch)
     venue.delegated_available = False
     monkeypatch.setattr(api, "risk_order_status", lambda route, k, **kw: RiskCallResult(
         "ANSWERED", RiskOrderResult(k, "DENIED", state="DENIED", code="risk_order_count_limit")))
     broker.next()
-    assert order.status == order.Rejected and order.info.risk_denied == "risk_order_count_limit"
-    assert host.local_order_notifications()["reject:" + key]["code"] == "RISK_ORDER_COUNT_LIMIT"
+    # A Risk denial does not prove an earlier host could not have sent this key
+    # while the Gateway cannot supply a bound observation.
+    assert order.status == order.Submitted and host.load_delegated_command(key) is None
+    assert "reject:" + key not in host.local_order_notifications()
+    assert not any(c == "release" or (isinstance(c, tuple) and c[0] == "dispatch")
+                   for c in venue.calls)
+    with pytest.raises(GatewayExecutionStreamError, match="ORDER_RECONCILE_REQUIRED"):
+        broker.submit(_limit_order(strategy, data, price=11))
 
 
 @pytest.mark.parametrize("risk_reply", ["not_found", "unavailable"])

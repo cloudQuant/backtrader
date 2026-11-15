@@ -1,0 +1,282 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+TGate网关接入指南</title>
+<meta name="info" content="TGATE.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>TGate网关接入指南</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#069d320d-7889-4c24-a481-a1dc7fe2736f">1. TGate简介</a></p><p><a href="#583cecdd-a069-4d35-b6c1-890b5596cbe2">2. TGate接入场景</a></p><p><a href="#ee8766b5-82de-465e-b0f4-0b0ea2a5f4bb">3. 接口文件列表</a></p><p><a href="#7189e44a-5609-4f42-a69e-266b8a1611f3">4. TGateApi使用介绍</a></p><p><a href="#a9813929-1a7a-4269-8be4-7900cee48833">5. TGateApi示例</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><strong class="left_menu_title"><span> </span></strong></div><span id="069d320d-7889-4c24-a481-a1dc7fe2736f" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. TGate简介</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>TGate(CTP交易网关)是CTP fens组件的全新换代，相较于fens有着更轻量、客户端适配成本低、易维护、易使用等优点。用户可以通过查询的方式实时获取其所在中心可接入的服务地址信息，包括交易、行情、银期转账等服务地址，灵活设计策略选择地址。即使盘中切换了交易中心，客户端可自动快速获取新的地址接入。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="583cecdd-a069-4d35-b6c1-890b5596cbe2" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. TGate接入场景</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>TGate连接CTP获取全量各中心前置地址列表以及用户与交易中心对应关系。配套提供的TGateAPi为终端实现统一接入管理提供完整的解决方案。用户终端通过TGateAPi连接TGate发起查询前置地址请求，无需登录，TGate根据客户请求返回所在交易中心全部可接入的服务地址。</p>
+<p>无论客户是在CTP次中心，还是在异构分中心做交易，只需将其可连接的前置地址维护在CTP柜台，终端通过TGate获取地址列表，不必再做过滤即可接入所在中心的交易系统。即使盘中发生交易中心切换，对于终端也只需重新获取一次地址列表，重新连接即可，省略繁琐的站点切换。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="ee8766b5-82de-465e-b0f4-0b0ea2a5f4bb" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 接口文件列表</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<table> 
+    <tbody>
+    <tr>
+        <td bgcolor=#0062A8><font face="微软雅黑" color="#FFFFFF">文件名</font></td> 
+        <td bgcolor=#0062A8><font face="微软雅黑" color="#FFFFFF">详情</font></td>
+    </tr>                                                                                   
+    <tr>
+        <td><a href="/TGateFtdcApi.h">TGateFtdcApi.h</a></td>
+        <td>交易接口C++头文件包含交易相关的指令。</td>
+    </tr>
+    <tr>
+        <td><a href="/TGateFtdcApiStruct.h">TGateFtdcApiStruct.h</a></td>
+        <td>包含了所有用到的数据结构的头文件。</td>
+    </tr>
+    <tr>
+        <td><a href="/TGateFtdcApiDataType.h">TGateFtdcApiDataType.h</a></td>
+        <td>包含了所有用到的数据类型的头文件。</td>
+    </tr>
+    <tr>
+         <td>tgateapi.dll</td>
+         <td rowspan="2">tgate的动态链接库和静态链接库。</td>
+    </tr>
+    <tr>
+          <td>tgateapi.lib</td>
+    </tr>
+    <tr>
+         <td>error.dtd</td>
+         <td rowspan="2">包含所有可能的错误信息。</td>
+    </tr>
+    <tr>
+         <td><a href="/error_tgate.xml">error.xml</a></td>
+    </tr>
+    <tr>
+         <td>FTD_tgateapi.xml</td>
+         <td>FTD协议中用到的各种包和域</td>
+    </tr>
+    </tbody>
+</table>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="7189e44a-5609-4f42-a69e-266b8a1611f3" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. TGateApi使用介绍</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<p>新增TGateAPI实现终端与交易网关的接入与通讯。</p>
+<p>TGateAPI提供了两个接口，分别为CTGateFtdcApi和CTGateFtdcSpi。这两个接口对FTD协议进行了封装，方便客户端应用程序的开发。客户端应用程序可以通过CTGateFtdcApi发出操作请求，通过继承CTGateFtdcSpi并重载回调函数来处理后台服务的响应。与TradeApi的使用方法基本相同。</p>
+<p>客户端调用网关API至少需要两个线程，一个是应用程序主线程，一个是网关API工作线程。应用程序与网关通讯是由 API工作线程驱动的。CTGateFtdcApi提供的接口是线程安全的，可以有多个应用程序线程同时发出请求。CTGateFtdcSpi提供的接口回调是由API工作线程驱动，通过实现SPI中的接口方法，可以从网关服务端收取所需数据。</p>
+<p>如果重载的某个回调函数阻塞，则等于阻塞了API工作线程，API与网关的通讯会停止。因此，在CTGateFtdcSpi派生类的回调函数中，应迅速返回，此处不建议在回调中发送请求或处理其他代码逻辑，不要阻塞。</p>
+<blockquote>
+  <p>注意以下事项：</p>
+  
+  <p>最大支持5000个终端连接</p>
+  
+  <p>在途查询流控为1笔</p>
+  
+  <p><a href="../HQJK/CTHOSTFTDCMDAPI/RELEASE.html">Release</a>不是线程安全的，多线程使用需要加锁</p>
+  
+  <p>API请求的输入参数不能为 NULL。 </p>
+  
+  <p>API请求的返回参数，0表示正确，其他表示错误。</p>
+</blockquote>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="a9813929-1a7a-4269-8be4-7900cee48833" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. TGateApi示例</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p>本次API新增一个查询接口ReqQryTGIpAddrParam，入参BrokerID、UserID要求必填。</p>
+<p>下面通过一个简单的代码示例，带大家快速了解下网关API的使用方法。该示例演示了API如何接入网关并查询服务地址的过程。</p>
+<p>```c++</p>
+<pre><code>1   #include "TGateFtdcApi.h"           
+2   #include "TGateFtdcApiDataType.h"           
+3   #include "TGateFtdcApiStruct.h"         
+4   #include &lt;iostream&gt;         
+5   #include &lt;string&gt;           
+6   #include &lt;Windows.h&gt;            
+7               
+8   class TGUser : public CTGateFtdcSpi         
+9   {           
+10  public:         
+11      TGUser(){};     
+12      ~TGUser(){};        
+13              
+14      ///服务地址参数查询     
+15      void ReqQryTGIpAddrParam()      
+16      {       
+17          string m_sTGFrontAddr = "tcp://127.0.0.1";  
+18          string m_sBrokerid = "0001";    
+19          string m_sUserid = "123456789"; 
+20          ///创建TGateApi实例 
+21          CTGateFtdcApi *m_pTGApi = CTGateFtdcApi::CreateTGateFtdcApi();  
+22          m_pTGApi-&gt;RegisterSpi(this);    
+23          m_pTGApi-&gt;RegisterTGAddr(const_cast&lt;char *&gt;(m_sTGFrontAddr.c_str()));   
+24          ///调用TGateApi查询服务地址请求   
+25          CTGateFtdcQryTGIpAddrParamField* pQryTGIpAddrParamField = new CTGateFtdcQryTGIpAddrParamField;  
+26          memset(pQryTGIpAddrParamField, 0, sizeof(pQryTGIpAddrParamField));  
+27          ///该查询接口的重要传参   
+28          strcpy(pQryTGIpAddrParamField-&gt;BrokerID, m_sBrokerid.c_str());  
+29          strcpy(pQryTGIpAddrParamField-&gt;UserID, m_sUserid.c_str());  
+30          int RequestID = 0;  
+31          int rst = m_pTGApi-&gt;ReqQryTGIpAddrParam(pQryTGIpAddrParamField, RequestID); 
+32          Sleep(1000);    
+33          delete pQryTGIpAddrParamField;
+34      }       
+35              
+36      ///服务地址参数查询响应       
+37      void OnRspQryTGIpAddrParam(CTGateFtdcTGIpAddrParamField* pTGIpAddrParam, CTGateFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)            
+38      {       
+39          string m_sFrontAddr = pTGIpAddrParam-&gt;Address;  
+40          printf("&lt;OnRspQryTGIpAddrParam&gt;\n");    
+41      }       
+42  }   
+</code></pre>
+<p>```     </p>
+<blockquote>
+  <table><tr><td bgcolor=#F08080><span style="color:#000000;size:5">注意：连到非tgate地址，会返回-4 "API验证失败"的报错</span></td></tr></table>
+</blockquote>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

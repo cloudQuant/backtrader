@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+阅读指引</title>
+<meta name="info" content="YDZY.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>阅读指引</p><hr class="headerline"/><div id="content"><script src="jquery-1.7.0.min.js"></script><script src="menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<div class="nav-links-list" style="text-indent:0px;">
+<p class="nav-paragraph">■ <a class="nav-action" href="_API接口说明.html">6.7.13_API接口说明</a></p>
+<p class="nav-paragraph">└◆ 阅读指引</p>
+</div>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<p>在使用CTP的API前，请务必先了解<a href="CTSJGSJCJJK/_CTSJGSJCJJK.html">看穿式监管数据采集说明</a>，因为6月份就开始正式启用看穿式监管，届时只有满足监管要求的客户端才能登录CTP系统做交易。</p>
+<p>详见：</p>
+<p><a href="../CTSJGSJCJJK/_CTSJGSJCJJK.html">看穿式监管数据采集说明</a></p>
+<p><a href="../CTSJGSJCJJK/CJFAQ.html">常见FAQ</a></p>
+<p>通过上文我们应该了解了自己要开发的客户端属于哪种模式，并且已经按照该模式成功登录进CTP系统，下面我们就可以正式开始使用CTP的API接口提供的各种功能了。以下两个文档提供了详细代码示例和说明，能够帮助我们快速上手。</p>
+<p>详见：</p>
+<p><a href="../JYJK/_JYJK.html">交易接口</a></p>
+<p><a href="../HQJK/_HQJK.html">行情接口</a></p>
+<p>报单和报价涉及到诸多回调函数，如何理清这些回调函数的顺序关系通常是初学者最为困扰的事情。这里例举了一些常用的报单操作所对应的回调顺序，能够帮助我们极大的减轻测试工作。</p>
+<p>详见：</p>
+<p><a href="QTYWGZ/DBHB.html">报单回调顺序</a></p>
+<p><a href="QTYWGZ/DJHDGZ.html">报价回调规则</a></p>
+<p>如果想要了解做市商相关功能，请参考：</p>
+<p><a href="QTYWGZ/BJHXJ.html">做市商询价和报价</a></p>
+<p>如果我们所在的期货公司提供了转发的上期所组播行情，通常这种行情的速度要比CTP普通行情要快，要想使用这种行情，我们可以参考二代<a href="HQJK/_HQJK.html">行情接口</a>说明。</p>
+<p>详见：</p>
+<p><a href="QTYWGZ/EDHQJR.html">协议方式接收二代组播行情</a></p>
+<p>CTP的接口提供了很多丰富的功能，大部分的接口都是易于理解和使用的，但是仍然会有部分接口有其特殊的规则，例如手续费率查询接口并不能一次性返回所有合约的手续费率。如果想要准确正确地使用API，并将其投入到生产中，请务必了解以下这些特殊规则（本文档会持续更新补充）。</p>
+<p>详见：</p>
+<p><a href="QTYWGZ/LK.html">报单流控、查询流控和会话数控制</a></p>
+<p><a href="QTYWGZ/DCEZB.html">大商所组保</a></p>
+<p>更多内容可以通过左侧菜单树的<a href="QTYWGZ/_QTYWGZ.html">其他业务规则</a>找到。</p>
+
+<script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="ZY.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="GXLS.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='ZY.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='GXLS.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

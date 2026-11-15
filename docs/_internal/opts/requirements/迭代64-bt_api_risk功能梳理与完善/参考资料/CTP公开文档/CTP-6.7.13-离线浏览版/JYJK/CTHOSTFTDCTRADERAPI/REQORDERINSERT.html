@@ -1,0 +1,454 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+ReqOrderInsert</title>
+<meta name="info" content="REQORDERINSERT.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>ReqOrderInsert</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#a7b896a0-7b60-4c96-8c5b-448dce977687">1. 函数原型</a></p><p><a href="#435e948b-98f6-4d10-8b39-0983ae67002f">2. 参数</a></p><p><a href="#aee75938-d475-42e6-9111-2b1331d119d2">3. 返回</a></p><p><a href="#138caa50-4184-4c93-847e-a7b365fede1e">4. 调用示例</a></p><p><a href="#7a2e6c72-dbe9-4330-a940-62609b86f454">5. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="REQORDERACTION.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQPARKEDORDERACTION.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>报单录入请求，录入错误时对应响应<a href="../CTHOSTFTDCTRADERSPI/ONRSPORDERINSERT.html">OnRspOrderInsert</a>、<a href="../CTHOSTFTDCTRADERSPI/ONERRRTNORDERINSERT.html">OnErrRtnOrderInsert</a>，正确时对应回报<a href="../CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>、<a href="../CTHOSTFTDCTRADERSPI/ONRTNTRADE.html">OnRtnTrade</a>。</p>
+<p>可以录入限价单、市价单、条件单等交易所支持的指令，撤单时使用<a href="REQORDERACTION.html">ReqOrderAction</a>。</p>
+<p>不支持预埋单录入，预埋单请使用<a href="REQPARKEDORDERINSERT.html">ReqParkedOrderInsert</a>。</p>
+<p>详见<a href="../../QTYWGZ/DBHB.html">报单回调规则</a></p>
+<p>关于流控详见<a href="../../QTYWGZ/LK.html">报单流控、查询流控和会话数控制</a></p>
+<p>关于Tas的说明详见<a href="../../QTYWGZ/TASJS.html">TAS介绍</a></p>
+<p>关于<a href="../../QTYWGZ/TJDGZ.html">条件单规则</a>详见<a href="../../QTYWGZ/TJDGZ.html">条件单规则</a></p>
+<p>关于各个交易所的特殊指令详见<a href="../../QTYWGZ/GJYSTSZL.html">各交易所特殊指令</a></p>
+<p>关于接口中的重要序号说明详见<a href="../../QTYWGZ/JKZYXZYXHSM.html">接口中一些重要序号说明</a></p>
+<span id="a7b896a0-7b60-4c96-8c5b-448dce977687" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>virtual int ReqOrderInsert(CThostFtdcInputOrderField *pInputOrder, int nRequestID) = 0;</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="435e948b-98f6-4d10-8b39-0983ae67002f" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>pInputOrder：输入报单</p>
+<table><tr><th style="TEXT-ALIGN: center;">字段类型</th><th style="TEXT-ALIGN: center;">字段名称</th><th style="TEXT-ALIGN: center;">含义</th><th style="TEXT-ALIGN: center;">值</th></tr><tr><td style="TEXT-ALIGN: left;">TThostFtdcBrokerIDType</td>
+<td style="TEXT-ALIGN: left;">BrokerID</td>
+<td style="TEXT-ALIGN: left;">经纪公司代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInvestorIDType</td>
+<td style="TEXT-ALIGN: left;">InvestorID</td>
+<td style="TEXT-ALIGN: left;">投资者代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInstrumentIDType</td>
+<td style="TEXT-ALIGN: left;">InstrumentID</td>
+<td style="TEXT-ALIGN: left;">合约代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderRefType</td>
+<td style="TEXT-ALIGN: left;">OrderRef</td>
+<td style="TEXT-ALIGN: left;">报单引用</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">可自定义或不填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcUserIDType</td>
+<td style="TEXT-ALIGN: left;">UserID</td>
+<td style="TEXT-ALIGN: left;">用户代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcCombOffsetFlagType</td>
+<td style="TEXT-ALIGN: left;">CombOffsetFlag</td>
+<td style="TEXT-ALIGN: left;">开平标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcCombHedgeFlagType</td>
+<td style="TEXT-ALIGN: left;">CombHedgeFlag</td>
+<td style="TEXT-ALIGN: left;">投机套保标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcDateType</td>
+<td style="TEXT-ALIGN: left;">GTDDate</td>
+<td style="TEXT-ALIGN: left;">GTD日期</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBusinessUnitType</td>
+<td style="TEXT-ALIGN: left;">BusinessUnit</td>
+<td style="TEXT-ALIGN: left;">业务单元</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcExchangeIDType</td>
+<td style="TEXT-ALIGN: left;">ExchangeID</td>
+<td style="TEXT-ALIGN: left;">交易所代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInvestUnitIDType</td>
+<td style="TEXT-ALIGN: left;">InvestUnitID</td>
+<td style="TEXT-ALIGN: left;">投资单元代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcAccountIDType</td>
+<td style="TEXT-ALIGN: left;">AccountID</td>
+<td style="TEXT-ALIGN: left;">投资者帐号</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcCurrencyIDType</td>
+<td style="TEXT-ALIGN: left;">CurrencyID</td>
+<td style="TEXT-ALIGN: left;">币种代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcClientIDType</td>
+<td style="TEXT-ALIGN: left;">ClientID</td>
+<td style="TEXT-ALIGN: left;">客户代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcIPAddressType</td>
+<td style="TEXT-ALIGN: left;">IPAddress</td>
+<td style="TEXT-ALIGN: left;">IP地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcMacAddressType</td>
+<td style="TEXT-ALIGN: left;">MacAddress</td>
+<td style="TEXT-ALIGN: left;">Mac地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcVolumeType</td>
+<td style="TEXT-ALIGN: left;">VolumeTotalOriginal</td>
+<td style="TEXT-ALIGN: left;">数量</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcVolumeType</td>
+<td style="TEXT-ALIGN: left;">MinVolume</td>
+<td style="TEXT-ALIGN: left;">最小成交量</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBoolType</td>
+<td style="TEXT-ALIGN: left;">IsAutoSuspend</td>
+<td style="TEXT-ALIGN: left;">自动挂起标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填0</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcRequestIDType</td>
+<td style="TEXT-ALIGN: left;">RequestID</td>
+<td style="TEXT-ALIGN: left;">请求编号</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBoolType</td>
+<td style="TEXT-ALIGN: left;">UserForceClose</td>
+<td style="TEXT-ALIGN: left;">用户强平标志</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBoolType</td>
+<td style="TEXT-ALIGN: left;">IsSwapOrder</td>
+<td style="TEXT-ALIGN: left;">互换单标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderPriceTypeType</td>
+<td style="TEXT-ALIGN: left;">OrderPriceType</td>
+<td style="TEXT-ALIGN: left;">报单价格条件</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcDirectionType</td>
+<td style="TEXT-ALIGN: left;">Direction</td>
+<td style="TEXT-ALIGN: left;">买卖方向</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcTimeConditionType</td>
+<td style="TEXT-ALIGN: left;">TimeCondition</td>
+<td style="TEXT-ALIGN: left;">有效期类型</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcVolumeConditionType</td>
+<td style="TEXT-ALIGN: left;">VolumeCondition</td>
+<td style="TEXT-ALIGN: left;">成交量类型</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcContingentConditionType</td>
+<td style="TEXT-ALIGN: left;">ContingentCondition</td>
+<td style="TEXT-ALIGN: left;">触发条件</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcForceCloseReasonType</td>
+<td style="TEXT-ALIGN: left;">ForceCloseReason</td>
+<td style="TEXT-ALIGN: left;">强平原因</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPriceType</td>
+<td style="TEXT-ALIGN: left;">LimitPrice</td>
+<td style="TEXT-ALIGN: left;">价格</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPriceType</td>
+<td style="TEXT-ALIGN: left;">StopPrice</td>
+<td style="TEXT-ALIGN: left;">止损价</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOldInstrumentIDType</td>
+<td style="TEXT-ALIGN: left;">reserve1</td>
+<td style="TEXT-ALIGN: left;">保留的无效字段</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOldIPAddressType</td>
+<td style="TEXT-ALIGN: left;">reserve2</td>
+<td style="TEXT-ALIGN: left;">保留的无效字段</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderMemoType</td>
+<td style="TEXT-ALIGN: left;">OrderMemo</td>
+<td style="TEXT-ALIGN: left;">报单回显字段</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcSequenceNo12Type</td>
+<td style="TEXT-ALIGN: left;">SessionReqSeq</td>
+<td style="TEXT-ALIGN: left;">session上请求计数 api自动维护</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+</table>
+<p>OrderPriceType：确定输入的报单类型，比如限价单则填写<code>THOST_FTDC_OPT_LimitPrice</code>、市价单则填写<code>THOST_FTDC_OPT_AnyPrice</code>。</p>
+<p>Direction：确定买卖方向</p>
+<p><span id="anchor-id-05" alt=""></span> </p>
+<p>CombOffsetFlag：确定开平标志。上期所和能源交易所支持平昨和平今指令，分别对应昨仓和今仓；如果下平仓指令，则等同于平昨指令。大商所、广期所、郑商所、中金所按交易所规则只能报入平仓指令，如果报入平昨平今指令ctp会转成平仓指令报出。</p>
+<p><span id="anchor-id-04" alt=""></span> </p>
+<p>CombHedgeFlag：确定投机套保标志，注：郑商所平仓只能报入“投机”属性 例:投机 <code>THOST_FTDC_BHF_Speculation</code></p>
+<p>TimeCondition：确定报单有效期类型，目前只支持GFD和IOC，其他都不支持 例:立即完成，否则撤销 <code>THOST_FTDC_TC_IOC</code>，为支持大商所GIS属性交易指令，新增<code>THOST_FTDC_TC_GFS</code>枚举值</p>
+<p>VolumeCondition：确定成交量类型</p>
+<p>ContingentCondition：确定触发条件</p>
+<p>StopPrice：止损价，用于条件单的触发价格</p>
+<p>ForceCloseReason：普通用户下单填写<code>THOST_FTDC_FCC_NotForceClose</code> 非强平</p>
+<p>IsSwapOrder：互换单填1</p>
+<p>CurrencyID：不填写默认为CNY</p>
+<p>OrderRef：OrderRef是本地会话全局唯一编号，必须保持递增；可由用户维护，也可由系统自动填写。一定为数字。</p>
+<p>IPAddress：中继需填写客户IP地址；非中继填写无效，直接取登录成功会话中的IP。填写规则如下：ipv4原样填写，ipv6要转成非零压缩地址，即原始地址，同时要去掉冒号，eg：AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH</p>
+<p>MacAddress：中继需填写客户MAC地址；非中继填写无效，直接取登录成功会话中的MAC。</p>
+<p>BusinessUnit：保留字段。</p>
+<p><span id="anchor-id-01" alt=""></span> </p>
+<p>LimitPrice：郑商所报单的价格会被交易所按照最小变动价位截取。(eg:报入1500.9，最小变动价位是1，会被交易所截取为1500。)其他交易所则直接返回错误。</p>
+<p>OrderMemo:报单回显字段，OrderMemo字段可供终端厂商标记订单使用，CTP不做处理，即终端填写什么CTP就返回什么</p>
+<p>nRequestID：请求ID，对应响应里的nRequestID，无递增规则，由用户自行维护。</p>
+<p>SessionReqSeq：一个session中，一笔业务流程周期中唯一序号，此序号由API自动填写，客户维护无效。</p>
+<p>OrderMemo：该字段CTP不做任何处理，即终端填写什么CTP就返回什么。可以用来给多账户系统做标记用。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="aee75938-d475-42e6-9111-2b1331d119d2" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>0，代表成功。</p>
+<p>-1，表示网络连接失败；</p>
+<p>-2，表示未处理请求超过许可数；</p>
+<p>-3，表示每秒发送请求数超过许可数。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="138caa50-4184-4c93-847e-a7b365fede1e" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. 调用示例</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<pre><code>//限价单:
+CThostFtdcInputOrderField ord = { 0 };
+strcpy_s(ord.BrokerID, “0000”);
+strcpy_s(ord.InvestorID, “00001”); 
+strcpy_s(ord.ExchangeID, “SHFE”);
+strcpy_s(ord.InstrumentID, “ag1801”);
+strcpy_s(ord.UserID, “00001”);
+ord.OrderPriceType = THOST_FTDC_OPT_LimitPrice;//限价
+ord.Direction = THOST_FTDC_D_Buy;//买
+ord.CombOffsetFlag[0] = THOST_FTDC_OF_Open;//开
+ord.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;//投机
+ord.LimitPrice = 100;
+ord.VolumeTotalOriginal = 1;
+ord.TimeCondition = THOST_FTDC_TC_GFD;///当日有效
+ord.VolumeCondition = THOST_FTDC_VC_AV;///任意数量
+ord.MinVolume = 1;
+ord.ContingentCondition = THOST_FTDC_CC_Immediately;
+ord.StopPrice = 0;
+ord.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+ord.IsAutoSuspend = 0;
+m_pUserApi-&gt;ReqOrderInsert(&amp;ord, nRequestID++);
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="7a2e6c72-dbe9-4330-a940-62609b86f454" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. FAQ</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>郑商所白糖期权的跨式和宽跨式套利指令，在ctp里如何实现？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>和普通的限价单类似，不同的地方是在填写InstrumentID的时候</p>
+<p>郑商所跨式组合（STD）: STD SR703C5300&amp;SR703P5300</p>
+<p>郑商所宽跨式组合（STG): STG SR703C5300&amp;SR703P5200</p>
+<p>支持FAK和FOK</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_2' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“已撤单报单被拒绝CZCE:出错:不支持无限制期权组合订单”是什么原因？</p><div class='region_panel' id='region_panel_2' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>郑商所的组合合约下单，TimeCondition应该用<code>THOST_FTDC_TC_IOC</code>（1）。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_3' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>如果下单后遇到报错“ctp：每秒报单数超过许可数”，是什么原因？</p><div class='region_panel' id='region_panel_3' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>这是由于报单频率太快被前置流控所致。投资者可询问期货公司具体的流控设置；期货公司可以自行查看FLEX"程序化交易频繁报撤单管理"中的设置，以及Front的流控配置。注意：Front的流控会放到下一秒，不会报错；FLEX"程序化交易频繁报撤单管理"中的流控会报错。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_4' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“CTP:报单错误：不允许重复报单”，是什么原因？</p><div class='region_panel' id='region_panel_4' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_4').click(function() {$('#region_panel_4').toggle();});}); </script>
+<p>这是表示OrderRef没有递增。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_4'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_4').click(function() {$('#region_panel_4').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_5' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“CTP:无此权限”，是什么原因？</p><div class='region_panel' id='region_panel_5' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_5').click(function() {$('#region_panel_5').toggle();});}); </script>
+<p>这可能InvestorID填写错误，或者该InvestorID不属于UserID的组织架构下。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_5'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_5').click(function() {$('#region_panel_5').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_6' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“CTP:交易所未处理请求超过许可数”，是什么原因？</p><div class='region_panel' id='region_panel_6' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_6').click(function() {$('#region_panel_6').toggle();});}); </script>
+<p>表示报单频率过快，超过了交易所的流控。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_6'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_6').click(function() {$('#region_panel_6').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_7' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“CTP:交易所每秒发送请求数超过许可数”，是什么原因？</p><div class='region_panel' id='region_panel_7' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_7').click(function() {$('#region_panel_7').toggle();});}); </script>
+<p>表示报单频率过快，超过了交易所的流控。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_7'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_7').click(function() {$('#region_panel_7').toggle();});}); </script></p>
+<p><span id="anchor-id-02" alt=""></span> </p>
+<p><div class='region_i'><p class='region_header' id='region_header_8' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>投机套保标志能够用来判断报单所使用的交易编码类型？</p><div class='region_panel' id='region_panel_8' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_8').click(function() {$('#region_panel_8').toggle();});}); </script>
+<p>ctp支持，但是有些交易所不支持多交易编码。除中金所有投机、套保、套利三个交易编码外，其他交易所只有投机交易编码。并且交易编码还有做市商类型，但是投机套保中没有做市商这种类型。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_8'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_8').click(function() {$('#region_panel_8').toggle();});}); </script></p>
+<p><span id="anchor-id-03" alt=""></span> </p>
+<p><div class='region_i'><p class='region_header' id='region_header_9' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>req请求返回值为0，可能出现回报收不到的情况吗？</p><div class='region_panel' id='region_panel_9' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_9').click(function() {$('#region_panel_9').toggle();});}); </script>
+<p>可能的，Req返回为0，代表socket.write成功，并不表示柜台那边已经收到了请求。不保证一定有OnRsp和OnErrRtn的情况。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_9'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_9').click(function() {$('#region_panel_9').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="REQORDERACTION.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQPARKEDORDERACTION.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='REQORDERACTION.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='REQPARKEDORDERACTION.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

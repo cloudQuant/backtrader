@@ -9,7 +9,10 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
+import weakref
 from dataclasses import dataclass
+from types import MethodType
 from typing import Any
 
 from bt_api_base.direct_write_protocol import DirectWriteError, NativeOrderIdentity
@@ -38,6 +41,15 @@ from .pending import PendingCommandStore, STATUS_PREPARED, _identity_key, _ident
 _BINDING_FIELDS = ("journal_id", "account_scope", "strategy_scope", "principal")
 _ENTRY_KEYS = {"intent", "record", "marker_id", "release", "local_seq", "bt_ref"}
 _MAX_ENTRIES = 100_000
+
+
+class _RiskReserveTicket:
+    """In-process evidence of one newly persisted intent, not account authority."""
+
+    __slots__ = ("__weakref__",)
+
+    def __reduce_ex__(self, _protocol):
+        raise TypeError("risk reserve ticket cannot be serialized")
 
 
 @dataclass(frozen=True)
@@ -353,6 +365,7 @@ class GatewayPendingHost:
                  *, lock_timeout: float = 10.0) -> None:
         self._binding = GatewayCommandBinding(**_binding_mapping(binding))
         self._store = PendingCommandStore(strategy_dir, strategy_uuid, lock_timeout=lock_timeout)
+        self._risk_reserve_tickets = weakref.WeakKeyDictionary()
 
     @classmethod
     def upgrade_for_gateway(cls, strategy_dir: Any, strategy_uuid: str,
@@ -403,10 +416,42 @@ class GatewayPendingHost:
         return upgrade_for_local_notifications(self)
 
     def save_submitted_order_intent(self, intent: Any, *, local_seq: int, bt_ref: int,
-                                    snapshot: dict) -> None:
+                                    snapshot: dict):
         from .gateway_order_state import save_order_intent
-        save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref,
-                          snapshot=snapshot, local_submitted=True)
+        return save_order_intent(self, intent, local_seq=local_seq, bt_ref=bt_ref,
+                                 snapshot=snapshot, local_submitted=True)
+
+    def risk_first_send_host_contract(self):
+        """Bind this host's local ticket methods without reading or writing state.
+
+        The contract describes trusted in-process methods, not venue facts,
+        cross-generation absence or permission to trade. It is not a sandbox
+        for arbitrary mutation of the Python process.
+        """
+        if type(self) is not GatewayPendingHost:
+            return None
+        state = vars(self)
+        store = state.get("_store")
+        binding = state.get("_binding")
+        tickets = state.get("_risk_reserve_tickets")
+        pid = os.getpid()
+        if not _risk_ticket_host_matches(self, store, binding, tickets, pid):
+            return None
+
+        def guarded(name):
+            def call(bound_self, *args, **kwargs):
+                if (bound_self is not self
+                        or not _risk_ticket_host_matches(self, store, binding, tickets, pid)):
+                    raise RuntimeError("RISK_TICKET_HOST_CONTRACT_CHANGED")
+                result = _RISK_TICKET_HOST_METHODS[name](self, *args, **kwargs)
+                if not _risk_ticket_host_matches(self, store, binding, tickets, pid):
+                    raise RuntimeError("RISK_TICKET_HOST_CONTRACT_CHANGED")
+                return result
+
+            return MethodType(call, self)
+
+        return ("local-first-send-host-v1", guarded("save_submitted_order_intent"),
+                guarded("create_risk_reserve_intent"), guarded("consume_risk_reserve_ticket"))
 
     def local_order_notifications(self):
         from .gateway_order_state import local_notifications
@@ -666,6 +711,55 @@ class GatewayPendingHost:
             if self._save_intent_in_state(state, mapping, canonical, local_seq, bt_ref):
                 self._store._store(state)
 
+    def _issue_risk_reserve_ticket(self, mapping: dict):
+        # Caller holds the pending lock after a successful first persistence.
+        ticket = _RiskReserveTicket()
+        self._risk_reserve_tickets[ticket] = (os.getpid(), copy.deepcopy(mapping))
+        return ticket
+
+    def create_risk_reserve_intent(self, intent: Any):
+        """Persist a new SDK intent and issue a one-use local first-send ticket."""
+        mapping = gateway_intent_to_mapping(intent)
+        canonical = gateway_intent_from_mapping(mapping, expected_binding=self._binding)
+        with self._store._lock():
+            state = self._store._load()
+            if self._check_state(state).get(canonical.request_key) is not None:
+                return None
+            self._save_intent_in_state(state, mapping, canonical, None, None)
+            self._store._store(state)
+            return self._issue_risk_reserve_ticket(mapping)
+
+    def consume_risk_reserve_ticket(self, intent: Any, ticket: object) -> bool:
+        """Consume only a matching ticket from this host and process."""
+        if type(ticket) is not _RiskReserveTicket:
+            return False
+        try:
+            mapping = gateway_intent_to_mapping(intent)
+            canonical = gateway_intent_from_mapping(mapping, expected_binding=self._binding)
+        except (TypeError, ValueError):
+            return False
+        try:
+            with self._store._lock():
+                saved = self._risk_reserve_tickets.get(ticket)
+                if saved is None or saved[0] != os.getpid() or not _json_equal(saved[1], mapping):
+                    return False
+                # An intervening durable state change must not become retryable if
+                # later reads fail or an older state is restored.
+                del self._risk_reserve_tickets[ticket]
+                state = self._store._load()
+                entry = self._check_state(state).get(canonical.request_key)
+                gateway = state["gateway"]
+                notices = gateway.get("local_notifications", {})
+                if (entry is None or not _json_equal(entry["intent"], mapping)
+                        or any(entry[name] is not None for name in ("record", "marker_id", "release"))
+                        or canonical.request_key in gateway.get("delegated_commands", {})
+                        or "reject:" + canonical.request_key in notices
+                        or "cancel:" + canonical.request_key in notices):
+                    return False
+                return True
+        except Exception:
+            return False
+
     def load_intent(self, request_key: str):
         with self._store._lock():
             entries = self._check_state(self._store._load())
@@ -801,3 +895,26 @@ class GatewayPendingHost:
         with self._store._lock():
             entry = self._check_state(self._store._load()).get(request_key)
             return None if entry is None or entry["release"] is None else gateway_release_from_mapping(entry["release"])
+
+
+# These are local implementation identities, not external provenance proofs.
+_RISK_TICKET_HOST_METHOD_NAMES = (
+    "risk_first_send_host_contract", "save_submitted_order_intent",
+    "create_risk_reserve_intent", "consume_risk_reserve_ticket",
+    "_issue_risk_reserve_ticket", "_save_intent_in_state", "_check_state",
+)
+_RISK_TICKET_HOST_METHODS = {
+    name: GatewayPendingHost.__dict__[name] for name in _RISK_TICKET_HOST_METHOD_NAMES
+}
+
+
+def _risk_ticket_host_matches(host, store, binding, tickets, pid):
+    if (type(host) is not GatewayPendingHost or type(store) is not PendingCommandStore
+            or binding is None or type(tickets) is not weakref.WeakKeyDictionary
+            or os.getpid() != pid):
+        return False
+    state = vars(host)
+    return (state.get("_store") is store and state.get("_binding") is binding
+            and state.get("_risk_reserve_tickets") is tickets
+            and all(name not in state and GatewayPendingHost.__dict__.get(name) is original
+                    for name, original in _RISK_TICKET_HOST_METHODS.items()))

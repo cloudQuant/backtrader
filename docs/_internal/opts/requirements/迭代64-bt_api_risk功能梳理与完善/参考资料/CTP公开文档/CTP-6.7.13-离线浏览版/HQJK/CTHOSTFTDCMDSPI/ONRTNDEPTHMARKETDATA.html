@@ -1,0 +1,314 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+OnRtnDepthMarketData</title>
+<meta name="info" content="ONRTNDEPTHMARKETDATA.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>OnRtnDepthMarketData</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#903594eb-66ce-4c50-b23f-123f3e65f424">1. 函数原型</a></p><p><a href="#32d9fcff-e5dd-45e0-a2ed-69f2fda01e7c">2. 参数</a></p><p><a href="#34566ca7-6c56-485b-a370-f84cb6a4d5e4">3. 返回</a></p><p><a href="#53f175a4-8a6b-45cc-88b2-f1f78fc3e1b6">4. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="ONRSPUSERLOGOUT.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="ONRTNFORQUOTERSP.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>深度行情通知，当<a href="../CTHOSTFTDCMDAPI/SUBSCRIBEMARKETDATA.html">SubscribeMarketData</a>订阅行情后，行情通知由此推送。</p>
+<span id="903594eb-66ce-4c50-b23f-123f3e65f424" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>virtual void OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData) {};</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="32d9fcff-e5dd-45e0-a2ed-69f2fda01e7c" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>pDepthMarketData：深度行情</p>
+<pre><code>struct CThostFtdcDepthMarketDataField
+{
+    ///交易日
+    TThostFtdcDateType   TradingDay;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///交易所代码
+    TThostFtdcExchangeIDType ExchangeID;
+    ///合约在交易所的代码
+    TThostFtdcExchangeInstIDType    ExchangeInstID;
+    ///最新价
+    TThostFtdcPriceType  LastPrice;
+    ///上次结算价
+    TThostFtdcPriceType  PreSettlementPrice;
+    ///昨收盘
+    TThostFtdcPriceType  PreClosePrice;
+    ///昨持仓量
+    TThostFtdcLargeVolumeType   PreOpenInterest;
+    ///今开盘
+    TThostFtdcPriceType  OpenPrice;
+    ///最高价
+    TThostFtdcPriceType  HighestPrice;
+    ///最低价
+    TThostFtdcPriceType  LowestPrice;
+    ///数量
+    TThostFtdcVolumeType Volume;
+    ///成交金额
+    TThostFtdcMoneyType  Turnover;
+    ///持仓量
+    TThostFtdcLargeVolumeType   OpenInterest;
+    ///今收盘
+    TThostFtdcPriceType  ClosePrice;
+    ///本次结算价
+    TThostFtdcPriceType  SettlementPrice;
+    ///涨停板价
+    TThostFtdcPriceType  UpperLimitPrice;
+    ///跌停板价
+    TThostFtdcPriceType  LowerLimitPrice;
+    ///昨虚实度
+    TThostFtdcRatioType  PreDelta;
+    ///今虚实度
+    TThostFtdcRatioType  CurrDelta;
+    ///最后修改时间
+    TThostFtdcTimeType   UpdateTime;
+    ///最后修改毫秒
+    TThostFtdcMillisecType   UpdateMillisec;
+    ///申买价一
+    TThostFtdcPriceType  BidPrice1;
+    ///申买量一
+    TThostFtdcVolumeType BidVolume1;
+    ///申卖价一
+    TThostFtdcPriceType  AskPrice1;
+    ///申卖量一
+    TThostFtdcVolumeType AskVolume1;
+    ///申买价二
+    TThostFtdcPriceType  BidPrice2;
+    ///申买量二
+    TThostFtdcVolumeType BidVolume2;
+    ///申卖价二
+    TThostFtdcPriceType  AskPrice2;
+    ///申卖量二
+    TThostFtdcVolumeType AskVolume2;
+    ///申买价三
+    TThostFtdcPriceType  BidPrice3;
+    ///申买量三
+    TThostFtdcVolumeType BidVolume3;
+    ///申卖价三
+    TThostFtdcPriceType  AskPrice3;
+    ///申卖量三
+    TThostFtdcVolumeType AskVolume3;
+    ///申买价四
+    TThostFtdcPriceType  BidPrice4;
+    ///申买量四
+    TThostFtdcVolumeType BidVolume4;
+    ///申卖价四
+    TThostFtdcPriceType  AskPrice4;
+    ///申卖量四
+    TThostFtdcVolumeType AskVolume4;
+    ///申买价五
+    TThostFtdcPriceType  BidPrice5;
+    ///申买量五
+    TThostFtdcVolumeType BidVolume5;
+    ///申卖价五
+    TThostFtdcPriceType  AskPrice5;
+    ///申卖量五
+    TThostFtdcVolumeType AskVolume5;
+    ///当日均价
+    TThostFtdcPriceType  AveragePrice;
+    ///业务日期
+    TThostFtdcDateType   ActionDay;
+    ///上带价
+    TThostFtdcPriceType BandingUpperPrice;
+    ///下带价
+    TThostFtdcPriceType BandingLowerPrice;
+};
+</code></pre>
+<p>turnover:</p>
+<p>郑商所算法：成交金额=成交均价*成交数量</p>
+<p>其他交易所算法：成交金额=成交均价*成交数量*合约乘数</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="34566ca7-6c56-485b-a370-f84cb6a4d5e4" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>无</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="53f175a4-8a6b-45cc-88b2-f1f78fc3e1b6" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. FAQ</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>行情中有些字段出现极大值，为什么？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>行情通知中，例如结算价、收盘价、买卖价出现double极大值，则表示该字段没有值。例如涨停板的时候，因为没有卖价，会给出一个double极大值，同时卖量为0。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_2' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>郑商所的结算价在盘中也会送出，但数值在盘中不会变化，这和盘后推送的结算价怎么区分？</p><div class='region_panel' id='region_panel_2' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>郑商所夜盘收盘后会推送结算价，这也就是早上行情中有可能会收到结算价的原因，盘中行情中推送的结算价数值不会发生变化。无夜盘的合约，盘中不会收到结算价。白盘收盘后郑商所也会推送所有合约最新的结算价，CTP对交易所推送的结算价不做处理，直接转发。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_3' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>郑商所的UDP行情里，Tradingday和AveragePrice字段都是空的，但是TCP行情里有，这是为什么？</p><div class='region_panel' id='region_panel_3' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>UDP行情不推送AveragePrice字段；TCP行情里的Tradingday和AveragePrice是CTP给的。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_4' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>行情中哪些字段是CTP自己计算发出的？</p><div class='region_panel' id='region_panel_4' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_4').click(function() {$('#region_panel_4').toggle();});}); </script>
+<p>郑商所的套利合约的涨跌停板价由CTP计算，交易所不发</p>
+<p>成交总额郑商所不推送由CTP计算，另外cffex,dce,shfe,ine这几家的成交均价不推送，由ctp计算。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_4'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_4').click(function() {$('#region_panel_4').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_5' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>发现连上前置后，为什么收到的行情涨跌停价是0？</p><div class='region_panel' id='region_panel_5' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_5').click(function() {$('#region_panel_5').toggle();});}); </script>
+<p>连上的如果是mdfront的话可能mdfront是级联的，也就是说上一级还是mdfront这两个mdfront如果版本不对，也同样会导致这个问题</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_5'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_5').click(function() {$('#region_panel_5').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_6' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>订阅后大商所组合合约行情不跳动，其他交易终端（闪电王、快期等）的组合合约都有行情且在跳跃，为什么？</p><div class='region_panel' id='region_panel_6' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_6').click(function() {$('#region_panel_6').toggle();});}); </script>
+<p>大商所只会推送单腿合约的行情，组合合约的行情需要下端自行计算。其他终端则是实时计算两条腿的价差，故行情看上去一直跳跃。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_6'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_6').click(function() {$('#region_panel_6').toggle();});}); </script></p>
+<p><span id="anchor-id-01" alt=""></span> </p>
+<p><div class='region_i'><p class='region_header' id='region_header_7' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>行情中为什么T日的OpenInterest和T+1日的PreOpenInterest手数不一致？</p><div class='region_panel' id='region_panel_7' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_7').click(function() {$('#region_panel_7').toggle();});}); </script>
+<p>交易所有大笔报单产生，大笔报单不是通过交易方式报出的。不在盘中行情中体现，盘中交易所会公示出来，盘后才汇总到行情中。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_7'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_7').click(function() {$('#region_panel_7').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="ONRSPUSERLOGOUT.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="ONRTNFORQUOTERSP.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='ONRSPUSERLOGOUT.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='ONRTNFORQUOTERSP.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

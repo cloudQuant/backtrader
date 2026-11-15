@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+6.6.7版本更新说明</title>
+<meta name="info" content="6.6.7BBGXSM.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>6.6.7版本更新说明</p><hr class="headerline"/><div id="content"><script src="jquery-1.7.0.min.js"></script><script src="menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#7967063d-b0ed-4433-9ec6-9977f9de0336">1. API变动</a></p><p>　<a href="#29a71468-9d2b-474a-beca-799f3862d01e">1.1. 新增CTP_GetDataCollectApiVersion接口</a></p><p>　<a href="#842f06cf-41d3-412c-a0ef-7a8792561743">1.2. <a href="JYJK/CTHOSTFTDCTRADERAPI/SUBMITUSERSYSTEMINFO.html">SubmitUserSystemInfo</a>增加错误返回</a></p><p>　<a href="#36b742a6-973e-43ba-befb-02d1f227447d">1.3. CTP_GetSystemInfo增加返回值错误码</a></p><p>　<a href="#3dd32f58-af6d-4fc2-90ed-3095bd61dffa">1.4. 新增命令获取云服务器硬盘序列号信息</a></p><p>　<a href="#a9de5f32-8e58-40ce-9f40-618c515895b9">1.5. 启用<a href="JYJK/CTHOSTFTDCTRADERSPI/ONHEARTBEATWARNING.html">OnHeartBeatWarning</a>心跳超时回调</a></p><p>　<a href="#907df474-6282-467a-ae82-617b0ef3eb61">1.6. <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTOR.html">OnRspQryInvestor</a>和<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCT.html">OnRspQryProduct</a>接口新增字段</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="6.6.5BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.6.8BBGXSM.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>版本号：v6.6.7_20220613</p>
+<p>后台版本：V6.6.7</p>
+<p>补充变更说明：（后台系统兼容线上旧版本API接入，请各终端厂商根据自身情况进行开发）</p>
+<span id="7967063d-b0ed-4433-9ec6-9977f9de0336" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. API变动</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<span id="29a71468-9d2b-474a-beca-799f3862d01e" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1. 新增CTP_GetDataCollectApiVersion接口</h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>采集库新增CTP_GetDataCollectApiVersion接口获取采集库版本号：</p>
+<p>const char * CTP_GetDataCollectApiVersion(void);</p>
+<span id="842f06cf-41d3-412c-a0ef-7a8792561743" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2. <a href="JYJK/CTHOSTFTDCTRADERAPI/SUBMITUSERSYSTEMINFO.html">SubmitUserSystemInfo</a>增加错误返回</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p><a href="JYJK/CTHOSTFTDCTRADERAPI/SUBMITUSERSYSTEMINFO.html">SubmitUserSystemInfo</a>函数增加错误返回值：-7，对应错误信息为“api and collect api version dismatch  ”       </p>
+<p>采集库版本与API版本不匹配时输出该错误码（举例采集库为评测版，API为生产版）</p>
+<span id="36b742a6-973e-43ba-befb-02d1f227447d" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3. CTP_GetSystemInfo增加返回值错误码</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>DATA_COLLECT_API_EXPORT int CTP_GetSystemInfo(char* pSystemInfo, int&amp; nLen)在调用采集信息上报的时候，增加检查密文长度是否正常，不正常直接返回错误。长度大于等于264则放过。获取AES加密和RSA加密的终端信息pSystemInfo的空间需要调用者自己分配至少270个字节。</p>
+<pre><code>Windows返回值定义：
+    返回值 &amp; （0x01 &lt;&lt; 0） 不为0 表示终端类型未采集到
+    返回值 &amp; （0x01 &lt;&lt; 1） 不为0 表示 信息采集时间获取异常
+    返回值 &amp; （0x01 &lt;&lt; 2） 不为0 表示ip 获取失败  （采集多个相同类型信息的场景有一个采集到 即表示采集成功）
+    返回值 &amp; （0x01 &lt;&lt; 3） 不为0 表示mac 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 4） 不为0 表示 设备名 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 5） 不为0 表示 操作系统版本 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 6） 不为0 表示 硬盘序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 7） 不为0 表示 CPU序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 8） 不为0 表示 BIOS 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 9） 不为0 表示 系统盘分区信息 获取失败
+Linux返回值定义：     
+    返回值 &amp; （0x01 &lt;&lt; 0） 不为0 表示终端类型未采集到
+    返回值 &amp; （0x01 &lt;&lt; 1） 不为0 表示 信息采集时间获取异常
+    返回值 &amp; （0x01 &lt;&lt; 2） 不为0 表示ip 获取失败  （采集多个相同类型信息的场景有一个采集到 即表示采集成功）
+    返回值 &amp; （0x01 &lt;&lt; 3） 不为0 表示mac 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 4） 不为0 表示 设备名 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 5） 不为0 表示 操作系统版本 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 6） 不为0 表示 硬盘序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 7） 不为0 表示 CPU序列号 获取失败
+    返回值 &amp; （0x01 &lt;&lt; 8） 不为0 表示 BIOS 获取失败
+</code></pre>
+<span id="3dd32f58-af6d-4fc2-90ed-3095bd61dffa" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4. 新增命令获取云服务器硬盘序列号信息</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p>新增system("wmic diskdrive get serialnumber")命令获取CPU、硬盘序列号等信息。</p>
+<span id="a9de5f32-8e58-40ce-9f40-618c515895b9" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5. 启用<a href="JYJK/CTHOSTFTDCTRADERSPI/ONHEARTBEATWARNING.html">OnHeartBeatWarning</a>心跳超时回调</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p>当60s没有收到心跳时，支持回调该函数，客户端可提前知道网络断开等场景（前提是客户端需要实现该接口）。</p>
+<span id="907df474-6282-467a-ae82-617b0ef3eb61" class="anchor"></span></div><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>1.6. <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTOR.html">OnRspQryInvestor</a>和<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCT.html">OnRspQryProduct</a>接口新增字段</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<p><a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTOR.html">OnRspQryInvestor</a>和<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCT.html">OnRspQryProduct</a>接口新增频繁报撤单和日内开仓限制相关字段。具体限制的阈值请咨询期货公司柜台设置。</p>
+<p>需要柜台版本6.6.6版本及以上支持。</p>
+
+</div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="6.6.5BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.6.8BBGXSM.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='6.6.5BBGXSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='6.6.8BBGXSM.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

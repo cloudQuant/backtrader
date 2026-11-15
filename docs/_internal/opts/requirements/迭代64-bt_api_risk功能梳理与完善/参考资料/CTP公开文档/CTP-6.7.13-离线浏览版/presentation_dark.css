@@ -1,0 +1,1129 @@
+﻿@charset "utf-8";
+
+html {
+    font-size: 16px;                 /*默认字号。别自定义这项，容易造成页面载入时字号缩放效果。*/
+    overflow-y: scroll;              /*文本纵向溢出滚动*/
+    -webkit-text-size-adjust: 100%;  /*文本尺寸适配*/
+    -ms-text-size-adjust: 100%;      /*文本尺寸适配*/
+}
+
+body {
+    color: #E5E5E5;                          /*默认前景色：浅灰色*/
+    font-family: "Microsoft YaHei", SimSun;  /*默认字体：微软雅黑，没有才用宋体*/
+    line-height: 1.5em;                      /*默认行高：1.5字符*/
+    text-indent: 2em;                        /*默认文本缩进：2字符*/
+    margin: auto;                            /*默认外间距：自动*/
+    max-width: 42em;                         /*最大宽度：42字符*/
+    background: #404040;                     /*默认背景：浅灰*/
+    padding: 0em 0.5em;                      /*默认内间距：上下0字符，右左0.5字符*/
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'Microsoft YaHei',SimHei;  /*标题默认字体*/
+    padding: 0em 0.5em;                     /*六级标题默认内间距：上下0字符，右左0.5字符*/
+}
+
+/*一级标题*/
+h1 {
+    border-bottom-left-radius: 10px;   /*左下角圆角效果，IE8以下无效*/
+    border-bottom-right-radius: 10px;  /*右下角圆角效果，IE8以下无效*/
+    font-size: 1.5em;                  /*一级标题字号为普通文本字号的1.5倍*/
+    line-height: 1.6em;                /*一级标题的行高：1.6字符尺寸*/
+    background-color: #E26009;         /*一级标题的背景色：橙黄色*/
+    overflow: hidden;                  /*如果内容溢出，则会被修剪，并且其余内容是不可见的。*/
+    border-bottom: 1px solid #E26009;  /*一级标题带边框：1像素宽，实线，橙黄色*/
+    color: white;                      /*一级标题的文本色彩：白色*/
+    display: block;                    /*此元素将显示为块级元素，此元素前后会带有换行符。*/
+    margin: 1em 0em;                   /*外间距：上下1字符尺寸，右左0*/
+    text-align: left;                  /*文本对齐方式左对齐*/
+    text-decoration: none;             /*文本装饰：不带下划线*/
+    text-indent: 0em;                  /*文字缩进：无*/
+    -moz-box-shadow: 0 0 1em #888;     /*阴影效果，是否有效取决于浏览器是否支持*/
+    -webkit-box-shadow: 0 0 1em #888;  /*阴影效果，是否有效取决于浏览器是否支持*/
+}
+
+/*一级标题鼠标移动到上面变色*/
+h1:hover {
+    background-color: goldenrod;     /*背景色：金菊黄色*/
+    border-bottom-color: goldenrod;  /*背景色：金菊黄色*/
+}
+
+/*二级标题*/
+h2 {
+    font-size: 1.4em;    /*二级标题字号*/
+    line-height: 1.5em;  /*行高：1.5字符尺寸*/
+    text-indent: 0em;    /*文本缩进：无*/
+    color: #FFC044;      /*文本色彩：浅黄色*/
+}
+
+/*二级标题鼠标移动到上面变色*/
+h2:hover {
+    color: white;               /*前景色：白色*/
+    background-color: #FFC044;  /*背景色：浅黄色*/
+}
+
+/*三级标题*/
+h3 {
+    font-size: 1.3em;    /*三级标题字号：1.3字符尺寸*/
+    line-height: 1.4em;  /*行高：1.4字符尺寸*/
+    text-indent: 0em;    /*文本缩进：无*/
+    color: #66C6FF;      /*文本色彩：天蓝色*/
+}
+
+/*三级标题鼠标移动到上面变色*/
+h3:hover {
+    color: white;               /*前景色：白色*/
+    background-color: #66C6FF;  /*背景色：天蓝色*/
+}
+
+/*四级标题*/
+h4 {
+    font-size: 1.2em;    /*四级标题字号：1.2字符尺寸*/
+    line-height: 1.3em;  /*行高：1.3字符尺寸*/
+    text-indent: 0em;    /*文本缩进：无*/
+    color: #19E5DB;      /*文本色彩：亮青绿色*/
+}
+
+/*四级标题鼠标移动到上面变色*/
+h4:hover {
+    color: white;               /*前景色：白色*/
+    background-color: #19E5DB;  /*背景色：亮青绿色*/
+}
+
+/*五级标题*/
+h5 {
+    font-size: 1.1em;    /*五级标题字号：1.1字符尺寸*/
+    line-height: 1.2em;  /*行高：1.2字符尺寸*/
+    text-indent: 0em;    /*文本缩进：无*/
+    color: #75E86A;      /*文本色彩：亮绿色*/
+}
+
+/*五级标题鼠标移动到上面变色*/
+h5:hover {
+    color: white;               /*前景色：白色*/
+    background-color: #75E86A;  /*背景色：浅草绿色*/
+}
+
+/*六级标题*/
+h6 {
+    font-size: 1em;             /*六级标题字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进：无*/
+    color: #F656FF;             /*文本色彩：浅紫色*/
+    background-color: inherit;  /*背景色：继承*/
+}
+
+/*六级标题鼠标移动到上面变色*/
+h6:hover {
+    color: white;               /*前景色：白色*/
+    background-color: #F656FF;  /*背景色：浅紫色*/
+}
+
+/*无格式的标题*/
+h1.clean {
+    border-bottom-left-radius: 0px;    /*左下角圆角效果：IE8以下无效*/
+    border-bottom-right-radius: 0px;   /*右下角圆角效果：IE8以下无效*/
+    border-bottom: 0px solid #E26009;  /*纯净的一级标题不带边框*/
+    font-family: SimSun;               /*字体：宋体*/
+    font-size: 1em;                    /*字号：1字符尺寸*/
+    line-height: 1.1em;                /*行高：1字符尺寸*/
+    text-indent: 0em;                  /*文本缩进：无*/
+    color: whitesmoke;                 /*前景色：烟白色*/
+    background-color: #404040;         /*背景色：浅灰色*/
+}
+
+h2.clean {
+    font-family: SimSun;        /*字体：宋体*/
+    font-size: 1em;             /*字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进*/
+    color: whitesmoke;          /*前景色：烟白色*/
+    background-color: #404040;  /*背景色：浅灰*/
+}
+
+h3.clean {
+    font-family: SimSun;        /*字体：宋体*/
+    font-size: 1em;             /*字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进：无*/
+    color: whitesmoke;          /*前景色：烟白色*/
+    background-color: #404040;  /*背景色：浅灰*/
+}
+
+h4.clean {
+    font-family: SimSun;        /*字体：宋体*/
+    font-size: 1em;             /*字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进：无*/
+    color: whitesmoke;          /*前景色：烟白色*/
+    background-color: #404040;  /*背景色：浅灰*/
+}
+
+h5.clean {
+    font-family: SimSun;        /*字体：宋体*/
+    font-size: 1em;             /*字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进：无*/
+    color: whitesmoke;          /*前景色：烟白色*/
+    background-color: #404040;  /*背景色：浅灰*/
+}
+
+h6.clean {
+    font-family: SimSun;        /*字体：宋体*/
+    font-size: 1em;             /*字号：1字符尺寸*/
+    line-height: 1.1em;         /*行高：1.1字符尺寸*/
+    text-indent: 0em;           /*文本缩进：无*/
+    color: whitesmoke;          /*前景色：烟白色*/
+    background-color: #404040;  /*背景色：浅灰*/
+}
+
+/*水平线1*/
+.hr1 {
+    height: 1px;                  /*水平线高：1像素*/
+    background-color: orangered;  /*背景色：橙红色*/
+}
+
+/*水平线2*/
+.hr2 {
+    height: 1px;               /*水平线高：1像素*/
+    background-color: yellow;  /*背景色：黄色*/
+}
+
+/*水平线3*/
+.hr3 {
+    height: 2px;                  /*水平线高：2像素*/
+    background-color: cadetblue;  /*背景色：军校蓝*/
+}
+
+/*水平线4*/
+.hr4 {
+    height: 3px;                    /*水平线高：3像素*/
+    background-color: navajowhite;  /*背景色：纳瓦白（土著白）*/
+}
+
+/*水平线5*/
+.hr5 {
+    height: 4px;                    /*水平线高：4像素*/
+    background-color: greenyellow;  /*背景色：绿黄色*/
+}
+
+/*页头水平线*/
+.headerline {
+    height: 5px;              /*水平线高：5像素*/
+    background-color: wheat;  /*背景色：小麦色*/
+}
+
+/*页脚水平线*/
+.footline {
+    height: 5px;              /*水平线高：5像素*/
+    background-color: wheat;  /*背景色：小麦色*/
+}
+
+/*水平线*/
+hr {
+    height: 0.2em;              /*水平线高：0.2字符尺寸*/
+    border: 0;                  /*无边框*/
+    color: #CCCCCC;             /*前景色：浅灰色*/
+    background-color: #CCCCCC;  /*背景色：浅灰色*/
+    text-indent: 0;             /*文本缩进：无*/
+}
+
+/*部分元素的默认属性列表*/
+blockquote, /*块引用*/
+ul, /*无序列表*/
+ol, /*有序列表*/
+dl, /*定义列表*/
+li {
+    margin: 15px 1em;  /*外边距：上下15px；右左1字符尺寸*/
+}
+
+/*列表项*/
+li {
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*重定义段落外间距*/
+p {
+    margin: 0.25em 0;  /*外间距：上下0.25em；右左0*/
+}
+
+/*
++ pre和code都主要应用于浏览器显示计算机中的源代码。
++ code标签的一个功能是暗示浏览器code标签所包围的文本是计算机源代码，
++ 浏览器可以做出自己的 样式处理，pre标签则没有这项功能。
++ 但是pre标签可以保留文本中的空格和换行符，
++ 保留文本中的空格和换行符是计算机源代码显示 所必须的样式。
++ + /
+
+/*预定义文本区域*/
+pre {
+    background-color: #515151;  /*背景色：深灰色*/
+    border: 1px solid #CCCCCC;  /*边框：1像素，实线，浅灰色*/
+    border-radius: 3px;         /*边框圆角，需要浏览器支持*/
+    text-indent: 0px;           /*文本缩进：无*/
+    overflow: auto;             /*溢出处理：自动*/
+    padding: 5px;               /*内间距：上下右左均为5像素*/
+    line-height: 1.2em;         /*行高：1.2字符尺寸*/
+}
+
+/*代码块，pre内部所有code*/
+pre code {
+    margin: 0;              /*外间距：无*/
+    padding: 0;             /*内间距：无*/
+    text-indent: 0px;       /*文本缩进：无*/
+    border: 0px solid red;  /*边框：无*/
+    line-height: 1.2em;     /*行高：1.2字符尺寸*/
+}
+
+/*代码块*/
+code {
+    font-family: SimSun;            /*字体：宋体*/
+    background-color: transparent;  /*背景色：透明色*/
+    border: 1px solid #d39503;      /*边框：1像素，实线，深黄色*/
+    border-radius: 5px;             /*圆角，IE8以下无效*/
+    text-indent: 0px;               /*文本缩进：无*/
+    padding: 0em;                   /*内间距：无*/
+    line-height: 1.2em;             /*行高：1.2字符尺寸*/
+}
+
+/*代码块，pre的直接下级code*/
+pre > code {
+    text-indent: 0px;    /*边框：无*/
+    margin: 0;           /*文本缩进：无*/
+    padding: 0;          /*外间距：无*/
+    text-indent: 0px;    /*内间距：无*/
+    line-height: 1.2em;  /*行高：1.2字符尺寸*/
+}
+
+/*嵌入在段落内的Code正常缩进*/
+p code {
+    line-height: 1em;    /*行高：1字符尺寸*/
+    text-indent: 2em;    /*文本缩进：2字符尺寸*/
+    padding-top: 0.1em;  /*顶部内间距：0.1字符尺寸*/
+    padding-bottom: 0;   /*底部内间距：无*/
+}
+
+/*链接*/
+a {
+    color: white;                /*前景色：白色*/
+    text-decoration: underline;  /*文本装饰：下划线*/
+}
+
+/*已访问的链接*/
+a:visited {
+    color: darkgoldenrod;  /*前景色：深金菊色*/
+}
+
+/*鼠标悬停时的链接*/
+a:hover {
+    color: yellow;  /*前景色：黄色*/
+    outline: 0;     /*外边框：无*/
+}
+
+/*激活时的链接*/
+a:active {
+    color: green;  /*前景色：绿色*/
+    outline: 0;    /*外边框：无*/
+}
+
+/*获得焦点时的链接*/
+a:focus {
+    outline: thin dotted;  /*外边框形态：细，点线*/
+}
+
+/*::-moz-selection用于firefox家族*/
+::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);  /*选定文本的背景色：黄色，带透明度*/
+    color: #000;                         /*选定文本的色彩：黑色*/
+}
+
+/*::selection用于safari浏览器*/
+::selection {
+    background: rgba(255, 255, 0, 0.3);  /*选定文本的背景色黄色，带透明度*/
+    color: #000;                         /*选定文本的色彩：黑色*/
+}
+
+/*::-moz-selection用于firefox家族*/
+a::-moz-selection {
+    background: rgba(255, 255, 0, 0.3);  /*选定链接的背景色：黄色，带透明度*/
+    color: #0645ad;                      /*选定链接的文本色：深蓝色*/
+}
+
+/*::selection用于safari浏览器*/
+a::selection {
+    background: rgba(255, 255, 0, 0.3);  /*选定链接的背景色：黄色，带透明度*/
+    color: #0645ad;                      /*选定链接的文本色：深蓝色*/
+}
+
+/*块引用*/
+blockquote {
+    color: lightgray;                /*前景色：浅灰色*/
+    margin: 0;                       /*外间距：无*/
+    padding-left: 0.5em;             /*左内间距：0.5字符尺寸*/
+    border-left: 0.5em white solid;  /*左边框：0.5字符尺寸，白色，实线*/
+    text-indent: 2em;                /*文本缩进：2字符尺寸*/
+    background-color: #514A4A;       /*背景色：深灰色*/
+}
+
+/*块引用中嵌套的块引用*/
+blockquote > blockquote {
+    color: lightgray;               /*文本色彩*/
+    margin: 0 0 0 0.4em;             /*外间距：上0，右0，下0，左0.4字符尺寸*/
+    padding-left: 0.4em;             /*左内间距：0.4字符尺寸*/
+    border-left: 0.2em white solid;  /*左边框：0.2字符尺寸，白色，实线*/
+    text-indent: 2em;                /*文本缩进：2字符尺寸*/
+}
+
+/*列表共有属性*/
+ul,
+ol {
+    margin: 1em 0;       /*外间距：上下1字符尺寸，左右0*/
+    padding: 0 0 0 2em;  /*内间距：上0，右0，下0，左2字符尺寸*/
+    text-indent: 0em;    /*文本缩进：无*/
+}
+
+/*无序列表*/
+ul {
+    list-style: disc;  /*标记类型：实心圆*/
+}
+
+/*多层无序列表嵌套时*/
+ul > ul {
+    list-style: circle;  /*标记类型：空心圆*/
+}
+
+/*块引用中的无序列表*/
+blockquote > ul {
+    list-style: circle;  /*标记类型：空心圆*/
+}
+
+/*由树型文字表转换而来的无序列表（外）*/
+ul.f_tree_ulo {
+    background: #606060; /*背景色：深灰*/
+    list-style-type: square; /*列表项标记：方块*/
+    margin: 0px;
+}
+
+/*由树型文字表转换而来的无序列表（内）*/
+ul.f_tree_uli {
+    background: #606060; /*背景色：深灰*/
+    list-style-type: circle; /*列表项标记：圆形*/
+    margin: 0px;
+}
+
+/*由树型文字表转换而来的有序列表（外）*/
+ol.f_tree_olo {
+    background: #606060; /*背景色：深灰*/
+    list-style-type: upper-roman; /*列表项标记数字：大写罗马数字*/
+    margin: 0px;
+}
+
+/*由树型文字表转换而来的有序列表（内）*/
+ol.f_tree_oli {
+    background: #606060; /*背景色：深灰*/
+    list-style-type: lower-roman; /*列表项标记数字：小写罗马数字*/
+    margin: 0px;
+}
+
+/*树型文字表编译而成的无序列表项，上下宽度要减小*/
+ul.f_tree_ulo li {
+    margin: 2px 1em; /*外间距：上下 2 px，左右 1 字符宽度*/
+}
+
+/*树型文字表编译而成的无序列表项，上下宽度要减小*/
+ul.f_tree_uli li {
+    margin: 2px 1em; /*外间距：上下 2 px，左右 1 字符宽度*/
+}
+
+/*树型文字表编译而成的有序列表项，上下宽度要减小*/
+ol.f_tree_olo li {
+    margin: 2px 1em; /*外间距：上下 2 px，左右 1 字符宽度*/
+}
+
+/*树型文字表编译而成的有序列表项，上下宽度要减小*/
+ol.f_tree_oli li {
+    margin: 2px 1em; /*外间距：上下 2 px，左右 1 字符宽度*/
+}
+
+/*:last-child 选择器匹配属于其父元素的最后一个子元素的每个元素。*/
+li p:last-child {
+    margin: 0;  /*外边框：无*/
+}
+
+/*“定义式列表”的项*/
+dd {
+    margin: 0 0 0 2em;  /*外间距：上0右0下0左2字符尺寸*/
+}
+
+/*图像*/
+img {
+    border: 0;                        /*边框：无*/
+    -ms-interpolation-mode: bicubic;  /*ie浏览器自带属性，用于解决图像缩放问题*/
+    vertical-align: middle;           /*纵向对齐：居中*/
+    max-width: 100%;                  /*最大宽度：100%*/
+    overflow: hidden;                 /*溢出：隐藏*/
+    display: block;                   /*呈现方式：块状（上下有空行）*/
+    margin: 0 auto;                   /*外间距：无*/
+    height: auto;                     /*高度：自动决定*/
+    width: auto;                      /*宽度：自动决定*/
+    text-align: center;               /*文本对齐：（图像）居中*/
+}
+
+/*在段落中的img*/
+p img {
+    vertical-align: middle;  /*纵向对齐：居中*/
+    display: inline;         /*呈现方式：在文本段落中的图像文件嵌入行中（一般是应是小图标）*/
+}
+
+/*文本行中的小图标*/
+img.inlineicon {
+    vertical-align: middle;  /*纵向对齐：居中*/
+}
+
+/*表格*/
+table {
+    width: 100%;                /*宽度：100%*/
+    margin-top: 1em;            /*上外间距：1字符尺寸*/
+    margin-left: 0px;           /*左外间距：无*/
+    margin-right: 0px;          /*右外间距：无*/
+    margin-bottom: 1em;         /*下外间距：1字符尺寸*/
+    border-spacing: 0px;        /*相邻单元格的边框间的距离（仅用于“边框分离”模式）*/
+    text-indent: 0px;           /*文本缩进：无*/
+    border: 1px solid #ADADAD;  /*边框：1像素，灰色，实线，*/
+    border-collapse: collapse;  /* border-collapse 属性设置表格的边框是否被合并为一个单一的边框，*/
+}
+
+/*表格元素*/
+th,
+td {
+    line-height: 150%;          /*行高：1.5倍*/
+    height: 27px;               /*单元格高度：27像素*/
+    padding: 0 5px;             /*内间距：上下0，右左5像素*/
+    text-indent: 0px;           /*文本缩进：无*/
+    border: 1px solid #ADADAD;  /*边框：1像素，实线，浅灰色*/
+}
+
+/*表格标题*/
+table caption {
+    padding-bottom: 0.5em;  /*底部内间距：0.5字符尺寸*/
+    font-size: 1.4em;       /*字号：1.4字符尺寸*/
+    font-weight: bold;      /*字体：加粗*/
+}
+
+/*表格标头*/
+th {
+    text-align: center;   /*文本对齐：居中*/
+    background: #707070;  /*背景色：深灰色*/
+    color: #ffffff;       /*前景色：白色*/
+}
+
+/*加粗*/
+strong {
+    font-weight: bold;  /*字体：加粗*/
+    color: yellow;      /*前景色：黄色（加粗文本显示为黄色）*/
+}
+
+/*斜体（emphasis的简写，加重显示的意思）*/
+em {
+    font-style: italic;    /*字型：倾斜*/
+    color: lime;           /*前景色：柠檬色*/
+    padding-left: 0.1em;   /*左内间距：1字符尺寸 这是因为需要给它左面的文本稍让出点距离来，不然容易重叠在一起*/
+    padding-right: 0.2em;  /*右内间距：1字符尺寸 这是因为需要给它右面的文本稍让出点距离来，不然容易重叠在一起*/
+}
+
+/*文件标题*/
+.fileheader {
+    font-family: 'Microsoft YaHei', SimHei;  /*字体：微软雅黑，黑体*/
+    line-height: 1.6em;                      /*行高：1.6字符尺寸*/
+    text-indent: 0;                          /*文本缩进：无*/
+    font-weight: bold;                       /*字体：加粗*/
+    font-size: 1.6em;                        /*字号：1.6字符尺寸*/
+    padding-left: 26px;                      /*左内间距：26像素 给左侧小图片留出空间*/
+    background: url('./Images~/header_icon_light.png') no-repeat 0 50%;
+    /*背景：图标，上下0，右左50%边框 文档标题左侧有个小图标，形状是小方框内加向右的小三角*/    
+}
+
+/*鼠标移动到文档标题上时*/
+.fileheader:hover {
+    background-color: #5f5d5d;     /*背景色：深灰色*/
+    border-bottom-color: #FF9756;  /*底部边框色：橙黄色*/
+}
+
+/*冒号开头的注释文本*/
+.comment {
+    font-size: 1em;        /*字号：1字符尺寸*/
+    text-indent: 0;        /*文本缩进：无*/
+    line-height: 1.5em;    /*行高：1.5字符尺寸*/
+    padding-left: 2em;     /*上外间距：0.5字符尺寸*/
+    margin-top: 0.5em;     /*下外间距：0.5字符尺寸*/
+    margin-bottom: 0.5em;  /*左内间距：2字符尺寸*/
+    color: #16f105;        /*文本色彩：鲜绿色*/  
+    background: url('./Images~/comment_light.png') no-repeat 0.5em 50%;
+    /*背景：右向箭头图标，上下0.5字符尺寸，右左50%边距*/
+}
+
+/*用于任务列表项span*/
+/*未开始的任务列表项*/
+.task_u {
+    color: white;         /*前景色：白色*/
+    text-indent: 0em;     /*文本缩进：无*/
+    background: #e92828;  /*背景色：深红色 暗背景下红色太刺眼*/
+    font-weight: bold;    /*字体：加粗*/
+}
+
+/*正在进行的任务列表项*/
+.task_p {
+    color: white;         /*前景色：白色*/
+    text-indent: 0em;     /*文本缩进：无*/
+    background: #378612;  /*背景色：深绿色 暗背景下绿色太刺眼*/
+    font-weight: bold;    /*字体：加粗*/
+}
+
+/*已经完成的任务列表项*/
+.task_f {
+    color: white;       /*前景色：白色*/
+    text-indent: 0em;   /*文本缩进：无*/
+    background: blue;   /*背景色：蓝色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*已废弃的任务列表项*/
+.task_a {
+    color: white;         /*前景色：白色*/
+    text-indent: 0em;     /*文本缩进：无*/
+    background: #fc4c6d;  /*背景色：深粉红色*/
+    font-weight: bold;    /*字体：加粗*/
+}
+
+/*以上用于任务列表项span*/
+
+/*任务列表段落*/
+p.task {
+    text-indent: 0px;  /*文本缩进：无 任务列表所在的段落不缩进*/
+}
+
+/* 以下用于任务列表项的文本 */
+/*未完成的任务列表项文本*/
+.task_up {
+    color: #e92828;  /*前景色：深粉红色*/
+}
+
+/*正在进行的任务列表项文本*/
+.task_pp {
+    color: #378612;  /*前景色：深绿色*/
+}
+
+/*已完成的任务列表项文本*/
+.task_fp {
+    color: blue;  /*前景色：蓝色*/
+}
+
+/*已废弃的任务列表项文本*/
+.task_ap {
+    color: #fc4c6d;  /*前景色：粉红色*/
+}
+
+/* 以上用于任务列表项的文本 */
+
+/*以下用于任务列表项的时间标记*/
+/*无状态标记的时间标记的配色*/
+.date {
+    color: lightblue;   /*前景色：淡蓝色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*未完成状态的时间标记*/
+.date_u {
+    color: #e92828;     /*前景色：深红色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*正在进行状态的时间标记*/
+.date_p {
+    color: #378612;     /*前景色：深绿色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*已完成状态的时间标记*/
+.date_f {
+    color: blue;        /*前景色：蓝色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*已废弃状态的时间标记*/
+.date_a {
+    color: #fc4c6d;     /*前景色：粉红色*/
+    font-weight: bold;  /*字体：加粗*/
+}
+
+/*以上用于任务列表项的时间标记*/
+
+/*页眉文本*/
+.pageheader {
+    text-indent: 0;      /*文本缩进：无*/
+    font-size: 1em;      /*字号：1字符尺寸*/
+    padding-right: 1em;  /*右内间距：1字符尺寸*/
+}
+
+/*试题选项列表*/
+.exam {
+    list-style-type: upper-alpha;  /*列表标记类型：以字母开头，自动加“A.B.C...”*/
+}
+
+/*选择题外边框*/
+div.ex_c {
+    text-indent: 2em;           /*文本缩进：2字符尺寸*/
+    border: solid 1px #0062A8;  /*边框：实线，1像素，深粉蓝色*/
+    margin-top: 0.5em;          /*上外间距：0.5字符尺寸*/
+}
+
+/*选择题选项列表*/
+ol.ex_c_xx {
+    margin-left: 3em;  /*左外间距：3字符尺寸*/
+}
+
+/*填空题外边框*/
+div.ex_f {
+    text-indent: 2em;           /*文本缩进：2字符尺寸*/
+    border: solid 1px #0062A8;  /*边框：实线，1像素，深粉蓝色*/
+    margin-top: 0.5em;          /*上外间距：0.5字符尺寸*/
+}
+
+/*材料解析题外边框*/
+div.ex_m {
+    text-indent: 2em;           /*文本缩进：2字符尺寸*/
+    border: solid 1px #0062A8;  /*边框：实线，1像素，深粉蓝色*/
+    margin-top: 0.5em;          /*上外间距：0.5字符尺寸*/
+}
+
+/*材料出处*/
+p.ex_m_cc {
+    text-align: right;  /*文本对齐：右对齐*/
+    margin-right: 1em;  /*右外间距：1字符尺寸*/
+}
+
+/*填空题答案*/
+p.ex_f_da {
+    margin-left: 0px;  /*左外间距：0*/
+    text-indent: 0px;  /*文本缩进：0*/
+}
+
+/*材料解析题答案*/
+p.ex_m_da {
+    margin-left: 1em;  /*左外间距：1字符尺寸*/
+}
+
+/*材料解析题“参考答案”标签*/
+p.ex_m_dy {
+    text-indent: 2em; /*左外间距：2字符尺寸*/
+}
+
+/*选择题题干*/
+p.ex_c_t {
+    margin-left: 0em;  /*左外间距：无*/
+}
+
+/*填空题题干*/
+p.ex_f_t {
+    margin-left: 0em;  /*左外间距：无*/
+}
+
+/*选择题解析*/
+.ex_c_jx {
+    margin-left: 0em;  /*左外间距：无*/
+}
+
+/*材料解析题问题*/
+p.ex_m_q {
+    margin-left: 1em;  /*左外间距：无*/
+}
+
+/*选择题错误选项开头字符*/
+span.ex_c_err {
+    font-weight: bold;        /*字体：加粗*/
+    border: 1px solid white;  /*边框：1像素，实线，白色*/
+    padding: 2px;             /*内间距：2像素*/
+    margin-right: 1em;        /*右外间距：1字符尺寸*/
+}
+
+/*选择题正确选项开头字符*/
+span.ex_c_right {
+    color: hotpink;             /*前景色：红色*/
+    border: 1px solid hotpink;  /*边框：1像素，实线，热粉色 暗背景下红色太刺眼*/
+    padding: 2px;               /*内间距：2像素*/
+    margin-right: 1em;          /*右外间距：1字符尺寸*/
+}
+
+/*选择题题支解析要去除加粗*/
+span.ex_c_ana {
+    font-weight: normal;  /*字重：普通*/
+}
+
+/*填空题“答案”标签*/
+span.ex_f_da {
+    color: hotpink;             /*前景色：红色*/
+    padding: 2px;               /*内间距：2像素*/
+    border: 1px solid hotpink;  /*边框：1像素，实线，热粉色 暗背景下红色太刺眼*/
+    margin-right: 1em;          /*右外间距：1字符宽度*/
+}
+
+/*材料题“参考答案”标签*/
+span.ex_m_answer {
+    color: hotpink;             /*前景色：红色*/
+    padding: 2px;               /*内间距：2像素*/
+    border: 1px solid hotpink;  /*边框：1像素，实线，热粉色 暗背景下红色太刺眼*/
+    margin-right: 1em;          /*右外间距：1字符尺寸*/
+}
+
+/*模仿C#中的region - end region*/
+/*在 LME 中，自定义折叠区域是指用一对花括号括起来的区域（跨行，花括号都顶格写，左花括号可以带前缀字符表示加图标）*/
+.region {
+    padding-left: 0;                      /*左侧内间距：无*/
+    padding-right: 0;                     /*右侧内间距：无*/
+    padding-bottom: 0;                    /*底部内间距：无*/
+    padding-top: 0;                       /*顶部内间距：无*/
+    border-left: 1px solid whitesmoke;    /*左侧边框：1像素、实线、烟白色*/
+    border-right: 1px solid whitesmoke;   /*右侧边框：1像素、实线、烟白色*/
+    border-top: 1px solid whitesmoke;     /*顶部边框：1像素、实线、烟白色*/
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素、实线、烟白色*/
+    /*border-top-left-radius: 1em;*/      /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-bottom-left-radius: 1em;*/
+    /*border-bottom-right-radius: 1em;*/
+    margin: 1em 0;                        /*外间距：上下1em；右左0*/
+}
+
+/*带“信息”图标的自定义折叠区*/
+.region_i {
+    padding-left: 72px;                   /*左侧内间距：72像素*/                            
+    padding-right: 0;                     /*右侧内间距：无*/                            
+    padding-bottom: 0;                    /*底部内间距：无*/                            
+    padding-top: 0;                       /*顶部内间距：无*/                            
+    border-left: 1px solid whitesmoke;    /*左侧边框：1像素、实线、烟白色*/                            
+    border-right: 1px solid whitesmoke;   /*右侧边框：1像素、实线、烟白色*/                            
+    border-top: 1px solid whitesmoke;     /*顶部边框：1像素、实线、烟白色*/                            
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素、实线、烟白色*/                            
+    /*border-top-left-radius: 1em;*/      /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-bottom-left-radius: 1em;*/
+    /*border-bottom-right-radius: 1em;*/
+    background: url('./Images~/region_i_light.png') no-repeat 0 50%;  /*“信息”图标*/  
+    margin: 1em 0;                        /*外间距：上下1em；右左0*/                           
+}
+
+/*带“问号”图标的自定义折叠区*/
+.region_q {
+    padding-left: 72px;                   /*左侧内间距：72像素*/                            
+    padding-right: 0;                     /*右侧内间距：无*/                            
+    padding-bottom: 0;                    /*底部内间距：无*/                            
+    padding-top: 0;                       /*顶部内间距：无*/                            
+    border-left: 1px solid whitesmoke;    /*左侧边框：1像素、实线、烟白色*/                            
+    border-right: 1px solid whitesmoke;   /*右侧边框：1像素、实线、烟白色*/                            
+    border-top: 1px solid whitesmoke;     /*顶部边框：1像素、实线、烟白色*/                            
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素、实线、烟白色*/                            
+    /*border-top-left-radius: 1em;*/      /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-bottom-left-radius: 1em;*/
+    /*border-bottom-right-radius: 1em;*/
+    background: url('./Images~/region_q_light.png') no-repeat 0 50%;  /*“问号”图标*/
+    margin: 1em 0;                        /*外间距：上下1em；右左0*/                 
+}
+
+/*带“警告”图标的自定义折叠区*/
+.region_w {
+    padding-left: 72px;                   /*左侧内间距：72像素*/                            
+    padding-right: 0;                     /*右侧内间距：无*/                            
+    padding-bottom: 0;                    /*底部内间距：无*/                            
+    padding-top: 0;                       /*顶部内间距：无*/                            
+    border-left: 1px solid whitesmoke;    /*左侧边框：1像素、实线、烟白色*/                            
+    border-right: 1px solid whitesmoke;   /*右侧边框：1像素、实线、烟白色*/                            
+    border-top: 1px solid whitesmoke;     /*顶部边框：1像素、实线、烟白色*/                            
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素、实线、烟白色*/                            
+    /*border-top-left-radius: 1em;*/      /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-bottom-left-radius: 1em;*/
+    /*border-bottom-right-radius: 1em;*/
+    background: url('./Images~/region_w_light.png') no-repeat 0 50%;  /*“警告”图标*/
+    margin: 1em 0;                         /*外间距：上下1em；右左0*/                     
+}
+
+/*带“错误”图标的自定义折叠区*/
+.region_e {
+    padding-left: 72px;                   /*左侧内间距：72像素*/                            
+    padding-right: 0;                     /*右侧内间距：无*/                            
+    padding-bottom: 0;                    /*底部内间距：无*/                            
+    padding-top: 0;                       /*顶部内间距：无*/                            
+    border-left: 1px solid whitesmoke;    /*左侧边框：1像素、实线、黑色*/                            
+    border-right: 1px solid whitesmoke;   /*右侧边框：1像素、实线、黑色*/                            
+    border-top: 1px solid whitesmoke;     /*顶部边框：1像素、实线、黑色*/                            
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素、实线、黑色*/                            
+    /*border-top-left-radius: 1em;*/      /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-bottom-left-radius: 1em;*/
+    /*border-bottom-right-radius: 1em;*/
+    background: url('./Images~/region_e_light.png') no-repeat 0 50%;  /*“错误”图标*/
+    margin: 1em 0;                        /*外间距：上下1em；右左0*/                         
+}
+
+/*模仿C#中的region - end region中的首尾段落*/
+/*自定义折叠区的顶部标题*/
+.region_header {
+    /*border-top-left-radius: 1em;*/ /*自定义折叠区圆角的视觉效果较差，且 IE8 及以下版本均不支持，取消之*/
+    /*border-top-right-radius: 1em;*/
+    /*border-top: 1px solid #dd8408;*/ /*外面已经有顶边框了，这个是多余的*/
+    border-bottom: 1px solid whitesmoke;  /*底边框：1像素，实线，烟白色*/
+    text-align: center;                   /*文本对齐：居中*/
+    font-weight: bold;                    /*字体：加粗*/
+    text-indent: 0px;                     /*文本缩进：无*/
+    margin: 0;                            /*外间距：无*/
+    padding: 0;                           /*内间距：无*/
+}
+
+/*自定义折叠区主显示区域面板*/
+.region_panel {
+    margin: 0;              /*外间距：无*/
+    padding: 0;             /*内间距：无*/
+    word-wrap: break-word;  /*文本自动折行：断词*/
+    word-break: break-all;  /*断词方式：全部*/
+}
+
+/*在自定义折叠区主面板中的段落*/
+.region_panel p {
+    margin: 0;         /*外间距：无*/
+    padding: 0;        /*内间距：无*/
+    text-indent: 2em;  /*文本缩进：2字符尺寸*/
+    max-width: 40em;   /*最大宽度：42字符尺寸*/
+    width: 100%;       /*宽度：100%*/
+}
+
+/*须放在后面，否则region Panel 中的 li 下的段落会缩进2字符*/
+.region_panel li > p {
+    text-indent: 0px;  /*自定义折叠区主显示区域中的列表项内的段落，文本不缩进*/
+}
+
+.region_panel img {
+    max-width: 80%;  /*在自定义折叠区内部的图像文件最大宽度为80%*/
+}
+
+/*自定义折叠区使用的Table*/
+div.region_panel > table {
+    border: none;  /*边框：无*/
+    padding: 0;    /*内间距：无*/
+    margin: 0;     /*外间距：无*/
+}
+
+/*自定义折叠区使用的Table中的单元格的样式*/
+div.region_panel > table > tbody > tr > td {
+    border: none;  /*边框：无*/
+}
+
+/*自定义折叠区主面板中的注释文本的样式*/
+div.region_panel .comment {
+    text-indent: 0;     /*文本缩进：无*/
+    padding-left: 2em;  /*左侧内间距：2字符尺寸*/
+}
+
+/*鼠标移动到自定义折叠区的顶部标题上面时，标题变色*/
+.region_header:hover {
+    color: black;                         /*前景色：黑色*/
+    background: whitesmoke;               /*背景色：烟白色*/
+    border-bottom: 1px solid whitesmoke;  /*底部边框：1像素，实线，烟白色*/
+}
+
+/*鼠标移动到自定义折叠区底部的标题上面时，标题变色*/
+.region_tail:hover {
+    color: black;                      /*前景色：黑色*/
+    background: whitesmoke;            /*背景色：烟白色*/
+    border-top: 1px solid whitesmoke;  /*顶部边框变为：1像素，实线，烟白色*/
+}
+
+/*自定义折叠区的底部标题*/
+.region_tail {
+    /*border-bottom-left-radius: 1em;*/ /*圆角视觉效果较差，且 IE8 及以下版本不支持，取消之*/
+    /*border-bottom-right-radius: 1em;*/
+    border-top: 1px solid whitesmoke;  /*顶部边框：1像素，实线，烟白色*/
+    /*border-bottom: 1px solid #dd8408;*/
+    text-align: center;           /*文本对齐：居中*/     
+    font-weight: bold;            /*字体：加粗*/     
+    text-indent: 0px;             /*文本缩进：无*/     
+    margin: 0;                    /*外间距：无*/     
+    padding: 0;                   /*内间距：无*/     
+}
+
+/*带“错误”图标的自定义折叠区的底部标题样式*/
+.region_e .region_tail {
+    text-align: right;   /*文本对齐：右对齐*/
+    padding-right: 1em;  /*右侧内间距：1字符尺寸*/
+}
+
+/*带“信息”图标的自定义折叠区的底部标题样式*/
+.region_i .region_tail {
+    text-align: right;   /*文本对齐：右对齐*/
+    padding-right: 1em;  /*右侧内间距：1字符宽*/
+}
+
+/*带“问号”图标的自定义折叠区的底部标题样式*/
+.region_q .region_tail {
+    text-align: right;   /*文本对齐：右对齐*/
+    padding-right: 1em;  /*右侧内间距：1字符宽*/
+}
+
+/*带“警告”图标的自定义折叠区的底部标题样式*/
+.region_w .region_tail {
+    text-align: right;   /*文本对齐：右对齐*/
+    padding-right: 1em;  /*右侧内间距：1字符宽*/
+}
+
+/*返回顶部 链接样式*/
+p.back_to_top_link {
+    text-align: right;  /*文本对齐：右对齐*/
+}
+
+/*为实现六级标题对下级标题的折叠效果，每个标题都配备一个div，所有它的下级都在这个div中。*/
+/*Begin 六级标题所属的可折叠面板的样式*/
+.panel_title_h1 {
+    padding-left: 1em;  /*左侧内间距：1字符尺寸*/
+}
+
+.panel_title_h2 {
+    padding-left: 1em;  /*左侧内间距：1字符*/
+}
+
+.panel_title_h3 {
+    padding-left: 1em;  /*左侧内间距：1字符*/
+}
+
+.panel_title_h4 {
+    padding-left: 1em;  /*左侧内间距：1字符*/
+}
+
+.panel_title_h5 {
+    padding-left: 1em;  /*左侧内间距：1字符*/
+}
+
+.panel_title_h6 {
+    padding-left: 0em;  /*左侧内间距：1字符*/
+}
+/*End 六级标题所属的可折叠面板的样式*/
+
+/*多倍放大文本*/
+.multiple-text {
+    color: darkorange;                      /*前景色：深蓝绿色*/
+    border-right: 4px solid darkorange;     /*右侧边框：4像素，实线，深橙色*/
+    border-bottom: 1px solid darkorange;    /*底部边框：1像素，实线，深橙色*/
+    background: darkslategray;              /*背景色：深石板灰*/
+    margin-left: 2em;                       /*左侧外间距：2字符宽*/
+    margin-right: 2em;                      /*右侧外间距：2字符宽*/
+    margin-top: 0.25em;                     /*顶部外间距：0.25字符宽*/
+    margin-bottom: 0.25em;                  /*底部外间距：0.25字符宽*/
+    display: block;                         /*呈现：按块状元素*/
+    width: auto;                            /*宽度：自动*/
+    font-weight: bold;                      /*字体：加粗*/
+    font-family: 'microsoft yahei',simhei;  /*字体：首先考虑微软雅黑，没有就用黑体*/
+    padding-top: 0.3em;                     /*顶部内间距：0.5字符间距*/
+    padding-bottom: 0;                      /*底部内间距：无*/
+    text-indent: 0;                         /*文本缩进：无*/
+    text-align: center;                     /*文本对齐：居中*/
+}
+
+/*方块文本区域，在 LME 中是用一对方括号括起来的区域（首尾均须顶格、跨行）*/
+/*方块区域和自定义折叠区一样，在 Html 中实际上是用 Table 来实现的*/
+/*方块文本区域*/
+table.square-block {
+    border: 0;                  /*边框：无*/
+    border-collapse: collapse;  /*使单元格之间的边框合并*/
+    background-color: #515151;  /*背景色：深灰色*/
+}
+
+/*方块区域左侧使用单元格边框来模拟出一个方括号的样子*/
+td.square-block-left {
+    border-left: solid white 0.2em;   /*左侧边框：实线，白色，0.2字符宽*/
+    border-top: solid white 0.2em;    /*顶部边框：实线，白色，0.2字符宽*/
+    border-bottom: solid white 0.2em; /*底部边框：实线，白色，0.2字符宽*/
+    border-right: 0;                  /*右侧边框：取消*/
+    width: 0.4em;                     /*单元格宽度：0.4字符宽*/
+}
+
+/*方块区域右侧使用单元格边框来模拟出一个方括号的样子*/
+td.square-block-right {
+    border-right: solid white 0.2em;   /*右侧边框：实线，白色，0.2字符宽*/
+    border-top: solid white 0.2em;     /*顶部边框：实线，白色，0.2字符宽*/
+    border-bottom: solid white 0.2em;  /*底部边框：实线，白色，0.2字符宽*/
+    border-left: 0;                    /*左侧边框：取消*/
+    width: 0.4em;                      /*单元格宽度：0.4字符宽*/
+}
+
+/*方块区域主要内容呈现区*/
+td.square-block-content {
+    border: 0px transparent solid;  /*边框：无*/
+    max-width: 40em;                /*最大宽度：40字符尺寸*/
+    word-wrap: break-word;          /*自动折行：断词*/
+    text-indent: 2em;               /*文本缩进：2字符尺寸*/
+}
+
+/*“步骤”标记的样式所在的段落（形如 step 1 之类的标记文本所在的段落）*/
+p.step-para {
+    text-indent: 0px;   /*文本缩进：无*/
+}
+
+/*“步骤”标记的样式*/
+.step-mark {
+    border-width: 0px;        /*边框宽：无*/
+    font-weight: bold;        /*字体：加粗*/
+    padding-left: 0.2em;      /*左侧内间距：0.2字符尺寸*/
+    padding-right: 0.2em;     /*右侧内间距：0.2字符尺寸*/
+    background-color: white;  /*背景色：白色*/
+    color: #3542DD;           /*前景色：蓝色*/
+    border-radius: 3px;       /*圆角效果（IE8及以下版本不支持）*/
+}
+
+/*页脚*/
+.foot {
+    font-size: 1em;        /*字号：1字符尺寸*/
+    margin-top: 10px;      /*顶部外间距：10像素*/
+    padding-top: 20px;     /*顶部内间距：20像素*/
+    padding-bottom: 40px;  /*底部内间距：40像素*/
+    padding-left: 10px;    /*左侧内间距*/
+    padding-right: 10px;   /*右侧内间距*/
+    text-indent: 0px;      /*文本缩进：无*/
+    text-align: right;     /*靠右侧浮动*/
+    float: right;          /*在右侧停靠*/
+    width: auto;           /*宽度：自动确定，一般不会太长*/
+}
+
+/*作者——在LME编译成的网页中，作者、编译时间是在一个 div 中的，*/
+/*这个 div 是右对齐的*/
+#author {
+    text-indent: 0px;    /*取消文本缩进*/
+    text-align: center;  /*文本必中对齐*/
+}
+
+/*编译时间——在LME编译成的网页中，作者、编译时间是在一个 div 中的，*/
+/*这个 div 是右对齐的*/
+#compile_time {
+    text-indent: 0px;    /*取消文本缩进*/
+    text-align: center;  /*文本对齐：居中*/
+}
+
+/*右下角的“切换主题”按钮——效果是固定“漂浮”在窗口可视区域的右下角*/
+#theme_switcher {
+    height: 32px; /*默认图标高度为 32px*/
+    width: 32px; /*默认图标宽度为 32px*/
+    position: fixed; /*位置固定在窗口可视区域而不是页面*/
+    cursor: pointer; /*鼠标指针形状*/
+    right: 1em; /*距窗口右侧 1 字符单位*/
+    bottom: 1em; /*距窗口底部 1 字符单位*/
+}
+
+/*SubLinksList 前面的引导水平线*/
+hr.SubLinksListLine {
+    width: 10em;                   /*宽度：10字符*/
+    height: 1px;                   /*高度：1 像素*/
+    text-align: left;              /*对齐：左*/
+    background-color: whitesmoke;  /*色彩：烟白色*/
+}

@@ -1,0 +1,2537 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+合约状态变化说明</title>
+<meta name="info" content="HYZTBHSM2.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>合约状态变化说明</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#1df3db38-683b-4337-a9e8-dc80de5bd688">1. 各交易所合约状态变化</a></p><p>　<a href="#c02adcd2-5464-463b-9ef7-84caf29a26ea">1.1. SHFE合约状态</a></p><p>　<a href="#fe09b3b8-4f77-4f2d-a6b3-2ec5a908026d">1.2. INE合约状态</a></p><p>　<a href="#de6dcf96-5a78-4b7c-ae74-8cef125c3881">1.3. CZCE合约状态</a></p><p>　<a href="#97c98585-ad91-4d93-9022-93c4c1026ed5">1.4. DCE合约状态</a></p><p>　<a href="#a5ec32bd-7ef5-4e48-bbbf-a8ae952cced6">1.5. CFFEX合约状态</a></p><p>　<a href="#00d6be74-9c93-4793-951c-4412cfd836dd">1.6. GFEX合约状态</a></p><p><a href="#cdf0070c-ddbf-4ae8-b413-5579f21140b3">2. 关于EnterTime字段</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="HQSM.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="LK.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>合约状态变化表示的是交易所各合约的交易阶段变化，用户在登录CTP后，无需订阅便能收到全量的合约状态变化（对应接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/ONRTNINSTRUMENTSTATUS.html">OnRtnInstrumentStatus</a>），该变化在盘中实时推送。其中合约状态推送到产品级别，期权也是推送到产品级别的。CTP服务器预埋单便是通过判断合约是否进入集合竞价报单阶段或连续交易阶段来触发的。本文整理了各交易所的合约状态变化。</p>
+<span id="1df3db38-683b-4337-a9e8-dc80de5bd688" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 各交易所合约状态变化</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>合约交易状态：</p>
+<p>开盘前：0</p>
+<p>非交易：1</p>
+<p>连续交易：2</p>
+<p>集合竞价报单：3</p>
+<p>集合竞价价格平衡：4</p>
+<p>集合竞价撮合：5</p>
+<p>收盘：6</p>
+<p>交易业务处理：7</p>
+<span id="c02adcd2-5464-463b-9ef7-84caf29a26ea" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1. SHFE合约状态</h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>推送方式：交易所推送合约级别，ctp推送产品级别</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap;text-align:center">
+    <table border="1" cellpadding=0>
+    <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+        <th height=38 width=56>
+            <font face="微软雅黑" color="#FFFFFF">合约</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">开盘前</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">20:55</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">20:59</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">21:00</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">23:00</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">1:00</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">2:30</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">开盘前</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">8:55</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">8:59</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">9:00</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">10:15</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">10:30</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">11:30</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">13:30</font>
+        </th>
+        <th >
+            <font face="微软雅黑" color="#FFFFFF">15:00</font>
+        </th>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>ag</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>al</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>ao</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>cu</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>ni</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>pb</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>zn</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>sn</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>ss</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>au</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>fu</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>hc</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>bu</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>rb</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>ru</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>sp</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>wr</td>
+        <td ></td>
+        <td ></td>
+        <td ></td>
+        <td ></td>
+        <td ></td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+    </tr>
+    </table>
+</div>
+<span id="fe09b3b8-4f77-4f2d-a6b3-2ec5a908026d" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2. INE合约状态</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>推送方式：交易所推送合约级别，ctp推送产品级别</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap">
+    <table border="1" cellpadding=0>
+    <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+        <th height=38 width=56>
+            <font face="微软雅黑" color="#FFFFFF">合约</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">开盘前</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">20:55</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">20:59</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">21:00</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">23:00</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">1:00</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">2:30</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">8:55</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">8:59</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">9:00</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">10:15</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">10:30</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">11:30</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">13:30</font>
+        </th>
+        <th align=right>
+            <font face="微软雅黑" color="#FFFFFF">15:00</font>
+        </th>
+    </tr>
+    <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>bc</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td >1</td>
+        <td></td>
+        <td>3</td>
+        <td>5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+       </tr>
+       <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>lu</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td>3</td>
+        <td>5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+       </tr>
+       <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>nr</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td >1</td>
+        <td></td>
+        <td></td>
+        <td>3</td>
+        <td>5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+       </tr>
+       <tr height=19 style='height:14.25pt'>
+        <td height=19 style='height:14.25pt'>sc</td>
+        <td >1</td>
+        <td >3</td>
+        <td >5</td>
+        <td >2</td>
+        <td></td>
+        <td></td>
+        <td >1</td>
+        <td>3</td>
+        <td>5</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >1</td>
+        <td >2</td>
+        <td >6</td>
+       </tr>
+    </table>
+</div>
+<span id="de6dcf96-5a78-4b7c-ae74-8cef125c3881" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3. CZCE合约状态</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p><span id="anchor-id-01" alt=""></span> </p>
+<p>推送方式：交易所推送产品级别，ctp推送产品级别（郑商所合约状态基于5期环境整理）</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap">
+    <table border="1" cellpadding=0>
+        <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+            <th height=38 width=56>
+                <font face="微软雅黑" color="#FFFFFF">产品</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">20:55</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">20:59</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">21:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">23:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:55</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:59</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:15</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">11:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">13:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">15:00</font>
+            </th>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CF</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CY</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>FG</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>MA</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>OI</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PF</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PL</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PR</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PX</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>RM</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SA</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SH</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SR</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TA</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>ZC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CFC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CFP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>FGC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>FGP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>MAC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>MAP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>OIC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>OIP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PFC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PFP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PLC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PLP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PRC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PRP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PXC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PXP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>RMC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>RMP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SAC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SAP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SHC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SHP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SRC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SRP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TAC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TAP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>ZCC</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>ZCP</td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td></td>
+            <td></td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>AP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CJ</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>JR</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>LR</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PK</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PM</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>RI</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>RS</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SF</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SM</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>UR</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>WH</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>APC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>APP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CJC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>CJP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PKC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>PKP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SFC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SFP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SMC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>SMP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>URC</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>URP</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>0</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+    </table>
+</div>
+<span id="97c98585-ad91-4d93-9022-93c4c1026ed5" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4. DCE合约状态</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p>推送方式：交易所推送产品级别，ctp推送产品级别</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap">
+    <table border="1" cellpadding=0>
+        <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+            <th height=38 width=56>
+                <font face="微软雅黑" color="#FFFFFF">产品</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">20:55</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">20:59</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">21:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">23:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:55</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:59</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:15</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">11:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">13:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">15:00</font>
+            </th>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>a</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>a_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>b</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>b_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>c</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>c_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>cs</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>eb</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>eb_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>eg</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>eg_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>i</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>i_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>j</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>jm</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>l</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>l_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>m</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>m_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>p</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>p_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>pg</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>pg_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>pp</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>pp_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>rr</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>v</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>v_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>y</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>y_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>bb</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>fb</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>jd</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>lh</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+    </table>
+</div>
+<span id="a5ec32bd-7ef5-4e48-bbbf-a8ae952cced6" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5. CFFEX合约状态</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p>推送方式：交易所推送合约级别，ctp推送产品级别</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap">
+    <table border="1" cellpadding=0>
+        <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+            <th height=38 width=56>
+                <font face="微软雅黑" color="#FFFFFF">产品</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">开盘前</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:25</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:29</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">11:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">13:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">14:57</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">15:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">15:15</font>
+            </th>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>IC</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td>6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>IF</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td>6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>IH</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td>6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>IM</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td>6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TL</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td>6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>T</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td></td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TF</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td></td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>TS</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td></td>
+            <td></td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>IO期权</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>3</td>
+            <td>5/6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>MO期权</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>3</td>
+            <td>5/6</td>
+            <td></td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>HO期权</td>
+            <td>0</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>3</td>
+            <td>5/6</td>
+            <td></td>
+        </tr>
+    </table>
+</div>
+<span id="00d6be74-9c93-4793-951c-4412cfd836dd" class="anchor"></span></div><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>1.6. GFEX合约状态</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<p>推送方式：交易所推送产品级别，ctp推送产品级别</p>
+<div style="width: 80%;overflow-x: auto;white-space: nowrap">
+    <table border="1" cellpadding=0>
+        <tr bgcolor=#0062A8 height=38 style="white-space: nowrap">
+            <th height=38 width=56>
+                <font face="微软雅黑" color="#FFFFFF">产品</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:55</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">8:59</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">9:00</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:15</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">10:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">11:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">13:30</font>
+            </th>
+            <th align=right>
+                <font face="微软雅黑" color="#FFFFFF">15:00</font>
+            </th>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>si</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+        <tr height=19 style='height:14.25pt'>
+            <td height=19 style='height:14.25pt'>si_o</td>
+            <td>3</td>
+            <td>5</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>1</td>
+            <td>2</td>
+            <td>6</td>
+        </tr>
+    </table>
+</div>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="cdf0070c-ddbf-4ae8-b413-5579f21140b3" class="anchor"></span></div></div><h1 class='title' id='title8' title='点击展开/折叠'><span id='header_span8' class='header_span'>◇ </span>2. 关于EnterTime字段</h1><script>$(document).ready(function(){$("#title8").click(function(){$("#panel8").toggle();if($("#panel8").is(":hidden")){$("#header_span8").html('◆ ');}else{$("#header_span8").html('◇ ');}});});</script><div class='panel_title_h1' id='panel8'>
+<p>EnterTime表示的是进入本状态时间，该时间指的是交易所时间；但郑商所例外，因为郑商所的合约状态变化是通过交易所的行情报盘推送的，其中没有时间戳，因此CTP会打上排队机时间戳，也就是说郑商所的合约状态变化报文中的EnterTime表示的是CTP排队机的时间。</p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="HQSM.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="LK.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='HQSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='LK.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

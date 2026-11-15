@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+6.7.7版本更新说明</title>
+<meta name="info" content="6.7.7BBGXSM.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>6.7.7版本更新说明</p><hr class="headerline"/><div id="content"><script src="jquery-1.7.0.min.js"></script><script src="menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#f1c18153-a883-4be5-9d58-a02d7fda2579">1. API变动</a></p><p>　<a href="#becb93ce-02c7-4e4b-acdd-c1b5aa951c90">1.1. 新增接口：投资者新型组合保证金开关查询</a></p><p>　<a href="#d6f6687d-974f-412e-b803-fb3933b758b2">1.2. 新增接口：获取已连接的前置的信息</a></p><p>　<a href="#db292183-588d-4a60-bbf1-2121897e87ad">1.3. 查询行情接口<a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYDEPTHMARKETDATA.html">ReqQryDepthMarketData</a> 新增入参ProductClass</a></p><p>　<a href="#1364bd0a-c746-41e9-a1fa-9c9f57222dee">1.4. TFtdcInstrumentStatusType合约交易状态类型新增枚举值</a></p><p>　<a href="#05fec62e-acb0-4d3e-942a-fcb34689ad53">1.5. 报单、报价录入请求响应ErrorMsg新增报单欠缺资金。</a></p><p>　<a href="#1a5697c6-f881-4c53-bcc5-0357e8d07195">1.6. 如下四个接口新增入参</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="6.7.2BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.7.8BBGXSM.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>版本号：v6.7.7_20240607 15:51:36.7347</p>
+<p>后台版本：V6.7.7</p>
+<p>变更说明：（请各终端厂商根据自身情况进行开发）</p>
+<span id="f1c18153-a883-4be5-9d58-a02d7fda2579" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. API变动</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<span id="becb93ce-02c7-4e4b-acdd-c1b5aa951c90" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1. 新增接口：投资者新型组合保证金开关查询</h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_1' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_1'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>///投资者新型组合保证金开关查询</p>
+<p>virtual int <a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPORTFSETTING.html">ReqQryInvestorPortfSetting</a>(CThostFtdcQryInvestorPortfSettingField *pQryInvestorPortfSetting, int nRequestID) = 0;</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p>（2）查询响应</p>
+<p><div class='region'><p class='region_header' id='region_header_2' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_2'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>///投资者新型组合保证金开关查询响应</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPORTFSETTING.html">OnRspQryInvestorPortfSetting</a>(CThostFtdcInvestorPortfSettingField *pInvestorPortfSetting, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<span id="d6f6687d-974f-412e-b803-fb3933b758b2" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2. 新增接口：获取已连接的前置的信息</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>（1）查询请求</p>
+<p><div class='region'><p class='region_header' id='region_header_3' style='border-bottom-color:transparent;border-bottom-width:0;'></p><div class='region_panel' id='region_panel_3'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>///获取已连接得前置的信息</p>
+<p>virtual void <a href="JYJK/CTHOSTFTDCTRADERAPI/GETFRONTINFO.html">GetFrontInfo</a>(CThostFtdcFrontInfoField* pFrontInfo) =0;</p>
+<p>返回前置地址、查询流控参数、FTD流控参数。连接成功后，可获取正确的前置地址信息，登录成功后，可获取正确的前置查询流控和FTD流控信息。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<span id="db292183-588d-4a60-bbf1-2121897e87ad" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3. 查询行情接口<a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYDEPTHMARKETDATA.html">ReqQryDepthMarketData</a> 新增入参ProductClass</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>```c++</p>
+<pre><code>///查询行情
+struct CThostFtdcQryDepthMarketDataField
+{
+    ///保留的无效字段
+    TThostFtdcOldInstrumentIDType   reserve1;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///产品类型
+    TThostFtdcProductClassType  ProductClass;
+};
+</code></pre>
+<p>```</p>
+<span id="1364bd0a-c746-41e9-a1fa-9c9f57222dee" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4. TFtdcInstrumentStatusType合约交易状态类型新增枚举值</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p>说明：为与上期所API合约状态保持一致，合约交易状态类型新增枚举值</p>
+<pre><code>///交易业务处理
+#define THOST_FTDC_IS_TransactionProcessing '7'
+</code></pre>
+<span id="05fec62e-acb0-4d3e-942a-fcb34689ad53" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5. 报单、报价录入请求响应ErrorMsg新增报单欠缺资金。</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p><a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPORDERINSERT.html">OnRspOrderInsert</a>报单录入请求响应和<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQUOTEINSERT.html">OnRspQuoteInsert</a>报价录入请求响应ErrorMsg新增报单欠缺资金。</p>
+<p>当报单、报价资金不足时，返回的ErrorMsg中包含了欠缺资金，即：资金不足，约缺少资金[******]</p>
+<span id="1a5697c6-f881-4c53-bcc5-0357e8d07195" class="anchor"></span></div><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>1.6. 如下四个接口新增入参</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<p><a href="JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a>（报单录入请求）、<a href="JYJK/CTHOSTFTDCTRADERAPI/REQORDERACTION.html">ReqOrderAction</a>（报单操作请求）、<a href="JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEINSERT.html">ReqQuoteInsert</a>（报价录入请求）、<a href="JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEACTION.html">ReqQuoteAction</a>（报价操作请求）</p>
+<p>新增入参如下：</p>
+<pre><code>///报单回显字段，OrderMemo字段可供终端厂商标记订单使用，CTP不做处理，即终端填写什么CTP就返回什么
+TThostFtdcOrderMemoType OrderMemo;
+///session上请求计数 api自动维护
+TThostFtdcSequenceNo12Type  SessionReqSeq;
+</code></pre>
+
+</div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="6.7.2BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="6.7.8BBGXSM.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='6.7.2BBGXSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='6.7.8BBGXSM.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

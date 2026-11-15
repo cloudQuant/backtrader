@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+接口中一些重要序号说明</title>
+<meta name="info" content="JKZYXZYXHSM.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>接口中一些重要序号说明</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#743b477b-b3a9-42f0-81fb-e3e29dcdb0fc">1. 报单</a></p><p>　<a href="#e7074833-7b8e-4b7c-bfb5-cd5ba4eac5bb">1.1. FrontID + SessionID + OrderRef  </a></p><p>　<a href="#370d65f3-d94b-4f82-a0ff-2a334e0b5452">1.2. ExchangeID + TraderID + OrderLocalID  </a></p><p>　<a href="#e445dd9a-bb54-40d8-9a9a-72ee178aed38">1.3. ExchangeID + OrderSysID  </a></p><p>　<a href="#0a712a53-1f6c-4b16-b6b4-88366f34dd6e">1.4. RequestID</a></p><p>　<a href="#67ad0894-d5b2-4df5-a15f-b093d34b383f">1.5. RelativeOrderSysID</a></p><p><a href="#f1a2fe7c-8ba8-44bf-abde-0629eb64b2c3">2. 报价</a></p><p>　<a href="#940729dd-734e-4b4f-a427-725109e41794">2.1. FrontID + SessionID + QuoteRef</a></p><p>　<a href="#e5c969cb-bf6a-4bf3-b5e5-f66f758be18f">2.2. FrontID + SessionID + AskOrderRef/BidOrderRef  </a></p><p>　<a href="#05aa5d7f-b8e9-4caa-b12a-c339ce4ee17f">2.3. ExchangeID + TraderID + QuoteLocalID</a></p><p>　<a href="#40616a3d-880e-488f-b070-10d480b529f6">2.4. ExchangeID + QuoteSysID</a></p><p>　<a href="#60342625-6938-4500-8592-df71d954426b">2.5. ExchangeID + AskOrderSysID/BidOrderSysID</a></p><p>　<a href="#a2ea0626-c14d-48f4-9736-656230dd3439">2.6. RequestID</a></p><p><a href="#80b45991-cb86-489c-9fe5-bbd3e60411c3">3. 询价</a></p><p>　<a href="#cad59e0c-1ac5-449e-83a2-70a30c9b14f1">3.1. ForQuoteRef</a></p><p>　<a href="#d0b66866-9043-42f8-a58c-ebfe32d182a5">3.2. ForQuoteSysID</a></p><p><a href="#8070d103-9696-4cdb-a493-6da48390d139">4. 行权</a></p><p>　<a href="#6617f700-0a32-4196-bad6-1337d4a84905">4.1. FrontID + SessionID + ExecOrderRef</a></p><p>　<a href="#20a52772-d65f-4ad5-b92b-24b254be9e41">4.2. ExchangeID + TraderID + ExecOrderLocalID</a></p><p>　<a href="#7e2e3168-b7f6-42de-9921-137ef5d3bf48">4.3. ExchangeID + ExecOrderSysID</a></p><p><a href="#343c0faf-7348-4f87-b08d-c4df26569f36">5. 自对冲</a></p><p>　<a href="#8615cdaa-133d-4741-8f63-2be7573e2f63">5.1. FrontID + SessionID + OptionSelfCloseRef</a></p><p>　<a href="#700d89c3-0122-49a4-9eaf-3892ca3a6c5d">5.2. ExchangeID + TraderID + OptionSelfCloseLocalID</a></p><p>　<a href="#c99f4414-111b-4a43-ac2a-3c902b128913">5.3. ExchangeID + OptionSelfCloseSysID</a></p><p>　<a href="#9cfc7d14-0f18-4597-9383-ef5375ff3bc3">5.4. RequestID</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="GJYSTSZL.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="QHQQDHQ-ZDCGZ.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><span id="743b477b-b3a9-42f0-81fb-e3e29dcdb0fc" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 报单</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<span id="e7074833-7b8e-4b7c-bfb5-cd5ba4eac5bb" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1. FrontID + SessionID + OrderRef  </h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>当报单报入CTP后，这组序号可以唯一定位一笔报单。可以用于跟踪报单回报的整个生命周期，但无法跟踪成交回报，因为成交回报里没有这组序号。  </p>
+<p>注意：CTP清流重启后报单中的该组序号会重新分配，即对于同一笔报单，清流重启前后的这组序号会不一致，使用上需注意。</p>
+<span id="370d65f3-d94b-4f82-a0ff-2a334e0b5452" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2. ExchangeID + TraderID + OrderLocalID  </h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>当报单被CTP接受后，系统会分配OrderLocalID并发往交易所，这组序号可以用于跟踪此后报单的生命周期，包括报单回报和成交回报。</p>
+<p>当报单被CTP拒绝后，不会分配OrderLocalID，此时仍要使用第1组序号跟踪报单。</p>
+<p>注意：CTP清流重启后报单回报中的该组序号保持不变。</p>
+<span id="e445dd9a-bb54-40d8-9a9a-72ee178aed38" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3. ExchangeID + OrderSysID  </h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>当报单被交易所接受后，交易所系统会分配OrderSysID并给CTP推送报单回报，这组序号可以用于跟踪此后报单的生命周期，包括报单回报和成交回报。</p>
+<p>当报单被交易所拒绝后，交易所不会分配OrderSysID，此时仍要使用第1和第2组序号跟踪报单。</p>
+<p>注意：CTP清流重启后报单回报中的该组序号保持不变。</p>
+<span id="0a712a53-1f6c-4b16-b6b4-88366f34dd6e" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4. RequestID</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p><a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a>中的RequestID与<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>中的相对应，可以用于跟踪报单回报的整个生命周期，但无法跟踪成交回报，因为成交回报里没有这个字段。</p>
+<p>注意：CTP清流重启后该序号置零。</p>
+<span id="67ad0894-d5b2-4df5-a15f-b093d34b383f" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5. RelativeOrderSysID</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p>用于关联条件报单和触发后的报单回报。当报入条件单后，会生成OrderSysID=TJBD_XX的报单，此时状态为未触发；当行情满足条件并触发条件单后，会生成一笔新的报单，其RelativeOrderSysID=TJBD_XX。</p>
+<p>注意：CTP清流重启后RelativeOrderSysID会清空，无法再关联条件单。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="f1a2fe7c-8ba8-44bf-abde-0629eb64b2c3" class="anchor"></span></div></div><h1 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>2. 报价</h1><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h1' id='panel7'>
+<span id="940729dd-734e-4b4f-a427-725109e41794" class="anchor"></span><h2 class='title' id='title8' title='点击展开/折叠'><span id='header_span8' class='header_span'>◇ </span>2.1. FrontID + SessionID + QuoteRef</h2><script>$(document).ready(function(){$("#title8").click(function(){$("#panel8").toggle();if($("#panel8").is(":hidden")){$("#header_span8").html('◆ ');}else{$("#header_span8").html('◇ ');}});});</script><div class='panel_title_h2' id='panel8'>
+<p>当报价报入CTP后，这组序号可以唯一定位一笔报价。可以用于跟踪报价回报的整个生命周期，但无法跟踪报价衍生单，因为报价衍生单回报（<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>和<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNTRADE.html">OnRtnTrade</a>）里没有这组序号。  </p>
+<p>注意：CTP清流重启后报价中的该组序号会重新分配，即对于同一笔报价，清流重启前后的这组序号会不一致，使用上需注意。</p>
+<span id="e5c969cb-bf6a-4bf3-b5e5-f66f758be18f" class="anchor"></span></div><h2 class='title' id='title9' title='点击展开/折叠'><span id='header_span9' class='header_span'>◇ </span>2.2. FrontID + SessionID + AskOrderRef/BidOrderRef  </h2><script>$(document).ready(function(){$("#title9").click(function(){$("#panel9").toggle();if($("#panel9").is(":hidden")){$("#header_span9").html('◆ ');}else{$("#header_span9").html('◇ ');}});});</script><div class='panel_title_h2' id='panel9'>
+<p>当报价报入CTP后，可以通过报价回报中的这组序号跟踪报价衍生单，AskOrderRef对应报价衍生卖单的OrderRef，BidOrderRef对应报价衍生买单的OrderRef。规则同上面报单接口的序号1。</p>
+<p>注意：CTP清流重启后报单中的该组序号会重新分配。</p>
+<span id="05aa5d7f-b8e9-4caa-b12a-c339ce4ee17f" class="anchor"></span></div><h2 class='title' id='title10' title='点击展开/折叠'><span id='header_span10' class='header_span'>◇ </span>2.3. ExchangeID + TraderID + QuoteLocalID</h2><script>$(document).ready(function(){$("#title10").click(function(){$("#panel10").toggle();if($("#panel10").is(":hidden")){$("#header_span10").html('◆ ');}else{$("#header_span10").html('◇ ');}});});</script><div class='panel_title_h2' id='panel10'>
+<p>当报价被CTP接受后，系统会分配QuoteLocalID并发往交易所，这组序号可以用于跟踪此后报价的生命周期，但无法跟踪报价衍生单，因为报价衍生单回报里没有这组序号。衍生单的序号规则同上面报价接口序号2。</p>
+<p>当报价被CTP拒绝后，不会分配QuoteLocalID，此时仍要使用第1组序号跟踪报价。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<span id="40616a3d-880e-488f-b070-10d480b529f6" class="anchor"></span></div><h2 class='title' id='title11' title='点击展开/折叠'><span id='header_span11' class='header_span'>◇ </span>2.4. ExchangeID + QuoteSysID</h2><script>$(document).ready(function(){$("#title11").click(function(){$("#panel11").toggle();if($("#panel11").is(":hidden")){$("#header_span11").html('◆ ');}else{$("#header_span11").html('◇ ');}});});</script><div class='panel_title_h2' id='panel11'>
+<p>当报价被交易所接受后，交易所系统会分配QuoteSysID并给CTP推送报价回报，这组序号可以用于跟踪此后报价的生命周期，但无法跟踪报价衍生单，因为报价衍生单回报里没有这组序号。</p>
+<p>当报价被交易所拒绝后，交易所不会分配QuoteSysID，此时仍要使用第1和第3组序号跟踪报价。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<span id="60342625-6938-4500-8592-df71d954426b" class="anchor"></span></div><h2 class='title' id='title12' title='点击展开/折叠'><span id='header_span12' class='header_span'>◇ </span>2.5. ExchangeID + AskOrderSysID/BidOrderSysID</h2><script>$(document).ready(function(){$("#title12").click(function(){$("#panel12").toggle();if($("#panel12").is(":hidden")){$("#header_span12").html('◆ ');}else{$("#header_span12").html('◇ ');}});});</script><div class='panel_title_h2' id='panel12'>
+<p>当报价被交易所接受后，上期所、能源中心、中金所可以通过报价回报中的这组序号跟踪报价衍生单，AskOrderSysID对应报价衍生卖单的OrderSysID，BidOrderSysID对应报价衍生买单的OrderSysID。衍生单的序号规则同上面报单接口。</p>
+<p>大商所和郑商所的报价回报中，AskOrderSysID和BidOrderSysID为空。</p>
+<p>大商所报价回报中QuoteSysID对应买衍生单的的OrderSysID，QuoteSysID+1的值对应卖衍生单的OrderSysID，比如报价回报中QuoteSysID为110，那么衍生单的OrderSysID分别是110和111。</p>
+<p>郑商所报价回报中QuoteSysID的前缀加上'a'对应卖衍生单的OrderSysID，QuoteSysID的前缀加上'b'对应买衍生单的OrderSysID，比如报价回报的QuoteSysID为110，那么衍生单的OrderSysID分别是a110、b110。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<span id="a2ea0626-c14d-48f4-9736-656230dd3439" class="anchor"></span></div><h2 class='title' id='title13' title='点击展开/折叠'><span id='header_span13' class='header_span'>◇ </span>2.6. RequestID</h2><script>$(document).ready(function(){$("#title13").click(function(){$("#panel13").toggle();if($("#panel13").is(":hidden")){$("#header_span13").html('◆ ');}else{$("#header_span13").html('◇ ');}});});</script><div class='panel_title_h2' id='panel13'>
+<p><a href="../JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEINSERT.html">ReqQuoteInsert</a>中的RequestID与<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNQUOTE.html">OnRtnQuote</a>和<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>中的相对应，用于跟踪报价回报和报价衍生单回报的整个生命周期。例如<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEINSERT.html">ReqQuoteInsert</a>中RequestID=888，则<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNQUOTE.html">OnRtnQuote</a>的RequestID=888，买衍生单的<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>中的RequestID=888，卖衍生单<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>中的RequestID=888。</p>
+<p>注意：CTP清流重启后该序号置零。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="80b45991-cb86-489c-9fe5-bbd3e60411c3" class="anchor"></span></div></div><h1 class='title' id='title14' title='点击展开/折叠'><span id='header_span14' class='header_span'>◇ </span>3. 询价</h1><script>$(document).ready(function(){$("#title14").click(function(){$("#panel14").toggle();if($("#panel14").is(":hidden")){$("#header_span14").html('◆ ');}else{$("#header_span14").html('◇ ');}});});</script><div class='panel_title_h1' id='panel14'>
+<span id="cad59e0c-1ac5-449e-83a2-70a30c9b14f1" class="anchor"></span><h2 class='title' id='title15' title='点击展开/折叠'><span id='header_span15' class='header_span'>◇ </span>3.1. ForQuoteRef</h2><script>$(document).ready(function(){$("#title15").click(function(){$("#panel15").toggle();if($("#panel15").is(":hidden")){$("#header_span15").html('◆ ');}else{$("#header_span15").html('◇ ');}});});</script><div class='panel_title_h2' id='panel15'>
+<p>当询价请求报入CTP后，该字段用来唯一定位一笔询价。</p>
+<p>注意：CTP清流重启后报单中的该组序号会重新分配。</p>
+<span id="d0b66866-9043-42f8-a58c-ebfe32d182a5" class="anchor"></span></div><h2 class='title' id='title16' title='点击展开/折叠'><span id='header_span16' class='header_span'>◇ </span>3.2. ForQuoteSysID</h2><script>$(document).ready(function(){$("#title16").click(function(){$("#panel16").toggle();if($("#panel16").is(":hidden")){$("#header_span16").html('◆ ');}else{$("#header_span16").html('◇ ');}});});</script><div class='panel_title_h2' id='panel16'>
+<p>当询价被交易所接受后，交易所系统分配ForQuoteSysID，可以用于跟踪此后询价的的生命周期。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="8070d103-9696-4cdb-a493-6da48390d139" class="anchor"></span></div></div><h1 class='title' id='title17' title='点击展开/折叠'><span id='header_span17' class='header_span'>◇ </span>4. 行权</h1><script>$(document).ready(function(){$("#title17").click(function(){$("#panel17").toggle();if($("#panel17").is(":hidden")){$("#header_span17").html('◆ ');}else{$("#header_span17").html('◇ ');}});});</script><div class='panel_title_h1' id='panel17'>
+<span id="6617f700-0a32-4196-bad6-1337d4a84905" class="anchor"></span><h2 class='title' id='title18' title='点击展开/折叠'><span id='header_span18' class='header_span'>◇ </span>4.1. FrontID + SessionID + ExecOrderRef</h2><script>$(document).ready(function(){$("#title18").click(function(){$("#panel18").toggle();if($("#panel18").is(":hidden")){$("#header_span18").html('◆ ');}else{$("#header_span18").html('◇ ');}});});</script><div class='panel_title_h2' id='panel18'>
+<p>当行权请求报入CTP后，该组序号用来唯一定位一笔行权。</p>
+<p>注意：CTP清流重启后报单中的该组序号会重新分配。</p>
+<span id="20a52772-d65f-4ad5-b92b-24b254be9e41" class="anchor"></span></div><h2 class='title' id='title19' title='点击展开/折叠'><span id='header_span19' class='header_span'>◇ </span>4.2. ExchangeID + TraderID + ExecOrderLocalID</h2><script>$(document).ready(function(){$("#title19").click(function(){$("#panel19").toggle();if($("#panel19").is(":hidden")){$("#header_span19").html('◆ ');}else{$("#header_span19").html('◇ ');}});});</script><div class='panel_title_h2' id='panel19'>
+<p>当行权被CTP接受后，可以通过行权回报中的这组序号跟踪此后行权的生命周期。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<span id="7e2e3168-b7f6-42de-9921-137ef5d3bf48" class="anchor"></span></div><h2 class='title' id='title20' title='点击展开/折叠'><span id='header_span20' class='header_span'>◇ </span>4.3. ExchangeID + ExecOrderSysID</h2><script>$(document).ready(function(){$("#title20").click(function(){$("#panel20").toggle();if($("#panel20").is(":hidden")){$("#header_span20").html('◆ ');}else{$("#header_span20").html('◇ ');}});});</script><div class='panel_title_h2' id='panel20'>
+<p>当行权被交易所接受后，可以通过行权回报中的这组序号跟踪此后行权的生命周期。</p>
+<p>注意：CTP清流重启后报价回报中的该组序号保持不变。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="343c0faf-7348-4f87-b08d-c4df26569f36" class="anchor"></span></div></div><h1 class='title' id='title21' title='点击展开/折叠'><span id='header_span21' class='header_span'>◇ </span>5. 自对冲</h1><script>$(document).ready(function(){$("#title21").click(function(){$("#panel21").toggle();if($("#panel21").is(":hidden")){$("#header_span21").html('◆ ');}else{$("#header_span21").html('◇ ');}});});</script><div class='panel_title_h1' id='panel21'>
+<span id="8615cdaa-133d-4741-8f63-2be7573e2f63" class="anchor"></span><h2 class='title' id='title22' title='点击展开/折叠'><span id='header_span22' class='header_span'>◇ </span>5.1. FrontID + SessionID + OptionSelfCloseRef</h2><script>$(document).ready(function(){$("#title22").click(function(){$("#panel22").toggle();if($("#panel22").is(":hidden")){$("#header_span22").html('◆ ');}else{$("#header_span22").html('◇ ');}});});</script><div class='panel_title_h2' id='panel22'>
+<p>当自对冲报入CTP后，这组序号可以唯一定位一笔自对冲。可以用于跟踪自对冲回报的整个生命周期。  </p>
+<p>注意：CTP清流重启后自对冲中的该组序号会重新分配，即对于同一笔自对冲，清流重启前后的这组序号会不一致，使用上需注意。</p>
+<span id="700d89c3-0122-49a4-9eaf-3892ca3a6c5d" class="anchor"></span></div><h2 class='title' id='title23' title='点击展开/折叠'><span id='header_span23' class='header_span'>◇ </span>5.2. ExchangeID + TraderID + OptionSelfCloseLocalID</h2><script>$(document).ready(function(){$("#title23").click(function(){$("#panel23").toggle();if($("#panel23").is(":hidden")){$("#header_span23").html('◆ ');}else{$("#header_span23").html('◇ ');}});});</script><div class='panel_title_h2' id='panel23'>
+<p>当自对冲被CTP接受后，系统会分配OptionSelfCloseLocalID并发往交易所，这组序号可以用于跟踪此后自对冲的生命周期。</p>
+<p>当自对冲被CTP拒绝后，不会分配OptionSelfCloseLocalID，此时仍要使用第1组序号跟踪自对冲。</p>
+<p>注意：CTP清流重启后自对冲回报中的该组序号保持不变。</p>
+<span id="c99f4414-111b-4a43-ac2a-3c902b128913" class="anchor"></span></div><h2 class='title' id='title24' title='点击展开/折叠'><span id='header_span24' class='header_span'>◇ </span>5.3. ExchangeID + OptionSelfCloseSysID</h2><script>$(document).ready(function(){$("#title24").click(function(){$("#panel24").toggle();if($("#panel24").is(":hidden")){$("#header_span24").html('◆ ');}else{$("#header_span24").html('◇ ');}});});</script><div class='panel_title_h2' id='panel24'>
+<p>当自对冲被交易所接受后，交易所系统会分配OptionSelfCloseSysID并给CTP推送自对冲回报，这组序号可以用于跟踪此后自对冲的生命周期。</p>
+<p>当自对冲被交易所拒绝后，交易所不会分配OptionSelfCloseSysID，此时仍要使用第1和第2组序号跟踪自对冲。</p>
+<p>注意：CTP清流重启后自对冲回报中的该组序号保持不变。</p>
+<blockquote>
+  <p>大商所不适用此序号，因为大商所不分配OptionSelfCloseSysID值。</p>
+</blockquote>
+<span id="9cfc7d14-0f18-4597-9383-ef5375ff3bc3" class="anchor"></span></div><h2 class='title' id='title25' title='点击展开/折叠'><span id='header_span25' class='header_span'>◇ </span>5.4. RequestID</h2><script>$(document).ready(function(){$("#title25").click(function(){$("#panel25").toggle();if($("#panel25").is(":hidden")){$("#header_span25").html('◆ ');}else{$("#header_span25").html('◇ ');}});});</script><div class='panel_title_h2' id='panel25'>
+<p><a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">ReqOptionSelfCloseInsert</a>中的RequestID与<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNOPTIONSELFCLOSE.html">OnRtnOptionSelfClose</a>中的相对应，用于跟踪自对冲回报的整个生命周期。</p>
+<p>注意：CTP清流重启后该序号置零。</p>
+
+</div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="GJYSTSZL.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="QHQQDHQ-ZDCGZ.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='GJYSTSZL.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='QHQQDHQ-ZDCGZ.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

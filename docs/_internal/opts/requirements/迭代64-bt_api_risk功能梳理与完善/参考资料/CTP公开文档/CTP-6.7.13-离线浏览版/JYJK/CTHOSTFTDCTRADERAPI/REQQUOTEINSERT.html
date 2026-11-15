@@ -1,0 +1,444 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+ReqQuoteInsert</title>
+<meta name="info" content="REQQUOTEINSERT.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>ReqQuoteInsert</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#3ad920a1-0eb3-48b8-9b8c-de098fbacbc1">1. 函数原型</a></p><p><a href="#5a1d3b7a-a5b4-4a83-a2e8-35553c90ebc7">2. 参数</a></p><p><a href="#f9f90325-ab58-4f46-822e-41b7abbe656a">3. 返回</a></p><p><a href="#0ebad1ea-6a3e-4175-9995-e362874239b2">4.示例调用</a></p><p><a href="#eee8a8b5-1de5-42c8-bda9-504e6ad84b7b">5. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="REQQUOTEACTION.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQREMOVEPARKEDORDER.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>报价录入请求，如果出错，则返回响应<a href="../CTHOSTFTDCTRADERSPI/ONRSPQUOTEINSERT.html">OnRspQuoteInsert</a>和<a href="../CTHOSTFTDCTRADERSPI/ONERRRTNQUOTEINSERT.html">OnErrRtnQuoteInsert</a>；正确则推送<a href="../CTHOSTFTDCTRADERSPI/ONRTNQUOTE.html">OnRtnQuote</a>、<a href="../CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>和<a href="../CTHOSTFTDCTRADERSPI/ONRTNTRADE.html">OnRtnTrade</a>。</p>
+<p>单边报价和双边报价，都是用一个接口 ReqQuoteInsert。</p>
+<blockquote>
+  <p>在<code>单边报价</code>的时候，只需要另一边的数量填0，交易核心就能区分开。另外，无论是单边还是双边，Ask/BidOrderRef都是要填的。</p>
+  
+  <p>除上期所的期货合约使用<a href="REQORDERINSERT.html">ReqOrderInsert</a>接口报价，其他交易所均使用本接口报价。</p>
+</blockquote>
+<p>详见<a href="../../QTYWGZ/BJHXJ.html">做市商询价和报价</a></p>
+<p>回调规则详见<a href="../../QTYWGZ/DJHDGZ.html">报价回调规则</a></p>
+<p>关于接口中的重要序号说明详见<a href="../../QTYWGZ/JKZYXZYXHSM.html">接口中一些重要序号说明</a></p>
+<span id="3ad920a1-0eb3-48b8-9b8c-de098fbacbc1" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>virtual int ReqQuoteInsert(CThostFtdcInputQuoteField *pInputQuote, int nRequestID) = 0;</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="5a1d3b7a-a5b4-4a83-a2e8-35553c90ebc7" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>pInputQuote：输入的报价</p>
+<table><tr><th style="TEXT-ALIGN: center;">字段类型</th><th style="TEXT-ALIGN: center;">字段名称</th><th style="TEXT-ALIGN: center;">含义</th><th style="TEXT-ALIGN: center;">值</th></tr><tr><td style="TEXT-ALIGN: left;">TThostFtdcBrokerIDType</td>
+<td style="TEXT-ALIGN: left;">BrokerID</td>
+<td style="TEXT-ALIGN: left;">经纪公司代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInvestorIDType</td>
+<td style="TEXT-ALIGN: left;">InvestorID</td>
+<td style="TEXT-ALIGN: left;">投资者代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInstrumentIDType</td>
+<td style="TEXT-ALIGN: left;">InstrumentID</td>
+<td style="TEXT-ALIGN: left;">合约代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderRefType</td>
+<td style="TEXT-ALIGN: left;">QuoteRef</td>
+<td style="TEXT-ALIGN: left;">报价引用</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcUserIDType</td>
+<td style="TEXT-ALIGN: left;">UserID</td>
+<td style="TEXT-ALIGN: left;">用户代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBusinessUnitType</td>
+<td style="TEXT-ALIGN: left;">BusinessUnit</td>
+<td style="TEXT-ALIGN: left;">业务单元</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderRefType</td>
+<td style="TEXT-ALIGN: left;">AskOrderRef</td>
+<td style="TEXT-ALIGN: left;">衍生卖报单引用</td>
+<td style="TEXT-ALIGN: left;">选填</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderRefType</td>
+<td style="TEXT-ALIGN: left;">BidOrderRef</td>
+<td style="TEXT-ALIGN: left;">衍生买报单引用</td>
+<td style="TEXT-ALIGN: left;">选填</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderSysIDType</td>
+<td style="TEXT-ALIGN: left;">ForQuoteSysID</td>
+<td style="TEXT-ALIGN: left;">应价编号</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcExchangeIDType</td>
+<td style="TEXT-ALIGN: left;">ExchangeID</td>
+<td style="TEXT-ALIGN: left;">交易所代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcInvestUnitIDType</td>
+<td style="TEXT-ALIGN: left;">InvestUnitID</td>
+<td style="TEXT-ALIGN: left;">投资单元代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcClientIDType</td>
+<td style="TEXT-ALIGN: left;">ClientID</td>
+<td style="TEXT-ALIGN: left;">客户代码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcIPAddressType</td>
+<td style="TEXT-ALIGN: left;">IPAddress</td>
+<td style="TEXT-ALIGN: left;">IP地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcMacAddressType</td>
+<td style="TEXT-ALIGN: left;">MacAddress</td>
+<td style="TEXT-ALIGN: left;">Mac地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcVolumeType</td>
+<td style="TEXT-ALIGN: left;">AskVolume</td>
+<td style="TEXT-ALIGN: left;">卖数量</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcVolumeType</td>
+<td style="TEXT-ALIGN: left;">BidVolume</td>
+<td style="TEXT-ALIGN: left;">买数量</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcRequestIDType</td>
+<td style="TEXT-ALIGN: left;">RequestID</td>
+<td style="TEXT-ALIGN: left;">请求编号</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOffsetFlagType</td>
+<td style="TEXT-ALIGN: left;">AskOffsetFlag</td>
+<td style="TEXT-ALIGN: left;">卖开平标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOffsetFlagType</td>
+<td style="TEXT-ALIGN: left;">BidOffsetFlag</td>
+<td style="TEXT-ALIGN: left;">买开平标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcHedgeFlagType</td>
+<td style="TEXT-ALIGN: left;">AskHedgeFlag</td>
+<td style="TEXT-ALIGN: left;">卖投机套保标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">投机</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcHedgeFlagType</td>
+<td style="TEXT-ALIGN: left;">BidHedgeFlag</td>
+<td style="TEXT-ALIGN: left;">买投机套保标志</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">投机</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPriceType</td>
+<td style="TEXT-ALIGN: left;">AskPrice</td>
+<td style="TEXT-ALIGN: left;">卖价格</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPriceType</td>
+<td style="TEXT-ALIGN: left;">BidPrice</td>
+<td style="TEXT-ALIGN: left;">买价格</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOldInstrumentIDType</td>
+<td style="TEXT-ALIGN: left;">reserve1</td>
+<td style="TEXT-ALIGN: left;">保留的无效字段</td>
+<td style="TEXT-ALIGN: left;">否</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOldIPAddressType</td>
+<td style="TEXT-ALIGN: left;">reserve2</td>
+<td style="TEXT-ALIGN: left;">保留的无效字段</td>
+<td style="TEXT-ALIGN: left;">否</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderSysIDType</td>
+<td style="TEXT-ALIGN: left;">ReplaceSysID</td>
+<td style="TEXT-ALIGN: left;">被顶单编号</td>
+<td style="TEXT-ALIGN: left;">否</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcTimeConditionType</td>
+<td style="TEXT-ALIGN: left;">TimeCondition</td>
+<td style="TEXT-ALIGN: left;">有效期类型</td>
+<td style="TEXT-ALIGN: left;">否</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOrderMemoType</td>
+<td style="TEXT-ALIGN: left;">OrderMemo</td>
+<td style="TEXT-ALIGN: left;">报单回显字段</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcSequenceNo12Type</td>
+<td style="TEXT-ALIGN: left;">SessionReqSeq</td>
+<td style="TEXT-ALIGN: left;">session上请求计数 api自动维护</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+</table>
+<p>ForQuoteSysID：询价编号，用于唯一定位一笔询价，需要纯数字递增</p>
+<p>AskOrderRef：需要纯数字递增</p>
+<p>BidOrderRef：要比AskOrderRef大，需要纯数字递增</p>
+<p>IPAddress：中继需填写客户IP地址；非中继填写无效，直接取登录成功会话中的IP。填写规则如下：ipv4原样填写，ipv6要转成非零压缩地址，即原始地址，同时要去掉冒号，eg：AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH</p>
+<p>MacAddress：中继需填写客户MAC地址；非中继填写无效，直接取登录成功会话中的MAC。</p>
+<p>OrderMemo:报单回显字段，OrderMemo字段可供终端厂商标记订单使用，CTP不做处理，即终端填写什么CTP就返回什么</p>
+<p>nRequestID：请求ID，对应响应里的nRequestID，无递增规则，由用户自行维护。</p>
+<p>SessionReqSeq：一个session中，一笔业务流程周期中唯一序号，此序号由API自动填写，客户维护无效。</p>
+<p>OrderMemo：该字段CTP不做任何处理，即终端填写什么CTP就返回什么。可以用来给多账户系统做标记用。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="f9f90325-ab58-4f46-822e-41b7abbe656a" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>0，代表成功。</p>
+<p>-1，表示网络连接失败；</p>
+<p>-2，表示未处理请求超过许可数；</p>
+<p>-3，表示每秒发送请求数超过许可数。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="0ebad1ea-6a3e-4175-9995-e362874239b2" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4.示例调用</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<pre><code>CThostFtdcInputQuoteField t = { 0 };
+strcpy_s(t.BrokerID, "9999");
+strcpy_s(t.InvestorID, "1000001");
+strcpy_s(t.InstrumentID, "rb1809");
+strcpy_s(t.UserID, "1000001"); 
+strcpy_s(t.ExchangeID, "SHFE"); 
+t.AskPrice = 200;
+t.BidPrice = 150;
+t.AskVolume = 1;
+t.BidVolume = 1;
+t.AskOffsetFlag = THOST_FTDC_OF_Open;///卖开平标志
+t.BidOffsetFlag = THOST_FTDC_OF_Open;///买开平标志
+t.AskHedgeFlag = THOST_FTDC_HF_Hedge;///卖投机套保标志
+t.BidHedgeFlag = THOST_FTDC_HF_Hedge;///买投机套保标志
+_itoa_s(OrderRef, t.AskOrderRef, 10);///衍生卖报单引用
+OrderRef++;
+_itoa_s(OrderRef, t.BidOrderRef, 10);///衍生买报单引用
+OrderRef++; 
+m_pUserApi-&gt;ReqQuoteInsert(&amp;t, nRequestID++);
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="eee8a8b5-1de5-42c8-bda9-504e6ad84b7b" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. FAQ</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>询价时报：“没有该合约的做市商”？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>这是因为询价合约不对，目前期权合约可以参加询价。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_2' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>询价时报：“CTP：当前时间禁止询价”？</p><div class='region_panel' id='region_panel_2' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>这是因为期货公司一般把询价限制时间设置为60秒询价一次，周期内不能多次询价。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_3' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>询价时报：“CTP：当前价差禁止询价”？</p><div class='region_panel' id='region_panel_3' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>交易所有询价价差的限制，期货公司可以在柜台上进行设置，一般如下：</p>
+<table><tr><th style="TEXT-ALIGN: center;">经纪公司代码</th><th style="TEXT-ALIGN: center;">合约代码</th><th style="TEXT-ALIGN: center;">交易所代码</th><th style="TEXT-ALIGN: center;">最新价</th><th style="TEXT-ALIGN: center;">价差</th></tr><tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">0</td>
+<td style="TEXT-ALIGN: left;">8</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">50</td>
+<td style="TEXT-ALIGN: left;">10</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">100</td>
+<td style="TEXT-ALIGN: left;">20</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">200</td>
+<td style="TEXT-ALIGN: left;">30</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">300</td>
+<td style="TEXT-ALIGN: left;">50</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">1008</td>
+<td style="TEXT-ALIGN: left;">SRC</td>
+<td style="TEXT-ALIGN: left;">CZCE</td>
+<td style="TEXT-ALIGN: left;">500</td>
+<td style="TEXT-ALIGN: left;">75</td>
+</tr>
+</table>
+<p>询价价差的判断过程</p>
+<p>1）看最新价对应于上面的哪一档次，确定价差的最小值</p>
+<p>2）计算买价和卖价的价差，看是否大于设置的价差（等于也不行）</p>
+<p>如果2）通过，那么询价单报入交易所，否则会被CTP直接拒绝。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_4' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“非法的做市商响应”是什么原因？</p><div class='region_panel' id='region_panel_4' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_4').click(function() {$('#region_panel_4').toggle();});}); </script>
+<p>这可能是所用交易编码非做市商专用所致。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_4'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_4').click(function() {$('#region_panel_4').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_5' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>各家交易所第二次报价是否会撤销第一次报价？</p><div class='region_panel' id='region_panel_5' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_5').click(function() {$('#region_panel_5').toggle();});}); </script>
+<p>中金所：不会撤销</p>
+<p>大商所：不会撤销</p>
+<p>郑商所：会撤销</p>
+<p>上期所：会撤销</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_5'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_5').click(function() {$('#region_panel_5').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_6' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>各家交易所使用的报价接口是否一样？</p><div class='region_panel' id='region_panel_6' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_6').click(function() {$('#region_panel_6').toggle();});}); </script>
+<p>中金所：只有期权做市商,使用ReqQuoteInsert</p>
+<p>大商所：使用ReqQuoteInsert</p>
+<p>郑商所：使用ReqQuoteInsert</p>
+<p>上期所：期货合约使用<a href="REQORDERINSERT.html">ReqOrderInsert</a>，期权合约使用ReqQuoteInsert</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_6'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_6').click(function() {$('#region_panel_6').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="REQQUOTEACTION.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQREMOVEPARKEDORDER.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='REQQUOTEACTION.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='REQREMOVEPARKEDORDER.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

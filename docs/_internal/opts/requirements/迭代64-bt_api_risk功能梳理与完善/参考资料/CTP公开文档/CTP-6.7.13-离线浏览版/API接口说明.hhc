@@ -1,0 +1,1646 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<!--Sitemap 1.0-->
+</HEAD><BODY>
+<OBJECT type="text/site properties">
+	<param name="Window Styles" value="0x800627">
+</OBJECT><UL>
+<LI> <OBJECT type = "text/sitemap">
+	<param name ="Name" value="目录">
+	<param name ="Local" value="_index.html">
+	</OBJECT>
+<LI> <OBJECT type="text/sitemap">
+<param name="Name" value="6.7.13_API接口说明">
+<param name="Local" value="_API接口说明.html">
+</OBJECT>
+	<UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="主页">
+		<param name="Local" value="ZY.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="阅读指引">
+		<param name="Local" value="YDZY.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="文档版本与重要更新">
+		<param name="Local" value="GXLS.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.5.1版本更新说明">
+		<param name="Local" value="6.5.1BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.5.1版本更新说明补充说明">
+		<param name="Local" value="6.5.1BBGXSMBCSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.6.1P1版本更新说明">
+		<param name="Local" value="6.6.1P1BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.6.5版本更新说明">
+		<param name="Local" value="6.6.5BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.6.7版本更新说明">
+		<param name="Local" value="6.6.7BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.6.8版本更新说明">
+		<param name="Local" value="6.6.8BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.6.9版本更新说明">
+		<param name="Local" value="6.6.9BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.0版本更新说明">
+		<param name="Local" value="6.7.0BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.1版本更新说明">
+		<param name="Local" value="6.7.1BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.2版本更新说明">
+		<param name="Local" value="6.7.2BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.7版本更新说明">
+		<param name="Local" value="6.7.7BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.8版本更新说明">
+		<param name="Local" value="6.7.8BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.9版本更新说明">
+		<param name="Local" value="6.7.9BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.9P1版本更新说明">
+		<param name="Local" value="6.7.9-P1BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.10版本更新说明">
+		<param name="Local" value="6.7.10BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.11版本更新说明">
+		<param name="Local" value="6.7.11BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="6.7.13版本更新说明">
+		<param name="Local" value="6.7.13BBGXSM.html">
+</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+	<param name="Name" value="看穿式监管数据采集说明">
+	<param name="Local" value="CTSJGSJCJJK/_CTSJGSJCJJK.html">
+</OBJECT>
+		<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="常见FAQ">
+			<param name="Local" value="CTSJGSJCJJK/CJFAQ.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="CTP-GetSystemInfo">
+			<param name="Local" value="CTSJGSJCJJK/CTP-GETSYSTEMINFO.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="CTP-GetDataCollectApiVersion">
+			<param name="Local" value="CTSJGSJCJJK/CTP-GETDATACOLLECTAPIVERSION.html">
+</OBJECT>
+		</UL>
+	<LI> <OBJECT type="text/sitemap">
+	<param name="Name" value="行情接口">
+	<param name="Local" value="HQJK/_HQJK.html">
+</OBJECT>
+		<UL>
+		<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="CThostFtdcMdApi">
+		<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/_CTHOSTFTDCMDAPI.html">
+</OBJECT>
+			<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="CreateFtdcMdApi">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/CREATEFTDCMDAPI.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="GetApiVersion">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/GETAPIVERSION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="GetTradingDay">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/GETTRADINGDAY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Init">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/INIT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Join">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/JOIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterFensUserInfo">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REGISTERFENSUSERINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterFront">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REGISTERFRONT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterNameServer">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REGISTERNAMESERVER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterSpi">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REGISTERSPI.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Release">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/RELEASE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryMulticastInstrument">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REQQRYMULTICASTINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLogin">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLogout">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/REQUSERLOGOUT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubscribeForQuoteRsp">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/SUBSCRIBEFORQUOTERSP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubscribeMarketData">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/SUBSCRIBEMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="UnSubscribeForQuoteRsp">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/UNSUBSCRIBEFORQUOTERSP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="UnSubscribeMarketData">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDAPI/UNSUBSCRIBEMARKETDATA.html">
+</OBJECT>
+			</UL>
+		<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="CThostFtdcMdSpi">
+		<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/_CTHOSTFTDCMDSPI.html">
+</OBJECT>
+			<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnFrontConnected">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONFRONTCONNECTED.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnFrontDisconnected">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONFRONTDISCONNECTED.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnHeartBeatWarning">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONHEARTBEATWARNING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspError">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPERROR.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryMulticastInstrument">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPQRYMULTICASTINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspSubForQuoteRsp">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPSUBFORQUOTERSP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspSubMarketData">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPSUBMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUnSubForQuoteRsp">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPUNSUBFORQUOTERSP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUnSubMarketData">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPUNSUBMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserLogin">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPUSERLOGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserLogout">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRSPUSERLOGOUT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnDepthMarketData">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRTNDEPTHMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnForQuoteRsp">
+				<param name="Local" value="HQJK/CTHOSTFTDCMDSPI/ONRTNFORQUOTERSP.html">
+</OBJECT>
+			</UL>
+		</UL>
+	<LI> <OBJECT type="text/sitemap">
+	<param name="Name" value="交易接口">
+	<param name="Local" value="JYJK/_JYJK.html">
+</OBJECT>
+		<UL>
+		<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="CThostFtdcTraderApi">
+		<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/_CTHOSTFTDCTRADERAPI.html">
+</OBJECT>
+			<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="CreateFtdcTraderApi">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/CREATEFTDCTRADERAPI.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="GetApiVersion">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/GETAPIVERSION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="GetTradingDay">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/GETTRADINGDAY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="GetFrontInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/GETFRONTINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Init">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/INIT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Join">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/JOIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterFensUserInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERFENSUSERINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterFront">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERFRONT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterNameServer">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERNAMESERVER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterSpi">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERSPI.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterUserSystemInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Release">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/RELEASE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqAuthenticate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQAUTHENTICATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqBatchOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQBATCHORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqCombActionInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQCOMBACTIONINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqExecOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqExecOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqForQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQFORQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqFromBankToFutureByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQFROMBANKTOFUTUREBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqFromFutureToBankByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQFROMFUTURETOBANKBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqGenUserCaptcha">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQGENUSERCAPTCHA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqGenUserText">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQGENUSERTEXT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqOptionSelfCloseAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqOptionSelfCloseInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqParkedOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQPARKEDORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryAccountregister">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYACCOUNTREGISTER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryBrokerTradingAlgos">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYBROKERTRADINGALGOS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryBrokerTradingParams">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYBROKERTRADINGPARAMS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryCFMMCTradingAccountKey">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCFMMCTRADINGACCOUNTKEY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryCombAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCOMBACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryCombInstrumentGuard">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCOMBINSTRUMENTGUARD.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryContractBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCONTRACTBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryDepthMarketData">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYDEPTHMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryEWarrantOffset">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEWARRANTOFFSET.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryExchange">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXCHANGE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryExchangeMarginRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXCHANGEMARGINRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryExchangeMarginRateAdjust">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXCHANGEMARGINRATEADJUST.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryExchangeRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXCHANGERATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryExecOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXECORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryForQuote">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYFORQUOTE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInstrument">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInstrumentCommissionRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINSTRUMENTCOMMISSIONRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInstrumentMarginRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINSTRUMENTMARGINRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInstrumentOrderCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINSTRUMENTORDERCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestor">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTOR.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorPositionCombineDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPOSITIONCOMBINEDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorPositionDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPOSITIONDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorProductGroupMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPRODUCTGROUPMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestUnit">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTUNIT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryMMInstrumentCommissionRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYMMINSTRUMENTCOMMISSIONRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryMMOptionInstrCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYMMOPTIONINSTRCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryNotice">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYNOTICE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryOptionInstrCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYOPTIONINSTRCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryOptionInstrTradeCost">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYOPTIONINSTRTRADECOST.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryOptionSelfClose">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYOPTIONSELFCLOSE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryParkedOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYPARKEDORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryProduct">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYPRODUCT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryProductExchRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYPRODUCTEXCHRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryProductGroup">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYPRODUCTGROUP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryQuote">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYQUOTE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySecAgentACIDMap">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSECAGENTACIDMAP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySecAgentCheckMode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSECAGENTCHECKMODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySecAgentTradeInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSECAGENTTRADEINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySecAgentTradingAccount">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSECAGENTTRADINGACCOUNT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySettlementInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSETTLEMENTINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySettlementInfoConfirm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSETTLEMENTINFOCONFIRM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTrade">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRADE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTradingAccount">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRADINGACCOUNT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTradingCode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRADINGCODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTradingNotice">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRADINGNOTICE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTransferBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRANSFERBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTransferSerial">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRANSFERSERIAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQueryBankAccountMoneyByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQUERYBANKACCOUNTMONEYBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQueryCFMMCTradingAccountToken">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQUERYCFMMCTRADINGACCOUNTTOKEN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryMaxOrderVolume">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQUERYMAXORDERVOLUME.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQuoteAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqRemoveParkedOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQREMOVEPARKEDORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqRemoveParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQREMOVEPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqSettlementInfoConfirm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQSETTLEMENTINFOCONFIRM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqTradingAccountPasswordUpdate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQTRADINGACCOUNTPASSWORDUPDATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserAuthMethod">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERAUTHMETHOD.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLogin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERLOGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLoginWithCaptcha">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERLOGINWITHCAPTCHA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLoginWithOTP">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERLOGINWITHOTP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLoginWithText">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERLOGINWITHTEXT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserLogout">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERLOGOUT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqUserPasswordUpdate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQUSERPASSWORDUPDATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubmitUserSystemInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/SUBMITUSERSYSTEMINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubscribePrivateTopic">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/SUBSCRIBEPRIVATETOPIC.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubscribePublicTopic">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/SUBSCRIBEPUBLICTOPIC.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryClassifiedInstrument">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCLASSIFIEDINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryCombPromotionParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCOMBPROMOTIONPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRiskSettleInvstPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRISKSETTLEINVSTPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRiskSettleProductStatus">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRISKSETTLEPRODUCTSTATUS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryTraderOffer">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYTRADEROFFER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMFutureParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMFUTUREPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMOptionParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMOPTIONPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMPortfDefinition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMPORTFDEFINITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMInvestorPortfDef">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMINVESTORPORTFDEF.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorPortfMarginRatio">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPORTFMARGINRATIO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorProdSPBMDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPRODSPBMDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorCommoditySPMMMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORCOMMODITYSPMMMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorCommodityGroupSPMMMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORCOMMODITYGROUPSPMMMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPMMInstParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPMMINSTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPMMProductParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPMMPRODUCTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySPBMAddOnInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPBMADDONINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSCombProductInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSCOMBPRODUCTINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSInstrParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSINSTRPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSShortOptAdjustParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSSHORTOPTADJUSTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRCAMSInvestorCombPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRCAMSINVESTORCOMBPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorProdRCAMSMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPRODRCAMSMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRULEInstrParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRULEINSTRPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRULEIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRULEINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryRULEInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYRULEINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorProdRULEMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPRODRULEMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorPortfSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORPORTFSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryInvestorInfoCommRec">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYINVESTORINFOCOMMREC.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryCombLeg">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYCOMBLEG.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqCancelOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQCANCELOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="RegisterWechatUserSystemInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REGISTERWECHATUSERSYSTEMINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="SubmitWechatUserSystemInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/SUBMITWECHATUSERSYSTEMINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryUserSession">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYUSERSESSION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqGenSMSCode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQGENSMSCODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqSpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqSpdApplyAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQSPDAPPLYACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQrySpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQHEDGECFM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqHedgeCfmAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQHEDGECFMACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="ReqQryHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERAPI/REQQRYHEDGECFM.html">
+</OBJECT>
+			</UL>
+		<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="CThostFtdcTraderSpi">
+		<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/_CTHOSTFTDCTRADERSPI.html">
+</OBJECT>
+			<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnBankToFutureByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNBANKTOFUTUREBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnBatchOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNBATCHORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnCombActionInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNCOMBACTIONINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnExecOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNEXECORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnExecOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNEXECORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnForQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNFORQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnFutureToBankByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNFUTURETOBANKBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnOptionSelfCloseAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNOPTIONSELFCLOSEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnOptionSelfCloseInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNOPTIONSELFCLOSEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnQueryBankBalanceByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNQUERYBANKBALANCEBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnQuoteAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNQUOTEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnRepealBankToFutureByFutureManual">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNREPEALBANKTOFUTUREBYFUTUREMANUAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnRepealFutureToBankByFutureManual">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNREPEALFUTURETOBANKBYFUTUREMANUAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnFrontConnected">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONFRONTCONNECTED.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnFrontDisconnected">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONFRONTDISCONNECTED.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnHeartBeatWarning">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONHEARTBEATWARNING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspAuthenticate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPAUTHENTICATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspBatchOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPBATCHORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspCombActionInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPCOMBACTIONINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspError">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPERROR.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspExecOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPEXECORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspExecOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPEXECORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspForQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPFORQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspFromBankToFutureByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPFROMBANKTOFUTUREBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspFromFutureToBankByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPFROMFUTURETOBANKBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspGenUserCaptcha">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPGENUSERCAPTCHA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspGenUserText">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPGENUSERTEXT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspOptionSelfCloseAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPOPTIONSELFCLOSEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspOptionSelfCloseInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPOPTIONSELFCLOSEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspParkedOrderInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPPARKEDORDERINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryAccountregister">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYACCOUNTREGISTER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryBrokerTradingAlgos">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYBROKERTRADINGALGOS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryBrokerTradingParams">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYBROKERTRADINGPARAMS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryCFMMCTradingAccountKey">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCFMMCTRADINGACCOUNTKEY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryCombAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCOMBACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryCombInstrumentGuard">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCOMBINSTRUMENTGUARD.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryContractBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCONTRACTBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryDepthMarketData">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYDEPTHMARKETDATA.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryEWarrantOffset">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEWARRANTOFFSET.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryExchange">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEXCHANGE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryExchangeMarginRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEXCHANGEMARGINRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryExchangeMarginRateAdjust">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEXCHANGEMARGINRATEADJUST.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryExchangeRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEXCHANGERATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryExecOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYEXECORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryForQuote">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYFORQUOTE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInstrument">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInstrumentCommissionRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINSTRUMENTCOMMISSIONRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInstrumentMarginRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINSTRUMENTMARGINRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInstrumentOrderCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINSTRUMENTORDERCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestor">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTOR.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorPositionCombineDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPOSITIONCOMBINEDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorPositionDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPOSITIONDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorProductGroupMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPRODUCTGROUPMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestUnit">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTUNIT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryMMInstrumentCommissionRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYMMINSTRUMENTCOMMISSIONRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryMMOptionInstrCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYMMOPTIONINSTRCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryNotice">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYNOTICE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryOptionInstrCommRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYOPTIONINSTRCOMMRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryOptionInstrTradeCost">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYOPTIONINSTRTRADECOST.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryOptionSelfClose">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYOPTIONSELFCLOSE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryParkedOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPARKEDORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryProduct">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryProductExchRate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCTEXCHRATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryProductGroup">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYPRODUCTGROUP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryQuote">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYQUOTE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySecAgentACIDMap">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSECAGENTACIDMAP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySecAgentCheckMode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSECAGENTCHECKMODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySecAgentTradeInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSECAGENTTRADEINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySecAgentTradingAccount">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSECAGENTTRADINGACCOUNT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySettlementInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSETTLEMENTINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySettlementInfoConfirm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSETTLEMENTINFOCONFIRM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTrade">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRADE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTradingAccount">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRADINGACCOUNT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTradingCode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRADINGCODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTradingNotice">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRADINGNOTICE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTransferBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRANSFERBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTransferSerial">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRANSFERSERIAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQueryBankAccountMoneyByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQUERYBANKACCOUNTMONEYBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQueryCFMMCTradingAccountToken">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQUERYCFMMCTRADINGACCOUNTTOKEN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQuoteAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQUOTEACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQuoteInsert">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQUOTEINSERT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspRemoveParkedOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPREMOVEPARKEDORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspRemoveParkedOrderAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPREMOVEPARKEDORDERACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspSettlementInfoConfirm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPSETTLEMENTINFOCONFIRM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspTradingAccountPasswordUpdate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPTRADINGACCOUNTPASSWORDUPDATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserAuthMethod">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPUSERAUTHMETHOD.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserLogin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPUSERLOGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserLogout">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPUSERLOGOUT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspUserPasswordUpdate">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPUSERPASSWORDUPDATE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnBulletin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNBULLETIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnCancelAccountByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNCANCELACCOUNTBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnCFMMCTradingAccountToken">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNCFMMCTRADINGACCOUNTTOKEN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnChangeAccountByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNCHANGEACCOUNTBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnCombAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNCOMBACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnErrorConditionalOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNERRORCONDITIONALORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnExecOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNEXECORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnForQuoteRsp">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNFORQUOTERSP.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnFromBankToFutureByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNFROMBANKTOFUTUREBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnFromBankToFutureByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNFROMBANKTOFUTUREBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnFromFutureToBankByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNFROMFUTURETOBANKBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnFromFutureToBankByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNFROMFUTURETOBANKBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnInstrumentStatus">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNINSTRUMENTSTATUS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnOpenAccountByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNOPENACCOUNTBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnOptionSelfClose">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNOPTIONSELFCLOSE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnOrder">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnQueryBankBalanceByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNQUERYBANKBALANCEBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnQuote">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNQUOTE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromBankToFutureByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMBANKTOFUTUREBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromBankToFutureByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMBANKTOFUTUREBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromBankToFutureByFutureManual">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMBANKTOFUTUREBYFUTUREMANUAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromFutureToBankByBank">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMFUTURETOBANKBYBANK.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromFutureToBankByFuture">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMFUTURETOBANKBYFUTURE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnRepealFromFutureToBankByFutureManual">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNREPEALFROMFUTURETOBANKBYFUTUREMANUAL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnTrade">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNTRADE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnTradingNotice">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNTRADINGNOTICE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryMaxOrderVolume">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/OnRspQryMaxOrderVolume.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryClassifiedInstrument">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCLASSIFIEDINSTRUMENT.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryCombPromotionParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCOMBPROMOTIONPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRiskSettleInvstPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRISKSETTLEINVSTPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRiskSettleProductStatus">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRISKSETTLEPRODUCTSTATUS.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryTraderOffer">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYTRADEROFFER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMFutureParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMFUTUREPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMOptionParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMOPTIONPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMPortfDefinition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMPORTFDEFINITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMInvestorPortfDef">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMINVESTORPORTFDEF.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorPortfMarginRatio">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPORTFMARGINRATIO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorProdSPBMDetail">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPRODSPBMDETAIL.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorCommoditySPMMMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORCOMMODITYSPMMMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorCommodityGroupSPMMMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORCOMMODITYGROUPSPMMMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPMMInstParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPMMINSTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPMMProductParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPMMPRODUCTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySPBMAddOnInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPBMADDONINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSCombProductInfo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSCOMBPRODUCTINFO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSInstrParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSINSTRPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSShortOptAdjustParam">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSSHORTOPTADJUSTPARAM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRCAMSInvestorCombPosition">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRCAMSINVESTORCOMBPOSITION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorProdRCAMSMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPRODRCAMSMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRULEInstrParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRULEINSTRPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRULEIntraParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRULEINTRAPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryRULEInterParameter">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYRULEINTERPARAMETER.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorProdRULEMargin">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPRODRULEMARGIN.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorPortfSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPORTFSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryInvestorInfoCommRec">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORINFOCOMMREC.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryCombLeg">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCOMBLEG.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspCancelOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPCANCELOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnCancelOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNCANCELOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryOffsetSetting">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYOFFSETSETTING.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryUserSession">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYUSERSESSION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnPrivateSeqNo">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNPRIVATESEQNO.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspGenSMSCode">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPGENSMSCODE.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspSpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspSpdApplyAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPSPDAPPLYACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQrySpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnSpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnSpdApply">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNSPDAPPLY.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnSpdApplyAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNSPDAPPLYACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPHEDGECFM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspHedgeCfmAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPHEDGECFMACTION.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRspQryHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYHEDGECFM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnRtnHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONRTNHEDGECFM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnHedgeCfm">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNHEDGECFM.html">
+</OBJECT>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="OnErrRtnHedgeCfmAction">
+				<param name="Local" value="JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNHEDGECFMACTION.html">
+</OBJECT>
+			</UL>
+		</UL>
+	<LI> <OBJECT type="text/sitemap">
+	<param name="Name" value="TGate网关接入指南">
+	<param name="Local" value="TGATEWGJRZN/_TGATEWGJRZN.html">
+</OBJECT>
+		<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="TGate网关接入指南">
+			<param name="Local" value="TGATEWGJRZN/TGATEWGJRZN.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="6.7.11TGate版本更新说明">
+			<param name="Local" value="TGATEWGJRZN/6.7.11TGATEBBGXSM.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="6.7.12TGate版本更新说明">
+			<param name="Local" value="TGATEWGJRZN/6.7.12TGATEBBGXSM.html">
+</OBJECT>
+		</UL>
+	<LI> <OBJECT type="text/sitemap">
+	<param name="Name" value="其他业务规则">
+	<param name="Local" value="QTYWGZ/_QTYWGZ.html">
+</OBJECT>
+		<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="做市商询价和报价">
+			<param name="Local" value="QTYWGZ/BJHXJ.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="报单回调规则">
+			<param name="Local" value="QTYWGZ/DBHB.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="大商所组保">
+			<param name="Local" value="QTYWGZ/DCEZB.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="报价回调规则">
+			<param name="Local" value="QTYWGZ/DJHDGZ.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="协议方式接收二代组播行情">
+			<param name="Local" value="QTYWGZ/EDHQJR.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="fens连接说明">
+			<param name="Local" value="QTYWGZ/FENS.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="各交易所行情区别">
+			<param name="Local" value="QTYWGZ/HQSM.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="合约状态变化说明">
+			<param name="Local" value="QTYWGZ/HYZTBHSM2.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="报单流控、查询流控和会话数控制">
+			<param name="Local" value="QTYWGZ/LK.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="通讯模式">
+			<param name="Local" value="QTYWGZ/SJLSM.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="TAS介绍">
+			<param name="Local" value="QTYWGZ/TASJS.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="条件单规则">
+			<param name="Local" value="QTYWGZ/TJDGZ.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="各交易所特殊指令">
+			<param name="Local" value="QTYWGZ/GJYSTSZL.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="接口中一些重要序号说明">
+			<param name="Local" value="QTYWGZ/JKZYXZYXHSM.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="期货期权的行权、自对冲">
+			<param name="Local" value="QTYWGZ/QHQQDHQ-ZDCGZ.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="行情流控">
+			<param name="Local" value="QTYWGZ/HQLK.html">
+</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="大商所行权优化二阶段业务">
+			<param name="Local" value="QTYWGZ/DSSHQYHEJDYW.html">
+</OBJECT>
+		</UL>
+	</UL>
+</BODY></HTML>

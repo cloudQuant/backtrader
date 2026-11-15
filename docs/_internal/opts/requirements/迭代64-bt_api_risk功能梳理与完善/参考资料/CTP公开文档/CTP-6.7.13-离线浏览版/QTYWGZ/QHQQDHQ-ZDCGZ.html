@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+期货期权的行权、自对冲</title>
+<meta name="info" content="QHQQDHQ-ZDCGZ.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>期货期权的行权、自对冲</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#0da6a6a1-b98a-48d1-a464-74809f6364fc">1. 接口说明</a></p><p><a href="#f5c91c21-a837-4dab-8af4-a364bb6e15a0">2. 行权执行指令</a></p><p>　<a href="#af3b306a-4fde-48e5-ac54-49cdc86cf82b">2.1. 申请指令</a></p><p>　<a href="#dc3a60bb-a419-43a9-91f5-d7791b7aea76">2.2. 自动行权、放弃行权和取消到期日自动行权</a></p><p>　<a href="#11b269d6-2c85-4c30-9e6a-95f44a9ea2ab">2.3. 撤销申请指令</a></p><p><a href="#baa4c7c8-2c62-4638-b0bd-5f3766a0365e">3. 自对冲</a></p><p>　<a href="#a0f52338-132d-406b-a20c-f4151a3fc579">3.1. 行权后期货自对冲</a></p><p>　<a href="#1965d819-0706-4759-9450-b02945baa493">3.2. 期权自对冲</a></p><p>　<a href="#1b6eea7c-b673-49af-bd44-762ef881bb7b">3.3. 做市商留仓</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="JKZYXZYXHSM.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="HQLK.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>本文旨在说明行权和自对冲在CTP上的实现，具体业务规则以交易所为准。</p>
+<span id="0da6a6a1-b98a-48d1-a464-74809f6364fc" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 接口说明</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<ul>
+<li>行权申请指令</li>
+</ul>
+<p>行权申请：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERINSERT.html">ReqExecOrderInsert</a></p>
+<p>错误响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNEXECORDERINSERT.html">OnErrRtnExecOrderInsert</a>，<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPEXECORDERINSERT.html">OnRspExecOrderInsert</a></p>
+<p>正确响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNEXECORDER.html">OnRtnExecOrder</a></p>
+<ul>
+<li>行权撤销指令</li>
+</ul>
+<p>行权撤销：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERACTION.html">ReqExecOrderAction</a></p>
+<p>错误响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNEXECORDERACTION.html">OnErrRtnExecOrderAction</a>，<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPEXECORDERACTION.html">OnRspExecOrderAction</a></p>
+<p>正确响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNEXECORDER.html">OnRtnExecOrder</a></p>
+<ul>
+<li>期权自对冲指令</li>
+</ul>
+<p>自对冲申请：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">ReqOptionSelfCloseInsert</a></p>
+<p>错误响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNOPTIONSELFCLOSEINSERT.html">OnErrRtnOptionSelfCloseInsert</a>，<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPOPTIONSELFCLOSEINSERT.html">OnRspOptionSelfCloseInsert</a></p>
+<p>正确响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNOPTIONSELFCLOSE.html">OnRtnOptionSelfClose</a></p>
+<ul>
+<li>期权自对冲撤销指令</li>
+</ul>
+<p>自对冲撤销：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEACTION.html">ReqOptionSelfCloseAction</a></p>
+<p>错误响应: <a href="../JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNOPTIONSELFCLOSEACTION.html">OnErrRtnOptionSelfCloseAction</a>，<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPOPTIONSELFCLOSEACTION.html">OnRspOptionSelfCloseAction</a></p>
+<p>正确响应: <a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNOPTIONSELFCLOSE.html">OnRtnOptionSelfClose</a></p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="f5c91c21-a837-4dab-8af4-a364bb6e15a0" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 行权执行指令</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<span id="af3b306a-4fde-48e5-ac54-49cdc86cf82b" class="anchor"></span><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>2.1. 申请指令</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>行权指令包括<strong>申请行权</strong>和<strong>放弃行权</strong>。</p>
+<p>美式期权的买方在合约到期日及其之前任一交易日均可行使权利，可以在到期日之前任一交易日的交易时间，以及到期日15:30之前提出行权申请；欧式期权的买方只可在合约到期日当天行使权利，到期日同最后交易日。欧式和美式如下表所示：</p>
+<table><tr><th style="TEXT-ALIGN: center;">　</th><th style="TEXT-ALIGN: center;">CFFEX</th><th style="TEXT-ALIGN: center;">CZCE</th><th style="TEXT-ALIGN: center;">DCE</th><th style="TEXT-ALIGN: center;">INE</th><th style="TEXT-ALIGN: center;">SHFE</th></tr><tr><td style="TEXT-ALIGN: center;">美式</td>
+<td style="TEXT-ALIGN: center;">　</td>
+<td style="TEXT-ALIGN: center;">白糖期权<br />棉花期权<br />PTA期权<br />甲醇期权<br />菜籽粕期权<br /></td>
+<td style="TEXT-ALIGN: center;">豆粕期权<br />玉米期权<br />铁矿石期权<br />液化石油气期权</td>
+<td style="TEXT-ALIGN: center;">原油期权</td>
+<td style="TEXT-ALIGN: center;">橡胶期权<br />铝期权<br />锌期权</td>
+</tr>
+<tr><td style="TEXT-ALIGN: center;">欧式</td>
+<td style="TEXT-ALIGN: center;">沪深300股指期权</td>
+<td style="TEXT-ALIGN: center;">　</td>
+<td style="TEXT-ALIGN: center;">　</td>
+<td style="TEXT-ALIGN: center;">　</td>
+<td style="TEXT-ALIGN: center;">铜期权<br />黄金期权</td>
+</tr>
+</table>
+<p>如果非到期日申请，<strong>CTP不做判断</strong>，报入交易所后会返回报错：报单被拒绝，不在宣告期内。</p>
+<p>行权会锁仓，并冻结资金。可行权的仓位根据多头持仓减去冻结持仓，同时计算可用资金满足支付行权权利金的仓位，二者取最小值作为可行权的实际仓位。行权冻结的仓体现在StrikeFrozen字段。</p>
+<p>放弃行权会锁仓，但是不冻结资金。放弃行权冻结的仓体现在AbandonFrozen字段。</p>
+<p>目前行权和放弃行权都使用<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERINSERT.html">ReqExecOrderInsert</a>接口，通过ActionType区分：行权申请THOST_FTDC_ACTP_Exec，放弃行权申请THOST_FTDC_ACTP_Abandon。</p>
+<blockquote>
+  <p>中金所目前不支持现货期权的相关行权指令，支持期货期权的行权指令。</p>
+  
+  <p>针对上期所开平标志可以报入平今THOST_FTDC_OF_CloseToday，平昨THOST_FTDC_OF_CloseYesterday和平仓THOST_FTDC_OF_Close。其中平仓的逻辑跟平仓单的逻辑一样，如果客户报入平仓单，实际上CTP会处理为平昨仓。</p>
+</blockquote>
+<span id="dc3a60bb-a419-43a9-91f5-d7791b7aea76" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>2.2. 自动行权、放弃行权和取消到期日自动行权</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>交易所会在期权合约到期日闭市后，默认自动将客户的实值期权进行行权，虚值期权放弃行权。如果客户不想执行某个实值期权，可在最后交易日申请放弃行权。</p>
+<ul>
+<li><p>上期、能源、郑州支持放弃行权。</p></li>
+<li><p>中金所对于现货期权不支持通过柜台系统（例如CTP）放弃行权，只支持通过会服系统进行操作。</p></li>
+<li><p>大商所不支持放弃行权，只支持取消到期日自动行权。例如，投资者10手实值期权，若要放弃其中2手，则需要先取消到期日自动行权，然后再申报行权8手，以此达到目的。</p></li>
+</ul>
+<blockquote>
+  <p>大商所取消到期日自动行权方法为：使用接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERINSERT.html">ReqExecOrderInsert</a>，行权数量<strong>Volume填0</strong>。对数量不做校验，不冻钱不冻仓，只有到期日才能报入。</p>
+</blockquote>
+<p>通过接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQQRYEXECORDER.html">ReqQryExecOrder</a>可以查询已报入交易系统的申请指令。</p>
+<p><span id="anchor-id-02" alt=""></span> </p>
+<span id="11b269d6-2c85-4c30-9e6a-95f44a9ea2ab" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>2.3. 撤销申请指令</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<p>对于已报入交易系统的行权申请或放弃申请指令，CTP提供接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERACTION.html">ReqExecOrderAction</a>撤销申请。</p>
+<p>指令通过<strong>ActionType</strong>字段取值<strong>THOST_FTDC_ACTP_Exec</strong>、</p>
+<p><strong>FrontID</strong>、<strong>SessionID</strong>、<strong>ExecOrderRef</strong>、<strong>InstrumentID</strong>四个字段为一组条件撤销一笔申请（6.7.2开始支持撤销其他席位发起的“取消到期自动行权”指令或“期权自对冲”指令，由于接收其他席位的指令frontid+sessionid都是0，填0即可）。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="baa4c7c8-2c62-4638-b0bd-5f3766a0365e" class="anchor"></span></div></div><h1 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>3. 自对冲</h1><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h1' id='panel6'>
+<p>自对冲的业务含义是指向交易所提出申请将同一期权的多空头仓位，或者期权行权后或者履约后形成的期货的多空头仓位自我对冲掉。</p>
+<blockquote>
+  <p>目前郑商所和中金所的自对冲业务都是走会服系统，不通过交易通道。本栏目内容不包含郑商所和中金所</p>
+</blockquote>
+<span id="a0f52338-132d-406b-a20c-f4151a3fc579" class="anchor"></span><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>3.1. 行权后期货自对冲</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<p>期权买方（卖方）可以申请对其同一交易编码下行权后（履约后）双向期货持仓进行对冲平仓，对冲数量不超过行权获得的期货持仓量。对冲结果从当日期货持仓量中扣除，并计入成交量。</p>
+<p>多头持仓的行权后期货自对冲仍采用行权接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQEXECORDERINSERT.html">ReqExecOrderInsert</a>，其中<strong>CloseFlag</strong>取值<strong>THOST_FTDC_EOCF_AutoClose</strong>来实现。</p>
+<p>针对空头持仓的履约后期货自对冲提供接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">ReqOptionSelfCloseInsert</a>，通过<strong>OptSelfCloseFlag</strong>字段取值<strong>THOST_FTDC_OSCF_SellCloseSelfFuturePosition</strong>实现。</p>
+<span id="1965d819-0706-4759-9450-b02945baa493" class="anchor"></span></div><h2 class='title' id='title8' title='点击展开/折叠'><span id='header_span8' class='header_span'>◇ </span>3.2. 期权自对冲</h2><script>$(document).ready(function(){$("#title8").click(function(){$("#panel8").toggle();if($("#panel8").is(":hidden")){$("#header_span8").html('◆ ');}else{$("#header_span8").html('◇ ');}});});</script><div class='panel_title_h2' id='panel8'>
+<p>客户可以申请对其同一交易编码下的双向期权持仓进行对冲平仓。对冲结果从当日期权持仓量中扣除，并计入成交量。</p>
+<p>期权自对冲通过<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">ReqOptionSelfCloseInsert</a>接口，<strong>OptSelfCloseFlag</strong>字段取值<strong>THOST_FTDC_OSCF_CloseSelfOptionPosition</strong>申报。</p>
+<p>该指令支持指定数量申请<strong>Volume</strong>，但是对仓位和资金都不做校验，比如某个投资者对期权合约并没有仓位，但是也可以申请期权自对冲。交易所盘后会去校验。投资者可以修改手数，目前CTP提供接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEACTION.html">ReqOptionSelfCloseAction</a>，支持撤销自对冲后，重新申请。</p>
+<p>上期所期权自对冲仅普通投资者可申请。针对同一客户，同合约和同开平标志(OffsetFlag)，只维护一条信息，后续报入的指令，都是更新操作。既期权自对冲本地报单编号相同。比如同一投资者对某一个铜期权申请期权自对冲3手，然后再报入该指令，申请期权自对冲5手，那么交易所查询的期权自对冲记录依然是一条，但是手数变为5。</p>
+<p>大商所的期权自对冲普通投资者和做市商都可以申请，该设置是指定合约，不区分投机和套保，不指定数量，当日有效。</p>
+<span id="1b6eea7c-b673-49af-bd44-762ef881bb7b" class="anchor"></span></div><h2 class='title' id='title9' title='点击展开/折叠'><span id='header_span9' class='header_span'>◇ </span>3.3. 做市商留仓</h2><script>$(document).ready(function(){$("#title9").click(function(){$("#panel9").toggle();if($("#panel9").is(":hidden")){$("#header_span9").html('◆ ');}else{$("#header_span9").html('◇ ');}});});</script><div class='panel_title_h2' id='panel9'>
+<p>交易所默认每天对做市商的期权买卖仓位自对冲（平仓），所以提供该选项给做市商，可以去申请留仓，当天不要被自对冲。</p>
+<p>沿用<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQOPTIONSELFCLOSEINSERT.html">ReqOptionSelfCloseInsert</a>接口，<strong>OptSelfCloseFlag</strong>字段取值<strong>THOST_FTDC_OSCF_CloseSelfOptionPosition</strong>申报。</p>
+<blockquote>
+  <p>目前仅支持上期所做市商留仓申请</p>
+</blockquote>
+
+</div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="JKZYXZYXHSM.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="HQLK.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='JKZYXZYXHSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='HQLK.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

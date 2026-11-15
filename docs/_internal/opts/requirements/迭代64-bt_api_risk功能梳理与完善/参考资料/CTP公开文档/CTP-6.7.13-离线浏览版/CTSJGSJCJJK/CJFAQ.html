@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+常见FAQ</title>
+<meta name="info" content="CJFAQ.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>常见FAQ</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><p>看穿式监管API相关FAQ</p>
+<ol>
+<li><p>Q: 在看穿式监管上线之后，是不是必须把CSRC要求的信息发送给CTP才可以下单正常交易？</p>
+<p>A: 上线后，监管上要求自觉上报采集信息，但是你不上报，也是能登录并交易的，CTP这边不做强制限制，但是该行为不符合监管要求。</p></li>
+<li><p>Q:   目前测试终端采集，同一个UserID，在多个客户端登录，中继代理这边建立了多个实例，请问同一UserID允许建立多少个实例？目前超过4个就会报：用户在线会话超出上限。但是中继代理模式很有可能出现超过4个客户端同时登录的情况。</p>
+<p>A：这个是系统设置，跟看穿式监管无关，在柜台“用户最大会话数”中设置。</p></li>
+<li><p>Q：看穿式监管API断线重连是否需要重新发起认证和登录前的信息上报？</p>
+<p>A： 断线重连需要重新认证、信息上报、登录。</p></li>
+<li><p>Q：看穿式监管API登录请求接口中是否可以不再传IP、端口、登录备注等<a href="../JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">RegisterUserSystemInfo</a>接口已经传过的入参数据？</p>
+<p>A:登录里的ip和mac无需填写，并且手填无效。</p></li>
+<li><p>Q：一个帐号在多个终端登录时，通过中继代理必须每个终端和CTP建立一个连接吗？ </p>
+<p>A: 中继多对多模式下，要为每个客户端建立一个会话；一对多的模式，所有客户端共享一个操作员会话。</p></li>
+<li><p>Q: 测试发现终端信息为空的话，调用<a href="../JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">RegisterUserSystemInfo</a>会返回-1，这种情况，CTP是收到了空的终端信息，还是根本就不会生成任何记录？</p>
+<p>A：收到了空的终端信息，监控中心不允许上报空信息。</p></li>
+<li><p>Q:柜台的认证码，除了可以根据终端产品配置，能不能根据资金账号配置?</p>
+<p>A:不能</p></li>
+<li><p>Q：请问如果期货公司已经升级到看穿式监管版本6.3.13T4，那么我们软件提供商只是需要改前置地址就可以正常使用登陆，下单等功能吗？（暂不考虑提供看穿式监管的相关信息要求）？</p>
+<p>A：使用新版本api需要接入到新的se前置，旧版本api的接入在老前置还存在的情况下无需调整。</p></li>
+<li><p>Q：测试看穿式监管的安卓版API，在获取硬件信息时较慢</p>
+<p>A：目前安卓版采集函数会首先进行实时定位，2秒后定位不到则使用上一次的位置信息。采集硬件信息的速度取决于安卓版本定位的速度。</p></li>
+<li><p>Q: 发现直连模式API demo中没有用CTP_GetSystemInfo(pSystemInfo, len)，是否意味着直连模式的话就不需要提交这个统计系统信息的？</p>
+<p>A：直连的模式traderapi已经集成采集功能，在登录的时候自动调用。CTP_GetSystemInfo函数是给中继模式中的客户端使用的。</p></li>
+<li><p>Q: 调用中继代理看穿式监管接口<a href="../JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">RegisterUserSystemInfo</a>时，一直提示“<a href="../JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">RegisterUserSystemInfo</a> not permittedt”是什么原因啊？</p>
+<p>A: 如果提示operation not permitted，可能是AppID类型错误。例如，直连模式的AppID，却错误调用了SubmitUserSystemInfo。此错误不会通过特定接口返回，只在标准输出中提示，例如直接在屏幕上打印出来。</p></li>
+<li><p>Q：看穿式监管现在测试环境对应API库版本是6.3.13。后面升级到6.3.15版本的生产包，API库有变更吗，我们的对接程序需要改动嘛？</p>
+<p>A:  pc版的替换dll就行，不需要重新编译；安卓版替换sdk，然后编译应用。</p></li>
+<li><p>Q: 调用CTP_GetSystemInfo函数获取到的终端加密信息出来都是乱码，用base64转码就是正常的字符串了，上传终端信息传的是base64转码后的字符串吗？</p>
+<p>A：不是，原始字符数组</p></li>
+<li><p>Q: 6.3.13_T4就是测试环境用的？6.3.15是生产使用的？这2个都是front_se，期货公司的柜台也必须要升级到对应的版本？</p>
+<p>A:  6.3.11API为非看穿式监管版本，只能连接普通前置；由于评测版本和生产版本使用的监控中心密钥不同，6.3.13评测版API只能连接评测版看穿式监管前置，6.3.15生产版API只能连接生产版看穿式监管前置。API、采集库和前置版本必须一一对应，否则无法连接前置或无法解密采集数据！！</p></li>
+<li><p>Q: 是否可以把测试环境的所有组成API，采集库，前置，都升级成6.3.15，通过测试后，再在生产做相同版本的升级？</p>
+<p>A: 6.3.15采集的信息经过生产密钥加密，只有监控中心能解密，期货公司没法拿来做评测。</p></li>
+<li><p>Q: 请问下看穿式监管信息采集评测工具（CDP网站上有），只能采集到当天第一次登录采集的信息吗？</p>
+<p>A: 不是，每次登录上报都会采集</p></li>
+<li><p>Q: 中继代理补充获取终端软件“异常标示”，“appid”等信息，都是由终端传到中继，而不是中继自行获取的吗？</p>
+<p>A：</p>
+<p>该问题要分开来看</p>
+<p>“异常标示”包含在终端采集信息里，由采集函数自动采集，非中继自行获取，中继只负责上报</p>
+<p>ClientPublicIP：用户终端IP，由中继采集和填写</p>
+<p>ClientLoginTime：用户登录中继时间，由中继采集和填写</p>
+<p>ClientAppid：用户终端的appid，由中继采集和填写</p></li>
+<li><p>Q：采集的大部分信息都在pSystemInfo这个字段里，该字符串需要加密，这里加密方式是用CTP给的还是自己系统做加密？</p>
+<p>A: 采集到的数据经过监控中心密钥加密+CTP防伪加密 ，给到ctp。ctp解开自己的防伪加密后给到监控中心（为监控中心密钥加密后的结果）</p></li>
+<li><p>Q: relayappID与直连的appID设置成一样的，这样可以分别获得2套encryption key吗？</p>
+<p>A: 不行的，两者名称要区分开</p></li>
+<li><p>Q: 新的柜台里面userproductinfo还有用吗？</p>
+<p>A: userproductinfo是连接非看穿式监管前置做认证用的，AppID是连接看穿式监管前置做认证用的。看穿式监管上线后，仍有部分期货公司需要根据这个字段进行其他统计用途，具体需要视具体期货公司而定</p></li>
+<li><p>Q:  Linux 虚拟机 硬盘序列号、CPU序列号、BIOS序列号3项指标采集不到怎么处理 ？</p>
+<p>A: 信息采集过程中，遇到某些信息没采集到，但又不知道是否正常，这个时候可以参考监控中心规范文档里的函数手工调用，判断是否是权限问题或者相应操作系统命令组件没有部署，采集库需要u+s权限。如果正常情况下手工调用能采集到，而采集函数采集不到，请联系上期技术。</p></li>
+<li><p>Q: 登陆时报“Decrypt handshake data failed”错误是什么原因？</p>
+<p>A：终端使用的api与前置版本不匹配导致，应核对版本。</p></li>
+<li><p>Q: 如果我们终端自行获取信息（privateIP，terminalType，MAC等），能否再调用.dll进行加密？</p>
+<p>A:不行，必须调用getsysteminfo来采集，不能自行采集</p></li>
+<li><p>Q: 流程是只有通过了测试环境的穿透式，才可以拿到生产的AuthCode？</p>
+<p>A: 必须通过评测</p></li>
+<li><p>Q: 未来是否可以将生产和测试的版本统一起来，还是会保持2个分支？</p>
+<p>A: 目前没有计划统一</p></li>
+<li><p>Q: 关于做市商测试上期所询价功能，目前有同时满足看穿式监管和询价字段的API吗？哪个版本的报盘可以满足做市商询价功能的测试？</p>
+<p>A: 目前API都支持上期所询价的改动，T6版本报盘已经支持该功能，报盘所在操作系统必须要6.6以上。</p></li>
+<li><p>Q: <a href="../HQJK/CTHOSTFTDCMDSPI/ONRSPERROR.html">OnRspError</a>报错“CTP:API Front shake hand err : version err”是什么意思</p>
+<p>A：6.3.20以上版本，对api版本错误报错有改动，原先报错Decrypt handshake data failed现在有核心通过OnRspError返回报错。</p></li>
+<li><p><span id="anchor-id-05" alt=""></span>      Q: <a href="../HQJK/CTHOSTFTDCMDSPI/ONRSPERROR.html">OnRspError</a>报错“CTP:API Front shake hand err : decode err”是什么意思</p>
+<p>A：同27问。</p></li>
+</ol>
+
+<script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="_CTSJGSJCJJK.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="CTP-GETSYSTEMINFO.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='_CTSJGSJCJJK.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='CTP-GETSYSTEMINFO.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

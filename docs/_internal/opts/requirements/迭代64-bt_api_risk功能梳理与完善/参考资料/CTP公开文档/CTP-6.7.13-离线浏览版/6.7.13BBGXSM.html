@@ -1,0 +1,321 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+6.7.13版本更新说明</title>
+<meta name="info" content="6.7.13BBGXSM.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>6.7.13版本更新说明</p><hr class="headerline"/><div id="content"><script src="jquery-1.7.0.min.js"></script><script src="menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#c0b56737-de8c-403b-9ada-ae6b2fdcebe8">1. API变动</a></p><p>　<a href="#e88ab2f3-4dc5-4374-8753-2343cf84a372">1.1.后台V6.7.12版本优化</a></p><p>　<a href="#ca3cfbcc-5b18-46e8-87f1-e7fcad27d3cd">1.2.投资者账户登录支持双因素认证功能：</a></p><p>　<a href="#4f668fba-0238-4870-be1e-36be05861efa">1.3.订阅私有流接口调整</a></p><p>　<a href="#e8fce50a-d3bb-42f9-bdf0-0246566286eb">1.4.增加私有流序号回调接口<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRTNPRIVATESEQNO.html">OnRtnPrivateSeqNo</a>：</a></p><p>　<a href="#95b31a51-c541-4d89-9f00-5db00e423bce">1.5.优化中继上报用户信息接口</a></p><p>　<a href="#6134cd0f-43de-4747-8d7d-14f2a12c2dec">1.6.新增支持郑商所套利确认和套保确认指令的接口</a></p><p>　<a href="#0b89358a-7869-4a12-945b-9135399fa9bb">1.6.1.套利确认指令：</a></p><p>　<a href="#ac5a5249-28b5-4c55-b636-34aa14ad8acc">1.6.2.套保确认指令：</a></p><p>　<a href="#dc8a1fd4-4694-43bc-ada4-3dfb9679c39f">1.6.3.后台校验后，给API返回的报错信息有（详见 error.xml）：</a></p><p>　<a href="#5df64cb6-b58a-418d-8a58-d35be1d025ac">1.7.柜台支持期权到期日盘后禁止终端行权及做期权自对冲的时间设置，增加返回API的报错信息（详见 error.xml）：</a></p><p>　<a href="#249cc7cc-2939-4653-8bea-99c303850e55">1.8.采集库修改：</a></p><p>　<a href="#bdf60168-53c7-470b-b708-d16508b80f79">1.9.请求查询签约银行接口的响应 </a></p><p>　<a href="#2f23606e-9d07-4e4f-b7a6-ae7dc7c95b45">1.10.后台V6.7.13版本优化，不涉及API修改，但对API有影响的变更：</a></p><p>　<a href="#c8123df1-1b3b-4687-9985-353974cfd5f9">1.10.1.支持上期能源套利和市价指令业务，API使用方式有变化，具体如下：</a></p><p>　<a href="#4d4c6218-1caa-4289-9f03-cac84b1dbd35">1.10.2.支持不指定合约申报广期所的履约对冲业务（即合约代码可不填）。</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="6.7.11BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="CTSJGSJCJJK/_CTSJGSJCJJK.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>版本号：v6.7.13_20260225 14:16:30.12079</p>
+<p>后台版本：V6.7.13</p>
+<p>变更说明：（请各终端厂商根据自身情况进行开发）</p>
+<span id="c0b56737-de8c-403b-9ada-ae6b2fdcebe8" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. API变动</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<span id="e88ab2f3-4dc5-4374-8753-2343cf84a372" class="anchor"></span><h2 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>1.1.后台V6.7.12版本优化</h2><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h2' id='panel2'>
+<p>不涉及API修改，但对API有影响的变更（因V6.7.12没发API版本，故在此文档中进行补充说明）：</p>
+<ol>
+<li><p>优化查询经纪公司交易参数接口<a href="JYJK/CTHOSTFTDCTRADERAPI/REQQRYBROKERTRADINGPARAMS.html">ReqQryBrokerTradingParams</a>返回的盈亏算法Algorithm参数值；</p></li>
+<li><p>对于本就不支持的组合合约的条件单、预埋单、预埋撤单业务，返回明确报错信息如下（详见 error.xml）：</p>
+<p><error id="COMB_PARKED_ORDER_INSERT" value="6011" prompt="CTP:不允许报入组合合约预埋单"/></p>
+<p><error id="COMB_PARKED_ORDER_ACTION" value="6012" prompt="CTP:不允许报入组合合约预埋撤单"/></p>
+<p><error id="COMB_CONDITION_ORDER_INSERT" value="6013" prompt="CTP:不允许报入组合合约条件单"/></p></li>
+</ol>
+<span id="ca3cfbcc-5b18-46e8-87f1-e7fcad27d3cd" class="anchor"></span></div><h2 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>1.2.投资者账户登录支持双因素认证功能：</h2><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h2' id='panel3'>
+<p>（1）新增 申请短信验证码请求接口 <a href="JYJK/CTHOSTFTDCTRADERAPI/REQGENSMSCODE.html">ReqGenSMSCode</a>，请求中的 BrokerID、UserlD、Mobile 必填。</p>
+<pre><code>///申请短信验证码请求
+ReqGenSMSCode
+///申请短信验证码响应
+OnRspGenSMSCode
+</code></pre>
+<p>（2）修改<a href="HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>登录请求接口的CThostFtdc<a href="HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>Field，增加短信验证码字段。</p>
+<pre><code>///短信验证码
+TThostFtdcSMSCodeType   SMSCode;
+</code></pre>
+<p>（3）后台校验后，给API返回的报错信息有（详见 error.xml）：</p>
+<pre><code>&lt;error id="MOBILE_NOT_MATCH" value="6014" prompt="CTP:非预留手机号"/&gt;
+&lt;error id="SMSVERIFY_NOT_CONFIG" value="6015" prompt="CTP:该用户没有开启短信验证"/&gt;
+&lt;error id="DUP_SMSCODE_GEN_REQ" value="6016" prompt="CTP:重复的申请验证码请求"/&gt;
+&lt;error id="SMSCODE_MISMATCH" value="6017" prompt="CTP:验证码不匹配"/&gt;
+&lt;error id="SMSCODE_USED" value="6018" prompt="CTP:验证码已经使用过"/&gt;
+&lt;error id="SMSCODE_OUTOFTIME" value="6019" prompt="CTP:验证码已过期"/&gt;
+&lt;error id="SMSCODE_NEEDED" value="6020" prompt="CTP:您已开启短信认证，请填写短信验证码"/&gt;
+&lt;error id="DR_SMSVERIFY_NOT_CONFIG" value="6021" prompt="CTP:该中心未配置短信验证功能"/&gt;
+&lt;error id="AFTER_LOGIN" value="6023" prompt="CTP:您已登录成功，不允许申请验证码"/&gt;
+</code></pre>
+<span id="4f668fba-0238-4870-be1e-36be05861efa" class="anchor"></span></div><h2 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>1.3.订阅私有流接口调整</h2><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h2' id='panel4'>
+<p>新增 THOST_TERT_RESUME_FROM_SEQ_NO 私有流订阅模式，支持从指定序号开始重传，若未填写序号则默认从序号1开始重传：</p>
+<p>（1）<a href="JYJK/CTHOSTFTDCTRADERAPI/SUBSCRIBEPRIVATETOPIC.html">SubscribePrivateTopic</a> 接口，入参增加 int nSeqNo，不填默认为1；</p>
+<p>（2）THOST_TE_RESUME_TYPE 新增枚举值：THOST_TERT_RESUME_FROM_SEQ_NO</p>
+<span id="e8fce50a-d3bb-42f9-bdf0-0246566286eb" class="anchor"></span></div><h2 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>1.4.增加私有流序号回调接口<a href="JYJK/CTHOSTFTDCTRADERSPI/ONRTNPRIVATESEQNO.html">OnRtnPrivateSeqNo</a>：</h2><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h2' id='panel5'>
+<pre><code>///@param nSeqNo 即将被处理的私有流的序号
+virtual void OnRtnPrivateSeqNo(int nSeqNo) {};  
+</code></pre>
+<span id="95b31a51-c541-4d89-9f00-5db00e423bce" class="anchor"></span></div><h2 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>1.5.优化中继上报用户信息接口</h2><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h2' id='panel6'>
+<p>优化中继上报用户信息接口 <a href="JYJK/CTHOSTFTDCTRADERAPI/REGISTERUSERSYSTEMINFO.html">RegisterUserSystemInfo</a>，新增 MAC 字段。</p>
+<ul>
+<li><p>特别说明：应期货公司按监管要求清洗数据要求，监管字段在此接口均已独立出来。请中继终端规范填写此接口的 ClientPublicIP、ClientAppID、MAC字段，另外ClientLoginRemark 字段建议填写格式为"UUID|手机号.."，注意均填写终端投资者的信息。</p></li>
+<li><p>另外，考虑到监管趋势日趋严厉，CTP后续可能会考虑将这三个字段由非必填改为必填，请提前规范填写。</p></li>
+</ul>
+<blockquote>
+</blockquote>
+<pre><code>///客户终端的MAC等标识
+TThostFtdcDeviceTagType MAC;
+</code></pre>
+<span id="6134cd0f-43de-4747-8d7d-14f2a12c2dec" class="anchor"></span></div><h2 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>1.6.新增支持郑商所套利确认和套保确认指令的接口</h2><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h2' id='panel7'>
+<blockquote>
+  <p>注意，交易所仍在盘后结算才能确认。</p>
+</blockquote>
+<p>说明：</p>
+<p>（1）套利确认请求、套保确认请求，若CTP校验通过后给 Rtn通知 / CTP校验未通过 则给 Rsp响应和ErrRtn —> 从交易所回来收到回报后给Rtn通知（若交易所校验未通过是没有ErrRtn的）。</p>
+<p>（2）套利确认撤销请求、套保确认撤销请求，若CTP校验通过后给 Rtn通知 / CTP校验未通过 则给 Rsp响应和ErrRtn —> 从交易所回来收到回报后给Rtn通知（若交易所校验未通过会有ErrRtn的）。</p>
+<span id="0b89358a-7869-4a12-945b-9135399fa9bb" class="anchor"></span><h3 class='title' id='title8' title='点击展开/折叠'><span id='header_span8' class='header_span'>◇ </span>1.6.1.套利确认指令：</h3><script>$(document).ready(function(){$("#title8").click(function(){$("#panel8").toggle();if($("#panel8").is(":hidden")){$("#header_span8").html('◆ ');}else{$("#header_span8").html('◇ ');}});});</script><div class='panel_title_h3' id='panel8'>
+<p>（1）套利确认申请</p>
+<pre><code>    ///套利确认请求  
+    ReqSpdApply
+    ///套利确认回复
+    OnRspSpdApply
+    ///套利确认通知
+    OnRtnSpdApply
+    ///套利申请录入错误回报
+    OnErrRtnSpdApply
+</code></pre>
+<p>（2）套利确认查询</p>
+<pre><code>    ///套利确认查询请求
+    ReqQrySpdApply
+    ///套利确认查询回复
+    OnRspQrySpdApply
+</code></pre>
+<p>（3）套利确认撤销</p>
+<pre><code>    ///套利确认撤销请求
+    ReqSpdApplyAction
+    ///套利确认撤销回复
+    OnRspSpdApplyAction
+    ///套利确认撤销通知
+    OnErrRtnSpdApplyAction
+</code></pre>
+<span id="ac5a5249-28b5-4c55-b636-34aa14ad8acc" class="anchor"></span></div><h3 class='title' id='title9' title='点击展开/折叠'><span id='header_span9' class='header_span'>◇ </span>1.6.2.套保确认指令：</h3><script>$(document).ready(function(){$("#title9").click(function(){$("#panel9").toggle();if($("#panel9").is(":hidden")){$("#header_span9").html('◆ ');}else{$("#header_span9").html('◇ ');}});});</script><div class='panel_title_h3' id='panel9'>
+<p>（1）套保确认申请</p>
+<pre><code>    ///套保确认请求
+    ReqHedgeCfm
+    ///套保确认回复
+    OnRspHedgeCfm
+    ///套保确认通知
+    OnRtnHedgeCfm
+    ///套保额度录入错误回报
+    OnErrRtnHedgeCfm
+</code></pre>
+<p>（2）套保确认查询   </p>
+<pre><code>    ///套保确认查询请求
+    ReqQryHedgeCfm
+    ///套保确认查询回复
+    OnRspQryHedgeCfm
+</code></pre>
+<p>（3）套保确认撤销   </p>
+<pre><code>    ///套保确认撤销请求
+    ReqHedgeCfmAction
+    ///套保确认撤销回复
+    OnRspHedgeCfmAction
+    ///套保确认撤销通知
+    OnErrRtnHedgeCfmAction
+</code></pre>
+<span id="dc8a1fd4-4694-43bc-ada4-3dfb9679c39f" class="anchor"></span></div><h3 class='title' id='title10' title='点击展开/折叠'><span id='header_span10' class='header_span'>◇ </span>1.6.3.后台校验后，给API返回的报错信息有（详见 error.xml）：</h3><script>$(document).ready(function(){$("#title10").click(function(){$("#panel10").toggle();if($("#panel10").is(":hidden")){$("#header_span10").html('◆ ');}else{$("#header_span10").html('◇ ');}});});</script><div class='panel_title_h3' id='panel10'>
+<pre><code>&lt;error id="SPD_APPLY_ORDER_REF_NOT_FOUND" value="6007" prompt="CTP:未找到套利申请记录"/&gt;
+&lt;error id="SPD_APPLY_STATUS_ERR" value="6008" prompt="CTP:套利申请已撤销，不能重复撤销"/&gt;
+&lt;error id="HEDGE_CFM_ORDER_REF_NOT_FOUND" value="6009" prompt="CTP:未找到套保申请记录"/&gt;
+&lt;error id="HEDGE_CFM_STATUS_ERR" value="6010" prompt="CTP:套保申请已撤销，不能重复撤销"/&gt;
+</code></pre>
+<span id="5df64cb6-b58a-418d-8a58-d35be1d025ac" class="anchor"></span></div></div><h2 class='title' id='title11' title='点击展开/折叠'><span id='header_span11' class='header_span'>◇ </span>1.7.柜台支持期权到期日盘后禁止终端行权及做期权自对冲的时间设置，增加返回API的报错信息（详见 error.xml）：</h2><script>$(document).ready(function(){$("#title11").click(function(){$("#panel11").toggle();if($("#panel11").is(":hidden")){$("#header_span11").html('◆ ');}else{$("#header_span11").html('◇ ');}});});</script><div class='panel_title_h2' id='panel11'>
+<pre><code>&lt;error id="OFFSET_TIME_FORBIDDEN" value="6022" prompt="CTP:该时间为到期日盘后禁止客户端自对冲时间，禁止申报"/&gt;
+</code></pre>
+<span id="249cc7cc-2939-4653-8bea-99c303850e55" class="anchor"></span></div><h2 class='title' id='title12' title='点击展开/折叠'><span id='header_span12' class='header_span'>◇ </span>1.8.采集库修改：</h2><script>$(document).ready(function(){$("#title12").click(function(){$("#panel12").toggle();if($("#panel12").is(":hidden")){$("#header_span12").html('◆ ');}else{$("#header_span12").html('◇ ');}});});</script><div class='panel_title_h2' id='panel12'>
+<p>（1）增加blkid指令补充采集云服务器的硬盘序列号；</p>
+<p>（2）windows版本采集库增加Get-CimInstance命令补充采集cpu序列号、bios序列号、磁盘序列号等信息，以解决高版本windows操作系统不再支持wmic命令的问题。</p>
+<span id="bdf60168-53c7-470b-b708-d16508b80f79" class="anchor"></span></div><h2 class='title' id='title13' title='点击展开/折叠'><span id='header_span13' class='header_span'>◇ </span>1.9.请求查询签约银行接口的响应 </h2><script>$(document).ready(function(){$("#title13").click(function(){$("#panel13").toggle();if($("#panel13").is(":hidden")){$("#header_span13").html('◆ ');}else{$("#header_span13").html('◇ ');}});});</script><div class='panel_title_h2' id='panel13'>
+<p><a href="JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYCONTRACTBANK.html">OnRspQryContractBank</a> 增加csrcBankID字段：</p>
+<pre><code>///上报csrc的银行代码
+TThostFtdcBankIDType    csrcBankID;
+</code></pre>
+<span id="2f23606e-9d07-4e4f-b7a6-ae7dc7c95b45" class="anchor"></span></div><h2 class='title' id='title14' title='点击展开/折叠'><span id='header_span14' class='header_span'>◇ </span>1.10.后台V6.7.13版本优化，不涉及API修改，但对API有影响的变更：</h2><script>$(document).ready(function(){$("#title14").click(function(){$("#panel14").toggle();if($("#panel14").is(":hidden")){$("#header_span14").html('◆ ');}else{$("#header_span14").html('◇ ');}});});</script><div class='panel_title_h2' id='panel14'>
+<span id="c8123df1-1b3b-4687-9985-353974cfd5f9" class="anchor"></span><h3 class='title' id='title15' title='点击展开/折叠'><span id='header_span15' class='header_span'>◇ </span>1.10.1.支持上期能源套利和市价指令业务，API使用方式有变化，具体如下：</h3><script>$(document).ready(function(){$("#title15").click(function(){$("#panel15").toggle();if($("#panel15").is(":hidden")){$("#header_span15").html('◆ ');}else{$("#header_span15").html('◇ ');}});});</script><div class='panel_title_h3' id='panel15'>
+<p>(1)上期能源市价指令：</p>
+<p>价格TThostFtdcPriceType LimitPrice字段填“保护价”；</p>
+<p>报单价格条件 TThostFtdcOrderPriceTypeType OrderPriceType字段填 “任意价”</p>
+<p>(2)上期能源套利指令：</p>
+<p>组合开平标志CombOffsetFlag字段 和 组合投机套保标志CombHedgeflag字段需要输入两位。</p>
+<p>示例：CombOffsetFlag=‘04’(表示左腿开，右腿平昨仓)，CombHedgeFlag=‘13’(表示左腿投机，右腿套保)；</p>
+<p>其他说明：CombOffsetFlag=‘01’的1平仓也会自动转成4平昨；互换单标志 IsSwapOrder字段对上期所无效，也就是说 即便两腿开平标志不同，lsSwapOrder也填false，无需填true</p>
+<p>(3)可开可平手数计算：</p>
+<p>市价指令，采用保护价计算保证金；</p>
+<p>套利指令，traderapi最大可下单手数中开平标志暂不支持输入两位，请用户分别查单腿的再取最小值作为套利合约的可开可平手数。</p>
+<p>(4)其他说明-交易所规则：</p>
+<p>上期能源的市价、套利指令报单，交易所仅允许在合约处于“连续交易”状态时报入；</p>
+<p>集合竞价报单阶段仅允许撤销转限价后的市价报单或套利合约报单，不允许报入市价、套利指令报单。</p>
+<span id="4d4c6218-1caa-4289-9f03-cac84b1dbd35" class="anchor"></span></div><h3 class='title' id='title16' title='点击展开/折叠'><span id='header_span16' class='header_span'>◇ </span>1.10.2.支持不指定合约申报广期所的履约对冲业务（即合约代码可不填）。</h3><script>$(document).ready(function(){$("#title16").click(function(){$("#panel16").toggle();if($("#panel16").is(":hidden")){$("#header_span16").html('◆ ');}else{$("#header_span16").html('◇ ');}});});</script><div class='panel_title_h3' id='panel16'>
+
+</div></div></div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="6.7.11BBGXSM.html" alt="←">&lt; 前页</a> <a href="_index.html" alt="Ctrl+I">回目录</a> <a href="CTSJGSJCJJK/_CTSJGSJCJJK.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='6.7.11BBGXSM.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='CTSJGSJCJJK/_CTSJGSJCJJK.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

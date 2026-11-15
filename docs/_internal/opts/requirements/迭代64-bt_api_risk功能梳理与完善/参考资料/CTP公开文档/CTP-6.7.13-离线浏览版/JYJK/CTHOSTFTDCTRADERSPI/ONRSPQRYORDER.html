@@ -1,0 +1,351 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+OnRspQryOrder</title>
+<meta name="info" content="ONRSPQRYORDER.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>OnRspQryOrder</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#c3f08238-2117-4ff6-9dac-5d7c81d11de7">1. 函数原型</a></p><p><a href="#3f68fc2b-7f64-4c95-8fd6-65abf0003976">2. 参数</a></p><p><a href="#67a03fbb-44d7-433e-bd94-f9387edb3b77">3. 返回</a></p><p><a href="#3a4500bd-896d-40e5-8059-697199f9c572">4. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="ONRSPQRYOPTIONSELFCLOSE.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="ONRSPQRYPARKEDORDER.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>请求查询报单响应，当执行<a href="../CTHOSTFTDCTRADERAPI/REQQRYORDER.html">ReqQryOrder</a>后，该方法被调用。</p>
+<span id="c3f08238-2117-4ff6-9dac-5d7c81d11de7" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>virtual void OnRspQryOrder(CThostFtdcOrderField *pOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="3f68fc2b-7f64-4c95-8fd6-65abf0003976" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>pOrder：报单</p>
+<pre><code>struct CThostFtdcOrderField
+{
+    ///经纪公司代码
+    TThostFtdcBrokerIDType  BrokerID;
+    ///投资者代码
+    TThostFtdcInvestorIDType    InvestorID;
+    ///保留的无效字段
+    TThostFtdcOldInstrumentIDType   reserve1;
+    ///报单引用
+    TThostFtdcOrderRefType  OrderRef;
+    ///用户代码
+    TThostFtdcUserIDType    UserID;
+    ///报单价格条件
+    TThostFtdcOrderPriceTypeType    OrderPriceType;
+    ///买卖方向
+    TThostFtdcDirectionType Direction;
+    ///组合开平标志
+    TThostFtdcCombOffsetFlagType    CombOffsetFlag;
+    ///组合投机套保标志
+    TThostFtdcCombHedgeFlagType CombHedgeFlag;
+    ///价格
+    TThostFtdcPriceType LimitPrice;
+    ///数量
+    TThostFtdcVolumeType    VolumeTotalOriginal;
+    ///有效期类型
+    TThostFtdcTimeConditionType TimeCondition;
+    ///GTD日期
+    TThostFtdcDateType  GTDDate;
+    ///成交量类型
+    TThostFtdcVolumeConditionType   VolumeCondition;
+    ///最小成交量
+    TThostFtdcVolumeType    MinVolume;
+    ///触发条件
+    TThostFtdcContingentConditionType   ContingentCondition;
+    ///止损价
+    TThostFtdcPriceType StopPrice;
+    ///强平原因
+    TThostFtdcForceCloseReasonType  ForceCloseReason;
+    ///自动挂起标志
+    TThostFtdcBoolType  IsAutoSuspend;
+    ///业务单元
+    TThostFtdcBusinessUnitType  BusinessUnit;
+    ///请求编号
+    TThostFtdcRequestIDType RequestID;
+    ///本地报单编号
+    TThostFtdcOrderLocalIDType  OrderLocalID;
+    ///交易所代码
+    TThostFtdcExchangeIDType    ExchangeID;
+    ///会员代码
+    TThostFtdcParticipantIDType ParticipantID;
+    ///客户代码
+    TThostFtdcClientIDType  ClientID;
+    ///保留的无效字段
+    TThostFtdcOldExchangeInstIDType reserve2;
+    ///交易所交易员代码
+    TThostFtdcTraderIDType  TraderID;
+    ///安装编号
+    TThostFtdcInstallIDType InstallID;
+    ///报单提交状态
+    TThostFtdcOrderSubmitStatusType OrderSubmitStatus;
+    ///报单提示序号
+    TThostFtdcSequenceNoType    NotifySequence;
+    ///交易日
+    TThostFtdcDateType  TradingDay;
+    ///结算编号
+    TThostFtdcSettlementIDType  SettlementID;
+    ///报单编号
+    TThostFtdcOrderSysIDType    OrderSysID;
+    ///报单来源
+    TThostFtdcOrderSourceType   OrderSource;
+    ///报单状态
+    TThostFtdcOrderStatusType   OrderStatus;
+    ///报单类型
+    TThostFtdcOrderTypeType OrderType;
+    ///今成交数量
+    TThostFtdcVolumeType    VolumeTraded;
+    ///剩余数量
+    TThostFtdcVolumeType    VolumeTotal;
+    ///报单日期
+    TThostFtdcDateType  InsertDate;
+    ///委托时间
+    TThostFtdcTimeType  InsertTime;
+    ///激活时间
+    TThostFtdcTimeType  ActiveTime;
+    ///挂起时间
+    TThostFtdcTimeType  SuspendTime;
+    ///最后修改时间
+    TThostFtdcTimeType  UpdateTime;
+    ///撤销时间
+    TThostFtdcTimeType  CancelTime;
+    ///最后修改交易所交易员代码
+    TThostFtdcTraderIDType  ActiveTraderID;
+    ///结算会员编号
+    TThostFtdcParticipantIDType ClearingPartID;
+    ///序号
+    TThostFtdcSequenceNoType    SequenceNo;
+    ///前置编号
+    TThostFtdcFrontIDType   FrontID;
+    ///会话编号
+    TThostFtdcSessionIDType SessionID;
+    ///用户端产品信息
+    TThostFtdcProductInfoType   UserProductInfo;
+    ///状态信息
+    TThostFtdcErrorMsgType  StatusMsg;
+    ///用户强平标志
+    TThostFtdcBoolType  UserForceClose;
+    ///操作用户代码
+    TThostFtdcUserIDType    ActiveUserID;
+    ///经纪公司报单编号
+    TThostFtdcSequenceNoType    BrokerOrderSeq;
+    ///相关报单
+    TThostFtdcOrderSysIDType    RelativeOrderSysID;
+    ///郑商所成交数量
+    TThostFtdcVolumeType    ZCETotalTradedVolume;
+    ///互换单标志
+    TThostFtdcBoolType  IsSwapOrder;
+    ///营业部编号
+    TThostFtdcBranchIDType  BranchID;
+    ///投资单元代码
+    TThostFtdcInvestUnitIDType  InvestUnitID;
+    ///资金账号
+    TThostFtdcAccountIDType AccountID;
+    ///币种代码
+    TThostFtdcCurrencyIDType    CurrencyID;
+    ///保留的无效字段
+    TThostFtdcOldIPAddressType  reserve3;
+    ///Mac地址
+    TThostFtdcMacAddressType    MacAddress;
+    ///合约代码
+    TThostFtdcInstrumentIDType  InstrumentID;
+    ///合约在交易所的代码
+    TThostFtdcExchangeInstIDType    ExchangeInstID;
+    ///IP地址
+    TThostFtdcIPAddressType IPAddress;
+    ///报单回显字段
+    TThostFtdcOrderMemoType OrderMemo;
+    ///session上请求计数 api自动维护
+    TThostFtdcSequenceNo12Type  SessionReqSeq;
+};
+</code></pre>
+<p><span id="anchor-id-01" alt=""></span> </p>
+<p>OrderSource：报单来源：该字段由交易所返回的报文中取值，其他交易所有对应的取值，上期所较特殊，除交易所打回的报单以及秒成交的委托，其他的委托该字段为空</p>
+<p>ActiveTraderID：最后修改交易所交易员代码：该字段由交易所返回的报文中取值，大商所该字段为空，上期所被交易所打回的报单以及秒成交的委托该字段也为空，其他交易所一般该字段为席位号</p>
+<p>ActiveUserID：操作用户代码：一般只有撤单该字段才有值，其他情况一般为空</p>
+<p>pRspInfo：响应信息</p>
+<pre><code>struct CThostFtdcRspInfoField
+{
+    ///错误代码
+    TThostFtdcErrorIDType ErrorID;
+    ///错误信息
+    TThostFtdcErrorMsgType ErrorMsg;
+};
+</code></pre>
+<p>ActiveTraderID：是从交易所收回来，原值填写，CTP核心不处理该字段。在撤单回报中，由报单席位号修改为撤单席位号，以方便操作员在撤单回报中看出撤单是从哪个席位发起的</p>
+<p>BusinessUnit：是ctp内部使用字段，建议投资者不要使用</p>
+<p>TraderID：是席位号</p>
+<p>ActiveUserID：是ctp内部使用字段，建议投资者不要使用</p>
+<p>nRequestID：返回用户操作请求的ID，该ID 由用户在操作请求时指定。</p>
+<p>bIsLast：指示该次返回是否为针对nRequestID的最后一次返回。</p>
+<p>CancelTime：对于交易所未返回撤单时间的委托，将排队机收到交易所撤单成功回报的时间作为撤单时间。目前中金所、大商所六期系统会返回撤单时间，上期所、能源中心、郑商所、大商所七期不返回撤单时间。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="67a03fbb-44d7-433e-bd94-f9387edb3b77" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>当查询无记录时，指针返回为null</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="3a4500bd-896d-40e5-8059-697199f9c572" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. FAQ</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<p><span id="anchor-id-10" alt=""></span> </p>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>不同交易所，为什么InsertDate有的是自然日有的是交易日？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>Insertdate字段，未知单、错单、上期所回报、能源回报、郑商所回报中该字段为自然日；大商所回报中为交易日。</p>
+<p>建议确认一笔报单的时间用Tradingday+InsertTime这一组字段。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="ONRSPQRYOPTIONSELFCLOSE.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="ONRSPQRYPARKEDORDER.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='ONRSPQRYOPTIONSELFCLOSE.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='ONRSPQRYPARKEDORDER.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

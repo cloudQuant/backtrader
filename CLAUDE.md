@@ -27,10 +27,11 @@ keeping the public API compatible.
 > source tree and prefer `AGENTS.md` for iteration-specific status; neither
 > file's status claims are proof that a capability is accepted.
 
-> Current work is iteration 62 (opts line): SDK write admission, direct base
+> Recent work (iteration 62, opts line): SDK write admission, direct base
 > layers (CTP/OKX/Binance), BT direct mode inside `BtApiBroker`
 > (`brokers/_btapi_direct_mode.py`, local state in `backtrader/live_state/`)
-> and the 007_ctp direct/Gateway examples. Plan:
+> and the 007_ctp direct/Gateway examples. Always check `AGENTS.md` for the
+> current iteration. Plan:
 > `docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md` (change log
 > `计划修改记录.md` there). Iteration 60 (unified containers, direct/Gateway
 > access; plan under `迭代60-统一行情容器与低转换数据链路/`) remains the base. Iteration 53 was abandoned by the
@@ -130,6 +131,19 @@ pytest ... --use-installed-backtrader        # CLI flag
 
 The active `backtrader.__file__` is printed in the pytest session header.
 
+**CI gates** (`.github/workflows/test.yml`): PRs run
+`pytest tests/ -m "not slow and not performance" -n auto --timeout=300 -q`;
+pushes run `pytest tests/ -m "not performance" ...`. The coverage job runs
+`pytest tests --ignore=tests/functional/strategies --cov=backtrader
+--cov-report=term-missing --cov-fail-under=55`; the performance gate is
+`make test-performance BT_CONDA_PYTHON=python`; strategies run through
+`make test-strategies BT_CONDA_PYTHON=python`.
+
+**Project subagents** (`.claude/agents/`): `bt-code-scanner` (read-only
+inventories), `bt-lint-fixer` (only findings introduced by a change),
+`bt-test-runner` (baseline comparison), `bt-docs-sync` (iteration-doc sync,
+never marks ACCEPTED), `bt-opus-engineer` (design/high-risk cross-repo work).
+
 ### Code quality
 
 ```bash
@@ -145,14 +159,17 @@ bash scripts/optimize_code.sh   # pyupgrade + isort + black + ruff + tests
 ```
 
 ruff is configured in `pyproject.toml` but has **no Makefile target**; it runs
-through `scripts/optimize_code.sh`. `mypy` disables dynamic-pattern error codes
-per module for the line system, metabase, cerebro, and component packages (see
-`[[tool.mypy.overrides]]` in `pyproject.toml`).
+through `scripts/optimize_code.sh`. `mypy` relaxes dynamic-pattern error codes
+per module group — the line system, metabase/core model, `cerebro`/`strategy`/
+`brokers`/`feeds`/`stores`, indicator/analyzer/observer/filter packages,
+plot/bokeh, and `btrun` (see `[[tool.mypy.overrides]]` in `pyproject.toml`).
 
 ### Docs
 
 ```bash
 make docs / docs-en / docs-zh   # Sphinx, English + Chinese
+make docs-offline / docs-offline-zh   # no network-only extensions
+make docs-view / docs-view-zh   # open the built HTML
 make help                       # list targets
 make clean
 ```
@@ -210,7 +227,7 @@ Access: `data.close[0]` (current bar), `data.close[-1]` (previous).
 - `indicator.py` (`_ltype=IndType=0`) + `indicators/` (59 files).
 - `observer.py` + `observers/`; `observers/trade_logger.py` (`TradeLogger`)
   emits JSON order/trade/signal/position logs used by branch-compare tooling.
-- `analyzer.py` + `analyzers/` (18 files) — Sharpe, drawdown, returns, SQN, …
+- `analyzer.py` + `analyzers/` (19 files) — Sharpe, drawdown, returns, SQN, …
 - `sizer.py` + `sizers/`, `signal.py` + `signals/`, `comminfo.py` +
   `commissions/`.
 
@@ -220,18 +237,21 @@ Access: `data.close[0]` (current bar), `data.close[-1]` (previous).
   vchart, Yahoo, …
 - `resamplerfilter.py` — resample/replay.
 - `broker.py` + `brokers/` — order matching and portfolio state.
-- `cerebro.py` (~990 lines, public facade) + `_cerebro/` (9 private mixin
+- `cerebro.py` (~990 lines, public facade) + `_cerebro/` (8 private mixin
   modules, iteration-28 split): `registry`, `notifications`, `lifecycle`,
-  `channel`, `execution`, `presentation`, and the four engine loops in
+  `channel`, `execution`, `presentation`, and the engine loops in
   `runnext`/`runonce`. `run()` → `runstrategies()` → `_runonce()` (vectorized)
   or `_runnext()` (event-driven); tick-level mode is also supported.
-- `strategy.py` (~4,700 lines) — `Strategy.__new__`/`__init__`, order and
+- `strategy.py` (~5,250 lines) — `Strategy.__new__`/`__init__`, order and
   broker/analyzer state, notification hooks.
+- `strategies/` — built-in strategy classes (`FactorStrategy`, `CTPFuture`),
+  distinct from user strategies defined in tests/examples.
 
 ### Indicator registration & multi-data clocks (high-bug-risk)
 
 - Indicators register with their owner via `LineIterator.addindicator()`
-  (`lineiterator.py:1684`), appending to `owner._lineiterators[ind._ltype]`.
+  (`lineiterator.py`, search `def addindicator`), appending to
+  `owner._lineiterators[ind._ltype]`.
   Unregistered indicators never update.
 - **Multi-timeframe gotcha**: an indicator built on a secondary feed — e.g.
   `SMA((h1.high + h1.low)/2.0)` or `EMA(EMA(h4.close))` in an M15 strategy —
@@ -251,8 +271,9 @@ arrays, then replays per bar.
 ### Research, live factors, and runtime
 
 - `backtrader/research/` — `FactorIndicator`, `FactorSpec`, `ResearchSpec`,
-  `FactorStrategy`, `FactorPanel`/`FactorSink`, `align_to_grid`, and the thin
-  `evaluate_frames` fincore adapter. Native `alpha101/` (101 formula classes)
+  `FactorPanel`/`FactorSink`, `align_to_grid`, and the thin `evaluate_frames`
+  fincore adapter. `FactorStrategy` itself lives in
+  `backtrader/strategies/factor_strategy.py`. Native `alpha101/` (101 classes)
   supports two modes per class: native `next` and classmethod `build`;
   `FactorSpec(mode=...)` selects. No string DSL and no second scheduler.
   Evaluation delegates to `fincore`; do not duplicate its IC/label/report
@@ -294,39 +315,45 @@ backtrader/            core library
   lineroot.py  linebuffer.py  lineseries.py  lineiterator.py  dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
+  strategies/          built-in FactorStrategy / CTPFuture classes
   research/            native factors, panel/sinks, fincore adapter, live cohorts
   notifications/       dingtalk/wecom/feishu/telegram/email/slack/... delivery
   execution/ service/ factor_execution/ futures/
                        execution adapters, service bridges, factor execution,
                        futures calendar/rollover projections
+  live_state/          durable local state for BT direct mode (iteration 62)
   live_trading/ btrun/  live-trading interface and legacy CLI
 tests/                 unit/ functional/ integration/ performance/ bench/
   datas/ fixtures/ factories/ test_utils/ + root-level test_*.py
-  functional/strategies/   ~1,150 self-contained regression files
+  functional/strategies/   ~1,175 self-contained regression files
 docs/                  Sphinx (EN+ZH) + design/bug notes + _internal iteration
                        requirement/evidence records
 scripts/               optimize_code.sh, refresh_strategy_durations.py,
                        run_strategy_branch_compare.py, …
 studies/               research/diagnostic scripts (branch_compare/)
-examples/              backtest/, unified/ (backtest+live), live/, _support/
+examples/              backtest/, live/ (007_ctp), service_execution_session/;
+                       one self-contained folder per strategy (README + config
+                       + strategy + run.py)
 ```
 
 A config-first `bt-runtime` launcher was previously shipped from a top-level
 `backtrader_runtime/` package; that directory is not present in this checkout,
 so do not assume its imports or console entry point exist. Non-product
-top-level directories include `archive/` (frozen iteration snapshots),
-`promotion/`, `design-artifacts/`, `_bmad/`/`_bmad-output/`, and
-`test_support/`. pytest skips `archive/`, `build/`, and `.codex-tmp/` via
-`norecursedirs`.
+top-level directories include `archived/` (frozen iteration snapshots),
+`promotion/`, `tools/`, `_bmad/`/`_bmad-output/`, and `test_support/`.
+`pytest.ini`'s `norecursedirs` lists `archive` (singular) while the directory
+is `archived/`; `testpaths = tests` is what actually keeps these out of the
+default run.
 
 AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`) and the
 `fincore` analytics library are maintained in separate repositories.
 
 ## Tests
 
-- `tests/functional/strategies/` — ~1,150 inlined test files / ~1,270
-  collected tests across ~30 categories (trend_following, mean_reversion,
-  asset_allocation, machine_learning, options, pairs_trading, …). Each is
+- `tests/functional/strategies/` — ~1,175 inlined test files / ~1,270
+  collected tests across ~28 category directories (trend_following,
+  mean_reversion, asset_allocation, machine_learning, options, pairs_trading,
+  …). Each is
   self-contained: inline strategy + data loader + `cerebro.run()` + assertions
   against master-baselined metrics.
 - `tests/unit/`, `tests/integration/`, `tests/performance/`, and the

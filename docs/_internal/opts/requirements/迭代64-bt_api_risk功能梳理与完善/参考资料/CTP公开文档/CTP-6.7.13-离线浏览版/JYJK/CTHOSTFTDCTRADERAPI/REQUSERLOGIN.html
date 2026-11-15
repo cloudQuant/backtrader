@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+ReqUserLogin</title>
+<meta name="info" content="REQUSERLOGIN.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>ReqUserLogin</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#4527a86f-25e6-49fe-87a4-e2f290f0f03a">1. 函数原型</a></p><p><a href="#cc2f4702-68f4-4379-b69a-bf970f22e2d0">2. 参数</a></p><p><a href="#1cd36a07-514d-4b22-bb97-7c1e8529f109">3. 返回</a></p><p><a href="#e3157947-a308-443f-bea3-bd836e5a14b5">4. 调用示例</a></p><p><a href="#2ef74fa0-2ca2-4d0d-b53c-d42988be3af9">5. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="REQUSERAUTHMETHOD.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQUSERLOGINWITHCAPTCHA.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>用户登录请求，对应响应<a href="../../HQJK/CTHOSTFTDCMDSPI/ONRSPUSERLOGIN.html">OnRspUserLogin</a>。</p>
+<p>接口包含采集函数不是线程安全的，不同线程同步调用建议加锁。</p>
+<span id="4527a86f-25e6-49fe-87a4-e2f290f0f03a" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 函数原型</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>virtual int <a href="../../HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>(CThostFtdc<a href="../../HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>Field *p<a href="../../HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>Field, int nRequestID) = 0;</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="cc2f4702-68f4-4379-b69a-bf970f22e2d0" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 参数</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>p<a href="../../HQJK/CTHOSTFTDCMDAPI/REQUSERLOGIN.html">ReqUserLogin</a>Field：用户登录请求</p>
+<table><tr><th style="TEXT-ALIGN: center;">字段类型</th><th style="TEXT-ALIGN: center;">字段名称</th><th style="TEXT-ALIGN: center;">含义</th><th style="TEXT-ALIGN: center;">值</th></tr><tr><td style="TEXT-ALIGN: left;">TThostFtdcDateType</td>
+<td style="TEXT-ALIGN: left;">TradingDay</td>
+<td style="TEXT-ALIGN: left;">交易日</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcBrokerIDType</td>
+<td style="TEXT-ALIGN: left;">BrokerID</td>
+<td style="TEXT-ALIGN: left;">经纪公司代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcUserIDType</td>
+<td style="TEXT-ALIGN: left;">UserID</td>
+<td style="TEXT-ALIGN: left;">用户代码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPasswordType</td>
+<td style="TEXT-ALIGN: left;">Password</td>
+<td style="TEXT-ALIGN: left;">密码</td>
+<td style="TEXT-ALIGN: left;"><strong><font color="#FF0000">必填</font></strong></td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcProductInfoType</td>
+<td style="TEXT-ALIGN: left;">UserProductInfo</td>
+<td style="TEXT-ALIGN: left;">用户端产品信息</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcProductInfoType</td>
+<td style="TEXT-ALIGN: left;">InterfaceProductInfo</td>
+<td style="TEXT-ALIGN: left;">接口端产品信息</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcProtocolInfoType</td>
+<td style="TEXT-ALIGN: left;">ProtocolInfo</td>
+<td style="TEXT-ALIGN: left;">协议信息</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcMacAddressType</td>
+<td style="TEXT-ALIGN: left;">MacAddress</td>
+<td style="TEXT-ALIGN: left;">Mac地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcPasswordType</td>
+<td style="TEXT-ALIGN: left;">OneTimePassword</td>
+<td style="TEXT-ALIGN: left;">动态密码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcOldIPAddressType</td>
+<td style="TEXT-ALIGN: left;">reserve1</td>
+<td style="TEXT-ALIGN: left;">保留的无效字段</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcIPAddressType</td>
+<td style="TEXT-ALIGN: left;">ClientIPAddress</td>
+<td style="TEXT-ALIGN: left;">终端IP地址</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcLoginRemarkType</td>
+<td style="TEXT-ALIGN: left;">LoginRemark</td>
+<td style="TEXT-ALIGN: left;">登录备注</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcIPPortType</td>
+<td style="TEXT-ALIGN: left;">ClientIPPort</td>
+<td style="TEXT-ALIGN: left;">终端IP端口</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+<tr><td style="TEXT-ALIGN: left;">TThostFtdcSMSCodeType</td>
+<td style="TEXT-ALIGN: left;">SMSCode</td>
+<td style="TEXT-ALIGN: left;">短信验证码</td>
+<td style="TEXT-ALIGN: left;">无</td>
+</tr>
+</table>
+<p>UserID：操作员代码，之后的investorid需要属于该操作员管理下。</p>
+<p>UserProductInfo：客户端的产品信息，如软件开发商、版本号等。</p>
+<p>用户事件中的UserProductInfo取决于认证填写的值，而非登录。</p>
+<blockquote>
+  <p>例如：SFITTraderV100。</p>
+</blockquote>
+<p>LoginRemark：可以写登录备注，能够被交易系统的日志查询到。对于中继客户，建议终端按如下规范的“登录备注”的格式填写，格式为：</p>
+<p>IP&#124;MAC&#124;UUID&#124;APPID&#124;手机号&#124;…</p>
+<p>OneTimePassword：如果期货公司启用了动态口令，客户会有一个电子口令牌，把生成的值，输入到登录报文里的OneTimePassword(动态密码)这个字段中去即可</p>
+<p>ClientIPAddress：CTP前置主动获取，填写无效。</p>
+<p>MacAddress：API采集，填写无效。</p>
+<p>LoginRemark：在注备中：逗号，引号，“\r”，“\n”。四种符号在风控用户事件中会被过滤。</p>
+<p>IPAddress：系统自动获取，填写无效。</p>
+<p>nRequestID：请求ID，对应响应里的nRequestID，无递增规则，由用户自行维护。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="1cd36a07-514d-4b22-bb97-7c1e8529f109" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 返回</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<p>0，代表成功。</p>
+<p>-1，表示网络连接失败；</p>
+<p>-2，表示未处理请求超过许可数；</p>
+<p>-3，表示每秒发送请求数超过许可数。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="e3157947-a308-443f-bea3-bd836e5a14b5" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. 调用示例</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<pre><code>CThostFtdcReqUserLoginField reqUserLogin = { 0 };
+strcpy_s(reqUserLogin.BrokerID, “0000”);
+strcpy_s(reqUserLogin.UserID, “00001”);
+strcpy_s(reqUserLogin.Password, “123456”); 
+m_pUserApi-&gt;ReqUserLogin(&amp;reqUserLogin, nRequestID++);
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="2ef74fa0-2ca2-4d0d-b53c-d42988be3af9" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. FAQ</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>现在投资者登录的时候，有时候会被锁定，请问会有什么原因？</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>CTP有单独锁IP的功能。被锁定的情况下继续登录会报“CTP：登录失败次数超限，IP被禁止”。目前这个阈值一般设置为5000，单个交易日内累积计算。</p>
+<p>CTP有锁IP+账号的功能。被锁定的情况下继续登录会报“CTP：连续登录失败次数超限，登录被禁止”。目前这个阈值一般设置为6-10，注意这里的登录错误次数CTP是连续计算的。</p>
+<p>具体的阈值以期货公司设置的为准。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_2' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>首次登陆如果提示修改密码，如何修改？</p><div class='region_panel' id='region_panel_2' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_2').click(function() {$('#region_panel_2').toggle();});}); </script>
+<p>首次登陆如果提示修改密码，则必须在<code>当前会话</code>调用<a href="REQUSERPASSWORDUPDATE.html">ReqUserPasswordUpdate</a>来修改密码。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_2'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_2').click(function() {$('#region_panel_2').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_3' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>“CTP:用户在线会话超出上限”是什么意思？</p><div class='region_panel' id='region_panel_3' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_3').click(function() {$('#region_panel_3').toggle();});}); </script>
+<p>表示该UserID的同时在线会话数超出了期货公司设置的阈值，具体阈值咨询期货公司柜台设置。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_3'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_3').click(function() {$('#region_panel_3').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_4' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>登录报“CTP：重复的登录”，是什么原因？</p><div class='region_panel' id='region_panel_4' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_4').click(function() {$('#region_panel_4').toggle();});}); </script>
+<p>正常情况下，收到登录成功的响应后再发起登录，是没有响应的，这是因为如果前置收到登陆成功的响应，则会过滤后续的相同Session的登陆请求。</p>
+<p>极端情况下，当前置还没收到核心返回的登录成功响应，而此时又再次收到来自客户端的登录请求，就不会过滤，核心收到重复的登录请求后就会返回“CTP：重复的登录”的错误响应。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_4'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_4').click(function() {$('#region_panel_4').toggle();});}); </script></p>
+<p><div class='region_i'><p class='region_header' id='region_header_5' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>登录时候报错：“CTP：连续登录失败数超限，登录被禁止”，为什么？</p><div class='region_panel' id='region_panel_5' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_5').click(function() {$('#region_panel_5').toggle();});}); </script>
+<p>此报错说明用户连续输错密码被禁止登录了，ip被锁定。此时用户换ip或者联系期货公司解锁即可。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_5'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_5').click(function() {$('#region_panel_5').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="REQUSERAUTHMETHOD.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="REQUSERLOGINWITHCAPTCHA.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='REQUSERAUTHMETHOD.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='REQUSERLOGINWITHCAPTCHA.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+大商所组保</title>
+<meta name="info" content="DCEZB.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>大商所组保</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#fc8bb5f7-b4ee-4991-bc5a-5391c5b3369d">1. 接口说明</a></p><p><a href="#f54b3076-22e0-48a7-aefa-226e93f66c75">2. 可申请组合的合约</a></p><p><a href="#db4e327a-e745-43e7-96ed-3c37f54af6d8">3. 申请组合填写规则</a></p><p><a href="#81e446e0-840c-4200-8e9b-15badbdfc526">4. 仓位计算规则</a></p><p><a href="#daccdb5e-ff99-4683-80c6-0d1c38d669ba">5. 平仓盈亏计算和保证金释放计算原则</a></p><p><a href="#dd41abf5-c53d-4255-923e-a6fae46590ba">6. 代码示例</a></p><p><a href="#65656b20-82ce-477c-8c6b-9be16e8cf4e3">7. FAQ</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="DBHB.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="DJHDGZ.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><p>大商所期权上市后，为了更好的服务市场，大商所启动了期权六期项目，主要从行权功能优化、期权套保、组合保证金优惠三方面完善期权相关业务。</p>
+<p>大商所目前支持的组合有：期货对锁，期货跨期，期货跨品种，备兑买权，备兑卖权，期权跨式，期权宽跨式共7种，投保标志支持投机-投机，套保-套保，投机-套保，套保-投机共4种。</p>
+<p>本文主要就API针对组保业务的一些调整和特性做相关说明，具体业务规则请参考交易所文档。</p>
+<span id="fc8bb5f7-b4ee-4991-bc5a-5391c5b3369d" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 接口说明</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>录入请求：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQCOMBACTIONINSERT.html">ReqCombActionInsert</a></p>
+<p>错误响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONERRRTNCOMBACTIONINSERT.html">OnErrRtnCombActionInsert</a>，<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPCOMBACTIONINSERT.html">OnRspCombActionInsert</a></p>
+<p>正确响应：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNCOMBACTION.html">OnRtnCombAction</a></p>
+<blockquote>
+  <p>注意，这些接口并非新增，而是大商所的组合业务复用了此接口。</p>
+</blockquote>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="f54b3076-22e0-48a7-aefa-226e93f66c75" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 可申请组合的合约</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>组合和拆分的合约为大商所组合优惠表中所列的合约，但目前CTP暂时不支持此优惠表的查询。在实际操作中，用户可通过<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINSTRUMENT.html">OnRspQryInstrument</a>或<a href="../HQJK/CTHOSTFTDCMDSPI/ONRTNDEPTHMARKETDATA.html">OnRtnDepthMarketData</a>里返回的组合合约来填写。</p>
+<blockquote>
+  <p>目前的套利单合约（期货跨期和跨品种）基本都在大商所组合优惠表中。但是有一种情况，就是新合约上市，套利合约也是新合约的时候，当天是不包括在组合优惠表中的。</p>
+</blockquote>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="db4e327a-e745-43e7-96ed-3c37f54af6d8" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 申请组合填写规则</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<ul>
+<li>合约（InstrumentID）：</li>
+</ul>
+<p>针对各组合类型举例如下：</p>
+<p>a)  期权跨式组合合约申请和拆分（STD m1905-c-2700&amp;m1905-p-2700）</p>
+<p>b)  期权宽跨式组合合约申请和拆分（STG m1905-p-2400&amp;m1905-c-2700）</p>
+<p>c)  备兑组合合约申请和拆分（PRT m1905-c-2400&amp;m1905）</p>
+<p>d)  期货跨期组合合约申请和拆分（SP a1903&amp;a1905）</p>
+<p>e)  期货跨品种组合合约申请和拆分（SPC c1903&amp;cs1909）</p>
+<p>f)  期货对锁组合合约申请和拆分（SP a1903&amp; a1903）</p>
+<p>g)  期权买入垂直价差组合（BLS m1809-P-3150&amp;m1809-P-3100）</p>
+<p>h)  期权卖出垂直价差组合（BES m1809-P-3350&amp;m1809-P-3150）</p>
+<p>i)  期权日历价差组合（CAS m1807-P-3150&amp;m1809-P-3150）</p>
+<p>j)  买入期权期货组合（BFO m1809-P-3150&amp;m1809）</p>
+<p>k)  期权对锁组合合约申请和拆分（OPL m1809-P-3150&amp;m1809-P-3150）</p>
+<ul>
+<li>买卖方向（Direction）</li>
+</ul>
+<p>以上面所列组合类型为例：</p>
+<p>a、  b：方向为卖。这种组合类型需要左右两腿都是卖持仓，即空头持仓；</p>
+<p>c：方向为卖。因为目前交易所只支持备兑卖权，不支持备兑买权，即支持左腿是卖持仓的组合，不支持左腿是买持仓的组合。</p>
+<p>若右腿组合的是多头的期货合约，则称为“备兑看涨期权组合持仓”；若右腿组合的是空头的期货合约，则称为“备兑看跌期权组合持仓”；</p>
+<p>d、e：当方向是买的时候就是左买持右卖持，当方向是卖的时候就是左卖持右买持；</p>
+<p>f：方向只支持买，所以是只有左买持右卖持。</p>
+<p>g：买入垂直价差组合：当方向是买时就是左买持仓右卖持，若为卖则会报错“CTP:找不到合约”</p>
+<p>h：卖出垂直价差组合：当方向是卖时就是左卖持仓右买持，若为买则会报错“CTP:找不到合约”</p>
+<p>i：日历价差：</p>
+<p>1）卖出较近月份的看涨期权合约，买入较远月份相同执行价格的看涨期权合约，组合的买卖方向为卖</p>
+<p>2）卖出较近月份的看跌期权合约，买入较远月份相同执行价格的看跌期权合约，组合的买卖方向为卖</p>
+<p>j：买入期权期货组合：组合买卖方向为买</p>
+<p>1）买入看涨期权，同时卖出对应期货合约</p>
+<p>2）买入看跌期权，同时买入对应期货合约</p>
+<p>k：期权对锁组合：组合买卖方向为买</p>
+<p>1）在同一期权品种同一系列同一合约上建立数量相等、方向相反的头寸</p>
+<ul>
+<li>组合方向（CombDirection）</li>
+</ul>
+<p>组合方向支持‘申请组合’和‘拆分组合’。</p>
+<ul>
+<li>投机套保类型（HedgeFlag）</li>
+</ul>
+<p>投机套保类型支持‘投机’（指左右两腿都是投机），‘保值’（指左右两腿都是套保），‘投套（指左腿投机右腿套保）’，‘套投（指左腿套保右腿投机）’。</p>
+<blockquote>
+  <p>盘中的话，如果通过套利报单的话（<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a>），是只支持投机-投机，套保-套保；如果是通过申请组合形成组合单的话，支持投机-投机，套保-套保，投机-套保，套保-投机。</p>
+</blockquote>
+<ul>
+<li>交易所（ExchangeID）</li>
+</ul>
+<p>该字段必填。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="81e446e0-840c-4200-8e9b-15badbdfc526" class="anchor"></span></div><h1 class='title' id='title4' title='点击展开/折叠'><span id='header_span4' class='header_span'>◇ </span>4. 仓位计算规则</h1><script>$(document).ready(function(){$("#title4").click(function(){$("#panel4").toggle();if($("#panel4").is(":hidden")){$("#header_span4").html('◆ ');}else{$("#header_span4").html('◇ ');}});});</script><div class='panel_title_h1' id='panel4'>
+<p>组合合约申请接受后，会将现有的两腿持仓组合到一起，形成组合持仓。此时，在持仓汇总（<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPOSITION.html">OnRspQryInvestorPosition</a>）里会显示三条持仓记录，分别是新增的组合合约持仓，原多头合约持仓和原空头合约持仓。而持仓明细（<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRSPQRYINVESTORPOSITIONDETAIL.html">OnRspQryInvestorPositionDetail</a>）里不会新增组合合约记录。</p>
+<p>1)  比如投资者在大商所买入1手“SP a0905&amp;a0909”合约，形成的持仓汇总如下：</p>
+<table><tr><th style="TEXT-ALIGN: center;">合约</th><th style="TEXT-ALIGN: center;">多头持仓</th><th style="TEXT-ALIGN: center;">空头持仓</th></tr><tr><td style="TEXT-ALIGN: center;">SP a0905&amp;a0909</td>
+<td style="TEXT-ALIGN: center;">1</td>
+<td style="TEXT-ALIGN: center;">0</td>
+</tr>
+<tr><td style="TEXT-ALIGN: center;">a0905</td>
+<td style="TEXT-ALIGN: center;">1</td>
+<td style="TEXT-ALIGN: center;">0</td>
+</tr>
+<tr><td style="TEXT-ALIGN: center;">a0909</td>
+<td style="TEXT-ALIGN: center;">1</td>
+<td style="TEXT-ALIGN: center;">0</td>
+</tr>
+</table>
+<p>2)  比如投资者在大商所组合1手“STG c1909-P-1680&amp;c1909-C-2020”合约，形成的持仓汇总如下：</p>
+<table><tr><th style="TEXT-ALIGN: center;">合约</th><th style="TEXT-ALIGN: center;">多头持仓</th><th style="TEXT-ALIGN: center;">空头持仓</th></tr><tr><td style="TEXT-ALIGN: center;">STG c1909-P-1680&amp;c1909-C-2020</td>
+<td style="TEXT-ALIGN: center;">0</td>
+<td style="TEXT-ALIGN: center;">1</td>
+</tr>
+<tr><td style="TEXT-ALIGN: center;">c1909-P-1680</td>
+<td style="TEXT-ALIGN: center;">0</td>
+<td style="TEXT-ALIGN: center;">1</td>
+</tr>
+<tr><td style="TEXT-ALIGN: center;">c1909-C-2020</td>
+<td style="TEXT-ALIGN: center;">0</td>
+<td style="TEXT-ALIGN: center;">1</td>
+</tr>
+</table>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="daccdb5e-ff99-4683-80c6-0d1c38d669ba" class="anchor"></span></div><h1 class='title' id='title5' title='点击展开/折叠'><span id='header_span5' class='header_span'>◇ </span>5. 平仓盈亏计算和保证金释放计算原则</h1><script>$(document).ready(function(){$("#title5").click(function(){$("#panel5").toggle();if($("#panel5").is(":hidden")){$("#header_span5").html('◆ ');}else{$("#header_span5").html('◇ ');}});});</script><div class='panel_title_h1' id='panel5'>
+<p>平仓盈亏计算和保证金释放计算原则如下：</p>
+<p>1）在计算平仓盈亏时，采用先开先平原则。</p>
+<p>2）在计算保证金释放时，采用先平单腿持仓，后平优惠组合持仓的原则，优惠组合按照优先级从低到高的顺序进行打破。</p>
+<p><span id="anchor-id-10" alt=""></span> </p>
+<p>3）投资者持仓明细里面的TimeFirstVolume，是指大商所的持仓按照先开先平的平仓顺序平仓后的剩余手数</p>
+<p>4）投资者持仓明细里面的Volume如果是大商所的持仓则按照先单一后组合的平仓顺序平仓后的剩余手数</p>
+<p>5）投资者持仓接口里面的PositionCostOffset，因为目前大商所平仓还是按照先单一后组合进行平仓，而计算平仓盈亏需要按照先开先平进行计算，所以增加该字段用以计算按照先开先平的原则的持仓盈亏。</p>
+<p>综上所述，在通过持仓明细去计算持仓成本、持仓盈亏、平仓盈亏时，需要用TimeFirstVolume；计算保证金时，需要用Volume。</p>
+<p>通过持仓汇总去计算持仓成本和持仓盈亏规则如下：</p>
+<p>后台版本6.7.1之前</p>
+<pre><code>大商所先开先平持仓成本 = PositionCost- PositionCostOffset
+大商所持仓盈亏：
+多头：PositionProfit = LastPrice*Position*VolumeMultiple - 
+（PositionCost - PositionCostOffset）
+空头：PositionProfit = （PositionCost - PositionCostOffset） - 
+LastPrice*Position*VolumeMultiple 
+</code></pre>
+<p>后台版本6.7.1及之后，PositionCostOffset字段废弃</p>
+<pre><code>大商所先开先平持仓成本 = PositionCost
+大商所持仓盈亏：
+多头：PositionProfit = LastPrice*Position*VolumeMultiple - PositionCost
+空头：PositionProfit = PositionCost - LastPrice*Position*VolumeMultiple 
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="dd41abf5-c53d-4255-923e-a6fae46590ba" class="anchor"></span></div><h1 class='title' id='title6' title='点击展开/折叠'><span id='header_span6' class='header_span'>◇ </span>6. 代码示例</h1><script>$(document).ready(function(){$("#title6").click(function(){$("#panel6").toggle();if($("#panel6").is(":hidden")){$("#header_span6").html('◆ ');}else{$("#header_span6").html('◇ ');}});});</script><div class='panel_title_h1' id='panel6'>
+<p>场景：现有c1909-P-1680和c1909-C-2020各一手的投机卖仓，申请组合代码示例如下：</p>
+<pre><code>    CThostFtdcInputCombActionField a = { 0 };
+    strcpy_s(a.BrokerID, “9999”);
+    strcpy_s(a.InvestorID, “00001”);
+    strcpy_s(a.InstrumentID, “STG c1909-P-1680&amp;c1909-C-2020”);
+    strcpy_s(a.CombActionRef, "1");
+    strcpy_s(a.UserID, “00001”);
+    a.Direction = THOST_FTDC_D_Sell;
+    a.Volume = 1;
+    a.CombDirection = THOST_FTDC_CMDR_Comb;
+    a.HedgeFlag = THOST_FTDC_HF_Speculation;
+    strcpy_s(a.ExchangeID, “DCE”);
+    m_pUserApi-&gt;ReqCombActionInsert(&amp;a, nRequestID++);
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="65656b20-82ce-477c-8c6b-9be16e8cf4e3" class="anchor"></span></div><h1 class='title' id='title7' title='点击展开/折叠'><span id='header_span7' class='header_span'>◇ </span>7. FAQ</h1><script>$(document).ready(function(){$("#title7").click(function(){$("#panel7").toggle();if($("#panel7").is(":hidden")){$("#header_span7").html('◆ ');}else{$("#header_span7").html('◇ ');}});});</script><div class='panel_title_h1' id='panel7'>
+<p><div class='region_i'><p class='region_header' id='region_header_1' style='padding-left: 1em;font-weight : bold;text-indent: 0px;text-align: left;'>查询合约的时候发现合约id不全</p><div class='region_panel' id='region_panel_1' style='display:block;'><table><tr><td><script>$(document).ready(function() {$('#region_header_1').click(function() {$('#region_panel_1').toggle();});}); </script>
+<p>对于老版本api如果有查询组合合约，或者收到的组合合约id超过了30个字符，超过的部分会被截断，行情中也是如此。</p>
+</td></tr></table>
+</div><p class='region_tail' id='region_tail_1'  style='border-top-color:transparent;border-bottom-width:0;'></p></div><script>$(document).ready(function() {$('#region_tail_1').click(function() {$('#region_panel_1').toggle();});}); </script></p>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="DBHB.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="DJHDGZ.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='DBHB.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='DJHDGZ.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

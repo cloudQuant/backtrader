@@ -1,0 +1,463 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+条件单规则</title>
+<meta name="info" content="TJDGZ.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>条件单规则</p><hr class="headerline"/><div id="content"><script src="../jquery-1.7.0.min.js"></script><script src="../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#bde09f57-c260-44af-8a66-97b79c777bc1">1. 简介</a></p><p><a href="#2756e339-bdcf-4f1f-90ea-f558daa3db01">2. 指令介绍</a></p><p><a href="#d97f6cce-6cdf-4e28-ac1a-288ffbdbcc92">3. 条件单回调规则</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="TASJS.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="GJYSTSZL.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><span id="bde09f57-c260-44af-8a66-97b79c777bc1" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 简介</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<p>条件单是一个带有触发条件的指令。该触发条件可以以市场上的最新行情为基准，也可以以指定价格为基准。比如：一个投资者有1手IF1910的空头持仓，并希望在市场价低于2200时买入平仓，他就可以使用条件单。这样当行情波动到满足该条件时，该报单就会被自动触发报出，而不需要他本人时刻盯着电脑屏幕去监视市场行情。</p>
+<p>申报条件单时，条件单的报单回报中OrderSysID是以字符串“TJBD_”开头的由CTP系统自定义的报单编号，针对该交易所当日唯一；只对成功申报的条件单编号，错单不编号。因为这种情况下的编号由CTP系统自行维护，与交易所无关，仅用于管理本系统内的该条件单。</p>
+<p>有效的使用条件单，可以做出限价止损指令（stop-and-limit order）和触及市价指令（market-if-touched order）。</p>
+<p>CTP条件单为CTP后台系统自带指令，并非交易所官方支持指令。</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="2756e339-bdcf-4f1f-90ea-f558daa3db01" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 指令介绍</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<p>报入条件单指令使用<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a>函数</p>
+<p>其中的核心数据结构是CThostFtdcInputOrderField</p>
+<p>在结构体中和普通报单有区别的字段如下：</p>
+<pre><code>    ///触发条件
+    TThostFtdcContingentConditionType   ContingentCondition;
+    ///止损价
+    TThostFtdcPriceType StopPrice;
+</code></pre>
+<p>条件单有效的触发条件如下：</p>
+<pre><code>    ///最新价大于条件价
+    #define THOST_FTDC_CC_LastPriceGreaterThanStopPrice '5'
+    ///最新价大于等于条件价
+    #define THOST_FTDC_CC_LastPriceGreaterEqualStopPrice '6'
+    ///最新价小于条件价
+    #define THOST_FTDC_CC_LastPriceLesserThanStopPrice '7'
+    ///最新价小于等于条件价
+    #define THOST_FTDC_CC_LastPriceLesserEqualStopPrice '8'
+    ///卖一价大于条件价
+    #define THOST_FTDC_CC_AskPriceGreaterThanStopPrice '9'
+    ///卖一价大于等于条件价
+    #define THOST_FTDC_CC_AskPriceGreaterEqualStopPrice 'A'
+    ///卖一价小于条件价
+    #define THOST_FTDC_CC_AskPriceLesserThanStopPrice 'B'
+    ///卖一价小于等于条件价
+    #define THOST_FTDC_CC_AskPriceLesserEqualStopPrice 'C'
+    ///买一价大于条件价
+    #define THOST_FTDC_CC_BidPriceGreaterThanStopPrice 'D'
+    ///买一价大于等于条件价
+    #define THOST_FTDC_CC_BidPriceGreaterEqualStopPrice 'E'
+    ///买一价小于条件价
+    #define THOST_FTDC_CC_BidPriceLesserThanStopPrice 'F'
+    ///买一价小于等于条件价
+    #define THOST_FTDC_CC_BidPriceLesserEqualStopPrice 'H'
+</code></pre>
+<p>条件价对应的字段为StopPrice</p>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="d97f6cce-6cdf-4e28-ac1a-288ffbdbcc92" class="anchor"></span></div><h1 class='title' id='title3' title='点击展开/折叠'><span id='header_span3' class='header_span'>◇ </span>3. 条件单回调规则</h1><script>$(document).ready(function(){$("#title3").click(function(){$("#panel3").toggle();if($("#panel3").is(":hidden")){$("#header_span3").html('◆ ');}else{$("#header_span3").html('◇ ');}});});</script><div class='panel_title_h1' id='panel3'>
+<ul>
+<li>测试场景一</li>
+</ul>
+<p>报入一笔中金所条件单，触发后类型为限价单，报入后未成交。</p>
+<p>调用接口：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a></p>
+<blockquote>
+  <p>CombOffsetFlag [0]    组合开平标注：开仓  </p>
+  
+  <p>CombHedgeFlag [1] 组合投机套保标志：投机  </p>
+  
+  <p>Direction [0] 买卖方向：买  </p>
+  
+  <p>ExchangeID [CFFEX]  </p>
+  
+  <p>CurrencyID [CNY]  </p>
+  
+  <p>VolumeTotalOriginal [1]   报单手数：1手  </p>
+  
+  <p>MinVolume [1]  </p>
+  
+  <p>IsSwapOrder [0]  </p>
+  
+  <p>IsAutoSuspend [0]  </p>
+  
+  <p>ForceCloseReason [0]  强平原因：非强平  </p>
+  
+  <p>ContingentCondition [H]   <strong><font color="#FF0000">触发条件：买一价小于等于条件价</font></strong>  </p>
+  
+  <p>StopPrice [50000]      <strong><font color="#FF0000">条件价</font></strong></p>
+  
+  <p>OrderPriceType [2]    <strong><font color="#FF0000">触发后的报单价格条件：限价</font></strong></p>
+  
+  <p>LimitPrice [5246] <strong><font color="#FF0000">触发后的委托价</font></strong></p>
+  
+  <p>TimeCondition [3] <strong><font color="#FF0000">触发后的有效期类型：当日有效</font></strong></p>
+  
+  <p>VolumeCondition [1]   <strong><font color="#FF0000">触发后的成交量类型：任何数量</font></strong></p>
+</blockquote>
+<table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<p>报入后，此时收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [b]  尚未触发）  </p>
+<p>当触发条件满足时，收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [c]  已触发）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [a]  未知，报单已提交）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [3]  未成交还在队列中）</p>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<ul>
+<li>测试场景二</li>
+</ul>
+<p>报入一笔中金所条件单，触发后类型为限价单，报入并触发后被CTP拒绝。</p>
+<p>调用接口：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a></p>
+<blockquote>
+  <p>CombOffsetFlag [0]    组合开平标注：开仓</p>
+  
+  <p>CombHedgeFlag [1] 组合投机套保标志：投机</p>
+  
+  <p>Direction [0] 买卖方向：买</p>
+  
+  <p>ExchangeID [CFFEX]</p>
+  
+  <p>CurrencyID [CNY]</p>
+  
+  <p>VolumeTotalOriginal [1]   报单手数：1手</p>
+  
+  <p>MinVolume [1]</p>
+  
+  <p>IsSwapOrder [0]</p>
+  
+  <p>IsAutoSuspend [0]</p>
+  
+  <p>ForceCloseReason [0]  强平原因：非强平</p>
+  
+  <p>ContingentCondition [H]   <strong><font color="#FF0000">触发条件：买一价小于等于条件价</font></strong></p>
+  
+  <p>StopPrice [50000]      <strong><font color="#FF0000">条件价</font></strong></p>
+  
+  <p>OrderPriceType [2]    <strong><font color="#FF0000">触发后的报单价格条件：限价</font></strong></p>
+  
+  <p>LimitPrice [5246] <strong><font color="#FF0000">触发后的委托价</font></strong></p>
+  
+  <p>TimeCondition [3] <strong><font color="#FF0000">触发后的有效期类型：当日有效</font></strong></p>
+  
+  <p>VolumeCondition [1]   <strong><font color="#FF0000">触发后的成交量类型：任何数量</font></strong></p>
+</blockquote>
+<table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<p>报入后，此时收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [b]  尚未触发）  </p>
+<p>当触发条件满足时，收到报单回报及CTP返回的报错：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [c]  已触发）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNERRORCONDITIONALORDER.html">OnRtnErrorConditionalOrder</a>（ErrorMsg [CTP:资金不足]）</p>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<p>注意：<a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNERRORCONDITIONALORDER.html">OnRtnErrorConditionalOrder</a>为私有流回报，可用私有流重传模式RESTART重新收取该回报。</p>
+<ul>
+<li>测试场景三</li>
+</ul>
+<p>报入一笔中金所条件单，触发后类型为限价单，报入并触发后被交易所拒绝。</p>
+<p>调用接口：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a></p>
+<blockquote>
+  <p>CombOffsetFlag [0]    组合开平标注：开仓</p>
+  
+  <p>CombHedgeFlag [1] 组合投机套保标志：投机</p>
+  
+  <p>Direction [0] 买卖方向：买</p>
+  
+  <p>ExchangeID [CFFEX]</p>
+  
+  <p>CurrencyID [CNY]</p>
+  
+  <p>VolumeTotalOriginal [1]   报单手数：1手</p>
+  
+  <p>MinVolume [1]</p>
+  
+  <p>IsSwapOrder [0]</p>
+  
+  <p>IsAutoSuspend [0]</p>
+  
+  <p>ForceCloseReason [0]  强平原因：非强平</p>
+  
+  <p>ContingentCondition [H]   <strong><font color="#FF0000">触发条件：买一价小于等于条件价</font></strong></p>
+  
+  <p>StopPrice [50000]      <strong><font color="#FF0000">条件价</font></strong></p>
+  
+  <p>OrderPriceType [2]    <strong><font color="#FF0000">触发后的报单价格条件：限价</font></strong></p>
+  
+  <p>LimitPrice [25600] <strong><font color="#FF0000">触发后的委托价</font></strong></p>
+  
+  <p>TimeCondition [3] <strong><font color="#FF0000">触发后的有效期类型：当日有效</font></strong></p>
+  
+  <p>VolumeCondition [1]   <strong><font color="#FF0000">触发后的成交量类型：任何数量</font></strong></p>
+</blockquote>
+<table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<p>报入后，此时收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [b]  尚未触发）  </p>
+<p>当触发条件满足时，收到报单回报及交易所返回的报错：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [c]  已触发）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [a]  未知，报单已提交）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [5] 已撤单报单被拒绝CFFEX:超出当时价格保护带上带价格）</p>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<ul>
+<li>测试场景四</li>
+</ul>
+<p>报入一笔中金所条件单，触发后类型为FOK，报入后未成交自动被撤销。</p>
+<p>调用接口：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a></p>
+<blockquote>
+  <p>CombOffsetFlag [0]    组合开平标注：开仓</p>
+  
+  <p>CombHedgeFlag [1] 组合投机套保标志：投机</p>
+  
+  <p>Direction [0] 买卖方向：买</p>
+  
+  <p>ExchangeID [CFFEX]</p>
+  
+  <p>CurrencyID [CNY]</p>
+  
+  <p>VolumeTotalOriginal [8]   报单手数：1手</p>
+  
+  <p>MinVolume [8]</p>
+  
+  <p>IsSwapOrder [0]</p>
+  
+  <p>IsAutoSuspend [0]</p>
+  
+  <p>ForceCloseReason [0]  强平原因：非强平</p>
+  
+  <p>ContingentCondition [H]   <strong><font color="#FF0000">触发条件：买一价小于等于条件价</font></strong></p>
+  
+  <p>StopPrice [50000]      <strong><font color="#FF0000">条件价</font></strong></p>
+  
+  <p>OrderPriceType [2]    <strong><font color="#FF0000">触发后的报单价格条件：限价</font></strong></p>
+  
+  <p>LimitPrice [5246] <strong><font color="#FF0000">触发后的委托价</font></strong></p>
+  
+  <p>TimeCondition [1] <strong><font color="#FF0000">触发后的有效期类型：立即完成，否则撤销</font></strong></p>
+  
+  <p>VolumeCondition [3]   <strong><font color="#FF0000">触发后的成交量类型：全部数量</font></strong></p>
+</blockquote>
+<table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<p>报入后，此时收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [b]  尚未触发）  </p>
+<p>当触发条件满足时，收到报单回报及交易所返回的报错：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [c]  已触发）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [a]  未知，报单已提交）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [5] 已撤单报单已提交）</p>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<ul>
+<li>测试场景五</li>
+</ul>
+<p>报入一笔中金所条件单，触发后类型为FAK，报入后部成部撤。</p>
+<p>调用接口：<a href="../JYJK/CTHOSTFTDCTRADERAPI/REQORDERINSERT.html">ReqOrderInsert</a></p>
+<blockquote>
+  <p>CombOffsetFlag [0]    组合开平标注：开仓</p>
+  
+  <p>CombHedgeFlag [1] 组合投机套保标志：投机</p>
+  
+  <p>Direction [0] 买卖方向：买</p>
+  
+  <p>ExchangeID [CFFEX]</p>
+  
+  <p>CurrencyID [CNY]</p>
+  
+  <p>VolumeTotalOriginal [8]   报单手数：1手</p>
+  
+  <p>MinVolume [1]</p>
+  
+  <p>IsSwapOrder [0]</p>
+  
+  <p>IsAutoSuspend [0]</p>
+  
+  <p>ForceCloseReason [0]  强平原因：非强平</p>
+  
+  <p>ContingentCondition [H]   <strong><font color="#FF0000">触发条件：买一价小于等于条件价</font></strong></p>
+  
+  <p>StopPrice [50000]      <strong><font color="#FF0000">条件价</font></strong></p>
+  
+  <p>OrderPriceType [2]    <strong><font color="#FF0000">触发后的报单价格条件：限价</font></strong></p>
+  
+  <p>LimitPrice [5246] <strong><font color="#FF0000">触发后的委托价</font></strong></p>
+  
+  <p>TimeCondition [1] <strong><font color="#FF0000">触发后的有效期类型：立即完成，否则撤销</font></strong></p>
+  
+  <p>VolumeCondition [2]   <strong><font color="#FF0000">触发后的成交量类型：最小数量</font></strong></p>
+</blockquote>
+<table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<p>报入后，此时收到报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [b]  尚未触发）  </p>
+<p>当触发条件满足时，收到报单回报及交易所返回的报错：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [c]  已触发）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [a]  未知，报单已提交）</p>
+<p>此时CTP收到了交易所推送的撤单状态的报单回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [5] 已撤单报单已提交）</p>
+<p>此时CTP收到了交易所推送的成交回报：</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNORDER.html">OnRtnOrder</a>（OrderStatus [5] 已撤单报单已提交）</p>
+<p><a href="../JYJK/CTHOSTFTDCTRADERSPI/ONRTNTRADE.html">OnRtnTrade</a></p>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="TASJS.html" alt="←">&lt; 前页</a> <a href="../_index.html" alt="Ctrl+I">回目录</a> <a href="GJYSTSZL.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='TASJS.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='GJYSTSZL.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>

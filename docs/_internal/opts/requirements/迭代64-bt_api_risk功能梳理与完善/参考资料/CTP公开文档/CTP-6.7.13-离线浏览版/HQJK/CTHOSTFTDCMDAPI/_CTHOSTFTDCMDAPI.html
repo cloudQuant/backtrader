@@ -1,0 +1,295 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+<!-- saved from url=(0016)http://localhost -->
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=8"/>
+<title>
+CThostFtdcMdApi</title>
+<meta name="info" content="_CTHOSTFTDCMDAPI.md" >
+<meta name="viewport" content="width=device-width, user-scalable=yes" />
+<meta http-equiv="Content-Type" content="text/html;charset=gb18030">
+<link id='theme_link' rel="stylesheet" href="../../lesson_light.css" type="text/css">
+<link id='custom_theme_link' rel="stylesheet" href="../../custom_lesson_light.css" type="text/css">
+<link id='menu_theme_link' rel="stylesheet" href="../../menu_light.css" type="text/css" />
+<link id='custom_menu_theme_link' rel="stylesheet" href="../../custom_menu_light.css" type="text/css" />
+<script>
+function ShowPage()
+{
+document.getElementById('content').style.visibility = "visible";
+document.body.style.fontSize = 16+'px';
+}
+function HidePage()
+{
+document.getElementById('content').style.visibility = "hidden";
+}var theme_css_prefix = 'lesson_';var path_prefix = '../../';
+function ShowImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if ((typeof(imgs[imgi].src) == 'undefined' || imgs[imgi].src == '') &&
+             imgs[imgi].getAttribute('thissrc') != null)
+            imgs[imgi].src = imgs[imgi].getAttribute('thissrc');
+    }
+}
+
+function HideImages()
+{
+    imgs = document.getElementsByTagName('img');
+    imgsnum = imgs.length;
+    for (imgi = 0; imgi < imgsnum; imgi++)
+    {
+        if (typeof(imgs[imgi].src) != 'undefined' && imgs[imgi].src != '')
+            imgs[imgi].thissrc = imgs[imgi].getAttribute('src');
+            imgs[imgi].src = '';
+    }
+}
+
+function SwitchTheme()
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if (theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (theme == 'light')
+    {
+        url = path_prefix + theme_css_prefix + 'dark.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+        menu_url = path_prefix + 'menu_dark.css';
+        custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        window.name = 'dark';
+    }
+    else
+    {
+        url = path_prefix + theme_css_prefix + 'light.css';
+        custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+        menu_url = path_prefix + 'menu_light.css';
+        custom_menu_url = path_prefix + 'custom_menu_light.css';
+        window.name = 'light';
+    }
+    if (css) css.setAttribute('href', url);
+    if (custom_css) custom_css.setAttribute('href', custom_url);
+    if (menu_css) menu_css.setAttribute('href', menu_url);
+    if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+}
+
+function LoadTheme(new_theme)
+{
+    var css = document.getElementById('theme_link');
+    var custom_css = document.getElementById('custom_theme_link');
+    var menu_css = document.getElementById('menu_theme_link');
+    var custom_menu_css = document.getElementById('custom_menu_theme_link');
+    var url;
+    var custom_url;
+    var menu_url;
+    var custom_menu_url;
+    if(theme_css_prefix != 'presentation_'){ theme_css_prefix = 'lesson_' }
+    var theme = 'light';
+	if (/.*_dark.css$/.test(css.getAttribute('href'))) theme = 'dark';
+    if (new_theme && new_theme != theme)
+    {
+        if (new_theme == 'dark')
+        {
+            url = path_prefix + theme_css_prefix + 'dark.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'dark.css';
+            menu_url = path_prefix + 'menu_dark.css';
+            custom_menu_url = path_prefix + 'custom_menu_dark.css';
+        }
+        else
+        {
+            url = path_prefix + theme_css_prefix + 'light.css';
+            custom_url = path_prefix + 'custom_' + theme_css_prefix + 'light.css';
+            menu_url = path_prefix + 'menu_light.css';
+            custom_menu_url = path_prefix + 'custom_menu_light.css';
+        }
+        if (css) css.setAttribute('href', url);
+        if (custom_css) custom_css.setAttribute('href', custom_url);
+        if (menu_css) menu_css.setAttribute('href', menu_url);
+        if (custom_menu_css) custom_menu_css.setAttribute('href', custom_menu_url);
+    }
+}
+
+function LoadUserSelectedTheme()
+{
+    if(window.name == 'dark' || window.name == 'light')
+    {
+    LoadTheme(window.name);
+    }
+}
+</script>
+</head>
+<body onLoad="ShowPage()">
+<p style="visibility: collapse;"><span id="__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__" class="anchor"></span></p><div style="text-align:right"><span class="pageheader"></span><a onclick="print()" style="visibility: hidden"></a></div><div id="printArea"><p class='fileheader' id='file_header'>CThostFtdcMdApi</p><hr class="headerline"/><div id="content"><script src="../../jquery-1.7.0.min.js"></script><script src="../../menu_light.js"></script><script language="javascript">function print() {$("#printArea").jqprint({importCSS: true});}</script><script>function getHeight(){return document.body.scrollHeight;}</script><script>function copyChoiceQuestion(examDiv,questionTitleId,questionChoice0Id,questionChoice1Id,questionChoice2Id,questionChoice3Id)
+{
+var qTitle=document.getElementById(questionTitleId);
+var qChoiceText0="",qChoiceText1="",qChoiceText2="",qChoiceText3="";var qChoice0=document.getElementById(questionChoice0Id);
+if(qChoice0){ qChoiceText0="A." + qChoice0.innerText + "\r\n";}var qChoice1=document.getElementById(questionChoice1Id);
+if(qChoice1){ qChoiceText1="B." + qChoice1.innerText + "\r\n";}var qChoice2=document.getElementById(questionChoice2Id);
+if(qChoice2){ qChoiceText2="C." + qChoice2.innerText + "\r\n";}var qChoice3=document.getElementById(questionChoice3Id);
+if(qChoice3){ qChoiceText3="D." + qChoice3.innerText + "\r\n";}var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n" + qChoiceText0 + qChoiceText1 + qChoiceText2 + qChoiceText3 + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><script>function copyFillBlankQuestion(examDiv,questionTitleId)
+{
+var qTitle=document.getElementById(questionTitleId);
+var ta = document.createElement('textarea');
+ta.value = qTitle.innerText + "\r\n";
+examDiv.appendChild(ta);
+ta.select();
+document.execCommand("Copy");
+ta.style.display = 'none';
+alert('已复制');
+}
+</script><div id="left_menu"><div class="left_menu_content"><p><a href="#e4ca3742-dc89-4ad4-8c29-8791890e9b40">1. 接口</a></p><p><a href="#625864aa-7565-454f-949f-59ed683228c9">2. 示例代码</a></p><p><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><hr/><p><a href="../_HQJK.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="CREATEFTDCMDAPI.html" alt="→">后页 &gt;</a></p></div><strong class="left_menu_title"><span> </span></strong></div><table id="" border="0" cellspacing="0" class="square-block"><tbody border="0"><tr border="0"><td class="square-block-left"/><td class="square-block-content"><div>
+
+<div class="nav-links-list" style="text-indent:0px;">
+<p class="nav-paragraph">■ <a class="nav-action" href="../../_API接口说明.html">6.7.13_API接口说明</a></p>
+<p class="nav-paragraph">└△ <a class="nav-action" href="../_HQJK.html">行情接口</a></p>
+<p class="nav-paragraph">　└◆ CThostFtdcMdApi</p>
+</div>
+
+</div></td><td class="square-block-right"/></tr></tbody></table>
+<p>CthostFtdcMdApi类提供了行情api的初始化、登录、订阅等功能。</p>
+<span id="e4ca3742-dc89-4ad4-8c29-8791890e9b40" class="anchor"></span><h1 class='title' id='title1' title='点击展开/折叠'><span id='header_span1' class='header_span'>◇ </span>1. 接口</h1><script>$(document).ready(function(){$("#title1").click(function(){$("#panel1").toggle();if($("#panel1").is(":hidden")){$("#header_span1").html('◆ ');}else{$("#header_span1").html('◇ ');}});});</script><div class='panel_title_h1' id='panel1'>
+<pre><code>class MD_API_EXPORT CThostFtdcMdApi
+{
+public:
+    ///创建MdApi
+    ///@param pszFlowPath 存贮订阅信息文件的目录，默认为当前目录
+    ///@return 创建出的UserApi
+    ///modify for udp marketdata
+    static CThostFtdcMdApi *CreateFtdcMdApi(const char *pszFlowPath = "", const bool bIsUsingUdp=false, const bool bIsMulticast=false, bool bIsProductionMode=true);
+    ///获取API的版本信息
+    ///@retrun 获取到的版本号
+    static const char *GetApiVersion();
+    ///删除接口对象本身
+    ///@remark 不再使用本接口对象时,调用该函数删除接口对象
+    virtual void Release() = 0;
+    ///初始化
+    ///@remark 初始化运行环境,只有调用后,接口才开始工作
+    virtual void Init() = 0;
+    ///等待接口线程结束运行
+    ///@return 线程退出代码
+    virtual int Join() = 0;
+    ///获取当前交易日
+    ///@retrun 获取到的交易日
+    ///@remark 只有登录成功后,才能得到正确的交易日
+    virtual const char *GetTradingDay() = 0;
+    ///注册前置机网络地址
+    ///@param pszFrontAddress：前置机网络地址。
+    ///@remark 网络地址的格式为：“protocol://ipaddress:port”，如：”tcp://127.0.0.1:17001”。 
+    ///@remark “tcp”代表传输协议，“127.0.0.1”代表服务器地址。”17001”代表服务器端口号。
+    virtual void RegisterFront(char *pszFrontAddress) = 0;
+    ///注册名字服务器网络地址
+    ///@param pszNsAddress：名字服务器网络地址。
+    ///@remark 网络地址的格式为：“protocol://ipaddress:port”，如：”tcp://127.0.0.1:12001”。 
+    ///@remark “tcp”代表传输协议，“127.0.0.1”代表服务器地址。”12001”代表服务器端口号。
+    ///@remark RegisterNameServer优先于RegisterFront
+    virtual void RegisterNameServer(char *pszNsAddress) = 0;
+    ///注册名字服务器用户信息
+    ///@param pFensUserInfo：用户信息。
+    virtual void RegisterFensUserInfo(CThostFtdcFensUserInfoField * pFensUserInfo) = 0;
+    ///注册回调接口
+    ///@param pSpi 派生自回调接口类的实例
+    virtual void RegisterSpi(CThostFtdcMdSpi *pSpi) = 0;
+    ///订阅行情。
+    ///@param ppInstrumentID 合约ID  
+    ///@param nCount 要订阅/退订行情的合约个数
+    ///@remark 
+    virtual int SubscribeMarketData(char *ppInstrumentID[], int nCount) = 0;
+    ///退订行情。
+    ///@param ppInstrumentID 合约ID  
+    ///@param nCount 要订阅/退订行情的合约个数
+    ///@remark 
+    virtual int UnSubscribeMarketData(char *ppInstrumentID[], int nCount) = 0;
+    ///订阅询价。
+    ///@param ppInstrumentID 合约ID  
+    ///@param nCount 要订阅/退订行情的合约个数
+    ///@remark 
+    virtual int SubscribeForQuoteRsp(char *ppInstrumentID[], int nCount) = 0;
+    ///退订询价。
+    ///@param ppInstrumentID 合约ID  
+    ///@param nCount 要订阅/退订行情的合约个数
+    ///@remark 
+    virtual int UnSubscribeForQuoteRsp(char *ppInstrumentID[], int nCount) = 0;
+    ///用户登录请求
+    virtual int ReqUserLogin(CThostFtdcReqUserLoginField *pReqUserLoginField, int nRequestID) = 0;
+    ///登出请求
+    virtual int ReqUserLogout(CThostFtdcUserLogoutField *pUserLogout, int nRequestID) = 0;
+    ///请求查询组播合约
+    virtual int ReqQryMulticastInstrument(CThostFtdcQryMulticastInstrumentField *pQryMulticastInstrument, int nRequestID) = 0;
+protected:
+    ~CThostFtdcMdApi(){};
+};
+</code></pre>
+<p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p><span id="625864aa-7565-454f-949f-59ed683228c9" class="anchor"></span></div><h1 class='title' id='title2' title='点击展开/折叠'><span id='header_span2' class='header_span'>◇ </span>2. 示例代码</h1><script>$(document).ready(function(){$("#title2").click(function(){$("#panel2").toggle();if($("#panel2").is(":hidden")){$("#header_span2").html('◆ ');}else{$("#header_span2").html('◇ ');}});});</script><div class='panel_title_h1' id='panel2'>
+<pre><code>class CMduserHandler : public CThostFtdcMdSpi
+{
+private:
+    CThostFtdcMdApi *m_mdApi;
+public:
+    void connect()
+    {
+        //创建并初始化API，按照以下顺序
+        m_mdApi = CThostFtdcMdApi::CreateFtdcMdApi("", true, true);
+        m_mdApi-&gt;RegisterSpi(this);
+        m_mdApi-&gt;RegisterFront("tcp://127.0.0.1:41413");
+        m_mdApi-&gt;Init();
+    }
+}
+</code></pre>
+<div class="sub-links-list" style="text-indent:0px;"><hr class='SubLinksListLine'/>
+<p class="sub-links-list-header">请参阅：</p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="CREATEFTDCMDAPI.html">CreateFtdcMdApi</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="GETAPIVERSION.html">GetApiVersion</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="GETTRADINGDAY.html">GetTradingDay</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="INIT.html">Init</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="JOIN.html">Join</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REGISTERFENSUSERINFO.html">RegisterFensUserInfo</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REGISTERFRONT.html">RegisterFront</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REGISTERNAMESERVER.html">RegisterNameServer</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REGISTERSPI.html">RegisterSpi</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="RELEASE.html">Release</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REQQRYMULTICASTINSTRUMENT.html">ReqQryMulticastInstrument</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REQUSERLOGIN.html">ReqUserLogin</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="REQUSERLOGOUT.html">ReqUserLogout</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="SUBSCRIBEFORQUOTERSP.html">SubscribeForQuoteRsp</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="SUBSCRIBEMARKETDATA.html">SubscribeMarketData</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="UNSUBSCRIBEFORQUOTERSP.html">UnSubscribeForQuoteRsp</a></p>
+<p class="sub-links-paragraph">&nbsp;&nbsp;&nbsp;&nbsp;<a class="sub-links-action" href="UNSUBSCRIBEMARKETDATA.html">UnSubscribeMarketData</a></p>
+</div>
+
+</div><script>$(document).ready(function() {$('#file_header').click(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').hide();});});</script><script>$(document).ready(function() {$('#file_header').dblclick(function() {$('.panel_title_h1,.panel_title_h2,.panel_title_h3,.panel_title_h4,.panel_title_h5,.panel_title_h6').show();});});</script><script></script><p class="back_to_top_link"><a href="#__TOP_4E4ABC53-B143-46FF-93CF-F9381EAD8E14__">回到顶部</a></p></div><hr class="footline"/><div class="foot-comment-area"</div><div class="foot"><p id="author"></p></div><p style="margin-left:10px;margin-right:10px;text-indent:0px;"><a href="../_HQJK.html" alt="←">&lt; 前页</a> <a href="../../_index.html" alt="Ctrl+I">回目录</a> <a href="CREATEFTDCMDAPI.html" alt="→">后页 &gt;</a></p></div>
+<script language="javascript" type="text/javascript">
+function onDocKeydown(e) {
+e = e || window.event;
+if(e.keyCode==37){　　　//快捷键 left
+window.location.href='../_HQJK.html';
+return;
+}
+if(e.ctrlKey && e.keyCode==73){　　　//快捷键 Ctrl+I 
+window.location.href='../../_index.html';
+return;
+}
+if(e.keyCode==39){　　　//快捷键 right
+window.location.href='CREATEFTDCMDAPI.html';
+return;
+}
+}
+document.onkeydown=onDocKeydown;
+</script>
+
+<p style='text-indent:0;'><div><img id="theme_switcher" src="../../images~/theme_switcher.png" onclick="SwitchTheme()"/></p><script>$(document).ready(LoadUserSelectedTheme());</script></body></html>
