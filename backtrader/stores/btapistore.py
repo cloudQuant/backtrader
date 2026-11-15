@@ -15,11 +15,13 @@ import datetime as _dt
 import functools
 import math
 import os
+import re
 import threading
 import time
 import uuid
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
@@ -184,6 +186,156 @@ _UTC = _dt.timezone.utc
 _WRITE_ROUTE_API_UNSET = object()
 
 
+@dataclass(frozen=True)
+class _CalendarStatusUnavailable:
+    """Store-side failure; successful route observations stay SDK-owned."""
+
+    status: str = "UNKNOWN"
+    reason: str = "UNAVAILABLE"
+
+
+def _safe_calendar_mixed_provenance(result, venue, kind, product, contract, trading_day):
+    """Check query attribution consistency; digest shapes do not authenticate its source."""
+    def exact(actual, expected):
+        if type(actual) is not type(expected):
+            return False
+        if type(expected) is dict:
+            return (set(actual) == set(expected)
+                    and all(exact(actual[key], value) for key, value in expected.items()))
+        return actual == expected
+
+    provenance = result.simulation_provenance
+    if (type(provenance) is not dict or set(provenance) != {
+            "schema", "environment", "alignment", "target", "windows", "evidence_locator",
+            "semantic_sha256", "evidence_sha256"}
+            or provenance["schema"] != "bt_api.calendar-mixed-window-provenance/2"
+            or provenance["environment"] != "SIMULATION_ONLY"
+            or provenance["alignment"] != "REPEAT_OVER_MOCK_OWNER_DAY_MAPPING"):
+        return False
+    digest = r"[0-9a-f]{64}"
+    if any(type(provenance[key]) is not str or re.fullmatch(digest, provenance[key]) is None
+           for key in ("semantic_sha256", "evidence_sha256")):
+        return False
+    locator = provenance["evidence_locator"]
+    if (type(locator) is not dict or set(locator) != {
+            "candidate_id", "parent_candidate_id", "observation_id", "observation_run_id",
+            "capture_id", "response_digest"}
+            or any(type(locator[key]) is not str or re.fullmatch(r"[0-9a-f]{32}", locator[key]) is None
+                   for key in ("candidate_id", "parent_candidate_id", "observation_id",
+                               "observation_run_id"))
+            or type(locator["capture_id"]) is not str
+            or re.fullmatch(r"akshare\.capture\.[0-9a-f]{32}", locator["capture_id"]) is None
+            or type(locator["response_digest"]) is not str
+            or re.fullmatch(digest, locator["response_digest"]) is None):
+        return False
+    target = provenance["target"]
+    if (type(target) is not dict or set(target) != {
+            "venue", "kind", "product", "mock_contract", "valid_from", "valid_to"}
+            or (target["venue"], target["kind"], target["product"], target["mock_contract"])
+            != (venue, kind, product, contract)
+            or kind != "future" or not contract.startswith("mock_")):
+        return False
+    try:
+        first, last = (_dt.date.fromisoformat(target[key]) for key in ("valid_from", "valid_to"))
+        if (any(type(target[key]) is not str or target[key] != value.isoformat()
+                for key, value in (("valid_from", first), ("valid_to", last)))
+                or not first <= trading_day <= last):
+            return False
+    except (TypeError, ValueError):
+        return False
+    rows = provenance["windows"]
+    if (type(rows) is not list or len(rows) != len(result.windows)
+            or not {"AKSHARE.simulation_unverified", "MOCK.simulation_only"} <= set(result.source_ids)):
+        return False
+    windows = {window.window_id: window for window in result.windows}
+    if len(windows) != len(result.windows):
+        return False
+    seen = set()
+    for row in rows:
+        if (type(row) is not dict or set(row) != {
+                "scope", "window_id", "source_type", "fields", "observation", "simulation"}
+                or type(row["window_id"]) is not str or row["window_id"] in seen
+                or row["window_id"] not in windows or row["scope"] not in ("DAY", "NIGHT")
+                or row["source_type"] not in ("AKSHARE", "MOCK")):
+            return False
+        seen.add(row["window_id"])
+        window = windows[row["window_id"]]
+        offset = (window.end_local.date() - window.start_local.date()).days
+        if (offset not in (0, 1)
+                or (row["scope"] == "DAY"
+                    and (offset != 0 or window.start_local.date() != trading_day))
+                or (row["scope"] == "NIGHT" and window.start_local.date() >= trading_day)):
+            return False
+        basis = "AKSHARE_SYNTAX_CANDIDATE" if row["source_type"] == "AKSHARE" else "MOCK_ASSUMPTION"
+        transition = (("EXPLICIT_NEXT_DAY" if offset else "SAME_CLOCK_DAY")
+                      if row["source_type"] == "AKSHARE" else offset)
+        if (not exact(row["fields"], {
+                "scope": {"value": row["scope"], "basis": basis},
+                "start": {"value": window.start_local.strftime("%H:%M"), "basis": basis},
+                "end": {"value": window.end_local.strftime("%H:%M"), "basis": basis},
+                "day_transition": {"value": transition, "basis": basis}})
+                or window.start_local.second or window.start_local.microsecond
+                or window.end_local.second or window.end_local.microsecond
+                or not exact(row["observation"], dict.fromkeys(
+                    ("phase", "identity", "effective_period", "trading_day", "coverage"), "UNKNOWN"))
+                or not exact(row["simulation"], {
+                    "phase": {"value": window.phase, "basis": "MOCK_ASSUMPTION"},
+                    "timezone": {"value": "Asia/Shanghai", "basis": "MOCK_ASSUMPTION"},
+                    "local_date": {"value": "UNKNOWN", "basis": "UNKNOWN"},
+                    "trading_day": {"value": "UNKNOWN", "basis": "UNKNOWN"},
+                    "night_ownership": {"value": "UNKNOWN", "basis": "UNKNOWN"}})):
+            return False
+    return seen == set(windows)
+
+
+def _safe_calendar_observation(value, status_type):
+    """Accept only the SDK's bounded public status vocabulary and identifiers."""
+    if type(value) is not status_type:
+        return False
+    enums = {
+        "status": {"UNKNOWN", "OBSERVED_UNAUTHENTICATED"},
+        "reason": {"INVALID_ROUTE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                   "CONFIGURATION_CHANGED", "CURRENT_RECEIPTS_CONSISTENT"},
+        "published": {"UNKNOWN", "CURRENT_OBSERVED"},
+        "coverage_status": {"UNKNOWN", "NOT_PRESENT", "DECLARED_UNVERIFIED"},
+        "bound": {"NOT_BOUND"},
+        "binding_reason": {"RUNTIME_BINDING_NOT_IMPLEMENTED"},
+        "source_authentication": {"NOT_PROVEN"},
+        "identity_authentication": {"NOT_PROVEN"},
+        "route_mapping": {"CALLER_DECLARED_ONLY"},
+        "publication_authentication": {"NOT_PROVEN"},
+        "durability": {"UNCONFIRMED"},
+        "observation": {"CURRENT_NOT_PINNED"},
+    }
+    if any(type(getattr(value, field)) is not str or getattr(value, field) not in choices
+           for field, choices in enums.items()):
+        return False
+    for field in ("publication_id", "version_id"):
+        field_value = getattr(value, field)
+        if field_value is not None and (
+            type(field_value) is not str
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", field_value) is None
+        ):
+            return False
+    for field in ("publication_sha256", "content_sha256"):
+        field_value = getattr(value, field)
+        if field_value is not None and (
+            type(field_value) is not str or re.fullmatch(r"[0-9a-f]{64}", field_value) is None
+        ):
+            return False
+    identity_fields = (value.publication_id, value.version_id,
+                       value.publication_sha256, value.content_sha256)
+    if value.status == "OBSERVED_UNAUTHENTICATED":
+        return (value.reason == "CURRENT_RECEIPTS_CONSISTENT"
+                and value.published == "CURRENT_OBSERVED"
+                and value.coverage_status in {"NOT_PRESENT", "DECLARED_UNVERIFIED"}
+                and all(field is not None for field in identity_fields))
+    return (value.reason in {"INVALID_ROUTE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                             "CONFIGURATION_CHANGED"}
+            and value.published == "UNKNOWN" and value.coverage_status == "UNKNOWN"
+            and all(field is None for field in identity_fields))
+
+
 def _is_supported_api_facade(api: Any) -> Tuple[bool, bool]:
     """Return ``(is_bt_api, is_read_proxy)`` for the public Store entrypoints.
 
@@ -296,6 +448,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         gateway_host: Any = None,
         gateway_security_profiles: Any = None,
         gateway_run_lock: Any = None,
+        calendar_config_file: Any = None,
+        calendar_config: Any = None,
+        calendar_ctp_routes: Any = None,
         **kwargs: Any,
     ):
         """Initialize the BtApiStore.
@@ -352,6 +507,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 embedded in the public configuration mapping.
             gateway_run_lock: Reserved; externally held locks are rejected
                 because their process ownership cannot currently be verified.
+            calendar_config_file: Absolute path of the parsed configuration file.
+            calendar_config: Parsed mapping containing the explicit calendars section.
+            calendar_ctp_routes: Caller-declared exact CTP routes for status only.
+                These configure a Store-local reader, not the SDK facade or trading.
             **kwargs: Additional SDK configuration values.
         """
         super().__init__()
@@ -547,6 +706,34 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             raise BtApiStoreError(
                 "symbol_routes must refer only to exchanges explicitly present in exchange_kwargs"
             )
+        self._calendar_local_reader = None
+        self._calendar_local_routes = frozenset()
+        if any(value is not None for value in (
+            calendar_config_file, calendar_config, calendar_ctp_routes
+        )):
+            if self._gateway_mode or self._service_read_only or not self._sdk_mode:
+                raise BtApiStoreError("calendar_configuration_requires_direct_sdk")
+            from ..service.trading_calendar_config import parse_direct_calendar_status
+            try:
+                candidate, route_roots = parse_direct_calendar_status(
+                    calendar_config, config_file=calendar_config_file,
+                    ctp_routes=calendar_ctp_routes, configured_routes=set(self._sdk_exchanges),
+                )
+            except ValueError as exc:
+                if exc.args == ("calendar_package_seed_unsupported",):
+                    raise BtApiStoreError("calendar_package_seed_unsupported") from None
+                raise BtApiStoreError("calendar_configuration_invalid") from None
+            except Exception:
+                raise BtApiStoreError("calendar_configuration_invalid") from None
+            if candidate.root_kind == "directory":
+                try:
+                    from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatusReader
+                    reader = TradingCalendarStatusReader()
+                    reader.configure(route_roots)
+                except Exception:
+                    raise BtApiStoreError("calendar_status_configuration_failed") from None
+                self._calendar_local_reader = reader
+                self._calendar_local_routes = frozenset(route_roots)
         if self.provider != "btapi" and not self._service_read_only:
             if configured_route_names != {self.provider.upper()}:
                 raise BtApiStoreError(
@@ -694,6 +881,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._last_open_orders_refresh = 0.0
         self._connected = False
         self._started = False
+        self._calendar_status_lock = threading.Lock()
+        self._calendar_status_generation = 0
+        self._calendar_status_transitions = 0
+        self._calendar_status_stopping = False
         from bt_api_py.bounded_metadata_probe import BoundedMetadataProbeService
 
         self._metadata_probe_service = BoundedMetadataProbeService(
@@ -1219,11 +1410,25 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def start(self, data=None, broker=None):
         """Start the Store and attach framework objects through its lifecycle bridge."""
-        return _start_store(
-            self, data, broker, error_type=BtApiStoreError,
-            gateway_entrypoint=_legacy_gateway_entrypoint,
-            gateway_error_type=LegacyGatewayMigrationRequiredError,
-        )
+        with self._calendar_status_lock:
+            self._calendar_status_generation += 1
+            generation = self._calendar_status_generation
+            self._calendar_status_transitions += 1
+            self._calendar_status_stopping = True
+        started = False
+        try:
+            result = _start_store(
+                self, data, broker, error_type=BtApiStoreError,
+                gateway_entrypoint=_legacy_gateway_entrypoint,
+                gateway_error_type=LegacyGatewayMigrationRequiredError,
+            )
+            started = True
+            return result
+        finally:
+            with self._calendar_status_lock:
+                self._calendar_status_transitions -= 1
+                if started and self._calendar_status_generation == generation:
+                    self._calendar_status_stopping = False
 
     @staticmethod
     def _bounded_metadata_probe_shutdown_proven(health: Any) -> bool:
@@ -1554,10 +1759,18 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def stop(self, timeout: Optional[float] = None):
         """Coordinate shutdown through the Backtrader lifecycle bridge."""
-        resync = getattr(self, "_tick_stream_resync", None)
-        if resync is not None:
-            resync.fence()  # no automatic tick-stream resync once stop began
-        return _stop_store(self, timeout, safe_log=_safe_log)
+        with self._calendar_status_lock:
+            self._calendar_status_generation += 1
+            self._calendar_status_transitions += 1
+            self._calendar_status_stopping = True
+        try:
+            resync = getattr(self, "_tick_stream_resync", None)
+            if resync is not None:
+                resync.fence()  # no automatic tick-stream resync once stop began
+            return _stop_store(self, timeout, safe_log=_safe_log)
+        finally:
+            with self._calendar_status_lock:
+                self._calendar_status_transitions -= 1
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
         """Coordinate synchronous SDK shutdown through the lifecycle bridge."""
@@ -3837,6 +4050,350 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self._assert_write_route_identity(require_live_route=True, expected_api=api)
         return result
+
+    def trading_calendar_status(self, exchange_name: Optional[str] = None):
+        """Observe local SDK calendar status for exact configured routes.
+
+        Return ``{status, reason, routes}`` for both single and multiple routes;
+        each successful value in ``routes`` is the unchanged SDK observation.
+        The aggregate is ``OBSERVED`` if every route observed CURRENT,
+        ``PARTIAL`` if only some did, and ``UNKNOWN`` if none did.
+        Store-side failures have ``status`` and ``reason`` attributes. No route
+        argument selects every configured route; an explicit argument must be
+        an exact configured key. With local configuration, ``sources`` maps
+        routes to ``LOCAL_CONFIG`` or ``SDK_FACADE``. Local observations are
+        unauthenticated and not bound to strategy use or trading authorization.
+        """
+        with self._calendar_status_lock:
+            configured_routes = tuple(self._sdk_exchanges)
+            generation = self._calendar_status_generation
+            stream_generation = self._stream_generation
+            api = self._api
+            local_reader = self._calendar_local_reader
+            local_routes = self._calendar_local_routes
+            ready = (
+                self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                and self._started and self._connected and self._sdk_configured
+                and api is not None and not self._calendar_status_transitions
+                and not self._calendar_status_stopping
+            )
+
+        routes = tuple(
+            route for route in configured_routes
+            if type(route) is str
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", route)
+        )
+        invalid_routes = len(routes) != len(configured_routes)
+        if exchange_name is not None:
+            if type(exchange_name) is not str or exchange_name not in routes:
+                return {"status": "UNKNOWN", "reason": "ROUTE_UNCONFIGURED", "routes": {}}
+            routes = (exchange_name,)
+            invalid_routes = False
+        if not routes:
+            return {"status": "UNKNOWN",
+                    "reason": "INVALID_CONFIGURED_ROUTE" if invalid_routes else "ROUTE_UNAVAILABLE",
+                    "routes": {}}
+
+        def unavailable(reason):
+            return {route: _CalendarStatusUnavailable(reason=reason) for route in routes}
+
+        def valid_live_routes(value):
+            return (type(value) is list and all(
+                type(route) is str and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", route)
+                for route in value
+            )
+                    and len(set(value)) == len(value))
+
+        if not ready:
+            return {"status": "UNKNOWN", "reason": "STORE_UNAVAILABLE",
+                    "routes": unavailable("STORE_UNAVAILABLE")}
+        try:
+            from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatus
+
+            list_routes = getattr(api, "list_exchanges", None)
+            if local_reader is not None and all(route in local_routes for route in routes):
+                reader = None
+            else:
+                try:
+                    reader = getattr(api, "trading_calendar_status", None)
+                except Exception:
+                    if local_reader is None:
+                        raise
+                    reader = None
+            if not callable(list_routes) or (local_reader is None and not callable(reader)):
+                return {"status": "UNKNOWN", "reason": "CAPABILITY_UNAVAILABLE",
+                        "routes": unavailable("CAPABILITY_UNAVAILABLE")}
+            live_routes = list_routes()
+            if not valid_live_routes(live_routes):
+                raise ValueError("invalid route projection")
+        except Exception:
+            return {"status": "UNKNOWN", "reason": "ROUTE_UNAVAILABLE",
+                    "routes": unavailable("ROUTE_UNAVAILABLE")}
+
+        observations = {}
+        sources = {}
+        observed_count = 0
+        for route in routes:
+            is_local = local_reader is not None and route in local_routes
+            if local_reader is not None:
+                sources[route] = "LOCAL_CONFIG" if is_local else "SDK_FACADE"
+            if route not in live_routes:
+                observations[route] = _CalendarStatusUnavailable(reason="ROUTE_UNAVAILABLE")
+                continue
+            try:
+                selected_reader = local_reader.status if is_local else reader
+                if not callable(selected_reader):
+                    observations[route] = _CalendarStatusUnavailable(reason="CAPABILITY_UNAVAILABLE")
+                    continue
+                value = selected_reader(route)
+                if not _safe_calendar_observation(value, TradingCalendarStatus):
+                    raise ValueError("invalid status")
+                observations[route] = value
+                if value.status == "OBSERVED_UNAUTHENTICATED":
+                    observed_count += 1
+            except Exception:
+                observations[route] = _CalendarStatusUnavailable(reason="READ_UNAVAILABLE")
+
+        try:
+            list_routes_after = getattr(api, "list_exchanges", None)
+            if not callable(list_routes_after):
+                raise ValueError("route projection unavailable")
+            live_routes_after = list_routes_after()
+            if (not valid_live_routes(live_routes_after)
+                    or set(live_routes_after) != set(live_routes)):
+                raise ValueError("route projection changed")
+        except Exception:
+            return {"status": "UNKNOWN", "reason": "ROUTE_SET_CHANGED",
+                    "routes": unavailable("ROUTE_SET_CHANGED")}
+
+        with self._calendar_status_lock:
+            current = (
+                generation == self._calendar_status_generation
+                and stream_generation == self._stream_generation and self._api is api
+                and tuple(self._sdk_exchanges) == configured_routes
+                and self._started and self._connected and self._sdk_configured
+                and not self._calendar_status_transitions and not self._calendar_status_stopping
+            )
+            if not current:
+                return {"status": "UNKNOWN", "reason": "STORE_CHANGED",
+                        "routes": unavailable("STORE_CHANGED")}
+            if not observed_count:
+                status = "UNKNOWN"
+            elif invalid_routes or observed_count != len(routes):
+                status = "PARTIAL"
+            else:
+                status = "OBSERVED"
+            result = {"status": status,
+                    "reason": ("INVALID_CONFIGURED_ROUTE" if invalid_routes else
+                               "ROUTE_RESULTS" if status == "OBSERVED" else
+                               "PARTIAL_ROUTE_RESULTS" if status == "PARTIAL" else
+                               "ROUTES_UNAVAILABLE"),
+                    "routes": observations}
+            if local_reader is not None:
+                result["sources"] = sources
+            return result
+
+    def trading_calendar_query(self, route, *, venue, kind, product, contract, trading_day,
+                               mode=None):
+        """Read a CTP-format simulation calendar for one explicit configured route.
+
+        Route selects a local root or SDK facade route; it does not authenticate
+        provider identity. Results do not bind a strategy or authorize account use.
+        """
+        def unavailable(reason):
+            return _CalendarStatusUnavailable(reason=reason)
+
+        if type(mode) is not str or mode != "SIMULATION_ONLY":
+            return unavailable("SIMULATION_MODE_REQUIRED")
+        route_pattern = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}"
+        if (type(route) is not str or re.fullmatch(route_pattern, route) is None
+                or any(type(value) is not str or re.fullmatch(route_pattern, value) is None
+                       for value in (venue, kind, product, contract))
+                or type(trading_day) is not _dt.date):
+            return unavailable("INVALID_QUERY_SCOPE")
+        with self._calendar_status_lock:
+            configured_routes = tuple(self._sdk_exchanges)
+            generation = self._calendar_status_generation
+            stream_generation = self._stream_generation
+            api = self._api
+            local_reader = self._calendar_local_reader
+            local_routes = self._calendar_local_routes
+            ready = (
+                self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                and self._started and self._connected and self._sdk_configured
+                and api is not None and not self._calendar_status_transitions
+                and not self._calendar_status_stopping
+            )
+        if route not in configured_routes:
+            return unavailable("ROUTE_UNCONFIGURED")
+        if not ready:
+            return unavailable("STORE_UNAVAILABLE")
+
+        def valid_live_routes(value):
+            return (type(value) is list and all(
+                type(item) is str and re.fullmatch(route_pattern, item) is not None
+                for item in value
+            ) and len(set(value)) == len(value))
+
+        try:
+            from bt_api_py.trading_calendar_runtime_status import (
+                TradingCalendarCurrentQuery, TradingCalendarQueryWindow, TradingCalendarStatusReader,
+            )
+            from bt_api_py.bt_api import BtApi
+            from zoneinfo import ZoneInfo
+
+            list_routes = getattr(api, "list_exchanges", None)
+            is_local = local_reader is not None and route in local_routes
+            reader = (getattr(local_reader, "query", None)
+                      if is_local
+                      else getattr(api, "trading_calendar_query", None))
+            if ((is_local and type(local_reader) is not TradingCalendarStatusReader)
+                    or (not is_local and not isinstance(api, BtApi))):
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            token_owner = local_reader if is_local else api
+            token_method = getattr(token_owner, "configuration_token" if is_local else
+                                   "trading_calendar_configuration_token", None)
+            token_check = getattr(token_owner, "configuration_is_current" if is_local else
+                                  "trading_calendar_configuration_is_current", None)
+            if not callable(token_method) or not callable(token_check):
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            try:
+                reader_token = token_method()
+            except Exception:
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            if reader_token is None:
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            if not callable(list_routes) or not callable(reader):
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            live_routes = list_routes()
+            if not valid_live_routes(live_routes):
+                return unavailable("ROUTE_UNAVAILABLE")
+        except Exception:
+            return unavailable("ROUTE_UNAVAILABLE")
+
+        value = unavailable("ROUTE_UNAVAILABLE")
+        if route in live_routes:
+            try:
+                result = reader(route, venue=venue, kind=kind, product=product,
+                                contract=contract, trading_day=trading_day, mode=mode)
+                enums = {
+                    "source_authentication": "NOT_PROVEN", "identity_authentication": "NOT_PROVEN",
+                    "publication_authentication": "NOT_PROVEN", "route_mapping": "CALLER_DECLARED_ONLY",
+                    "bound": "NOT_BOUND", "observation": "CURRENT_NOT_PINNED",
+                    "trading_day_transition": "NOT_PROVEN", "environment": "SIMULATION_ONLY",
+                    "account_use": "NOT_AUTHORIZED", "provider": "CTP",
+                    "provider_selection": "EXPLICIT_CTP_ONLY_ROUTE_UNVERIFIED",
+                }
+                if (type(result) is not TradingCalendarCurrentQuery
+                        or any(type(getattr(result, key)) is not str for key in
+                               ("status", "reason", "coverage_status", "source_classification"))
+                        or any(type(getattr(result, key)) is not str or getattr(result, key) != expected
+                               for key, expected in enums.items())
+                        or type(result.windows) is not tuple or len(result.windows) > 10000
+                        or type(result.source_ids) is not tuple or len(result.source_ids) > 1000
+                        or any(type(item) is not str or re.fullmatch(route_pattern, item) is None
+                               for item in result.source_ids)
+                        or len(set(result.source_ids)) != len(result.source_ids)):
+                    raise ValueError("invalid query result")
+                if result.status == "UNKNOWN":
+                    if (result.reason not in {"SIMULATION_MODE_REQUIRED", "INVALID_ROUTE",
+                            "INVALID_QUERY_SCOPE", "ROUTE_UNCONFIGURED", "CURRENT_UNAVAILABLE",
+                            "PROVIDER_UNAVAILABLE", "COVERAGE_UNAVAILABLE", "CALENDAR_UNAVAILABLE",
+                            "SCOPE_OR_DATA_UNAVAILABLE", "CONFIGURATION_CHANGED"}
+                            or result.windows or result.source_ids
+                            or result.source_classification != "UNVERIFIED"
+                            or result.coverage_status != "UNKNOWN"
+                            or getattr(result, "data_origin", "UNSPECIFIED") != "UNSPECIFIED"
+                            or getattr(result, "simulation_provenance", None) is not None
+                            or any(item is not None for item in (result.calendar_ref,
+                                   result.publication_id, result.content_sha256, result.version_sha256))):
+                        raise ValueError("invalid unknown query result")
+                elif result.status == "COMPLETE":
+                    origin = getattr(result, "data_origin", "UNSPECIFIED")
+                    provenance = getattr(result, "simulation_provenance", None)
+                    if type(origin) is not str or origin not in {"UNSPECIFIED", "AKSHARE_MOCK"}:
+                        raise ValueError("invalid query origin")
+                    if ("AKSHARE.simulation_unverified" in result.source_ids
+                            and (origin != "AKSHARE_MOCK" or provenance is None)):
+                        raise ValueError("missing mixed query provenance")
+                    if provenance is not None:
+                        expected_classification = "AKSHARE_MOCK"
+                        if origin != "AKSHARE_MOCK":
+                            raise ValueError("invalid mixed query origin")
+                    elif origin == "AKSHARE_MOCK":
+                        expected_classification = (
+                            "DECLARED_MOCK" if set(result.source_ids) == {"MOCK.simulation_only"}
+                            else "UNVERIFIED")
+                    else:
+                        expected_classification = (
+                            "DECLARED_MOCK" if "MOCK.simulation_only" in result.source_ids
+                            else "UNVERIFIED")
+                    if (result.reason != "EXPLICIT_DATA" or result.coverage_status != "DECLARED_UNVERIFIED"
+                            or result.source_classification != expected_classification
+                            or not result.source_ids
+                            or any(type(item) is not str or re.fullmatch(
+                                r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", item) is None
+                                for item in (result.calendar_ref, result.publication_id))
+                            or any(type(item) is not str or re.fullmatch(r"[0-9a-f]{64}", item) is None
+                                   for item in (result.content_sha256, result.version_sha256))):
+                        raise ValueError("invalid complete query result")
+                    previous_end = None
+                    for window in result.windows:
+                        if (type(window) is not TradingCalendarQueryWindow
+                                or type(window.window_id) is not str
+                                or re.fullmatch(route_pattern, window.window_id) is None
+                                or type(window.phase) is not str or window.phase not in {"continuous", "auction"}
+                                or type(window.trading_day) is not _dt.date or window.trading_day != trading_day
+                                or type(window.interval_semantics) is not str
+                                or window.interval_semantics != "START_INCLUSIVE_END_EXCLUSIVE"
+                                or any(type(item) is not _dt.datetime for item in
+                                       (window.start_utc, window.end_utc, window.start_local, window.end_local))
+                                or window.start_utc.tzinfo is not _UTC or window.end_utc.tzinfo is not _UTC
+                                or type(window.start_local.tzinfo) is not ZoneInfo
+                                or type(window.end_local.tzinfo) is not ZoneInfo
+                                or window.start_local.tzinfo.key != "Asia/Shanghai"
+                                or window.end_local.tzinfo.key != "Asia/Shanghai"
+                                or window.start_local.astimezone(_UTC) != window.start_utc
+                                or window.end_local.astimezone(_UTC) != window.end_utc
+                                or window.start_utc >= window.end_utc
+                                or (previous_end is not None and window.start_utc < previous_end)):
+                            raise ValueError("invalid query window")
+                        previous_end = window.end_utc
+                    if provenance is not None and not _safe_calendar_mixed_provenance(
+                            result, venue, kind, product, contract, trading_day):
+                        raise ValueError("invalid mixed query provenance")
+                else:
+                    raise ValueError("invalid query status")
+                value = result
+            except Exception:
+                value = unavailable("READ_UNAVAILABLE")
+
+        try:
+            list_routes_after = getattr(api, "list_exchanges", None)
+            live_routes_after = list_routes_after() if callable(list_routes_after) else None
+            if not valid_live_routes(live_routes_after) or set(live_routes_after) != set(live_routes):
+                return unavailable("ROUTE_SET_CHANGED")
+        except Exception:
+            return unavailable("ROUTE_SET_CHANGED")
+        try:
+            token_current = token_check(reader_token)
+        except Exception:
+            return unavailable("CAPABILITY_UNAVAILABLE")
+        if token_current is False:
+            return unavailable("CONFIGURATION_CHANGED")
+        if token_current is not True:
+            return unavailable("CAPABILITY_UNAVAILABLE")
+        with self._calendar_status_lock:
+            if not (generation == self._calendar_status_generation
+                    and stream_generation == self._stream_generation and self._api is api
+                    and tuple(self._sdk_exchanges) == configured_routes
+                    and self._calendar_local_reader is local_reader
+                    and self._calendar_local_routes == local_routes
+                    and self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                    and self._started and self._connected and self._sdk_configured
+                    and not self._calendar_status_transitions and not self._calendar_status_stopping):
+                return unavailable("STORE_CHANGED")
+            return value
 
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.
