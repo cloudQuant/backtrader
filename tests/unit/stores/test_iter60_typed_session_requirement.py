@@ -1,8 +1,7 @@
-"""Iteration 60 R2-B: a managed BT session requires typed order commands.
+"""Retired configured assembly and typed protection for existing sessions.
 
-``run_configured_cerebro`` assembles the SDK execution client from the client
-config; a ``broker.orders`` route without ``command_binding`` refuses before
-any runtime is created, and a hand-built assembly whose client has no command
+``run_configured_cerebro`` rejects the retired configured route before runtime
+construction. A synthetic pre-existing assembly whose client has no command
 binding is refused by ``ServiceExecutionSession`` (no generic fallback).
 UNIT: no service, provider or network.
 """
@@ -15,7 +14,6 @@ pytest.importorskip("bt_api_py.service_execution_assembly")
 
 from bt_api_py.service_execution_assembly import (  # noqa: E402
     ServiceExecutionAssembly,
-    ServiceExecutionRoutePlan,
 )
 
 import backtrader as bt  # noqa: E402
@@ -66,7 +64,7 @@ def _client_config():
     }
 
 
-def test_configured_cerebro_refuses_a_writer_route_without_command_binding():
+def test_configured_cerebro_refuses_retired_execution_before_runtime():
     created = []
 
     def factory(config):
@@ -75,26 +73,29 @@ def test_configured_cerebro_refuses_a_writer_route_without_command_binding():
 
     with pytest.raises(ServiceExecutionSessionConfigError) as error:
         run_configured_cerebro(bt.Cerebro(), _client_config(), runtime_factory=factory)
-    assert error.value.code == "COMMAND_BINDING_REQUIRED"
+    assert error.value.code == "LEGACY_SERVICE_EXECUTION_RETIRED"
     assert created == []
 
 
 class _BindingLessClient:
-    typed_commands = False
+    def __init__(self):
+        self.reads = 0
+
+    @property
+    def typed_commands(self):
+        self.reads += 1
+        return False
 
 
 def test_session_refuses_an_assembly_whose_client_is_not_typed():
-    routes = ServiceExecutionRoutePlan(
-        writer_mount="broker.orders",
-        writer_scope_ref="orders-v1",
-        query_mount="broker.order_query",
-        query_scope_ref="order-query-v1",
-    )
-    assembly = ServiceExecutionAssembly(
-        object(),  # type: ignore[arg-type]  # refused before the runtime is used
-        execution_client=_BindingLessClient(),  # type: ignore[arg-type]
-        routes=routes,
-    )
+    # Simulate an assembly that existed before retirement solely to test the
+    # retained Session guard. This is not a supported way to create an assembly.
+    assembly = object.__new__(ServiceExecutionAssembly)
+    client = _BindingLessClient()
+    assembly._state = "unclaimed"
+    assembly._runtime = object()
+    assembly._execution_client = client
     with pytest.raises(ServiceExecutionSessionConfigError) as error:
         ServiceExecutionSession(assembly)
     assert error.value.code == "COMMAND_BINDING_REQUIRED"
+    assert client.reads == 1

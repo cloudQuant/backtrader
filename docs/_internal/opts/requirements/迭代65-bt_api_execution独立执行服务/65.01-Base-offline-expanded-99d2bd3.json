@@ -1,0 +1,139 @@
+{
+  "scope": "Offline selected Base tests, with explicit exclusions; not the full suite, distribution verification, account evidence or acceptance.",
+  "base_commit": "99d2bd381dbc750e743ff3bb1fd4291080134cc5",
+  "base_status_before": "clean (verified separately before run)",
+  "cwd": "/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base",
+  "command": [
+    "/usr/bin/sandbox-exec",
+    "-p",
+    "(version 1)(allow default)(deny network*)(deny file-write*)(allow file-write* (subpath \"/private/tmp/iter65-base-expanded.0nt1fuq3\"))",
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "python",
+    "-B",
+    "/private/tmp/iter65-base-expanded.0nt1fuq3/recorder.py"
+  ],
+  "environment_names_and_values": {
+    "PATH": "/usr/bin:/bin",
+    "HOME": "/private/tmp/iter65-base-expanded.0nt1fuq3",
+    "TMPDIR": "/private/tmp/iter65-base-expanded.0nt1fuq3",
+    "BT_API_LOG_DIR": "/private/tmp/iter65-base-expanded.0nt1fuq3/logs",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+  },
+  "timeout_seconds": 240,
+  "elapsed_seconds": 1.52,
+  "process_group": {
+    "new_session": true,
+    "cleanup": "on timeout only: SIGTERM then SIGKILL after 5s, only this process group",
+    "timed_out": false,
+    "returncode": 0,
+    "returncode_note": "Recorder returned normally after recording pytest exit; process return code 0 does not indicate pytest success."
+  },
+  "isolation": {
+    "sandbox_policy": "(version 1)(allow default)(deny network*)(deny file-write*)(allow file-write* (subpath \"/private/tmp/iter65-base-expanded.0nt1fuq3\"))",
+    "sandbox_preflight": "loopback bind denied EPERM; local socketpair worked; temporary-directory write allowed and outside write denied EPERM",
+    "audit": "in-process Python audit hook blocks named network and process-creation events; native libraries are subject to sandbox, not Python audit hook",
+    "limitations": "sandbox denies network and writes outside temporary directory; filesystem reads are not sandbox-restricted; environment excludes credentials; subprocesses forbidden by audit, sandbox inherited by any descendant"
+  },
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "incomplete": 0,
+    "selected": 0,
+    "deselected": 0,
+    "collection_errors": 0,
+    "guard_blocks": 0,
+    "ignored_files_configured": 11,
+    "deselection_patterns_configured": 5
+  },
+  "events_other_than_phases": [
+    {
+      "kind": "environment",
+      "python": "3.11.8 | packaged by conda-forge | (main, Feb 16 2024, 20:49:36) [Clang 16.0.6 ]",
+      "executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+      "pytest": "8.4.2",
+      "base_import": "/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base/src/bt_api_base/__init__.py",
+      "audit_self_test": "all listed events blocked; socketpair works"
+    },
+    {
+      "kind": "configuration",
+      "args": [
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "pytest_asyncio.plugin",
+        "--basetemp",
+        "/private/tmp/iter65-base-expanded.0nt1fuq3/pytest-tmp",
+        "-q",
+        "--ignore=tests/test_http_retry.py",
+        "--ignore=tests/test_account_protocol.py",
+        "--ignore=tests/test_market_protocol.py",
+        "--ignore=tests/test_market_history_protocol.py",
+        "--ignore=tests/test_logging_factory_cold_start.py",
+        "--ignore=tests/test_iter63_claim_fence.py",
+        "--ignore=tests/test_iter63_claim_fence_coverage_seal.py",
+        "--ignore=tests/containers/test_container_contract_v1.py",
+        "--ignore=tests/test_thread_safety.py",
+        "--ignore=tests/test_quality_batch_v4.py",
+        "--ignore=tests/test_websocket_stop_lifecycle.py",
+        "--deselect=tests/test_service_protocol.py::test_transport_protocols_are_structural_and_service_protocol_import_is_stdlib_only",
+        "--deselect=tests/test_wire_codec_v1.py::test_importing_the_contract_does_not_import_msgpack",
+        "--deselect=tests/test_wire_account_codec.py::test_account_snapshot_cross_process_roundtrip",
+        "--deselect=tests/test_wire_exit_gates.py::test_mixed_version_matrix_against_a_separate_old_process",
+        "--deselect=tests/test_wire_strategy_commands.py::test_command_roundtrips_across_a_fresh_process",
+        "tests"
+      ],
+      "ignored_files": [
+        "tests/test_http_retry.py",
+        "tests/test_account_protocol.py",
+        "tests/test_market_protocol.py",
+        "tests/test_market_history_protocol.py",
+        "tests/test_logging_factory_cold_start.py",
+        "tests/test_iter63_claim_fence.py",
+        "tests/test_iter63_claim_fence_coverage_seal.py",
+        "tests/containers/test_container_contract_v1.py",
+        "tests/test_thread_safety.py",
+        "tests/test_quality_batch_v4.py",
+        "tests/test_websocket_stop_lifecycle.py"
+      ],
+      "deselected_nodes": [
+        "tests/test_service_protocol.py::test_transport_protocols_are_structural_and_service_protocol_import_is_stdlib_only",
+        "tests/test_wire_codec_v1.py::test_importing_the_contract_does_not_import_msgpack",
+        "tests/test_wire_account_codec.py::test_account_snapshot_cross_process_roundtrip",
+        "tests/test_wire_exit_gates.py::test_mixed_version_matrix_against_a_separate_old_process",
+        "tests/test_wire_strategy_commands.py::test_command_roundtrips_across_a_fresh_process"
+      ],
+      "blocked_audit_events": [
+        "os.exec",
+        "os.fork",
+        "os.forkpty",
+        "os.posix_spawn",
+        "os.spawn",
+        "os.system",
+        "socket.bind",
+        "socket.connect",
+        "socket.getaddrinfo",
+        "socket.gethostbyaddr",
+        "socket.gethostbyname",
+        "socket.getnameinfo",
+        "subprocess.Popen"
+      ]
+    },
+    {
+      "kind": "exit",
+      "code": 3
+    }
+  ],
+  "tests": [],
+  "recorder_source": "import json, os, socket, sys\nfrom pathlib import Path\nbase = Path('/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base')\ntmp = Path('/private/tmp/iter65-base-expanded.0nt1fuq3')\nstream = (tmp / 'events.jsonl').open('x', encoding='utf-8', buffering=1)\ndef emit(kind, **kw):\n    stream.write(json.dumps({'kind': kind, **kw}, ensure_ascii=False) + '\\n')\nblocked = {'socket.connect', 'socket.bind', 'socket.getaddrinfo', 'socket.gethostbyname', 'socket.gethostbyaddr', 'socket.getnameinfo', 'subprocess.Popen', 'os.system', 'os.posix_spawn', 'os.spawn', 'os.fork', 'os.forkpty', 'os.exec'}\ntesting_guard = True\ndef guard(event, args):\n    if event in blocked:\n        if not testing_guard:\n            emit('guard_blocked', event=event)\n        raise PermissionError('offline guard blocked ' + event)\nsys.addaudithook(guard)\nfor event in sorted(blocked):\n    try: sys.audit(event)\n    except PermissionError: pass\n    else: raise RuntimeError('guard self-test failed: ' + event)\na, b = socket.socketpair(); a.send(b'x'); assert b.recv(1) == b'x'; a.close(); b.close()\ntesting_guard = False\nsys.path.insert(0, str(base / 'src'))\nimport bt_api_base, pytest\nassert Path(bt_api_base.__file__).resolve().is_relative_to(base / 'src')\nemit('environment', python=sys.version, executable=sys.executable, pytest=pytest.__version__, base_import=bt_api_base.__file__, audit_self_test='all listed events blocked; socketpair works')\nfiles = ['tests/test_http_retry.py','tests/test_account_protocol.py','tests/test_market_protocol.py','tests/test_market_history_protocol.py','tests/test_logging_factory_cold_start.py','tests/test_iter63_claim_fence.py','tests/test_iter63_claim_fence_coverage_seal.py','tests/containers/test_container_contract_v1.py','tests/test_thread_safety.py','tests/test_quality_batch_v4.py','tests/test_websocket_stop_lifecycle.py']\nnodes = ['tests/test_service_protocol.py::test_transport_protocols_are_structural_and_service_protocol_import_is_stdlib_only','tests/test_wire_codec_v1.py::test_importing_the_contract_does_not_import_msgpack','tests/test_wire_account_codec.py::test_account_snapshot_cross_process_roundtrip','tests/test_wire_exit_gates.py::test_mixed_version_matrix_against_a_separate_old_process','tests/test_wire_strategy_commands.py::test_command_roundtrips_across_a_fresh_process']\nargs = ['-p', 'no:cacheprovider', '-p', 'pytest_asyncio.plugin', '--basetemp', str(tmp / 'pytest-tmp'), '-q'] + ['--ignore='+p for p in files] + ['--deselect='+n for n in nodes] + ['tests']\nemit('configuration', args=args, ignored_files=files, deselected_nodes=nodes, blocked_audit_events=sorted(blocked))\nclass Recorder:\n    def pytest_collection_modifyitems(self, items):\n        emit('selected', nodeids=[i.nodeid for i in items])\n    def pytest_deselected(self, items):\n        emit('deselected', nodeids=[i.nodeid for i in items])\n    def pytest_collectreport(self, report):\n        if report.failed or report.skipped: emit('collection_report', nodeid=report.nodeid, outcome=report.outcome, detail=str(report.longrepr))\n    def pytest_runtest_logreport(self, report):\n        entry = dict(nodeid=report.nodeid, phase=report.when, outcome=report.outcome)\n        if report.failed or report.skipped: entry['detail'] = str(report.longrepr)\n        if hasattr(report, 'wasxfail'): entry['wasxfail'] = str(report.wasxfail)\n        emit('phase', **entry)\n    def pytest_warning_recorded(self, warning_message, when, nodeid, location):\n        emit('warning', nodeid=nodeid, when=when, category=warning_message.category.__name__, message=str(warning_message.message), location=location)\ntry:\n    code = int(pytest.main(args, plugins=[Recorder()]))\n    emit('exit', code=code)\nexcept BaseException as exc:\n    emit('exception', type=type(exc).__name__, detail=str(exc))\n    raise\nfinally:\n    stream.close()\n",
+  "controller_source": "import json, os, signal, subprocess, sys, time\nfrom pathlib import Path\nbase=Path('/Users/yunjinqi/Documents/new_projects/wt-iter65/bt_api_py/bt_api/bt_api_base')\ntmp=Path('/private/tmp/iter65-base-expanded.0nt1fuq3')\ndest=Path('/Users/yunjinqi/Documents/new_projects/wt-iter65/backtrader/docs/_internal/opts/requirements/迭代65-bt_api_execution独立执行服务/65.01-Base-offline-expanded-99d2bd3.json')\nif dest.exists(): raise RuntimeError('evidence already exists')\nprofile='(version 1)(allow default)(deny network*)(deny file-write*)(allow file-write* (subpath \"'+str(tmp)+'\"))'\nenv={'PATH':'/usr/bin:/bin', 'HOME':str(tmp), 'TMPDIR':str(tmp), 'BT_API_LOG_DIR':str(tmp/'logs'), 'PYTHONDONTWRITEBYTECODE':'1', 'PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1'}\ncmd=['/usr/bin/sandbox-exec','-p',profile,'/Users/yunjinqi/opt/anaconda3/bin/conda','run','--no-capture-output','-n','base','python','-B',str(tmp/'recorder.py')]\nstart=time.time(); timed_out=False\nwith (tmp/'output.txt').open('x') as output:\n    p=subprocess.Popen(cmd,cwd=base,env=env,stdout=output,stderr=subprocess.STDOUT,start_new_session=True)\n    try: rc=p.wait(timeout=240)\n    except subprocess.TimeoutExpired:\n        timed_out=True; os.killpg(p.pid,signal.SIGTERM)\n        try: rc=p.wait(timeout=5)\n        except subprocess.TimeoutExpired: os.killpg(p.pid,signal.SIGKILL); rc=p.wait()\nevents=[]\nif (tmp/'events.jsonl').exists():\n    for line in (tmp/'events.jsonl').read_text(encoding='utf-8').splitlines():\n        try: events.append(json.loads(line))\n        except json.JSONDecodeError: events.append({'kind':'truncated_event','raw':line})\nselected=[e for e in events if e['kind']=='selected']; ids=selected[-1]['nodeids'] if selected else []\nphases={n:[] for n in ids}\nfor e in events:\n    if e['kind']=='phase': phases.setdefault(e['nodeid'],[]).append({k:v for k,v in e.items() if k not in ('kind','nodeid')})\nresults=[]\nfor n, ps in phases.items():\n    if any(p['outcome']=='failed' for p in ps): outcome='failed'\n    elif any(p['outcome']=='skipped' for p in ps): outcome='skipped'\n    elif all(any(p['phase']==phase and p['outcome']=='passed' for p in ps) for phase in ('setup','call','teardown')): outcome='passed'\n    else: outcome='incomplete'\n    results.append({'nodeid':n,'outcome':outcome,'phases':ps})\ncounts={x:sum(r['outcome']==x for r in results) for x in ('passed','failed','skipped','incomplete')}\ncounts.update(selected=len(ids),deselected=sum(len(e['nodeids']) for e in events if e['kind']=='deselected'),collection_errors=sum(e['kind']=='collection_report' and e['outcome']=='failed' for e in events),guard_blocks=sum(e['kind']=='guard_blocked' for e in events))\nevidence={'scope':'Offline selected Base tests, with explicit exclusions; not the full suite, distribution verification, account evidence or acceptance.', 'base_commit':'99d2bd381dbc750e743ff3bb1fd4291080134cc5','base_status_before':'clean (verified separately before run)','cwd':str(base),'command':cmd,'environment_names_and_values':env,'timeout_seconds':240,'elapsed_seconds':round(time.time()-start,2),'process_group':{'new_session':True,'cleanup':'on timeout only: SIGTERM then SIGKILL after 5s, only this process group','timed_out':timed_out,'returncode':rc},'isolation':{'sandbox_policy':profile,'sandbox_preflight':'loopback bind denied EPERM; local socketpair worked; temporary-directory write allowed and outside write denied EPERM','audit':'in-process Python audit hook blocks named network and process-creation events; native libraries are subject to sandbox, not Python audit hook','limitations':'sandbox denies network and writes outside temporary directory; filesystem reads are not sandbox-restricted; environment excludes credentials; subprocesses forbidden by audit, sandbox inherited by any descendant'},'counts':counts,'events_other_than_phases':[e for e in events if e['kind'] not in ('phase','selected')], 'tests':results,'recorder_source':(tmp/'recorder.py').read_text(encoding='utf-8'),'controller_source':Path(__file__).read_text(encoding='utf-8')}\nwith dest.open('x',encoding='utf-8') as f: json.dump(evidence,f,ensure_ascii=False,indent=2); f.write('\\n')\nprint(json.dumps({'evidence':str(dest),'counts':counts,'returncode':rc,'timed_out':timed_out},ensure_ascii=False))\n",
+  "result": "ABORTED: pytest configuration failed before collection; no tests executed; no retry.",
+  "pytest_exit_code": 3,
+  "captured_output": "INTERNALERROR> Traceback (most recent call last):\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/main.py\", line 285, in wrap_session\nINTERNALERROR>     config._do_configure()\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py\", line 1119, in _do_configure\nINTERNALERROR>     self.hook.pytest_configure.call_historic(kwargs=dict(config=self))\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pluggy/_hooks.py\", line 534, in call_historic\nINTERNALERROR>     res = self._hookexec(self.name, self._hookimpls.copy(), kwargs, False)\nINTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pluggy/_manager.py\", line 120, in _hookexec\nINTERNALERROR>     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)\nINTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pluggy/_callers.py\", line 167, in _multicall\nINTERNALERROR>     raise exception\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/pluggy/_callers.py\", line 121, in _multicall\nINTERNALERROR>     res = hook_impl.function(*args)\nINTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/logging.py\", line 638, in pytest_configure\nINTERNALERROR>     config.pluginmanager.register(LoggingPlugin(config), \"logging-plugin\")\nINTERNALERROR>                                   ^^^^^^^^^^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/site-packages/_pytest/logging.py\", line 675, in __init__\nINTERNALERROR>     self.log_file_handler = _FileHandler(\nINTERNALERROR>                             ^^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py\", line 1181, in __init__\nINTERNALERROR>     StreamHandler.__init__(self, self._open())\nINTERNALERROR>                                  ^^^^^^^^^^^^\nINTERNALERROR>   File \"/Users/yunjinqi/opt/anaconda3/lib/python3.11/logging/__init__.py\", line 1213, in _open\nINTERNALERROR>     return open_func(self.baseFilename, self.mode,\nINTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nINTERNALERROR> PermissionError: [Errno 1] Operation not permitted: '/dev/null'\n",
+  "preflight_note": "An initial malformed shell-quoted preflight raised SyntaxError without running the bind probe; subsequent clean preflight produced the recorded results."
+}
