@@ -43,7 +43,7 @@ from ..utils.log_message import get_logger, throttled_warning
 
 _log = get_logger(__name__)
 
-__all__ = ("BtApiDirectModeMixin", "DirectModeError")
+__all__ = ("BtApiDirectModeMixin", "DirectModeError", "DirectStartStopped")
 
 OFFSETS = ("open", "close", "close_today", "close_yesterday")
 _CLOSE_OFFSETS = frozenset(("close", "close_today", "close_yesterday"))
@@ -164,6 +164,20 @@ class DirectModeError(RuntimeError):
         self.code = code
         self.detail = detail
         super().__init__(f"{code}: {detail}" if detail else code)
+
+
+class DirectStartStopped(DirectModeError):
+    """A latched stop request aborted a direct start (iteration 66, §5.2 B4).
+
+    ``detail`` is the side-effect boundary that observed the request.  Raised
+    only after the start's own bookkeeping recorded whether anything reached
+    the account: a start aborted before any account write is cleaned up as
+    ``NOT_STARTED``; one aborted after a committed (or unclear) settlement
+    write keeps its durable marker and the run lock and reports ``UNKNOWN``.
+    """
+
+    def __init__(self, boundary: str) -> None:
+        super().__init__("stop_requested", boundary)
 
 
 def _utc_now() -> _dt.datetime:
@@ -454,6 +468,18 @@ class _StopFencedPort:
         with broker._direct_write_gate:
             if broker._direct_stopping:
                 return None
+            if broker._direct_stop_requested():
+                # B4: a latched stop request refuses the commit, so the SDK
+                # sends nothing.  Recorded as the settlement step's boundary so
+                # the failed start is provably write-free (a refusal during the
+                # running poller has no start to describe).
+                if not broker._direct_on:
+                    broker._direct_start_stop = {
+                        "boundary": "before_settlement_commit",
+                        "write": None,
+                        "marker_id": None,
+                    }
+                return None
             marker_id = self._port.commit(record)
             if broker._direct_poller_write is not None:
                 broker._direct_poller_write["marker_id"] = marker_id
@@ -470,6 +496,12 @@ class BtApiDirectModeMixin:
         self._direct_on = False
         self._direct_attempted = False  # direct mode was selected by start()
         self._direct_stopping = False
+        # Start-abort bookkeeping (iteration 66, B4): which side-effect boundary
+        # observed a latched stop request and what the settlement step did
+        # before it (``None``: nothing committed, so nothing could be sent).
+        self._direct_start_stop: Optional[Dict[str, Any]] = None
+        self._direct_settle_marker_id: Optional[str] = None
+        self._direct_start_write: Optional[str] = None
         self._direct_api: Any = None
         self._direct_exchange: Optional[str] = None
         self._direct_state: Any = None
@@ -583,6 +615,61 @@ class BtApiDirectModeMixin:
         return self._direct_active() or bool(getattr(self, "_direct_attempted", False))
 
     # ------------------------------------------------------------------
+    # a latched stop request versus the start (iteration 66, B4)
+    # ------------------------------------------------------------------
+    def _direct_stop_requested(self) -> bool:
+        """Whether ``stop()`` began or ``runstop()`` was requested on the owner.
+
+        Iteration 62's latch turns a signal (or a stop-file request once that
+        channel exists) into ``cerebro.runstop()``, which only sets the run's
+        stop event: the start in progress has to look at it.  The event is
+        consulted without any lock; a missing owner or event means "no
+        request", which is the pre-66 behavior.
+        """
+        if getattr(self, "_direct_stopping", False):
+            return True
+        owner = getattr(self, "cerebro", None)
+        event = getattr(owner, "_event_stop", None)
+        if event is None:
+            return False
+        try:
+            check = getattr(event, "is_set", None)
+            return bool(check()) if callable(check) else bool(event)
+        except Exception:
+            return False
+
+    def _direct_start_stop_boundary(self, boundary: str) -> None:
+        """Abort the start when a stop request was latched (B4).
+
+        ``boundary`` is the last side-effect boundary that completed.  Before
+        the settlement step nothing has been written to the account, so
+        ``stop()`` cleans up locally (``NOT_STARTED``); afterwards the outcome
+        depends on whether a settlement confirmation was committed.
+        """
+        if not self._direct_stop_requested():
+            return
+        write = self._direct_start_write if boundary == "after_settlement_step" else None
+        write = write if write in ("committed", "unknown") else None
+        self._direct_start_stop = {
+            "boundary": boundary,
+            "write": write,
+            "marker_id": self._direct_settle_marker_id if write else None,
+        }
+        raise DirectStartStopped(boundary)
+
+    def _direct_start_write_pending(self) -> bool:
+        """Whether a stop-aborted start must keep the run lock (B4).
+
+        True only when this start was abandoned *by a latched stop request*
+        after a settlement confirmation was committed (or left unclear): the
+        write may have reached the venue, so the marker and the lock stay and
+        ``stop()`` reports ``UNKNOWN``.  Other failed starts keep the pre-66
+        behavior (the lock is released; a durable marker, if any, stays).
+        """
+        start_stop = getattr(self, "_direct_start_stop", None) or {}
+        return start_stop.get("write") in ("committed", "unknown")
+
+    # ------------------------------------------------------------------
     # startup (R-10 start stage)
     # ------------------------------------------------------------------
     def _direct_start(self) -> None:
@@ -592,6 +679,9 @@ class BtApiDirectModeMixin:
             return
         self._direct_attempted = True
         self._direct_stopping = False  # a retry after stop() of a failed start
+        self._direct_start_stop = None
+        self._direct_settle_marker_id = None
+        self._direct_start_write = None
         if not self.p.strategy_dir:
             raise DirectModeError("strategy_dir_required")
         window = self.p.direct_trade_match_window
@@ -602,6 +692,9 @@ class BtApiDirectModeMixin:
             or window < 0
         ):
             raise DirectModeError("direct_trade_match_window_invalid")
+        # B4 boundary 1: a latched stop request before the Store even starts
+        # (no connection, no account read, nothing written).
+        self._direct_start_stop_boundary("before_side_effects")
         store = self.store
         store.start(broker=self)
         self._live_started = True
@@ -625,6 +718,9 @@ class BtApiDirectModeMixin:
         facts = self._direct_read_startup_facts()
         self._direct_trading_day = facts.trading_day
         self._direct_session_generation = facts.session_generation
+        # B4 boundary 2: the read-only startup observation is done; a stop now
+        # aborts before any identity, marker or account write.
+        self._direct_start_stop_boundary("read_only_queries")
         account_hash = self._direct_account_reference()
         binding = {"exchange": self._direct_exchange, "account_hash": account_hash}
         check_host = bool(self.p.check_host_path)
@@ -674,7 +770,16 @@ class BtApiDirectModeMixin:
                 self._direct_write_snapshot()
             self._direct_reconcile(facts)
             self._direct_read_permissions()
+            # B4 boundary 3: reconciliation and permission reads are local; the
+            # settlement step below is the first account write.  A request
+            # arriving after this point can still be refused inside the port,
+            # per commit (``_StopFencedPort.commit``).
+            self._direct_start_stop_boundary("before_settlement_commit")
             self._direct_settle()
+            # B4 boundary 4: the settlement step ended; ``_direct_start_write``
+            # says whether a confirmation was committed (and may have been sent)
+            # and whether its outcome is known.  Never claim NOT_STARTED here.
+            self._direct_start_stop_boundary("after_settlement_step")
             self._direct_apply_balance(facts.balance)
             try:
                 self._direct_schedule = api.trading_session_schedule(self._direct_exchange)
@@ -683,8 +788,23 @@ class BtApiDirectModeMixin:
             self._direct_restore_waiting()
         except BaseException:
             # Startup refused after the run lock was taken (unusable snapshot,
-            # binding mismatch ...): never leak the lock (D62-13).
-            self._direct_release_lock()
+            # binding mismatch ...): never leak the lock (D62-13).  A start
+            # abandoned by a latched stop request after a committed (or unclear)
+            # settlement write keeps it: the durable marker and the lock stay
+            # for the next reconciliation (B4; stop() reports UNKNOWN and the
+            # facts poller never started).
+            if (
+                self._direct_start_stop is None
+                and self._direct_start_write is not None
+                and self._direct_stop_requested()
+            ):
+                self._direct_start_stop = {
+                    "boundary": "after_settlement_step",
+                    "write": self._direct_start_write,
+                    "marker_id": self._direct_settle_marker_id,
+                }
+            if not self._direct_start_write_pending():
+                self._direct_release_lock()
             raise
         now = time.monotonic()
         self._direct_last_funds = now
@@ -1575,16 +1695,37 @@ class BtApiDirectModeMixin:
                 self._direct_exchange, pre_dispatch_commit=port, host_scope=self._direct_uuid
             )
         except Exception as exc:
-            return {
+            outcome = {
                 "value": None,
                 "error": type(exc).__name__,
                 "marker_id": getattr(port, "last_marker_id", None),
             }
-        return {
-            "value": getattr(status, "value", status),
-            "error": None,
-            "marker_id": getattr(port, "last_marker_id", None),
-        }
+        else:
+            outcome = {
+                "value": getattr(status, "value", status),
+                "error": None,
+                "marker_id": getattr(port, "last_marker_id", None),
+            }
+        self._direct_note_settlement_write(outcome)
+        return outcome
+
+    def _direct_note_settlement_write(self, outcome: Optional[Dict[str, Any]]) -> None:
+        """Remember what the startup settlement step wrote (iteration 66, B4).
+
+        ``_direct_start_write`` is ``None`` when nothing was committed (so
+        nothing could be sent), ``"committed"`` when the step returned a
+        confirmed result for a committed marker, and ``"unknown"`` when a marker
+        was committed without a confirmed result (raised, unclear or not yet
+        verified).  Only a start in progress records it: the facts poller's
+        settlement steps happen while ``_direct_on`` is true.
+        """
+        marker_id = (outcome or {}).get("marker_id")
+        if not marker_id or self._direct_on:
+            return
+        self._direct_settle_marker_id = marker_id
+        self._direct_start_write = (
+            "committed" if _settlement_class(outcome) == "confirmed" else "unknown"
+        )
 
     # ------------------------------------------------------------------
     # trading-permission facts (D62-25, N-1/2, 62.03)
@@ -4597,10 +4738,47 @@ class BtApiDirectModeMixin:
     def _direct_stop_after_failed_start(self) -> Dict[str, Any]:
         """``stop()`` after ``_direct_start`` raised: local cleanup only.
 
-        Writes were never enabled, so nothing is cancelled or written to the
-        account; the run lock (if taken) is released and a Store the attempt
-        started is stopped.
+        Before the settlement step writes were never enabled, so nothing was
+        cancelled or written to the account; the run lock (if taken) is
+        released and a Store the attempt started is stopped.
+
+        A start aborted by a latched stop request *after* a settlement
+        confirmation was committed (or with an unclear result) is different
+        (iteration 66, B4): the durable marker and the run lock stay so the next
+        start reconciles them, and the summary is ``UNKNOWN`` — never a clean
+        ``NOT_STARTED``.  The process exit releases the lock; the marker remains
+        the evidence of a write that may have reached the venue.
         """
+        start_stop = getattr(self, "_direct_start_stop", None) or {}
+        write = start_stop.get("write")
+        if write in ("committed", "unknown"):
+            summary = {
+                "status": "UNKNOWN",
+                "reason": "stop_requested_during_start",
+                "startup_write": write,
+                "startup_boundary": start_stop.get("boundary"),
+                "startup_marker": start_stop.get("marker_id"),
+                "run_lock_held": True,
+                "cancelled_requested": 0,
+                "unresolved_working_orders": 0,
+            }
+            self._shutdown_summary = summary
+            self._startup_ready = False
+            if self._live_started:
+                self._live_started = False
+                stop_store = getattr(self.store, "stop", None)
+                if callable(stop_store):
+                    try:
+                        stop_store()
+                    except Exception as exc:
+                        _log.warning("direct store stop failed: %s", type(exc).__name__)
+            _log.warning(
+                "direct start aborted by a stop request after a settlement write "
+                "(%s, boundary=%s): marker and run lock kept, writes stay unresolved",
+                write,
+                start_stop.get("boundary"),
+            )
+            return dict(summary)
         self._direct_release_lock()
         summary = {
             "status": "NOT_STARTED",
@@ -4608,6 +4786,9 @@ class BtApiDirectModeMixin:
             "cancelled_requested": 0,
             "unresolved_working_orders": 0,
         }
+        if start_stop.get("boundary"):
+            summary["reason"] = "stop_requested_during_start"
+            summary["startup_boundary"] = start_stop.get("boundary")
         self._shutdown_summary = summary
         self._startup_ready = False
         if self._live_started:

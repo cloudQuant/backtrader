@@ -20,6 +20,11 @@ normal stop and ``finally`` paths run.
   caught at all; SIGBREAK (Ctrl+Break, or ``CTRL_BREAK_EVENT`` sent to the
   process group) is registered where available and handled like SIGTERM.
 * The previous handlers are restored when the context exits.
+* The first request (signal or :meth:`TerminateStop.request`) also records its
+  source and UTC time (iteration 66, §5.2 B1(1)): the status file and the final
+  summary publish them so a supervisor can start its stop deadline at the real
+  first request.  The handler still only assigns flags and calls ``runstop()``
+  (thread-safe); it never takes a lock, logs or does I/O.
 
 The handler itself only sets flags and calls ``runstop()`` (thread-safe); it
 never logs, so it cannot block on a lock held by the interrupted code.
@@ -27,6 +32,7 @@ never logs, so it cannot block on a lock held by the interrupted code.
 
 from __future__ import annotations
 
+import datetime as _dt
 import signal
 import threading
 from typing import Any, Dict, Optional, Tuple
@@ -34,11 +40,18 @@ from typing import Any, Dict, Optional, Tuple
 __all__ = ("TerminateStop", "stop_on_terminate")
 
 _POLL_SECONDS = 0.05
+#: Sources a request may name; ``stop_file``/``internal`` arrive through
+#: :meth:`TerminateStop.request`, never through a signal.
+STOP_REQUEST_SOURCES = ("SIGTERM", "SIGBREAK", "stop_file", "internal")
 
 
 def _terminate_signals() -> Tuple[int, ...]:
     names = ("SIGTERM", "SIGBREAK")  # SIGBREAK exists on Windows only
     return tuple(getattr(signal, name) for name in names if hasattr(signal, name))
+
+
+def _utc_text() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="microseconds")
 
 
 class TerminateStop:
@@ -48,6 +61,9 @@ class TerminateStop:
         installed: names of the signals whose handler this context installed.
         received: name of the first terminate signal received, else ``None``.
         count: number of terminate signals received.
+        source: first stop request source, including non-signal ones
+            (``SIGTERM``/``SIGBREAK``/``stop_file``/``internal``), else ``None``.
+        requested_at_utc: UTC time of the first stop request, else ``None``.
     """
 
     def __init__(self, cerebro: Any) -> None:
@@ -61,6 +77,8 @@ class TerminateStop:
         self.installed: Tuple[str, ...] = ()
         self.received: Optional[str] = None
         self.count = 0
+        self.source: Optional[str] = None
+        self.requested_at_utc: Optional[str] = None
 
     def __enter__(self) -> "TerminateStop":
         if threading.current_thread() is not threading.main_thread():
@@ -88,10 +106,34 @@ class TerminateStop:
             deliverer.join(timeout=1.0)
 
     def _handle(self, signum: int, _frame: Any) -> None:
-        self.count += 1
-        if self.received is None:
-            self.received = signal.Signals(signum).name
+        self.request(signal.Signals(signum).name, signal=True)
+
+    def request(self, source: str = "internal", *, signal: bool = False) -> None:
+        """Request the graceful stop from a non-signal caller (or the handler).
+
+        Reuses the same latch as the signal handler: the request reaches
+        ``runstop()`` now when the run is active, otherwise as soon as it opens.
+        Only the first request records ``source``/``requested_at_utc``; later
+        ones (including a second signal) only repeat the request.
+        """
+        if signal:
+            self.count += 1
+            if self.received is None:
+                self.received = source
+        if self.source is None:
+            self.source = source if source in STOP_REQUEST_SOURCES else "internal"
+            self.requested_at_utc = _utc_text()
         self._request_stop()
+
+    def request_state(self) -> Optional[Tuple[str, Optional[str]]]:
+        """``(source, requested_at_utc)`` of the first request, else ``None``.
+
+        Lock-free and side-effect free: safe to poll from a status thread.
+        """
+        source = self.source
+        if source is None:
+            return None
+        return source, self.requested_at_utc
 
     def _request_stop(self) -> None:
         cerebro = self._cerebro

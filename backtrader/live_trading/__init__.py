@@ -1,6 +1,24 @@
 """Backtrader live-trading module."""
 
 from .graceful_stop import TerminateStop, stop_on_terminate
+from .run_status import (
+    EXIT_BLOCKED,
+    EXIT_CODES,
+    EXIT_STOPPED,
+    EXIT_STOPPED_WITH_WORKING_ORDERS,
+    EXIT_STOPPED_WITH_WRITE_IN_FLIGHT,
+    EXIT_UNEXPECTED,
+    RunConclusion,
+    RunFacts,
+    RunStatusError,
+    RunStatusWriter,
+    compute_stop_budget,
+    derive_outcome,
+    direct_run_facts,
+    direct_stop_budget,
+    exit_code_for,
+    read_run_status,
+)
 from .interface import (
     LiveAccount,
     LiveBroker,
@@ -29,4 +47,20 @@ __all__ = [
     "LiveBrokerFactory",
     "TerminateStop",
     "stop_on_terminate",
+    "RunStatusWriter",
+    "RunConclusion",
+    "RunFacts",
+    "RunStatusError",
+    "compute_stop_budget",
+    "direct_stop_budget",
+    "direct_run_facts",
+    "derive_outcome",
+    "exit_code_for",
+    "read_run_status",
+    "EXIT_STOPPED",
+    "EXIT_UNEXPECTED",
+    "EXIT_BLOCKED",
+    "EXIT_STOPPED_WITH_WORKING_ORDERS",
+    "EXIT_STOPPED_WITH_WRITE_IN_FLIGHT",
+    "EXIT_CODES",
 ]
