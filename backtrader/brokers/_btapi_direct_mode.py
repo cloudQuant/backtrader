@@ -106,6 +106,18 @@ _DIRECT_PARAMS = (
     # Broker sent, so an insert sent just before the gap had time to reach the
     # venue's order list (its absence there resolves ``not_found_at_venue``).
     ("direct_return_gap_quiet_period", 2.0),
+    # Iteration 65 (65.07): an explicitly injected read-only Execution parent
+    # facts port and the bounded owner-thread application of its projection.
+    # Absent (the default) means no projection is constructed and every
+    # existing behaviour is unchanged.  The port answers ``status`` plus the
+    # optional ``fills``/``cancel``/``completion`` readers, each taking the
+    # parent ``request_id``; it must never send, cancel or reserve.
+    ("direct_execution_facts", None),
+    # Seconds between projection rounds on the owner thread (0 = every broker
+    # lifecycle call, still never inside a per-bar calculation).
+    ("direct_execution_projection_interval", 1.0),
+    # Parents projected per round; the next round continues where this stopped.
+    ("direct_execution_projection_max_orders", 32),
 )
 _MAX_BUFFERED_TRADES = 256
 _MAX_PERMISSION_REPORT_SYMBOLS = 32
@@ -614,6 +626,15 @@ class BtApiDirectModeMixin:
         # marker ids queued in this run, and those waiting for their feed.
         self._direct_notice_ids: set = set()
         self._direct_deferred_notices: List[Dict[str, Any]] = []
+        # Iteration 65 (65.07): the routed-parent projection application.  It
+        # exists only when a read-only Execution facts port is injected; no
+        # port means no projection, no read and no state change.
+        self._direct_execution_app: Any = None
+        self._direct_execution_app_port: Any = None
+        self._direct_execution_facts_override: Any = None
+        self._direct_execution_facts_overridden = False
+        self._direct_execution_projection_restore: Optional[Dict[str, Any]] = None
+        self._direct_execution_projection_last: Optional[Dict[str, Any]] = None
 
     def _direct_selected(self) -> bool:
         """Direct mode: the Store chose the SDK direct write path (I62-08)."""
@@ -2180,6 +2201,436 @@ class BtApiDirectModeMixin:
         # outcomes cannot describe this place: a finite local refusal.
         return self._direct_reject(order, "execution_outcome_unsupported:" + result.outcome.value)
 
+    # ------------------------------------------------------------------
+    # iteration 65 (65.07): apply the read-only parent projection
+    # ------------------------------------------------------------------
+    def _direct_execution_facts_port(self) -> Any:
+        """The explicitly injected read-only parent facts port, or ``None``.
+
+        ``None`` keeps every existing behaviour: no projection is constructed,
+        no fact is read and no order state changes.  The port is not inferred
+        from the Store or the SDK; it must be configured explicitly.
+        """
+        if self._direct_execution_facts_overridden:
+            return self._direct_execution_facts_override
+        return getattr(self.p, "direct_execution_facts", None)
+
+    def set_direct_execution_facts_port(self, port: Any) -> None:
+        """Inject/replace the read-only facts port explicitly (``None`` disables).
+
+        Disabling drops the projection instance (a later re-enable rebuilds it
+        from the injected facts); it never sends, cancels or terminalizes
+        anything.
+        """
+        with self._direct_lock:
+            self._direct_execution_facts_overridden = True
+            self._direct_execution_facts_override = port
+            self._direct_execution_app = None
+            self._direct_execution_app_port = None
+
+    def _direct_execution_application(self) -> Any:
+        """The projection application for the configured port, or ``None``."""
+        port = self._direct_execution_facts_port()
+        if port is None:
+            self._direct_execution_app = None
+            self._direct_execution_app_port = None
+            return None
+        if self._direct_execution_app is not None and self._direct_execution_app_port is port:
+            return self._direct_execution_app
+        from ._execution_routing_apply import ExecutionRoutingApplication
+
+        restore = self._direct_execution_projection_restore
+        application = ExecutionRoutingApplication(
+            facts=port,
+            on_fact=self._direct_projected_fact,
+            on_notification=self._direct_projected_notification,
+            on_delta=self._direct_projected_delta,
+            interval=self.p.direct_execution_projection_interval,
+            max_orders=self.p.direct_execution_projection_max_orders,
+            restore=restore,
+        )
+        self._direct_execution_projection_restore = None
+        self._direct_execution_app = application
+        self._direct_execution_app_port = port
+        return self._direct_execution_app
+
+    def _direct_execution_registry(self, app: Any) -> None:
+        """Register every live routed parent this Broker still holds.
+
+        The binding is the declared BT intent of the real order; the persisted
+        Execution metadata (request id, parent ref, request key) comes from the
+        routing result recorded when the parent was placed.  A parent without a
+        provable request id is left unregistered with a finite code.
+        """
+        for ref, meta in self._direct_meta.items():
+            if not meta.get("execution_routed"):
+                continue
+            order = self.orders.get(ref)
+            if order is None or not order.alive():
+                continue
+            routing = meta.get("execution_routing") or {}
+            request_id = routing.get("request_id")
+            if type(request_id) is not str or not request_id:
+                order.addinfo(execution_projection_code="EXECUTION_REQUEST_ID_ABSENT")
+                continue
+            existing = app.record(request_id)
+            if existing is not None and existing["has_order"]:
+                continue  # already registered with this order
+            code = app.register(
+                request_id=request_id,
+                order=order,
+                parent_ref=routing.get("parent_ref"),
+                request_key=routing.get("request_key") or meta.get("execution_request_key"),
+                run_id=self._direct_execution_run_id(),
+                offset=meta.get("offset"),
+            )
+            if code is not None:
+                order.addinfo(execution_projection_code=code)
+                meta["execution_projection_code"] = code
+
+    def _direct_execution_run_id(self) -> Optional[str]:
+        selection = self._direct_execution_routing()
+        run_id = getattr(getattr(selection, "route", None), "scope", None)
+        run_id = getattr(run_id, "run_id", None)
+        return run_id if type(run_id) is str and run_id else None
+
+    def _direct_execution_projection_poll(self) -> None:
+        """One bounded owner-thread projection round for routed parents.
+
+        Called from the broker lifecycle hook (``_direct_next``), never from a
+        per-bar calculation, and rate-limited by
+        ``direct_execution_projection_interval``.  No facts port and no
+        registered parent means no read; a round that is not due does no work
+        beyond two attribute reads.
+        """
+        if self._direct_execution_app is None:
+            if self._direct_execution_facts_port() is None and not self._direct_meta:
+                return
+        try:
+            app = self._direct_execution_application()
+            if app is None or not app.due():
+                return
+            self._direct_execution_registry(app)
+            if app.status().records == 0:
+                return
+            result = app.poll()
+        except Exception:
+            # A malformed port, read or application callback must never raise
+            # into the strategy loop or resend anything: the record keeps its
+            # pending facts and the next round retries.
+            throttled_warning(
+                _log,
+                "direct_execution_projection_failed",
+                "direct execution projection round failed; facts stay pending",
+                exc_info=True,
+            )
+            self._direct_execution_projection_last = {"error_code": "EXECUTION_APPLY_INVALID"}
+            return
+        self._direct_execution_projection_last = result.payload()
+
+    def _direct_projected_fact(self, record: Any, fact: Any, code: Any) -> bool:
+        """Reconcile one real order with the authoritative parent fact.
+
+        Returns ``True`` only when this call delivered a status notification
+        (so an ``unknown`` fact in the same round does not duplicate it).
+        """
+        order = record.order
+        if order is None:
+            return False
+        details = {
+            "request_id": record.request_id,
+            "parent_ref": record.parent_ref,
+            "request_key": record.request_key,
+            "run_id": record.run_id,
+            "code": None if fact is None else fact.reason_code,
+            "state": None if fact is None else fact.state,
+            "status": None if fact is None else fact.bt_status_name,
+            "filled": None if fact is None else fact.filled,
+            "remaining": None if fact is None else fact.remaining,
+            "unknown": None if fact is None else fact.unknown,
+            "frozen": None if fact is None else fact.frozen,
+            "terminal": None if fact is None else fact.terminal,
+            "fills_known": None if fact is None else fact.fills_known,
+            "children": None if fact is None else len(fact.children),
+        }
+        order.addinfo(
+            execution_projection=details,
+            execution_projection_code=code,
+            execution_parent_state=None if fact is None else fact.state,
+            execution_parent_reason=None if fact is None else fact.reason_code,
+            execution_parent_unknown=None if fact is None else fact.unknown,
+            execution_parent_frozen=None if fact is None else fact.frozen,
+            execution_parent_filled=None if fact is None else fact.filled,
+            execution_parent_remaining=None if fact is None else fact.remaining,
+        )
+        meta = self._direct_meta.get(order.ref)
+        if meta is not None:
+            meta["execution_projection"] = details
+        if fact is None:
+            return False
+        status = fact.bt_status
+        if order.status == status:
+            return False
+        if status == Order.Submitted and order.status == Order.Created:
+            order.submit(self)
+            self.notify(order)
+            return True
+        if status == Order.Accepted and order.status in (Order.Created, Order.Submitted):
+            order.accept(self)
+            self.notify(order)
+            return True
+        if status == Order.Rejected and order.alive():
+            order.addinfo(
+                error_code="execution_rejected:"
+                + str(fact.reason_code or "EXECUTION_REMOTE_REJECTED")
+            )
+            order.reject(self)
+            self.notify(order)
+            return True
+        if status == Order.Canceled and order.alive():
+            order.cancel()
+            self.notify(order)
+            return True
+        if status == Order.Completed and order.alive():
+            order.completed()
+            self.notify(order)
+            return True
+        return False
+
+    def _direct_projected_notification(
+        self, record: Any, notification: Any, *, status_changed: bool = False
+    ) -> None:
+        """Deliver one deterministic parent notification through the existing path.
+
+        A notification never fabricates a status: the authoritative ``fact``
+        reconciliation already advanced the order (and, when it did in this
+        round, carries the finite reason on the same notification).  Only an
+        ``unknown`` fact without a status change tells the strategy separately.
+        """
+        order = record.order
+        if order is None:
+            return
+        order.addinfo(
+            execution_projection_notification=notification.kind,
+            execution_projection_notification_key=notification.dedupe_key,
+        )
+        if notification.kind == "unknown" and not status_changed:
+            self.notify(order)
+
+    def _direct_projected_delta(self, record: Any, delta: Any) -> None:
+        """Apply one authoritative fill to the legs, the order and the ledger."""
+        order = record.order
+        if order is None:
+            return
+        from ._execution_parent_projection import apply_position_delta
+
+        meta = self._direct_meta.get(order.ref) or {}
+        data = getattr(order, "data", None)
+        if data is None:
+            raise RuntimeError("projected fill without data")
+        symbol = meta.get("symbol") or self._direct_symbol(data)
+        signed = float(Decimal(delta.quantity))
+        if not signed:
+            return
+        price = float(Decimal(delta.price))
+        offset = delta.offset if delta.offset is not None else meta.get("offset")
+        buy = delta.side == "buy"
+        side = ("long" if buy else "short") if offset == "open" else ("short" if buy else "long")
+        leg = self.long_positions[symbol] if side == "long" else self.short_positions[symbol]
+        before_price = leg.price
+        signed_position = self._make_signed_position(side, leg)
+        before = signed_position.size
+        psize, pprice, opened, closed = _exact_leg_update(
+            signed_position, before, signed, apply_position_delta(signed_position, delta)
+        )
+        self._apply_signed_position(side, leg, signed_position)
+        split = self._direct_split_of(symbol)
+        if offset == "open":
+            if split["today"][side] is not None:
+                split["today"][side] = _qty_sum(split["today"][side], abs(signed))
+        elif offset == "close_today":
+            if split["today"][side] is not None:
+                split["today"][side] = max(_qty_sum(split["today"][side], -abs(signed)), 0.0)
+        elif offset == "close_yesterday" or self._direct_symbol_venue.get(symbol) in _SPLIT_VENUES:
+            if split["yesterday"][side] is not None:
+                split["yesterday"][side] = max(
+                    _qty_sum(split["yesterday"][side], -abs(signed)), 0.0
+                )
+        else:
+            # Which part a plain close consumes is venue specific: unknown
+            # until the next venue observation (never assumed).
+            split["today"][side] = None
+            split["yesterday"][side] = None
+        self._direct_sync_net(symbol)
+        if getattr(order, "comminfo", None) is None:
+            order.addcomminfo(self.getcommissioninfo(data))
+        comminfo = self.getcommissioninfo(data)
+        closedvalue = comminfo.getoperationcost(closed, before_price) if closed else 0.0
+        closedcomm = comminfo.getcommission(closed, price) if closed else 0.0
+        openedvalue = comminfo.getoperationcost(opened, price) if opened else 0.0
+        openedcomm = comminfo.getcommission(opened, price) if opened else 0.0
+        pnl = comminfo.profitandloss(-closed, before_price, price) if closed else 0.0
+        margin = comminfo.getvaluesize(signed, price)
+        dt = data.datetime[0] if len(data) else 0.0
+        executed_before = order.executed.size
+        order.execute(
+            dt,
+            signed,
+            price,
+            closed,
+            closedvalue,
+            closedcomm,
+            opened,
+            openedvalue,
+            openedcomm,
+            margin,
+            pnl,
+            psize,
+            pprice,
+        )
+        _exact_execution(order, executed_before, signed)
+        if order.executed.remsize:
+            order.partial()
+            self.notify(order)
+        else:
+            order.completed()
+            self.notify(order)
+            self._direct_mark(meta, "TERMINAL", final_status="filled")
+        self._direct_write_snapshot()
+
+    def execution_projection_snapshot(self) -> Optional[Dict[str, Any]]:
+        """The application's restart state, or ``None`` without a configured port.
+
+        The caller persists it with the order's Execution metadata; passing it
+        to :meth:`restore_execution_projection` keeps the same facts from
+        delivering a second notification or position delta.
+        """
+        if self._direct_execution_app is None:
+            return None
+        return self._direct_execution_app.snapshot()
+
+    def execution_projection_metadata(self) -> List[Dict[str, Any]]:
+        """Persistable metadata of every live routed parent (no fact is read).
+
+        The entries are exactly what :meth:`restore_execution_projection`
+        consumes after a restart: the stable request id, the parent ref, the
+        durable request key, the Gateway run id and the declared canonical
+        binding derived from the real order.
+        """
+        from ._execution_parent_projection import (
+            ExecutionParentProjectionError,
+            order_binding,
+        )
+
+        run_id = self._direct_execution_run_id()
+        entries = []
+        for ref, meta in self._direct_meta.items():
+            if not meta.get("execution_routed"):
+                continue
+            order = self.orders.get(ref)
+            if order is None or not order.alive():
+                continue
+            routing = meta.get("execution_routing") or {}
+            request_id = routing.get("request_id")
+            if type(request_id) is not str or not request_id:
+                continue
+            try:
+                binding = order_binding(order, request_id, offset=meta.get("offset"))
+            except ExecutionParentProjectionError:
+                continue
+            entries.append(
+                {
+                    "request_id": request_id,
+                    "parent_ref": routing.get("parent_ref"),
+                    "request_key": routing.get("request_key") or meta.get("execution_request_key"),
+                    "run_id": run_id,
+                    "binding": binding,
+                }
+            )
+        return entries
+
+    def restore_execution_projection(
+        self,
+        entries: Any,
+        *,
+        state: Optional[Dict[str, Any]] = None,
+        orders: Any = None,
+    ) -> Dict[str, Any]:
+        """Reconstruct routed-parent projections from persisted execution metadata.
+
+        Each entry carries ``request_id``, ``parent_ref``, ``run_id``,
+        ``request_key`` and the canonical binding (``bt_ref``, ``side``,
+        ``offset``, ``quantity``, ``price`` and optional ``strategy_ref`` /
+        ``trading_day``).  ``orders`` optionally maps a request id to a real BT
+        order; a parent without one is still projected but its facts stay
+        pending until an order is attached.  A missing facts port registers
+        nothing and returns a finite ``EXECUTION_FACTS_PORT_UNAVAILABLE`` for
+        every entry: the orders stay Submitted and nothing is resent.
+        """
+        result: Dict[str, Any] = {}
+        if isinstance(entries, Mapping):
+            entries = [entries]
+        try:
+            entries = list(entries or ())
+        except TypeError:
+            return {"*": "EXECUTION_RECORD_INVALID"}
+        with self._direct_lock:
+            if state is not None:
+                self._direct_execution_projection_restore = state
+                self._direct_execution_app = None
+                self._direct_execution_app_port = None
+            try:
+                app = self._direct_execution_application()
+            except Exception as error:
+                # A malformed persisted state is a finite refusal, never a
+                # half-built application and never a resend.
+                from ._execution_routing_apply import APPLY_CODES
+
+                code = getattr(error, "code", None)
+                self._direct_execution_projection_restore = None
+                return {
+                    "*": (
+                        code
+                        if type(code) is str and code in APPLY_CODES
+                        else "EXECUTION_APPLY_INVALID"
+                    )
+                }
+            if app is None:
+                codes = {}
+                for entry in entries:
+                    key = "*"
+                    if isinstance(entry, Mapping) and entry.get("request_id") is not None:
+                        key = str(entry.get("request_id"))
+                    codes[key] = "EXECUTION_FACTS_PORT_UNAVAILABLE"
+                return codes or {"*": "EXECUTION_FACTS_PORT_UNAVAILABLE"}
+            for entry in entries:
+                if not isinstance(entry, Mapping):
+                    result["*"] = "EXECUTION_RECORD_INVALID"
+                    continue
+                request_id = entry.get("request_id")
+                order = None
+                if isinstance(orders, Mapping):
+                    order = orders.get(request_id)
+                code = app.register(
+                    request_id=request_id,
+                    order=order,
+                    binding=entry.get("binding"),
+                    parent_ref=entry.get("parent_ref"),
+                    request_key=entry.get("request_key"),
+                    run_id=entry.get("run_id"),
+                )
+                result[str(request_id)] = code
+        return result
+
+    def get_execution_projection_status(self) -> Optional[Dict[str, Any]]:
+        """Read-only application status/last round, or ``None`` without a port."""
+        app = self._direct_execution_app
+        if app is None:
+            return None
+        status = app.status().payload()
+        status["last_round"] = self._direct_execution_projection_last
+        return status
+
     def _direct_submit(self, order: Order) -> Order:
         with self._direct_lock:
             symbol = self._direct_symbol(order.data)
@@ -2820,6 +3271,9 @@ class BtApiDirectModeMixin:
             self._direct_drain_events()
             self._direct_consume_facts()
             self._direct_dispatch_waiting()
+            # Iteration 65: bounded owner-thread projection of routed parents
+            # (no facts port or no routed live parent means no read at all).
+            self._direct_execution_projection_poll()
 
     def _direct_drain_events(self) -> None:
         try:
@@ -5055,9 +5509,17 @@ class BtApiDirectModeMixin:
             # after a switch, or while one is pending) is never cancelled
             # automatically; it stays with its original identity (D62-19).
             refused: Dict[int, str] = {}
+            # Iteration 65 (65.07): routed Execution parents have no venue
+            # identity and are never cancelled or terminalized by the process
+            # stop; they stay with the parent and are reported as unresolved.
+            routed_unresolved: List[Order] = []
             for ref, meta in self._direct_meta.items():
                 order = self.orders.get(ref)
                 if order is None or not order.alive():
+                    continue
+                if meta.get("execution_routed"):
+                    routed_unresolved.append(order)
+                    order.addinfo(stop_unresolved="execution_routed_parent")
                     continue
                 if meta.get("identity") is None and not meta.get("day_unknown"):
                     continue  # local waiting orders are kept
@@ -5075,6 +5537,9 @@ class BtApiDirectModeMixin:
                 self._direct_drain_events()
             time.sleep(0.05)
         unresolved = [order.ref for order in working if order.alive()] + list(refused)
+        for order in routed_unresolved:
+            if order.ref not in unresolved:
+                unresolved.append(order.ref)
         with self._direct_lock:
             # Nothing held is applied after stop: still unmatched fills are
             # reported (a restart books ours from the day's trade query).
@@ -5091,6 +5556,11 @@ class BtApiDirectModeMixin:
         }
         if refused:
             summary["cancel_refused"] = dict(collections.Counter(refused.values()))
+        if routed_unresolved:
+            # Exact stop behaviour for routed parents: not cancelled, not
+            # terminalized, kept Submitted for the Execution parent to settle.
+            summary["routed_parents_unresolved"] = len(routed_unresolved)
+            summary["routed_parent_refs"] = [order.ref for order in routed_unresolved]
         if in_flight is not None:
             # Not completed: the write's outcome is unknown yet and the run lock
             # stays held until it ends (then the poller records it, F3).
@@ -5098,7 +5568,11 @@ class BtApiDirectModeMixin:
             summary["write_in_flight"] = in_flight
         self._shutdown_summary = summary
         if unresolved:
-            _log.warning("direct stop left %d working orders unresolved", len(unresolved))
+            _log.warning(
+                "direct stop left %d working orders unresolved (routed parents: %d)",
+                len(unresolved),
+                len(routed_unresolved),
+            )
         stop_store = getattr(self.store, "stop", None)
         if callable(stop_store):
             try:
