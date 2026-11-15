@@ -287,8 +287,10 @@ PY
 
 `calendars.root: package_seed` 在 22 个 007 示例中会被明确拒绝（direct 和 Gateway 都输出
 `calendar_package_seed_unsupported`），所以示例使用外部目录。种子安装成功只证明本地 store 的完整性
-（`OBSERVED_UNAUTHENTICATED`）；当前构建仍不能把它的 `SYNTH_*` 范围当作可用的运行时会话，对真实品种/合约
-（如 `SA`/`SA701`）或覆盖之外的日期查询仍返回 `UNKNOWN`。真实六所覆盖与每日更新仍是 GAP（D67-37、交接说明）。
+（`OBSERVED_UNAUTHENTICATED`），同时发布覆盖声明（`DECLARED_UNVERIFIED`：2026-01-01..2027-12-31、六个交易所）。
+安装后它的 `SYNTH_*` 作用域可按 `SIMULATION_ONLY` 只读查询：例如 `2026-01-05` 返回 `COMPLETE` 和两个日盘窗口，
+`2026-01-01` 返回无窗口的 `COMPLETE`。这仍是合成数据的查询结果，不是交易所事实，也不授予交易权限；
+对真实品种/合约（如 `SA`/`SA701`）或覆盖之外的日期查询仍返回 `UNKNOWN`。真实六所覆盖与每日更新仍是 GAP（D67-37、交接说明）。
 
 ### 与迭代 63 Gateway 的关系
 

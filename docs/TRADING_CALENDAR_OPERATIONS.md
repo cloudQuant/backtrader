@@ -8,7 +8,7 @@
 | 项目 | 当前状态 |
 | --- | --- |
 | 本地版本仓、`CURRENT.json` 指针、单写者锁、回执 | 已实现（SDK `trading_calendar_store`），POSIX 本地文件系统，未在 Windows 验证 |
-| 合成包内种子 `seed-2026-2027-v1` | 已实现，显式安装；`SYNTHETIC_MOCK`，不是交易所事实 |
+| 合成包内种子 `seed-2026-2027-v1` | 已实现，显式安装；`SYNTHETIC_MOCK`，不是交易所事实；安装同时发布覆盖声明（`DECLARED_UNVERIFIED`），其 `SYNTH_*` 作用域可按 `SIMULATION_ONLY` 只读查询 |
 | 每日检查入口 `trading_calendar_schedule_once` | 已实现，`SIMULATION_ONLY`，未接真实 20:30 操作系统调度 |
 | 通知入口 `trading_calendar_notify_cli` | 已实现，SMTP 传输显式配置；服务器接受不等于送达 |
 | 人工审核确认 | 已有模拟确认路径；网页/统一界面归迭代 69 |
@@ -475,7 +475,7 @@ schtasks /Create /TN "BT Calendar Daily" /SC DAILY /ST 20:30 ^
 | `calendar_config_invalid` / `calendar_config_unknown_field` / `calendar_review_mode_invalid` | 配置不可解析或含未知键/非法模式 | 按第 3 节修正；不要放宽解析器 |
 | `CURRENT_UNAVAILABLE` | 没有可读取且一致的 `CURRENT`/回执 | 检查 store 完整性；不要猜测或手写指针 |
 | `ROUTE_UNCONFIGURED` | 查询使用的 route 未配置 | 使用配置中完全一致的 route 名 |
-| `COVERAGE_UNAVAILABLE` / `SCOPE_OR_DATA_UNAVAILABLE` | 日期/品种/合约不在覆盖或数据不可用 | 保持 `UNKNOWN`；经审核补充来源后再发布 |
+| `COVERAGE_UNAVAILABLE` / `SCOPE_OR_DATA_UNAVAILABLE` | 日期/品种/合约不在覆盖或数据不可用（包内种子只声明 2026-01-01..2027-12-31 的六个交易所） | 保持 `UNKNOWN`；经审核补充来源后再发布 |
 | `CALENDAR_SCOPE_UNAVAILABLE` | venue/kind/product/contract 未给全 | 调用时显式传入作用域，或配置 `feed.calendar_*` |
 | `TRADING_DAY_REQUIRED` | 没有可绑定的交易日 | 由提供方/BT 确认的 `datetime.date` 显式提供 |
 | `TRADING_DAY_REGRESSION` | 请求早于已绑定交易日 | 不倒退；检查调用方日期来源 |
