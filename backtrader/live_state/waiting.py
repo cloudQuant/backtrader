@@ -274,6 +274,7 @@ _MARKER_OPTIONAL = frozenset(
         "restored_at_utc",
         "rolled_back_at_utc",
         "migrated_sha256",
+        "target_sha256",
         "operator",
         "reason",
     }
@@ -309,8 +310,9 @@ def _check_marker(raw: Any, path: str, strategy_uuid: Optional[str]) -> None:
     for key in ("orders_count", "history_count"):
         if not is_strict_int(raw[key], minimum=0):
             raise LiveStateCorrupt(path, "migration_marker_invalid")
-    if "migrated_sha256" in raw and not is_sha256_hex(raw["migrated_sha256"]):
-        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    for key in ("migrated_sha256", "target_sha256"):
+        if key in raw and not is_sha256_hex(raw[key]):
+            raise LiveStateCorrupt(path, "migration_marker_invalid")
     for key in ("completed_at_utc", "restored_at_utc", "rolled_back_at_utc"):
         if key in raw and parse_aware_iso(raw[key]) is None:
             raise LiveStateCorrupt(path, "migration_marker_invalid")
@@ -588,7 +590,13 @@ class WaitingOrderStore:
             "history_count": marker["history_count"],
             "started_at_utc": marker["started_at_utc"],
         }
-        for key in ("completed_at_utc", "restored_at_utc", "rolled_back_at_utc", "migrated_sha256"):
+        for key in (
+            "completed_at_utc",
+            "restored_at_utc",
+            "rolled_back_at_utc",
+            "migrated_sha256",
+            "target_sha256",
+        ):
             if key in marker:
                 view[key] = marker[key]
         view.update(extra)
@@ -620,6 +628,12 @@ class WaitingOrderStore:
         atomic_write_bytes(backup_path, legacy_bytes)
         if hashlib.sha256(_read_file_bytes(backup_path)).hexdigest() != backup_sha256:
             raise LiveStateCorrupt(backup_path, "migration_backup_digest_mismatch")
+        # The exact bytes this migration writes are fixed before the marker is
+        # durable, so a recovery or rollback can prove that the file it sees is
+        # the migrated file and not a later write over it.
+        migrated = dict(state, version=WAITING_VERSION)
+        payload = dumps_json(migrated).encode("utf-8")
+        target_sha256 = hashlib.sha256(payload).hexdigest()
         marker = {
             "version": MIGRATION_VERSION,
             "strategy_uuid": self.strategy_uuid,
@@ -631,6 +645,7 @@ class WaitingOrderStore:
             "started_at_utc": utc_now_iso(),
             "orders_count": len(state["orders"]),
             "history_count": len(state["history"]),
+            "target_sha256": target_sha256,
             "operator": operator,
             "reason": reason,
         }
@@ -649,8 +664,6 @@ class WaitingOrderStore:
                 "history_count": marker["history_count"],
             },
         )
-        migrated = dict(state, version=WAITING_VERSION)
-        payload = dumps_json(migrated).encode("utf-8")
         try:
             atomic_write_bytes(self.paths.waiting, payload)
             written, parsed = read_json_bytes(self.paths.waiting)
@@ -675,6 +688,8 @@ class WaitingOrderStore:
         marker["status"] = "complete"
         marker["completed_at_utc"] = utc_now_iso()
         marker["migrated_sha256"] = hashlib.sha256(written).hexdigest()
+        if marker["migrated_sha256"] != target_sha256:
+            raise LiveStateCorrupt(self.paths.waiting, "migration_verification_failed")
         self._write_marker(marker)
         append_audit(
             self.paths.strategy_dir,
@@ -789,9 +804,19 @@ class WaitingOrderStore:
             except LiveStateCorrupt:
                 raise LiveStateCorrupt(self.paths.waiting, "migration_conflict") from None
             if checked["version"] == WAITING_VERSION:
+                # Only the file this migration wrote may be finalized. A later
+                # durable write makes the digest differ and stays in_progress
+                # for an operator instead of being laundered as the migrated
+                # bytes (which would let rollback discard those records).
+                target = marker.get("target_sha256")
+                if (
+                    type(target) is not str
+                    or hashlib.sha256(current_bytes).hexdigest() != target
+                ):
+                    raise LiveStateCorrupt(self.paths.waiting, "migration_conflict")
                 marker["status"] = "complete"
                 marker["completed_at_utc"] = utc_now_iso()
-                marker["migrated_sha256"] = hashlib.sha256(current_bytes).hexdigest()
+                marker["migrated_sha256"] = target
                 marker["operator"] = operator
                 marker["reason"] = reason
                 self._write_marker(marker)
@@ -816,12 +841,18 @@ class WaitingOrderStore:
                 and hashlib.sha256(current_bytes).hexdigest() == marker["backup_sha256"]
             ):
                 migrated = dict(checked, version=WAITING_VERSION)
-                atomic_write_bytes(self.paths.waiting, dumps_json(migrated).encode("utf-8"))
+                payload = dumps_json(migrated).encode("utf-8")
+                replay_sha256 = hashlib.sha256(payload).hexdigest()
+                # The current file is the verified backup, so nothing written
+                # after the crash exists to lose: this replay defines the
+                # migrated bytes and becomes the target recovery/rollback use.
+                atomic_write_bytes(self.paths.waiting, payload)
                 written, reparsed = read_json_bytes(self.paths.waiting)
                 validate_waiting_state(reparsed, self.paths.waiting, self.strategy_uuid)
                 marker["status"] = "complete"
                 marker["completed_at_utc"] = utc_now_iso()
-                marker["migrated_sha256"] = hashlib.sha256(written).hexdigest()
+                marker["target_sha256"] = replay_sha256
+                marker["migrated_sha256"] = replay_sha256
                 marker["operator"] = operator
                 marker["reason"] = reason
                 self._write_marker(marker)
@@ -873,7 +904,8 @@ class WaitingOrderStore:
                 current_bytes = _read_file_bytes(self.paths.waiting)
             except FileNotFoundError:
                 raise LiveStateCorrupt(self.paths.waiting, "rollback_unsafe") from None
-            if hashlib.sha256(current_bytes).hexdigest() != marker.get("migrated_sha256"):
+            target = marker.get("target_sha256")
+            if type(target) is not str or hashlib.sha256(current_bytes).hexdigest() != target:
                 raise LiveStateCorrupt(self.paths.waiting, "rollback_unsafe")
             # The backup must be the readable version-1 file it claims to be.
             backup_state = validate_waiting_state(

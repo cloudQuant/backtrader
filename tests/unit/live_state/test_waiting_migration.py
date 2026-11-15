@@ -414,3 +414,33 @@ def test_migration_does_not_apply_the_history_bound(state):
     waiting_id = store.add(waiting_order(local_seq=9))
     assert store.transition(waiting_id, "WAITING", "CANCELLED")
     assert len(json.loads(read_bytes(state.waiting.path))["history"]) == 2
+
+
+def test_recovery_refuses_to_launder_a_post_crash_write_over_the_migrated_file(
+    state, monkeypatch
+):
+    """A write after the v2 replace must not be adopted as the migrated bytes."""
+    install_fixture(state)
+    fail_on_write(monkeypatch, attempt=2, after=True)
+    with pytest.raises(OSError):
+        state.waiting.add(waiting_order(local_seq=8))
+    monkeypatch.undo()
+    assert marker(state)["status"] == "in_progress"
+
+    # An ordinary durable write lands on the v2 file before recovery runs.
+    state.waiting.add(waiting_order(local_seq=9, bt_ref=12))
+    before = read_bytes(state.waiting.path)
+    # The failed add's order may already be on disk, plus the post-crash one.
+    assert len(json.loads(before)["orders"]) >= 2
+
+    with pytest.raises(LiveStateCorrupt) as info:
+        state.waiting.recover_migration(operator="op", reason="recover")
+    assert info.value.reason == "migration_conflict"
+    assert marker(state)["status"] == "in_progress"
+    assert read_bytes(state.waiting.path) == before
+
+    # Rollback stays unavailable while the marker is in progress.
+    with pytest.raises(LiveStateCorrupt) as info:
+        state.waiting.rollback_migration(operator="op", reason="rollback")
+    assert info.value.reason == "migration_not_complete"
+    assert read_bytes(state.waiting.path) == before
