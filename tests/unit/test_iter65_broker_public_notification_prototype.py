@@ -24,7 +24,8 @@ from tests.unit.live_state.test_gateway_pending import inputs as inputs
 def isolated_sources():
     yield
     workspace = Path(__file__).resolve().parents[3]
-    assert workspace.name == "wt-iter65"
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (workspace / "backtrader").is_dir() and (workspace / "bt_api_py").is_dir()
     escaped = {}
     for name, module in tuple(sys.modules.items()):
         if name == "backtrader" or name.startswith(("backtrader.", "bt_api_py", "bt_api_")):

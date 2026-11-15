@@ -39,7 +39,8 @@ def _observation(order, side, index, filled):
 @pytest.mark.parametrize('filled', ['0', '0.5'], ids=['venue-cumulative-unchanged', 'cumulative-includes-transfer'])
 def test_independent_transfer_is_not_a_provider_fill(state, ready, inputs, monkeypatch, filled, include_transfer):
     workspace = Path(__file__).resolve().parents[3]
-    assert workspace.name == 'wt-iter65'
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (workspace / 'backtrader').is_dir() and (workspace / 'bt_api_py').is_dir()
     for module in (bt, bt_api_py, bt_api_base):
         assert Path(module.__file__).resolve().is_relative_to(workspace)
     host, broker, strategy_a, buy, calls, _ = attach(ready, inputs, monkeypatch, events=())

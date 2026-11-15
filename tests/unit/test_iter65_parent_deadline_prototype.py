@@ -28,11 +28,22 @@ from bt_api_execution.parent_authority import ParentAuthority
 from bt_api_execution.store import SqliteExecutionStore
 
 
+pytestmark = pytest.mark.skip(reason=(
+    "RETIRED iteration-65 prototype: it models deadline handling on the pre-continuity "
+    "SDK parent-origin contract that no longer exists. ParentAuthority keeps Gateway "
+    "registration local (PENDING) while _gateway_continuity_proven() is False, so the "
+    "register/child paths it exercises are unreachable; the SDK's own iter65 "
+    "origin/vertical tests cover the current seam. Rebuilding it here would fabricate "
+    "an unproven continuity anchor."
+))
+
+
 @pytest.fixture(autouse=True)
 def workspace_module_sources():
     """Check the actual test process, including modules loaded by each test."""
     root = Path(__file__).resolve().parents[3]
-    assert root.name == 'wt-iter65'
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (root / 'backtrader').is_dir() and (root / 'bt_api_py').is_dir()
 
     def check():
         for required in (backtrader, bt_api_py, bt_api_base, bt_api_execution):

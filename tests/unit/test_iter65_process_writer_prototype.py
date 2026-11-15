@@ -17,7 +17,6 @@ import time
 
 
 WORKSPACE = Path(__file__).resolve().parents[3]
-CONDA = "/Users/yunjinqi/opt/anaconda3/bin/conda"
 DAY = "20261109"
 ACCOUNT = "ctp-account-ref.v1:" + sha256(b"iter65-process-writer-fixture").hexdigest()
 TIMEOUT = 30
@@ -29,7 +28,7 @@ LEGACY_TABLES = (
 
 def _environment():
     return {
-        "PATH": str(Path(CONDA).parent) + ":/usr/bin:/bin",
+        "PATH": str(Path(sys.executable).parent) + ":/usr/bin:/bin",
         "PYTHONPATH": os.pathsep.join(str(path) for path in (
             WORKSPACE / "tools", WORKSPACE / "backtrader",
             WORKSPACE / "bt_api_py" / "bt_api" / "bt_api_base" / "src",
@@ -172,8 +171,7 @@ def test_ctp_family_conflict_and_writer_fence_across_independent_processes(tmp_p
     try:
         def start(role):
             process = subprocess.Popen(
-                [CONDA, "run", "--no-capture-output", "-n", "base", "python", "-u",
-                 str(Path(__file__).resolve()), role, str(path)],
+                [sys.executable, "-u", str(Path(__file__).resolve()), role, str(path)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, env=_environment(), cwd=str(WORKSPACE / "backtrader"),
                 start_new_session=True,

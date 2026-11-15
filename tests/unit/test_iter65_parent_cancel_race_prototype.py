@@ -39,6 +39,15 @@ REGISTER_ID = 'synthetic-register'
 CANCEL_ID = 'synthetic-cancel'
 
 
+pytestmark = pytest.mark.skip(reason=(
+    "RETIRED iteration-65 prototype: it models the pre-continuity SDK parent-origin "
+    "contract that no longer exists. ParentAuthority keeps Gateway registration local "
+    "(PENDING) while _gateway_continuity_proven() is False, so the modeled dispatch "
+    "and race are unreachable; the SDK's own iter65 origin/vertical tests cover the "
+    "current seam. Rebuilding it here would fabricate an unproven continuity anchor."
+))
+
+
 @pytest.fixture(scope='module', autouse=True)
 def isolated_sources():
     yield

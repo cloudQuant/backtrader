@@ -113,8 +113,7 @@ class Child:
     def __init__(self, workspace, database, environment):
         self.stderr = tempfile.TemporaryFile(mode='w+t')
         self.process = subprocess.Popen(
-            ['/Users/yunjinqi/opt/anaconda3/bin/conda', 'run', '--no-capture-output',
-             '-n', 'base', 'python', '-u', '-c', CHILD, str(workspace), str(database), str(os.getpid())],
+            [sys.executable, '-u', '-c', CHILD, str(workspace), str(database), str(os.getpid())],
             cwd=workspace / 'bt_api_py', env=environment, stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=self.stderr, text=True, bufsize=1, start_new_session=True,
         )
@@ -158,9 +157,9 @@ class Child:
 
 def test_fake_parent_lease_in_two_live_processes(tmp_path):
     workspace = Path(__file__).resolve().parents[3]
-    assert workspace.name == 'wt-iter65'
-    base_python = Path('/Users/yunjinqi/opt/anaconda3/bin/python').resolve()
-    assert Path(sys.executable).resolve() == base_python
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (workspace / 'backtrader').is_dir() and (workspace / 'bt_api_py').is_dir()
+    base_python = Path(sys.executable).resolve()
     sdk = workspace / 'bt_api_py'
     paths = [sdk, sdk / 'bt_api/bt_api_base/src', sdk / 'bt_api/bt_api_execution/src']
     assert all(path.is_dir() for path in paths)

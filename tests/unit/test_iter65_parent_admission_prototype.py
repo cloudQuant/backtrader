@@ -28,7 +28,8 @@ from bt_api_execution.store import SqliteExecutionStore
 @pytest.fixture(autouse=True)
 def workspace_module_sources():
     root = Path(__file__).resolve().parents[3]
-    assert root.name == "wt-iter65"
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (root / "backtrader").is_dir() and (root / "bt_api_py").is_dir()
 
     def check():
         for module in (backtrader, bt_api_base, bt_api_execution, bt_api_py):
@@ -138,8 +139,10 @@ def test_revoke_after_synthetic_accept_check_persists_local_parent_but_blocks_re
         assert not admission.active
         assert accepted["gateway_state"] == "PENDING"
         assert json.loads(accepted["request_json"]) == spec
-        with pytest.raises(InvalidStateTransition, match="parent registration fenced"):
-            authority.register(spec["parent_ref"])
+        # Production continuity is unproven, so registration stays local and no
+        # owner dispatch is attempted even after the synthetic grant is revoked.
+        assert authority.register(spec["parent_ref"])["gateway_state"] == "PENDING"
+        assert admission.actions == ["accept"]
         assert gateway.attempts == gateway.outbound == []
     finally:
         store.close()
@@ -151,15 +154,16 @@ def test_revoke_after_synthetic_accept_check_persists_local_parent_but_blocks_re
         assert json.loads(restored["request_json"]) == spec
         with pytest.raises(InvalidStateTransition, match="parent admission denied"):
             authority.accept(spec)
-        with pytest.raises(InvalidStateTransition, match="parent registration fenced"):
-            authority.register(spec["parent_ref"])
+        assert authority.register(spec["parent_ref"])["gateway_state"] == "PENDING"
+        assert admission.actions == ["accept", "accept"]
         assert gateway.attempts == gateway.outbound == []
 
         # A new explicit test grant, not a restoration inferred from the journal.
         admission.active, admission.revoke_after = True, None
         assert authority.accept(spec)["request_sha256"] == accepted["request_sha256"]
-        assert authority.register(spec["parent_ref"])["gateway_state"] == "ACCEPTED"
-        assert gateway.outbound == [(spec["parent_ref"], spec["registration_operation_id"])]
+        assert authority.register(spec["parent_ref"])["gateway_state"] == "PENDING"
+        assert admission.actions == ["accept", "accept", "accept"]
+        assert gateway.attempts == gateway.outbound == []
     finally:
         store.close()
 
@@ -173,21 +177,22 @@ def test_revoke_after_synthetic_register_check_is_blocked_by_send_gate(tmp_path)
     try:
         authority.accept(spec)
         result = authority.register(spec["parent_ref"])
-        assert admission.actions == ["accept", "register", "owner_dispatch"]
-        assert result["gateway_state"] == "UNKNOWN"
-        assert gateway.attempts == [(spec["parent_ref"], spec["registration_operation_id"])]
-        assert gateway.outbound == []
-        assert authority.register(spec["parent_ref"])["gateway_state"] == "UNKNOWN"
-        assert len(gateway.attempts) == 1
+        # Without proven continuity the local claim is never created, so the
+        # send gate and its admission checks are never reached.
+        assert admission.actions == ["accept"]
+        assert result["gateway_state"] == "PENDING"
+        assert gateway.attempts == gateway.outbound == []
+        assert authority.register(spec["parent_ref"])["gateway_state"] == "PENDING"
+        assert gateway.attempts == []
     finally:
         store.close()
 
     store, authority = open_authority(path, admission, gateway)
     try:
         restored = authority.get(spec["parent_ref"])
-        assert restored["gateway_state"] == "UNKNOWN"
+        assert restored["gateway_state"] == "PENDING"
         assert json.loads(restored["request_json"]) == spec
-        assert authority.register(spec["parent_ref"])["gateway_state"] == "UNKNOWN"
+        assert authority.register(spec["parent_ref"])["gateway_state"] == "PENDING"
         assert gateway.outbound == []
     finally:
         store.close()

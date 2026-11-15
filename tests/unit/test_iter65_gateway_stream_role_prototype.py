@@ -26,7 +26,8 @@ from bt_api_py.service_registry import ServiceCallContext
 def isolated_sources():
     yield
     root = Path(__file__).resolve().parents[3]
-    assert root.name == "wt-iter65"
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (root / "backtrader").is_dir() and (root / "bt_api_py").is_dir()
     escaped = {}
     for name, module in tuple(sys.modules.items()):
         if name == "backtrader" or name.startswith(("backtrader.", "bt_api_py", "bt_api_")):

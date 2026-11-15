@@ -15,7 +15,8 @@ import textwrap
 
 def test_existing_parent_paths_without_risk_or_ctp_native_client(tmp_path):
     workspace = Path(__file__).resolve().parents[3]
-    assert workspace.name == "wt-iter65"
+    # The workspace holds this repository and the sibling SDK checkout.
+    assert (workspace / "backtrader").is_dir() and (workspace / "bt_api_py").is_dir()
     sdk_root = workspace / "bt_api_py"
     test_file = sdk_root / "bt_api/bt_api_execution/tests/test_parent_authority_iter63.py"
     assert test_file.is_file()

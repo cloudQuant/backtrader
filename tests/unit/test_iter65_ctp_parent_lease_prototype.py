@@ -99,14 +99,15 @@ def test_ctp_parent_data_survives_but_public_family_owner_cannot_be_reacquired(t
         before = counts(store)
         accepted = authority.accept(make_spec(scope))
         assert accepted["gateway_state"] == "PENDING"
-        assert authority.register("synthetic-parent")["gateway_state"] == "ACCEPTED"
-        child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
-            "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
-        })
-        assert child["state"] == "PREPARED"
-        assert authority.get("synthetic-parent")["gateway_state"] == "ACCEPTED"
-        assert gateway.calls == [("synthetic-parent", "synthetic-register")]
+        # Production continuity is unproven, so registration stays local.
+        assert authority.register("synthetic-parent")["gateway_state"] == "PENDING"
+        assert gateway.calls == []
+        with pytest.raises(InvalidStateTransition, match="parent origin unavailable"):
+            authority.prepare_child("synthetic-parent", {
+                "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
+                "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
+            })
+        assert authority.get("synthetic-parent")["gateway_state"] == "PENDING"
         assert counts(store) == before
     finally:
         store.close()
@@ -122,10 +123,9 @@ def test_ctp_parent_data_survives_but_public_family_owner_cannot_be_reacquired(t
             "SELECT request_json, state FROM execution_parent_children WHERE parent_id=? AND child_id=?",
             ("synthetic-parent", "synthetic-child"),
         ).fetchone()
-        assert parent["gateway_state"] == "ACCEPTED"
+        assert parent["gateway_state"] == "PENDING"
         assert json.loads(parent["request_json"])["account_scope"] == SYNTHETIC_ACCOUNT
-        assert child["state"] == "PREPARED"
-        assert json.loads(child["request_json"])["quantity"] == "3"
+        assert child is None
         assert counts(reopened) == before
         with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
             reopened.acquire_ctp_account_family_owner(scope)
@@ -149,11 +149,12 @@ def test_fake_scope_control_can_reopen_with_original_writer(tmp_path):
         lease = store.acquire_or_renew_lease(scope, "synthetic-writer", ttl_ns=300_000_000_000)
         authority = ParentAuthority(store, scope, lease, admission=lambda action, value: True, gateway=gateway)
         authority.accept(make_spec(scope))
-        authority.register("synthetic-parent")
-        authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
-            "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
-        })
+        assert authority.register("synthetic-parent")["gateway_state"] == "PENDING"
+        with pytest.raises(InvalidStateTransition, match="parent origin unavailable"):
+            authority.prepare_child("synthetic-parent", {
+                "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
+                "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
+            })
     finally:
         store.close()
 
@@ -161,12 +162,12 @@ def test_fake_scope_control_can_reopen_with_original_writer(tmp_path):
     try:
         lease = reopened.acquire_or_renew_lease(scope, "synthetic-writer", ttl_ns=300_000_000_000)
         authority = ParentAuthority(reopened, scope, lease, admission=lambda action, value: True, gateway=gateway)
-        assert authority.get("synthetic-parent")["gateway_state"] == "ACCEPTED"
-        child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child-2", "request_key": "synthetic-child-2", "trading_day": DAY,
-            "offset": "open", "quantity": "2", "payload_digest": "c" * 64,
-        })
-        assert child["state"] == "PREPARED"
+        assert authority.get("synthetic-parent")["gateway_state"] == "PENDING"
+        with pytest.raises(InvalidStateTransition, match="parent origin unavailable"):
+            authority.prepare_child("synthetic-parent", {
+                "child_id": "synthetic-child-2", "request_key": "synthetic-child-2", "trading_day": DAY,
+                "offset": "open", "quantity": "2", "payload_digest": "c" * 64,
+            })
     finally:
         reopened.close()
 
@@ -189,12 +190,13 @@ def test_factory_bound_ctp_parent_records_reopen_but_family_owner_is_not_reissue
         authority = ParentAuthority(store, scope, lease, admission=lambda action, value: True, gateway=gateway)
         before = counts(store)
         authority.accept(make_spec(scope))
-        assert authority.register("synthetic-parent")["gateway_state"] == "ACCEPTED"
-        child = authority.prepare_child("synthetic-parent", {
-            "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
-            "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
-        })
-        assert child["state"] == "PREPARED"
+        assert authority.register("synthetic-parent")["gateway_state"] == "PENDING"
+        assert gateway.calls == []
+        with pytest.raises(InvalidStateTransition, match="parent origin unavailable"):
+            authority.prepare_child("synthetic-parent", {
+                "child_id": "synthetic-child", "request_key": "synthetic-child", "trading_day": DAY,
+                "offset": "open", "quantity": "3", "payload_digest": "b" * 64,
+            })
         assert counts(store) == before
         identity = store.read_ctp_account_store_identity(scope)
     finally:
@@ -211,10 +213,9 @@ def test_factory_bound_ctp_parent_records_reopen_but_family_owner_is_not_reissue
             "SELECT request_json, state FROM execution_parent_children WHERE parent_id=? AND child_id=?",
             ("synthetic-parent", "synthetic-child"),
         ).fetchone()
-        assert parent["gateway_state"] == "ACCEPTED"
+        assert parent["gateway_state"] == "PENDING"
         assert json.loads(parent["request_json"])["account_scope"] == account
-        assert child["state"] == "PREPARED"
-        assert json.loads(child["request_json"])["quantity"] == "3"
+        assert child is None
         assert counts(reopened) == before
         with pytest.raises(InvalidStateTransition, match="already has a persistent owner"):
             reopened.acquire_ctp_account_family_owner(scope)
