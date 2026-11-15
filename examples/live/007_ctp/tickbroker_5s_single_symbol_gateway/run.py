@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"""Run tickbroker_5s_single_symbol_gateway through the independently started Gateway."""
+"""Run tickbroker_5s_single_symbol_gateway through the independently started Gateway.
+The shared runner accepts ``--run-id``, writes the run-status heartbeat and final
+summary, and returns the run contract's exit code (iteration 66, section 5.2 B6).
+"""
 from pathlib import Path
 import sys
 

@@ -11,6 +11,8 @@ import json
 import math
 import re
 import threading
+import uuid
+from collections.abc import Mapping
 from importlib.metadata import entry_points
 from pathlib import Path
 
@@ -18,6 +20,45 @@ import yaml
 
 _RESOURCE_GROUP = "bt_api_py.gateway_example_resources"
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+
+
+def run_id_from_cli(value):
+    """Canonicalise ``--run-id``; the runtime passes the UUID it registered."""
+    try:
+        return str(uuid.UUID(value))
+    except (AttributeError, TypeError, ValueError):
+        raise argparse.ArgumentTypeError("run-id must be a UUID") from None
+
+
+def contract_broker_summary(summary):
+    """Translate the Gateway shutdown summary to the run contract's statuses.
+
+    The Gateway stop reports session/Store facts (``PASS``/``INCOMPLETE``/
+    ``FAIL`` plus the nested ``gateway_working_orders``), while the run
+    contract reads the direct-mode stop vocabulary from
+    ``broker.get_shutdown_summary()``.  Only a ``PASS`` shutdown with no
+    unresolved working order is claimed clean; unresolved orders are
+    ``STOPPED_WITH_WORKING_ORDERS``; every other combination stays ``UNKNOWN``
+    (never a clean stop).  This bridge is example-local: the Gateway stop needs
+    its own contract status in iteration 66 before this translation can move
+    into the product.
+    """
+    if not isinstance(summary, Mapping):
+        return None
+    working = summary.get("gateway_working_orders")
+    working = working if isinstance(working, Mapping) else None
+    unresolved = working.get("unresolved_working_orders") if working is not None else None
+    gateway_status = summary.get("status")
+    translated = dict(summary, gateway_status=gateway_status)
+    if isinstance(unresolved, int) and not isinstance(unresolved, bool) and unresolved > 0:
+        return dict(
+            translated,
+            status="STOPPED_WITH_WORKING_ORDERS",
+            unresolved_working_orders=unresolved,
+        )
+    if gateway_status == "PASS" and unresolved == 0:
+        return dict(translated, status="STOPPED")
+    return dict(translated, status="UNKNOWN")
 
 
 def load_config(path):
@@ -171,6 +212,8 @@ def main(strategy, title, run_dir, argv=None):
     parser.add_argument("--first-init", action="store_true", help="initialize local identity only, then stop")
     parser.add_argument("--upgrade-state", action="store_true", help="explicitly upgrade local state, then stop")
     parser.add_argument("--run-seconds", type=float, default=None)
+    parser.add_argument("--run-id", type=run_id_from_cli, default=None,
+                        help="run UUID (default: generated; bt_api_runtime passes its own)")
     args = parser.parse_args(argv)
     run_dir = Path(run_dir).resolve()
     path = Path(args.config).expanduser()
@@ -258,6 +301,7 @@ def main(strategy, title, run_dir, argv=None):
         feed_defaults = dict(config.get("feed", {}))
         timeframe = {"ticks": bt.TimeFrame.Ticks, "seconds": bt.TimeFrame.Seconds,
                      "minutes": bt.TimeFrame.Minutes, "days": bt.TimeFrame.Days}
+        feeds = []
         for symbol in config["symbols"]:
             options = dict(feed_defaults)
             for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
@@ -269,6 +313,7 @@ def main(strategy, title, run_dir, argv=None):
             options.setdefault("price_tick", contracts[symbol]["price_tick"])
             data = store.getdata(dataname=symbol, timeframe=frame, compression=compression, **options)
             cerebro.adddata(data, name=symbol)
+            feeds.append(data)
         cerebro.addstrategy(strategy, **config.get("strategy_params", {}))
         logger_config = dict(config.get("trade_logger") or {})
         if logger_config.pop("enabled", True):
@@ -285,19 +330,59 @@ def main(strategy, title, run_dir, argv=None):
         seconds = args.run_seconds if args.run_seconds is not None else float(config.get("run_timeout_seconds", 0))
         if not math.isfinite(seconds) or seconds < 0:
             raise ValueError("TIMEOUT_INVALID")
-        timer = None
-        with stop_on_terminate(cerebro):
+    except Exception as exc:
+        print(json.dumps({"status": "BLOCKED", "error_code": type(exc).__name__}))
+        return 2
+
+    # Iteration 66, §5.2 B2/B3/B5: the run-status contract writes the heartbeat
+    # and the final summary; the strategy process never imports bt_api_runtime.
+    from backtrader.live_trading import RunStatusWriter
+
+    termination = stop_on_terminate(cerebro)
+    contract = RunStatusWriter(
+        run_dir,
+        run_id=args.run_id,
+        broker=broker,
+        feeds=feeds,
+        stop_request_provider=termination.request_state,
+    )
+    contract.start()
+
+    class RunProgress(bt.Analyzer):
+        """Stamp main-loop progress and the LIVE phase into the status file."""
+
+        params = (("contract", None),)
+
+        def start(self):
+            self.p.contract.set_phase("LIVE")
+
+        def next(self):
+            self.p.contract.loop_progress()
+
+    cerebro.addanalyzer(RunProgress, contract=contract)
+    failure = None
+    timer = None
+    try:
+        with termination:
             if seconds:
                 timer = threading.Timer(seconds, cerebro.runstop)
                 timer.daemon = True
                 timer.start()
-            try:
-                cerebro.run()
-            finally:
-                if timer is not None:
-                    timer.cancel()
+            cerebro.run()
+    except KeyboardInterrupt as exc:
+        # SIGINT keeps propagating; the summary still records the crash.
+        failure = exc
+        raise
     except Exception as exc:
-        print(json.dumps({"status": "BLOCKED", "error_code": type(exc).__name__}))
-        return 2
-    print(json.dumps({"status": "STOPPED", "mode": "gateway"}))
-    return 0
+        failure = exc
+        print(json.dumps({"status": "CRASHED", "error_code": type(exc).__name__}))
+    finally:
+        if timer is not None:
+            timer.cancel()
+        conclusion = contract.finish(
+            broker_summary=contract_broker_summary(broker.get_shutdown_summary()),
+            exception=failure,
+        )
+    print(json.dumps({"status": conclusion.outcome, "mode": "gateway",
+                      "exit_code": conclusion.exit_code}))
+    return conclusion.exit_code

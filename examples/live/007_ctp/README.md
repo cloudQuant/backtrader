@@ -64,6 +64,9 @@ python examples/live/007_ctp/sa_dual_ma_direct/run.py --env-file /path/to/.env -
 | `state/pending.json` | 派发前持久化的未决标记 |
 | `state/waiting_orders.json` | 休市期间创建、等待下一交易时段的订单 |
 | `state/audit.log` | 身份重绑、人工核验的审计记录 |
+| `state/run_status.json` | 运行心跳（迭代 66；字段见下文“经 `bt_api_runtime` 启停”） |
+| `state/last_run.json` | 最终摘要（runtime 严格格式），每次停止后重写 |
+| `state/last_run_details.json` | 退出码、原因、停止来源/时刻与停止预算（伴生证据） |
 | `logs/current_position.yaml` | 对账基线：Broker 在启动、每笔成交和停止时原子写入（多空、今昨仓、当日已应用成交） |
 | `logs/<配置名>/<时间戳>/` | TradeLogger 每次运行的可读日志（订单、成交、持仓、资金） |
 
@@ -222,6 +225,48 @@ backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防�
   Ctrl+C（SIGINT）行为不变。Windows 的 `TerminateProcess`（包括 `os.kill(pid, signal.SIGTERM)`）无法被捕获，
   需要优雅停止时向进程组发送 `CTRL_BREAK_EVENT`。Gateway 策略的进程停止不会停止独立 Gateway；Gateway 不可用时不回退 direct。
   证据：UNIT/FAKE（子进程 + 假 Feed/Broker），没有在 SimNow 上发送过 SIGTERM。
+
+## 经 `bt_api_runtime` 启停（迭代 66，66.03）
+
+`bt_api_runtime` 是策略进程的监督者：它按登记的策略目录、解释器和参数拉起 `run.py`，普通停止发送 SIGTERM
+（即上面的优雅停止），只有在优雅停止超时后才升级到 SIGKILL。**策略进程不导入、也不连接 runtime 包**
+（INV66-02），两者只通过本目录 `state/` 下的文件和进程退出码交换事实；runtime 只读这些文件，不写策略目录
+（INV66-03）。runtime 的命令行与配置字段在迭代 66 的 66.04/66.06 冻结，本示例只实现进程侧合同。
+
+- runtime 在 `run.py` 的登记参数之外传入 `--run-id <UUID>`，每次启动一个新的 run_id，与持久的策略 UUID 不同；
+  缺省时 `run.py` 自己生成（手工启动时在 `state/run_status.json` 查看）。`--run-id` 不是 UUID 时按参数错误退出（2）。
+- `run.py` 在 Broker 建成后、`cerebro.run()` 之前启动 `backtrader.live_trading.RunStatusWriter`：
+  独立心跳线程每 1 秒原子写一次 `state/run_status.json`；主循环每根 bar 只更新内存中的推进时间
+  （`RunProgress` analyzer），逐 bar 路径不写文件。示例把阶段从 `INITIALIZING` 推进到 `LIVE`
+  （策略循环开始），停止时写 `STOPPED` 并写最终摘要，进程按退出码结束。
+- `--run-seconds` 到时与 SIGTERM 走同一条优雅停止路径；Ctrl+C（SIGINT）行为不变。
+  Windows 的 `TerminateProcess` 无法被捕获，需要优雅停止时向进程组发送 `CTRL_BREAK_EVENT`。
+
+| 退出码 | 含义 |
+| --- | --- |
+| `0` | `STOPPED`：干净停止；也包括可证明的 `NOT_STARTED`（启动期间收到停止请求，且没有对账户做过任何写入） |
+| `2` | `BLOCKED`：启动被拒（配置、凭据、首次初始化或启动前置条件被拒） |
+| `3` | `STOPPED_WITH_WORKING_ORDERS`：已停止，但仍有未确认的挂单 |
+| `4` | `STOPPED_WITH_WRITE_IN_FLIGHT`：已停止，但仍有在途写入未确认 |
+| `1` | 未预期异常，或任何无法证明干净的停止（摘要无法写、`UNKNOWN`、启动已提交结算写入后才中止）；不会把无法证明的停止报成 0 |
+
+运行期间由合同写入的状态文件（`state/` 目录权限 0700）：
+
+| 路径 | 内容 |
+| --- | --- |
+| `state/run_status.json` | 心跳：`schema`、策略 UUID、`run_id`、PID、阶段（`INITIALIZING`/`RECONCILING`/`WARMUP`/`LIVE`/`STOPPING`/`STOPPED`）、心跳序号与间隔、主循环推进时间、各行情 LIVE/预热、写入阻断原因（仅有限码）、UNKNOWN 与活动单计数、停止预算、最后错误码、停止请求来源与时刻 |
+| `state/last_run.json` | 最终摘要（runtime 的严格 `bt_api_run_summary/v1`），每次停止后重写 |
+| `state/last_run_details.json` | Broker 摘要、退出码与原因、停止来源/时刻、心跳序号、停止预算；先写 summary 再写 details，只有 details 没有 summary 时视为 UNKNOWN |
+
+心跳文件按严格白名单写入，只有有限码、数字、UUID 与 UTC 时间戳，不含账号、凭据、价格明细或自由文本；
+心跳只证明进程活着，不证明可交易、订单完成或账户齐全。停止预算只把框架自己可证明的上界写成数字：
+启动中途、撤单请求和收尾没有可证明上界时写 `proven: false` 并列出 `unproven_phases`，runtime 不会据此
+计算 SIGKILL 时刻（INV66-10）。
+
+Gateway 示例同样写这三份文件。Gateway 的停止摘要使用会话/Store 的 `PASS`/`INCOMPLETE`/`FAIL`；
+`gateway_client_runner.py` 的示例侧桥接只把“`PASS` 且没有未确认挂单”映射为 `STOPPED`，有未确认挂单映射为
+`STOPPED_WITH_WORKING_ORDERS`，其余一律 `UNKNOWN`（退出 1）。该桥接是示例内的临时翻译，等迭代 66 冻结
+Gateway 停止合同后应移入产品侧，不能据此宣称 Gateway 停止已验收。
 
 ## 证据说明
 

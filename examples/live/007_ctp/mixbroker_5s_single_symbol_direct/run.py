@@ -28,11 +28,12 @@ import json
 import math
 import os
 import threading
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 
 import backtrader as bt
-from backtrader.live_trading import stop_on_terminate
+from backtrader.live_trading import RunStatusWriter, stop_on_terminate
 import yaml
 
 from single_symbol_ma_strategy import SingleSymbolMaStrategy
@@ -43,6 +44,32 @@ EXIT_PASS = 0
 EXIT_BLOCKED = 2
 STRATEGY = SingleSymbolMaStrategy
 TITLE = "mixbroker_5s_single_symbol (direct)"
+
+
+def run_id_from_cli(value):
+    """Canonicalise ``--run-id``; the runtime passes the UUID it registered."""
+    try:
+        return str(uuid.UUID(value))
+    except (AttributeError, TypeError, ValueError):
+        raise argparse.ArgumentTypeError("run-id must be a UUID") from None
+
+
+class RunProgress(bt.Analyzer):
+    """Publish main-loop progress and the LIVE phase to ``state/run_status.json``.
+
+    The contract's heartbeat thread performs every file write; this runs once
+    per evaluated bar and only stamps an in-memory UTC time, so the per-bar
+    path stays free of file I/O (iteration 66, §5.2 B2).
+    """
+
+    params = (("contract", None),)
+
+    def start(self):
+        # Called once the Broker and data started: the run is in its loop.
+        self.p.contract.set_phase("LIVE")
+
+    def next(self):
+        self.p.contract.loop_progress()
 
 
 # Feed settings a contract may override under contracts.<symbol>: the feed: section is
@@ -372,6 +399,8 @@ def main(argv=None):
     parser.add_argument("--first-init", action="store_true",
                         help="explicit first initialization (needs a flat account, D62-13)")
     parser.add_argument("--env-file", default=None, help="env file with SimNow credentials")
+    parser.add_argument("--run-id", type=run_id_from_cli, default=None,
+                        help="run UUID (default: generated; bt_api_runtime passes its own)")
     parser.add_argument("--run-seconds", type=float, default=None,
                         help="stop after N seconds (default: run_timeout_seconds in config)")
     args = parser.parse_args(argv)
@@ -423,14 +452,14 @@ def main(argv=None):
         report("BLOCKED", error_code="credentials_unavailable", detail=str(exc))
         return EXIT_BLOCKED
 
-    from backtrader.brokers._btapi_direct_mode import DirectModeError
+    from backtrader.brokers._btapi_direct_mode import DirectModeError, DirectStartStopped
 
     store = create_store(config, credentials, config_path)
     credentials.clear()
     broker = create_broker(store, config, args.first_init)
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.setbroker(broker)
-    add_feeds(cerebro, store, config)
+    feeds = add_feeds(cerebro, store, config)
     for symbol in symbols:
         print(f"Feed {symbol}: {describe_feed(config, symbol)}", flush=True)
     cerebro.addstrategy(STRATEGY, **dict(config.get("strategy_params") or {}))
@@ -440,16 +469,43 @@ def main(argv=None):
         seconds = float(config.get("run_timeout_seconds", 0.0))
     print(f"Running {TITLE}: symbols={', '.join(symbols)} logs={log_dir} timeout={seconds:.0f}s",
           flush=True)
-    status, code = "PASS", EXIT_PASS
+    status = "PASS"
     termination = stop_on_terminate(cerebro)
+    contract = RunStatusWriter(
+        RUN_DIR,
+        run_id=args.run_id,
+        broker=broker,
+        feeds=feeds,
+        stop_request_provider=termination.request_state,
+    )
+    contract.start()
+    cerebro.addanalyzer(RunProgress, contract=contract)
+    failure = None
     try:
         run_with_timeout(cerebro, seconds, termination)
-    except DirectModeError as exc:
-        status, code = "BLOCKED", EXIT_BLOCKED
+    except DirectStartStopped as exc:
+        # A latched stop request aborted the start: the Broker's own summary
+        # proves a write-free NOT_STARTED (exit 0) or reports UNKNOWN (exit 1).
+        failure, status = exc, "NOT_STARTED"
         report(status, error_code=exc.code, detail=exc.detail)
+    except DirectModeError as exc:
+        failure, status = exc, "BLOCKED"
+        report(status, error_code=exc.code, detail=exc.detail)
+    except KeyboardInterrupt as exc:
+        # SIGINT keeps propagating; the summary still records the crash.
+        failure, status = exc, "CRASHED"
+        raise
+    except Exception as exc:
+        failure, status = exc, "CRASHED"
+        report(status, error_type=type(exc).__name__)
     finally:
+        conclusion = contract.finish(
+            broker_summary=broker.get_shutdown_summary(), exception=failure
+        )
         report(
             "SUMMARY" if status == "PASS" else status,
+            outcome=conclusion.outcome,
+            exit_code=conclusion.exit_code,
             reconcile=broker.get_direct_reconcile_report(),
             writes_blocked=broker.direct_writes_blocked() if broker._direct_active() else None,
             shutdown=getattr(broker, "_shutdown_summary", None),
@@ -458,7 +514,7 @@ def main(argv=None):
             cash=broker.getcash(),
             value=broker.getvalue(),
         )
-    return code
+    return conclusion.exit_code
 
 
 if __name__ == "__main__":
