@@ -35,7 +35,7 @@ import threading
 import time
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..order import BuyOrder, Order, SellOrder
 from ..position import Position
@@ -2053,6 +2053,133 @@ class BtApiDirectModeMixin:
                 valid_intent=capture_valid_intent(valid), offset_explicit=offset is not None
             )
 
+    # ------------------------------------------------------------------
+    # iteration 65: SDK Execution routing on the immediate place/cancel path
+    # ------------------------------------------------------------------
+    def _direct_execution_routing(self) -> Any:
+        """The Store's composed SDK routing selection, or ``None``.
+
+        ``None`` keeps every existing behaviour: no routing module is imported
+        and no request field changes. A selection exists only when the Store
+        proved a parsed configuration, an injected Execution parent port and
+        its own strategy directory.
+        """
+        return getattr(self.store, "execution_routing_selection", None)
+
+    def _direct_execution_intent_identity(self, meta: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+        """The stable Execution request key and account scope of one place.
+
+        The key is a pure function of the durable strategy UUID, the configured
+        Gateway run id and the durable strategy-local sequence number: a restart
+        of the same intent (a restored or replayed order) reproduces it exactly,
+        and a new intent always takes a new sequence number. It contains no
+        process-local value and no clock. The run id contributes through a
+        digest prefix so the key stays inside the neutral request-ref grammar.
+        """
+        selection = self._direct_execution_routing()
+        if selection is None:
+            return None
+        uuid_text = (self._direct_uuid or "").replace("-", "")
+        sequence = meta.get("local_seq")
+        route_scope = getattr(getattr(selection, "route", None), "scope", None)
+        run_id = getattr(route_scope, "run_id", None)
+        account_scope = getattr(getattr(selection, "binding", None), "account_scope", None)
+        if (
+            not uuid_text
+            or type(sequence) is not int
+            or sequence <= 0
+            or type(run_id) is not str
+            or not run_id
+            or type(account_scope) is not str
+            or not account_scope
+        ):
+            return None
+        digest = hashlib.sha256(run_id.encode("utf-8")).hexdigest()[:16]
+        return f"bt-{uuid_text}-{digest}-{sequence}", account_scope
+
+    def _direct_routed_place_outcome(
+        self, order: Order, meta: Dict[str, Any], outcome: Any
+    ) -> Optional[Order]:
+        """Classify one SDK place reply for a routing-selected order.
+
+        ``None`` means the SDK ran the existing direct implementation
+        (``DIRECT_PATH``) and the caller continues with its own
+        ``DirectWriteOutcome`` handling. A reply that is neither shape is a
+        local refusal: nothing is assumed and nothing is resent.
+        """
+        from bt_api_py.direct_write import DirectWriteOutcome
+        from bt_api_py.execution_routing import ExecutionRoutingResult
+
+        if type(outcome) is DirectWriteOutcome:
+            return None
+        if type(outcome) is not ExecutionRoutingResult:
+            return self._direct_reject(order, "execution_reply_invalid")
+        return self._direct_apply_routed_place(order, meta, outcome)
+
+    def _direct_apply_routed_place(self, order: Order, meta: Dict[str, Any], result: Any) -> Order:
+        """Project one routed parent result onto this order without inventing facts.
+
+        An accepted or locally prepared parent has no venue order, native
+        identity, marker or fill, so the order stays Submitted until an
+        authoritative parent projection exists. ``EXECUTION_UNKNOWN`` also
+        keeps it Submitted with a finite reason; the SDK router replays that
+        outcome for the same key and never resends. Rejected and unavailable
+        results are local rejections. No outcome falls back to a direct send.
+        """
+        from bt_api_py.execution_routing import ExecutionRoutingOutcome
+
+        key = meta.get("execution_request_key")
+        meta["execution_routed"] = True
+        meta["execution_routing"] = {
+            "outcome": result.outcome.value,
+            "code": result.code,
+            "request_id": result.request_id,
+            "request_sha256": result.request_sha256,
+            "parent_ref": result.parent_ref,
+            "execution_state": result.execution_state,
+            "request_key": key,
+        }
+        order.addinfo(
+            execution_routing_outcome=result.outcome.value,
+            execution_routing_code=result.code,
+            execution_parent_ref=result.parent_ref,
+            execution_request_id=result.request_id,
+            execution_request_sha256=result.request_sha256,
+            execution_request_key=key,
+        )
+        outcome = result.outcome
+        if outcome in (
+            ExecutionRoutingOutcome.EXECUTION_ACCEPTED,
+            ExecutionRoutingOutcome.EXECUTION_LOCAL_RECEIPT,
+        ):
+            if outcome is ExecutionRoutingOutcome.EXECUTION_LOCAL_RECEIPT:
+                # A durable local receipt is not a Gateway or venue acceptance.
+                meta["execution_prepared"] = True
+                order.addinfo(execution_prepared=True)
+            order.submit(self)
+            self.notify(order)
+            return order
+        if outcome is ExecutionRoutingOutcome.EXECUTION_UNKNOWN:
+            meta["unknown"] = True
+            order.addinfo(
+                outcome_unknown=True,
+                execution_routing_code=result.code or "EXECUTION_UNKNOWN",
+            )
+            order.submit(self)
+            self.notify(order)
+            return order
+        if outcome is ExecutionRoutingOutcome.EXECUTION_UNAVAILABLE:
+            return self._direct_reject(
+                order, "execution_unavailable:" + str(result.code or "EXECUTION_UNAVAILABLE")
+            )
+        if outcome is ExecutionRoutingOutcome.EXECUTION_REJECTED:
+            return self._direct_reject(
+                order, "execution_rejected:" + str(result.code or "EXECUTION_REJECTED")
+            )
+        # DIRECT_PATH (never returned by a routed place) and cancel-only
+        # outcomes cannot describe this place: a finite local refusal.
+        return self._direct_reject(order, "execution_outcome_unsupported:" + result.outcome.value)
+
     def _direct_submit(self, order: Order) -> Order:
         with self._direct_lock:
             symbol = self._direct_symbol(order.data)
@@ -2370,6 +2497,11 @@ class BtApiDirectModeMixin:
             # one-element numpy array) fails the ``Decimal`` conversion.
             detail = str(exc)[:80] or type(exc).__name__
             return self._direct_reject(order, f"request_unrepresentable:{detail}")
+        routed_key = meta.get("execution_request_key")
+        if self._direct_execution_routing() is not None and routed_key is None:
+            # A selected router needs one stable key for every place; without a
+            # proven identity this Broker never guesses one and never sends.
+            return self._direct_reject(order, "execution_request_identity_unavailable")
         port = self._direct_state.pending.bind(local_seq=meta["local_seq"], bt_ref=order.ref)
         summary = {
             "local_seq": meta["local_seq"],
@@ -2391,6 +2523,10 @@ class BtApiDirectModeMixin:
         except Exception as exc:  # admission / mapping refused before any send
             code = getattr(exc, "code", None) or getattr(exc, "reason", None) or type(exc).__name__
             return self._direct_reject(order, f"direct_write_refused:{code}")
+        if routed_key is not None:
+            routed = self._direct_routed_place_outcome(order, meta, outcome)
+            if routed is not None:
+                return routed
         meta["marker_id"] = outcome.marker_id
         meta["identity"] = outcome.identity
         if outcome.identity is not None:
@@ -2428,12 +2564,19 @@ class BtApiDirectModeMixin:
         is_limit = order.exectype == Order.Limit
         price = Decimal(str(order.price)) if is_limit and order.price is not None else None
         dual = self._is_dual_side_mode()
+        # Iteration 65: a routing-selected Store needs the stable request key
+        # and the Gateway account scope on the exact request the SDK builds its
+        # intent from. Without a selection both keep their existing values.
+        identity = self._direct_execution_intent_identity(meta)
+        routed_key, account_scope = ("", "direct") if identity is None else identity
+        if routed_key:
+            meta["execution_request_key"] = routed_key
         return OrderRequest(
             symbol=meta["symbol"],
             side=Side.BUY if order.isbuy() else Side.SELL,
             order_type=OrderType.LIMIT if is_limit else OrderType.MARKET,
             quantity=Decimal(str(abs(float(order.size)))),
-            account_id="direct",
+            account_id=account_scope,
             client_order_id=f"bt{(self._direct_uuid or '').replace('-', '')[:12]}s{meta['local_seq']}",
             price=price,
             # unspecified / DAY validity is the venue's trading-day order;
@@ -2448,6 +2591,7 @@ class BtApiDirectModeMixin:
                 else None
             ),
             quantity_unit=self._direct_quantity_unit(meta["symbol"]),
+            idempotency_key=routed_key,
         )
 
     def _direct_seed_configured_venues(self) -> None:
@@ -2508,6 +2652,11 @@ class BtApiDirectModeMixin:
                     order.cancel()
                     self.notify(order)
                 return order
+            if meta.get("execution_routed"):
+                # Only a parent the router actually recorded is cancelled by
+                # key; an unmatched order went to the venue and keeps its own
+                # identity cancel below.
+                return self._direct_cancel_routed(order, meta)
             if meta.get("identity") is None or meta.get("cancel_requested"):
                 return order
             refusal = self._direct_cancel_refusal(meta)
@@ -2541,6 +2690,75 @@ class BtApiDirectModeMixin:
                     )
                 meta.setdefault("cancel_markers", []).append(outcome.marker_id)
             return order
+
+    def _direct_cancel_routed(self, order: Order, meta: Dict[str, Any]) -> Order:
+        """Cancel a routed parent by its own stable request key.
+
+        There is no venue order and no native identity behind a routed parent,
+        so this uses the SDK's key-based cancel entry point instead of the
+        direct venue cancel. ``DIRECT_PATH`` means the router holds no parent
+        for this key: a blind venue cancel would target another order, so it is
+        a finite local refusal. The SDK never resends an operation id, so a
+        repeated strategy cancel replays the stored outcome.
+        """
+        selection = self._direct_execution_routing()
+        if selection is None:
+            order.addinfo(cancel_error="execution_routing_unavailable")
+            return order
+        from bt_api_py.execution_routing import (
+            ExecutionCancelTarget,
+            ExecutionRoutingOutcome,
+            ExecutionRoutingResult,
+        )
+
+        key = meta["execution_request_key"]
+        run_id = getattr(getattr(selection.route, "scope", None), "run_id", None)
+        if type(run_id) is not str or not run_id:
+            order.addinfo(cancel_error="execution_cancel_identity_unavailable")
+            return order
+        try:
+            result = selection.router.cancel_target(
+                ExecutionCancelTarget(request_key=key, run_id=run_id)
+            )
+        except Exception as exc:
+            code = getattr(exc, "code", None) or type(exc).__name__
+            order.addinfo(cancel_error="execution_cancel_refused:" + str(code))
+            _log.warning("routed cancel of %s refused: %s", order.ref, code)
+            return order
+        if type(result) is not ExecutionRoutingResult:
+            order.addinfo(cancel_error="execution_cancel_reply_invalid")
+            return order
+        meta["execution_cancel"] = {
+            "outcome": result.outcome.value,
+            "code": result.code,
+            "request_id": result.request_id,
+            "request_sha256": result.request_sha256,
+            "parent_ref": result.parent_ref,
+            "request_key": key,
+        }
+        order.addinfo(
+            execution_cancel_outcome=result.outcome.value,
+            execution_cancel_code=result.code,
+        )
+        if result.outcome is ExecutionRoutingOutcome.DIRECT_PATH:
+            order.addinfo(cancel_error="execution_parent_not_recorded")
+            return order
+        if result.outcome is ExecutionRoutingOutcome.EXECUTION_CANCEL_ACCEPTED:
+            meta["cancel_requested"] = True
+            return order
+        if result.outcome is ExecutionRoutingOutcome.EXECUTION_UNKNOWN:
+            # Keep the order Submitted with the finite reason; the stored
+            # operation id proves the cancel was not resent.
+            order.addinfo(
+                cancel_error=result.code or "EXECUTION_UNKNOWN",
+                execution_cancel_unknown=True,
+            )
+            return order
+        if result.outcome is ExecutionRoutingOutcome.EXECUTION_UNAVAILABLE:
+            order.addinfo(cancel_error=result.code or "EXECUTION_CANCEL_UNAVAILABLE")
+            return order
+        order.addinfo(cancel_error=result.code or "EXECUTION_CANCEL_REJECTED")
+        return order
 
     def _direct_cancel_refusal(self, meta: Dict[str, Any]) -> Optional[str]:
         """Why a venue cancel of this order takes no automatic write (R-3), else ``None``.

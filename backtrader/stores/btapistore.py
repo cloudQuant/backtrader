@@ -113,6 +113,15 @@ logger = get_logger(__name__)
 
 _LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
 
+# Iteration 65: the Store-owned SDK Execution routing composition. A strategy
+# whose parsed service configuration selects routing owns one durable router
+# over this SQLite file inside its own strategy state directory; the file is
+# local-only, created once and reused across restarts.
+EXECUTION_ROUTING_DB_FILENAME = "execution_routing.sqlite"
+# The Gateway intent lifetime the router attaches to each persisted parent.
+# The SDK accepts (0, 30]; nothing here derives it from account-wide values.
+EXECUTION_ROUTING_TTL_SECONDS = 10.0
+
 
 async def _run_in_thread(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
     """Run synchronous SDK work off the event loop on Python 3.8 and later.
@@ -469,6 +478,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         calendar_config_file: Any = None,
         calendar_config: Any = None,
         calendar_ctp_routes: Any = None,
+        service_client_config: Any = None,
+        gateway_client_config: Any = None,
+        execution_parent_port: Any = None,
         **kwargs: Any,
     ):
         """Initialize the BtApiStore.
@@ -529,6 +541,24 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             calendar_config: Parsed mapping containing the explicit calendars section.
             calendar_ctp_routes: Caller-declared exact CTP routes for status only.
                 These configure a Store-local reader, not the SDK facade or trading.
+            service_client_config: Optional already-parsed SDK strategy-client
+                ``ClientConfig`` (``parse_client_config``). Only a configuration
+                whose Execution block carries ``execution_routing`` selects the
+                Iteration 65 composition; anything else, and every partial input
+                set, is refused with a finite code.
+            gateway_client_config: Optional already-parsed SDK
+                ``GatewayStrategyConfig`` naming this strategy's exact Gateway
+                binding and route. Supplying it together with
+                ``service_client_config`` and ``execution_parent_port`` selects
+                the Execution routing composition; the three must agree on the
+                account, strategy and direct-write route. The object grants no
+                authority by itself and starts no Execution service.
+            execution_parent_port: Optional injected Execution
+                ``service.execution_parent`` port of the trusted service runtime
+                (an object with callable ``submit`` and, optionally, ``cancel``).
+                It is passed unchanged to the SDK router and is never built,
+                discovered or faked by the Store. Without it a routing selection
+                is refused rather than replaced by an in-process service.
             **kwargs: Additional SDK configuration values.
         """
         super().__init__()
@@ -775,6 +805,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._managed_runtime_stopped = False
         self._sdk_configured = False
         self._last_execution_summary = None
+        # Iteration 65: validate (but do not compose) the optional Execution
+        # routing selection. Composition needs the strategy directory, which
+        # only the Broker knows, so it happens in ``start``.
+        self._configure_execution_routing(
+            service_client_config, gateway_client_config, execution_parent_port
+        )
         try:
             from bt_api_py.account_risk_state import AccountRiskState
         except ImportError as exc:
@@ -1013,6 +1049,325 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def _resolve_provider(self, provider: str) -> str:
         provider_label = str(provider or "btapi").strip().lower()
         return provider_label or "btapi"
+
+    # ------------------------------------------------------------------
+    # Iteration 65: Execution routing composition (SDK-owned routing)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _execution_routing_refuse(code: str) -> None:
+        """Raise one finite, value-free routing composition refusal."""
+        error = BtApiStoreError(code)
+        error.code = code
+        raise error
+
+    @staticmethod
+    def _execution_routing_public(service_client_config: Any) -> Optional[dict]:
+        """Detached JSON tree of an already-parsed SDK client configuration.
+
+        The parsed object keeps its values frozen; the SDK's own public
+        projection is the only supported way to read them back as plain data.
+        """
+        to_public = getattr(service_client_config, "to_public_dict", None)
+        if not callable(to_public):
+            return None
+        try:
+            public = to_public()
+        except Exception:
+            return None
+        return public if isinstance(public, dict) else None
+
+    @staticmethod
+    def _execution_routing_option(public_config: Any) -> Any:
+        """Return the parsed strategy-client ``execution_routing`` option, if any.
+
+        Only the Execution client block's options can select routing; the SDK
+        parser already validated it against the declared parent binding, the
+        strategy registration and an enabled Gateway direct-write route.
+        """
+        clients = public_config.get("clients") if isinstance(public_config, dict) else None
+        execution = clients.get("execution") if isinstance(clients, Mapping) else None
+        settings = execution.get("settings") if isinstance(execution, Mapping) else None
+        options = settings.get("options") if isinstance(settings, Mapping) else None
+        option = options.get("execution_routing") if isinstance(options, Mapping) else None
+        return option if isinstance(option, Mapping) else None
+
+    @staticmethod
+    def _execution_routing_bindings(public_config: Any, alias: str, mount: str) -> list:
+        clients = public_config.get("clients") if isinstance(public_config, dict) else None
+        block = clients.get(alias) if isinstance(clients, Mapping) else None
+        settings = block.get("settings") if isinstance(block, Mapping) else None
+        bindings = settings.get("bindings") if isinstance(settings, Mapping) else None
+        if not isinstance(bindings, Sequence) or isinstance(bindings, (str, bytes)):
+            return []
+        return [
+            dict(binding)
+            for binding in bindings
+            if isinstance(binding, Mapping) and binding.get("mount") == mount
+        ]
+
+    def _configure_execution_routing(
+        self,
+        service_client_config: Any,
+        gateway_client_config: Any,
+        execution_parent_port: Any,
+    ) -> None:
+        """Validate the trusted routing inputs without I/O or routing imports.
+
+        All three inputs are all-or-nothing: a selection without its port would
+        be replaced by something the Store cannot prove, and a port without a
+        selecting configuration would be silently unused. Either case is a
+        finite refusal before any state or client exists.
+        """
+        self._execution_parent_port = None
+        self._execution_routing_client_config = None
+        self._execution_routing_public_config = None
+        self._execution_routing_gateway_config = None
+        self._execution_routing_selected = False
+        self._execution_routing_selection = None
+        self._execution_routing_connection = None
+        self._execution_routing_db_path = None
+        self._execution_routing_state_dir = None
+        if (
+            service_client_config is None
+            and gateway_client_config is None
+            and execution_parent_port is None
+        ):
+            return
+        if (
+            service_client_config is None
+            or gateway_client_config is None
+            or execution_parent_port is None
+        ):
+            self._execution_routing_refuse("EXECUTION_ROUTING_CONFIGURATION_INCOMPLETE")
+        try:
+            from bt_api_py.gateway_strategy_config import GatewayStrategyConfig
+            from bt_api_py.service_config import ClientConfig
+        except ImportError:
+            raise BtApiMissingDependencyError(
+                "bt_api_py gateway strategy and service client configuration are required"
+            ) from None
+        if type(service_client_config) is not ClientConfig:
+            self._execution_routing_refuse("EXECUTION_ROUTING_CONFIGURATION_INVALID")
+        if type(gateway_client_config) is not GatewayStrategyConfig:
+            self._execution_routing_refuse("EXECUTION_ROUTING_CONFIGURATION_INVALID")
+        if self._gateway_mode:
+            # The Gateway session has its own reserve/dispatch path; a routing
+            # selection here could not be reached and must not look active.
+            self._execution_routing_refuse("EXECUTION_ROUTING_UNSUPPORTED_MODE")
+        if self._service_read_only or self.backend != "direct" or not self._sdk_mode:
+            self._execution_routing_refuse("EXECUTION_ROUTING_REQUIRES_DIRECT_WRITES")
+        if not self._sdk_owned_api or self._sdk_custom_api_factory:
+            # Routing is handed to the SDK client at construction; a borrowed
+            # facade or a caller factory cannot be proven to receive it.
+            self._execution_routing_refuse("EXECUTION_ROUTING_REQUIRES_OWNED_API")
+        if not callable(getattr(execution_parent_port, "submit", None)):
+            self._execution_routing_refuse("EXECUTION_ROUTING_PORT_INVALID")
+        cancel = getattr(execution_parent_port, "cancel", None)
+        if cancel is not None and not callable(cancel):
+            self._execution_routing_refuse("EXECUTION_ROUTING_PORT_INVALID")
+        if getattr(gateway_client_config, "risk_selection", None) is not None:
+            # This process owns no Risk client, so it cannot prove that the
+            # parent plan's risk selection is the one Execution will apply.
+            self._execution_routing_refuse("EXECUTION_ROUTING_RISK_UNSUPPORTED")
+        public_config = self._execution_routing_public(service_client_config)
+        option = self._execution_routing_option(public_config)
+        if option is None:
+            self._execution_routing_refuse("EXECUTION_ROUTING_NOT_SELECTED")
+        if public_config is None or not self._execution_routing_configuration_matches(
+            public_config, gateway_client_config, option
+        ):
+            self._execution_routing_refuse("EXECUTION_ROUTING_CONFIGURATION_MISMATCH")
+        self._execution_parent_port = execution_parent_port
+        self._execution_routing_client_config = service_client_config
+        self._execution_routing_public_config = public_config
+        self._execution_routing_gateway_config = gateway_client_config
+        self._execution_routing_selected = True
+
+    @classmethod
+    def _execution_routing_configuration_matches(
+        cls, public_config: Any, gateway_client_config: Any, option: Any
+    ) -> bool:
+        """Prove the two configurations and the Gateway route name one identity.
+
+        The service client configuration selects routing on its Execution
+        block; the Gateway strategy configuration owns this strategy's exact
+        Gateway binding and route. They must agree on the strategy identity,
+        the direct-write route and the Execution parent writer, and there must
+        be exactly one of each binding: an ambiguous pair is never resolved by
+        preference.
+        """
+        try:
+            binding = gateway_client_config.binding
+            route = gateway_client_config.route
+            registration = public_config.get("registration")
+            direct = cls._execution_routing_bindings(
+                public_config, "gateway", "broker.direct_write"
+            )
+            parents = cls._execution_routing_bindings(
+                public_config, "execution", "broker.execution_parent"
+            )
+            account_ref = option.get("account_ref")
+            strategy_ref = option.get("strategy_ref")
+            component = option.get("component")
+            if not isinstance(registration, Mapping):
+                return False
+            if len(direct) != 1 or len(parents) != 1:
+                return False
+            if parents[0].get("instance_id") != component:
+                return False
+            if parents[0].get("account_ref") != account_ref:
+                return False
+            if direct[0].get("account_ref") != account_ref:
+                return False
+            return bool(
+                registration.get("strategy_ref") == strategy_ref
+                and binding.account_scope == account_ref
+                and binding.strategy_scope == strategy_ref
+                and route.scope.account_ref == account_ref
+                and route.scope.strategy_ref == strategy_ref
+                and route.service_id == direct[0].get("service_id")
+                and route.instance_id == direct[0].get("instance_id")
+                and route.scope_ref == direct[0].get("scope_ref")
+            )
+        except Exception:
+            return False
+
+    def _compose_execution_routing(self, broker: Any) -> Any:
+        """Build the SDK selection over the strategy's own durable router once.
+
+        The strategy directory comes from the Broker that is starting; it is the
+        only directory whose identity, local sequence and run lock this Store
+        may share. The SQLite file is opened in SQLite autocommit mode, as the
+        SDK router requires, and its two tables are installed before the client
+        is constructed.
+        """
+        if not self._execution_routing_selected:
+            return None
+        if self._execution_routing_selection is not None:
+            return self._execution_routing_selection
+        from bt_api_py.execution_routing import (
+            ExecutionOrderRouter,
+            ExecutionRoutingError,
+            install_execution_routing_tables,
+            parse_execution_routing,
+        )
+
+        strategy_dir = getattr(getattr(broker, "p", None), "strategy_dir", None)
+        if (
+            type(strategy_dir) is not str
+            or not strategy_dir
+            or strategy_dir != strategy_dir.strip()
+        ):
+            self._execution_routing_refuse("EXECUTION_ROUTING_STATE_DIR_REQUIRED")
+        try:
+            from ..live_state._common import StatePaths
+
+            paths = StatePaths(strategy_dir)
+        except Exception:
+            self._execution_routing_refuse("EXECUTION_ROUTING_STATE_DIR_INVALID")
+        if not os.path.isdir(paths.strategy_dir):
+            self._execution_routing_refuse("EXECUTION_ROUTING_STATE_DIR_MISSING")
+        db_path = os.path.join(paths.state_dir, EXECUTION_ROUTING_DB_FILENAME)
+        try:
+            os.makedirs(paths.state_dir, mode=0o700, exist_ok=True)
+            import sqlite3
+
+            connection = sqlite3.connect(db_path, isolation_level=None)
+        except Exception:
+            self._execution_routing_refuse("EXECUTION_ROUTING_STORE_UNAVAILABLE")
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            install_execution_routing_tables(connection)
+            connection.commit()
+        except Exception:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_STORE_UNAVAILABLE")
+
+        option = self._execution_routing_option(self._execution_routing_public_config)
+        if not 0 < EXECUTION_ROUTING_TTL_SECONDS <= 30:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_TTL_INVALID")
+        try:
+            config = parse_execution_routing(dict(option))
+        except ExecutionRoutingError as exc:
+            connection.close()
+            code = getattr(exc, "code", None) or "INVALID_EXECUTION_CONFIG"
+            raise BtApiStoreError(f"EXECUTION_ROUTING_CONFIG_INVALID:{code}") from None
+        except Exception:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_CONFIG_INVALID")
+        try:
+            gateway = self._execution_routing_gateway_config
+            binding, route = gateway.binding, gateway.route
+            registration = self._execution_routing_public_config.get("registration") or {}
+            scope = route.scope
+            proven = (
+                binding.account_scope == config.account_ref
+                and binding.strategy_scope == config.strategy_ref
+                and scope.account_ref == config.account_ref
+                and scope.strategy_ref == config.strategy_ref
+                and scope.execution_domain_ref == config.execution_domain_ref
+                and registration.get("strategy_ref") == config.strategy_ref
+                and isinstance(scope.run_id, str)
+                and bool(scope.run_id)
+            )
+        except Exception:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_SCOPE_UNPROVEN")
+        if not proven:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_SCOPE_MISMATCH")
+        try:
+            from bt_api_py.bt_api import ExecutionRoutingSelection
+
+            router = ExecutionOrderRouter(
+                db=connection,
+                config=config,
+                execution_port=self._execution_parent_port,
+                risk_selected=False,
+            )
+            selection = ExecutionRoutingSelection(
+                router=router,
+                binding=binding,
+                route=route,
+                ttl_seconds=EXECUTION_ROUTING_TTL_SECONDS,
+            )
+        except Exception:
+            connection.close()
+            self._execution_routing_refuse("EXECUTION_ROUTING_COMPOSITION_FAILED")
+        self._execution_routing_connection = connection
+        self._execution_routing_db_path = db_path
+        self._execution_routing_state_dir = paths.strategy_dir
+        self._execution_routing_selection = selection
+        return selection
+
+    def _execution_routing_api_factory(self) -> Callable[..., Any]:
+        """Return the owned-SDK factory that hands the selection to ``BtApi``.
+
+        The selection is read when the facade is constructed (not captured), so
+        a client rebuilt after a verified close still receives the current
+        router; without a composed selection nothing is constructed.
+        """
+
+        def factory(**options: Any) -> Any:
+            from bt_api_py.bt_api import BtApi
+
+            selection = self._execution_routing_selection
+            if selection is None:
+                self._execution_routing_refuse("EXECUTION_ROUTING_NOT_COMPOSED")
+            return BtApi(**options, execution_order_routing=selection)
+
+        return factory
+
+    @property
+    def execution_routing_selection(self) -> Any:
+        """The composed SDK ``ExecutionRoutingSelection``, or ``None``."""
+        return self._execution_routing_selection
+
+    @property
+    def execution_routing_db_path(self) -> Optional[str]:
+        """Absolute path of the durable router file, or ``None`` when unselected."""
+        return self._execution_routing_db_path
 
     @property
     def is_connected(self) -> bool:
@@ -1438,6 +1793,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             self._calendar_status_stopping = True
         started = False
         try:
+            # Iteration 65: the strategy directory is known only here; compose
+            # before the SDK client (which receives the selection) is created.
+            self._compose_execution_routing(broker)
             result = _start_store(
                 self, data, broker, error_type=BtApiStoreError,
                 gateway_entrypoint=_legacy_gateway_entrypoint,
@@ -1788,10 +2146,32 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             resync = getattr(self, "_tick_stream_resync", None)
             if resync is not None:
                 resync.fence()  # no automatic tick-stream resync once stop began
-            return _stop_store(self, timeout, safe_log=_safe_log)
+            result = _stop_store(self, timeout, safe_log=_safe_log)
+            shutdown_state = (
+                result.get("shutdown_state")
+                if isinstance(result, Mapping)
+                else getattr(self, "_shutdown_state", None)
+            )
+            if shutdown_state == "PASS":
+                # Iteration 65: the router file is closed only with a verified
+                # shutdown; an incomplete one keeps it for the pending close.
+                self._close_execution_routing()
+            return result
         finally:
             with self._calendar_status_lock:
                 self._calendar_status_transitions -= 1
+
+    def _close_execution_routing(self) -> None:
+        """Close the durable router file and forget the composed selection."""
+        connection = self._execution_routing_connection
+        self._execution_routing_connection = None
+        self._execution_routing_selection = None
+        self._execution_routing_db_path = None
+        if connection is not None:
+            try:
+                connection.close()
+            except Exception:
+                _safe_log("warning", "btapistore:execution_routing_close_failed")
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
         """Coordinate synchronous SDK shutdown through the lifecycle bridge."""
@@ -5357,11 +5737,20 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
         options = {**self._config, **self._api_kwargs}
         execution_config = self._sdk_execution_config_snapshot()
+        api_factory = self._api_cls
+        if api_factory is None and self._execution_routing_selected:
+            # Iteration 65: the selection reaches the owned SDK client only at
+            # construction, so a routing Store supplies its own factory. The
+            # selection must already exist; composing it lazily here would
+            # build a client that cannot route a matched order.
+            if self._execution_routing_selection is None:
+                self._execution_routing_refuse("EXECUTION_ROUTING_NOT_COMPOSED")
+            api_factory = self._execution_routing_api_factory()
         assembly = DirectApiAssembly.from_options(
             options=options,
             exchange_kwargs=self._sdk_direct_exchange_kwargs,
             execution_config=execution_config,
-            api_factory=self._api_cls,
+            api_factory=api_factory,
             api=self._api,
             expected_exchange_names=tuple(self._sdk_exchanges),
             execution_option_keys=DIRECT_EXECUTION_CONFIG_KEYS,
