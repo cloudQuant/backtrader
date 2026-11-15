@@ -1,11 +1,18 @@
 """Orders created during a confirmed market closure, waiting for the next session.
 
-``state/waiting_orders.json`` holds ``{"version": 1, "strategy_uuid",
+``state/waiting_orders.json`` holds ``{"version": 2, "strategy_uuid",
 "orders": {waiting_id: order}, "history": [order, ...]}`` (D62-30/31).  The
 original order parameters and the *intent* of the validity (``valid_intent``)
 are stored unchanged; a DAY validity is computed by the dispatcher at actual
 submit time, never pre-computed here.  ``offset`` is stored exactly as the
 strategy gave it (``close_today`` is never rewritten).
+
+``target_session`` binds the target trading day and window to the versioned
+``calendar_ref`` of the session answer that produced it (D67-15/17, INV67-08).
+A new order without a usable calendar reference is refused.  Version-1
+records (no ``calendar_ref``) are readable but stay explicitly unbound:
+:meth:`WaitingOrderStore.record_calendar_disposition` records why they are not
+resumed, and nothing here ever guesses the missing reference.
 
 Status machine (compare-and-set under ``state/waiting.lock``)::
 
@@ -51,13 +58,30 @@ from .atomic import (
     read_json,
 )
 
-__all__ = ("WAITING_STATUSES", "WAITING_VERSION", "WaitingOrderStore")
+__all__ = (
+    "CALENDAR_DISPOSITIONS",
+    "WAITING_STATUSES",
+    "WAITING_VERSION",
+    "WaitingOrderStore",
+)
 
 _log = get_logger(__name__)
 
-WAITING_VERSION = 1
+WAITING_VERSION = 2
+LEGACY_WAITING_VERSIONS = frozenset({1})
 HISTORY_LIMIT = 500
 _TRANSITIONS_LIMIT = 32
+
+# An active order that cannot be scheduled/resumed keeps its status; this
+# records why (D67-15).  The live path never rewrites the original target.
+CALENDAR_DISPOSITIONS = frozenset(
+    {
+        "legacy_unbound",  # version-1 record: creation calendar version unknown
+        "calendar_ref_missing",  # the record/session has no usable reference
+        "calendar_ref_changed",  # the configured calendar differs from creation
+        "calendar_unavailable",  # the current session answer cannot be read
+    }
+)
 
 WAITING_STATUSES = ("WAITING", "DISPATCHING", "DISPATCHED", "CANCELLED", "EXPIRED", "REJECTED")
 _TERMINAL = frozenset({"DISPATCHED", "CANCELLED", "EXPIRED", "REJECTED"})
@@ -111,11 +135,30 @@ def initial_waiting_state(strategy_uuid: str) -> dict:
     }
 
 
+_TARGET_SESSION_KEYS = frozenset({"trading_day", "continuous_start_utc", "session_end_utc"})
+_TARGET_SESSION_BOUND_KEYS = _TARGET_SESSION_KEYS | {"calendar_ref"}
+_CALENDAR_REF_MAX_LEN = 256
+
+
+def _check_target_session(value: Any, path: str) -> None:
+    """A target session is either old/unbound (version 1) or calendar-bound."""
+    if not isinstance(value, dict):
+        raise LiveStateCorrupt(path, "invalid_target_session")
+    keys = set(value)
+    if keys not in (_TARGET_SESSION_KEYS, _TARGET_SESSION_BOUND_KEYS):
+        raise LiveStateCorrupt(path, "invalid_target_session")
+    if "calendar_ref" in value and not is_text(
+        value["calendar_ref"], max_len=_CALENDAR_REF_MAX_LEN
+    ):
+        raise LiveStateCorrupt(path, "invalid_calendar_ref")
+
+
 def _check_stored(order: Any, path: str, *, terminal: bool) -> None:
     if not isinstance(order, dict) or set(order) != _STORED:
         raise LiveStateCorrupt(path, "invalid_waiting_order")
     if not is_uuid4(order["waiting_id"]):
         raise LiveStateCorrupt(path, "invalid_waiting_id")
+    _check_target_session(order["target_session"], path)
     status = order["status"]
     if status not in WAITING_STATUSES or (status in _TERMINAL) != terminal:
         raise LiveStateCorrupt(path, "invalid_waiting_status")
@@ -126,7 +169,8 @@ def validate_waiting_state(raw: Any, path: str, strategy_uuid: Optional[str]) ->
         raise LiveStateCorrupt(path, "not_a_mapping")
     if set(raw) != {"version", "strategy_uuid", "orders", "history"}:
         raise LiveStateCorrupt(path, "unexpected_keys")
-    if type(raw["version"]) is not int or raw["version"] != WAITING_VERSION:
+    supported = LEGACY_WAITING_VERSIONS | {WAITING_VERSION}
+    if type(raw["version"]) is not int or raw["version"] not in supported:
         raise LiveStateCorrupt(path, "version_unsupported")
     if not is_uuid4(raw["strategy_uuid"]):
         raise LiveStateCorrupt(path, "invalid_field:strategy_uuid")
@@ -174,8 +218,9 @@ def _normalize_valid_intent(value: Any) -> dict:
 
 
 def _normalize_target_session(value: Any) -> dict:
-    keys = {"trading_day", "continuous_start_utc", "session_end_utc"}
-    if not isinstance(value, Mapping) or set(value) != keys:
+    if not isinstance(value, Mapping) or set(value) != _TARGET_SESSION_BOUND_KEYS:
+        # A new order must carry the versioned calendar reference of the
+        # session answer that produced its target; never fall back to a guess.
         raise _bad("target_session")
     if not is_trading_day(value["trading_day"]):
         raise _bad("target_session.trading_day")
@@ -183,7 +228,9 @@ def _normalize_target_session(value: Any) -> dict:
     end = parse_aware_iso(value["session_end_utc"])
     if start is None or end is None or not start < end:
         raise _bad("target_session.window")
-    return {key: value[key] for key in sorted(keys)}
+    if not is_text(value["calendar_ref"], max_len=_CALENDAR_REF_MAX_LEN):
+        raise _bad("target_session.calendar_ref")
+    return {key: value[key] for key in sorted(_TARGET_SESSION_BOUND_KEYS)}
 
 
 def normalize_waiting_order(order: Any) -> dict:
@@ -307,6 +354,10 @@ class WaitingOrderStore:
         return validate_waiting_state(raw, self.paths.waiting, self.strategy_uuid)
 
     def _store(self, state: dict) -> None:
+        # A version-1 file is upgraded only on the next legitimate durable
+        # write; reading never rewrites state and every untouched record is
+        # carried over as it was.
+        state["version"] = WAITING_VERSION
         overflow = len(state["history"]) - self.history_limit
         if overflow > 0:
             del state["history"][:overflow]
@@ -400,6 +451,54 @@ class WaitingOrderStore:
         except Exception as exc:
             _log.warning(
                 "waiting notice takeover not recorded: %s",
+                getattr(exc, "code", type(exc).__name__),
+            )
+            return False
+
+    def record_calendar_disposition(
+        self,
+        waiting_id: str,
+        disposition: str,
+        *,
+        observed_calendar_ref: Optional[str] = None,
+    ) -> bool:
+        """Durably record why an active waiting order is not resumed (D67-15).
+
+        The status, original target and order identity are never changed.  An
+        unknown reason raises ``LiveStateError("calendar_disposition_invalid")``;
+        I/O, lock and corruption problems are logged and return ``False`` (the
+        caller still refuses to dispatch in memory).  Repeating the same
+        disposition keeps the first timestamp; ``True`` is returned then too.
+        """
+        if disposition not in CALENDAR_DISPOSITIONS:
+            raise LiveStateError("calendar_disposition_invalid", disposition)
+        if observed_calendar_ref is not None and not is_text(
+            observed_calendar_ref, max_len=_CALENDAR_REF_MAX_LEN
+        ):
+            raise LiveStateError("calendar_disposition_invalid", "observed_calendar_ref")
+        try:
+            with self._lock():
+                state = self._load()
+                order = state["orders"].get(waiting_id)
+                if order is None:
+                    return False
+                facts = order["facts"]
+                if (
+                    facts.get("calendar_disposition") == disposition
+                    and facts.get("observed_calendar_ref") == observed_calendar_ref
+                ):
+                    return True
+                now = utc_now_iso()
+                facts["calendar_disposition"] = disposition
+                facts["calendar_disposition_at_utc"] = now
+                if observed_calendar_ref is not None:
+                    facts["observed_calendar_ref"] = observed_calendar_ref
+                order["updated_at_utc"] = now
+                self._store(state)
+            return True
+        except Exception as exc:
+            _log.warning(
+                "waiting calendar disposition not recorded: %s",
                 getattr(exc, "code", type(exc).__name__),
             )
             return False

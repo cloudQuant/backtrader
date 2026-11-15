@@ -89,7 +89,11 @@ def _waiting_view(order: dict) -> dict:
         "target_session",
         "created_at_utc",
     )
-    return {key: order[key] for key in keys}
+    view = {key: order[key] for key in keys}
+    # Make the calendar binding and any recorded refusal explicit (D67-15/17).
+    view["calendar_ref"] = order["target_session"].get("calendar_ref")
+    view["calendar_disposition"] = (order.get("facts") or {}).get("calendar_disposition")
+    return view
 
 
 def _section(fn) -> Any:

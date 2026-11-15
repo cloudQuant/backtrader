@@ -157,6 +157,107 @@ def test_takeover_of_a_restart_rejected_notice_is_recorded_once(state):
     assert store.get(rejected)["status"] == "REJECTED"
 
 
+CALENDAR_REF = "ctp:calendar:2026.11.05.1"
+LEGACY_TARGET_SESSION = {
+    "trading_day": "20261106",
+    "continuous_start_utc": "2026-11-05T13:00:00+00:00",
+    "session_end_utc": "2026-11-05T15:00:00+00:00",
+}
+
+
+def _read_state(store):
+    with open(store.path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _write_state(store, payload):
+    with open(store.path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle)
+
+
+def _make_legacy_record(store, **overrides):
+    """Add a record, then rewrite it as a version-1 record without a calendar ref."""
+    waiting_id = store.add(waiting_order(**overrides))
+    raw = _read_state(store)
+    raw["orders"][waiting_id]["target_session"].pop("calendar_ref")
+    raw["version"] = 1
+    _write_state(store, raw)
+    return waiting_id
+
+
+def test_new_order_binds_the_calendar_reference(state):
+    waiting_id = state.waiting.add(waiting_order())
+    record = state.waiting.get(waiting_id)
+    assert record["target_session"]["calendar_ref"] == CALENDAR_REF
+    # The original identity and target day stay unchanged.
+    assert record["bt_ref"] == 11
+    assert record["target_session"]["trading_day"] == "20261106"
+
+
+def test_new_order_without_a_calendar_reference_is_refused(state):
+    with pytest.raises(LiveStateError) as info:
+        state.waiting.add(waiting_order(target_session=LEGACY_TARGET_SESSION))
+    assert info.value.code == "waiting_invalid"
+    assert state.waiting.active() == []
+    empty = dict(LEGACY_TARGET_SESSION, calendar_ref="")
+    with pytest.raises(LiveStateError) as info:
+        state.waiting.add(waiting_order(target_session=empty))
+    assert info.value.code == "waiting_invalid"
+
+
+def test_legacy_version_one_record_is_readable_but_stays_unbound(state):
+    waiting_id = _make_legacy_record(state.waiting)
+    (record,) = state.waiting.active()
+    assert record["waiting_id"] == waiting_id
+    assert record["target_session"] == LEGACY_TARGET_SESSION
+    assert "calendar_ref" not in record["target_session"]
+    assert record["status"] == "WAITING"  # loading never rewrites a record
+
+
+def test_legacy_record_gets_a_recorded_disposition_without_status_change(state):
+    waiting_id = _make_legacy_record(state.waiting)
+    assert state.waiting.record_calendar_disposition(waiting_id, "legacy_unbound") is True
+    first = state.waiting.get(waiting_id)
+    assert first["status"] == "WAITING"
+    assert first["facts"]["calendar_disposition"] == "legacy_unbound"
+    stamp = first["facts"]["calendar_disposition_at_utc"]
+    assert stamp
+    # Idempotent: the first timestamp is kept and no transition is appended.
+    assert state.waiting.record_calendar_disposition(waiting_id, "legacy_unbound") is True
+    second = state.waiting.get(waiting_id)
+    assert second["facts"]["calendar_disposition_at_utc"] == stamp
+    assert second["transitions"] == []
+
+
+def test_record_calendar_disposition_rejects_unknown_reasons(state):
+    waiting_id = state.waiting.add(waiting_order())
+    with pytest.raises(LiveStateError) as info:
+        state.waiting.record_calendar_disposition(waiting_id, "made_up")
+    assert info.value.code == "calendar_disposition_invalid"
+    assert "calendar_disposition" not in state.waiting.get(waiting_id)["facts"]
+
+
+def test_invalid_calendar_reference_is_corrupt_and_fails_closed(state):
+    waiting_id = state.waiting.add(waiting_order())
+    raw = _read_state(state.waiting)
+    raw["orders"][waiting_id]["target_session"]["calendar_ref"] = 5
+    _write_state(state.waiting, raw)
+    with pytest.raises(LiveStateError):
+        state.waiting.active()
+    with pytest.raises(LiveStateError):
+        state.waiting.add(waiting_order(local_seq=2))
+
+
+def test_version_one_is_upgraded_on_the_next_durable_write(state):
+    legacy_id = _make_legacy_record(state.waiting)
+    new_id = state.waiting.add(waiting_order(local_seq=2))
+    raw = _read_state(state.waiting)
+    assert raw["version"] == 2
+    # Other people's records are preserved, never guessed at or dropped.
+    assert raw["orders"][legacy_id]["target_session"] == LEGACY_TARGET_SESSION
+    assert raw["orders"][new_id]["target_session"]["calendar_ref"] == CALENDAR_REF
+
+
 def test_takeover_record_never_raises(state, monkeypatch):
     from backtrader.live_state import waiting as waiting_module
 

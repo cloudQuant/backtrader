@@ -4,6 +4,8 @@ UNIT/FAKE: fake facade and schedule, controlled clock, real ``backtrader.live_st
 """
 
 import datetime as dt
+import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -67,6 +69,7 @@ def test_closed_session_order_is_persisted_and_not_sent(env, clock):
         "trading_day": "20261106",
         "continuous_start_utc": "2026-11-05T08:00:00.000000Z",
         "session_end_utc": "2026-11-05T10:00:00.000000Z",
+        "calendar_ref": "fake-calendar",
     }
     assert env.api.place_calls == []
     assert last_status(drain(broker)) == ["Submitted"]
@@ -328,3 +331,138 @@ def test_historical_warmup_is_refused_even_during_a_closure(env, clock):
     assert order.info["error_code"] == "target_feed_warming_up"
     assert env.state().waiting.waiting() == []
     assert env.api.place_calls == []
+
+
+# ---------------------------------------------------------------------------
+# trading-calendar binding (iteration 67, D67-15/17)
+# ---------------------------------------------------------------------------
+def _without_calendar_ref(schedule):
+    """Return a ``session_state`` that reports no usable calendar reference."""
+    original = schedule.session_state
+
+    def session_state(instrument_id, at_utc):
+        state = original(instrument_id, at_utc)
+        return SimpleNamespace(
+            phase=state.phase,
+            reason=state.reason,
+            next_continuous=state.next_continuous,
+            trading_day=state.trading_day,
+            calendar_ref="",
+        )
+
+    return session_state
+
+
+def _rewrite_as_legacy(env, waiting_id):
+    """Rewrite a durable record as the old version-1 shape (no calendar_ref)."""
+    path = env.state().waiting.path
+    with open(path, encoding="utf-8") as handle:
+        raw = json.load(handle)
+    raw["orders"][waiting_id]["target_session"].pop("calendar_ref")
+    raw["version"] = 1
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(raw, handle)
+
+
+def test_waiting_order_binds_the_calendar_reference(env, clock):
+    broker = env.start(first_init=True)
+    _closed(env)
+    order = _buy(env, broker)
+    record = env.state().waiting.get(order.info["waiting_id"])
+    assert record["target_session"]["calendar_ref"] == "fake-calendar"
+    assert record["target_session"]["trading_day"] == "20261106"
+    assert order.info["target_session"]["calendar_ref"] == "fake-calendar"
+
+
+def test_closed_order_without_a_usable_calendar_reference_is_refused(env, clock):
+    broker = env.start(first_init=True)
+    _closed(env)
+    env.api.schedule.session_state = _without_calendar_ref(env.api.schedule)
+    order = _buy(env, broker)
+    assert order.status == bt.Order.Rejected
+    assert order.info["error_code"] == "target_calendar_unknown"
+    assert env.state().waiting.active() == []
+    assert env.api.place_calls == []
+
+
+def test_changed_calendar_reference_pauses_and_keeps_the_original_target(env, clock):
+    broker = env.start(first_init=True)
+    _closed(env)
+    order = _buy(env, broker)
+    original = env.state().waiting.get(order.info["waiting_id"])["target_session"]
+
+    env.api.schedule.calendar_ref = "fake-calendar-2026.11.06"
+    _open(env, clock, T0 + HOUR)
+    broker.next()
+    assert env.api.place_calls == []
+    record = env.state().waiting.get(order.info["waiting_id"])
+    assert record["status"] == "WAITING"
+    assert record["facts"]["calendar_disposition"] == "calendar_ref_changed"
+    assert record["target_session"] == original  # never retargeted/extended
+
+    # Putting the old reference back is not an automatic recovery: the
+    # recorded pause is kept and the order is not silently resumed.
+    env.api.schedule.calendar_ref = "fake-calendar"
+    broker.next()
+    assert env.api.place_calls == []
+
+
+def test_unavailable_calendar_reference_pauses_dispatch(env, clock):
+    broker = env.start(first_init=True)
+    _closed(env)
+    order = _buy(env, broker)
+    env.api.schedule.session_state = _without_calendar_ref(env.api.schedule)
+    _open(env, clock, T0 + HOUR)
+    broker.next()
+    assert env.api.place_calls == []
+    record = env.state().waiting.get(order.info["waiting_id"])
+    assert record["status"] == "WAITING"
+    assert record["facts"]["calendar_disposition"] == "calendar_unavailable"
+    assert record["target_session"]["calendar_ref"] == "fake-calendar"
+
+
+def test_legacy_waiting_record_without_a_calendar_reference_is_not_resumed(env, clock):
+    first = env.start(first_init=True)
+    _closed(env)
+    order = _buy(env, first)
+    crash(first)
+    _rewrite_as_legacy(env, order.info["waiting_id"])
+
+    broker = env.start()
+    (restored,) = broker.get_restored_orders()
+    assert restored.status == bt.Order.Submitted
+    assert restored.info["calendar_block"] == "legacy_unbound"
+    assert restored.info["target_session"]["trading_day"] == "20261106"
+
+    _open(env, clock, T0 + HOUR)
+    broker.next()
+    assert env.api.place_calls == []
+    record = env.state().waiting.get(order.info["waiting_id"])
+    assert record["status"] == "WAITING"  # never rejected or guessed at
+    assert record["facts"]["calendar_disposition"] == "legacy_unbound"
+    assert record["bt_ref"] == order.ref
+    assert "calendar_ref" not in record["target_session"]
+
+
+def test_restart_keeps_the_original_target_and_calendar_reference(env, clock):
+    first = env.start(first_init=True)
+    _closed(env)
+    order = _buy(env, first)
+    original = env.state().waiting.get(order.info["waiting_id"])["target_session"]
+    crash(first)
+    # The local session moved on, but the order keeps the target it was made for.
+    env.api.schedule.trading_day = dt.date(2026, 11, 9)
+    env.api.schedule.next_window = window(T0 + 6 * HOUR, T0 + 8 * HOUR, day=dt.date(2026, 11, 9))
+    broker = env.start()
+    (restored,) = broker.get_restored_orders()
+    assert restored.info["original_ref"] == order.ref
+    assert restored.info["local_seq"] == order.info["local_seq"]
+    assert restored.info["target_session"] == original
+
+    clock["value"] = T0 + 5 * HOUR  # after the original target session ended
+    env.api.schedule.phase = TradingPhase.CONTINUOUS
+    broker.next()
+    assert env.api.place_calls == []  # never retargeted to the later day
+    record = env.state().waiting.get(order.info["waiting_id"])
+    assert record["target_session"] == original
+    assert record["status"] == "EXPIRED"

@@ -39,6 +39,7 @@ def waiting_order(**overrides):
             "trading_day": "20261106",
             "continuous_start_utc": "2026-11-05T13:00:00+00:00",
             "session_end_utc": "2026-11-05T15:00:00+00:00",
+            "calendar_ref": "ctp:calendar:2026.11.05.1",
         },
     }
     order.update(overrides)

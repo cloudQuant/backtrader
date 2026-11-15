@@ -52,11 +52,12 @@ from .pending import (
 from .sequence import SequenceAllocator
 from .snapshot import LegacyPositions, PositionSnapshotStore
 from .state_dir import RunLock, StrategyStateDir
-from .waiting import WAITING_STATUSES, WaitingOrderStore
+from .waiting import CALENDAR_DISPOSITIONS, WAITING_STATUSES, WaitingOrderStore
 
 __all__ = (
     "ACTIVE_STATUSES",
     "AuditLog",
+    "CALENDAR_DISPOSITIONS",
     "BoundPreDispatchPort",
     "ERROR_CODES",
     "FileLock",

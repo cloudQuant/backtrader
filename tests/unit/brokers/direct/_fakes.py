@@ -221,6 +221,7 @@ class FakeSchedule:
         self.next_window = next_window
         self.reason: Optional[str] = None
         self.trading_day = dt.date(2026, 11, 5)  # the venue calendar's day now
+        self.calendar_ref = "fake-calendar"  # versioned calendar identity
         self.calls: List[tuple] = []
 
     def session_state(self, instrument_id: str, at_utc: dt.datetime) -> TradingSessionState:
@@ -235,7 +236,7 @@ class FakeSchedule:
             trading_day=self.trading_day,
             current_window=None,
             next_continuous=self.next_window,
-            calendar_ref="fake-calendar",
+            calendar_ref=self.calendar_ref,
             reason=reason,
         )
 

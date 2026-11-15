@@ -208,6 +208,40 @@ def _valid_trading_day(value: Any) -> bool:
     return True
 
 
+# Waiting orders bind their target session to the versioned calendar reference
+# of the session answer that produced it (D67-15/17, INV67-08).  A recorded
+# refusal always keeps the order, its identity and its original target.
+_CALENDAR_REF_MAX_LEN = 256
+_STICKY_CALENDAR_DISPOSITIONS = frozenset(
+    ("legacy_unbound", "calendar_ref_missing", "calendar_ref_changed")
+)
+_UNKNOWN_PHASE = object()
+
+
+def _calendar_ref(value: Any) -> Optional[str]:
+    """A usable calendar reference string, else ``None`` (never a guess)."""
+    if (
+        type(value) is not str
+        or not value
+        or value != value.strip()
+        or len(value) > _CALENDAR_REF_MAX_LEN
+    ):
+        return None
+    return value
+
+
+def _session_calendar_ref(answer: Any) -> Optional[str]:
+    if answer is None:
+        return None
+    return _calendar_ref(getattr(answer, "calendar_ref", None))
+
+
+def _target_calendar_ref(target: Any) -> Optional[str]:
+    if type(target) is not dict:
+        return None
+    return _calendar_ref(target.get("calendar_ref"))
+
+
 def _settlement_class(outcome: Optional[Dict[str, Any]]) -> str:
     """Classify one settlement step of a trading-day switch (D62-29).
 
@@ -1872,6 +1906,7 @@ class BtApiDirectModeMixin:
                 "identity": None,
                 "marker_id": None,
                 "waiting_id": None,
+                "calendar_block": None,
                 "trade_keys": set(),
             }
             order.addinfo(local_seq=seq)
@@ -2753,10 +2788,15 @@ class BtApiDirectModeMixin:
         window = getattr(state, "next_continuous", None)
         if window is None:
             return self._direct_reject(order, "target_session_unknown")
+        calendar_ref = _session_calendar_ref(state)
+        if calendar_ref is None:
+            # D67-15/17: a target session is never bound to a local-date guess.
+            return self._direct_reject(order, "target_calendar_unknown")
         target = {
             "trading_day": str(window.trading_day).replace("-", ""),
             "continuous_start_utc": _utc_text(window.start_utc),
             "session_end_utc": _utc_text(window.end_utc),
+            "calendar_ref": calendar_ref,
         }
         record = {
             "local_seq": meta["local_seq"],
@@ -2781,7 +2821,13 @@ class BtApiDirectModeMixin:
             return self._direct_reject(order, f"waiting_persist_failed:{code}")
         meta["waiting_id"] = waiting_id
         meta["target_session"] = target
-        order.addinfo(waiting_session=True, waiting_id=waiting_id, target_session=target)
+        order.addinfo(
+            waiting_session=True,
+            waiting_id=waiting_id,
+            target_session=target,
+            calendar_ref=calendar_ref,
+            calendar_block=None,
+        )
         order.submit(self)
         self.notify(order)
         return order
@@ -2836,8 +2882,63 @@ class BtApiDirectModeMixin:
             self._direct_deferred_notices.remove(marker)
             self._direct_build_notice(marker, data)
 
+    def _direct_waiting_calendar_disposition(
+        self, record: Dict[str, Any], phase: Any = _UNKNOWN_PHASE
+    ) -> Optional[str]:
+        """Why this order cannot be scheduled/resumed, or ``None``.
+
+        ``legacy_unbound`` covers a version-1 record (no calendar reference was
+        ever stored): it is explicitly unknown and never guessed.  A changed or
+        unavailable reference fails closed; the original target is untouched.
+        """
+        target = record.get("target_session")
+        if type(target) is not dict or "calendar_ref" not in target:
+            return "legacy_unbound"
+        recorded = _target_calendar_ref(target)
+        if recorded is None:
+            return "calendar_ref_missing"
+        if phase is _UNKNOWN_PHASE:
+            phase = self._direct_phase(record["symbol"])
+        current = _session_calendar_ref(phase)
+        if current is None:
+            return "calendar_unavailable"
+        if current != recorded:
+            return "calendar_ref_changed"
+        return None
+
+    def _direct_waiting_calendar_block(self, record: Dict[str, Any]) -> Optional[str]:
+        """The sticky pause a record already carries, else the current verdict."""
+        prior = (record.get("facts") or {}).get("calendar_disposition")
+        if prior in _STICKY_CALENDAR_DISPOSITIONS:
+            return prior
+        return self._direct_waiting_calendar_disposition(record)
+
+    def _direct_pause_waiting(
+        self, record: Dict[str, Any], disposition: str, *, order: Optional[Order] = None
+    ) -> None:
+        """Fail closed without changing the order's status, target or identity."""
+        if record.get("calendar_block") == disposition:
+            return
+        record["calendar_block"] = disposition
+        if order is not None:
+            order.addinfo(calendar_block=disposition)
+        waiting_id = record.get("waiting_id")
+        if waiting_id:
+            self._direct_state.waiting.record_calendar_disposition(waiting_id, disposition)
+        throttled_warning(
+            _log,
+            "direct_waiting_calendar:" + str(waiting_id),
+            "waiting order %s paused (%s): original target kept, not re-sent",
+            waiting_id,
+            disposition,
+            exc_info=False,
+        )
+
     def _direct_adopt_waiting(self, record: Dict[str, Any], data) -> None:
         waiting_store = self._direct_state.waiting
+        block = self._direct_waiting_calendar_block(record)
+        if block is not None:
+            self._direct_pause_waiting(record, block)
         if record.get("status") == "DISPATCHING":
             markers = [
                 marker
@@ -2866,7 +2967,13 @@ class BtApiDirectModeMixin:
                     marker_id=markers[-1]["marker_id"],
                 ):
                     self._direct_build_waiting_order(
-                        dict(record, status="REJECTED", restart_rejected=reason), data
+                        dict(
+                            record,
+                            status="REJECTED",
+                            restart_rejected=reason,
+                            calendar_block=block,
+                        ),
+                        data,
                     )
                 return
             if markers:
@@ -2882,7 +2989,9 @@ class BtApiDirectModeMixin:
             waiting_store.transition(
                 record["waiting_id"], "DISPATCHING", "WAITING", reason="restart_not_committed"
             )
-            record = dict(record, status="WAITING")
+            record = dict(record, status="WAITING", calendar_block=block)
+        else:
+            record = dict(record, calendar_block=block)
         self._direct_build_waiting_order(record, data)
 
     def _direct_build_waiting_order(self, record: Dict[str, Any], data) -> None:
@@ -2910,6 +3019,8 @@ class BtApiDirectModeMixin:
             waiting_id=record["waiting_id"],
             original_ref=record.get("bt_ref"),
             target_session=record["target_session"],
+            calendar_ref=_target_calendar_ref(record["target_session"]),
+            calendar_block=record.get("calendar_block"),
             valid_intent=record["valid_intent"],
         )
         order.addcomminfo(self.getcommissioninfo(data))
@@ -2937,6 +3048,7 @@ class BtApiDirectModeMixin:
             "marker_id": None,
             "waiting_id": record["waiting_id"],
             "target_session": record["target_session"],
+            "calendar_block": record.get("calendar_block"),
             "trade_keys": set(),
         }
         self._direct_hand_over(order)
@@ -2980,6 +3092,21 @@ class BtApiDirectModeMixin:
             order = self.orders[ref]
             meta = self._direct_meta[ref]
             target = meta["target_session"]
+            phase = self._direct_phase(meta["symbol"], now)
+            block = meta.get("calendar_block")
+            if block in _STICKY_CALENDAR_DISPOSITIONS:
+                # D67-15: the creation calendar is unknown or no longer the
+                # configured one; the original target is kept and never
+                # retargeted, expired by the old deadline or re-sent.
+                self._direct_pause_waiting(meta, block, order=order)
+                return
+            block = self._direct_waiting_calendar_disposition(meta, phase=phase)
+            if block is not None:
+                self._direct_pause_waiting(meta, block, order=order)
+                return
+            if meta.get("calendar_block") is not None:
+                meta["calendar_block"] = None  # a transient pause recovered
+                order.addinfo(calendar_block=None)
             start = _parse_utc(target.get("continuous_start_utc"))
             end = _parse_utc(target.get("session_end_utc"))
             if end is not None and now >= end:
@@ -2999,7 +3126,6 @@ class BtApiDirectModeMixin:
                 return  # R-3: hold the FIFO queue (not rejected) until the new day is verified
             if self._direct_account_gap_pending():
                 return  # hold the FIFO queue (not rejected) until the gap is reconciled
-            phase = self._direct_phase(meta["symbol"], now)
             if phase is None or phase.reason or phase.phase.value != "continuous":
                 return  # auction / unknown: no dispatch (D62-34)
             qualify = _trade_qualification_reader(order.data)

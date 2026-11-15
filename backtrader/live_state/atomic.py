@@ -98,6 +98,7 @@ ERROR_CODES = frozenset(
         "waiting_invalid",
         "waiting_duplicate",
         "waiting_transition_illegal",
+        "calendar_disposition_invalid",
         # audit
         "audit_write_failed",
     }
