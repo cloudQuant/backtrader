@@ -50,6 +50,7 @@ def synthetic_config():
     gateway = {
         "schema_version": 1,
         "exchange_name": "CTP___FUTURE",
+        "risk": "none",  # Explicit D64-01 selection for this offline fixture.
         "client_config": {
             "client_config_schema_version": 1,
             "process_role": "strategy_client",
@@ -147,6 +148,17 @@ def synthetic_config():
         },
         "gateway_strategy": gateway,
     }
+
+
+def test_missing_risk_selection_is_rejected_before_calendar(tmp_path, capsys):
+    main = runpy.run_path(str(RUNNER), run_name="calendar_runner_test")["main"]
+    config = synthetic_config()
+    del config["gateway_strategy"]["risk"]
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    assert main(type("Strategy", (), {}), "synthetic", tmp_path, ["--config", str(path), "--dry-run"]) == 2
+    assert json.loads(capsys.readouterr().out)["error_code"] == "GATEWAY_CONFIG_INVALID"
 
 
 @pytest.mark.parametrize(
