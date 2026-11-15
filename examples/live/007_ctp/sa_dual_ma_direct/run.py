@@ -27,6 +27,7 @@ import datetime as _dt
 import json
 import math
 import os
+import sys
 import threading
 import uuid
 from collections.abc import Mapping
@@ -37,6 +38,10 @@ from backtrader.live_trading import RunStatusWriter, stop_on_terminate
 import yaml
 
 from sa_dual_ma_strategy import DualMAStrategy
+
+# The shared D67-01 calendar gate lives in the parent 007_ctp folder.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from calendar_gate import CalendarGateRefusal, check_direct_calendar
 
 RUN_DIR = Path(__file__).resolve().parent
 ROUTE = "CTP___FUTURE"
@@ -413,24 +418,22 @@ def main(argv=None):
     except Exception:
         print("Configuration invalid or unavailable")
         return EXIT_BLOCKED
-    calendar_kind = "unconfigured"
-    if "calendars" in config:
-        from backtrader.service.trading_calendar_config import parse_direct_calendar_status
-        try:
-            calendar, _ = parse_direct_calendar_status(
-                {"calendars": config["calendars"]}, config_file=config_path,
-                ctp_routes=(ROUTE,), configured_routes={ROUTE},
-            )
-            calendar_kind = calendar.root_kind
-        except ValueError as exc:
-            if exc.args == ("calendar_package_seed_unsupported",):
-                print("Calendar package_seed is unsupported")
-            else:
-                print("Calendar configuration invalid")
-            return EXIT_BLOCKED
-        except Exception:
-            print("Calendar configuration invalid")
-            return EXIT_BLOCKED
+    # D67-01: this entry enables SDK write admission, so a missing or unusable
+    # calendars.root refuses the live start before credentials, the Store or the
+    # Broker.  --dry-run only reports the configuration problem.
+    try:
+        calendar = check_direct_calendar(
+            config, config_file=config_path, ctp_routes=(ROUTE,), configured_routes={ROUTE}
+        )
+    except CalendarGateRefusal as exc:
+        if args.dry_run:
+            print(f"Calendar: {exc.code} ({exc.reason}); dry-run only reports")
+        else:
+            report("BLOCKED", error_code=exc.code, detail=f"Calendar: {exc.reason}")
+        return EXIT_BLOCKED
+    if calendar.code is not None and not args.dry_run:
+        report("BLOCKED", error_code=calendar.code, detail=f"Calendar: {calendar.reason}")
+        return EXIT_BLOCKED
     if args.dry_run:
         print("Dry run OK")
         print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
@@ -440,9 +443,11 @@ def main(argv=None):
         target = "configured file" if settings["file"] else "stderr"
         print(f"Logging: bt_api_ctp={settings['level']} other={settings['other_level']} to={target}")
         print("State directory: configured locally")
-        print("Calendar: " + ("external directory configured; local status only"
-                              if calendar_kind == "directory"
-                              else "unconfigured; direct write requirement pending"))
+        if calendar.kind == "directory":
+            print("Calendar: external directory configured; local status only")
+        else:
+            print(f"Calendar: {calendar.code}; live start will be refused "
+                  "(dry-run only reports)")
         return EXIT_PASS
 
     print(f"Logging: {configure_run_logging(config)}", flush=True)

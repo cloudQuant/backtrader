@@ -202,11 +202,19 @@ calendars:
 - 根目录由运营人员在本机创建，仓库不附带真实日历数据；`<root>/ctp/` 是 CTP 的固定子目录。
 - 示例只写相对路径，按 `config.yaml` 所在目录解析；不写 `~`，也不依赖环境变量（SDK 不展开环境变量）。
   根目录建议放在本地磁盘；同一主机的多个策略可以指向同一个根目录，运行时只读。
-- 未配置 `calendars` 时，按 D67-01 Gateway 模式或 direct 写入准入应拒绝启动（`calendar_root_unconfigured`）。
-  当前 007 入口只在配置了 `calendars` 时校验：direct 未配置的 dry-run 打印
-  `unconfigured; direct write requirement pending`，Gateway 报告 `calendar_root_unconfigured`；
-  强制拒绝是否已接线以运行代码为准。示例现在声明了根，dry-run 分别输出
-  `external directory configured; local status only`（direct）和
+- 未配置 `calendars.root` 时，22 个入口在读取凭据、解析资源、创建 Store/Broker 之前拒绝 live 启动，
+  返回有限码 `calendar_root_unconfigured`（direct 输出 JSON
+  `{"status": "BLOCKED", "error_code": "calendar_root_unconfigured"}`，Gateway 输出
+  `{"status": "BLOCKED", "error_code": "calendar_root_unconfigured"}`，退出码 2）；拒绝不联网、
+  不读日历目录。`--dry-run` 按 D67-01 只报告：direct 打印
+  `Calendar: calendar_root_unconfigured; live start will be refused (dry-run only reports)` 并以 0 退出，
+  Gateway 在 `"calendar": "calendar_root_unconfigured"` 中报告并以 0 退出；配置值非法的 dry-run 仍以 2 报告。
+- `root: package_seed` 在 22 个入口的 live 启动和 `--dry-run` 中都被显式拒绝
+  （`calendar_package_seed_unsupported`，退出码 2），不会静默回退到旧内置常量。
+- D67-01 未冻结“非 Gateway 且未开启 direct 写入准入”的未配置行为。这些示例是实盘入口，按 fail-closed
+  保守处理：即使显式写 `direct.write_admission: false`，未配置日历同样拒绝启动；这不是 D67-01 授权的
+  opt-out，示例也不发明新默认。
+- 示例都声明了根，dry-run 分别输出 `external directory configured; local status only`（direct）和
   `external_directory_configured_not_bound`（Gateway）；这只证明配置被解析，不证明目录存在、已发布或可用于交易。
 - 目录不存在、`CURRENT.json` 缺失、版本校验失败、品种不在覆盖范围或作用域不明时，查询结果是显式 `UNKNOWN`；
   框架不会用“工作日/周末”或其他规则补一个会话。`UNKNOWN` 既不是“休市”，也不是“开市”。
@@ -285,8 +293,8 @@ print(install_package_seed(root).describe())
 PY
 ```
 
-`calendars.root: package_seed` 在 22 个 007 示例中会被明确拒绝（direct 和 Gateway 都输出
-`calendar_package_seed_unsupported`），所以示例使用外部目录。种子安装成功只证明本地 store 的完整性
+`calendars.root: package_seed` 在 22 个 007 示例的 live 启动和 `--dry-run` 中都会被明确拒绝（direct 和
+Gateway 都输出 `calendar_package_seed_unsupported`，退出码 2），所以示例使用外部目录。种子安装成功只证明本地 store 的完整性
 （`OBSERVED_UNAUTHENTICATED`），同时发布覆盖声明（`DECLARED_UNVERIFIED`：2026-01-01..2027-12-31、六个交易所）。
 安装后它的 `SYNTH_*` 作用域可按 `SIMULATION_ONLY` 只读查询：例如 `2026-01-05` 返回 `COMPLETE` 和两个日盘窗口，
 `2026-01-01` 返回无窗口的 `COMPLETE`。这仍是合成数据的查询结果，不是交易所事实，也不授予交易权限；
@@ -294,7 +302,8 @@ PY
 
 ### 与迭代 63 Gateway 的关系
 
-Gateway 示例同样声明 `calendars.root`，离线 dry-run 只解析并报告
+Gateway 示例同样声明 `calendars.root`：未声明时 live 启动在解析资源前以
+`calendar_root_unconfigured` 拒绝；离线 dry-run 只解析并报告
 `external_directory_configured_not_bound`。Gateway 进程读取日历根、向策略转发合约状态属于迭代 63
 （§3.10 / U63-4），本仓库的 Gateway 示例不证明该转发已经实现。没有有效的实时状态时，策略只用日历；
 两者冲突按 D67-08 B 处理（有效实时状态优先）。本节的查询接口不会改写日历文件，也不推导未来窗口。

@@ -10,6 +10,7 @@ import argparse
 import json
 import math
 import re
+import sys
 import threading
 import uuid
 from collections.abc import Mapping
@@ -17,6 +18,10 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 import yaml
+
+# The shared D67-01 calendar gate lives next to this runner.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 _RESOURCE_GROUP = "bt_api_py.gateway_example_resources"
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -228,30 +233,28 @@ def main(strategy, title, run_dir, argv=None):
     except Exception:
         print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_CONFIG_INVALID"}))
         return 2
-    if args.dry_run:
-        try:
-            if "calendars" not in config:
-                calendar_status = "calendar_root_unconfigured"
-            else:
-                from bt_api_py.trading_calendar_config import parse_trading_calendar_config
+    # D67-01 calendar gate, shared with the 11 direct entries: a Gateway live
+    # start without a declared calendars.root is refused before resources,
+    # Store or Broker work; --dry-run only reports the configuration problem.
+    from calendar_gate import CalendarGateRefusal, check_gateway_calendar
 
-                calendar = parse_trading_calendar_config(
-                    config, config_file=path, gateway_enabled=True, direct_write_enabled=False
-                )
-                if calendar.root_kind == "package_seed":
-                    print(json.dumps({"status": "BLOCKED", "error_code": "calendar_package_seed_unsupported",
-                                      "calendar": "package_seed_declared_runtime_unsupported"}))
-                    return 2
-                if calendar.root_kind != "directory":
-                    raise ValueError("calendar configuration invalid")
-                calendar_status = "external_directory_configured_not_bound"
-        except Exception:
-            print(json.dumps({"status": "BLOCKED", "error_code": "CALENDAR_CONFIG_INVALID"}))
-            return 2
+    try:
+        gate = check_gateway_calendar(config, config_file=path, dry_run=args.dry_run)
+    except CalendarGateRefusal as exc:
+        print(json.dumps({"status": "BLOCKED", "error_code": exc.code}))
+        return 2
+    if args.dry_run:
+        calendar_status = (
+            "calendar_root_unconfigured" if gate.kind == "unconfigured"
+            else "external_directory_configured_not_bound"
+        )
         print(json.dumps({"status": "PASS", "mode": "offline_config_validation",
                           "strategy": strategy.__name__, "symbols": config["symbols"],
                           "calendar": calendar_status}))
         return 0
+    if gate.code is not None:
+        print(json.dumps({"status": "BLOCKED", "error_code": gate.code}))
+        return 2
 
     try:
         configure_run_logging(config, run_dir)

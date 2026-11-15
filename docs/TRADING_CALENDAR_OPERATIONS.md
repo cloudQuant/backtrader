@@ -88,15 +88,18 @@ calendars:
 | 键集合 | `calendars` 只允许 `root`、`review_mode`；其他键报 `calendar_config_unknown_field` |
 | `root` | 非空字符串；相对路径相对 `config.yaml` 所在目录，不依赖当前工作目录；SDK 会展开 `~`；**不展开环境变量** |
 | 绝对路径 | 允许；示例只写相对路径，避免把生产路径写进仓库 |
-| `root: package_seed` | 解析器接受，但 007 的 direct/Gateway 运行入口都明确拒绝（`calendar_package_seed_unsupported`） |
-| 未配置 | 按 D67-01，Gateway 或 direct 写入准入开启时**应**以 `calendar_root_unconfigured` 拒绝启动；当前 007 入口只在配置了 `calendars` 时校验，未配置时 direct dry-run 打印 `unconfigured; direct write requirement pending`，Gateway dry-run 报告 `calendar_root_unconfigured`。强制拒绝是否接线以运行代码为准 |
+| `root: package_seed` | 解析器接受；007 的 direct/Gateway 运行入口在 live 启动和 `--dry-run` 中都明确拒绝（`calendar_package_seed_unsupported`，退出码 2），不回退旧内置常量 |
+| 未配置 | 按 D67-01 执行：007 的 Gateway 与 direct（写入准入开启）入口在 live 启动时以 `calendar_root_unconfigured` 拒绝（退出码 2），发生在读取凭据、解析资源、创建 Store/Broker 之前；拒绝不联网、不读日历目录。`--dry-run` 只报告同一码并以 0 退出。D67-01 未覆盖的“非 Gateway 且未开启 direct 写入准入”也按示例的 fail-closed 保守处理拒绝 |
 | `review_mode` | `auto` 或 `manual`；显式写出时来源记为 `explicit`，否则为默认 `auto` |
 | CTP store 根 | 恒为 `<root>/ctp`；更新工具、审核和备份都使用这个目录 |
 | Windows | 盘符、UNC、大小写和长路径尚未验证（67.09）；本地锁当前要求 POSIX |
 
-`--dry-run` 的日历行只证明配置被解析：direct 输出
+`--dry-run` 只报告、不启动任何组件（D67-01）：配置了根时 direct 输出
 `Calendar: external directory configured; local status only`，Gateway 输出
-`"calendar": "external_directory_configured_not_bound"`。两者都不证明目录存在、`CURRENT` 已发布或时段可用于交易。
+`"calendar": "external_directory_configured_not_bound"`；未配置时 direct 输出
+`Calendar: calendar_root_unconfigured; live start will be refused (dry-run only reports)`，
+Gateway 在 `"calendar": "calendar_root_unconfigured"` 中报告，二者都以 0 退出；配置值非法时以 2 报告。
+这些都只证明配置被解析，不证明目录存在、`CURRENT` 已发布或时段可用于交易。
 
 ## 4. 自动发布与人工审核
 
@@ -470,8 +473,8 @@ schtasks /Create /TN "BT Calendar Daily" /SC DAILY /ST 20:30 ^
 
 | 码 | 含义 | 建议动作 |
 | --- | --- | --- |
-| `calendar_root_unconfigured` | Gateway/direct 写入启用但未配置 `calendars.root` | 添加显式根并 `--dry-run`；不要用 `package_seed` 代替 |
-| `calendar_package_seed_unsupported` | 007 运行入口不接受 `root: package_seed` | 改用外部目录；种子安装只用于本地开发 |
+| `calendar_root_unconfigured` | 未配置 `calendars.root`；007 的 Gateway/direct 入口（direct 写入准入开启）在 live 启动时拒绝，未开启写入准入的未配置也按示例 fail-closed 拒绝 | 添加显式根并 `--dry-run`；不要用 `package_seed` 代替 |
+| `calendar_package_seed_unsupported` | 007 运行入口不接受 `root: package_seed`（live 与 `--dry-run` 都拒绝） | 改用外部目录；种子安装只用于本地开发 |
 | `calendar_config_invalid` / `calendar_config_unknown_field` / `calendar_review_mode_invalid` | 配置不可解析或含未知键/非法模式 | 按第 3 节修正；不要放宽解析器 |
 | `CURRENT_UNAVAILABLE` | 没有可读取且一致的 `CURRENT`/回执 | 检查 store 完整性；不要猜测或手写指针 |
 | `ROUTE_UNCONFIGURED` | 查询使用的 route 未配置 | 使用配置中完全一致的 route 名 |
