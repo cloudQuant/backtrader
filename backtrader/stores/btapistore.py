@@ -194,6 +194,24 @@ class _CalendarStatusUnavailable:
     reason: str = "UNAVAILABLE"
 
 
+@dataclass(frozen=True)
+class _InstrumentStatusUnavailable:
+    """Store-side failure of one status composition; it is never ``TRADABLE``.
+
+    ``reason_code`` is one finite Store code.  The fields the direct-order gate
+    reads mirror the SDK composition so both answers can be handled uniformly;
+    nothing here is derived from a provider value or an account-wide default.
+    """
+
+    reason_code: str
+    state: str = "UNKNOWN"
+    session_phase: str = "UNKNOWN"
+    observation_state: str = "UNKNOWN"
+    calendar_state: str = "MISSING"
+    calendar_reason: Optional[str] = None
+    authorizes_trading: bool = False
+
+
 def _safe_calendar_mixed_provenance(result, venue, kind, product, contract, trading_day):
     """Check query attribution consistency; digest shapes do not authenticate its source."""
     def exact(actual, expected):
@@ -708,6 +726,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             )
         self._calendar_local_reader = None
         self._calendar_local_routes = frozenset()
+        # Explicit read-only instrument-status source (iteration 67.06).  It is
+        # never discovered or constructed here and performs no I/O by itself.
+        self._instrument_status_port = None
         if any(value is not None for value in (
             calendar_config_file, calendar_config, calendar_ctp_routes
         )):
@@ -4394,6 +4415,170 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     and not self._calendar_status_transitions and not self._calendar_status_stopping):
                 return unavailable("STORE_CHANGED")
             return value
+
+    def configure_instrument_status_port(self, port):
+        """Attach the explicit read-only instrument-status observation source.
+
+        ``port`` must expose ``observation(scope)`` and return either ``None``
+        (an explicit absence of an effective observation) or the provider's SDK
+        ``InstrumentStatusView`` for exactly that scope.  ``None`` detaches it.
+        The Store never discovers, constructs, or contacts a provider itself and
+        this call performs no I/O.  Once attached, the direct-order gate consults
+        it and fails closed; without a port the gate stays inactive and the
+        existing direct-order path is unchanged.
+        """
+        if port is not None and not callable(getattr(port, "observation", None)):
+            raise BtApiStoreError("instrument_status_port_invalid")
+        with self._calendar_status_lock:
+            self._instrument_status_port = port
+
+    def instrument_status_source_configured(self):
+        """Whether an explicit instrument-status observation port is attached."""
+        with self._calendar_status_lock:
+            return getattr(self, "_instrument_status_port", None) is not None
+
+    def instrument_status(
+        self,
+        route,
+        *,
+        venue,
+        kind,
+        product,
+        instrument,
+        trading_day,
+        session_generation,
+        window_id=None,
+        at=None,
+        observation=None,
+        apply_result=None,
+    ):
+        """Compose one read-only per-instrument status for the exact scope (67.06).
+
+        Delegates to the SDK's committed composition.  The Store supplies only
+        its configured read-only calendar and the explicitly injected
+        observation port; it writes nothing, sends no order, and contacts no
+        provider beyond that port.  The answer is the SDK's frozen
+        ``InstrumentStatusComposition`` or a Store-side
+        ``_InstrumentStatusUnavailable``; it never authorizes trading and a
+        missing answer is never reported as ``TRADABLE``.
+
+        ``instrument`` is both the provider-native identity the observation is
+        checked against and the exact calendar contract queried.  ``window_id``
+        names the exact declared calendar window; when omitted, ``at`` (a
+        timezone-aware instant) selects the unique published window containing
+        it, so an open day without a selected window has no classified phase
+        and composes ``UNKNOWN``.  The selection is a lookup of declared UTC
+        half-open intervals, never an inferred session boundary.
+        """
+
+        def unavailable(reason):
+            return _InstrumentStatusUnavailable(reason_code=reason)
+
+        for value in (route, venue, kind, product, instrument):
+            if type(value) is not str or not value or value != value.strip():
+                return unavailable("INVALID_SCOPE")
+        if type(session_generation) is not str or not session_generation:
+            return unavailable("INVALID_SCOPE")
+        if type(trading_day) is not _dt.date:
+            return unavailable("INVALID_SCOPE")
+        if window_id is not None and (
+            type(window_id) is not str or not window_id or window_id != window_id.strip()
+        ):
+            return unavailable("INVALID_SCOPE")
+        if at is not None and (
+            type(at) is not _dt.datetime or at.tzinfo is None or at.utcoffset() is None
+        ):
+            return unavailable("INVALID_SCOPE")
+        try:
+            from bt_api_py.instrument_status_composition import (
+                InstrumentStatusScope,
+                calendar_answer_from_current_query,
+                compose_instrument_status,
+            )
+        except ImportError:
+            return unavailable("CAPABILITY_UNAVAILABLE")
+        try:
+            scope = InstrumentStatusScope(venue, instrument, trading_day, session_generation)
+        except Exception:
+            return unavailable("INVALID_SCOPE")
+        with self._calendar_status_lock:
+            configured_routes = tuple(self._sdk_exchanges)
+            generation = self._calendar_status_generation
+            stream_generation = self._stream_generation
+            api = self._api
+            port = getattr(self, "_instrument_status_port", None)
+            ready = (
+                self._sdk_mode and not self._gateway_mode and not self._service_read_only
+                and self._started and self._connected and self._sdk_configured
+                and api is not None and not self._calendar_status_transitions
+                and not self._calendar_status_stopping
+            )
+        if route not in configured_routes:
+            return unavailable("ROUTE_UNCONFIGURED")
+        if not ready:
+            return unavailable("STORE_UNAVAILABLE")
+        if observation is None and port is not None:
+            reader = getattr(port, "observation", None)
+            if not callable(reader):
+                return unavailable("STATUS_PORT_UNAVAILABLE")
+            try:
+                observation = reader(scope)
+            except Exception:
+                return unavailable("STATUS_PORT_UNAVAILABLE")
+        query = None
+        query_reader = getattr(self, "trading_calendar_query", None)
+        if callable(query_reader):
+            try:
+                query = query_reader(
+                    route,
+                    venue=venue,
+                    kind=kind,
+                    product=product,
+                    contract=instrument,
+                    trading_day=trading_day,
+                    mode="SIMULATION_ONLY",
+                )
+            except Exception:
+                query = None
+        selected = window_id
+        if selected is None and at is not None and query is not None:
+            try:
+                from bt_api_py.trading_calendar_runtime_status import (
+                    TradingCalendarCurrentQuery,
+                )
+
+                if type(query) is TradingCalendarCurrentQuery and query.status == "COMPLETE":
+                    moment = at.astimezone(_UTC)
+                    matches = [
+                        window.window_id
+                        for window in query.windows
+                        if type(getattr(window, "window_id", None)) is str
+                        and window.start_utc <= moment < window.end_utc
+                    ]
+                    if len(matches) == 1:
+                        selected = matches[0]
+            except Exception:
+                selected = None
+        try:
+            calendar = calendar_answer_from_current_query(query, scope=scope, window_id=selected)
+            composition = compose_instrument_status(
+                scope=scope,
+                observation=observation,
+                calendar=calendar,
+                apply_result=apply_result,
+            )
+        except Exception:
+            return unavailable("CAPABILITY_UNAVAILABLE")
+        with self._calendar_status_lock:
+            if not (
+                generation == self._calendar_status_generation
+                and stream_generation == self._stream_generation
+                and self._api is api
+                and tuple(self._sdk_exchanges) == configured_routes
+                and getattr(self, "_instrument_status_port", None) is port
+            ):
+                return unavailable("STORE_CHANGED")
+        return composition
 
     def order_capacity_facts(self, exchange_name: Optional[str] = None):
         """Return SDK-owned order-capacity facts for one exact route.

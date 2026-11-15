@@ -120,6 +120,26 @@ _SETTLEMENT_MANUAL_RESULTS = frozenset(
 )
 # Global blocks a trading-day switch cannot clear by itself (operator restart).
 _DAY_SWITCH_TERMINAL_BLOCKS = frozenset(("trading_day_regressed", "account_binding_mismatch"))
+# Iteration 67.06 (D67-08 B): a read-only instrument-status gate in front of an
+# immediate send.  These are finite local refusal codes.  The gate never sends,
+# defers, retargets or authorizes anything; only a current observation-backed
+# TRADABLE answer lets an immediate order continue to the existing checks.
+INSTRUMENT_STATUS_PAUSED = "instrument_status_paused"
+INSTRUMENT_STATUS_CLOSED = "instrument_status_closed"
+INSTRUMENT_STATUS_UNKNOWN = "instrument_status_unknown"
+INSTRUMENT_STATUS_NO_OBSERVATION = "instrument_status_no_observation"
+INSTRUMENT_STATUS_UNAVAILABLE = "instrument_status_unavailable"
+INSTRUMENT_STATUS_SCOPE_INVALID = "instrument_status_scope_invalid"
+INSTRUMENT_STATUS_CODES = frozenset(
+    (
+        INSTRUMENT_STATUS_PAUSED,
+        INSTRUMENT_STATUS_CLOSED,
+        INSTRUMENT_STATUS_UNKNOWN,
+        INSTRUMENT_STATUS_NO_OBSERVATION,
+        INSTRUMENT_STATUS_UNAVAILABLE,
+        INSTRUMENT_STATUS_SCOPE_INVALID,
+    )
+)
 # Main cause of a target-data refusal (iteration 62 decision 6): the first
 # failed dimension in this order is reported in ``error_code``; every reason
 # goes to ``order.info["refusal_reasons"]`` and the log.  Earlier groups make
@@ -2068,6 +2088,9 @@ class BtApiDirectModeMixin:
                 return self._direct_reject(order, "trading_day_switch_pending")
             if route != "dispatch":
                 return self._direct_reject(order, route)
+            status_reason = self._direct_instrument_status_gate(order, meta)
+            if status_reason is not None:
+                return self._direct_reject(order, status_reason)
             return self._direct_dispatch(order, meta)
 
     def _direct_precheck(
@@ -2191,6 +2214,137 @@ class BtApiDirectModeMixin:
             return self._direct_schedule.session_state(symbol, at or _utc_now())
         except Exception:
             return None
+
+    # ------------------------------------------------------------------
+    # iteration 67.06: read-only instrument-status gate (D67-08 B)
+    # ------------------------------------------------------------------
+    def _direct_instrument_status_gate(self, order: Order, meta: Dict[str, Any]) -> Optional[str]:
+        """Refuse an immediate send unless the composition reports TRADABLE.
+
+        Applies only to an order about to be dispatched now: waiting orders
+        keep their own durable contract and are not consulted here, and every
+        precheck and calendar decision above has already run.  A Store without
+        an explicitly configured observation port has no status source, so the
+        gate is inactive; once a port is attached it fails closed on every
+        answer that is not a current, observation-backed ``TRADABLE``.  Nothing
+        here sends, defers, retargets or writes; a refusal is the same local
+        pre-send rejection as the prechecks above.
+        """
+        store = self.store
+        configured = getattr(store, "instrument_status_source_configured", None)
+        if not callable(configured):
+            return None  # a Store without the status-source contract: no source, no gate
+        try:
+            if configured() is not True:
+                return None
+        except Exception:
+            return INSTRUMENT_STATUS_UNAVAILABLE
+        scope = self._direct_instrument_status_scope(order, meta)
+        if scope is None:
+            return INSTRUMENT_STATUS_SCOPE_INVALID
+        reader = getattr(store, "instrument_status", None)
+        if not callable(reader):
+            return INSTRUMENT_STATUS_UNAVAILABLE
+        try:
+            status = reader(**scope)
+        except Exception:
+            return INSTRUMENT_STATUS_UNAVAILABLE
+        state = getattr(status, "state", None)
+        if state == "TRADABLE" and getattr(status, "observation_state", None) == "CURRENT":
+            return None
+        if state == "PAUSED":
+            code = INSTRUMENT_STATUS_PAUSED
+        elif state == "CLOSED":
+            code = INSTRUMENT_STATUS_CLOSED
+        elif state == "TRADABLE":
+            # The SDK may let the plan calendar answer when no observation was
+            # received (``CALENDAR_*_NO_OBSERVATION``); this gate requires an
+            # effective observation and reports its absence instead.
+            code = INSTRUMENT_STATUS_NO_OBSERVATION
+        else:
+            code = INSTRUMENT_STATUS_UNKNOWN
+        self._direct_note_instrument_status(order, status, code)
+        return code
+
+    def _direct_instrument_status_scope(
+        self, order: Order, meta: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """The exact scope the composition must answer, or ``None`` if unproven.
+
+        Route and calendar identity come from the Feed's explicit read-only
+        ``calendar_*`` parameters (the same scope its own calendar queries use);
+        the trading day and session generation come from this run's reconciled
+        provider facts.  An unproven identity, a contract other than the
+        order's native symbol, or a missing day/generation is refused, never
+        guessed or taken from an account-wide value.
+        """
+        params = getattr(order.data, "p", None)
+        route = getattr(params, "calendar_route", None) or self._direct_exchange
+        venue = getattr(params, "calendar_venue", None)
+        kind = getattr(params, "calendar_kind", None)
+        product = getattr(params, "calendar_product", None)
+        contract = getattr(params, "calendar_contract", None)
+        symbol = meta.get("symbol")
+        day = self._direct_trading_day
+        generation = self._direct_session_generation
+        if (
+            not isinstance(route, str)
+            or not route
+            or not isinstance(venue, str)
+            or not venue
+            or not isinstance(kind, str)
+            or not kind
+            or not isinstance(product, str)
+            or not product
+            or not isinstance(contract, str)
+            or not contract
+            or not isinstance(symbol, str)
+            or not symbol
+            or contract != symbol
+            or not _valid_trading_day(day)
+            or isinstance(generation, bool)
+            or not isinstance(generation, int)
+        ):
+            return None
+        try:
+            trading_day = _dt.date(int(day[:4]), int(day[4:6]), int(day[6:8]))
+        except ValueError:
+            return None
+        return {
+            "route": route,
+            "venue": venue,
+            "kind": kind,
+            "product": product,
+            "instrument": symbol,
+            "trading_day": trading_day,
+            "session_generation": str(generation),
+            "at": _utc_now(),
+        }
+
+    def _direct_note_instrument_status(self, order: Order, status: Any, code: str) -> None:
+        """Keep the composition's finite diagnostics on the order and in the log."""
+        details = {
+            "state": getattr(status, "state", None),
+            "reason_code": getattr(status, "reason_code", None),
+            "session_phase": getattr(status, "session_phase", None),
+            "observation_state": getattr(status, "observation_state", None),
+            "calendar_state": getattr(status, "calendar_state", None),
+            "calendar_reason": getattr(status, "calendar_reason", None),
+            "source": getattr(status, "source", None),
+        }
+        order.addinfo(instrument_status=details)
+        throttled_warning(
+            _log,
+            "direct_order_refused:" + code,
+            "direct order refused for %s: %s (status: %s/%s, calendar: %s/%s)",
+            self._direct_symbol(order.data),
+            code,
+            details["state"],
+            details["reason_code"],
+            details["calendar_state"],
+            details["calendar_reason"],
+            exc_info=False,
+        )
 
     def _direct_reject(self, order: Order, reason: str) -> Order:
         meta = self._direct_meta.get(order.ref)
