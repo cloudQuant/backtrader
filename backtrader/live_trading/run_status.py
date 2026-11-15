@@ -19,8 +19,11 @@ them; the strategy process never imports the runtime, INV66-02):
     composed stop budget, and the stop request source and first time.
 
     The key set is a strict whitelist and every value comes from a finite
-    vocabulary, a number, a UUID or an ISO-8601 UTC timestamp: no account
-    number, credential, price or free text can be written, even by a bug.
+    vocabulary, a number, a UUID or an ISO-8601 UTC timestamp: no credential,
+    price or free text can be written.  Code-shaped values are additionally
+    screened for secret markers, but a caller must still pass framework-
+    generated finite codes — a code-shaped account identifier would pass the
+    shape filter, so identifiers are never passed here.
 
 ``state/last_run.json`` (B3, final summary)
     Exactly the twelve fields of ``bt_api_run_contract.states.FinalSummary``
@@ -160,6 +163,9 @@ EXIT_CODES = {
 MIN_HEARTBEAT_INTERVAL_S = 0.05
 MAX_HEARTBEAT_INTERVAL_S = 300.0
 DEFAULT_HEARTBEAT_INTERVAL_S = 1.0
+#: Bound on the per-data index: a malformed large index must fail at the
+#: setter instead of silently invalidating every later heartbeat document.
+_MAX_DATA_INDEX = 256
 
 #: Every key the heartbeat document may contain (B2's "strict key whitelist").
 STATUS_KEYS = frozenset(
@@ -861,7 +867,7 @@ class RunStatusWriter:
             self._loop_progress = _utc_text(self._clock())
 
     def set_data_state(self, index: int, state: str) -> None:
-        if type(index) is not int or index < 0:
+        if type(index) is not int or not 0 <= index < _MAX_DATA_INDEX:
             raise RunStatusError("invalid_data_index")
         if state not in DATA_STATES:
             raise RunStatusError("invalid_phase", "data_state")
@@ -1301,8 +1307,13 @@ def derive_outcome(
         )
         return "UNKNOWN", flags
     if broker_status == "BLOCKED":
-        flags["reason"] = "startup_rejected"
-        return "BLOCKED", flags
+        # A status token alone is not a verifiable rejection record
+        # (INV66-04): only an exception carrying a finite rejection code (the
+        # branch above) proves BLOCKED. Without it the outcome stays UNKNOWN
+        # and the process exits 1, matching the runtime's
+        # summarize_stop_state instead of disagreeing with it.
+        flags["reason"] = "blocked_unproven"
+        return "UNKNOWN", flags
     return "UNKNOWN", flags
 
 

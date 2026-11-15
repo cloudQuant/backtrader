@@ -170,6 +170,8 @@ def test_phase_and_data_state_are_validated(strategy_dir):
     with pytest.raises(RunStatusError):
         writer.set_data_state(-1, "LIVE")
     with pytest.raises(RunStatusError):
+        writer.set_data_state(256, "LIVE")
+    with pytest.raises(RunStatusError):
         writer.set_data_state(0, "warmup")
     writer.set_phase("RECONCILING")
     writer.set_data_state(0, "WARMUP")
@@ -392,9 +394,12 @@ def test_blocked_needs_a_finite_rejection_code(strategy_dir):
         summary["startup_rejected"] is True and summary["rejection_code"] == "first_init_required"
     )
     assert result.exit_code == EXIT_BLOCKED
-    # A broker status that merely says BLOCKED proves no rejection.
+    # A broker status that merely says BLOCKED proves no rejection: the
+    # outcome stays UNKNOWN and exits 1, matching the runtime's
+    # summarize_stop_state (INV66-04).
     outcome, flags = derive_outcome({"status": "BLOCKED"})
-    assert outcome == "BLOCKED" and flags["startup_rejected"] is False
+    assert outcome == "UNKNOWN" and flags["startup_rejected"] is False
+    assert exit_code_for(outcome) == EXIT_UNEXPECTED
 
 
 def test_a_stop_after_a_committed_start_write_is_unknown_not_not_started(strategy_dir):
