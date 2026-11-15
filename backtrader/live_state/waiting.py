@@ -14,6 +14,41 @@ records (no ``calendar_ref``) are readable but stay explicitly unbound:
 :meth:`WaitingOrderStore.record_calendar_disposition` records why they are not
 resumed, and nothing here ever guesses the missing reference.
 
+Migration and recovery (D67-17).  A version-1 file is readable as-is.  The
+first *durable write* upgrades it to version 2, but only after
+
+1. the exact original bytes were copied to ``state/backups/`` with the same
+   atomic-write discipline and read back to compare the SHA-256 digest,
+2. a marker at ``state/backups/waiting_migration.json`` recorded the backup
+   file, digest, source/target version and record counts, and
+3. an audit record recorded the digest, path and versions.
+
+The upgrade keeps every record byte-for-byte in content (identity, original
+target, local sequence, status, timestamps and facts are never rewritten) and
+never truncates history during the migration write.  An interrupted migration
+therefore leaves either the untouched original or the complete new file plus
+an ``in_progress`` marker: :meth:`WaitingOrderStore.recover_migration`
+converges it (finish, replay from the same backup, or restore the original)
+without discarding records, and :meth:`WaitingOrderStore.rollback_migration`
+verifies the backup digest and refuses when anything changed after the
+upgrade, so post-upgrade order facts are never overwritten.  Unknown or newer
+file versions are refused with ``state_corrupt``/``version_unsupported`` and
+the file is left untouched.
+
+A pause is sticky until an operator clears it:
+
+:meth:`WaitingOrderStore.clear_calendar_pause` is the *only* path that removes
+``facts.calendar_disposition``.  It requires current calendar evidence that
+matches the original target (same trading day and window, with a versioned
+``calendar_ref``) and refuses a record that was never calendar-bound.  Clearing
+is not a trading authorization: it neither changes the status nor dispatches,
+retries or re-sends anything, and the original target is never altered.
+
+Each newly recorded pause also emits one typed, bounded notice through the
+repository's :mod:`backtrader.notifications` layer (deduplicated per order,
+reason and calendar version).  Notification failures are recorded as a finite
+``facts.pause_notification_status`` and never change the order state.
+
 Status machine (compare-and-set under ``state/waiting.lock``)::
 
     WAITING     -> DISPATCHING | CANCELLED | EXPIRED | REJECTED
@@ -33,13 +68,16 @@ restart until :meth:`WaitingOrderStore.record_takeover` noted the takeover
 from __future__ import annotations
 
 import copy
-from typing import Any, List, Mapping, Optional
+import hashlib
+import os
+from typing import Any, Callable, List, Mapping, Optional, Sequence
 
 from ._common import (
     StatePaths,
     ensure_no_secret_keys,
     get_logger,
     is_finite_number,
+    is_sha256_hex,
     is_strict_int,
     is_text,
     is_trading_day,
@@ -47,6 +85,7 @@ from ._common import (
     json_safe_copy,
     new_uuid4,
     parse_aware_iso,
+    utc_compact,
     utc_now_iso,
 )
 from .atomic import (
@@ -54,12 +93,24 @@ from .atomic import (
     LiveStateError,
     LiveStateIdentityMismatch,
     LiveStateNotInitialized,
+    atomic_write_bytes,
     atomic_write_json,
+    dumps_json,
+    fsync_directory,
     read_json,
+    read_json_bytes,
+)
+from .audit import append_audit
+from .waiting_notify import (
+    PAUSE_NOTIFICATION_STATUSES,
+    build_pause_event,
+    notify_pause_event,
 )
 
 __all__ = (
     "CALENDAR_DISPOSITIONS",
+    "MIGRATION_STATUSES",
+    "PAUSE_NOTIFICATION_STATUSES",
     "WAITING_STATUSES",
     "WAITING_VERSION",
     "WaitingOrderStore",
@@ -71,6 +122,14 @@ WAITING_VERSION = 2
 LEGACY_WAITING_VERSIONS = frozenset({1})
 HISTORY_LIMIT = 500
 _TRANSITIONS_LIMIT = 32
+
+# D67-17 migration bookkeeping.  One marker per strategy directory; the audit
+# log keeps the historical events (backup, complete, recovered, rollback).
+BACKUPS_DIRNAME = "backups"
+MIGRATION_MARKER_FILE = "waiting_migration.json"
+MIGRATION_VERSION = 1
+MIGRATION_STATUSES = ("in_progress", "complete", "rolled_back")
+_PAUSE_NOTIFICATION_KEYS = 8
 
 # An active order that cannot be scheduled/resumed keeps its status; this
 # records why (D67-15).  The live path never rewrites the original target.
@@ -193,6 +252,97 @@ def is_pristine_waiting(raw: Any, path: str) -> bool:
     except LiveStateError:
         return False
     return not state["orders"] and not state["history"]
+
+
+_MARKER_REQUIRED = frozenset(
+    {
+        "version",
+        "strategy_uuid",
+        "status",
+        "source_version",
+        "target_version",
+        "backup_file",
+        "backup_sha256",
+        "started_at_utc",
+        "orders_count",
+        "history_count",
+    }
+)
+_MARKER_OPTIONAL = frozenset(
+    {
+        "completed_at_utc",
+        "restored_at_utc",
+        "rolled_back_at_utc",
+        "migrated_sha256",
+        "operator",
+        "reason",
+    }
+)
+
+
+def _check_marker(raw: Any, path: str, strategy_uuid: Optional[str]) -> None:
+    """Validate the D67-17 migration marker; never repair or guess."""
+    if not isinstance(raw, dict) or not (
+        _MARKER_REQUIRED <= set(raw) <= (_MARKER_REQUIRED | _MARKER_OPTIONAL)
+    ):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if type(raw["version"]) is not int or raw["version"] != MIGRATION_VERSION:
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if not is_uuid4(raw["strategy_uuid"]):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if raw["status"] not in MIGRATION_STATUSES:
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if (
+        type(raw["source_version"]) is not int
+        or raw["source_version"] not in LEGACY_WAITING_VERSIONS
+    ):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if type(raw["target_version"]) is not int or raw["target_version"] != WAITING_VERSION:
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    name = raw["backup_file"]
+    if not is_text(name, max_len=200) or os.path.basename(name) != name or name in (".", ".."):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if not is_sha256_hex(raw["backup_sha256"]):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if parse_aware_iso(raw["started_at_utc"]) is None:
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    for key in ("orders_count", "history_count"):
+        if not is_strict_int(raw[key], minimum=0):
+            raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if "migrated_sha256" in raw and not is_sha256_hex(raw["migrated_sha256"]):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    for key in ("completed_at_utc", "restored_at_utc", "rolled_back_at_utc"):
+        if key in raw and parse_aware_iso(raw[key]) is None:
+            raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if "operator" in raw and not is_text(raw["operator"], max_len=128):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if "reason" in raw and not is_text(raw["reason"], max_len=512):
+        raise LiveStateCorrupt(path, "migration_marker_invalid")
+    if strategy_uuid is not None and raw["strategy_uuid"] != strategy_uuid:
+        raise LiveStateIdentityMismatch("strategy_uuid_mismatch", MIGRATION_MARKER_FILE)
+
+
+def _require_operator_reason(operator: Any, reason: Any) -> None:
+    if not is_text(operator, max_len=128):
+        raise LiveStateError("operator_required")
+    if not is_text(reason, max_len=512):
+        raise LiveStateError("reason_required")
+
+
+def _read_file_bytes(path: str) -> bytes:
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+class _LoadedState:
+    """A validated waiting state together with its exact on-disk bytes."""
+
+    __slots__ = ("state", "version", "raw")
+
+    def __init__(self, state: dict, raw: bytes) -> None:
+        self.state = state
+        self.version = state["version"]
+        self.raw = raw
 
 
 def _bad(field: str) -> LiveStateError:
@@ -327,41 +477,438 @@ class WaitingOrderStore:
         *,
         lock_timeout: float = 10.0,
         history_limit: int = HISTORY_LIMIT,
+        pause_notifier: Optional[Callable[[dict], str]] = None,
     ) -> None:
         if not is_uuid4(strategy_uuid):
             raise LiveStateError("invalid_strategy_uuid")
         if not is_strict_int(history_limit, minimum=1):
             raise ValueError("history_limit must be a positive int")
+        if pause_notifier is not None and not callable(pause_notifier):
+            raise ValueError("pause_notifier must be callable")
         self.paths = StatePaths(strategy_dir)
         self.strategy_uuid = strategy_uuid
         self.lock_timeout = lock_timeout
         self.history_limit = history_limit
+        self._pause_notifier = pause_notifier
 
     @property
     def path(self) -> str:
         return self.paths.waiting
+
+    @property
+    def backups_dir(self) -> str:
+        """Directory of D67-17 migration backups, inside ``state/``."""
+        return os.path.join(self.paths.state_dir, BACKUPS_DIRNAME)
+
+    @property
+    def migration_marker_path(self) -> str:
+        """Marker file naming the current (or last) migration and its backup."""
+        return os.path.join(self.backups_dir, MIGRATION_MARKER_FILE)
 
     def _lock(self):
         from .coordination import CoordinatedFileLock
 
         return CoordinatedFileLock(self.paths, self.paths.waiting_lock, timeout=self.lock_timeout)
 
-    def _load(self) -> dict:
+    def _read(self) -> _LoadedState:
+        """Read, validate and return the state plus the bytes that produced it."""
         try:
-            raw = read_json(self.paths.waiting)
+            raw_bytes, parsed = read_json_bytes(self.paths.waiting)
         except FileNotFoundError:
             raise LiveStateNotInitialized(self.paths.waiting) from None
-        return validate_waiting_state(raw, self.paths.waiting, self.strategy_uuid)
+        state = validate_waiting_state(parsed, self.paths.waiting, self.strategy_uuid)
+        return _LoadedState(state, raw_bytes)
 
-    def _store(self, state: dict) -> None:
-        # A version-1 file is upgraded only on the next legitimate durable
-        # write; reading never rewrites state and every untouched record is
-        # carried over as it was.
+    def _load(self) -> dict:
+        return self._read().state
+
+    def _store(
+        self,
+        state: dict,
+        *,
+        source_version: Optional[int] = None,
+        source_bytes: Optional[bytes] = None,
+    ) -> None:
+        """Persist ``state``; a legacy source is backed up and migrated first.
+
+        A version-1 file is never rewritten without a verified backup
+        (D67-17).  The migration write keeps every record and does not apply
+        the history bound; later ordinary writes do.
+        """
+        if source_version is not None and source_version != WAITING_VERSION:
+            self._run_migration(
+                state,
+                source_bytes,
+                source_version=source_version,
+                operator="automatic",
+                reason="waiting_store_write",
+            )
+            return
         state["version"] = WAITING_VERSION
         overflow = len(state["history"]) - self.history_limit
         if overflow > 0:
             del state["history"][:overflow]
         atomic_write_json(self.paths.waiting, state)
+
+    # -- D67-17 migration ---------------------------------------------------
+
+    def _read_marker(self) -> Optional[dict]:
+        path = self.migration_marker_path
+        try:
+            raw = read_json(path)
+        except FileNotFoundError:
+            return None
+        _check_marker(raw, path, self.strategy_uuid)
+        return raw
+
+    def _write_marker(self, marker: dict) -> None:
+        atomic_write_json(self.migration_marker_path, marker)
+
+    def _backup_path(self, marker: Mapping[str, Any]) -> str:
+        return os.path.join(self.backups_dir, marker["backup_file"])
+
+    def _verify_backup(self, marker: Mapping[str, Any]) -> bytes:
+        path = self._backup_path(marker)
+        try:
+            raw_bytes = _read_file_bytes(path)
+        except FileNotFoundError:
+            raise LiveStateCorrupt(path, "migration_backup_missing") from None
+        if hashlib.sha256(raw_bytes).hexdigest() != marker["backup_sha256"]:
+            raise LiveStateCorrupt(path, "migration_backup_digest_mismatch")
+        return raw_bytes
+
+    def _migration_summary(self, marker: Mapping[str, Any], **extra: Any) -> dict:
+        view = {
+            "status": marker["status"],
+            "source_version": marker["source_version"],
+            "target_version": marker["target_version"],
+            "backup_file": marker["backup_file"],
+            "backup_sha256": marker["backup_sha256"],
+            "orders_count": marker["orders_count"],
+            "history_count": marker["history_count"],
+            "started_at_utc": marker["started_at_utc"],
+        }
+        for key in ("completed_at_utc", "restored_at_utc", "rolled_back_at_utc", "migrated_sha256"):
+            if key in marker:
+                view[key] = marker[key]
+        view.update(extra)
+        return view
+
+    def _run_migration(
+        self,
+        state: dict,
+        legacy_bytes: Optional[bytes],
+        *,
+        source_version: int,
+        operator: str,
+        reason: str,
+    ) -> dict:
+        """Back up, record and perform a version upgrade of ``state`` in place.
+
+        The caller holds the waiting lock.  Any failure before the atomic
+        replace leaves the original file untouched; the marker tells a later
+        :meth:`recover_migration` what happened.
+        """
+        if type(legacy_bytes) is not bytes:
+            raise LiveStateError("live_state_error", "migration_without_source_bytes")
+        backup_sha256 = hashlib.sha256(legacy_bytes).hexdigest()
+        backup_file = f"waiting_orders.v{source_version}.{utc_compact()}.{backup_sha256[:12]}.json"
+        if not os.path.isdir(self.backups_dir):
+            os.makedirs(self.backups_dir, mode=0o700, exist_ok=True)
+            fsync_directory(self.paths.state_dir)
+        backup_path = os.path.join(self.backups_dir, backup_file)
+        atomic_write_bytes(backup_path, legacy_bytes)
+        if hashlib.sha256(_read_file_bytes(backup_path)).hexdigest() != backup_sha256:
+            raise LiveStateCorrupt(backup_path, "migration_backup_digest_mismatch")
+        marker = {
+            "version": MIGRATION_VERSION,
+            "strategy_uuid": self.strategy_uuid,
+            "status": "in_progress",
+            "source_version": source_version,
+            "target_version": WAITING_VERSION,
+            "backup_file": backup_file,
+            "backup_sha256": backup_sha256,
+            "started_at_utc": utc_now_iso(),
+            "orders_count": len(state["orders"]),
+            "history_count": len(state["history"]),
+            "operator": operator,
+            "reason": reason,
+        }
+        self._write_marker(marker)
+        append_audit(
+            self.paths.strategy_dir,
+            {
+                "event": "waiting_migration_backup",
+                "operator": operator,
+                "reason": reason,
+                "backup_file": backup_file,
+                "backup_sha256": backup_sha256,
+                "source_version": source_version,
+                "target_version": WAITING_VERSION,
+                "orders_count": marker["orders_count"],
+                "history_count": marker["history_count"],
+            },
+        )
+        migrated = dict(state, version=WAITING_VERSION)
+        payload = dumps_json(migrated).encode("utf-8")
+        try:
+            atomic_write_bytes(self.paths.waiting, payload)
+            written, parsed = read_json_bytes(self.paths.waiting)
+            checked = validate_waiting_state(parsed, self.paths.waiting, self.strategy_uuid)
+            if (
+                checked["version"] != WAITING_VERSION
+                or len(checked["orders"]) != len(migrated["orders"])
+                or len(checked["history"]) != len(migrated["history"])
+            ):
+                raise LiveStateCorrupt(self.paths.waiting, "migration_verification_failed")
+        except BaseException:
+            self._audit_best_effort(
+                {
+                    "event": "waiting_migration_failed",
+                    "operator": operator,
+                    "reason": reason,
+                    "backup_file": backup_file,
+                    "backup_sha256": backup_sha256,
+                }
+            )
+            raise
+        marker["status"] = "complete"
+        marker["completed_at_utc"] = utc_now_iso()
+        marker["migrated_sha256"] = hashlib.sha256(written).hexdigest()
+        self._write_marker(marker)
+        append_audit(
+            self.paths.strategy_dir,
+            {
+                "event": "waiting_migration_complete",
+                "operator": operator,
+                "reason": reason,
+                "backup_sha256": backup_sha256,
+                "migrated_sha256": marker["migrated_sha256"],
+            },
+        )
+        return marker
+
+    def _audit_best_effort(self, record: dict) -> None:
+        try:
+            append_audit(self.paths.strategy_dir, record)
+        except Exception as exc:
+            _log.warning(
+                "waiting audit append failed: %s", getattr(exc, "code", type(exc).__name__)
+            )
+
+    def migration_status(self) -> Optional[dict]:
+        """Read-only view of the migration marker, or ``None`` if never migrated."""
+        marker = self._read_marker()
+        return copy.deepcopy(marker) if marker is not None else None
+
+    def migrate(self, *, operator: str, reason: str) -> dict:
+        """Explicitly migrate a version-1 file (same backup path as a write).
+
+        An already current file is reported, never rewritten.  Unknown or
+        newer versions raise ``state_corrupt``/``version_unsupported`` and the
+        file is left untouched.
+        """
+        _require_operator_reason(operator, reason)
+        with self._lock():
+            loaded = self._read()
+            if loaded.version == WAITING_VERSION:
+                return {
+                    "status": "already_current",
+                    "changed": False,
+                    "migration": self.migration_status(),
+                }
+            marker = self._run_migration(
+                loaded.state,
+                loaded.raw,
+                source_version=loaded.version,
+                operator=operator,
+                reason=reason,
+            )
+        return {"status": "complete", "changed": True, "migration": self._migration_summary(marker)}
+
+    def recover_migration(self, *, operator: str, reason: str) -> dict:
+        """Converge an interrupted migration without discarding records.
+
+        ``in_progress`` is resolved to exactly one of: the completed new file
+        (finalize the marker), the original replayed to version 2 from the
+        verified backup, or the original restored because the state file was
+        gone.  Any other situation - a corrupt backup, a changed or unreadable
+        state file - is refused with a finite ``state_corrupt`` reason and
+        nothing is modified.
+        """
+        _require_operator_reason(operator, reason)
+        with self._lock():
+            marker = self._read_marker()
+            if marker is None:
+                raise LiveStateError("marker_not_found", "waiting_migration")
+            if marker["status"] != "in_progress":
+                return {
+                    "status": marker["status"],
+                    "changed": False,
+                    "recovery": "none",
+                    "migration": self._migration_summary(marker),
+                }
+            backup_bytes = self._verify_backup(marker)
+            try:
+                current_bytes, parsed = read_json_bytes(self.paths.waiting)
+            except FileNotFoundError:
+                atomic_write_bytes(self.paths.waiting, backup_bytes)
+                if (
+                    hashlib.sha256(_read_file_bytes(self.paths.waiting)).hexdigest()
+                    != marker["backup_sha256"]
+                ):
+                    raise LiveStateCorrupt(
+                        self.paths.waiting, "migration_verification_failed"
+                    ) from None
+                marker["status"] = "rolled_back"
+                marker["restored_at_utc"] = utc_now_iso()
+                marker["operator"] = operator
+                marker["reason"] = reason
+                self._write_marker(marker)
+                append_audit(
+                    self.paths.strategy_dir,
+                    {
+                        "event": "waiting_migration_recovered",
+                        "operator": operator,
+                        "reason": reason,
+                        "outcome": "restored",
+                        "backup_sha256": marker["backup_sha256"],
+                    },
+                )
+                return {
+                    "status": "rolled_back",
+                    "changed": True,
+                    "recovery": "restored",
+                    "migration": self._migration_summary(marker),
+                }
+            except LiveStateCorrupt:
+                # Unreadable current file: refuse, change nothing.
+                raise LiveStateCorrupt(self.paths.waiting, "migration_conflict") from None
+            try:
+                checked = validate_waiting_state(parsed, self.paths.waiting, self.strategy_uuid)
+            except LiveStateCorrupt:
+                raise LiveStateCorrupt(self.paths.waiting, "migration_conflict") from None
+            if checked["version"] == WAITING_VERSION:
+                marker["status"] = "complete"
+                marker["completed_at_utc"] = utc_now_iso()
+                marker["migrated_sha256"] = hashlib.sha256(current_bytes).hexdigest()
+                marker["operator"] = operator
+                marker["reason"] = reason
+                self._write_marker(marker)
+                append_audit(
+                    self.paths.strategy_dir,
+                    {
+                        "event": "waiting_migration_recovered",
+                        "operator": operator,
+                        "reason": reason,
+                        "outcome": "completed",
+                        "migrated_sha256": marker["migrated_sha256"],
+                    },
+                )
+                return {
+                    "status": "complete",
+                    "changed": True,
+                    "recovery": "completed",
+                    "migration": self._migration_summary(marker),
+                }
+            if (
+                checked["version"] in LEGACY_WAITING_VERSIONS
+                and hashlib.sha256(current_bytes).hexdigest() == marker["backup_sha256"]
+            ):
+                migrated = dict(checked, version=WAITING_VERSION)
+                atomic_write_bytes(self.paths.waiting, dumps_json(migrated).encode("utf-8"))
+                written, reparsed = read_json_bytes(self.paths.waiting)
+                validate_waiting_state(reparsed, self.paths.waiting, self.strategy_uuid)
+                marker["status"] = "complete"
+                marker["completed_at_utc"] = utc_now_iso()
+                marker["migrated_sha256"] = hashlib.sha256(written).hexdigest()
+                marker["operator"] = operator
+                marker["reason"] = reason
+                self._write_marker(marker)
+                append_audit(
+                    self.paths.strategy_dir,
+                    {
+                        "event": "waiting_migration_recovered",
+                        "operator": operator,
+                        "reason": reason,
+                        "outcome": "replayed",
+                        "backup_sha256": marker["backup_sha256"],
+                        "migrated_sha256": marker["migrated_sha256"],
+                    },
+                )
+                return {
+                    "status": "complete",
+                    "changed": True,
+                    "recovery": "replayed",
+                    "migration": self._migration_summary(marker),
+                }
+            raise LiveStateCorrupt(self.paths.waiting, "migration_conflict")
+
+    def rollback_migration(self, *, operator: str, reason: str) -> dict:
+        """Restore the verified pre-migration file; refuse an unsafe rollback.
+
+        Allowed only for a ``complete`` migration whose current file is still
+        byte-identical to the migrated file recorded in the marker.  Any later
+        write (a new order, a transition, facts) makes the rollback unsafe and
+        it is refused with ``state_corrupt``/``rollback_unsafe`` so post-upgrade
+        facts are never overwritten.  The restored file is the exact original
+        version-1 bytes, which the old reader accepts.
+        """
+        _require_operator_reason(operator, reason)
+        with self._lock():
+            marker = self._read_marker()
+            if marker is None:
+                raise LiveStateError("marker_not_found", "waiting_migration")
+            if marker["status"] == "rolled_back":
+                return {
+                    "status": "rolled_back",
+                    "changed": False,
+                    "rollback": "none",
+                    "migration": self._migration_summary(marker),
+                }
+            if marker["status"] != "complete":
+                raise LiveStateCorrupt(self.migration_marker_path, "migration_not_complete")
+            backup_bytes = self._verify_backup(marker)
+            try:
+                current_bytes = _read_file_bytes(self.paths.waiting)
+            except FileNotFoundError:
+                raise LiveStateCorrupt(self.paths.waiting, "rollback_unsafe") from None
+            if hashlib.sha256(current_bytes).hexdigest() != marker.get("migrated_sha256"):
+                raise LiveStateCorrupt(self.paths.waiting, "rollback_unsafe")
+            # The backup must be the readable version-1 file it claims to be.
+            backup_state = validate_waiting_state(
+                read_json(self._backup_path(marker)), self._backup_path(marker), self.strategy_uuid
+            )
+            if backup_state["version"] not in LEGACY_WAITING_VERSIONS:
+                raise LiveStateCorrupt(self._backup_path(marker), "migration_backup_invalid")
+            atomic_write_bytes(self.paths.waiting, backup_bytes)
+            if (
+                hashlib.sha256(_read_file_bytes(self.paths.waiting)).hexdigest()
+                != marker["backup_sha256"]
+            ):
+                raise LiveStateCorrupt(self.paths.waiting, "migration_verification_failed")
+            marker["status"] = "rolled_back"
+            marker["rolled_back_at_utc"] = utc_now_iso()
+            marker["operator"] = operator
+            marker["reason"] = reason
+            self._write_marker(marker)
+            append_audit(
+                self.paths.strategy_dir,
+                {
+                    "event": "waiting_migration_rollback",
+                    "operator": operator,
+                    "reason": reason,
+                    "backup_file": marker["backup_file"],
+                    "backup_sha256": marker["backup_sha256"],
+                    "migrated_sha256": marker["migrated_sha256"],
+                },
+            )
+        return {
+            "status": "rolled_back",
+            "changed": True,
+            "rollback": "restored",
+            "migration": self._migration_summary(marker),
+        }
 
     def add(self, order: Mapping[str, Any]) -> str:
         """Durably add a WAITING order; return its ``waiting_id``.
@@ -373,7 +920,8 @@ class WaitingOrderStore:
         """
         stored = normalize_waiting_order(order)
         with self._lock():
-            state = self._load()
+            loaded = self._read()
+            state = loaded.state
             waiting_id = stored["waiting_id"]
             if waiting_id in state["orders"] or any(
                 item["waiting_id"] == waiting_id for item in state["history"]
@@ -383,7 +931,7 @@ class WaitingOrderStore:
                 if item["local_seq"] == stored["local_seq"]:
                     raise LiveStateError("waiting_duplicate", "local_seq")
             state["orders"][waiting_id] = stored
-            self._store(state)
+            self._store(state, source_version=loaded.version, source_bytes=loaded.raw)
         return waiting_id
 
     def transition(self, waiting_id: str, from_status: str, to_status: str, **facts: Any) -> bool:
@@ -401,7 +949,8 @@ class WaitingOrderStore:
         cleaned = json_safe_copy(dict(facts), "facts")
         ensure_no_secret_keys(cleaned, "facts")
         with self._lock():
-            state = self._load()
+            loaded = self._read()
+            state = loaded.state
             order = state["orders"].get(waiting_id)
             if order is None or order["status"] != from_status:
                 return False
@@ -414,7 +963,7 @@ class WaitingOrderStore:
             if to_status in _TERMINAL:
                 del state["orders"][waiting_id]
                 state["history"].append(order)
-            self._store(state)
+            self._store(state, source_version=loaded.version, source_bytes=loaded.raw)
         return True
 
     def record_takeover(self, waiting_id: str) -> bool:
@@ -428,7 +977,8 @@ class WaitingOrderStore:
         """
         try:
             with self._lock():
-                state = self._load()
+                loaded = self._read()
+                state = loaded.state
                 order = next(
                     (
                         item
@@ -446,7 +996,7 @@ class WaitingOrderStore:
                 if order["facts"].get("taken_over_at_utc"):
                     return True
                 order["facts"]["taken_over_at_utc"] = utc_now_iso()
-                self._store(state)
+                self._store(state, source_version=loaded.version, source_bytes=loaded.raw)
             return True
         except Exception as exc:
             _log.warning(
@@ -469,6 +1019,12 @@ class WaitingOrderStore:
         I/O, lock and corruption problems are logged and return ``False`` (the
         caller still refuses to dispatch in memory).  Repeating the same
         disposition keeps the first timestamp; ``True`` is returned then too.
+
+        A newly recorded pause emits one typed, bounded notice (see
+        :mod:`backtrader.live_state.waiting_notify`), deduplicated durably per
+        order, reason and calendar version.  A notification problem is stored
+        as a finite ``facts.pause_notification_status``; it never changes the
+        order state and never raises.
         """
         if disposition not in CALENDAR_DISPOSITIONS:
             raise LiveStateError("calendar_disposition_invalid", disposition)
@@ -476,9 +1032,11 @@ class WaitingOrderStore:
             observed_calendar_ref, max_len=_CALENDAR_REF_MAX_LEN
         ):
             raise LiveStateError("calendar_disposition_invalid", "observed_calendar_ref")
+        event = None
         try:
             with self._lock():
-                state = self._load()
+                loaded = self._read()
+                state = loaded.state
                 order = state["orders"].get(waiting_id)
                 if order is None:
                     return False
@@ -493,15 +1051,187 @@ class WaitingOrderStore:
                 facts["calendar_disposition_at_utc"] = now
                 if observed_calendar_ref is not None:
                     facts["observed_calendar_ref"] = observed_calendar_ref
+                event = self._plan_pause_notification(
+                    order, disposition, observed_calendar_ref, now
+                )
                 order["updated_at_utc"] = now
-                self._store(state)
-            return True
+                self._store(state, source_version=loaded.version, source_bytes=loaded.raw)
         except Exception as exc:
             _log.warning(
                 "waiting calendar disposition not recorded: %s",
                 getattr(exc, "code", type(exc).__name__),
             )
             return False
+        if event is not None:
+            # Outside the lock: a slow or broken notifier must not hold state.
+            self._record_pause_notification(waiting_id, event)
+        return True
+
+    def _plan_pause_notification(
+        self,
+        order: dict,
+        disposition: str,
+        observed_calendar_ref: Optional[str],
+        now: str,
+    ) -> Optional[dict]:
+        """Mark a new pause notice for sending; ``None`` when already notified."""
+        event = build_pause_event(order, self.strategy_uuid, disposition, observed_calendar_ref)
+        facts = order["facts"]
+        recorded = facts.get("pause_notification_keys")
+        keys = list(recorded) if isinstance(recorded, list) else []
+        if event["dedup_key"] in keys:
+            return None
+        keys.append(event["dedup_key"])
+        del keys[:-_PAUSE_NOTIFICATION_KEYS]
+        facts["pause_notification_keys"] = keys
+        facts["pause_notification_status"] = "pending"
+        facts["pause_notification_at_utc"] = now
+        return event
+
+    def _record_pause_notification(self, waiting_id: str, event: dict) -> None:
+        """Send one notice and store its finite status; never raises."""
+        notifier = self._pause_notifier or notify_pause_event
+        try:
+            status = notifier(event)
+        except Exception as exc:
+            _log.warning(
+                "waiting pause notification failed: %s", getattr(exc, "code", type(exc).__name__)
+            )
+            status = "error"
+        if status not in PAUSE_NOTIFICATION_STATUSES or status == "pending":
+            status = "error"
+        try:
+            with self._lock():
+                loaded = self._read()
+                order = loaded.state["orders"].get(waiting_id)
+                if order is None:
+                    return
+                facts = order["facts"]
+                if facts.get("pause_notification_status") != "pending":
+                    return  # a newer pause already recorded its own notice
+                facts["pause_notification_status"] = status
+                order["updated_at_utc"] = utc_now_iso()
+                self._store(loaded.state, source_version=loaded.version, source_bytes=loaded.raw)
+        except Exception as exc:
+            # The status stays "pending" in the durable file: visible, finite,
+            # and deliberately not retried automatically.
+            _log.warning(
+                "waiting pause notification status not recorded: %s",
+                getattr(exc, "code", type(exc).__name__),
+            )
+
+    def clear_calendar_pause(
+        self,
+        waiting_id: str,
+        *,
+        operator: str,
+        reason: str,
+        evidence: Sequence[str],
+        calendar_ref: str,
+        trading_day: str,
+        continuous_start_utc: str,
+        session_end_utc: str,
+    ) -> dict:
+        """Operator-only clear of a recorded calendar pause (D67-15).
+
+        ``calendar_ref``/``trading_day``/``continuous_start_utc``/
+        ``session_end_utc`` are the *current* calendar answer for the order's
+        **original** target: they must name the same trading day and the same
+        window instants, and carry a usable versioned reference.  A record
+        with no original ``calendar_ref`` (legacy/unbound) can never be proven
+        and is refused; nothing is guessed.
+
+        Clearing is not a trading authorization and not a resend: the status,
+        original target, identity, local sequence and transitions are
+        untouched, and no pending marker or dispatch is created.  The caller
+        still has to satisfy every other precondition before the order can be
+        sent.  Without matching proof the order stays paused and the call
+        raises a finite error (``operator_required``/``reason_required``/
+        ``evidence_required``/``waiting_invalid``/
+        ``calendar_disposition_invalid`` with a finite detail).
+        """
+        _require_operator_reason(operator, reason)
+        if isinstance(evidence, (str, bytes)) or not isinstance(evidence, (list, tuple)):
+            raise LiveStateError("evidence_required")
+        items = list(evidence)
+        if not items or any(not is_text(item, max_len=512) for item in items):
+            raise LiveStateError("evidence_required")
+        if not is_text(calendar_ref, max_len=_CALENDAR_REF_MAX_LEN):
+            raise LiveStateError("calendar_disposition_invalid", "calendar_ref")
+        if not is_trading_day(trading_day):
+            raise LiveStateError("calendar_disposition_invalid", "trading_day")
+        start = parse_aware_iso(continuous_start_utc)
+        end = parse_aware_iso(session_end_utc)
+        if start is None or end is None or start >= end:
+            raise LiveStateError("calendar_disposition_invalid", "target_session")
+        with self._lock():
+            loaded = self._read()
+            state = loaded.state
+            order = state["orders"].get(waiting_id)
+            if order is None:
+                raise LiveStateError("waiting_invalid", "waiting_id")
+            target = order["target_session"]
+            if "calendar_ref" not in target:
+                # No creation version was ever stored: the original target
+                # cannot be proven, so the pause is never cleared by guessing.
+                raise LiveStateError("calendar_disposition_invalid", "target_not_bound")
+            if (
+                target["trading_day"] != trading_day
+                or parse_aware_iso(target["continuous_start_utc"]) != start
+                or parse_aware_iso(target["session_end_utc"]) != end
+            ):
+                raise LiveStateError("calendar_disposition_invalid", "target_session_mismatch")
+            facts = order["facts"]
+            disposition = facts.get("calendar_disposition")
+            if disposition is None:
+                raise LiveStateError("calendar_disposition_invalid", "not_paused")
+            audit_record = {
+                "event": "waiting_pause_cleared",
+                "strategy_uuid": self.strategy_uuid,
+                "waiting_id": waiting_id,
+                "local_seq": order["local_seq"],
+                "bt_ref": order.get("bt_ref"),
+                "symbol": order["symbol"],
+                "exchange_name": order["exchange_name"],
+                "previous_disposition": disposition,
+                "observed_calendar_ref": calendar_ref,
+                "target_trading_day": target["trading_day"],
+                "operator": operator,
+                "reason": reason,
+                "evidence": items,
+            }
+            entry = append_audit(self.paths.strategy_dir, audit_record)
+            facts.pop("calendar_disposition", None)
+            facts.pop("calendar_disposition_at_utc", None)
+            facts.pop("observed_calendar_ref", None)
+            facts["calendar_pause_cleared"] = {
+                "operator": operator,
+                "reason": reason,
+                "evidence": items,
+                "observed_calendar_ref": calendar_ref,
+                "previous_disposition": disposition,
+                "cleared_at_utc": entry["ts_utc"],
+            }
+            order["updated_at_utc"] = utc_now_iso()
+            try:
+                self._store(state, source_version=loaded.version, source_bytes=loaded.raw)
+            except BaseException:
+                self._audit_best_effort(
+                    {
+                        "event": "waiting_pause_clear_failed",
+                        "strategy_uuid": self.strategy_uuid,
+                        "waiting_id": waiting_id,
+                        "operator": operator,
+                    }
+                )
+                raise
+            return {
+                "waiting_id": waiting_id,
+                "cleared": True,
+                "previous_disposition": disposition,
+                "observed_calendar_ref": calendar_ref,
+                "cleared_at_utc": entry["ts_utc"],
+            }
 
     def get(self, waiting_id: str) -> Optional[dict]:
         state = self._load()

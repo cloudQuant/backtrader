@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "strategy_uuid": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+  "orders": {
+    "0b7f3c1e-2d4a-4f6b-8c1d-9e2f3a4b5c6d": {
+      "waiting_id": "0b7f3c1e-2d4a-4f6b-8c1d-9e2f3a4b5c6d",
+      "local_seq": 7,
+      "bt_ref": 42,
+      "symbol": "rb2601",
+      "exchange_name": "CTP___FUTURE",
+      "side": "buy",
+      "size": 2,
+      "exectype": "Limit",
+      "price": 3512.0,
+      "pricelimit": null,
+      "offset": "close_today",
+      "position_side": null,
+      "valid_intent": {
+        "kind": "day",
+        "value": null
+      },
+      "target_session": {
+        "trading_day": "20261106",
+        "continuous_start_utc": "2026-11-05T13:00:00+00:00",
+        "session_end_utc": "2026-11-05T15:00:00+00:00"
+      },
+      "created_at_utc": "2026-11-05T11:59:58.123456+00:00",
+      "updated_at_utc": "2026-11-05T11:59:58.123456+00:00",
+      "status": "WAITING",
+      "extra": {},
+      "facts": {},
+      "transitions": []
+    }
+  },
+  "history": [
+    {
+      "waiting_id": "1c8e4d2f-3a5b-4c7d-9e1f-0a2b3c4d5e6f",
+      "local_seq": 5,
+      "bt_ref": 39,
+      "symbol": "ag2612",
+      "exchange_name": "CTP___FUTURE",
+      "side": "sell",
+      "size": 1,
+      "exectype": "Market",
+      "price": null,
+      "pricelimit": null,
+      "offset": null,
+      "position_side": null,
+      "valid_intent": {
+        "kind": "unspecified",
+        "value": null
+      },
+      "target_session": {
+        "trading_day": "20261106",
+        "continuous_start_utc": "2026-11-05T13:00:00+00:00",
+        "session_end_utc": "2026-11-05T15:00:00+00:00"
+      },
+      "created_at_utc": "2026-11-05T10:00:00.000001+00:00",
+      "updated_at_utc": "2026-11-05T10:00:01.000002+00:00",
+      "status": "CANCELLED",
+      "extra": {
+        "note": "kept-as-was"
+      },
+      "facts": {
+        "reason": "strategy_cancel"
+      },
+      "transitions": [
+        {
+          "from": "WAITING",
+          "to": "CANCELLED",
+          "at_utc": "2026-11-05T10:00:01.000002+00:00"
+        }
+      ]
+    }
+  ]
+}

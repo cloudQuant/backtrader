@@ -6,6 +6,18 @@ Commands (all print one JSON document to stdout)::
     show    <strategy_dir> [--audit-limit N]
     rebind  <strategy_dir> --mode move|new_instance --operator NAME --reason TEXT
     resolve <strategy_dir> <marker_id> --conclusion C --operator NAME --evidence REF [...]
+    waiting-migrate  <strategy_dir> --operator NAME --reason TEXT
+    waiting-recover  <strategy_dir> --operator NAME --reason TEXT
+    waiting-rollback <strategy_dir> --operator NAME --reason TEXT
+    waiting-clear    <strategy_dir> <waiting_id> --operator NAME --reason TEXT
+                     --evidence REF [...] --calendar-ref R --trading-day D
+                     --window-start ISO --window-end ISO
+
+``waiting-clear`` is an operator-only pause release, not a trading
+authorization: it needs current calendar evidence that matches the order's
+original target, never changes the status or target, and never dispatches,
+retries or re-sends anything.  ``waiting-rollback`` verifies the recorded
+backup digest and refuses when anything changed after the upgrade.
 
 Exit status: 0 success, 1 ``LiveStateError`` (JSON carries the finite
 ``error`` code), 2 usage error.  Output never contains credentials; account
@@ -91,8 +103,13 @@ def _waiting_view(order: dict) -> dict:
     )
     view = {key: order[key] for key in keys}
     # Make the calendar binding and any recorded refusal explicit (D67-15/17).
+    facts = order.get("facts") or {}
     view["calendar_ref"] = order["target_session"].get("calendar_ref")
-    view["calendar_disposition"] = (order.get("facts") or {}).get("calendar_disposition")
+    view["calendar_disposition"] = facts.get("calendar_disposition")
+    view["pause_notification_status"] = facts.get("pause_notification_status")
+    view["pause_notification_at_utc"] = facts.get("pause_notification_at_utc")
+    cleared = facts.get("calendar_pause_cleared")
+    view["pause_cleared_at_utc"] = (cleared or {}).get("cleared_at_utc")
     return view
 
 
@@ -146,7 +163,19 @@ def build_summary(strategy_dir: Any, *, check_host_path: bool = True, audit_limi
     def _audit():
         records = read_audit(current, limit=audit_limit)
         return [
-            {key: rec.get(key) for key in ("ts_utc", "event", "operator", "marker_id", "mode")}
+            {
+                key: rec.get(key)
+                for key in (
+                    "ts_utc",
+                    "event",
+                    "operator",
+                    "marker_id",
+                    "mode",
+                    "waiting_id",
+                    "backup_sha256",
+                    "outcome",
+                )
+            }
             for rec in records
         ]
 
@@ -158,6 +187,7 @@ def build_summary(strategy_dir: Any, *, check_host_path: bool = True, audit_limi
         "sequence": _section(lambda: SequenceAllocator(current, uuid).read()),
         "pending": _section(_pending),
         "waiting_orders": _section(lambda: [_waiting_view(o) for o in waiting.active()]),
+        "waiting_migration": _section(waiting.migration_status),
         "snapshot": _section(_snapshot),
         "audit_tail": _section(_audit),
     }
@@ -193,6 +223,29 @@ def _parser() -> argparse.ArgumentParser:
     p_resolve.add_argument("--conclusion", required=True, choices=sorted(MANUAL_CONCLUSIONS))
     p_resolve.add_argument("--operator", required=True)
     p_resolve.add_argument("--evidence", required=True, action="append")
+
+    for name, help_text in (
+        ("waiting-migrate", "back up and upgrade a version-1 waiting-orders file"),
+        ("waiting-recover", "converge an interrupted waiting-orders migration"),
+        ("waiting-rollback", "restore a verified pre-migration waiting-orders file"),
+    ):
+        command = sub.add_parser(name, help=help_text)
+        command.add_argument("strategy_dir")
+        command.add_argument("--operator", required=True)
+        command.add_argument("--reason", required=True)
+
+    p_clear = sub.add_parser(
+        "waiting-clear", help="clear a recorded waiting-order calendar pause after proof"
+    )
+    p_clear.add_argument("strategy_dir")
+    p_clear.add_argument("waiting_id")
+    p_clear.add_argument("--operator", required=True)
+    p_clear.add_argument("--reason", required=True)
+    p_clear.add_argument("--evidence", required=True, action="append")
+    p_clear.add_argument("--calendar-ref", dest="calendar_ref", required=True)
+    p_clear.add_argument("--trading-day", dest="trading_day", required=True)
+    p_clear.add_argument("--window-start", dest="window_start", required=True)
+    p_clear.add_argument("--window-end", dest="window_end", required=True)
     return parser
 
 
@@ -220,6 +273,36 @@ def _run(args: argparse.Namespace) -> dict:
             args.strategy_dir, mode=args.mode, operator=args.operator, reason=args.reason
         )
         return {"ok": True, "identity": _identity_view(identity)}
+    if args.command.startswith("waiting-") and args.command != "waiting-clear":
+        identity = load_identity(args.strategy_dir, check_host_path=True)
+        store = WaitingOrderStore(args.strategy_dir, identity.strategy_uuid)
+        action = {
+            "waiting-migrate": store.migrate,
+            "waiting-recover": store.recover_migration,
+            "waiting-rollback": store.rollback_migration,
+        }[args.command]
+        return dict(
+            action(operator=args.operator, reason=args.reason),
+            ok=True,
+        )
+    if args.command == "waiting-clear":
+        identity = load_identity(args.strategy_dir, check_host_path=True)
+        store = WaitingOrderStore(args.strategy_dir, identity.strategy_uuid)
+        cleared = store.clear_calendar_pause(
+            args.waiting_id,
+            operator=args.operator,
+            reason=args.reason,
+            evidence=args.evidence,
+            calendar_ref=args.calendar_ref,
+            trading_day=args.trading_day,
+            continuous_start_utc=args.window_start,
+            session_end_utc=args.window_end,
+        )
+        return {
+            "ok": True,
+            "clear": cleared,
+            "waiting": _waiting_view(store.get(args.waiting_id)),
+        }
     identity = load_identity(args.strategy_dir, check_host_path=True)
     store = PendingCommandStore(args.strategy_dir, identity.strategy_uuid)
     marker = store.resolve_manually(
