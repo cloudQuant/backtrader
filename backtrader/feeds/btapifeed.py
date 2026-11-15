@@ -6,9 +6,10 @@ from __future__ import annotations
 import collections
 from collections.abc import Mapping
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import datetime as _dt
 import math
+import threading
 import time as _time
 from types import MappingProxyType, SimpleNamespace
 from typing import Optional, Tuple
@@ -51,6 +52,8 @@ def _safe_log(level, message, *args):
 
 
 _UTC = _dt.timezone.utc
+# China Standard Time has no DST; the published windows keep their own zones.
+_SHANGHAI = _dt.timezone(_dt.timedelta(hours=8), "Asia/Shanghai")
 _TICK_PRICE_FIELDS = ("price", "last_price")
 _MAX_DIAGNOSTIC_TEXT = 128
 
@@ -251,6 +254,166 @@ class FeedTradeQualification:
     dispatch_market_ref: Optional[Mapping] = None
 
 
+# Iteration 67 (D67-11): finite codes for read-only calendar projections.
+# Result codes come from the Store's validated query; the Feed only adds its
+# own binding/scope state. Any other value is reported as CALENDAR_UNAVAILABLE.
+_CALENDAR_REASON_CODES = frozenset(
+    {
+        "CALENDAR_ADVANCED",
+        "CALENDAR_BOUND",
+        "CALENDAR_REFRESHED",
+        "CALENDAR_SCOPE_UNAVAILABLE",
+        "CALENDAR_UNAVAILABLE",
+        "CAPABILITY_UNAVAILABLE",
+        "CONFIGURATION_CHANGED",
+        "COVERAGE_UNAVAILABLE",
+        "CURRENT_UNAVAILABLE",
+        "EXPLICIT_DATA",
+        "INVALID_QUERY_RANGE",
+        "INVALID_QUERY_SCOPE",
+        "NOT_BOUND",
+        "PROVIDER_UNAVAILABLE",
+        "RANGE_PARTIAL",
+        "RANGE_TOO_LARGE",
+        "READ_UNAVAILABLE",
+        "ROUTE_SET_CHANGED",
+        "ROUTE_UNAVAILABLE",
+        "ROUTE_UNCONFIGURED",
+        "SAME_DAY",
+        "SCOPE_OR_DATA_UNAVAILABLE",
+        "SIMULATION_MODE_REQUIRED",
+        "STORE_UNAVAILABLE",
+        "TRADING_DAY_REGRESSION",
+        "TRADING_DAY_REQUIRED",
+    }
+)
+# One trading_windows call queries at most this many local calendar dates; the
+# bound is explicit instead of scanning an unbounded range.
+_CALENDAR_WINDOW_MAX_DAYS = 32
+
+
+def _bounded_calendar_reason(value, default="CALENDAR_UNAVAILABLE"):
+    """Accept only this module's finite reason vocabulary."""
+    return value if type(value) is str and value in _CALENDAR_REASON_CODES else default
+
+
+@dataclass(frozen=True)
+class FeedTradingCalendarState:
+    """Read-only state of this Feed's per-process calendar binding (D67-11).
+
+    ``status`` is ``UNBOUND`` before the first read, ``BOUND`` after a
+    COMPLETE query, ``STALE`` when a re-read failed and the previous published
+    version was retained, and ``UNAVAILABLE`` when no published version could
+    be read. ``stale`` is True only while a retained version is being
+    reported. ``bound``/``account_use`` remain ``NOT_BOUND``/``NOT_AUTHORIZED``:
+    an observation never binds a strategy or authorizes trading.
+    """
+
+    status: str = "UNBOUND"
+    reason: str = "NOT_BOUND"
+    trading_day: Optional[_dt.date] = None
+    calendar_ref: Optional[str] = None
+    publication_id: Optional[str] = None
+    content_sha256: Optional[str] = None
+    coverage_status: str = "UNKNOWN"
+    stale: bool = False
+    environment: str = "SIMULATION_ONLY"
+    bound: str = "NOT_BOUND"
+    account_use: str = "NOT_AUTHORIZED"
+
+
+_UNBOUND_CALENDAR = FeedTradingCalendarState()
+
+
+@dataclass(frozen=True)
+class FeedTradingSession:
+    """Neutral session projection of one Feed-bound calendar scope (D67-11).
+
+    ``status`` is ``COMPLETE`` only when a published calendar version answered
+    for the exact trading day; ``windows`` may then be empty, which is the
+    calendar's explicit known-closed day, not an unavailable one. ``phase`` is
+    ``auction``/``continuous``/``closed`` when ``at`` was supplied and the day
+    is COMPLETE, otherwise ``unknown`` with ``active`` None. ``stale`` reports
+    that the answer came from a retained version after a failed re-read. No
+    field here proves source identity, runtime binding or trading authority.
+    """
+
+    status: str
+    reason: str
+    trading_day: Optional[_dt.date]
+    phase: str = "unknown"
+    active: Optional[bool] = None
+    active_window: Optional[object] = None
+    windows: Tuple[object, ...] = ()
+    calendar_ref: Optional[str] = None
+    publication_id: Optional[str] = None
+    content_sha256: Optional[str] = None
+    version_sha256: Optional[str] = None
+    coverage_status: str = "UNKNOWN"
+    source_ids: Tuple[str, ...] = ()
+    source_classification: str = "UNVERIFIED"
+    environment: str = "SIMULATION_ONLY"
+    bound: str = "NOT_BOUND"
+    account_use: str = "NOT_AUTHORIZED"
+    stale: bool = False
+    trading_day_transition: str = "NOT_PROVEN"
+
+
+@dataclass(frozen=True)
+class FeedTradingWindowGap:
+    """One candidate trading day the published calendar could not answer."""
+
+    trading_day: Optional[_dt.date]
+    start_utc: Optional[_dt.datetime]
+    end_utc: Optional[_dt.datetime]
+    reason: str
+
+
+@dataclass(frozen=True)
+class FeedTradingWindows:
+    """UTC half-open window projection of one Feed-bound calendar scope (D67-11).
+
+    ``status`` is ``COMPLETE`` when every candidate trading day answered,
+    ``PARTIAL`` when some did and ``gaps`` names the unanswered ones, and
+    ``UNKNOWN`` when none did. Candidate days are the Feed's bound trading day
+    plus each ``Asia/Shanghai`` local date intersecting ``[start_utc,
+    end_utc)``; the Feed never infers a trading day from weekdays or fixed
+    weekend rules. Returned windows keep their original boundaries and are
+    only those intersecting the range.
+    """
+
+    status: str
+    reason: str
+    start_utc: Optional[_dt.datetime]
+    end_utc: Optional[_dt.datetime]
+    windows: Tuple[object, ...] = ()
+    gaps: Tuple[FeedTradingWindowGap, ...] = ()
+    calendar_ref: Optional[str] = None
+    publication_id: Optional[str] = None
+    content_sha256: Optional[str] = None
+    coverage_status: str = "UNKNOWN"
+    source_ids: Tuple[str, ...] = ()
+    source_classification: str = "UNVERIFIED"
+    environment: str = "SIMULATION_ONLY"
+    bound: str = "NOT_BOUND"
+    account_use: str = "NOT_AUTHORIZED"
+    stale: bool = False
+    incomplete: bool = False
+
+
+@dataclass(frozen=True)
+class _FeedCalendarBinding:
+    """One Feed-local binding: public state, exact query scope and its windows."""
+
+    public: FeedTradingCalendarState = _UNBOUND_CALENDAR
+    scope: Tuple[str, ...] = ()
+    windows: Tuple[object, ...] = ()
+    version_sha256: Optional[str] = None
+    source_ids: Tuple[str, ...] = ()
+    source_classification: str = "UNVERIFIED"
+    trading_day_transition: str = "NOT_PROVEN"
+
+
 def _bounded_context_value(value):
     """Keep diagnostic identifiers finite without retaining arbitrary objects."""
     if type(value) is str:
@@ -386,6 +549,17 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
     params = (
         ("store", None),
         ("provider", "btapi"),
+        # Iteration 67 (D67-11): explicit read-only calendar query scope.
+        # These values are caller declarations; the Feed never derives a
+        # trading day from the symbol or from wall-clock weekdays, and an
+        # absent scope yields an explicit unavailable result. ``calendar_route``
+        # falls back only to the Store's explicit symbol route or its single
+        # configured route.
+        ("calendar_route", None),
+        ("calendar_venue", None),
+        ("calendar_kind", None),
+        ("calendar_product", None),
+        ("calendar_contract", None),
         ("replay_market_tick_port", None),
         ("historical_bars", None),
         ("live_bars", None),
@@ -491,6 +665,22 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             raise ValueError("closed_bar_evidence_provider must be callable")
         self.store = self.p.store
         self.provider = self.p.provider
+        self._calendar_scope = {
+            "route": self.p.calendar_route,
+            "venue": self.p.calendar_venue,
+            "kind": self.p.calendar_kind,
+            "product": self.p.calendar_product,
+            "contract": self.p.calendar_contract,
+        }
+        for name, value in self._calendar_scope.items():
+            if value is not None and (
+                type(value) is not str or not value or value != value.strip()
+            ):
+                raise ValueError(
+                    f"calendar_{name} must be non-empty trimmed text or None"
+                )
+        self._calendar_lock = threading.Lock()
+        self._calendar_binding = _FeedCalendarBinding()
         self._replay_tick_adapter = None
         replay_port = self.p.replay_market_tick_port
         if replay_port is not None or self.provider == "local_replay":
@@ -984,6 +1174,507 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ticks) is not warming up.
         """
         return bool(self._history)
+
+    # -- read-only trading-calendar projection (iteration 67, D67-11) ---------
+    #
+    # One Feed keeps one per-process binding to a published calendar version
+    # for an explicit trading day. Reads go only through the owning Store's
+    # read-only ``trading_calendar_query()``; the Feed never writes the
+    # calendar store and never runs updater or scheduler code. A newer day
+    # re-reads CURRENT once; a failed re-read retains the previous version and
+    # reports STALE. Nothing here binds a strategy, authenticates a source or
+    # authorizes trading.
+
+    def _calendar_query_scope(self, overrides):
+        """Resolve one exact query scope without deriving it from the symbol."""
+        store = self.store or getattr(self, "_store", None)
+        if store is None:
+            return None, "STORE_UNAVAILABLE"
+        resolved = dict(self._calendar_scope)
+        for name in ("route", "venue", "kind", "product", "contract"):
+            value = overrides.get(name)
+            if value is not None:
+                if type(value) is not str or not value or value != value.strip():
+                    return None, "INVALID_QUERY_SCOPE"
+                resolved[name] = value
+        if resolved["route"] is None:
+            resolver = getattr(store, "_sdk_exchange", None)
+            if callable(resolver):
+                try:
+                    resolved["route"] = resolver(getattr(self, "_dataname", None))
+                except Exception:
+                    resolved["route"] = None
+        if any(
+            resolved[name] is None
+            for name in ("route", "venue", "kind", "product", "contract")
+        ):
+            return None, "CALENDAR_SCOPE_UNAVAILABLE"
+        return (
+            resolved["route"],
+            resolved["venue"],
+            resolved["kind"],
+            resolved["product"],
+            resolved["contract"],
+        ), None
+
+    def _calendar_query(self, scope, trading_day):
+        """Query one exact trading day; failures become finite reason codes."""
+        store = self.store or getattr(self, "_store", None)
+        query = (
+            getattr(store, "trading_calendar_query", None) if store is not None else None
+        )
+        if not callable(query):
+            return None, "STORE_UNAVAILABLE"
+        route, venue, kind, product, contract = scope
+        try:
+            result = query(
+                route,
+                venue=venue,
+                kind=kind,
+                product=product,
+                contract=contract,
+                trading_day=trading_day,
+                mode="SIMULATION_ONLY",
+            )
+        except Exception:
+            return None, "READ_UNAVAILABLE"
+        reason = _bounded_calendar_reason(getattr(result, "reason", None))
+        if getattr(result, "status", None) != "COMPLETE":
+            return None, reason
+        return result, reason
+
+    @staticmethod
+    def _calendar_binding_from(scope, trading_day, result):
+        """Capture one Store-validated COMPLETE result as an immutable binding."""
+        try:
+            windows = tuple(result.windows)
+            source_ids = tuple(result.source_ids)
+        except Exception:
+            return None
+        if (
+            type(result.windows) is not tuple
+            or type(result.source_ids) is not tuple
+            or any(
+                type(value) is not str
+                for value in (
+                    result.calendar_ref,
+                    result.publication_id,
+                    result.content_sha256,
+                    result.coverage_status,
+                    result.environment,
+                    result.bound,
+                    result.account_use,
+                    result.source_classification,
+                    result.trading_day_transition,
+                )
+            )
+        ):
+            return None
+        return _FeedCalendarBinding(
+            public=FeedTradingCalendarState(
+                status="BOUND",
+                reason="EXPLICIT_DATA",
+                trading_day=trading_day,
+                calendar_ref=result.calendar_ref,
+                publication_id=result.publication_id,
+                content_sha256=result.content_sha256,
+                coverage_status=result.coverage_status,
+                environment=result.environment,
+                bound=result.bound,
+                account_use=result.account_use,
+            ),
+            scope=scope,
+            windows=windows,
+            version_sha256=result.version_sha256,
+            source_ids=source_ids,
+            source_classification=result.source_classification,
+            trading_day_transition=result.trading_day_transition,
+        )
+
+    def trading_calendar_binding(self):
+        """Return this Feed's current calendar binding without any I/O.
+
+        The value is a :class:`FeedTradingCalendarState`: ``UNBOUND`` before
+        the first read, ``BOUND`` after a COMPLETE read, ``STALE`` while a
+        previous published version is retained after a failed re-read, and
+        ``UNAVAILABLE`` when none could be read. This accessor never queries
+        the Store, rewrites configuration or proves source identity.
+        """
+        with self._calendar_lock:
+            return self._calendar_binding.public
+
+    def refresh_trading_calendar(
+        self,
+        trading_day=None,
+        *,
+        route=None,
+        venue=None,
+        kind=None,
+        product=None,
+        contract=None,
+        force=False,
+    ):
+        """Re-read CURRENT when the qualified trading day advances (D67-05 B).
+
+        ``trading_day`` is an exact ``datetime.date`` and must be supplied by
+        the caller (for example from a provider/BT qualified day switch). It is
+        never derived from the wall clock or weekday rules. A call for the
+        bound day does not re-read unless ``force=True``; a call for an earlier
+        day is refused as ``TRADING_DAY_REGRESSION`` so the binding never
+        rewinds silently. When the day advances, one Store query reads
+        CURRENT; COMPLETE replaces the binding, while failure keeps the
+        previous version and reports ``STALE`` with the bounded failure code.
+        Scope keywords default to the Feed's ``calendar_*`` parameters. The
+        method is read-only: it does not write the calendar store or start an
+        updater.
+        """
+        if type(force) is not bool:
+            raise TypeError("force must be a bool")
+        if trading_day is not None and type(trading_day) is not _dt.date:
+            return FeedTradingCalendarState(
+                status="UNAVAILABLE", reason="INVALID_QUERY_SCOPE", stale=True
+            )
+        scope, error = self._calendar_query_scope(
+            {
+                "route": route,
+                "venue": venue,
+                "kind": kind,
+                "product": product,
+                "contract": contract,
+            }
+        )
+        if error is not None:
+            return FeedTradingCalendarState(status="UNAVAILABLE", reason=error)
+        with self._calendar_lock:
+            current = self._calendar_binding
+            same_scope = current.scope == scope
+            if trading_day is None and same_scope:
+                trading_day = current.public.trading_day
+            if type(trading_day) is not _dt.date:
+                return FeedTradingCalendarState(
+                    status="UNAVAILABLE", reason="TRADING_DAY_REQUIRED"
+                )
+            if same_scope and current.public.trading_day is not None:
+                if trading_day == current.public.trading_day and not force:
+                    return replace(current.public, reason="SAME_DAY")
+                if trading_day < current.public.trading_day:
+                    return replace(
+                        current.public,
+                        status="STALE",
+                        reason="TRADING_DAY_REGRESSION",
+                        stale=True,
+                    )
+            result, reason = self._calendar_query(scope, trading_day)
+            if result is not None:
+                binding = self._calendar_binding_from(scope, trading_day, result)
+                if binding is not None:
+                    if current.scope != scope or current.public.trading_day is None:
+                        bind_reason = "CALENDAR_BOUND"
+                    elif trading_day > current.public.trading_day:
+                        bind_reason = "CALENDAR_ADVANCED"
+                    else:
+                        bind_reason = "CALENDAR_REFRESHED"
+                    binding = replace(
+                        binding, public=replace(binding.public, reason=bind_reason)
+                    )
+                    self._calendar_binding = binding
+                    return binding.public
+                reason = "CALENDAR_UNAVAILABLE"
+            if same_scope and current.public.trading_day is not None:
+                stale = replace(
+                    current.public, status="STALE", reason=reason, stale=True
+                )
+                self._calendar_binding = replace(current, public=stale)
+                return stale
+            unavailable = FeedTradingCalendarState(
+                status="UNAVAILABLE", reason=reason, trading_day=trading_day
+            )
+            self._calendar_binding = _FeedCalendarBinding(unavailable, scope)
+            return unavailable
+
+    def trading_session(
+        self,
+        at=None,
+        *,
+        trading_day=None,
+        route=None,
+        venue=None,
+        kind=None,
+        product=None,
+        contract=None,
+    ):
+        """Return this Feed's neutral read-only session projection (D67-11).
+
+        ``trading_day`` is an exact ``datetime.date``. ``at`` may be a
+        timezone-aware ``datetime`` (phase/active lookup inside that day's
+        windows) or a ``date`` (equivalent to ``trading_day``); leaving both
+        unset uses the Feed's bound trading day. A ``datetime`` never derives
+        the trading day: overnight windows belong to their published trading
+        day, so the day must be bound or supplied. With an explicit day that
+        differs from the binding, the day-advance rule above re-reads CURRENT.
+
+        Returns a :class:`FeedTradingSession`. ``COMPLETE`` with empty
+        ``windows`` is the calendar's explicit known-closed day; a missing or
+        unavailable calendar always yields ``UNKNOWN`` with no fabricated
+        default session and no wall-clock weekday guess.
+        """
+        if trading_day is not None and type(trading_day) is not _dt.date:
+            return FeedTradingSession("UNKNOWN", "INVALID_QUERY_SCOPE", None)
+        if at is not None and type(at) not in (_dt.date, _dt.datetime):
+            return FeedTradingSession("UNKNOWN", "INVALID_QUERY_SCOPE", trading_day)
+        instant = at if type(at) is _dt.datetime else None
+        if type(at) is _dt.date:
+            if trading_day is not None and trading_day != at:
+                return FeedTradingSession("UNKNOWN", "INVALID_QUERY_SCOPE", trading_day)
+            trading_day = at
+        if instant is not None and (
+            instant.tzinfo is None or instant.utcoffset() is None
+        ):
+            return FeedTradingSession("UNKNOWN", "INVALID_QUERY_SCOPE", trading_day)
+        scope, error = self._calendar_query_scope(
+            {
+                "route": route,
+                "venue": venue,
+                "kind": kind,
+                "product": product,
+                "contract": contract,
+            }
+        )
+        if error is not None:
+            return FeedTradingSession("UNKNOWN", error, trading_day)
+        with self._calendar_lock:
+            binding = self._calendar_binding
+        if trading_day is None and binding.scope == scope:
+            trading_day = binding.public.trading_day
+        if trading_day is None:
+            return FeedTradingSession("UNKNOWN", "TRADING_DAY_REQUIRED", None)
+        if binding.scope != scope or binding.public.trading_day != trading_day:
+            self.refresh_trading_calendar(
+                trading_day,
+                route=route,
+                venue=venue,
+                kind=kind,
+                product=product,
+                contract=contract,
+            )
+            with self._calendar_lock:
+                binding = self._calendar_binding
+        state = binding.public
+        if (
+            binding.scope != scope
+            or state.trading_day != trading_day
+            or state.status not in ("BOUND", "STALE")
+        ):
+            return FeedTradingSession(
+                status="UNKNOWN",
+                reason=state.reason,
+                trading_day=trading_day,
+                stale=state.stale,
+            )
+        phase, active, active_window = "unknown", None, None
+        if instant is not None:
+            moment = instant.astimezone(_UTC)
+            for window in binding.windows:
+                if window.start_utc <= moment < window.end_utc:
+                    active_window = window
+                    break
+            if active_window is not None:
+                phase, active = active_window.phase, True
+            else:
+                phase, active = "closed", False
+        return FeedTradingSession(
+            status="COMPLETE",
+            reason="EXPLICIT_DATA",
+            trading_day=trading_day,
+            phase=phase,
+            active=active,
+            active_window=active_window,
+            windows=binding.windows,
+            calendar_ref=state.calendar_ref,
+            publication_id=state.publication_id,
+            content_sha256=state.content_sha256,
+            version_sha256=binding.version_sha256,
+            coverage_status=state.coverage_status,
+            source_ids=binding.source_ids,
+            source_classification=binding.source_classification,
+            environment=state.environment,
+            bound=state.bound,
+            account_use=state.account_use,
+            stale=state.stale,
+            trading_day_transition=binding.trading_day_transition,
+        )
+
+    def trading_windows(
+        self,
+        start,
+        end,
+        *,
+        route=None,
+        venue=None,
+        kind=None,
+        product=None,
+        contract=None,
+    ):
+        """Return published windows intersecting ``[start, end)`` in UTC (D67-11).
+
+        ``start``/``end`` are timezone-aware datetimes; the range is half-open
+        and converted to UTC. Candidate trading days are the Feed's bound day
+        plus each ``Asia/Shanghai`` local date intersecting the range (bounded
+        to ``_CALENDAR_WINDOW_MAX_DAYS``); every candidate is asked of the
+        published calendar, so an unpublished day is an explicit gap rather
+        than a weekday guess. Windows keep their original half-open boundaries
+        and are returned only when they intersect the range.
+
+        Returns a :class:`FeedTradingWindows`: ``COMPLETE`` when every
+        candidate day answered (an empty window tuple there is a known-closed
+        range), ``PARTIAL`` with ``gaps`` when some did not, and ``UNKNOWN``
+        when none did or the calendar is unavailable. A concurrent version
+        change across days discards the whole read as
+        ``CONFIGURATION_CHANGED`` instead of mixing versions. This method is
+        read-only and never changes the Feed's day binding.
+        """
+        if (
+            type(start) is not _dt.datetime
+            or type(end) is not _dt.datetime
+            or start.tzinfo is None
+            or end.tzinfo is None
+            or start.utcoffset() is None
+            or end.utcoffset() is None
+            or start >= end
+        ):
+            return FeedTradingWindows("UNKNOWN", "INVALID_QUERY_RANGE", None, None)
+        start_utc = start.astimezone(_UTC)
+        end_utc = end.astimezone(_UTC)
+        scope, error = self._calendar_query_scope(
+            {
+                "route": route,
+                "venue": venue,
+                "kind": kind,
+                "product": product,
+                "contract": contract,
+            }
+        )
+        if error is not None:
+            return FeedTradingWindows("UNKNOWN", error, start_utc, end_utc)
+        first = start_utc.astimezone(_SHANGHAI).date()
+        last = (end_utc - _dt.timedelta(microseconds=1)).astimezone(_SHANGHAI).date()
+        if (last - first).days + 1 > _CALENDAR_WINDOW_MAX_DAYS:
+            return FeedTradingWindows("UNKNOWN", "RANGE_TOO_LARGE", start_utc, end_utc)
+        with self._calendar_lock:
+            binding = self._calendar_binding
+        days = [
+            first + _dt.timedelta(days=offset)
+            for offset in range((last - first).days + 1)
+        ]
+        cached = (
+            binding
+            if (
+                binding.scope == scope
+                and binding.public.trading_day in days
+                and binding.public.status in ("BOUND", "STALE")
+            )
+            else None
+        )
+        windows, gaps = [], []
+        identity, metadata = None, None
+        complete_days = 0
+        stale = False
+        for day in days:
+            if cached is not None and cached.public.trading_day == day:
+                day_windows = cached.windows
+                day_identity = (
+                    cached.public.calendar_ref,
+                    cached.public.publication_id,
+                )
+                day_metadata = (
+                    cached.public.calendar_ref,
+                    cached.public.publication_id,
+                    cached.public.content_sha256,
+                    cached.public.coverage_status,
+                    cached.source_ids,
+                    cached.source_classification,
+                    cached.public.environment,
+                    cached.public.bound,
+                    cached.public.account_use,
+                )
+                stale = stale or cached.public.stale
+            else:
+                result, reason = self._calendar_query(scope, day)
+                if result is None:
+                    gaps.append(FeedTradingWindowGap(day, None, None, reason))
+                    continue
+                try:
+                    day_windows = tuple(result.windows)
+                    day_source_ids = tuple(result.source_ids)
+                except Exception:
+                    gaps.append(
+                        FeedTradingWindowGap(day, None, None, "CALENDAR_UNAVAILABLE")
+                    )
+                    continue
+                day_identity = (result.calendar_ref, result.publication_id)
+                day_metadata = (
+                    result.calendar_ref,
+                    result.publication_id,
+                    result.content_sha256,
+                    result.coverage_status,
+                    day_source_ids,
+                    result.source_classification,
+                    result.environment,
+                    result.bound,
+                    result.account_use,
+                )
+            if identity is None:
+                identity, metadata = day_identity, day_metadata
+            elif day_identity != identity:
+                # A concurrent CURRENT change must not mix two versions.
+                return FeedTradingWindows(
+                    "UNKNOWN", "CONFIGURATION_CHANGED", start_utc, end_utc
+                )
+            complete_days += 1
+            for window in day_windows:
+                if window.start_utc < end_utc and window.end_utc > start_utc:
+                    windows.append(window)
+        windows.sort(
+            key=lambda window: (window.start_utc, window.end_utc, window.window_id)
+        )
+        if not complete_days:
+            return FeedTradingWindows(
+                "UNKNOWN",
+                gaps[0].reason if gaps else "CALENDAR_UNAVAILABLE",
+                start_utc,
+                end_utc,
+                gaps=tuple(gaps),
+            )
+        (
+            calendar_ref,
+            publication_id,
+            content_sha256,
+            coverage_status,
+            source_ids,
+            source_classification,
+            environment,
+            bound,
+            account_use,
+        ) = metadata
+        return FeedTradingWindows(
+            status="PARTIAL" if gaps else "COMPLETE",
+            reason="RANGE_PARTIAL" if gaps else "EXPLICIT_DATA",
+            start_utc=start_utc,
+            end_utc=end_utc,
+            windows=tuple(windows),
+            gaps=tuple(gaps),
+            calendar_ref=calendar_ref,
+            publication_id=publication_id,
+            content_sha256=content_sha256,
+            coverage_status=coverage_status,
+            source_ids=source_ids,
+            source_classification=source_classification,
+            environment=environment,
+            bound=bound,
+            account_use=account_use,
+            stale=stale,
+            incomplete=bool(gaps),
+        )
 
     def gateway_trade_qualification(self, *, expected_store, expected_instrument):
         """Qualify only the Gateway Feed bound to this Store and instrument."""
