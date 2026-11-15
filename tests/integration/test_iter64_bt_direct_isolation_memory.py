@@ -230,7 +230,7 @@ def _child(mode):
             raise AssertionError("Risk import guard failed")
         assert attempts["risk"] > 0 and "bt_api_risk" not in sys.modules
         assert all(attempts[key] == 0 for key in ("network", "bind", "private_read", "write", "lock", "thread", "process"))
-    elif mode == "direct":
+    elif mode in {"direct", "direct_denied"}:
         from importlib.machinery import PathFinder
         assert PathFinder.find_spec("bt_api_risk") is not None
         import logging
@@ -385,7 +385,9 @@ def _child(mode):
         facade_module._ensure_plugins_loaded = lambda: calls.append("plugin_discovery_fake")
         facade_module.ExchangeRegistry.create_feed = create_feed
         entrypoints.load_route_entrypoint = load_entrypoint
-        api = BtApi({EXCHANGE: {"synthetic": True}}, debug=False, write_admission={EXCHANGE: True})
+        enabled = mode == "direct"
+        api = BtApi({EXCHANGE: {"synthetic": True}}, debug=False, write_admission={EXCHANGE: enabled})
+        assert api.write_admission.is_enabled(EXCHANGE) is enabled
         bt_feed = make_feed(SYMBOL)
         store = FakeStore(api, [bt_feed])
         broker = bt.brokers.BtApiBroker(store=store, strategy_dir="memory-only", first_init=True,
@@ -394,15 +396,23 @@ def _child(mode):
         assert broker._direct_active() and store.start_calls == [broker]
         order = broker.buy(SimpleNamespace(name="strategy"), bt_feed, 1, price=3500.0,
                            exectype=bt.Order.Limit, offset="open")
-        assert order.status == bt.Order.Submitted, (order.status, dict(order.info), calls)
-        assert calls.index("reserve") < calls.index("commit") < calls.index("submit")
-        provider.events.append(order_event(identity, "accepted", sys_id="1001"))
-        broker.next()
-        assert order.status == bt.Order.Accepted
-        provider.events.append(trade_event("T1", sys_id="1001", qty=1))
-        broker.next()
-        assert order.status == bt.Order.Completed
-        assert broker.getposition(bt_feed).size == 1
+        if enabled:
+            assert order.status == bt.Order.Submitted, (order.status, dict(order.info), calls)
+            assert calls.index("reserve") < calls.index("commit") < calls.index("submit")
+            provider.events.append(order_event(identity, "accepted", sys_id="1001"))
+            broker.next()
+            assert order.status == bt.Order.Accepted
+            provider.events.append(trade_event("T1", sys_id="1001", qty=1))
+            broker.next()
+            assert order.status == bt.Order.Completed
+            assert broker.getposition(bt_feed).size == 1
+        else:
+            assert order.status == bt.Order.Rejected
+            assert order.info.error_code == "write_admission_disabled"
+            assert order.executed.size == 0
+            assert not any(call in calls for call in ("reserve", "commit", "submit"))
+            assert state.pending.records == {}
+            assert broker.getposition(bt_feed).size == 0
         assert broker.stop()["status"] == "STOPPED"
         assert store.stop_calls == 1 and "memory_unlock" in calls
         api.close()
@@ -430,6 +440,13 @@ def _run_child(mode):
 
 def test_bt_direct_lifecycle_never_imports_risk_or_performs_external_io():
     attempts = _run_child("direct")["attempts"]
+    assert attempts["bind"] in (0, 1)
+    assert all(attempts[key] == 0 for key in
+               ("risk", "network", "private_read", "write", "lock", "thread", "process"))
+
+
+def test_bt_direct_disabled_admission_refuses_without_provider_write():
+    attempts = _run_child("direct_denied")["attempts"]
     assert attempts["bind"] in (0, 1)
     assert all(attempts[key] == 0 for key in
                ("risk", "network", "private_read", "write", "lock", "thread", "process"))
