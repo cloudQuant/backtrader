@@ -25,6 +25,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 _RESOURCE_GROUP = "bt_api_py.gateway_example_resources"
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_CALENDAR_FIELDS = ("route", "venue", "kind", "product", "contract")
 
 
 class GatewayExecutionConfigUnsupported(ValueError):
@@ -126,6 +127,15 @@ def validate_config(config):
         if type(config.get(name, {})) is not dict:
             raise ValueError("CONFIG_SECTION_INVALID")
     feed = config.get("feed", {})
+    calendar_section = config.get("calendars")
+    if (isinstance(calendar_section, Mapping) and "feed_scope" in calendar_section) or any(
+        "calendar_" + field in feed for field in _CALENDAR_FIELDS
+    ) or any(
+        "calendar_" + field in contracts[symbol]
+        for symbol in symbols for field in _CALENDAR_FIELDS
+    ):
+        raise ValueError("CALENDAR_SCOPE_CONFLICT")
+    gateway_calendar_scopes(parsed, symbols)
     if feed.get("timeframe", "ticks") not in {"ticks", "seconds", "minutes", "days"}:
         raise ValueError("FEED_CONFIG_INVALID")
     if type(feed.get("compression", 1)) is not int or feed.get("compression", 1) <= 0:
@@ -159,6 +169,28 @@ def validate_config(config):
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0:
         raise ValueError("TIMEOUT_INVALID")
     return parsed
+
+
+def gateway_calendar_scopes(parsed, symbols):
+    """Project explicitly declared, exact Gateway calendar scopes to feeds."""
+    settings = parsed.calendar_settings
+    if settings is None:
+        return {}
+    instruments = {key.native_symbol: key for key in parsed.instruments_by_ref.values()}
+    scopes = [dict(scope) for scope in settings.scopes]
+    if len(scopes) != len(symbols):
+        raise ValueError("CALENDAR_SCOPE_INVALID")
+    result = {}
+    for symbol in symbols:
+        instrument = instruments[symbol]
+        matches = [scope for scope in scopes
+                   if scope["route"] == parsed.exchange_name
+                   and scope["venue"] == instrument.venue
+                   and scope["contract"] == instrument.native_symbol]
+        if len(matches) != 1:
+            raise ValueError("CALENDAR_SCOPE_INVALID")
+        result[symbol] = {"calendar_" + field: matches[0][field] for field in _CALENDAR_FIELDS}
+    return result
 
 
 def configure_run_logging(config, run_dir):
@@ -333,15 +365,12 @@ def main(strategy, title, run_dir, argv=None):
         timeframe = {"ticks": bt.TimeFrame.Ticks, "seconds": bt.TimeFrame.Seconds,
                      "minutes": bt.TimeFrame.Minutes, "days": bt.TimeFrame.Days}
         feeds = []
-        # D67-11 Feed calendar scope is intentionally not wired here: in Gateway
-        # mode the Store refuses the read-only calendar query with
-        # STORE_UNAVAILABLE (`BtApiStore.trading_calendar_query` requires the SDK
-        # direct mode), so passing calendar_* would only rename a known gap and
-        # could imply a bound session. Wire the explicit scope here once the
-        # Gateway exposes its own read-only calendar query; until then the Feed
-        # keeps answering CALENDAR_SCOPE_UNAVAILABLE and never guesses a session.
+        # Only explicitly declared Gateway scopes are projected. The local
+        # calendars.root declaration is not a source or authority for this read.
+        calendar_scopes = gateway_calendar_scopes(parsed, config["symbols"])
         for symbol in config["symbols"]:
             options = dict(feed_defaults)
+            options.update(calendar_scopes.get(symbol, {}))
             for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
                 if key in contracts[symbol]:
                     options[key] = contracts[symbol][key]
