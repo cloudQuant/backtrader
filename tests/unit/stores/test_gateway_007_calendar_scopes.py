@@ -104,6 +104,10 @@ def test_main_passes_only_explicit_scopes_to_each_feed(tmp_path, monkeypatch, en
         def setcommission(self, **kwargs): pass
         def get_shutdown_summary(self): return {'status': 'PASS', 'gateway_working_orders': {'unresolved_working_orders': 0}}
     class Store:
+        _gateway_start_attempted = False
+        _gateway_closed = False
+        _gateway_composition_uncertain = False
+        _api = _gateway_execution_db = _gateway_run_lock = None
         def __init__(self, **kwargs): pass
         def getbroker(self, **kwargs): return Broker()
         def getdata(self, **kwargs):
@@ -115,6 +119,7 @@ def test_main_passes_only_explicit_scopes_to_each_feed(tmp_path, monkeypatch, en
         def adddata(self, *args, **kwargs): pass
         def addstrategy(self, *args, **kwargs): pass
         def addanalyzer(self, *args, **kwargs): pass
+        def runstop(self): pass
         def run(self): pass
     class Termination(nullcontext):
         request_state = None

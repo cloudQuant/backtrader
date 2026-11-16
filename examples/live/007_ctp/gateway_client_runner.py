@@ -252,7 +252,7 @@ def resolve_resources(name, *, config, run_dir, first_init, upgrade_state, secur
     return result
 
 
-def main(strategy, title, run_dir, argv=None):
+def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
     parser = argparse.ArgumentParser(description=f"Run {title} using an independent Gateway")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--dry-run", action="store_true", help="validate public config offline")
@@ -322,6 +322,8 @@ def main(strategy, title, run_dir, argv=None):
         print(json.dumps({"status": "BLOCKED", "error_code": "LOGGING_CONFIG_INVALID"}))
         return 2
 
+    from gateway_runner_lifecycle import RunnerLifecycle
+
     # A provider may read locally protected key files but no key or provider
     # configuration is ever printed or passed in command-line arguments.
     try:
@@ -337,143 +339,184 @@ def main(strategy, title, run_dir, argv=None):
         print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_RESOURCES_UNAVAILABLE"}))
         return 2
 
-    import backtrader as bt
-    from backtrader.live_trading import stop_on_terminate
-    from backtrader.stores.btapistore import BtApiStore
-
-    instruments = {key.native_symbol: key for key in parsed.instruments_by_ref.values()}
-    contracts = config["contracts"]
-    metadata = {symbol: {"instrument_key": instruments[symbol], "exchange_name": parsed.exchange_name,
-                         "quantity_unit": contracts[symbol]["quantity_unit"],
-                         "time_in_force": contracts[symbol]["time_in_force"],
-                         "price_tick": contracts[symbol]["price_tick"],
-                         "multiplier": contracts[symbol].get("multiplier", 1)}
-                for symbol in config["symbols"]}
-    try:
-        # Gateway mode routes by the configured exchange_name; the Store refuses
-        # direct-mode options such as symbol_routes (GATEWAY_CONFIGURATION_CONFLICT).
-        store = BtApiStore(config={"gateway_strategy": config["gateway_strategy"]},
-                           gateway_host=host, gateway_security_profiles=profiles,
-                           contract_metadata=metadata)
-        broker = store.getbroker(**config.get("broker", {}))
-        for symbol, row in contracts.items():
-            if symbol in instruments:
-                broker.setcommission(commission=0.0, margin=1.0, mult=float(row.get("multiplier", 1)), name=symbol)
-        cerebro = bt.Cerebro(stdstats=False)
-        cerebro.setbroker(broker)
-        feed_defaults = dict(config.get("feed", {}))
-        timeframe = {"ticks": bt.TimeFrame.Ticks, "seconds": bt.TimeFrame.Seconds,
-                     "minutes": bt.TimeFrame.Minutes, "days": bt.TimeFrame.Days}
-        feeds = []
-        # Only explicitly declared Gateway scopes are projected. The local
-        # calendars.root declaration is not a source or authority for this read.
-        calendar_scopes = gateway_calendar_scopes(parsed, config["symbols"])
-        for symbol in config["symbols"]:
-            options = dict(feed_defaults)
-            options.update(calendar_scopes.get(symbol, {}))
-            for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
-                if key in contracts[symbol]:
-                    options[key] = contracts[symbol][key]
-            frame = timeframe[options.pop("timeframe", "ticks")]
-            compression = options.pop("compression", 1)
-            options.setdefault("backfill_start", False)
-            options.setdefault("price_tick", contracts[symbol]["price_tick"])
-            data = store.getdata(dataname=symbol, timeframe=frame, compression=compression, **options)
-            cerebro.adddata(data, name=symbol)
-            feeds.append(data)
-        cerebro.addstrategy(strategy, **config.get("strategy_params", {}))
-        logger_config = dict(config.get("trade_logger") or {})
-        if logger_config.pop("enabled", True):
-            import datetime
-
-            stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            log_dir = (path.parent / "logs" / path.stem / stamp).resolve()
-            for key in ("log_orders", "log_trades", "log_positions", "log_signals", "log_errors",
-                        "log_value", "log_system", "log_position_snapshot"):
-                logger_config.setdefault(key, True)
-            logger_config.setdefault("log_format", "json")
-            logger_config.setdefault("log_to_console", False)
-            cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(log_dir), **logger_config)
-        seconds = args.run_seconds if args.run_seconds is not None else float(config.get("run_timeout_seconds", 0))
-        if not math.isfinite(seconds) or seconds < 0:
-            raise ValueError("TIMEOUT_INVALID")
-    except Exception as exc:
-        print(json.dumps({"status": "BLOCKED", "error_code": type(exc).__name__}))
-        return 2
-
-    # Iteration 66, §5.2 B2/B3/B5: the run-status contract writes the heartbeat
-    # and the final summary; the strategy process never imports bt_api_runtime.
-    from backtrader.live_trading import DEFAULT_HEARTBEAT_INTERVAL_S, RunStatusWriter
-    from backtrader.live_state import load_identity
-
-    stop_request_file = args.stop_request_file
-    if stop_request_file is not None:
-        # Opt-in stop-file channel, bound to this exact strategy and run.
-        if args.run_id is None:
-            print(json.dumps({"status": "BLOCKED", "error_code": "stop_request_requires_run_id"}))
-            return 2
-        try:
-            stop_request_strategy_uuid = load_identity(run_dir).strategy_uuid
-        except Exception:
-            print(json.dumps({"status": "BLOCKED", "error_code": "stop_request_identity_unavailable"}))
-            return 2
-    else:
-        stop_request_strategy_uuid = None
-    termination = stop_on_terminate(
-        cerebro,
-        stop_request_file=stop_request_file,
-        stop_request_strategy_uuid=stop_request_strategy_uuid,
-        stop_request_run_id=args.run_id,
-    )
-    contract = RunStatusWriter(
-        run_dir,
-        run_id=run_id,
-        heartbeat_interval_s=(
-            DEFAULT_HEARTBEAT_INTERVAL_S
-            if args.heartbeat_interval is None
-            else args.heartbeat_interval
-        ),
-        broker=broker,
-        feeds=feeds,
-        stop_request_provider=termination.request_state,
-    )
-    contract.start()
-
-    class RunProgress(bt.Analyzer):
-        """Stamp main-loop progress and the LIVE phase into the status file."""
-
-        params = (("contract", None),)
-
-        def start(self):
-            self.p.contract.set_phase("LIVE")
-
-        def next(self):
-            self.p.contract.loop_progress()
-
-    cerebro.addanalyzer(RunProgress, contract=contract)
+    lifecycle = RunnerLifecycle(host, profiles)
+    stage = "setup"
     failure = None
-    timer = None
+    conclusion = None
+    cleanup_confirmed = False
+
+    def diagnostic(payload):
+        try:
+            print(json.dumps(payload))
+        except BaseException:
+            pass
+
     try:
-        with termination:
-            if seconds:
-                timer = threading.Timer(seconds, cerebro.runstop)
-                timer.daemon = True
-                timer.start()
-            cerebro.run()
-    except KeyboardInterrupt as exc:
-        # SIGINT keeps propagating; the summary still records the crash.
-        failure = exc
-        raise
-    except Exception as exc:
-        failure = exc
-        print(json.dumps({"status": "CRASHED", "error_code": type(exc).__name__}))
+        try:
+            import backtrader as bt
+            from backtrader.live_trading import (
+                DEFAULT_HEARTBEAT_INTERVAL_S, RunStatusWriter, stop_on_terminate,
+            )
+            from backtrader.live_state import load_identity
+            from backtrader.stores.btapistore import BtApiStore
+
+            instruments = {key.native_symbol: key for key in parsed.instruments_by_ref.values()}
+            contracts = config["contracts"]
+            metadata = {symbol: {"instrument_key": instruments[symbol], "exchange_name": parsed.exchange_name,
+                                 "quantity_unit": contracts[symbol]["quantity_unit"],
+                                 "time_in_force": contracts[symbol]["time_in_force"],
+                                 "price_tick": contracts[symbol]["price_tick"],
+                                 "multiplier": contracts[symbol].get("multiplier", 1)}
+                        for symbol in config["symbols"]}
+            stage = "store"
+            # Gateway mode routes by the configured exchange_name; the Store refuses
+            # direct-mode options such as symbol_routes (GATEWAY_CONFIGURATION_CONFLICT).
+            store = BtApiStore(config={"gateway_strategy": config["gateway_strategy"]},
+                               gateway_host=host, gateway_security_profiles=profiles,
+                               contract_metadata=metadata)
+            lifecycle.store = store
+            stage = "broker"
+            broker = store.getbroker(**config.get("broker", {}))
+            lifecycle.broker = broker
+            for symbol, row in contracts.items():
+                if symbol in instruments:
+                    broker.setcommission(commission=0.0, margin=1.0, mult=float(row.get("multiplier", 1)), name=symbol)
+            cerebro = bt.Cerebro(stdstats=False)
+            lifecycle.cerebro = cerebro
+            cerebro.setbroker(broker)
+            feed_defaults = dict(config.get("feed", {}))
+            timeframe = {"ticks": bt.TimeFrame.Ticks, "seconds": bt.TimeFrame.Seconds,
+                         "minutes": bt.TimeFrame.Minutes, "days": bt.TimeFrame.Days}
+            feeds = []
+            # Only explicitly declared Gateway scopes are projected. The local
+            # calendars.root declaration is not a source or authority for this read.
+            calendar_scopes = gateway_calendar_scopes(parsed, config["symbols"])
+            stage = "feed"
+            for symbol in config["symbols"]:
+                options = dict(feed_defaults)
+                options.update(calendar_scopes.get(symbol, {}))
+                for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
+                    if key in contracts[symbol]:
+                        options[key] = contracts[symbol][key]
+                frame = timeframe[options.pop("timeframe", "ticks")]
+                compression = options.pop("compression", 1)
+                options.setdefault("backfill_start", False)
+                options.setdefault("price_tick", contracts[symbol]["price_tick"])
+                data = store.getdata(dataname=symbol, timeframe=frame, compression=compression, **options)
+                cerebro.adddata(data, name=symbol)
+                feeds.append(data)
+            cerebro.addstrategy(strategy, **config.get("strategy_params", {}))
+            logger_config = dict(config.get("trade_logger") or {})
+            if logger_config.pop("enabled", True):
+                import datetime
+
+                stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                log_dir = (path.parent / "logs" / path.stem / stamp).resolve()
+                for key in ("log_orders", "log_trades", "log_positions", "log_signals", "log_errors",
+                            "log_value", "log_system", "log_position_snapshot"):
+                    logger_config.setdefault(key, True)
+                logger_config.setdefault("log_format", "json")
+                logger_config.setdefault("log_to_console", False)
+                cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(log_dir), **logger_config)
+            seconds = args.run_seconds if args.run_seconds is not None else float(config.get("run_timeout_seconds", 0))
+            if not math.isfinite(seconds) or seconds < 0:
+                raise ValueError("TIMEOUT_INVALID")
+
+            stage = "termination"
+            stop_request_file = args.stop_request_file
+            if stop_request_file is not None:
+                if args.run_id is None:
+                    raise ValueError("stop_request_requires_run_id")
+                stop_request_strategy_uuid = load_identity(run_dir).strategy_uuid
+            else:
+                stop_request_strategy_uuid = None
+            termination = stop_on_terminate(
+                cerebro, stop_request_file=stop_request_file,
+                stop_request_strategy_uuid=stop_request_strategy_uuid,
+                stop_request_run_id=args.run_id,
+            )
+            lifecycle.termination = termination
+            stage = "status_writer"
+            contract = RunStatusWriter(
+                run_dir, run_id=run_id,
+                heartbeat_interval_s=(DEFAULT_HEARTBEAT_INTERVAL_S
+                    if args.heartbeat_interval is None else args.heartbeat_interval),
+                broker=broker, feeds=feeds, stop_request_provider=termination.request_state,
+            )
+            lifecycle.contract = contract
+            contract.start()
+
+            class RunProgress(bt.Analyzer):
+                params = (("contract", None),)
+
+                def start(self):
+                    self.p.contract.set_phase("LIVE")
+
+                def next(self):
+                    self.p.contract.loop_progress()
+
+            stage = "analyzer"
+            cerebro.addanalyzer(RunProgress, contract=contract)
+            # Distinguish run() failures before Cerebro's own cleanup boundary.
+            runstrategies = getattr(cerebro, "runstrategies", None)
+            if callable(runstrategies):
+                def tracked_runstrategies(*args, **kwargs):
+                    lifecycle.runstrategies_entered = True
+                    return runstrategies(*args, **kwargs)
+                cerebro.runstrategies = tracked_runstrategies
+            stage = "run"
+            with termination:
+                if seconds:
+                    lifecycle.timer = threading.Timer(seconds, cerebro.runstop)
+                    lifecycle.timer.daemon = True
+                    lifecycle.timer.start()
+                cerebro.run()
+        except BaseException as exc:
+            failure = exc
+            diagnostic({"status": "CRASHED" if stage == "run" else "BLOCKED",
+                        "stage": stage, "error_code": "GATEWAY_RUN_FAILED"})
+        finally:
+            cleanup_confirmed = lifecycle.prepare_cleanup()
+            if not cleanup_confirmed:
+                lifecycle.arm_retention(_retained_wait)
+
+        if lifecycle.contract is not None:
+            summary = None
+            if not cleanup_confirmed:
+                failure = failure or RuntimeError("GATEWAY_CLEANUP_UNCERTAIN")
+            try:
+                if cleanup_confirmed:
+                    summary = contract_broker_summary(lifecycle.broker.get_shutdown_summary())
+            except BaseException:
+                failure = failure or RuntimeError("GATEWAY_SUMMARY_FAILED")
+                diagnostic({"status": "CRASHED", "stage": "summary",
+                            "error_code": "GATEWAY_SUMMARY_FAILED"})
+            try:
+                # Never pass arbitrary exception text or codes into the status writer.
+                conclusion = lifecycle.contract.finish(
+                    broker_summary=summary,
+                    exception=RuntimeError("GATEWAY_RUN_FAILED") if failure is not None else None,
+                )
+            except BaseException:
+                failure = failure or RuntimeError("GATEWAY_FINISH_FAILED")
+                diagnostic({"status": "CRASHED", "stage": "finish",
+                            "error_code": "GATEWAY_FINISH_FAILED"})
+            finally:
+                try:
+                    lifecycle.contract.stop_heartbeat()
+                except BaseException:
+                    pass
+        if isinstance(failure, KeyboardInterrupt):
+            raise KeyboardInterrupt() from None
+        if isinstance(failure, SystemExit):
+            raise SystemExit(1) from None
+        if failure is not None:
+            return 1 if stage == "run" else 2
+        if conclusion is None:
+            return 2
+        print(json.dumps({"status": conclusion.outcome, "mode": "gateway",
+                          "exit_code": conclusion.exit_code}))
+        return conclusion.exit_code
     finally:
-        if timer is not None:
-            timer.cancel()
-        conclusion = contract.finish(
-            broker_summary=contract_broker_summary(broker.get_shutdown_summary()),
-            exception=failure,
-        )
-    print(json.dumps({"status": conclusion.outcome, "mode": "gateway",
-                      "exit_code": conclusion.exit_code}))
-    return conclusion.exit_code
+        if not cleanup_confirmed:
+            lifecycle.retain(_retained_wait)

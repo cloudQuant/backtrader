@@ -226,6 +226,10 @@ def test_main_keeps_logical_run_and_uses_process_run_id_for_writer(tmp_path, mon
         def get_shutdown_summary(self): return {'status': 'PASS', 'gateway_working_orders': {'unresolved_working_orders': 0}}
 
     class Store:
+        _gateway_start_attempted = False
+        _gateway_closed = False
+        _gateway_composition_uncertain = False
+        _api = _gateway_execution_db = _gateway_run_lock = None
         def __init__(self, *, config, **kwargs):
             seen['store_config'] = config['gateway_strategy']
         def getbroker(self, **kwargs): return Broker()
@@ -237,6 +241,7 @@ def test_main_keeps_logical_run_and_uses_process_run_id_for_writer(tmp_path, mon
         def adddata(self, data, **kwargs): pass
         def addstrategy(self, strategy, **kwargs): pass
         def addanalyzer(self, analyzer, **kwargs): pass
+        def runstop(self): pass
         def run(self): pass
 
     class Termination(nullcontext):
