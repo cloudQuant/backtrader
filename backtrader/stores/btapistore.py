@@ -5060,6 +5060,77 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 return unavailable("STORE_CHANGED")
             return result
 
+    def gateway_instrument_status(self, route, instrument, *, timeout_seconds=5.0):
+        """Read one configured Gateway instrument diagnostic; never authorize trading."""
+        from ..service.gateway_instrument_status import (
+            detached_instrument, detached_result, unavailable, validate_timeout,
+        )
+        from bt_api_py.gateway_api import GatewayBtApi
+        from bt_api_py.gateway_strategy_config import GatewayStrategyConfig
+
+        key = detached_instrument(instrument)
+        timeout = validate_timeout(timeout_seconds)
+        if type(route) is not str or not route or route != route.strip():
+            raise ValueError("INVALID_INSTRUMENT_STATUS_ROUTE")
+        deadline = time.monotonic() + timeout
+        try:
+            with self._calendar_status_lock:
+                api, config, run_lock = self._api, self._gateway_strategy_config, self._gateway_run_lock
+                generation = self._gateway_session_generation
+                status_generation = self._calendar_status_generation
+                stream_generation = self._stream_generation
+                routes = tuple(self._sdk_exchanges)
+                ready = (self._gateway_mode and not self._service_read_only and self._started
+                         and self._connected and not self._gateway_closed
+                         and self._gateway_pid == os.getpid() and api is not None
+                         and run_lock is not None and run_lock.held is True
+                         and not self._calendar_status_transitions
+                         and not self._calendar_status_stopping)
+            if not ready or type(api) is not GatewayBtApi or type(config) is not GatewayStrategyConfig:
+                return unavailable(key)
+            config_snapshot = config.to_public_dict()
+            if route not in routes or config.exchange_name != route:
+                return unavailable(key, "SCOPE_DENIED")
+            if sum(item == key for item in config.instruments_by_ref.values()) != 1:
+                return unavailable(key, "SCOPE_DENIED")
+            if "direct.instrument_status" not in config.requested_operations:
+                return unavailable(key)
+            if not self.is_connected:
+                return unavailable(key)
+            with self._calendar_status_lock:
+                if not (self._gateway_mode and not self._service_read_only and self._api is api
+                        and self._gateway_strategy_config is config and config.to_public_dict() == config_snapshot
+                        and self._gateway_run_lock is run_lock and run_lock.held is True
+                        and self._gateway_pid == os.getpid() and not self._gateway_closed
+                        and self._gateway_session_generation == generation
+                        and self._calendar_status_generation == status_generation
+                        and self._stream_generation == stream_generation
+                        and tuple(self._sdk_exchanges) == routes and self._started and self._connected
+                        and not self._calendar_status_transitions and not self._calendar_status_stopping):
+                    return unavailable(key)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return unavailable(key)
+            result = detached_result(api.query_instrument_status(
+                route, key, timeout_seconds=remaining), key)
+            if time.monotonic() >= deadline or not self.is_connected:
+                return unavailable(key)
+            with self._calendar_status_lock:
+                if not (self._gateway_mode and not self._service_read_only and self._api is api
+                        and self._gateway_strategy_config is config and config.to_public_dict() == config_snapshot
+                        and self._gateway_run_lock is run_lock and run_lock.held is True
+                        and self._gateway_pid == os.getpid() and not self._gateway_closed
+                        and self._gateway_session_generation == generation
+                        and self._calendar_status_generation == status_generation
+                        and self._stream_generation == stream_generation
+                        and tuple(self._sdk_exchanges) == routes and self._started and self._connected
+                        and not self._calendar_status_transitions and not self._calendar_status_stopping
+                        and time.monotonic() < deadline):
+                    return unavailable(key)
+                return result
+        except Exception:
+            return unavailable(key)
+
     def configure_instrument_status_port(self, port):
         """Attach the explicit read-only instrument-status observation source.
 

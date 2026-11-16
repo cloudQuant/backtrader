@@ -1947,6 +1947,52 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             incomplete=bool(gaps),
         )
 
+    def instrument_status_observation(self, *, timeout_seconds=5.0):
+        """Read only this active Gateway binding; the result grants no trading authority.
+
+        Before a Gateway subscription is bound, or after it is cleared, there
+        is no exact instrument to put in the SDK result and ValueError is raised.
+        An existing binding that becomes invalid returns SDK UNAVAILABLE.
+        """
+        from ..service.gateway_instrument_status import (
+            detached_instrument, detached_result, unavailable, validate_timeout,
+        )
+        from ..service.gateway_market_adapter import GatewayMarketAdapter
+        from ..stores.btapistore import BtApiStore
+
+        timeout = validate_timeout(timeout_seconds)
+        adapter = self.__dict__.get("_gateway_market_adapter")
+        if type(adapter) is not GatewayMarketAdapter:
+            raise ValueError("GATEWAY_INSTRUMENT_BINDING_UNAVAILABLE")
+        try:
+            key = detached_instrument(adapter._key.instrument)
+        except Exception:
+            raise ValueError("GATEWAY_INSTRUMENT_BINDING_UNAVAILABLE") from None
+        deadline = _time.monotonic() + timeout
+        store = self.store
+        symbol = self._dataname
+        try:
+            if (not isinstance(store, BtApiStore) or self._session_active is not True
+                    or type(symbol) is not str or symbol not in (key.instrument_id, key.native_symbol)
+                    or not adapter.matches(store, self, key)):
+                return unavailable(key)
+            config = store.gateway_strategy_config
+            route = config.exchange_name
+            remaining = deadline - _time.monotonic()
+            if remaining <= 0:
+                return unavailable(key)
+            result = BtApiStore.gateway_instrument_status(store, route, key, timeout_seconds=remaining)
+            checked = detached_result(result, key)
+            if (_time.monotonic() >= deadline or self.store is not store
+                    or self._dataname != symbol or self._session_active is not True
+                    or self.__dict__.get("_gateway_market_adapter") is not adapter
+                    or store.gateway_strategy_config is not config
+                    or config.exchange_name != route or not adapter.matches(store, self, key)):
+                return unavailable(key)
+            return checked
+        except Exception:
+            return unavailable(key)
+
     def gateway_trade_qualification(self, *, expected_store, expected_instrument):
         """Qualify only the Gateway Feed bound to this Store and instrument."""
         from dataclasses import replace
