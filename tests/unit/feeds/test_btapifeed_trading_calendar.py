@@ -38,7 +38,7 @@ UTC = _dt.timezone.utc
 
 
 def publish(root, *, publication_id="p1", version_id="v1", days=(MONDAY,), start="09:00",
-            mock=True, night=True):
+            mock=True, night=True, day_status="open", exceptions=()):
     """Publish one simulated CTP snapshot; this is fixture data, not an exchange fact."""
     root.mkdir(parents=True, exist_ok=True)
     ids = ["MOCK.simulation_only" if mock else "synthetic"]
@@ -83,6 +83,7 @@ def publish(root, *, publication_id="p1", version_id="v1", days=(MONDAY,), start
                     "source_ids": ids,
                 }
                 for day in days
+                if day_status == "open"
             ],
             "windows_complete": True,
             "exceptions_complete": True,
@@ -92,21 +93,21 @@ def publish(root, *, publication_id="p1", version_id="v1", days=(MONDAY,), start
     layers = {
         "sources": [{"id": ids[0], "description": "fictional"}],
         "trading_days": [
-            {"venue": "XSH", "day": day.isoformat(), "status": "open", "source_ids": ids}
+            {"venue": "XSH", "day": day.isoformat(), "status": day_status, "source_ids": ids}
             for day in days
         ],
         "trading_hours": [
             hours_row("future", "cu2601", night),
             hours_row("option", "cu2601-C-100", False),
         ],
-        "exceptions": [],
+        "exceptions": list(exceptions),
     }
     bundle = compose_simulated(
         mode=SIMULATION_ONLY,
         venues=(VenueContent.from_layers("XSH", first, last, layers),),
         snapshot_factory=CalendarSnapshot,
     )
-    assert bundle.status == "READY_SIMULATED"
+    assert bundle.status == "READY_SIMULATED", bundle
     content = json.loads(bundle.snapshot_bytes)
     artifacts = {
         "coverage_manifest_bytes": bundle.manifest_bytes,
@@ -188,12 +189,14 @@ def test_trading_session_reads_calendar_and_reports_neutral_scope(monkeypatch, t
     assert result.stale is False
     assert str(tmp_path) not in repr(result)
 
-    # An instant inside a window is open; the same day outside it is known closed.
+    # Only a matching window establishes an active phase.
     inside = feed.trading_session(at=_dt.datetime(2026, 10, 12, 9, 30, tzinfo=SHANGHAI))
     assert (inside.status, inside.phase, inside.active) == ("COMPLETE", "continuous", True)
     assert inside.active_window.window_id == "day"
     outside = feed.trading_session(at=_dt.datetime(2026, 10, 12, 12, 0, tzinfo=SHANGHAI))
-    assert (outside.status, outside.phase, outside.active) == ("COMPLETE", "closed", False)
+    assert (outside.status, outside.reason, outside.phase, outside.active) == (
+        "COMPLETE", "INSTANT_OUTSIDE_WINDOWS", "unknown", None
+    )
     assert outside.active_window is None
     # The fixture owns a Friday-evening night window as trading day Monday. The
     # instant's calendar date is never used to infer the trading day.
@@ -208,6 +211,74 @@ def test_trading_session_reads_calendar_and_reports_neutral_scope(monkeypatch, t
     assert feed.trading_session(at=MONDAY) == result
 
 
+@pytest.mark.parametrize("empty_cause", ["closed_day", "contract_close", "cancel_all"])
+def test_complete_empty_windows_do_not_prove_closed(monkeypatch, tmp_path, empty_cause):
+    ids = ["MOCK.simulation_only"]
+    exception = {
+        "venue": "XSH", "kind": "future", "product": "cu", "contract": "cu2601",
+        "trading_day": MONDAY.isoformat(), "source_ids": ids,
+    }
+    exceptions = (
+        [{**exception, "action": "close_day", "window_id": None}]
+        if empty_cause == "contract_close"
+        else [
+            {**exception, "action": "cancel_window", "window_id": window_id}
+            for window_id in ("night", "day")
+        ] if empty_cause == "cancel_all" else []
+    )
+    publish(
+        tmp_path / "calendars/ctp",
+        day_status="closed" if empty_cause == "closed_day" else "open",
+        night=empty_cause != "closed_day",
+        exceptions=exceptions,
+    )
+    store, _ = local_store(monkeypatch, tmp_path)
+    feed = make_feed(store)
+
+    for instant in (None, _dt.datetime(2026, 10, 12, 9, 30, tzinfo=SHANGHAI)):
+        result = feed.trading_session(at=instant, trading_day=MONDAY)
+        assert (result.status, result.reason, result.phase, result.active) == (
+            "COMPLETE", "NO_WINDOWS_RETURNED", "unknown", None
+        )
+        assert result.windows == () and result.active_window is None
+        assert (result.calendar_ref, result.publication_id) == ("v1", "p1")
+        assert result.content_sha256 and result.version_sha256
+        assert result.source_ids == ("MOCK.simulation_only",)
+    windows = feed.trading_windows(
+        _dt.datetime(2026, 10, 12, 9, tzinfo=SHANGHAI),
+        _dt.datetime(2026, 10, 12, 10, tzinfo=SHANGHAI),
+    )
+    assert (windows.status, windows.reason, windows.windows, windows.incomplete) == (
+        "COMPLETE", "EXPLICIT_DATA", (), False
+    )
+    assert (windows.calendar_ref, windows.publication_id) == ("v1", "p1")
+
+
+def test_instant_boundaries_and_other_days_never_infer_closed(monkeypatch, tmp_path):
+    publish(tmp_path / "calendars/ctp")
+    store, _ = local_store(monkeypatch, tmp_path)
+    feed = make_feed(store)
+    initial = feed.trading_session(trading_day=MONDAY)
+    night, day = initial.windows
+    epsilon = _dt.timedelta(microseconds=1)
+    for window in (night, day):
+        for instant in (window.start_utc, window.end_utc - epsilon):
+            hit = feed.trading_session(at=instant)
+            assert (hit.reason, hit.phase, hit.active, hit.active_window) == (
+                "EXPLICIT_DATA", "continuous", True, window
+            )
+        for instant in (window.start_utc - epsilon, window.end_utc):
+            missed = feed.trading_session(at=instant)
+            assert (missed.status, missed.reason, missed.phase, missed.active) == (
+                "COMPLETE", "INSTANT_OUTSIDE_WINDOWS", "unknown", None
+            )
+            assert missed.windows == initial.windows and missed.calendar_ref == "v1"
+    far_future = feed.trading_session(at=_dt.datetime(2040, 1, 1, tzinfo=UTC))
+    assert (far_future.trading_day, far_future.reason, far_future.phase, far_future.active) == (
+        MONDAY, "INSTANT_OUTSIDE_WINDOWS", "unknown", None
+    )
+
+
 def test_unavailable_calendar_never_fabricates_a_session(monkeypatch, tmp_path):
     # The configured root exists only as a path; its CURRENT is absent.
     store, _ = local_store(monkeypatch, tmp_path)
@@ -220,6 +291,12 @@ def test_unavailable_calendar_never_fabricates_a_session(monkeypatch, tmp_path):
     assert (missing.calendar_ref, missing.publication_id) == (None, None)
     assert missing.stale is False
     assert str(tmp_path) not in repr(missing)
+    missing_at = feed.trading_session(
+        at=_dt.datetime(2026, 10, 12, 9, 30, tzinfo=SHANGHAI), trading_day=MONDAY
+    )
+    assert (missing_at.status, missing_at.reason, missing_at.phase, missing_at.active) == (
+        "UNKNOWN", "CURRENT_UNAVAILABLE", "unknown", None
+    )
 
     publish(tmp_path / "calendars/ctp")
     store, _ = local_store(monkeypatch, tmp_path)

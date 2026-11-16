@@ -348,12 +348,12 @@ class FeedTradingSession:
     """Neutral session projection of one Feed-bound calendar scope (D67-11).
 
     ``status`` is ``COMPLETE`` only when a published calendar version answered
-    for the exact trading day; ``windows`` may then be empty, which is the
-    calendar's explicit known-closed day, not an unavailable one. ``phase`` is
-    ``auction``/``continuous``/``closed`` when ``at`` was supplied and the day
-    is COMPLETE, otherwise ``unknown`` with ``active`` None. ``stale`` reports
-    that the answer came from a retained version after a failed re-read. No
-    field here proves source identity, runtime binding or trading authority.
+    for the exact trading day. An empty ``windows`` tuple does not prove a
+    closed day. For an ``at`` instant inside a returned window, ``phase`` is
+    that window's phase and ``active`` is True. Otherwise ``phase`` is
+    ``unknown`` and ``active`` is None. ``stale`` reports that the answer came
+    from a retained version after a failed re-read. No field here proves source
+    identity, runtime binding or trading authority.
     """
 
     status: str
@@ -1434,10 +1434,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         day, so the day must be bound or supplied. With an explicit day that
         differs from the binding, the day-advance rule above re-reads CURRENT.
 
-        Returns a :class:`FeedTradingSession`. ``COMPLETE`` with empty
-        ``windows`` is the calendar's explicit known-closed day; a missing or
-        unavailable calendar always yields ``UNKNOWN`` with no fabricated
-        default session and no wall-clock weekday guess.
+        Returns a :class:`FeedTradingSession`. ``COMPLETE`` describes the
+        window query; empty windows or an instant outside the returned windows
+        do not establish a closed session. A missing or unavailable calendar
+        yields ``UNKNOWN`` with no fabricated default session or weekday guess.
         """
         if trading_day is not None and type(trading_day) is not _dt.date:
             return FeedTradingSession("UNKNOWN", "INVALID_QUERY_SCOPE", None)
@@ -1493,6 +1493,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 stale=state.stale,
             )
         phase, active, active_window = "unknown", None, None
+        reason = "EXPLICIT_DATA" if binding.windows else "NO_WINDOWS_RETURNED"
         if instant is not None:
             moment = instant.astimezone(_UTC)
             for window in binding.windows:
@@ -1501,11 +1502,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     break
             if active_window is not None:
                 phase, active = active_window.phase, True
-            else:
-                phase, active = "closed", False
+            elif binding.windows:
+                reason = "INSTANT_OUTSIDE_WINDOWS"
         return FeedTradingSession(
             status="COMPLETE",
-            reason="EXPLICIT_DATA",
+            reason=reason,
             trading_day=trading_day,
             phase=phase,
             active=active,
@@ -1547,7 +1548,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         and are returned only when they intersect the range.
 
         Returns a :class:`FeedTradingWindows`: ``COMPLETE`` when every
-        candidate day answered (an empty window tuple there is a known-closed
+        candidate day answered (an empty window tuple does not prove a closed
         range), ``PARTIAL`` with ``gaps`` when some did not, and ``UNKNOWN``
         when none did or the calendar is unavailable. A concurrent version
         change across days discards the whole read as
