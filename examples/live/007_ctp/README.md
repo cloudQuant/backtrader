@@ -453,7 +453,7 @@ conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --dry-r
 conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --run-seconds 600
 ```
 
-11 个 Gateway 模板默认选择独立 Risk 客户端，新订单通过 Risk；Risk 不可用时不能直接绕过。Gateway 与 Risk 的服务地址、服务身份、账户、策略、运行作用域和授权均为占位，部署时须分别与实际服务一致；两者使用独立的安全配置及受保护密钥文件。Runtime 管理和 Monitor 观察由独立服务组合提供，模板未证明 Execution 已接通完整订单链路。默认自成交检查缺少完整来源切点时，Risk 对 OPEN/CLOSE 失败关闭。
+11 个 Gateway 模板默认选择独立 Risk 和 Execution 客户端；服务地址、身份、账户、策略、运行作用域及授权均为占位，部署时须分别与实际服务一致，并使用独立安全 profile 和受保护密钥文件。每个合约均有开仓及三种平仓限价路由，平仓引用和授权由运营填写。模板中的交易日、允许交易日和绝对截止时间均为已过期的有限演示值；匹配这些限价规则的订单因截止时间过期而被拒绝，未匹配订单仍按 NO_MATCH 和 Risk 合同处理；运营须按实际授权逐项替换，不从本地时钟推断交易日。选中 Execution 时运行 ID 同步到三条 route；Store 在持有运行锁时升级 v8。 当前 v8 状态绑定原 Execution 路由配置，修改交易日或期限会改变配置身份，跨日滚动尚不支持；不得删除日志或重建状态来绕过该限制。Runtime 管理和 Monitor 观察由独立服务组合提供，模板不证明完整订单链路。默认自成交检查缺少完整来源切点时，Risk 对 OPEN/CLOSE 失败关闭。
 
 `config.yaml` 为公开占位配置，须与实际 Gateway 的账户、策略、会话、合约和授权配置对齐。默认 `local_files` 加载器从受保护文件读取 CURVE 密钥，并要求首次显式 `--first-init` 创建本地身份及示例初始化标记、登记授权后再 `--upgrade-state`；标记仅防误用，不证明账户空仓、writer fence 或授权；也可选择安装可信 `bt_api_py.gateway_example_resources` entry point。密钥不应放进 YAML、命令行或日志；加载器不授予账户权限。文件权限、初始化和受信工厂接口见各示例 README；离线 `--dry-run` 不加载密钥也不联网。
 

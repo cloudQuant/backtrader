@@ -169,6 +169,11 @@ def validate_security_file_config(config, raw, strategy_dir):
     if risk is not None:
         # The Risk service has its own server key, under its own profile name.
         names.add(risk.security_profile_ref)
+    execution = getattr(config, "execution_selection", None)
+    if execution is not None:
+        if execution.security_profile_ref in names:
+            raise RuntimeError("SECURITY_PROFILES_INVALID")
+        names.add(execution.security_profile_ref)
     if type(raw) is not dict or set(raw) != names:
         raise RuntimeError("SECURITY_PROFILES_INVALID")
     result = {}
@@ -188,6 +193,12 @@ def validate_security_file_config(config, raw, strategy_dir):
                 key_path = strategy_dir / key_path
             paths.append(key_path)
         result[name] = paths
+    if execution is not None:
+        execution_paths = {os.path.abspath(path) for path in result[execution.security_profile_ref]}
+        other_paths = {os.path.abspath(path) for name, paths in result.items()
+                       if name != execution.security_profile_ref for path in paths}
+        if len(execution_paths) != 3 or execution_paths & other_paths:
+            raise RuntimeError("SECURITY_PROFILES_INVALID")
     return result
 
 
@@ -267,7 +278,7 @@ def load_local_resources(config, *, strategy_dir, first_init, upgrade_state, sec
             if version == 5:
                 host.upgrade_for_local_notifications()
                 version = 6
-            if version != 6:
+            if version not in (6, 7, 8) or (version == 8 and getattr(config, "execution_selection", None) is None):
                 raise RuntimeError("GATEWAY_STATE_VERSION_UNSUPPORTED")
             host.load_execution_checkpoint()
             host.local_order_notifications()
@@ -276,8 +287,10 @@ def load_local_resources(config, *, strategy_dir, first_init, upgrade_state, sec
         raise ResourceSetupRequired("LOCAL_STATE_UPGRADED")
     path = state.pending.path
     pending = validate_pending_state(read_json(path), path, state.strategy_uuid)
-    if pending["version"] != 6:
+    if pending["version"] not in (6, 7, 8):
         raise RuntimeError("GATEWAY_STATE_UPGRADE_REQUIRED")
+    if pending["version"] == 8 and getattr(config, "execution_selection", None) is None:
+        raise RuntimeError("GATEWAY_STATE_EXECUTION_SELECTION_REQUIRED")
     host.load_execution_checkpoint()
     host.local_order_notifications()
     return host, _security_profiles(config, security_files, strategy_dir)

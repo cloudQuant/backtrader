@@ -124,6 +124,220 @@ gateway_strategy:
     - risk.order.release
     - risk.order.status
     - risk.status
+  # Execution is selected. All dates/deadlines below are expired demonstration values.
+  # Before use, replace every trading_day, allowed_trading_days and absolute deadline
+  # with the operator-authorized trading day and bounded deadline; never infer them
+  # from the local clock. Replace each close target, grant, delegation and build ID.
+  execution:
+    client_config:
+      client_config_schema_version: 1
+      process_role: strategy_client
+      registration:
+        strategy_ref: replace-with-registered-strategy-uuid
+      clients:
+        gateway:
+          config_schema_version: 1
+          settings:
+            bindings:
+            - mount: broker.direct_write
+              service_id: gateway
+              instance_id: instance
+              scope_ref: scope
+              account_ref: account
+              transport_ref: transport
+            - mount: store.market
+              service_id: gateway
+              instance_id: instance
+              scope_ref: scope
+              transport_ref: transport
+        execution:
+          config_schema_version: 1
+          settings:
+            bindings:
+            - mount: broker.execution_parent
+              service_id: execution
+              instance_id: execution-a
+              scope_ref: execution-scope
+              account_ref: account
+              transport_ref: execution-transport
+      communication:
+        config_schema_version: 1
+        profiles:
+          transport:
+            backend: zmq
+            config_schema_version: 1
+            endpoints:
+              rpc_connect: tcp://127.0.0.1:12345
+              market_connect: tcp://127.0.0.1:12346
+            security_profile_ref: security
+          execution-transport:
+            backend: zmq
+            config_schema_version: 1
+            endpoints:
+              rpc_connect: tcp://127.0.0.1:12365
+            security_profile_ref: execution-security
+    route:
+      mount: broker.execution_parent
+      service_id: execution
+      instance_id: execution-a
+      scope_ref: execution-scope
+      scope:
+        execution_domain_ref: domain
+        account_ref: account
+        account_refs: []
+        strategy_ref: replace-with-registered-strategy-uuid
+        run_id: run
+        manual_book_ref: null
+        portfolio_ref: null
+        group_id: null
+        leg_id: null
+      identity:
+        role: strategy_client
+        principal_ref: principal
+        actor_ref: replace-with-registered-strategy-uuid
+        delegate_ref: null
+    peer:
+      role: service
+      principal_ref: execution-principal
+      actor_ref: execution
+      delegate_ref: null
+    requested_operations:
+    - execution.parent.submit
+    - execution.parent.query
+    routing:
+      schema_version: 2
+      component: execution-a
+      account_ref: account
+      strategy_ref: replace-with-registered-strategy-uuid
+      execution_domain_ref: domain
+      grant_revision: replace-with-execution-grant-v1
+      delegation:
+        delegation_id: replace-with-delegation-id
+        principal_ref: principal
+      instruments:
+      - provider: ctp
+        venue: SHFE
+        environment: demo
+        product_type: future
+        instrument_id: rb2701
+        native_symbol: rb2701
+      rules:
+      - id: rb2701-open
+        match:
+          instrument:
+            provider: ctp
+            venue: SHFE
+            environment: demo
+            product_type: future
+            instrument_id: rb2701
+            native_symbol: rb2701
+          offset: open
+          order_types:
+          - limit
+          minimum_quantity: '1'
+          quantity_unit: contracts
+        scheme:
+          name: pass-v1
+          version: 1
+        schedule_binding:
+          quantity_step: '1'
+          price_step: '1'
+          retry_limit: 0
+        deadline:
+          kind: absolute
+          at: '2026-01-05T15:00:00+08:00'
+        time_in_force: DAY
+        trading_day: '20260105'
+        allowed_trading_days:
+        - '20260105'
+      - id: rb2701-close
+        match:
+          instrument:
+            provider: ctp
+            venue: SHFE
+            environment: demo
+            product_type: future
+            instrument_id: rb2701
+            native_symbol: rb2701
+          offset: close
+          order_types:
+          - limit
+          minimum_quantity: '1'
+          quantity_unit: contracts
+        scheme:
+          name: pass-v1
+          version: 1
+        schedule_binding:
+          quantity_step: '1'
+          price_step: '1'
+          retry_limit: 0
+        deadline:
+          kind: absolute
+          at: '2026-01-05T15:00:00+08:00'
+        time_in_force: DAY
+        trading_day: '20260105'
+        allowed_trading_days:
+        - '20260105'
+        target_position_ref: replace-rb2701-position-ref
+      - id: rb2701-close_today
+        match:
+          instrument:
+            provider: ctp
+            venue: SHFE
+            environment: demo
+            product_type: future
+            instrument_id: rb2701
+            native_symbol: rb2701
+          offset: close_today
+          order_types:
+          - limit
+          minimum_quantity: '1'
+          quantity_unit: contracts
+        scheme:
+          name: pass-v1
+          version: 1
+        schedule_binding:
+          quantity_step: '1'
+          price_step: '1'
+          retry_limit: 0
+        deadline:
+          kind: absolute
+          at: '2026-01-05T15:00:00+08:00'
+        time_in_force: DAY
+        trading_day: '20260105'
+        allowed_trading_days:
+        - '20260105'
+        target_position_ref: replace-rb2701-position-ref
+      - id: rb2701-close_yesterday
+        match:
+          instrument:
+            provider: ctp
+            venue: SHFE
+            environment: demo
+            product_type: future
+            instrument_id: rb2701
+            native_symbol: rb2701
+          offset: close_yesterday
+          order_types:
+          - limit
+          minimum_quantity: '1'
+          quantity_unit: contracts
+        scheme:
+          name: pass-v1
+          version: 1
+        schedule_binding:
+          quantity_step: '1'
+          price_step: '1'
+          retry_limit: 0
+        deadline:
+          kind: absolute
+          at: '2026-01-05T15:00:00+08:00'
+        time_in_force: DAY
+        trading_day: '20260105'
+        allowed_trading_days:
+        - '20260105'
+        target_position_ref: replace-rb2701-position-ref
+      algorithm_build_id: replace-with-approved-build-id
   client_config:
     client_config_schema_version: 1
     process_role: strategy_client
@@ -253,3 +467,7 @@ gateway_resource_files:
     server_public_key_file: state/keys/risk.public
     client_public_key_file: state/keys/risk-strategy.public
     client_secret_key_file: state/keys/risk-strategy.secret
+  execution-security:
+    server_public_key_file: state/keys/execution.public
+    client_public_key_file: state/keys/execution-strategy.public
+    client_secret_key_file: state/keys/execution-strategy.secret

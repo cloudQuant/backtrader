@@ -7,6 +7,7 @@ must not create a Gateway, provider, native trading session, or market session.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import re
@@ -99,6 +100,9 @@ def validate_config(config):
             or type(contracts) is not dict or any(symbol not in contracts for symbol in symbols)):
         raise ValueError("CONTRACTS_INVALID")
     parsed = parse_gateway_strategy_config(config.get("gateway_strategy"))
+    if (getattr(parsed, "execution_selection", None) is not None
+            and getattr(parsed, "risk_selection", None) is None):
+        raise ValueError("EXECUTION_REQUIRES_RISK")
     instruments = list(parsed.instruments_by_ref.values())
     if sorted(symbols) != sorted(key.native_symbol for key in instruments):
         raise ValueError("INSTRUMENT_SCOPE_INVALID")
@@ -156,6 +160,17 @@ def validate_config(config):
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0:
         raise ValueError("TIMEOUT_INVALID")
     return parsed
+
+
+def bind_run_id(config, run_id):
+    """Bind all selected service routes to the same explicit run identity."""
+    result = copy.deepcopy(config)
+    gateway = result["gateway_strategy"]
+    gateway["route"]["scope"]["run_id"] = run_id
+    for name in ("risk", "execution"):
+        if isinstance(gateway.get(name), dict):
+            gateway[name]["route"]["scope"]["run_id"] = run_id
+    return result
 
 
 def configure_run_logging(config, run_dir):
@@ -273,6 +288,20 @@ def main(strategy, title, run_dir, argv=None):
         print(json.dumps({"status": "BLOCKED", "error_code": gate.code}))
         return 2
 
+    if (getattr(parsed, "execution_selection", None) is not None
+            and args.stop_request_file is not None and args.run_id is None):
+        print(json.dumps({"status": "BLOCKED", "error_code": "stop_request_requires_run_id"}))
+        return 2
+    run_id = args.run_id
+    if getattr(parsed, "execution_selection", None) is not None:
+        run_id = run_id or str(uuid.uuid4())
+        try:
+            config = bind_run_id(config, run_id)
+            parsed = validate_config(config)
+        except Exception:
+            print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_CONFIG_INVALID"}))
+            return 2
+
     try:
         configure_run_logging(config, run_dir)
     except Exception:
@@ -387,7 +416,7 @@ def main(strategy, title, run_dir, argv=None):
     )
     contract = RunStatusWriter(
         run_dir,
-        run_id=args.run_id,
+        run_id=run_id,
         heartbeat_interval_s=(
             DEFAULT_HEARTBEAT_INTERVAL_S
             if args.heartbeat_interval is None
