@@ -238,9 +238,11 @@ def _event(event: GatewayExecutionStreamEvent, state: dict, binding) -> dict:
     event = GatewayExecutionStreamEvent.from_mapping(
         event.to_mapping(schema_version=3), schema_version=3
     )
+    from .gateway_execution_route import require_route
+    require_route(state, event.request_key, {"GATEWAY", "RISK"})
     entry = state["gateway"]["intents"].get(event.request_key)
     delegated = None
-    if state["version"] == 7 and entry is not None and entry["record"] is None:
+    if state["version"] in (7, 8) and entry is not None and entry["record"] is None:
         delegated = state["gateway"]["delegated_commands"].get(event.request_key)
     if delegated is not None:
         return _delegated_event(event, state, binding, entry, delegated)
@@ -549,7 +551,7 @@ def upgrade_for_execution(
             }
             validate_execution_state(state, host._binding)
             host._store._store(state, trim_history=False)
-        elif state["version"] in (4, 5, 6, 7):
+        elif state["version"] in (4, 5, 6, 7, 8):
             execution = state["gateway"]["execution"]
             if (
                 execution["consumer_ref"] != consumer_ref
@@ -566,7 +568,7 @@ def upgrade_for_execution(
 def _load(host):
     state = host._store._load()
     host._check_state(state)
-    if state["version"] not in (4, 5, 6, 7):
+    if state["version"] not in (4, 5, 6, 7, 8):
         raise ValueError("GATEWAY_EXECUTION_UPGRADE_REQUIRED")
     return state, state["gateway"]["execution"]
 
@@ -901,7 +903,7 @@ def record_ack(host, progress):
 
 def has_unresolved_gateway_execution(state: dict) -> bool:
     """Check watermarks and the explicitly persisted notification batch."""
-    if state["version"] not in (4, 5, 6, 7):
+    if state["version"] not in (4, 5, 6, 7, 8):
         return False
     execution = state["gateway"]["execution"]
     return (

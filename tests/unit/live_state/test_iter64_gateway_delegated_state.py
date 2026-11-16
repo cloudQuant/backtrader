@@ -95,7 +95,7 @@ def test_older_files_need_the_earlier_upgrades_first(state, inputs):
 def test_a_version_newer_than_this_code_knows_is_refused(risk_host, state):
     data = raw(state)
     validate_pending_state(data, state.pending.path, data["strategy_uuid"])  # v7 opens
-    data["version"] = 8
+    data["version"] = 9
     with pytest.raises(LiveStateCorrupt, match="version_unsupported"):
         validate_pending_state(data, state.pending.path, data["strategy_uuid"])
 

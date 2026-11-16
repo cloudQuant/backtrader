@@ -270,7 +270,7 @@ def validate_order_state(state):
         total += len(_json_bytes(snap))
         if total > limit:
             raise ValueError("GATEWAY_ORDER_CAPACITY_EXCEEDED")
-    if state["version"] in (6, 7):
+    if state["version"] in (6, 7, 8):
         notices = gateway["local_notifications"]
         if type(notices) is not dict or len(notices) > 2 * gateway["max_entries"]:
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CAPACITY")
@@ -328,7 +328,7 @@ def validate_order_state(state):
                     or notice["status"] not in ("pending", "confirmed")
                     or notice["notification_id"] != _notice_id(state, key, envelope)):
                 raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
-    if state["version"] == 7:
+    if state["version"] in (7, 8):
         _validate_delegated(state)
 
 
@@ -376,7 +376,7 @@ def upgrade_for_local_notifications(host):
             state["version"] = 6
             state["gateway"]["local_notifications"] = {}
             host._store._store(state, trim_history=False)
-        elif state["version"] not in (6, 7):
+        elif state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
     return host
 
@@ -395,7 +395,7 @@ def upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding, *,
             state["gateway"]["max_order_snapshot_bytes"] = max_order_snapshot_bytes
             state["gateway"]["order_snapshots"] = {}
             host._store._store(state, trim_history=False)
-        elif state["version"] in (5, 6, 7):
+        elif state["version"] in (5, 6, 7, 8):
             if state["gateway"]["max_order_snapshot_bytes"] != max_order_snapshot_bytes:
                 raise ValueError("GATEWAY_ORDER_CAPACITY_MISMATCH")
         else:
@@ -403,7 +403,8 @@ def upgrade_for_order_state(cls, strategy_dir, strategy_uuid, binding, *,
     return host
 
 
-def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submitted=False):
+def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submitted=False,
+                      execution_configuration_id=None):
     if type(local_submitted) is not bool:
         raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
     if not is_strict_int(local_seq, minimum=1) or not is_strict_int(bt_ref, minimum=1):
@@ -413,9 +414,9 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submit
     with host._store._lock():
         state = host._store._load()
         entries = host._check_state(state)
-        if state["version"] not in (5, 6, 7):
+        if state["version"] not in (5, 6, 7, 8):
             raise ValueError("GATEWAY_ORDER_UPGRADE_REQUIRED")
-        if local_submitted and state["version"] not in (6, 7):
+        if local_submitted and state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
         snap = _snapshot(snapshot, canonical.request_key, bt_ref,
@@ -425,6 +426,20 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submit
         previous = gateway["order_snapshots"].get(canonical.request_key)
         entry = entries.get(canonical.request_key)
         first_intent = entry is None
+        from .gateway_execution_route import make_pending, require_route
+        if execution_configuration_id is not None:
+            if state["version"] != 8:
+                raise ValueError("GATEWAY_EXECUTION_ROUTING_UPGRADE_REQUIRED")
+            routes = gateway["execution_routes"]
+            candidate = make_pending(canonical, execution_configuration_id)
+            if entry is not None and canonical.request_key not in routes:
+                raise ValueError("GATEWAY_EXECUTION_ROUTE_TOO_LATE")
+            if entry is not None and entry["intent"] != mapping:
+                raise ValueError("GATEWAY_INTENT_CONFLICT")
+            if canonical.request_key in routes and routes[canonical.request_key] != candidate:
+                raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
+        else:
+            require_route(state, canonical.request_key, {"GATEWAY", "RISK"})
         if previous is None and entry is not None and any(
             entry[name] is not None for name in ("record", "marker_id", "release")
         ):
@@ -446,11 +461,18 @@ def save_order_intent(host, intent, *, local_seq, bt_ref, snapshot, local_submit
                 changed = True
             elif notices[canonical.request_key]["notification_id"] != notice_id:
                 raise ValueError("GATEWAY_LOCAL_NOTIFICATION_CONFLICT")
+        if execution_configuration_id is not None and canonical.request_key not in routes:
+            routes[canonical.request_key] = candidate
+            changed = True
         validate_order_state(state)
         if changed:
             host._store._store(state)
         if local_submitted and first_intent:
-            return host._issue_risk_reserve_ticket(mapping)
+            ticket = host._issue_risk_reserve_ticket(mapping)
+            if execution_configuration_id is not None:
+                from .gateway_execution_route import issue_direct_decision
+                issue_direct_decision(host, candidate)
+            return ticket
     return None
 
 
@@ -458,7 +480,7 @@ def iter_order_snapshots(host):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] not in (5, 6, 7):
+        if state["version"] not in (5, 6, 7, 8):
             return {}
         snapshots = state["gateway"]["order_snapshots"]
         return copy.deepcopy({key: snapshots[key] for key in sorted(snapshots)})
@@ -468,7 +490,7 @@ def load_order_snapshot(host, request_key):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] not in (5, 6, 7):
+        if state["version"] not in (5, 6, 7, 8):
             return None
         return copy.deepcopy(state["gateway"]["order_snapshots"].get(request_key))
 
@@ -477,7 +499,7 @@ def local_notifications(host):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] not in (6, 7):
+        if state["version"] not in (6, 7, 8):
             return {}
         return copy.deepcopy(state["gateway"]["local_notifications"])
 
@@ -488,9 +510,11 @@ def save_released_notification(host, request_key, *, bt_ref, snapshot):
     with host._store._lock():
         state = host._store._load()
         entries = host._check_state(state)
-        if state["version"] not in (6, 7):
+        if state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
+        from .gateway_execution_route import require_route
+        require_route(state, request_key, {"GATEWAY", "RISK"})
         entry = entries.get(request_key)
         if (entry is None or not _never_sent_final(gateway, entries, request_key)
                 or request_key not in gateway["local_notifications"]):
@@ -524,9 +548,11 @@ def save_rejected_notification(host, request_key, *, bt_ref, snapshot, code):
     with host._store._lock():
         state = host._store._load()
         entries = host._check_state(state)
-        if state["version"] not in (6, 7):
+        if state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         gateway = state["gateway"]
+        from .gateway_execution_route import require_route
+        require_route(state, request_key, {"GATEWAY", "RISK"})
         entry = entries.get(request_key)
         if (entry is None or request_key not in gateway["local_notifications"]
                 or any(entry[name] is not None for name in ("record", "marker_id", "release"))
@@ -556,7 +582,7 @@ def confirm_local_notifications(host, entries):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] not in (6, 7):
+        if state["version"] not in (6, 7, 8):
             raise ValueError("GATEWAY_LOCAL_NOTIFICATION_UPGRADE_REQUIRED")
         notices = state["gateway"]["local_notifications"]
         for key, notice_id in entries.items():
@@ -587,14 +613,14 @@ def upgrade_for_risk_routing(host):
             state["gateway"]["delegated_cancel_attempts"] = {}
             validate_order_state(state)
             host._store._store(state, trim_history=False)
-        elif state["version"] != 7:
+        elif state["version"] not in (7, 8):
             raise ValueError("GATEWAY_RISK_ROUTING_UPGRADE_REQUIRED")
     return host
 
 
 def _v7(host, state):
     entries = host._check_state(state)
-    if state["version"] != 7:
+    if state["version"] not in (7, 8):
         raise ValueError("GATEWAY_RISK_ROUTING_UPGRADE_REQUIRED")
     return entries
 
@@ -603,7 +629,7 @@ def load_delegated_command(host, request_key):
     with host._store._lock():
         state = host._store._load()
         entries = host._check_state(state)
-        if state["version"] != 7:
+        if state["version"] not in (7, 8):
             return None
         value = state["gateway"]["delegated_commands"].get(request_key)
         return None if value is None else _delegated_record(value, request_key, entries,
@@ -622,6 +648,8 @@ def save_delegated_command(host, request_key, *, reservation_id, digest, permit_
     with host._store._lock():
         state = host._store._load()
         entries = _v7(host, state)
+        from .gateway_execution_route import require_route
+        require_route(state, request_key, {"RISK"})
         records = state["gateway"]["delegated_commands"]
         old = records.get(request_key)
         new = {"schema_version": 1, "request_key": request_key,
@@ -690,7 +718,7 @@ def load_delegated_cancel_plan(host, operation_id):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] != 7:
+        if state["version"] not in (7, 8):
             return None
         attempt = state["gateway"]["delegated_cancel_attempts"].get(operation_id)
         return None if attempt is None else _delegated_cancel_plan(attempt["plan"], state,
@@ -731,7 +759,7 @@ def load_delegated_cancel_observation(host, operation_id):
     with host._store._lock():
         state = host._store._load()
         host._check_state(state)
-        if state["version"] != 7:
+        if state["version"] not in (7, 8):
             return None
         attempt = state["gateway"]["delegated_cancel_attempts"].get(operation_id)
         if attempt is None or attempt["observation"] is None:
