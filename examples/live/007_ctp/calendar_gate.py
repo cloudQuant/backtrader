@@ -4,11 +4,13 @@ Frozen decision (iteration 67 plan/design, D67-01, user decision C on
 2026-11-11): a Gateway entry, or a direct entry with SDK write admission
 enabled, must declare ``calendars.root`` explicitly; when it is missing the
 start is refused with ``calendar_root_unconfigured``.  ``root: package_seed``
-may be declared, but these entries do not implement the package-seed runtime
-binding, so they refuse it with ``calendar_package_seed_unsupported`` instead
-of silently falling back to the old built-in constants.  The offline
-``--dry-run`` only reports configuration problems: it never creates a Store or
-Broker, and it does not refuse a merely unconfigured entry.
+is accepted as an explicit selection: a direct entry's Store installs the
+committed synthetic in-package seed at live start (``SYNTHETIC_MOCK``, not
+exchange truth), and a Gateway entry only declares the root for the separately
+operated Gateway process, which must install or read it itself.  The gate never
+installs, reads or creates anything.  The offline ``--dry-run`` only reports
+configuration problems: it never creates a Store or Broker, and it does not
+refuse a merely unconfigured entry.
 
 D67-01 leaves the unconfigured behaviour outside Gateway or direct write
 admission undecided ("67.01 另行冻结").  These example entries are live
@@ -57,7 +59,8 @@ class CalendarGateRefusal(ValueError):
 
 @dataclass(frozen=True)
 class CalendarGateResult:
-    """``kind`` is ``directory`` (parsed), ``declared`` (Gateway live) or ``unconfigured``.
+    """``kind`` is ``directory`` or ``package_seed`` (parsed), ``declared`` (Gateway live)
+    or ``unconfigured``.
 
     ``code`` is set only for an unconfigured result, which the caller reports:
     the dry-run passes with that code and the live start refuses it.
@@ -70,6 +73,22 @@ class CalendarGateResult:
 
 def _section(config):
     return config.get("calendars") if isinstance(config, Mapping) else None
+
+
+def _parser_config(config):
+    """Drop only the consumer-side ``feed_scope`` before the SDK parser sees it.
+
+    ``feed_scope`` is validated separately by ``calendar_feed_scope`` and wired
+    into the Feed; every other ``calendars`` key still reaches the parser, so
+    an unknown or malformed key keeps its original finite refusal instead of
+    being hidden by this gate.
+    """
+    if not isinstance(config, Mapping) or "calendars" not in config:
+        return config
+    section = config["calendars"]
+    if type(section) is dict:
+        section = {key: value for key, value in section.items() if key != "feed_scope"}
+    return {**config, "calendars": section}
 
 
 def check_direct_calendar(config, *, config_file, ctp_routes, configured_routes):
@@ -88,10 +107,13 @@ def check_direct_calendar(config, *, config_file, ctp_routes, configured_routes)
 
     try:
         candidate, _roots = parse_direct_calendar_status(
-            config,
+            _parser_config(config),
             config_file=config_file,
             ctp_routes=ctp_routes,
             configured_routes=configured_routes,
+            # The direct Store materializes the committed synthetic seed before
+            # reading; the gate itself still reads and creates nothing.
+            package_seed_binding=True,
         )
     except ValueError as exc:
         code = exc.args[0] if exc.args else ""
@@ -108,19 +130,19 @@ def check_direct_calendar(config, *, config_file, ctp_routes, configured_routes)
         raise CalendarGateRefusal(CALENDAR_CONFIG_INVALID) from None
     except Exception:  # pragma: no cover - defensive: parser import/shape failure
         raise CalendarGateRefusal(CALENDAR_CONFIG_INVALID) from None
-    if candidate.root_kind != "directory":
+    if candidate.root_kind not in ("directory", "package_seed"):
         raise CalendarGateRefusal(CALENDAR_CONFIG_INVALID)
-    return CalendarGateResult("directory")
+    return CalendarGateResult(candidate.root_kind)
 
 
 def check_gateway_calendar(config, *, config_file, dry_run):
     """Classify a Gateway entry's ``calendars`` section.
 
     ``--dry-run`` parses the declared section with the SDK parser, as before.
-    A live Gateway start is refused when no root is declared or when
-    ``package_seed`` is declared; the root itself is read by the Gateway
-    (iteration 63), not by this strategy process, so a live start does not
-    parse the section again.
+    A live Gateway start is refused when no root is declared.  ``package_seed``
+    is accepted as a declaration only: the separately operated Gateway process
+    must install or read it (iteration 63); this strategy process neither
+    installs nor reads the root, and a live start does not parse the section.
     """
     section = _section(config)
     if section is None:
@@ -132,12 +154,15 @@ def check_gateway_calendar(config, *, config_file, dry_run):
 
         try:
             calendar = parse_trading_calendar_config(
-                config, config_file=config_file, gateway_enabled=True, direct_write_enabled=False
+                _parser_config(config),
+                config_file=config_file,
+                gateway_enabled=True,
+                direct_write_enabled=False,
             )
         except Exception:
             raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID) from None
         if calendar.root_kind == "package_seed":
-            raise CalendarGateRefusal(CALENDAR_PACKAGE_SEED_UNSUPPORTED)
+            return CalendarGateResult("package_seed")
         if calendar.root_kind != "directory":
             raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID)
         return CalendarGateResult("directory")
@@ -145,7 +170,7 @@ def check_gateway_calendar(config, *, config_file, dry_run):
         raise CalendarGateRefusal(CALENDAR_CONFIG_INVALID)
     root = section.get("root")
     if root == "package_seed":
-        raise CalendarGateRefusal(CALENDAR_PACKAGE_SEED_UNSUPPORTED)
+        return CalendarGateResult("declared")
     if root is None:
         raise CalendarGateRefusal(
             CALENDAR_ROOT_UNCONFIGURED,

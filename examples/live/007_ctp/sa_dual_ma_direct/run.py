@@ -44,8 +44,13 @@ import yaml
 
 from sa_dual_ma_strategy import DualMAStrategy
 
-# The shared D67-01 calendar gate lives in the parent 007_ctp folder.
+# The shared D67-01 calendar gate and D67-11 Feed scope live in the parent folder.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from calendar_feed_scope import (
+    CalendarFeedScopeRefusal,
+    check_direct_feed_scope,
+    store_calendar_section,
+)
 from calendar_gate import CalendarGateRefusal, check_direct_calendar
 
 RUN_DIR = Path(__file__).resolve().parent
@@ -316,11 +321,14 @@ def create_store(config, credentials, config_path=None):
         }
         for symbol in config["symbols"]
     }
+    # ``calendars.feed_scope`` is consumer-side; the Store's SDK parser accepts
+    # only root/review_mode, so forward that exact subset.
+    calendar_section = store_calendar_section(config)
     return BtApiStore(
         provider="ctp",
-        calendar_config_file=config_path if "calendars" in config else None,
-        calendar_config={"calendars": config["calendars"]} if "calendars" in config else None,
-        calendar_ctp_routes=(ROUTE,) if "calendars" in config else None,
+        calendar_config_file=config_path if calendar_section is not None else None,
+        calendar_config={"calendars": calendar_section} if calendar_section is not None else None,
+        calendar_ctp_routes=(ROUTE,) if calendar_section is not None else None,
         contract_metadata=contract_metadata,
         exchange_kwargs=exchange_kwargs,
         write_admission={ROUTE: bool(direct.get("write_admission", True))},
@@ -342,7 +350,7 @@ def create_broker(store, config, first_init):
     return broker
 
 
-def add_feeds(cerebro, store, config):
+def add_feeds(cerebro, store, config, calendar_scopes=None):
     feeds = []
     for symbol in config["symbols"]:
         # The feed: section with this contract's overrides (D62-28, README).
@@ -350,12 +358,17 @@ def add_feeds(cerebro, store, config):
         timeframe = parse_timeframe(feed_config.pop("timeframe", "ticks"))
         compression = int(feed_config.pop("compression", 1))
         backfill_start = bool(feed_config.pop("backfill_start", False))
+        # D67-11: one explicit read-only calendar scope per Feed, declared in
+        # calendars.feed_scope. Without it the Feed answers
+        # CALENDAR_SCOPE_UNAVAILABLE (fail closed, no symbol->contract guess).
+        options = dict(feed_config)
+        options.update((calendar_scopes or {}).get(symbol, {}))
         data = store.getdata(
             dataname=symbol,
             timeframe=timeframe,
             compression=compression,
             backfill_start=backfill_start,
-            **feed_config,
+            **options,
         )
         cerebro.adddata(data, name=symbol)
         feeds.append(data)
@@ -443,6 +456,23 @@ def main(argv=None):
     if calendar.code is not None and not args.dry_run:
         report("BLOCKED", error_code=calendar.code, detail=f"Calendar: {calendar.reason}")
         return EXIT_BLOCKED
+    # D67-11: the Feed calendar scope is explicit configuration, never inferred
+    # from a symbol. A missing declaration is reported by --dry-run and refuses
+    # the live start; a malformed or conflicting one is refused in both modes.
+    try:
+        feed_calendar = check_direct_feed_scope(config, symbols=symbols, route=ROUTE)
+    except CalendarFeedScopeRefusal as exc:
+        if args.dry_run:
+            print(f"Calendar feed scope: {exc.code} ({exc.reason}); "
+                  "dry-run reports an invalid configuration")
+        else:
+            report("BLOCKED", error_code=exc.code,
+                   detail=f"Calendar feed scope: {exc.reason}")
+        return EXIT_BLOCKED
+    if feed_calendar.code is not None and not args.dry_run:
+        report("BLOCKED", error_code=feed_calendar.code,
+               detail=f"Calendar feed scope: {feed_calendar.reason}")
+        return EXIT_BLOCKED
     if args.dry_run:
         print("Dry run OK")
         print(f"Strategy: {STRATEGY.__name__}; symbols: {', '.join(symbols)}")
@@ -454,9 +484,24 @@ def main(argv=None):
         print("State directory: configured locally")
         if calendar.kind == "directory":
             print("Calendar: external directory configured; local status only")
+        elif calendar.kind == "package_seed":
+            print("Calendar: in-package seed is installed by the Store at live start "
+                  "(SYNTHETIC_MOCK, not exchange truth)")
         else:
             print(f"Calendar: {calendar.code}; live start will be refused "
                   "(dry-run only reports)")
+        if feed_calendar.code is not None:
+            print(f"Calendar feed scope: {feed_calendar.code}; live start will be refused "
+                  "(dry-run only reports)")
+        else:
+            for symbol in symbols:
+                scope = feed_calendar.scopes.get(symbol)
+                if scope is None:
+                    continue
+                print("Calendar feed scope {}: {}/{}/{}/{}/{}".format(
+                    symbol, scope["calendar_route"], scope["calendar_venue"],
+                    scope["calendar_kind"], scope["calendar_product"],
+                    scope["calendar_contract"]))
         return EXIT_PASS
 
     print(f"Logging: {configure_run_logging(config)}", flush=True)
@@ -473,7 +518,7 @@ def main(argv=None):
     broker = create_broker(store, config, args.first_init)
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.setbroker(broker)
-    feeds = add_feeds(cerebro, store, config)
+    feeds = add_feeds(cerebro, store, config, feed_calendar.scopes)
     for symbol in symbols:
         print(f"Feed {symbol}: {describe_feed(config, symbol)}", flush=True)
     cerebro.addstrategy(STRATEGY, **dict(config.get("strategy_params") or {}))

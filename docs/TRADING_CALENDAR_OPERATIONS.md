@@ -7,14 +7,14 @@
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 本地版本仓、`CURRENT.json` 指针、单写者锁、回执 | 已实现（SDK `trading_calendar_store`），POSIX 本地文件系统，未在 Windows 验证 |
+| 本地版本仓、`CURRENT.json` 指针、单写者锁、回执 | 已实现（SDK `trading_calendar_store`），POSIX 本地文件系统；只读查询另有 `msvcrt` 共享锁分支，未在 Windows 原生验证 |
 | 合成包内种子 `seed-2026-2027-v1` | 已实现，显式安装；`SYNTHETIC_MOCK`，不是交易所事实；安装同时发布覆盖声明（`DECLARED_UNVERIFIED`），其 `SYNTH_*` 作用域可按 `SIMULATION_ONLY` 只读查询 |
 | 每日检查入口 `trading_calendar_schedule_once` | 已实现，`SIMULATION_ONLY`，未接真实 20:30 操作系统调度 |
 | 通知入口 `trading_calendar_notify_cli` | 已实现，SMTP 传输显式配置；服务器接受不等于送达 |
 | 人工审核确认 | 已有模拟确认路径；网页/统一界面归迭代 69 |
 | 人工待审切换自动后的重采集（D67-27） | **GAP**，未完成 |
 | 真实六所、当年和下一年真实来源 | **GAP**，当前为 AKShare/明确 mock；真实覆盖待后续 Opendata |
-| Windows 文件锁、路径、计划任务 | **GAP**，67.09 处理；当前本地锁要求 POSIX `flock` |
+| Windows 文件锁、路径、计划任务 | **GAP**，67.09 处理；写入仍要求 POSIX `flock`，只读查询有未在 Windows 原生验证的 `msvcrt` 分支 |
 | 真实账户、真实 SMTP、交易授权证据 | 无；本文和示例都不产生这些证据 |
 
 所有输出都带 `environment: SIMULATION_ONLY`、`source_authentication: NOT_PROVEN` 等标签。标签是边界说明，
@@ -73,32 +73,41 @@
 
 ## 3. 配置键与路径规则
 
-示例（22 个 007 实盘配置都使用这个形状）：
+示例（22 个 007 实盘配置都使用这个形状；11 个 direct 配置另加 `feed_scope`）：
 
 ```yaml
 calendars:
   root: ../calendars          # 相对本 config.yaml 所在目录；也可写绝对路径
   # review_mode: manual       # 可选；auto | manual，缺省 auto。未知键拒绝
+  # feed_scope:               # 仅 007 direct：D67-11 的每合约只读 Feed 作用域，
+  #   SA701:                  # 由 run.py 校验后剥离，不进入 SDK 解析
+  #     route: CTP___FUTURE
+  #     venue: CZCE
+  #     kind: future
+  #     product: SA
+  #     contract: SA701
 ```
 
 解析器约定（`bt_api_py/trading_calendar_config.py`、Backtrader `parse_direct_calendar_status`）：
 
 | 规则 | 说明 |
 | --- | --- |
-| 键集合 | `calendars` 只允许 `root`、`review_mode`；其他键报 `calendar_config_unknown_field` |
+| 键集合 | SDK/Store 解析器只允许 `root`、`review_mode`；其他键报 `calendar_config_unknown_field`。007 direct 的 `feed_scope` 由示例侧校验并剥离后再交给 Store |
 | `root` | 非空字符串；相对路径相对 `config.yaml` 所在目录，不依赖当前工作目录；SDK 会展开 `~`；**不展开环境变量** |
 | 绝对路径 | 允许；示例只写相对路径，避免把生产路径写进仓库 |
-| `root: package_seed` | 解析器接受；007 的 direct/Gateway 运行入口在 live 启动和 `--dry-run` 中都明确拒绝（`calendar_package_seed_unsupported`，退出码 2），不回退旧内置常量 |
+| `root: package_seed` | 解析器接受；007 的 direct 入口在 live 启动、读取凭据之后由 Store 安装仓库内合成种子再只读查询（`SYNTHETIC_MOCK`），`--dry-run` 只报告、不创建目录；Gateway 入口只声明为根，由独立 Gateway 进程（迭代 63）负责安装/读取，本策略进程不安装、不读取、不证明绑定。不回退旧内置常量 |
 | 未配置 | 按 D67-01 执行：007 的 Gateway 与 direct（写入准入开启）入口在 live 启动时以 `calendar_root_unconfigured` 拒绝（退出码 2），发生在读取凭据、解析资源、创建 Store/Broker 之前；拒绝不联网、不读日历目录。`--dry-run` 只报告同一码并以 0 退出。D67-01 未覆盖的“非 Gateway 且未开启 direct 写入准入”也按示例的 fail-closed 保守处理拒绝 |
 | `review_mode` | `auto` 或 `manual`；显式写出时来源记为 `explicit`，否则为默认 `auto` |
 | CTP store 根 | 恒为 `<root>/ctp`；更新工具、审核和备份都使用这个目录 |
-| Windows | 盘符、UNC、大小写和长路径尚未验证（67.09）；本地锁当前要求 POSIX |
+| Windows | 盘符、UNC、大小写和长路径尚未验证（67.09）；写入路径仍要求 POSIX，只读查询的 `msvcrt` 分支只有注入式代码路径测试 |
 
 `--dry-run` 只报告、不启动任何组件（D67-01）：配置了根时 direct 输出
 `Calendar: external directory configured; local status only`，Gateway 输出
 `"calendar": "external_directory_configured_not_bound"`；未配置时 direct 输出
 `Calendar: calendar_root_unconfigured; live start will be refused (dry-run only reports)`，
 Gateway 在 `"calendar": "calendar_root_unconfigured"` 中报告，二者都以 0 退出；配置值非法时以 2 报告。
+只声明 `root: package_seed` 时 direct 报告 `in-package seed is installed by the Store at live start`、
+Gateway 报告 `"calendar": "package_seed_declared_not_bound"`，都不创建目录。
 这些都只证明配置被解析，不证明目录存在、`CURRENT` 已发布或时段可用于交易。
 
 ## 4. 自动发布与人工审核
@@ -404,9 +413,10 @@ schtasks /Create /TN "BT Calendar Daily" /SC DAILY /ST 20:30 ^
   /RU <运营账号> /RP *
 ```
 
-任务计划程序按主机本地时区执行；非中国标准时间主机须调整 `/ST` 或系统时区并验证。当前 SDK 的本地 store
-使用 POSIX `flock`、`O_NOFOLLOW` 和目录文件描述符，Windows 会明确报告不支持；**该样例只表达目标部署形状，
-不是已验证的 Windows 能力**。67.09 完成跨平台适配前，不要把 Windows 计划任务当作可用方案。
+任务计划程序按主机本地时区执行；非中国标准时间主机须调整 `/ST` 或系统时区并验证。写入路径仍使用 POSIX
+`flock`、`O_NOFOLLOW` 和目录文件描述符，非 POSIX 主机写入会明确报告不支持；只读查询新增了 `msvcrt`
+单字节共享锁分支，但只在 macOS 上用注入的假锁后端做过代码路径测试，**Windows 原生运行 NOT_RUN**。
+该样例只表达目标部署形状，不是已验证的 Windows 能力；67.09 完成跨平台适配前，不要把 Windows 计划任务当作可用方案。
 
 ## 8. 锁、并发与部分失败
 

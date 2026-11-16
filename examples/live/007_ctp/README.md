@@ -192,16 +192,32 @@ backtrader 的凭据脱敏（`backtrader.utils.redaction`）作为第二道防�
 
 ## 交易日历（迭代 67，2026-11-15）
 
-22 个示例的 `config.yaml` 都显式声明一个只读的日历根：
+22 个示例的 `config.yaml` 都显式声明一个只读的日历根；11 个 `_direct` 示例另外为每个合约
+声明一条显式的 Feed 查询作用域（D67-11）：
 
 ```yaml
 calendars:
   root: ../calendars      # 相对本文件所在目录；示例只写相对路径
+  feed_scope:             # 每个合约一条显式只读查询作用域（D67-11）
+    SA701:
+      route: CTP___FUTURE
+      venue: CZCE         # 必须与 contracts.SA701.exchange 一致
+      kind: future        # future | option
+      product: SA         # 交易所品种代码，显式声明，不从合约名截取
+      contract: SA701     # 必须等于 Feed 的合约（symbol），不做推断
 ```
 
 - 根目录由运营人员在本机创建，仓库不附带真实日历数据；`<root>/ctp/` 是 CTP 的固定子目录。
 - 示例只写相对路径，按 `config.yaml` 所在目录解析；不写 `~`，也不依赖环境变量（SDK 不展开环境变量）。
   根目录建议放在本地磁盘；同一主机的多个策略可以指向同一个根目录，运行时只读。
+- `calendars.feed_scope` 是使用方声明，`run.py` 校验后把 `calendar_route`/`calendar_venue`/
+  `calendar_kind`/`calendar_product`/`calendar_contract` 传给 `BtApiFeed`，策略里的
+  `trading_session()`/`trading_windows()` 才有完整作用域。缺少某个合约的 scope 时 live 启动以
+  `calendar_feed_scope_unconfigured` 拒绝（dry-run 只报告），声明格式错误或与
+  `contracts.<symbol>.exchange`、合约名、路由冲突时以 `calendar_feed_scope_invalid` /
+  `calendar_feed_scope_conflict` 拒绝（dry-run 也返回 2）。程序不会从合约名截取品种或合约。
+- Store 只接收 `calendars` 下的 `root`/`review_mode`；`feed_scope` 在使用方校验后剥离，
+  不进入 SDK 配置解析（SDK 拒绝未知的 `calendars` 键）。
 - 未配置 `calendars.root` 时，22 个入口在读取凭据、解析资源、创建 Store/Broker 之前拒绝 live 启动，
   返回有限码 `calendar_root_unconfigured`（direct 输出 JSON
   `{"status": "BLOCKED", "error_code": "calendar_root_unconfigured"}`，Gateway 输出
@@ -209,15 +225,22 @@ calendars:
   不读日历目录。`--dry-run` 按 D67-01 只报告：direct 打印
   `Calendar: calendar_root_unconfigured; live start will be refused (dry-run only reports)` 并以 0 退出，
   Gateway 在 `"calendar": "calendar_root_unconfigured"` 中报告并以 0 退出；配置值非法的 dry-run 仍以 2 报告。
-- `root: package_seed` 在 22 个入口的 live 启动和 `--dry-run` 中都被显式拒绝
-  （`calendar_package_seed_unsupported`，退出码 2），不会静默回退到旧内置常量。
+- `root: package_seed` 被接受为显式选择：direct 示例在 live 启动、读取凭据之后由 Store 在
+  `config.yaml` 旁安装仓库内的合成种子（`SYNTHETIC_MOCK`，不是交易所事实）；dry-run 只报告
+  `in-package seed is installed by the Store at live start`，不创建目录、不建 Store。Gateway 示例只把
+  它声明为日历根：独立的 Gateway 进程（迭代 63）负责安装/读取，本策略进程不安装、不读取，也不证明绑定。
 - D67-01 未冻结“非 Gateway 且未开启 direct 写入准入”的未配置行为。这些示例是实盘入口，按 fail-closed
   保守处理：即使显式写 `direct.write_admission: false`，未配置日历同样拒绝启动；这不是 D67-01 授权的
   opt-out，示例也不发明新默认。
 - 示例都声明了根，dry-run 分别输出 `external directory configured; local status only`（direct）和
-  `external_directory_configured_not_bound`（Gateway）；这只证明配置被解析，不证明目录存在、已发布或可用于交易。
+  `external_directory_configured_not_bound`（Gateway）；只声明 package_seed 时 Gateway dry-run 输出
+  `package_seed_declared_not_bound`。这只证明配置被解析，不证明目录存在、已发布或可用于交易。
 - 目录不存在、`CURRENT.json` 缺失、版本校验失败、品种不在覆盖范围或作用域不明时，查询结果是显式 `UNKNOWN`；
   框架不会用“工作日/周末”或其他规则补一个会话。`UNKNOWN` 既不是“休市”，也不是“开市”。
+- Gateway 入口不接 `feed_scope`：Gateway 模式下 Store 的只读日历查询固定返回 `STORE_UNAVAILABLE`
+  （`BtApiStore.trading_calendar_query` 要求 SDK direct 模式），此时 Feed 的查询结果保持显式
+  `CALENDAR_SCOPE_UNAVAILABLE`/`STORE_UNAVAILABLE`，不会猜测会话。等迭代 63 暴露 Gateway 侧的只读日历查询后，
+  再在 `gateway_client_runner.py` 创建 Feed 的位置接入同一作用域。
 
 ### 文件与指针
 
@@ -261,9 +284,10 @@ windows = self.data0.trading_windows(
   空元组表示明确的全休市范围）、`PARTIAL`（附 `gaps`）或 `UNKNOWN`。跨版本变更时整次读取作废为
   `CONFIGURATION_CHANGED`，不会混用版本。
 - 作用域：`route` 缺省取 Store 的合约路由；`venue`、`kind`（`future`/`option`）、`product` 和 `contract`
-  没有推断，必须在调用时显式传入，或在 `feed:` 里配置对应的 `calendar_route`/`calendar_venue`/`calendar_kind`/
-  `calendar_product`/`calendar_contract`。缺少任一作用域是 `CALENDAR_SCOPE_UNAVAILABLE`，结果为 `UNKNOWN`。
-  多品种策略分别用各自的 Feed（`self.data0`、`self.data1`）查询。
+  没有推断。11 个 `_direct` 示例在 `calendars.feed_scope.<symbol>` 里显式声明这五项，`run.py` 校验后作为
+  `calendar_*` 参数传给各自的 Feed；不要在 `feed:` 或 `contracts.<symbol>` 里再写同名键（会被拒绝为
+  `calendar_feed_scope_conflict`）。缺少任一作用域是 `CALENDAR_SCOPE_UNAVAILABLE`，结果为 `UNKNOWN`。
+  多品种策略分别用各自的 Feed（`self.data0`、`self.data1`）查询。Gateway 入口见本节末尾的作用域说明。
 - 日切与陈旧：同一进程按已绑定的交易日固定使用一个日历版本；调用方在提供方/BT 确认的交易日前进时显式请求重读
   （`refresh_trading_calendar(exact_day)`），失败则保留旧版本并报告 `STALE`，回退到更早的交易日被拒绝
   （`TRADING_DAY_REGRESSION`）。进程重启可重新绑定已发布的最新有效版本；尚未发布的候选不会被加载。日切不由挂钟推断。
@@ -293,8 +317,10 @@ print(install_package_seed(root).describe())
 PY
 ```
 
-`calendars.root: package_seed` 在 22 个 007 示例的 live 启动和 `--dry-run` 中都会被明确拒绝（direct 和
-Gateway 都输出 `calendar_package_seed_unsupported`，退出码 2），所以示例使用外部目录。种子安装成功只证明本地 store 的完整性
+`calendars.root: package_seed` 在 11 个 direct 示例的 live 启动中被接受：Store 在读取凭据之后把仓库内的
+合成种子安装到 `config.yaml` 旁的 `calendar_package_seed/` 目录，再只读查询；`--dry-run` 只报告，不创建目录。
+11 个 Gateway 示例只把它声明为根，由独立的 Gateway 进程（迭代 63）负责安装/读取，本策略进程不安装、不读取，
+也不证明绑定。种子仍是 `SYNTHETIC_MOCK`，不是交易所事实。种子安装成功只证明本地 store 的完整性
 （`OBSERVED_UNAUTHENTICATED`），同时发布覆盖声明（`DECLARED_UNVERIFIED`：2026-01-01..2027-12-31、六个交易所）。
 安装后它的 `SYNTH_*` 作用域可按 `SIMULATION_ONLY` 只读查询：例如 `2026-01-05` 返回 `COMPLETE` 和两个日盘窗口，
 `2026-01-01` 返回无窗口的 `COMPLETE`。这仍是合成数据的查询结果，不是交易所事实，也不授予交易权限；

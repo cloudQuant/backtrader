@@ -26,6 +26,27 @@ run_timeout_seconds: 300
 # calendar explicitly (../README.md, docs/TRADING_CALENDAR_OPERATIONS.md).
 calendars:
   root: ../calendars
+  # Iteration 67 (D67-11): one explicit read-only Feed calendar scope per symbol.
+  # BtApiFeed.trading_session()/trading_windows() answer CALENDAR_SCOPE_UNAVAILABLE
+  # unless all five fields are declared; nothing is inferred from the symbol or
+  # from the exchange. `route` must be this example's CTP route, `contract` must
+  # equal the feed symbol, `venue` must equal contracts.<symbol>.exchange, and
+  # `product` is the exchange product code (declared, not stripped from the
+  # symbol). The synthetic package seed does not cover these real contracts, so a
+  # published real calendar remains an operator task; UNKNOWN is not a session.
+  feed_scope:
+    rb2701:
+      route: CTP___FUTURE
+      venue: SHFE
+      kind: future
+      product: rb
+      contract: rb2701
+    hc2701:
+      route: CTP___FUTURE
+      venue: SHFE
+      kind: future
+      product: hc
+      contract: hc2701
 
 ctp:
   env_profile: set1_group1_vpn

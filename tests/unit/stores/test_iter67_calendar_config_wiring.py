@@ -418,10 +418,11 @@ def test_all_direct_dry_runs_are_offline(tmp_path):
     environment = offline_subprocess_environment(tmp_path)
     for calendars, expected, marker in [(None, 0, "unconfigured"),
                                         ({"root": "中文 path"}, 0, "local status only"),
-                                        ({"root": "package_seed"}, 2, "unsupported"),
+                                        ({"root": "package_seed"}, 0, "in-package seed"),
                                         ({}, 2, "invalid"),
                                         ({"review_mode": "manual"}, 2, "invalid"),
-                                        ({"root": 3}, 2, "invalid")]:
+                                        ({"root": 3}, 2, "invalid"),
+                                        ({"root": "secret", "bad": "SENTINEL"}, 2, "invalid")]:
         config.pop("calendars", None)
         if calendars is not None:
             config["calendars"] = calendars
@@ -433,6 +434,7 @@ def test_all_direct_dry_runs_are_offline(tmp_path):
                                     timeout=30)
             assert result.returncode == expected, (script.name, result.stdout, result.stderr)
             assert marker in result.stdout
+            assert "SENTINEL" not in result.stdout + result.stderr
             assert str(tmp_path) not in result.stdout + result.stderr
             if expected == 0:
                 assert "Strategy:" in result.stdout and "symbols: IF0000" in result.stdout
@@ -505,8 +507,7 @@ def test_live_explicit_configuration_stops_before_credentials(monkeypatch, tmp_p
         function_globals["load_credentials"] = forbidden
         function_globals["create_store"] = forbidden
         function_globals["configure_run_logging"] = forbidden
-        for section in ({"root": "package_seed"}, {},
-                        {"review_mode": "manual"}, {"root": 3}):
+        for section in ({}, {"review_mode": "manual"}, {"root": 3}):
             config["calendars"] = section
             path.write_text(yaml.safe_dump(config), encoding="utf-8")
             assert namespace["main"](["--config", str(path), "--env-file", "must-not-read"]) == 2
@@ -517,7 +518,9 @@ def test_live_explicit_configuration_stops_before_credentials(monkeypatch, tmp_p
 def test_live_valid_calendar_is_checked_before_credentials(monkeypatch, tmp_path, capsys):
     path = tmp_path / "synthetic.yaml"
     config = synthetic_config(tmp_path)
-    config["calendars"] = {"root": "dir"}
+    config["calendars"] = {"root": "dir", "feed_scope": {
+        "IF0000": {"route": "CTP___FUTURE", "venue": "CFFEX", "kind": "future",
+                   "product": "IF", "contract": "IF0000"}}}
     path.write_text(yaml.safe_dump(config), encoding="utf-8")
     calls = []
     for script in SCRIPTS:
@@ -535,6 +538,87 @@ def test_live_valid_calendar_is_checked_before_credentials(monkeypatch, tmp_path
         assert namespace["main"](["--config", str(path)]) == 2
         capsys.readouterr()
     assert len(calls) == 11
+
+
+def feed_scope(**overrides):
+    scope = {"route": "CTP___FUTURE", "venue": "CFFEX", "kind": "future",
+             "product": "IF", "contract": "IF0000"}
+    scope.update(overrides)
+    return {"IF0000": scope}
+
+
+def test_package_seed_is_accepted_without_credentials_or_store(monkeypatch, tmp_path, capsys):
+    """The keyword is accepted; only a Store may materialize it at live start."""
+    config = synthetic_config(tmp_path)
+    config["calendars"] = {"root": "package_seed", "feed_scope": feed_scope()}
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    calls = []
+    for script in SCRIPTS:
+        monkeypatch.syspath_prepend(str(script.parent))
+        namespace = runpy.run_path(str(script), run_name="calendar_runner_test")
+        function_globals = namespace["main"].__globals__
+
+        def credentials(_):
+            calls.append(True)
+            raise LookupError("not available")
+
+        def forbidden(*args, **kwargs):
+            pytest.fail("Store construction was reached for the gate-only case")
+
+        function_globals["load_credentials"] = credentials
+        function_globals["create_store"] = forbidden
+        function_globals["configure_run_logging"] = lambda _: "test"
+        assert namespace["main"](["--config", str(path), "--env-file", "must-not-read"]) == 2
+        out = capsys.readouterr().out
+        assert "credentials_unavailable" in out
+        assert "calendar_package_seed_unsupported" not in out
+        assert str(tmp_path) not in out
+    assert calls == [True] * 11
+    assert not (tmp_path / "calendar_package_seed").exists()
+
+
+def test_missing_feed_scope_stops_before_credentials(monkeypatch, tmp_path, capsys):
+    config = synthetic_config(tmp_path)
+    config["calendars"] = {"root": "dir"}
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    for script in SCRIPTS:
+        monkeypatch.syspath_prepend(str(script.parent))
+        namespace = runpy.run_path(str(script), run_name="calendar_runner_test")
+        function_globals = namespace["main"].__globals__
+
+        def forbidden(*args, **kwargs):
+            pytest.fail("credential or runtime construction was reached")
+
+        function_globals["load_credentials"] = forbidden
+        function_globals["create_store"] = forbidden
+        function_globals["configure_run_logging"] = forbidden
+        assert namespace["main"](["--config", str(path), "--env-file", "must-not-read"]) == 2
+        out = capsys.readouterr().out
+        assert "calendar_feed_scope_unconfigured" in out
+
+
+def test_conflicting_feed_scope_stops_before_credentials(monkeypatch, tmp_path, capsys):
+    config = synthetic_config(tmp_path)
+    config["calendars"] = {"root": "dir", "feed_scope": feed_scope(contract="IF0001")}
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    for script in SCRIPTS:
+        monkeypatch.syspath_prepend(str(script.parent))
+        namespace = runpy.run_path(str(script), run_name="calendar_runner_test")
+        function_globals = namespace["main"].__globals__
+
+        def forbidden(*args, **kwargs):
+            pytest.fail("credential or runtime construction was reached")
+
+        function_globals["load_credentials"] = forbidden
+        function_globals["create_store"] = forbidden
+        function_globals["configure_run_logging"] = forbidden
+        for extra in ([], ["--dry-run"]):
+            assert namespace["main"](["--config", str(path), *extra]) == 2
+            out = capsys.readouterr().out
+            assert "calendar_feed_scope_conflict" in out
 
 
 def test_missing_section_dry_run_does_not_invoke_parser(monkeypatch, tmp_path, capsys):
@@ -556,7 +640,12 @@ def test_all_direct_store_calls_use_explicit_parameters(monkeypatch, tmp_path):
     seen = []
     monkeypatch.setattr(btapistore, "BtApiStore", lambda **kwargs: seen.append(kwargs))
     config = synthetic_config(tmp_path)
-    config["calendars"] = {"root": "relative"}
+    config["calendars"] = {
+        "root": "relative",
+        "feed_scope": {"IF0000": {"route": "CTP___FUTURE", "venue": "CFFEX",
+                                  "kind": "future", "product": "IF",
+                                  "contract": "IF0000"}},
+    }
     for script in SCRIPTS:
         monkeypatch.syspath_prepend(str(script.parent))
         namespace = runpy.run_path(str(script), run_name="calendar_runner_test")
@@ -566,6 +655,7 @@ def test_all_direct_store_calls_use_explicit_parameters(monkeypatch, tmp_path):
         kwargs = seen[-1]
         assert kwargs["calendar_config_file"] == tmp_path / "config.yaml"
         assert kwargs["calendar_config"] == {"calendars": {"root": "relative"}}
+        assert "feed_scope" not in kwargs["calendar_config"]["calendars"]
         assert kwargs["calendar_ctp_routes"] == (namespace["ROUTE"],)
         missing = dict(config)
         missing.pop("calendars")

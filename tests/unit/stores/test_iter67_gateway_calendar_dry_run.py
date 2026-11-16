@@ -166,6 +166,7 @@ def test_missing_risk_selection_is_rejected_before_calendar(tmp_path, capsys):
     [
         (None, "calendar_root_unconfigured"),
         ({"root": "中文 dir"}, "external_directory_configured_not_bound"),
+        ({"root": "package_seed"}, "package_seed_declared_not_bound"),
     ],
 )
 def test_all_gateway_wrappers_dry_run_offline(tmp_path, calendars, expected):
@@ -200,10 +201,9 @@ def test_all_gateway_wrappers_dry_run_offline(tmp_path, calendars, expected):
         ({"root": None}, "CALENDAR_CONFIG_INVALID"),
         ({"root": 3}, "CALENDAR_CONFIG_INVALID"),
         ({"root": "secret", "bad": "SENTINEL"}, "CALENDAR_CONFIG_INVALID"),
-        ({"root": "package_seed"}, "calendar_package_seed_unsupported"),
     ],
 )
-def test_invalid_and_seed_are_reported_without_runtime(
+def test_invalid_sections_are_reported_without_runtime(
     tmp_path, monkeypatch, capsys, calendars, code
 ):
     namespace = runpy.run_path(str(RUNNER), run_name="calendar_runner_test")
@@ -229,6 +229,53 @@ def test_invalid_and_seed_are_reported_without_runtime(
         and str(tmp_path) not in captured.out + captured.err
     )
     assert not (tmp_path / "secret").exists()
+
+
+@pytest.mark.parametrize("dry_run,kind", [(True, "package_seed"), (False, "declared")])
+def test_package_seed_is_accepted_as_a_declaration_only(tmp_path, monkeypatch, dry_run, kind):
+    """The Shared Gateway gate accepts the keyword; this process never reads it."""
+    import bt_api_py.trading_calendar_config as calendar
+
+    monkeypatch.syspath_prepend(str(RUNNER.parent))
+    if not dry_run:
+        # The live path never parses the section; the Gateway process owns it.
+        monkeypatch.setattr(calendar, "parse_trading_calendar_config", forbidden_parser)
+    from calendar_gate import check_gateway_calendar
+
+    path = tmp_path / "synthetic.yaml"
+    config = {**synthetic_config(), "calendars": {"root": "package_seed"}}
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    gate = check_gateway_calendar(config, config_file=path, dry_run=dry_run)
+    assert gate.code is None and gate.kind == kind
+    assert not (tmp_path / "package_seed").exists()
+
+
+def forbidden_parser(*args, **kwargs):
+    pytest.fail("the package-seed keyword must not need the SDK parser")
+
+
+def test_unknown_root_kind_still_exits_2(tmp_path, monkeypatch, capsys):
+    """A future parser root kind is refused instead of being treated as a directory."""
+    import bt_api_py.trading_calendar_config as calendar
+    from bt_api_py.trading_calendar_config import CalendarConfigCandidate
+
+    monkeypatch.syspath_prepend(str(RUNNER.parent))
+
+    def candidate(*args, **kwargs):
+        return CalendarConfigCandidate(
+            "CONFIGURED", "committed_builtin", "committed_builtin", None, "auto", "default", None
+        )
+
+    monkeypatch.setattr(calendar, "parse_trading_calendar_config", candidate)
+    main = runpy.run_path(str(RUNNER), run_name="calendar_runner_test")["main"]
+    config = {**synthetic_config(), "calendars": {"root": "dir"}}
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    assert (
+        main(type("Strategy", (), {}), "synthetic", tmp_path, ["--config", str(path), "--dry-run"])
+        == 2
+    )
+    assert json.loads(capsys.readouterr().out)["error_code"] == "CALENDAR_CONFIG_INVALID"
 
 
 def test_live_start_does_not_parse_calendar_or_change_resource_path(tmp_path, monkeypatch, capsys):

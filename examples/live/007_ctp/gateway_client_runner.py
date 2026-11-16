@@ -248,10 +248,12 @@ def main(strategy, title, run_dir, argv=None):
         print(json.dumps({"status": "BLOCKED", "error_code": exc.code}))
         return 2
     if args.dry_run:
-        calendar_status = (
-            "calendar_root_unconfigured" if gate.kind == "unconfigured"
-            else "external_directory_configured_not_bound"
-        )
+        if gate.kind == "unconfigured":
+            calendar_status = "calendar_root_unconfigured"
+        elif gate.kind == "package_seed":
+            calendar_status = "package_seed_declared_not_bound"
+        else:
+            calendar_status = "external_directory_configured_not_bound"
         print(json.dumps({"status": "PASS", "mode": "offline_config_validation",
                           "strategy": strategy.__name__, "symbols": config["symbols"],
                           "calendar": calendar_status}))
@@ -309,6 +311,13 @@ def main(strategy, title, run_dir, argv=None):
         timeframe = {"ticks": bt.TimeFrame.Ticks, "seconds": bt.TimeFrame.Seconds,
                      "minutes": bt.TimeFrame.Minutes, "days": bt.TimeFrame.Days}
         feeds = []
+        # D67-11 Feed calendar scope is intentionally not wired here: in Gateway
+        # mode the Store refuses the read-only calendar query with
+        # STORE_UNAVAILABLE (`BtApiStore.trading_calendar_query` requires the SDK
+        # direct mode), so passing calendar_* would only rename a known gap and
+        # could imply a bound session. Wire the explicit scope here once the
+        # Gateway exposes its own read-only calendar query; until then the Feed
+        # keeps answering CALENDAR_SCOPE_UNAVAILABLE and never guesses a session.
         for symbol in config["symbols"]:
             options = dict(feed_defaults)
             for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
