@@ -756,9 +756,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             )
         self._calendar_local_reader = None
         self._calendar_local_routes = frozenset()
+        # D67-01: routes whose local reader was installed from the in-package
+        # seed.  Status reports label them so they are never mistaken for a
+        # daily-updated external directory.
+        self._calendar_package_seed_routes = frozenset()
+        # Route roots to mirror into a Store-owned facade (G8).  A borrowed or
+        # caller-constructed facade is never rewritten.
+        self._calendar_facade_route_roots = None
+        self._calendar_facade_configuration = "PENDING"
+        self._calendar_facade_attempted_api = None
         # Explicit read-only instrument-status source (iteration 67.06).  It is
         # never discovered or constructed here and performs no I/O by itself.
         self._instrument_status_port = None
+        # Route-scoped ports attached by the Store itself from the configured
+        # direct provider (G3).  A route without a port keeps its gate inert.
+        self._instrument_status_ports: Dict[str, Any] = {}
+        self._instrument_status_ports_bound_for = None
         if any(value is not None for value in (
             calendar_config_file, calendar_config, calendar_ctp_routes
         )):
@@ -769,14 +782,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 candidate, route_roots = parse_direct_calendar_status(
                     calendar_config, config_file=calendar_config_file,
                     ctp_routes=calendar_ctp_routes, configured_routes=set(self._sdk_exchanges),
+                    package_seed_binding=True,
                 )
-            except ValueError as exc:
-                if exc.args == ("calendar_package_seed_unsupported",):
-                    raise BtApiStoreError("calendar_package_seed_unsupported") from None
-                raise BtApiStoreError("calendar_configuration_invalid") from None
             except Exception:
                 raise BtApiStoreError("calendar_configuration_invalid") from None
-            if candidate.root_kind == "directory":
+            if candidate.root_kind == "package_seed":
+                seed_root = self._install_package_calendar_seed(calendar_config_file)
+                route_roots = {route: str(seed_root) for route in calendar_ctp_routes}
+            if candidate.root_kind in ("directory", "package_seed"):
                 try:
                     from bt_api_py.trading_calendar_runtime_status import TradingCalendarStatusReader
                     reader = TradingCalendarStatusReader()
@@ -785,6 +798,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     raise BtApiStoreError("calendar_status_configuration_failed") from None
                 self._calendar_local_reader = reader
                 self._calendar_local_routes = frozenset(route_roots)
+                self._calendar_facade_route_roots = dict(route_roots)
+                if candidate.root_kind == "package_seed":
+                    self._calendar_package_seed_routes = frozenset(route_roots)
         if self.provider != "btapi" and not self._service_read_only:
             if configured_route_names != {self.provider.upper()}:
                 raise BtApiStoreError(
@@ -4452,6 +4468,89 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._assert_write_route_identity(require_live_route=True, expected_api=api)
         return result
 
+    def _install_package_calendar_seed(self, config_file):
+        """Materialize the committed in-package seed and return its store root.
+
+        D67-01: ``root: package_seed`` is an explicit selection of the
+        synthetic in-package calendar, not a daily-updated directory.  The
+        runtime needs a readable published CURRENT, so the seed is installed
+        into a deterministic Store runtime directory beside the explicit
+        configuration file (``calendar_package_seed``) using the committed SDK
+        loader/installer.  Installation is single-writer, reports UNKNOWN
+        separately and never replaces a different CURRENT; any failure is a
+        finite Store refusal, never a silently empty calendar.
+        """
+        from pathlib import Path
+
+        try:
+            config_path = Path(config_file)
+            if not config_path.is_absolute() or not config_path.name:
+                raise ValueError("calendar config file is not absolute")
+            root = config_path.parent / "calendar_package_seed"
+            root.mkdir(mode=0o700, exist_ok=True)
+        except Exception:
+            raise BtApiStoreError("calendar_package_seed_install_failed") from None
+        try:
+            from bt_api_py.trading_calendar_package_seed import (
+                INSTALL_INSTALLED,
+                INSTALL_NOT_COMMITTED,
+                INSTALL_UNCHANGED,
+                INSTALL_UNKNOWN,
+                install_package_seed,
+            )
+            from bt_api_py.trading_calendar_store import TradingCalendarStore
+
+            result = install_package_seed(str(root))
+            if (
+                result.status == INSTALL_NOT_COMMITTED
+                and result.reason == "STORE_NOT_INITIALIZED"
+            ):
+                # The installer refuses to invent store policy; initialize the
+                # explicit auto policy first, then retry exactly once.
+                TradingCalendarStore(root).initialize_review_policy(
+                    config_read_succeeded=True
+                )
+                result = install_package_seed(str(root))
+        except BtApiStoreError:
+            raise
+        except Exception:
+            raise BtApiStoreError("calendar_package_seed_install_failed") from None
+        if result.status == INSTALL_UNKNOWN:
+            raise BtApiStoreError("calendar_package_seed_unknown")
+        if result.status not in (INSTALL_INSTALLED, INSTALL_UNCHANGED):
+            raise BtApiStoreError("calendar_package_seed_install_failed")
+        return root
+
+    def _configure_owned_facade_calendar(self, api):
+        """Mirror explicit calendar routes into a Store-owned facade once.
+
+        A borrowed facade, or one returned by a caller factory, can be shared
+        with other Stores whose calendar directories differ; rewriting it
+        would break their isolation, so it is never touched.  Only a facade
+        this Store created itself is configured, and only after the Store
+        proved the route roots.
+        """
+        with self._calendar_status_lock:
+            roots = self._calendar_facade_route_roots
+            if not roots or self._calendar_facade_attempted_api is api:
+                return
+            if not self._sdk_owned_api or self._sdk_custom_api_factory:
+                return
+            self._calendar_facade_attempted_api = api
+            self._calendar_facade_configuration = "CONFIGURING"
+        try:
+            configure = getattr(api, "configure_trading_calendar_status", None)
+            if not callable(configure):
+                raise ValueError("facade calendar configuration is unavailable")
+            configure(route_roots=dict(roots))
+        except Exception:
+            with self._calendar_status_lock:
+                self._calendar_facade_configuration = "FAILED"
+            _safe_log("warning", "btapistore:calendar_facade_configuration_failed")
+            return
+        with self._calendar_status_lock:
+            self._calendar_facade_configuration = "CONFIGURED"
+
     def trading_calendar_status(self, exchange_name: Optional[str] = None):
         """Observe local SDK calendar status for exact configured routes.
 
@@ -4472,6 +4571,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             api = self._api
             local_reader = self._calendar_local_reader
             local_routes = self._calendar_local_routes
+            package_seed_routes = self._calendar_package_seed_routes
             ready = (
                 self._sdk_mode and not self._gateway_mode and not self._service_read_only
                 and self._started and self._connected and self._sdk_configured
@@ -4537,7 +4637,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         for route in routes:
             is_local = local_reader is not None and route in local_routes
             if local_reader is not None:
-                sources[route] = "LOCAL_CONFIG" if is_local else "SDK_FACADE"
+                sources[route] = (
+                    "LOCAL_CONFIG_PACKAGE_SEED"
+                    if route in package_seed_routes
+                    else "LOCAL_CONFIG" if is_local else "SDK_FACADE"
+                )
             if route not in live_routes:
                 observations[route] = _CalendarStatusUnavailable(reason="ROUTE_UNAVAILABLE")
                 continue
@@ -4802,20 +4906,84 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         ``port`` must expose ``observation(scope)`` and return either ``None``
         (an explicit absence of an effective observation) or the provider's SDK
         ``InstrumentStatusView`` for exactly that scope.  ``None`` detaches it.
-        The Store never discovers, constructs, or contacts a provider itself and
-        this call performs no I/O.  Once attached, the direct-order gate consults
-        it and fails closed; without a port the gate stays inactive and the
-        existing direct-order path is unchanged.
+        This explicit call performs no I/O and never constructs a provider; an
+        explicit port replaces any Store-attached route ports.  Separately, for
+        an SDK direct-write Store with an explicit calendar route, the Store
+        attaches the configured provider's read-only port once the facade is
+        ready (G3).  Once attached, the direct-order gate consults it and fails
+        closed; without any port the gate stays inactive and the existing
+        direct-order path is unchanged.
         """
         if port is not None and not callable(getattr(port, "observation", None)):
             raise BtApiStoreError("instrument_status_port_invalid")
         with self._calendar_status_lock:
             self._instrument_status_port = port
+            # An explicit port is authoritative; drop any Store-attached
+            # route map so it cannot answer for the same routes instead.
+            self._instrument_status_ports = {}
+            self._instrument_status_ports_bound_for = None
 
     def instrument_status_source_configured(self):
-        """Whether an explicit instrument-status observation port is attached."""
+        """Whether an explicit or Store-attached route status port is present."""
         with self._calendar_status_lock:
-            return getattr(self, "_instrument_status_port", None) is not None
+            return (
+                getattr(self, "_instrument_status_port", None) is not None
+                or bool(getattr(self, "_instrument_status_ports", None))
+            )
+
+    def _attach_configured_instrument_status_ports(self, api):
+        """Attach one read-only provider port per explicitly configured route.
+
+        Only the Store's own SDK direct-write mode with an explicit calendar
+        route is wired: a provider view is a neutral observation fed by the
+        native callback ingress, never a calendar, a guessed status or an
+        account-wide value.  A route without a port, a provider that cannot
+        answer, or any construction failure leaves every gate inactive rather
+        than half-configured; an explicit port already set by the caller is
+        never replaced.
+        """
+        if not (
+            self._sdk_mode
+            and not self._gateway_mode
+            and not self._service_read_only
+            and getattr(self, "_direct_write_mode", False)
+        ):
+            return
+        routes = tuple(getattr(self, "_sdk_exchanges", {}) or {})
+        local_routes = getattr(self, "_calendar_local_routes", frozenset())
+        if not routes or not local_routes or set(routes) - set(local_routes):
+            return
+        with self._calendar_status_lock:
+            if (
+                self._instrument_status_port is not None
+                or self._instrument_status_ports
+                or self._instrument_status_ports_bound_for is api
+            ):
+                return
+        try:
+            coordinator = getattr(api, "direct_writes", None)
+            if not callable(coordinator):
+                return
+            coordinator = coordinator()
+            factory = getattr(coordinator, "instrument_status_port", None)
+            if not callable(factory):
+                return
+            ports = {}
+            for route in routes:
+                port = factory(route)
+                if port is None or not callable(getattr(port, "observation", None)):
+                    return
+                ports[route] = port
+        except Exception:
+            _safe_log("warning", "btapistore:instrument_status_port_unavailable")
+            return
+        with self._calendar_status_lock:
+            if self._api is not api or self._instrument_status_port is not None:
+                return
+            if self._instrument_status_ports:
+                return
+            self._instrument_status_ports = ports
+            self._instrument_status_ports_bound_for = api
 
     def instrument_status(
         self,
@@ -4835,9 +5003,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         """Compose one read-only per-instrument status for the exact scope (67.06).
 
         Delegates to the SDK's committed composition.  The Store supplies only
-        its configured read-only calendar and the explicitly injected
-        observation port; it writes nothing, sends no order, and contacts no
-        provider beyond that port.  The answer is the SDK's frozen
+        its configured read-only calendar and one read-only observation port
+        (an explicitly injected port, else the Store-attached port for this
+        route); it writes nothing, sends no order, and contacts no provider
+        beyond that port's pure read.  The answer is the SDK's frozen
         ``InstrumentStatusComposition`` or a Store-side
         ``_InstrumentStatusUnavailable``; it never authorizes trading and a
         missing answer is never reported as ``TRADABLE``.
@@ -4887,6 +5056,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             stream_generation = self._stream_generation
             api = self._api
             port = getattr(self, "_instrument_status_port", None)
+            ports = getattr(self, "_instrument_status_ports", None)
+            routed_port = port if port is not None else (
+                ports.get(route) if isinstance(ports, dict) else None
+            )
             ready = (
                 self._sdk_mode and not self._gateway_mode and not self._service_read_only
                 and self._started and self._connected and self._sdk_configured
@@ -4897,8 +5070,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             return unavailable("ROUTE_UNCONFIGURED")
         if not ready:
             return unavailable("STORE_UNAVAILABLE")
-        if observation is None and port is not None:
-            reader = getattr(port, "observation", None)
+        if observation is None and routed_port is not None:
+            reader = getattr(routed_port, "observation", None)
             if not callable(reader):
                 return unavailable("STATUS_PORT_UNAVAILABLE")
             try:
@@ -4955,6 +5128,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 and stream_generation == self._stream_generation
                 and self._api is api
                 and tuple(self._sdk_exchanges) == configured_routes
+                and getattr(self, "_instrument_status_ports", None) is ports
                 and getattr(self, "_instrument_status_port", None) is port
             ):
                 return unavailable("STORE_CHANGED")
@@ -5785,7 +5959,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if not self._started or not self.is_connected:
                 raise BtApiStoreError("GATEWAY_SESSION_UNAVAILABLE")
             return self._api
-        return _ensure_store_api_ready(
+        api = _ensure_store_api_ready(
             self, error_type=BtApiStoreError,
             gateway_entrypoint=_legacy_gateway_entrypoint,
             gateway_error_type=LegacyGatewayMigrationRequiredError,
@@ -5793,6 +5967,15 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             provider_not_implemented_error_type=BtApiProviderNotImplementedError,
             safe_log=_safe_log,
         )
+        # Iteration 67 G8: mirror the explicit calendar routes into a facade
+        # this Store owns.  A borrowed/factory facade is never rewritten.
+        self._configure_owned_facade_calendar(api)
+        # Iteration 67 G3: once the facade is ready, attach the configured
+        # route's read-only provider status port.  This is the production
+        # caller of the CTP ingress -> ledger -> SDK composition chain; absent
+        # calendar configuration leaves the direct-order gate unchanged.
+        self._attach_configured_instrument_status_ports(api)
+        return api
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""

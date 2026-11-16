@@ -109,7 +109,6 @@ def test_seed_and_route_validation(tmp_path):
 
 
 @pytest.mark.parametrize("section, message", [
-    ({"root": "package_seed"}, "calendar_package_seed_unsupported"),
     ({}, "calendar_configuration_invalid"),
     ({"review_mode": "manual"}, "calendar_configuration_invalid"),
 ])
