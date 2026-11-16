@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import copy
 import os
 import threading
 
@@ -26,11 +27,11 @@ class GatewayExecutionRoute:
 def make_pending(intent, configuration_id):
     if not _ref(configuration_id):
         raise ValueError("GATEWAY_EXECUTION_CONFIGURATION_INVALID")
-    return dict(kind="PENDING", account=intent.binding.account_scope,
-                strategy=intent.binding.strategy_scope, request_key=intent.request_key,
-                intent_digest=intent.digest, configuration_id=configuration_id,
-                execution_domain_ref=intent.route.scope.execution_domain_ref,
-                request_id=None, request_sha256=None, parent_ref=None)
+    return {"kind": "PENDING", "account": intent.binding.account_scope,
+            "strategy": intent.binding.strategy_scope, "request_key": intent.request_key,
+            "intent_digest": intent.digest, "configuration_id": configuration_id,
+            "execution_domain_ref": intent.route.scope.execution_domain_ref,
+            "request_id": None, "request_sha256": None, "parent_ref": None}
 
 
 def route_allowed(state, key, kinds):
@@ -60,7 +61,7 @@ def validate_routes(state, binding):
         if key != route["request_key"] or key not in gateway["order_snapshots"] or key not in gateway["local_notifications"]:
             raise ValueError("GATEWAY_EXECUTION_ROUTE_ORPHAN")
         kind = route["kind"]
-        if kind not in ("PENDING", "EXECUTION_PARENT", "GATEWAY", "RISK"):
+        if kind not in ("PENDING", "EXECUTION_PARENT", "EXECUTION_REJECTED", "GATEWAY", "RISK"):
             raise ValueError("GATEWAY_EXECUTION_ROUTE_INVALID")
         if kind == "EXECUTION_PARENT":
             if not _ref(route["request_id"]) or not _hex64(route["request_sha256"]) or not _ref(route["parent_ref"]):
@@ -74,9 +75,15 @@ def validate_routes(state, binding):
                     or delegated or "reject:" + key in gateway["local_notifications"]
                     or "cancel:" + key in gateway["local_notifications"]):
                 raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
-        elif kind == "GATEWAY" and delegated:
-            raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
-        elif kind == "RISK" and any(entry[name] is not None for name in ("record", "marker_id", "release")):
+        elif kind == "EXECUTION_REJECTED":
+            if (any(entry[name] is not None for name in ("record", "marker_id", "release"))
+                    or delegated or "reject:" + key not in gateway["local_notifications"]
+                    or gateway["local_notifications"]["reject:" + key].get("bt_ref")
+                       != gateway["order_snapshots"][key]["bt_ref"]
+                    or "cancel:" + key in gateway["local_notifications"]):
+                raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
+        elif ((kind == "GATEWAY" and delegated)
+              or (kind == "RISK" and any(entry[name] is not None for name in ("record", "marker_id", "release")))):
             raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
 
 
@@ -156,7 +163,18 @@ def bind_parent(host, request_key, prepared):
         return True
 
 
-def bind_direct(host, request_key, route_kind):
+def bind_direct(host, request_key, route_kind, direct_decision):
+    from bt_api_py.execution_routing import consume_execution_direct_decision
+    try:
+        return _bind_direct(host, request_key, route_kind, direct_decision)
+    except BaseException:
+        # Even a lock or read failure retires both original opportunities.
+        host._execution_route_decisions.pop(request_key, None)
+        consume_execution_direct_decision(direct_decision, intent=None, configuration_id=None)
+        raise
+
+
+def _bind_direct(host, request_key, route_kind, direct_decision):
     if type(route_kind) is not str or route_kind not in ("GATEWAY", "RISK"):
         raise ValueError("GATEWAY_EXECUTION_ROUTE_INVALID")
     with host._store._lock():
@@ -166,10 +184,65 @@ def bind_direct(host, request_key, route_kind):
             if route["kind"] != route_kind:
                 raise ValueError("GATEWAY_EXECUTION_ROUTE_CONFLICT")
             return True
+        from bt_api_py.execution_routing import consume_execution_direct_decision
+        intent = gateway_intent_from_mapping(
+            state["gateway"]["intents"][request_key]["intent"], expected_binding=host._binding
+        )
+        verified = consume_execution_direct_decision(
+            direct_decision, intent=intent, configuration_id=route["configuration_id"]
+        )
         _consume_direct_decision(host, route)
+        if not verified:
+            raise ValueError("GATEWAY_EXECUTION_ROUTE_DECISION_UNAVAILABLE")
         route["kind"] = route_kind
         host._store._store(state, trim_history=False)
         return True
+
+
+def reject_pre_submit(host, request_key, *, bt_ref, snapshot, code, rejection_decision):
+    """Atomically persist a proven local refusal and its framework notice."""
+    from bt_api_py.execution_routing import consume_execution_rejection_decision
+    from .gateway_order_state import (
+        _REJECT_CODE, _reject_notice_id, _snapshot, is_strict_int, validate_order_state,
+    )
+    try:
+        if (type(request_key) is not str or not is_strict_int(bt_ref, minimum=1)
+                or type(code) is not str or not _REJECT_CODE(code)):
+            raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+        with host._store._lock():
+            state = host._store._load()
+            route = _load_v8(host, state, request_key)
+            gateway = state["gateway"]
+            entry = gateway["intents"].get(request_key)
+            if (route["kind"] != "PENDING" or entry is None
+                    or entry["bt_ref"] != bt_ref
+                    or request_key not in gateway["local_notifications"]
+                    or "reject:" + request_key in gateway["local_notifications"]
+                    or "cancel:" + request_key in gateway["local_notifications"]
+                    or any(entry[name] is not None for name in ("record", "marker_id", "release"))
+                    or request_key in gateway["delegated_commands"]):
+                raise ValueError("GATEWAY_REJECTION_NOT_PROVEN")
+            snap = _snapshot(snapshot, request_key, bt_ref, gateway["max_order_snapshot_bytes"])
+            if snap["state"]["orders"][request_key]["status"] != 8:
+                raise ValueError("GATEWAY_LOCAL_NOTIFICATION_INVALID")
+            intent = gateway_intent_from_mapping(entry["intent"], expected_binding=host._binding)
+            verified = consume_execution_rejection_decision(
+                rejection_decision, intent=intent, configuration_id=route["configuration_id"], code=code)
+            _consume_direct_decision(host, route)
+            if not verified:
+                raise ValueError("GATEWAY_EXECUTION_REJECTION_DECISION_UNAVAILABLE")
+            notice = {"notification_id": _reject_notice_id(state, request_key, bt_ref, snap, code),
+                      "status": "pending", "bt_ref": bt_ref, "snapshot": snap, "code": code}
+            route["kind"] = "EXECUTION_REJECTED"
+            gateway["local_notifications"]["reject:" + request_key] = notice
+            validate_order_state(state)
+            validate_routes(state, host._binding)
+            host._store._store(state, trim_history=False)
+            return copy.deepcopy(notice)
+    except BaseException:
+        host._execution_route_decisions.pop(request_key, None)
+        consume_execution_rejection_decision(rejection_decision, intent=None, configuration_id=None, code=None)
+        raise
 
 
 def load_route(host, request_key):

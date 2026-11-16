@@ -489,9 +489,14 @@ class GatewayPendingHost:
         from .gateway_execution_route import bind_parent
         return bind_parent(self, request_key, prepared)
 
-    def bind_execution_direct_route(self, request_key, *, route_kind):
+    def bind_execution_direct_route(self, request_key, *, route_kind, direct_decision=None):
         from .gateway_execution_route import bind_direct
-        return bind_direct(self, request_key, route_kind)
+        return bind_direct(self, request_key, route_kind, direct_decision)
+
+    def reject_execution_before_submit(self, request_key, *, bt_ref, snapshot, code, rejection_decision):
+        from .gateway_execution_route import reject_pre_submit
+        return reject_pre_submit(self, request_key, bt_ref=bt_ref, snapshot=snapshot,
+                                 code=code, rejection_decision=rejection_decision)
 
     def load_execution_route(self, request_key):
         from .gateway_execution_route import load_route

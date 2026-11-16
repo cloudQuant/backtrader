@@ -619,6 +619,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._gateway_security_profiles = None
         self._gateway_run_lock = None
         self._gateway_owns_run_lock = False
+        self._gateway_execution_db = None
+        self._gateway_composition_uncertain = False
+        self._gateway_composition_cleanup_owner = None
+        self._gateway_composition_binding = None
         self._gateway_state = None
         self._gateway_closed = False
         self._gateway_start_attempted = False

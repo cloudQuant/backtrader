@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import os
+import stat
 import time
 from collections.abc import Mapping
 from copy import deepcopy
@@ -17,6 +18,96 @@ from ..utils.log_message import get_logger
 _LOG = get_logger(__name__)
 # Seconds between attempts to register a new session after one was lost.
 _RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 10.0, 30.0)
+_EXECUTION_DB_FILENAME = "gateway_execution_routing.sqlite"
+
+
+def _open_gateway_execution_db(store):
+    """Open the strategy-owned routing journal only while its run lock is held."""
+    if store._gateway_execution_db is not None:
+        return store._gateway_execution_db
+    if store._gateway_run_lock is None or not store._gateway_run_lock.held:
+        raise RuntimeError("GATEWAY_RUN_LOCK_INVALID")
+    import sqlite3
+    from bt_api_py.execution_routing import install_execution_routing_tables
+
+    directory = store._gateway_state.paths.state_dir
+    info = os.lstat(directory)
+    owner = getattr(os, "getuid", lambda: info.st_uid)()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != owner or info.st_mode & 0o022:
+        raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
+    path = os.path.join(directory, _EXECUTION_DB_FILENAME)
+    parents = _gateway_execution_parent_routes(store)
+    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    if not parents:
+        flags |= os.O_CREAT
+    fd = os.open(path, flags, 0o600)
+    try:
+        info = os.fstat(fd)
+        named = os.lstat(path)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != owner
+                or info.st_nlink != 1 or not stat.S_ISREG(named.st_mode)
+                or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)):
+            raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
+        db = sqlite3.connect(path, isolation_level=None)
+        # Retain the connection immediately, including when initialization or
+        # close fails, so the lock cannot be released ahead of this resource.
+        store._gateway_execution_db = db
+        named = os.lstat(path)
+        if (not stat.S_ISREG(named.st_mode)
+                or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)):
+            raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
+        db.execute("BEGIN IMMEDIATE")
+        install_execution_routing_tables(db)
+        db.commit()
+        return db
+    finally:
+        os.close(fd)
+
+
+def _close_gateway_execution_db(store):
+    db = store._gateway_execution_db
+    if db is not None:
+        db.close()
+        store._gateway_execution_db = None
+
+
+def _gateway_execution_parent_routes(store):
+    """Read durable parent bindings without mixing different host snapshots."""
+    from ..live_state.atomic import read_json
+
+    host = store._gateway_host
+    path = store._gateway_state.pending.path
+    before = read_json(path)
+    parents = []
+    for intent in host.list_intents():
+        route = host.load_execution_route(intent.request_key)
+        if route is not None and route.kind == "EXECUTION_PARENT":
+            parents.append((intent, route))
+    if read_json(path) != before:
+        raise ValueError("GATEWAY_ORDER_STATE_CHANGED")
+    return parents
+
+
+def _verify_gateway_execution_parents(store, api):
+    """Reject missing or rolled-back parent journal records before startup."""
+    if getattr(store._gateway_strategy_config, "execution_selection", None) is None:
+        return
+    from bt_api_py.execution_routing import ExecutionPreparedRoute
+    from ..live_state.atomic import read_json
+
+    path = store._gateway_state.pending.path
+    before = read_json(path)
+    for intent, route in _gateway_execution_parent_routes(store):
+        prepared = ExecutionPreparedRoute(
+            account=route.account, strategy=route.strategy, request_key=route.request_key,
+            intent_digest=route.intent_digest, request_id=route.request_id,
+            request_sha256=route.request_sha256, configuration_id=route.configuration_id,
+            execution_domain_ref=route.execution_domain_ref, parent_ref=route.parent_ref,
+        )
+        if api.verify_execution_parent_route(intent, prepared) is not True:
+            raise ValueError("GATEWAY_EXECUTION_JOURNAL_MISMATCH")
+    if read_json(path) != before:
+        raise ValueError("GATEWAY_ORDER_STATE_CHANGED")
 
 
 def compose_gateway_contract_metadata(strategy_config, contracts, explicit, error_type):
@@ -97,14 +188,63 @@ def _create_gateway_api(store):
     durable delegated cancel plans (orders placed through Risk are cancelled as
     this strategy's delegated commands, D64-02)."""
     options = {}
-    if getattr(store._gateway_strategy_config, "risk_selection", None) is not None:
+    selected = getattr(store._gateway_strategy_config, "execution_selection", None) is not None
+    if getattr(store._gateway_strategy_config, "risk_selection", None) is not None or selected:
         store._gateway_host.upgrade_for_local_notifications()  # v5 -> v6 first
         store._gateway_host.upgrade_for_risk_routing()          # v6 -> v7
+    if getattr(store._gateway_strategy_config, "risk_selection", None) is not None:
         options["delegated_cancel_host"] = store._gateway_host
-    return store._gateway_strategy_config.create_api(
-        host=store._gateway_host, cancel_host=store._gateway_host,
-        security_profiles=store._gateway_security_profiles, **options
-    )
+    if selected:
+        store._gateway_host.upgrade_for_execution_routing()
+        options["execution_db"] = _open_gateway_execution_db(store)
+    if selected:
+        store._gateway_composition_uncertain = True
+        binding = store._gateway_composition_binding = (
+            store._api, store._gateway_run_lock, store._gateway_execution_db,
+        )
+    try:
+        api = store._gateway_strategy_config.create_api(
+            host=store._gateway_host, cancel_host=store._gateway_host,
+            security_profiles=store._gateway_security_profiles, **options
+        )
+    except BaseException as exc:
+        if selected:
+            owner = getattr(exc, "cleanup_owner", None)
+            store._gateway_composition_cleanup_owner = owner
+            if store._gateway_composition_binding is binding:
+                store._gateway_composition_binding = (*binding, owner)
+        raise
+    store._gateway_composition_uncertain = False
+    store._gateway_composition_binding = None
+    return api
+
+
+def _retry_gateway_composition_cleanup(store, timeout):
+    """Confirm the exact failed composition before reusing its resources."""
+    binding = store._gateway_composition_binding
+    owner = store._gateway_composition_cleanup_owner
+
+    def same_binding():
+        return (type(binding) is tuple and len(binding) == 4
+                and store._gateway_composition_binding is binding
+                and store._gateway_composition_cleanup_owner is owner and owner is binding[3]
+                and store._api is binding[0] and store._gateway_run_lock is binding[1]
+                and store._gateway_execution_db is binding[2]
+                and binding[1] is not None and binding[1].held and binding[2] is not None)
+
+    if owner is None or not same_binding():
+        return False
+    try:
+        if owner.cleanup_confirmed is not True:
+            owner.close(timeout_seconds=timeout if timeout else 1e-9)
+        if owner.cleanup_confirmed is not True or not same_binding():
+            return False
+    except Exception:
+        return False
+    store._gateway_composition_cleanup_owner = None
+    store._gateway_composition_binding = None
+    store._gateway_composition_uncertain = False
+    return True
 
 
 def _release_owned_gateway_lock(store):
@@ -123,15 +263,29 @@ def _gateway_facade_cleanup_confirmed(api):
         return False
 
 
-def _check_gateway_sequence_consistency(host, state, error_type):
+def _check_gateway_sequence_consistency(host, state, error_type, *, execution_selection=None):
     """Reject state that cannot preserve request, sequence and BT ref identity."""
     from ..live_state.atomic import read_json
     from ..live_state.pending import validate_pending_state
 
     path = state.pending.path
     raw = validate_pending_state(read_json(path), path, state.strategy_uuid)
-    if raw["version"] not in (5, 6, 7):
+    if raw["version"] not in (5, 6, 7, 8):
         raise error_type("GATEWAY_ORDER_STATE_UPGRADE_REQUIRED")
+    if raw["version"] == 8:
+        if execution_selection is None:
+            raise error_type("GATEWAY_EXECUTION_SELECTION_REQUIRED")
+        for route in raw["gateway"]["execution_routes"].values():
+            try:
+                config = execution_selection.routing
+                same = (route["configuration_id"] == config.configuration_id
+                        and route["account"] == config.account_ref
+                        and route["strategy"] == config.strategy_ref
+                        and route["execution_domain_ref"] == config.execution_domain_ref)
+            except (AttributeError, KeyError, TypeError):
+                same = False
+            if not same:
+                raise error_type("GATEWAY_EXECUTION_CONFIGURATION_MISMATCH")
     initial_sequence = state.sequence.read()
     intents = host.list_intents()
     snapshots = host.iter_order_snapshots()
@@ -156,7 +310,7 @@ def _check_gateway_sequence_consistency(host, state, error_type):
             raise error_type("GATEWAY_SEQUENCE_BEHIND_PENDING")
         refs[ref] = key
         local_sequences.add(local_seq)
-    if raw["version"] in (6, 7):
+    if raw["version"] in (6, 7, 8):
         notices = host.local_order_notifications()
         for notice_key, notice in notices.items():
             prefix = next((p for p in ("cancel:", "reject:") if notice_key.startswith(p)), None)
@@ -216,7 +370,10 @@ def start_gateway_store(store, *, data, broker, error_type):
         current = StrategyStateDir(store._gateway_state.strategy_dir)
         if current.strategy_uuid != store._gateway_host._store.strategy_uuid:
             raise error_type("GATEWAY_HOST_IDENTITY_MISMATCH")
-        _check_gateway_sequence_consistency(store._gateway_host, current, error_type)
+        _check_gateway_sequence_consistency(
+            store._gateway_host, current, error_type,
+            execution_selection=getattr(store._gateway_strategy_config, "execution_selection", None),
+        )
         # Before any Strategy is created, restore the framework's existing
         # global ref basis from this strategy's durable high-water mark.
         store._gateway_state.sequence.restore_ref_basis()
@@ -224,11 +381,18 @@ def start_gateway_store(store, *, data, broker, error_type):
         _release_owned_gateway_lock(store)
         raise
     store._gateway_start_attempted = True
-    api = _create_gateway_api(store)
+    try:
+        api = _create_gateway_api(store)
+    except BaseException:
+        # A failed SDK composition may have retained a still-running owner.
+        # Without a positive cleanup proof the borrowed DB and lock stay held.
+        store._shutdown_state = "INCOMPLETE"
+        raise
     # Retain even on an ambiguous start failure, so stop can close this exact
     # session and no second runtime is created while cleanup is uncertain.
     store._api = api
     try:
+        _verify_gateway_execution_parents(store, api)
         snapshot = api.start(timeout_seconds=store._command_shutdown_timeout)
         if (snapshot.state != "running" or snapshot.healthy is not True
                 or snapshot.thread_alive is not True):
@@ -300,6 +464,12 @@ def reconnect_gateway_store(store, *, timeout=None):
 
     api = store._api
     run_lock = store._gateway_run_lock
+    if (store._gateway_composition_uncertain
+            and not _retry_gateway_composition_cleanup(store, timeout)):
+        return waiting("COMPOSITION_CLEANUP_UNCONFIRMED")
+    if (store._api is not api or store._gateway_run_lock is not run_lock
+            or not gateway_session_recoverable(store)):
+        return waiting("OLD_SESSION_BINDING_CHANGED")
     try:
         closed = _close_with_cleanup_retry(api, timeout)
     except Exception as error:
@@ -320,11 +490,15 @@ def reconnect_gateway_store(store, *, timeout=None):
     # with its Gateway and is not a reason to keep the strategy waiting.
     unresolved = (closed.cleanup_failures, closed.unregister_uncertainties,
                   closed.owner_cleanup_uncertainties)
-    api = _create_gateway_api(store)
+    try:
+        api = _create_gateway_api(store)
+    except Exception as error:
+        return waiting("COMPOSITION_FAILED", error)
     # Retained even when its start is ambiguous, exactly as on the first
     # start: the next attempt closes this session before creating another.
     store._api = api
     try:
+        _verify_gateway_execution_parents(store, api)
         started = api.start(timeout_seconds=timeout)
     except Exception as error:
         return waiting("REGISTRATION_FAILED", error)
@@ -370,12 +544,24 @@ def stop_gateway_store(store, *, timeout):
         raise ValueError("invalid Gateway stop timeout")
     api = store._api
     run_lock = store._gateway_run_lock
+    if store._gateway_composition_uncertain:
+        store._connected = False
+        store._started = False
+        store._shutdown_state = "INCOMPLETE"
+        if not _retry_gateway_composition_cleanup(store, timeout):
+            return store.get_command_health()
     if api is None:
         store._connected = False
         store._started = False
+        try:
+            _close_gateway_execution_db(store)
+        except BaseException:
+            store._shutdown_state = "INCOMPLETE"
+            raise
         _release_owned_gateway_lock(store)
         if store._gateway_start_attempted:
             store._gateway_closed = True
+            store._shutdown_state = "PASS"
         return store.get_command_health()
     # Fence Store use immediately, including zero-timeout and uncertain close.
     store._connected = False
@@ -401,6 +587,7 @@ def stop_gateway_store(store, *, timeout):
         store._shutdown_state = "INCOMPLETE"
         return store.get_command_health()
     try:
+        _close_gateway_execution_db(store)
         _release_owned_gateway_lock(store)
     except BaseException:
         store._shutdown_state = "INCOMPLETE"

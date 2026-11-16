@@ -1,6 +1,8 @@
 """Local routing binding tests: temporary files only, no remote authority."""
 from dataclasses import FrozenInstanceError, replace
 import json
+import sqlite3
+from decimal import Decimal
 
 import pytest
 
@@ -8,8 +10,50 @@ from backtrader.live_state.atomic import LiveStateCorrupt
 from backtrader.live_state.gateway_pending import GatewayPendingHost
 from backtrader.live_state.pending import validate_pending_state
 from backtrader.live_state import pending as pending_module
-from tests.unit.live_state.test_gateway_pending import inputs, observe
+from tests.unit.live_state.test_gateway_pending import inputs as base_inputs, observe
 from tests.unit.live_state.test_iter63_gateway_order_bootstrap import _snapshot, _upgrade, _v4, data
+
+from bt_api_base.market_protocol import MarketInstrumentKey
+from bt_api_py._contracts.models import OrderRequest, OrderType, Side
+from bt_api_py.execution_routing import (ExecutionOrderRouter, ExecutionRoutingOutcome,
+    install_execution_routing_tables, parse_execution_routing)
+from bt_api_py.gateway_direct_client import build_gateway_order_intent
+
+KEY = MarketInstrumentKey("ctp", "SHFE", "simnow", "future", "rb", "rb")
+CONFIG = parse_execution_routing({
+    "schema_version": 2, "algorithm_build_id": "build-1", "component": "exec-instance",
+    "account_ref": "account-a", "strategy_ref": "strategy-a", "execution_domain_ref": "paper:demo",
+    "grant_revision": "grant-v1", "delegation": {"delegation_id": "delegation-1", "principal_ref": "principal-a"},
+    "instruments": [KEY.to_dict()], "rules": [{"id": "rule-1",
+        "match": {"instrument": KEY.to_dict(), "side": "sell", "offset": "open",
+                  "order_types": ["limit"], "minimum_quantity": "1", "quantity_unit": "lots"},
+        "schedule_binding": {"quantity_step": "1", "price_step": "1", "retry_limit": 2},
+        "scheme": {"name": "pass-v1", "version": 1},
+        "algorithm": {"class": "PASS", "version": 1, "params": {}},
+        "deadline": {"kind": "absolute", "at": "2099-12-31T08:00:00+08:00"},
+        "time_in_force": "DAY", "trading_day": "20261109"}]})
+CONFIG_ID = CONFIG.configuration_id
+
+
+@pytest.fixture
+def inputs(base_inputs):
+    binding, route, _ = base_inputs
+    def intent(key="key-a", ttl=10, price="10"):
+        request = OrderRequest(symbol="rb", side=Side.BUY, order_type=OrderType.LIMIT,
+            quantity=Decimal("1"), account_id="account-a", client_order_id="client-a",
+            price=Decimal(price), idempotency_key=key, quantity_unit="lots",
+            exchange_id="SHFE", offset="open")
+        return build_gateway_order_intent(binding, route, request, ttl_seconds=ttl)
+    return binding, route, intent
+
+
+def fresh_router(config=CONFIG):
+    db = sqlite3.connect(":memory:", isolation_level=None)
+    db.execute("BEGIN IMMEDIATE")
+    install_execution_routing_tables(db)
+    db.commit()
+    return ExecutionOrderRouter(db=db, config=config, execution_port=None,
+                                risk_selected=False, clock=lambda: 1)
 
 
 def setup_v7(state, inputs):
@@ -19,18 +63,22 @@ def setup_v7(state, inputs):
     return host.upgrade_for_risk_routing()
 
 
-def submitted(host, intent, *, configuration_id="config-a"):
+def submitted(host, intent, *, configuration_id=CONFIG_ID):
     ref, snapshot = _snapshot()
     snapshot["state"]["orders"]["key-a"]["status"] = 1
     ticket = host.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
                                                 snapshot=snapshot, configuration_id=configuration_id)
+    if configuration_id == CONFIG_ID:
+        result = fresh_router().route(intent)
+        assert result.outcome is ExecutionRoutingOutcome.DIRECT_PATH
+        host._test_decision = result.direct_decision
     return ticket, ref, snapshot
 
 
 def prepared(intent, **changes):
     from bt_api_py.execution_routing import ExecutionPreparedRoute
     fields = dict(account="account-a", strategy="strategy-a", request_key=intent.request_key,
-                  intent_digest=intent.digest, configuration_id="config-a",
+                  intent_digest=intent.digest, configuration_id=CONFIG_ID,
                   execution_domain_ref="paper:demo", request_id="request-a",
                   request_sha256="a" * 64, parent_ref="parent-a")
     fields.update(changes)
@@ -116,8 +164,8 @@ def test_direct_selection_cannot_flip(state, inputs, kind):
     host = setup_v7(state, inputs).upgrade_for_execution_routing()
     intent = inputs[2]()
     ticket, _, _ = submitted(host, intent)
-    assert host.bind_execution_direct_route(intent.request_key, route_kind=kind) is True
-    assert host.bind_execution_direct_route(intent.request_key, route_kind=kind) is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind=kind, direct_decision=getattr(host, "_test_decision", None)) is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind=kind, direct_decision=getattr(host, "_test_decision", None)) is True
     before = data(state)
     with pytest.raises(ValueError):
         host.bind_execution_direct_route(intent.request_key, route_kind="RISK" if kind == "GATEWAY" else "GATEWAY")
@@ -183,16 +231,16 @@ def test_repeat_pending_never_reissues_ticket_or_rebinds_legacy(state, inputs):
     ticket, ref, snapshot = submitted(host, intent)
     assert ticket is not None
     assert host.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
-                                              snapshot=snapshot, configuration_id="config-a") is None
+                                              snapshot=snapshot, configuration_id=CONFIG_ID) is None
     before = data(state)
     with pytest.raises(ValueError):
         host.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
                                            snapshot=snapshot, configuration_id="config-b")
     with pytest.raises(ValueError):
         host.save_execution_routing_intent(inputs[2](ttl=20), local_seq=1, bt_ref=ref,
-                                           snapshot=snapshot, configuration_id="config-a")
+                                           snapshot=snapshot, configuration_id=CONFIG_ID)
     assert data(state) == before
-    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK") is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None)) is True
     assert host.consume_risk_reserve_ticket(intent, ticket) is True
     assert host.consume_risk_reserve_ticket(intent, ticket) is False
 
@@ -275,7 +323,7 @@ def test_sqlite_router_barrier_and_json_survive_reopen(state, inputs, tmp_path, 
     assert reopened_host.load_execution_route(intent.request_key) == route
     for kind in ("GATEWAY", "RISK"):
         with pytest.raises(ValueError):
-            reopened_host.bind_execution_direct_route(intent.request_key, route_kind=kind)
+            reopened_host.bind_execution_direct_route(intent.request_key, route_kind=kind, direct_decision=getattr(host, "_test_decision", None))
     with pytest.raises(ValueError):
         reopened_host.save_record(intent.request_key, observe(intent))
     with pytest.raises(ValueError):
@@ -288,12 +336,12 @@ def test_reopen_pending_cannot_choose_direct_or_recreate_decision(state, inputs)
     _, ref, snapshot = submitted(host, intent)
     reopened = GatewayPendingHost(state.strategy_dir, state.strategy_uuid, inputs[0])
     assert reopened.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
-        snapshot=snapshot, configuration_id="config-a") is None
+        snapshot=snapshot, configuration_id=CONFIG_ID) is None
     for kind in ("GATEWAY", "RISK"):
         with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
             reopened.bind_execution_direct_route(intent.request_key, route_kind=kind)
     assert reopened.load_execution_route(intent.request_key).kind == "PENDING"
-    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK") is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None)) is True
     assert reopened.bind_execution_direct_route(intent.request_key, route_kind="RISK") is True
 
 
@@ -308,9 +356,9 @@ def test_direct_decision_is_bound_to_process_and_thread(state, inputs, monkeypat
     with monkeypatch.context() as m:
         m.setattr(gateway_execution_route.os, "getpid", lambda: original_pid + 1)
         with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-            host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+            host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
     # A different request and fresh host verify the thread binding independently.
     # Use a new temporary strategy fixture via the original host's second key.
     other = inputs[2]("key-b")
@@ -320,12 +368,12 @@ def test_direct_decision_is_bound_to_process_and_thread(state, inputs, monkeypat
     order["status"] = 1
     order["ref"] = ref + 1
     host.save_execution_routing_intent(other, local_seq=2, bt_ref=ref + 1,
-                                      snapshot=snapshot, configuration_id="config-a")
+                                      snapshot=snapshot, configuration_id=CONFIG_ID)
     with ThreadPoolExecutor(max_workers=1) as pool:
         with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-            pool.submit(host.bind_execution_direct_route, other.request_key, route_kind="RISK").result()
+            pool.submit(host.bind_execution_direct_route, other.request_key, route_kind="RISK", direct_decision=None).result()
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(other.request_key, route_kind="RISK")
+        host.bind_execution_direct_route(other.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None))
 
 
 def test_parent_binding_write_failure_retires_direct_decision(state, inputs, monkeypatch):
@@ -339,21 +387,44 @@ def test_parent_binding_write_failure_retires_direct_decision(state, inputs, mon
     monkeypatch.setattr(pending_module, "atomic_write_json", original)
     assert host.load_execution_route(intent.request_key).kind == "PENDING"
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(intent.request_key, route_kind="RISK")
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None))
 
 
 def test_direct_write_failure_consumes_decision(state, inputs, monkeypatch):
+    from bt_api_py.execution_routing import consume_execution_direct_decision
     host = setup_v7(state, inputs).upgrade_for_execution_routing()
     intent = inputs[2]()
     submitted(host, intent)
     original = pending_module.atomic_write_json
     monkeypatch.setattr(pending_module, "atomic_write_json", lambda *a, **k: (_ for _ in ()).throw(OSError("failure")))
     with pytest.raises(OSError):
-        host.bind_execution_direct_route(intent.request_key, route_kind="RISK")
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None))
+    assert not consume_execution_direct_decision(host._test_decision, intent=intent,
+                                                 configuration_id=CONFIG_ID)
     monkeypatch.setattr(pending_module, "atomic_write_json", original)
     assert host.load_execution_route(intent.request_key).kind == "PENDING"
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(intent.request_key, route_kind="RISK")
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None))
+
+
+def test_direct_lock_failure_consumes_both_decisions(state, inputs, monkeypatch):
+    from bt_api_py.execution_routing import consume_execution_direct_decision
+
+    host = setup_v7(state, inputs).upgrade_for_execution_routing()
+    intent = inputs[2]()
+    submitted(host, intent)
+    with monkeypatch.context() as patch:
+        def fail_lock():
+            raise OSError("lock failure")
+        patch.setattr(host._store, "_lock", fail_lock)
+        with pytest.raises(OSError, match="lock failure"):
+            host.bind_execution_direct_route(intent.request_key, route_kind="RISK",
+                                             direct_decision=host._test_decision)
+    assert not consume_execution_direct_decision(host._test_decision, intent=intent,
+                                                 configuration_id=CONFIG_ID)
+    with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK",
+                                         direct_decision=fresh_router().route(intent).direct_decision)
 
 
 def test_first_write_uncertain_does_not_issue_decision(state, inputs, monkeypatch):
@@ -368,13 +439,13 @@ def test_first_write_uncertain_does_not_issue_decision(state, inputs, monkeypatc
     monkeypatch.setattr(pending_module, "atomic_write_json", write_then_fail)
     with pytest.raises(OSError):
         host.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
-                                          snapshot=snapshot, configuration_id="config-a")
+                                          snapshot=snapshot, configuration_id=CONFIG_ID)
     monkeypatch.setattr(pending_module, "atomic_write_json", original)
     assert host.load_execution_route(intent.request_key).kind == "PENDING"
     assert host.save_execution_routing_intent(intent, local_seq=1, bt_ref=ref,
-        snapshot=snapshot, configuration_id="config-a") is None
+        snapshot=snapshot, configuration_id=CONFIG_ID) is None
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
 
 
 @pytest.mark.parametrize("binding_change", ["store", "binding"])
@@ -390,14 +461,14 @@ def test_direct_decision_rejects_rebound_host(state, inputs, binding_change):
         host._binding = replace(old)
     try:
         with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-            host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+            host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
     finally:
         if binding_change == "store":
             host._store = old
         else:
             host._binding = old
     with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
-        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
 
 
 def test_direct_write_uncertain_reopens_only_same_final(state, inputs, monkeypatch):
@@ -410,7 +481,7 @@ def test_direct_write_uncertain_reopens_only_same_final(state, inputs, monkeypat
         raise OSError("uncertain after replacement")
     monkeypatch.setattr(pending_module, "atomic_write_json", write_then_fail)
     with pytest.raises(OSError):
-        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY")
+        host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None))
     monkeypatch.setattr(pending_module, "atomic_write_json", original)
     reopened = GatewayPendingHost(state.strategy_dir, state.strategy_uuid, inputs[0])
     assert reopened.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY") is True
@@ -422,7 +493,7 @@ def test_v8_risk_direct_delegated_record_round_trips(state, inputs):
     host = setup_v7(state, inputs).upgrade_for_execution_routing()
     intent = inputs[2]()
     ticket, _, _ = submitted(host, intent)
-    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK") is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=getattr(host, "_test_decision", None)) is True
     assert host.consume_risk_reserve_ticket(intent, ticket) is True
     record = host.save_delegated_command(intent.request_key, reservation_id="risk-reservation",
                                          digest=intent.digest, permit_id="risk-permit",
@@ -439,9 +510,30 @@ def test_v8_gateway_direct_record_round_trips(state, inputs):
     host = setup_v7(state, inputs).upgrade_for_execution_routing()
     intent = inputs[2]()
     submitted(host, intent)
-    assert host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY") is True
+    assert host.bind_execution_direct_route(intent.request_key, route_kind="GATEWAY", direct_decision=getattr(host, "_test_decision", None)) is True
     record = observe(intent)
     host.save_record(intent.request_key, record)
     reopened = GatewayPendingHost(state.strategy_dir, state.strategy_uuid, inputs[0])
     assert reopened.load_execution_route(intent.request_key).kind == "GATEWAY"
     assert reopened.load_record(intent.request_key) == record
+
+
+@pytest.mark.parametrize("invalid", ["absent", "fabricated", "other_intent", "configuration"])
+def test_pending_requires_matching_sdk_decision(state, inputs, invalid):
+    host = setup_v7(state, inputs).upgrade_for_execution_routing()
+    intent = inputs[2]()
+    submitted(host, intent, configuration_id="other-config" if invalid == "configuration" else CONFIG_ID)
+    if invalid == "absent":
+        token = None
+    elif invalid == "fabricated":
+        token = object()
+    elif invalid == "other_intent":
+        token = fresh_router().route(inputs[2](price="11")).direct_decision
+    else:
+        token = fresh_router().route(intent).direct_decision
+    with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK", direct_decision=token)
+    assert host.load_execution_route(intent.request_key).kind == "PENDING"
+    with pytest.raises(ValueError, match="DECISION_UNAVAILABLE"):
+        host.bind_execution_direct_route(intent.request_key, route_kind="RISK",
+                                         direct_decision=getattr(host, "_test_decision", None))

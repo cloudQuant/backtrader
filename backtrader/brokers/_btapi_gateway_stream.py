@@ -5,6 +5,7 @@ itself establish venue provenance; callbacks remain on the framework path.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -54,6 +55,7 @@ class _StreamBinding:
     # was still RESERVED, with the monotonic time of the next status read
     # (see _DISPATCH_RECHECK_SECONDS).
     dispatch_recheck: dict = field(default_factory=dict)
+    execution_cancel_attempted: set = field(default_factory=set)
     # Earliest monotonic time of the next step after one that found nothing to
     # do (see _IDLE_READ_INTERVAL_SECONDS); a local submit or cancel clears it.
     next_idle_read: float = 0.0
@@ -547,6 +549,9 @@ class GatewayExecutionStreamBrokerMixin:
         # This is a local call-contract check, not a source or admission proof.
         # Preserve the returned bound callable so a later attribute lookup
         # cannot silently select a different reserve implementation.
+        execution_selected = getattr(binding.api, "execution_selected", False)
+        if type(execution_selected) is not bool:
+            _fail("EXECUTION_CONFIGURATION_UNAVAILABLE")
         try:
             config = getattr(self.store, "gateway_strategy_config", None)
             configured_risk = None
@@ -561,7 +566,7 @@ class GatewayExecutionStreamBrokerMixin:
                 raise ValueError
             risk_reserve = None
             risk_save = None
-            if risk_routed:
+            if risk_routed and not execution_selected:
                 capability = getattr(binding.api, "risk_first_send_reserve_contract", None)
                 contract = capability() if callable(capability) else None
                 if (type(contract) is not tuple or len(contract) != 3
@@ -632,7 +637,11 @@ class GatewayExecutionStreamBrokerMixin:
         for prior_key, prior_order in notice.orders.items():
             if prior_order.data is not order.data:
                 continue
-            if prior_order.info.get("gateway_risk_routed") is True:
+            prior_route = binding.host.load_execution_route(prior_key)
+            if prior_route is not None and prior_route.kind in ("PENDING", "EXECUTION_PARENT"):
+                _fail("ORDER_RECONCILE_REQUIRED")
+            if ((prior_route is not None and prior_route.kind == "RISK")
+                    or (prior_route is None and prior_order.info.get("gateway_risk_routed") is True)):
                 # A local status or notice does not prove all prior hosts and
                 # in-flight commands are covered. A trusted cross-generation
                 # contract is required before another order on this feed.
@@ -666,6 +675,14 @@ class GatewayExecutionStreamBrokerMixin:
         # D64-01: with Risk selected this PLACE goes through Risk only (the SDK
         # facade never falls back to the Gateway). The durable marker keeps the
         # order off the own-command paths after a restart, in any selection.
+        configuration_id = None
+        if execution_selected:
+            try:
+                configuration_id = binding.api.execution_configuration_id
+            except Exception:
+                _fail("EXECUTION_CONFIGURATION_UNAVAILABLE")
+            if type(configuration_id) is not str or not configuration_id:
+                _fail("EXECUTION_CONFIGURATION_UNAVAILABLE")
         if order.comminfo is None:
             order.addcomminfo(self.getcommissioninfo(order.data))
         try:
@@ -681,8 +698,13 @@ class GatewayExecutionStreamBrokerMixin:
             order.submit(self)
             snapshot = capture_framework_state(orders={request_key: order}, positions={}, trades={},
                 data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
-            save_submitted = risk_save if risk_routed else binding.host.save_submitted_order_intent
-            first_send_ticket = save_submitted(intent, local_seq=seq, bt_ref=order.ref, snapshot=snapshot)
+            if execution_selected:
+                first_send_ticket = binding.host.save_execution_routing_intent(
+                    intent, local_seq=seq, bt_ref=order.ref, snapshot=snapshot,
+                    configuration_id=configuration_id)
+            else:
+                save_submitted = risk_save if risk_routed else binding.host.save_submitted_order_intent
+                first_send_ticket = save_submitted(intent, local_seq=seq, bt_ref=order.ref, snapshot=snapshot)
             self._gateway_register_order(notice, request_key, order)
             self.orders[order.ref] = order
             local = binding.host.local_order_notifications()[request_key]
@@ -691,6 +713,68 @@ class GatewayExecutionStreamBrokerMixin:
         except BaseException:
             binding.state = "RESTART_REQUIRED"
             raise
+        if execution_selected:
+            from bt_api_py.execution_routing import ExecutionRoutingOutcome, ExecutionRoutingResult
+            try:
+                routed = binding.api.route_execution_order(
+                    binding.policy.route, intent,
+                    before_submit=lambda prepared: binding.host.bind_execution_parent_route(request_key, prepared))
+                if type(routed) is not ExecutionRoutingResult:
+                    raise ValueError("EXECUTION_RESULT_INVALID")
+                if routed.outcome is ExecutionRoutingOutcome.DIRECT_PATH:
+                    if risk_routed:
+                        contract = binding.api.risk_first_send_reserve_contract()
+                        if (type(contract) is not tuple or len(contract) != 3
+                                or contract[0] != "local-first-send-ticket-v1"
+                                or type(contract[1]) is not MethodType
+                                or contract[1].__self__ is not binding.api
+                                or type(contract[2]) is not tuple or len(contract[2]) != 4
+                                or contract[2][0] != "local-first-send-host-v1"
+                                or any(type(method) is not MethodType or method.__self__ is not binding.host
+                                       for method in contract[2][1:])):
+                            raise ValueError("RISK_TICKET_CONTRACT_UNSUPPORTED")
+                        risk_reserve = contract[1]
+                    if binding.host.bind_execution_direct_route(
+                            request_key, route_kind="RISK" if risk_routed else "GATEWAY",
+                            direct_decision=routed.direct_decision) is not True:
+                        raise ValueError("EXECUTION_ROUTE_BIND_FAILED")
+                elif routed.outcome is ExecutionRoutingOutcome.EXECUTION_REJECTED:
+                    # The opaque SDK token is consumed by the host in the same
+                    # transaction that persists the rejection and its notice.
+                    rejected = order.clone()
+                    rejected.info = copy.copy(order.info)
+                    rejected.reject(self)
+                    rejected.addinfo(execution_routing_outcome="EXECUTION_REJECTED",
+                                     execution_rejection_code=routed.code)
+                    rejected_snapshot = capture_framework_state(
+                        orders={request_key: rejected}, positions={}, trades={},
+                        data_by_ref=binding.feeds, owner=binding.strategy, broker=self)
+                    local = binding.host.reject_execution_before_submit(
+                        request_key, bt_ref=order.ref, snapshot=rejected_snapshot,
+                        code=routed.code, rejection_decision=routed.rejection_decision)
+                    order.reject(self)
+                    order.addinfo(execution_routing_outcome="EXECUTION_REJECTED",
+                                  execution_rejection_code=routed.code)
+                    order.notification_id, order.replayed = local["notification_id"], False
+                    self._gateway_notify_local(binding, order)
+                    return order
+                else:
+                    saved_route = binding.host.load_execution_route(request_key)
+                    if (routed.outcome is ExecutionRoutingOutcome.EXECUTION_LOCAL_RECEIPT
+                            and (routed.source != "SDK_LOCAL" or routed.code is not None
+                                 or routed.execution_state is not None
+                                 or saved_route is None or saved_route.kind != "EXECUTION_PARENT"
+                                 or routed.request_id != saved_route.request_id
+                                 or routed.request_sha256 != saved_route.request_sha256
+                                 or routed.parent_ref != saved_route.parent_ref)):
+                        raise ValueError("EXECUTION_RECEIPT_MISMATCH")
+                    order.addinfo(execution_routing_outcome=routed.outcome.value)
+                    binding.state = "EXECUTION_RECOVERY_PENDING"
+                    return order
+            except Exception:
+                binding.state = "EXECUTION_RECOVERY_PENDING"
+                order.addinfo(execution_routing_outcome="EXECUTION_UNKNOWN")
+                return order
         try:
             binding.reserve_unknown[request_key] = time.monotonic()
             if risk_routed:
@@ -842,7 +926,23 @@ class GatewayExecutionStreamBrokerMixin:
         notice = self._gateway_binding(binding.strategy, required=True)
         key = self._gateway_request(notice, order)
         order = notice.orders[key]
-        if order.info.get("gateway_risk_routed") is True:
+        route = binding.host.load_execution_route(key)
+        if route is not None and route.kind == "EXECUTION_REJECTED":
+            return order
+        if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT"):
+            if route.kind == "EXECUTION_PARENT":
+                try:
+                    if (binding.api.execution_selected is True
+                            and binding.api.execution_configuration_id == route.configuration_id):
+                        intent = binding.host.load_intent(key)
+                        if intent is not None:
+                            binding.execution_cancel_attempted.add(key)
+                            binding.api.cancel_execution_order(binding.policy.route, intent)
+                except Exception:
+                    pass
+            binding.state = "EXECUTION_RECOVERY_PENDING"
+            return order
+        if (route is not None and route.kind == "RISK") or (route is None and order.info.get("gateway_risk_routed") is True):
             return self._gateway_risk_cancel(binding, order, key)
         record = binding.host.load_record(key)
         if record is None:
@@ -1106,32 +1206,45 @@ class GatewayExecutionStreamBrokerMixin:
             summary["unresolved_working_orders"] = None  # the working set could not be read
             return summary
         requested = []
+        attempted_unknown = []
         for order in working:
             try:
+                key = self._gateway_request(notice, order)
+                binding.execution_cancel_attempted.discard(key)
                 self._gateway_cancel_order(order)
             except Exception as exc:
                 code = str(exc) if type(exc) is GatewayExecutionStreamError else type(exc).__name__
                 summary["refused"][code] = summary["refused"].get(code, 0) + 1
             else:
-                requested.append(order)
+                route = binding.host.load_execution_route(key)
+                if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT"):
+                    if key in binding.execution_cancel_attempted:
+                        attempted_unknown.append(order)
+                    else:
+                        summary["refused"]["EXECUTION_CANCEL_UNRESOLVED"] = (
+                            summary["refused"].get("EXECUTION_CANCEL_UNRESOLVED", 0) + 1)
+                else:
+                    requested.append(order)
         summary["cancel_requested"] = len(requested)
+        if attempted_unknown:
+            summary["cancel_attempted_unknown"] = len(attempted_unknown)
         timeout = getattr(self.p, "stop_cancel_timeout", 10.0)
         timeout = float(timeout) if type(timeout) in (int, float) and math.isfinite(timeout) else 0.0
         deadline = time.monotonic() + max(timeout, 0.0)
-        while time.monotonic() < deadline and any(order.alive() for order in requested):
+        while time.monotonic() < deadline and any(order.alive() for order in requested + attempted_unknown):
             try:
                 self._gateway_stream_next()
             except Exception:
                 break
             time.sleep(0.05)
-        summary["confirmed_terminal"] = sum(1 for order in requested if not order.alive())
-        summary["awaiting_confirmation"] = len(requested) - summary["confirmed_terminal"]
+        summary["confirmed_terminal"] = sum(1 for order in requested + attempted_unknown if not order.alive())
+        summary["awaiting_confirmation"] = sum(1 for order in requested + attempted_unknown if order.alive())
         summary["unresolved_working_orders"] = sum(1 for order in working if order.alive())
         if summary["unresolved_working_orders"]:
             _logger.warning("Gateway stop left %d of this strategy's working orders unresolved "
                          "(%d cancel(s) awaiting confirmation, %d not requested)",
                          summary["unresolved_working_orders"], summary["awaiting_confirmation"],
-                         len(working) - len(requested))
+                         len(working) - len(requested) - len(attempted_unknown))
         return summary
 
     def _gateway_unreachable(self, *, reconnect=False):
@@ -1229,7 +1342,10 @@ class GatewayExecutionStreamBrokerMixin:
         record = binding.host.load_record(key)
         context = binding.host.load_context(key)
         delegated = None
-        if record is None and order.info.get("gateway_risk_routed") is True:
+        route = binding.host.load_execution_route(key)
+        risk_route = ((route is not None and route.kind == "RISK")
+                      or (route is None and order.info.get("gateway_risk_routed") is True))
+        if record is None and risk_route:
             # A Risk-placed order: its delegated command record stands in.
             delegated = binding.host.load_delegated_command(key)
         if (intent is None or (record is None and delegated is None and not allow_unreserved)
@@ -1395,13 +1511,35 @@ class GatewayExecutionStreamBrokerMixin:
         local_notices = binding.host.local_order_notifications()
         risk_recovery_state = None
         for key in notice.orders:
+            execution_route = binding.host.load_execution_route(key)
+            if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
+                # Query the original intent only. Missing records and NOT_FOUND
+                # never establish that a parent was not sent.
+                try:
+                    if (binding.api.execution_selected is True
+                            and binding.api.execution_configuration_id == execution_route.configuration_id):
+                        from bt_api_py.execution_routing import ExecutionRoutingStatus
+                        status = binding.api.execution_order_status(
+                            binding.policy.route, binding.host.load_intent(key))
+                        if type(status) is not ExecutionRoutingStatus:
+                            raise ValueError("EXECUTION_STATUS_INVALID")
+                        if (execution_route.kind == "EXECUTION_PARENT" and status.routed
+                                and (status.request_id != execution_route.request_id
+                                     or status.request_sha256 != execution_route.request_sha256
+                                     or status.parent_ref != execution_route.parent_ref)):
+                            raise ValueError("EXECUTION_STATUS_MISMATCH")
+                except Exception:
+                    pass
+                risk_recovery_state = "EXECUTION_RECOVERY_PENDING"
+                continue
             if "reject:" + key in local_notices or _bt_terminal(notice.orders[key]):
                 # Historical Risk terminal state lacks a cross-host proof.
                 # Keep processing the stream, but do not label it healthy.
-                if notice.orders[key].info.get("gateway_risk_routed") is True:
+                if ((execution_route is not None and execution_route.kind == "RISK")
+                        or (execution_route is None and notice.orders[key].info.get("gateway_risk_routed") is True)):
                     risk_recovery_state = risk_recovery_state or "RISK_RECOVERY_PENDING"
                 continue
-            if notice.orders[key].info.get("gateway_risk_routed") is True:
+            if (execution_route is not None and execution_route.kind == "RISK") or (execution_route is None and notice.orders[key].info.get("gateway_risk_routed") is True):
                 # Placed through Risk: driven by its delegated command record,
                 # never by the own-command paths below.
                 # Re-evaluate stale state for this order; retain the most
@@ -1525,7 +1663,11 @@ class GatewayExecutionStreamBrokerMixin:
                     key = event.request_key
                     if key not in notice.orders:
                         continue  # normal page validation will reject the orphan
-                    if notice.orders[key].info.get("gateway_risk_routed") is True:
+                    route = binding.host.load_execution_route(key)
+                    if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT", "EXECUTION_REJECTED"):
+                        binding.state = "EXECUTION_EVENT_UNBOUND"
+                        return False
+                    if (route is not None and route.kind == "RISK") or (route is None and notice.orders[key].info.get("gateway_risk_routed") is True):
                         # A Risk-placed order's returns bind only under the
                         # delegate principal persisted for its key.
                         delegated = binding.host.load_delegated_command(key)
@@ -1568,7 +1710,11 @@ class GatewayExecutionStreamBrokerMixin:
         if order is None:
             binding.state = "ORDER_UNAVAILABLE"
             return
-        if order.info.get("gateway_risk_routed") is True:
+        route = binding.host.load_execution_route(event.request_key)
+        if route is not None and route.kind in ("PENDING", "EXECUTION_PARENT", "EXECUTION_REJECTED"):
+            binding.state = "EXECUTION_EVENT_UNBOUND"
+            return
+        if (route is not None and route.kind == "RISK") or (route is None and order.info.get("gateway_risk_routed") is True):
             delegated = binding.host.load_delegated_command(event.request_key)
             if delegated is None or delegated.actor_principal is None:
                 binding.state = "ORDER_UNAVAILABLE"
