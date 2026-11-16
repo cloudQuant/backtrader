@@ -58,16 +58,12 @@ def sample():
     return runner.load_config(ROOT / TEMPLATES[0])
 
 
-def test_run_id_updates_selected_routes_without_modifying_original():
+@pytest.mark.parametrize('name', ['risk', 'execution'])
+def test_mismatched_logical_trading_run_rejected(name):
     config = sample()
-    old = copy.deepcopy(config)
-    bound = runner.bind_run_id(config, '3c92edfe-7e69-4a1b-9a87-54d2a9e42c03')
-    parsed = runner.validate_config(bound)
-    assert config == old
-    gateway = bound['gateway_strategy']
-    assert {gateway['route']['scope']['run_id'], gateway['risk']['route']['scope']['run_id'],
-            gateway['execution']['route']['scope']['run_id']} == {'3c92edfe-7e69-4a1b-9a87-54d2a9e42c03'}
-    assert parsed.client_config.registration == parsed.execution_selection.client_config.registration
+    config['gateway_strategy'][name]['route']['scope']['run_id'] = 'different-run'
+    with pytest.raises(ValueError):
+        runner.validate_config(config)
 
 
 def test_unselected_and_top_level_guard():
@@ -203,11 +199,12 @@ def test_protected_curve_files_load_all_profiles_and_reject_bad_execution_pair(t
 
 
 @pytest.mark.parametrize('explicit', [True, False])
-def test_main_binds_all_routes_and_writer_to_same_run_id(tmp_path, monkeypatch, explicit):
+def test_main_keeps_logical_run_and_uses_process_run_id_for_writer(tmp_path, monkeypatch, explicit):
     import uuid
     import yaml
     import backtrader as bt
     import backtrader.live_trading as live
+    import backtrader.live_state as live_state
     import backtrader.stores.btapistore as store_module
     from contextlib import nullcontext
     from types import SimpleNamespace
@@ -254,19 +251,29 @@ def test_main_binds_all_routes_and_writer_to_same_run_id(tmp_path, monkeypatch, 
     monkeypatch.setattr(runner, 'resolve_resources', resources)
     monkeypatch.setattr(store_module, 'BtApiStore', Store)
     monkeypatch.setattr(bt, 'Cerebro', Cerebro)
-    monkeypatch.setattr(live, 'stop_on_terminate', lambda *args, **kwargs: Termination())
+    def termination(*args, **kwargs):
+        seen['stop_id'] = kwargs['stop_request_run_id']
+        return Termination()
+    monkeypatch.setattr(live, 'stop_on_terminate', termination)
     monkeypatch.setattr(live, 'RunStatusWriter', Writer)
+    monkeypatch.setattr(live_state, 'load_identity', lambda *args: SimpleNamespace(strategy_uuid='strategy'))
     requested = '3c92edfe-7e69-4a1b-9a87-54d2a9e42c03'
-    args = ['--config', str(path)] + (['--run-id', requested] if explicit else [])
+    args = ['--config', str(path)] + (
+        ['--run-id', requested, '--stop-request-file', str(tmp_path / 'stop')] if explicit else []
+    )
     assert runner.main(type('Strategy', (), {}), 'synthetic', tmp_path, args) == 0
     run_id = seen['writer_id']
     assert str(uuid.UUID(run_id)) == run_id
     if explicit:
         assert run_id == requested
-    assert {route.scope.run_id for route in seen['resource_routes']} == {run_id}
+        assert seen['stop_id'] == run_id
+    logical_run = config['gateway_strategy']['route']['scope']['run_id']
+    assert run_id != logical_run
+    assert {route.scope.run_id for route in seen['resource_routes']} == {logical_run}
     gateway = seen['store_config']
     assert {gateway['route']['scope']['run_id'], gateway['risk']['route']['scope']['run_id'],
-            gateway['execution']['route']['scope']['run_id']} == {run_id}
+            gateway['execution']['route']['scope']['run_id']} == {logical_run}
+    assert gateway == config['gateway_strategy']
     assert path.read_bytes() == original
 
 
