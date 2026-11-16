@@ -327,6 +327,9 @@ def test_empty_stream_aggregates_risk_states_for_multiple_orders(per_order, expe
                                  stored_sequence=0, epoch="epoch", revision=0)
 
     class Host:
+        def load_execution_route(self, key):
+            return None  # legacy Risk orders have no Execution route
+
         def load_execution_checkpoint(self):
             return checkpoint
 
@@ -344,6 +347,9 @@ def test_empty_stream_aggregates_risk_states_for_multiple_orders(per_order, expe
             return SimpleNamespace(outcome="OBSERVED", page=None)
 
     class LoopBroker(GatewayExecutionStreamBrokerMixin):
+        def _is_market_data_only(self):
+            return False
+
         def _gateway_unreachable(self, **kwargs):
             return False
 
