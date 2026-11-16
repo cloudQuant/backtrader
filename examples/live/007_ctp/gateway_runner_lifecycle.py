@@ -21,6 +21,33 @@ class RunnerLifecycle:
         self.timer = None
         self.runstrategies_entered = False
         self.retained = False
+        self._signal_previous = {}
+        self._guard_pending = None
+
+    def install_signal_guard(self):
+        """Keep terminate signals bounded across TerminateStop.__exit__."""
+        if threading.current_thread() is not threading.main_thread():
+            return
+        for name in ("SIGTERM", "SIGBREAK"):
+            signum = getattr(signal, name, None)
+            if signum is not None:
+                self._signal_previous[signum] = signal.signal(signum, self._guard_signal)
+
+    def _guard_signal(self, signum, _frame):
+        self._guard_pending = signum
+
+    def deliver_guarded_stop(self):
+        # A signal just before TerminateStop entered must still request a stop.
+        pending, self._guard_pending = self._guard_pending, None
+        if pending is not None:
+            self.termination.request(signal.Signals(pending).name, signal=True)
+
+    def restore_signal_guard(self):
+        if threading.current_thread() is not threading.main_thread():
+            return
+        for signum, previous in self._signal_previous.items():
+            signal.signal(signum, previous)
+        self._signal_previous.clear()
 
     def cleanup_confirmed(self):
         store = self.store

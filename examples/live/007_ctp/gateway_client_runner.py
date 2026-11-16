@@ -342,6 +342,7 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
     lifecycle = RunnerLifecycle(host, profiles)
     stage = "setup"
     failure = None
+    error_code = "GATEWAY_RUN_FAILED"
     conclusion = None
     cleanup_confirmed = False
 
@@ -426,8 +427,13 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
             stop_request_file = args.stop_request_file
             if stop_request_file is not None:
                 if args.run_id is None:
-                    raise ValueError("stop_request_requires_run_id")
-                stop_request_strategy_uuid = load_identity(run_dir).strategy_uuid
+                    error_code = "stop_request_requires_run_id"
+                    raise ValueError(error_code)
+                try:
+                    stop_request_strategy_uuid = load_identity(run_dir).strategy_uuid
+                except Exception:
+                    error_code = "stop_request_identity_unavailable"
+                    raise
             else:
                 stop_request_strategy_uuid = None
             termination = stop_on_terminate(
@@ -465,7 +471,9 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                     return runstrategies(*args, **kwargs)
                 cerebro.runstrategies = tracked_runstrategies
             stage = "run"
+            lifecycle.install_signal_guard()
             with termination:
+                lifecycle.deliver_guarded_stop()
                 if seconds:
                     lifecycle.timer = threading.Timer(seconds, cerebro.runstop)
                     lifecycle.timer.daemon = True
@@ -474,11 +482,13 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
         except BaseException as exc:
             failure = exc
             diagnostic({"status": "CRASHED" if stage == "run" else "BLOCKED",
-                        "stage": stage, "error_code": "GATEWAY_RUN_FAILED"})
+                        "stage": stage, "error_code": error_code})
         finally:
             cleanup_confirmed = lifecycle.prepare_cleanup()
             if not cleanup_confirmed:
                 lifecycle.arm_retention(_retained_wait)
+            else:
+                lifecycle.restore_signal_guard()
 
         if lifecycle.contract is not None:
             summary = None
@@ -487,8 +497,13 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
             try:
                 if cleanup_confirmed:
                     summary = contract_broker_summary(lifecycle.broker.get_shutdown_summary())
-            except BaseException:
-                failure = failure or RuntimeError("GATEWAY_SUMMARY_FAILED")
+            except BaseException as exc:
+                if isinstance(exc, (KeyboardInterrupt, SystemExit)) and not isinstance(
+                    failure, (KeyboardInterrupt, SystemExit)
+                ):
+                    failure = exc
+                else:
+                    failure = failure or RuntimeError("GATEWAY_SUMMARY_FAILED")
                 diagnostic({"status": "CRASHED", "stage": "summary",
                             "error_code": "GATEWAY_SUMMARY_FAILED"})
             try:
@@ -497,8 +512,13 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
                     broker_summary=summary,
                     exception=RuntimeError("GATEWAY_RUN_FAILED") if failure is not None else None,
                 )
-            except BaseException:
-                failure = failure or RuntimeError("GATEWAY_FINISH_FAILED")
+            except BaseException as exc:
+                if isinstance(exc, (KeyboardInterrupt, SystemExit)) and not isinstance(
+                    failure, (KeyboardInterrupt, SystemExit)
+                ):
+                    failure = exc
+                else:
+                    failure = failure or RuntimeError("GATEWAY_FINISH_FAILED")
                 diagnostic({"status": "CRASHED", "stage": "finish",
                             "error_code": "GATEWAY_FINISH_FAILED"})
             finally:
@@ -509,7 +529,8 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
         if isinstance(failure, KeyboardInterrupt):
             raise KeyboardInterrupt() from None
         if isinstance(failure, SystemExit):
-            raise SystemExit(1) from None
+            code = failure.code
+            raise SystemExit(code if code is None or isinstance(code, int) else 1) from None
         if failure is not None:
             return 1 if stage == "run" else 2
         if conclusion is None:
