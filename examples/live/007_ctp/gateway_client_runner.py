@@ -27,6 +27,10 @@ _RESOURCE_GROUP = "bt_api_py.gateway_example_resources"
 _REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
+class GatewayExecutionConfigUnsupported(ValueError):
+    """A top-level Execution selection cannot be used by this Gateway runner."""
+
+
 def run_id_from_cli(value):
     """Canonicalise ``--run-id``; the runtime passes the UUID it registered."""
     try:
@@ -75,13 +79,16 @@ def load_config(path):
 
 
 def validate_config(config):
-    from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
-
     if any(name in config for name in ("gateway", "ctp", "direct")):
         raise ValueError("LEGACY_CONFIG_UNSUPPORTED")
     if "risk" in config:
         # Risk is selected only as gateway_strategy.risk (D64-01).
         raise ValueError("RISK_SELECTION_INVALID")
+    if "execution" in config:
+        raise GatewayExecutionConfigUnsupported("GATEWAY_TOP_LEVEL_EXECUTION_UNSUPPORTED")
+
+    from bt_api_py.gateway_strategy_config import parse_gateway_strategy_config
+
     provider = config.get("gateway_resource_provider")
     if type(provider) is not str or not _REF.fullmatch(provider):
         raise ValueError("RESOURCE_PROVIDER_REQUIRED")
@@ -234,6 +241,10 @@ def main(strategy, title, run_dir, argv=None):
             from gateway_local_resources import validate_security_file_config
 
             validate_security_file_config(parsed, config.get("gateway_resource_files"), run_dir)
+    except GatewayExecutionConfigUnsupported:
+        print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_TOP_LEVEL_EXECUTION_UNSUPPORTED",
+                          "message": "Top-level execution configuration is unsupported by this Gateway runner."}))
+        return 2
     except Exception:
         print(json.dumps({"status": "BLOCKED", "error_code": "GATEWAY_CONFIG_INVALID"}))
         return 2
