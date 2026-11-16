@@ -4,13 +4,14 @@ import datetime as dt
 import os
 import threading
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
 from bt_api_py.gateway_api import GatewayBtApi
-from bt_api_py.gateway_strategy_calendar import GatewayCalendarQueryResult
+from bt_api_py.gateway_strategy_calendar import GatewayCalendarQueryResult, GatewayCalendarWindowsResult
 from bt_api_py.gateway_strategy_config import GatewayStrategyConfig
 from tests.unit.live_state.conftest import state, strategy_dir  # noqa: F401
 from tests.unit.stores.test_iter63_gateway_store_config import (
@@ -55,10 +56,44 @@ def wire(day, contract="cu2601", *, generation="g1", registration="r1", epoch="e
     }
 
 
+def wire_range(start, end, contract="cu2601", *, windows=None, status="COMPLETE", reason="OK",
+               gaps=None, **binding_options):
+    start_dt = dt.datetime.fromisoformat(start.replace("Z", "+00:00"))
+    end_dt = dt.datetime.fromisoformat(end.replace("Z", "+00:00"))
+    shanghai = ZoneInfo("Asia/Shanghai")
+    first = start_dt.astimezone(shanghai).date()
+    last = (end_dt - dt.timedelta(microseconds=1)).astimezone(shanghai).date() + dt.timedelta(days=14)
+    binding = wire(MONDAY, contract, **binding_options)["binding"]
+    if windows is None:
+        windows = []
+        day = max(first, dt.date.fromisoformat(binding["bound_trading_day"]))
+        while day <= last:
+            for item in wire(day, contract, **binding_options)["windows"]:
+                left = dt.datetime.fromisoformat(item["start_utc"].replace("Z", "+00:00"))
+                right = dt.datetime.fromisoformat(item["end_utc"].replace("Z", "+00:00"))
+                if left < end_dt and right > start_dt:
+                    windows.append({**item, "trading_day": day.isoformat()})
+            day += dt.timedelta(days=1)
+        windows.sort(key=lambda item: item["start_utc"])
+    return {
+        "schema": "sdk.gateway.calendar.windows/1",
+        "scope": {"mode": "SIMULATION_ONLY", "route": ROUTE, "venue": "XSH", "kind": "future",
+                  "product": "cu", "contract": contract, "start_utc": start, "end_utc": end},
+        "registration_id": binding_options.get("registration", "r1"),
+        "service_epoch": binding_options.get("epoch", "e1"),
+        "status": status, "reason": reason, "binding": binding,
+        "policy": {"policy_id": "synthetic", "declaration": "DEPLOYMENT_DECLARED_UNVERIFIED",
+                   "max_advance_days": 14, "max_spill_days": 0,
+                   "first_owner_day": first.isoformat(), "last_owner_day": last.isoformat()},
+        "windows": windows, "gaps": gaps or [],
+        "source_authentication": "NOT_PROVEN", "trade_authorization": "NONE",
+    }
+
+
 @pytest.fixture
 def gateway(monkeypatch):
     api = object.__new__(GatewayBtApi)
-    config = SimpleNamespace(calendar_settings=object())
+    config = SimpleNamespace(calendar_settings=SimpleNamespace(range_read=True))
     lock = SimpleNamespace(held=True)
     store = object.__new__(BtApiStore)
     for name, value in {
@@ -73,7 +108,8 @@ def gateway(monkeypatch):
         setattr(store, name, value)
     monkeypatch.setattr(GatewayBtApi, "status", lambda self: SimpleNamespace(state="running", healthy=True))
     state = {"generation": "g1", "registration": "r1", "epoch": "e1", "version": "v1",
-             "bound": MONDAY, "load": "CURRENT", "empty": False, "calls": [], "fail": False}
+             "bound": MONDAY, "load": "CURRENT", "empty": False, "calls": [],
+             "range_calls": [], "fail": False}
 
     def query(self, exchange_name, **kwargs):
         state["calls"].append(kwargs)
@@ -86,6 +122,18 @@ def gateway(monkeypatch):
         ))
 
     monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", query)
+
+    def range_query(self, exchange_name, **kwargs):
+        state["range_calls"].append(kwargs)
+        assert exchange_name == ROUTE and kwargs["timeout_seconds"] == 5.0
+        if state["fail"]:
+            raise RuntimeError("offline")
+        return GatewayCalendarWindowsResult.from_wire(wire_range(
+            kwargs["start_utc"], kwargs["end_utc"], kwargs["contract"],
+            **{key: state[key] for key in ("generation", "registration", "epoch", "version", "bound", "load", "empty")}
+        ))
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", range_query)
     return store, state
 
 
@@ -119,7 +167,7 @@ def test_two_feeds_fixed_version_night_future_and_generations(gateway):
     updated = first.trading_session(trading_day=TUESDAY)
     assert updated.calendar_ref == "v2" and updated.gateway_binding.registration_id == "r2"
     assert second.trading_session(trading_day=TUESDAY).gateway_binding == updated.gateway_binding
-    assert len(state["calls"]) == 7
+    assert len(state["calls"]) == 6 and len(state["range_calls"]) == 1
 
 
 def test_gateway_empty_failure_and_stale_never_invent_active(gateway):
@@ -152,6 +200,13 @@ def test_gateway_stale_binding_survives_an_unanswered_day(gateway, monkeypatch):
         return GatewayCalendarQueryResult.from_wire(response)
 
     monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", unanswered)
+    def range_unanswered(_self, _exchange, **kwargs):
+        response = wire_range(kwargs["start_utc"], kwargs["end_utc"], load="STALE",
+                              status="UNKNOWN", reason="OWNER_DATA_UNAVAILABLE", windows=[],
+                              gaps=[{"trading_day": MONDAY.isoformat(), "reason": "OWNER_DATA_UNAVAILABLE"}])
+        return GatewayCalendarWindowsResult.from_wire(response)
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", range_unanswered)
     value = feed(store)
     session = value.trading_session(trading_day=MONDAY)
     assert (session.status, session.reason, session.phase, session.active) == (
@@ -160,10 +215,10 @@ def test_gateway_stale_binding_survives_an_unanswered_day(gateway, monkeypatch):
     assert session.windows == () and session.gateway_binding.calendar_ref == "v1"
     windows = value.trading_windows(dt.datetime(2026, 10, 12, 1, tzinfo=UTC),
                                     dt.datetime(2026, 10, 12, 2, tzinfo=UTC))
-    assert (windows.status, windows.reason, windows.stale) == ("UNKNOWN", "QUERY_UNAVAILABLE", True)
+    assert (windows.status, windows.reason, windows.stale) == ("UNKNOWN", "OWNER_DATA_UNAVAILABLE", True)
     assert windows.incomplete is True and windows.windows == ()
     assert len(windows.gaps) == 1
-    assert (windows.gaps[0].trading_day, windows.gaps[0].reason) == (MONDAY, "QUERY_UNAVAILABLE")
+    assert (windows.gaps[0].trading_day, windows.gaps[0].reason) == (MONDAY, "OWNER_DATA_UNAVAILABLE")
     assert (windows.calendar_ref, windows.publication_id, windows.content_sha256) == (
         "v1", "pv1", "a" * 64
     )
@@ -190,41 +245,142 @@ def test_store_rejects_mode_scope_and_changed_session(gateway, monkeypatch):
 def test_gateway_does_not_mix_generation_across_days(gateway, monkeypatch):
     store, state = gateway
     value = feed(store)
-    original = GatewayBtApi.trading_calendar_query
+    original = GatewayBtApi.trading_calendar_windows
     calls = []
 
     def change_generation(self, *args, **kwargs):
         calls.append(1)
-        if len(calls) == 2:
-            state["generation"] = "g2"
-        return original(self, *args, **kwargs)
+        result = original(self, *args, **kwargs)
+        store._gateway_session_generation += 1
+        return result
 
-    monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", change_generation)
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", change_generation)
     result = value.trading_windows(dt.datetime(2026, 10, 12, 1, tzinfo=UTC),
                                    dt.datetime(2026, 10, 13, 2, tzinfo=UTC))
-    assert (result.status, result.reason, result.windows) == ("UNKNOWN", "CONFIGURATION_CHANGED", ())
-    assert len(calls) == 2
+    assert (result.status, result.reason, result.windows) == ("UNKNOWN", "STORE_CHANGED", ())
+    assert result.incomplete and len(calls) == 1 and not state["calls"]
 
 
-def test_gateway_friday_night_range_is_unknown_without_day_owner_index(gateway, monkeypatch):
-    store, _ = gateway
-    original = GatewayBtApi.trading_calendar_query
-
-    def bounded(self, *args, **kwargs):
-        if kwargs["trading_day"] == "2026-10-09":
-            response = wire(MONDAY)
-            response["scope"]["trading_day"] = "2026-10-09"
-            response.update(status="OUT_OF_SCOPE", reason="DAY_OUT_OF_RANGE", windows=[])
-            response["venue_day"] = {"status": "UNKNOWN", "day_status": None}
-            return GatewayCalendarQueryResult.from_wire(response)
-        return original(self, *args, **kwargs)
-
-    monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", bounded)
+def test_gateway_friday_night_range_requires_explicit_range_capability(gateway):
+    store, state = gateway
     value = feed(store)
     assert value.trading_session(trading_day=MONDAY, at=dt.datetime(2026, 10, 9, 14, tzinfo=UTC)).active is True
     windows = value.trading_windows(dt.datetime(2026, 10, 9, 13, tzinfo=UTC),
                                     dt.datetime(2026, 10, 9, 14, tzinfo=UTC))
-    assert (windows.status, windows.reason, windows.windows) == ("UNKNOWN", "DAY_OUT_OF_RANGE", ())
+    assert (windows.status, windows.windows[0].window_id, windows.windows[0].trading_day) == (
+        "COMPLETE", "night", MONDAY
+    )
+    assert windows.gateway_policy.declaration == "DEPLOYMENT_DECLARED_UNVERIFIED"
+    store._gateway_strategy_config.calendar_settings.range_read = False
+    absent = value.trading_windows(dt.datetime(2026, 10, 9, 13, tzinfo=UTC),
+                                   dt.datetime(2026, 10, 9, 14, tzinfo=UTC))
+    assert (absent.status, absent.reason, absent.incomplete) == ("UNKNOWN", "CAPABILITY_UNAVAILABLE", True)
+    assert len(state["range_calls"]) == 1
+
+
+def test_gateway_range_keeps_same_ids_on_distinct_owner_days(gateway):
+    store, state = gateway
+    result = feed(store).trading_windows(dt.datetime(2026, 10, 12, 1, tzinfo=UTC),
+                                        dt.datetime(2026, 10, 13, 2, tzinfo=UTC))
+    assert result.status == "COMPLETE"
+    assert [(row.window_id, row.trading_day) for row in result.windows] == [
+        ("day", MONDAY), ("day", TUESDAY)
+    ]
+    assert len(state["range_calls"]) == 1 and not state["calls"]
+
+
+def test_gateway_range_preserves_declared_long_holiday_owner(gateway, monkeypatch):
+    store, _ = gateway
+
+    def range_query(_self, _route, **kwargs):
+        return GatewayCalendarWindowsResult.from_wire(wire_range(
+            kwargs["start_utc"], kwargs["end_utc"], windows=[{
+                "window_id": "night", "phase": "continuous", "trading_day": "2026-10-20",
+                "start_utc": "2026-10-09T13:00:00Z", "end_utc": "2026-10-09T15:00:00Z",
+            }]
+        ))
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", range_query)
+    result = feed(store).trading_windows(dt.datetime(2026, 10, 9, 13, tzinfo=UTC),
+                                        dt.datetime(2026, 10, 9, 14, tzinfo=UTC))
+    assert (result.status, result.windows[0].trading_day) == ("COMPLETE", dt.date(2026, 10, 20))
+    assert result.gateway_policy.max_advance_days == 14
+
+
+def test_gateway_range_unknown_policy_and_owner_change_never_fallback(gateway, monkeypatch):
+    store, state = gateway
+    value = feed(store)
+    store._calendar_local_reader = SimpleNamespace(query=lambda *_a, **_k: pytest.fail("local fallback"))
+
+    def unavailable(_self, _route, **kwargs):
+        response = wire_range(kwargs["start_utc"], kwargs["end_utc"], windows=[],
+                              status="UNKNOWN", reason="POLICY_UNAVAILABLE")
+        response.update(binding=None, policy=None)
+        return GatewayCalendarWindowsResult.from_wire(response)
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", unavailable)
+    start, end = dt.datetime(2026, 10, 12, 1, tzinfo=UTC), dt.datetime(2026, 10, 12, 2, tzinfo=UTC)
+    result = value.trading_windows(start, end)
+    assert (result.status, result.reason, result.incomplete, result.windows) == (
+        "UNKNOWN", "POLICY_UNAVAILABLE", True, ()
+    )
+    assert result.gaps == () and not state["calls"]
+
+    def owner_changed(_self, _route, **kwargs):
+        response = wire_range(kwargs["start_utc"], kwargs["end_utc"], windows=[],
+                              status="UNKNOWN", reason="OWNER_CHANGED")
+        response["binding"] = None
+        return GatewayCalendarWindowsResult.from_wire(response)
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", owner_changed)
+    result = value.trading_windows(start, end)
+    assert (result.status, result.reason, result.incomplete, result.windows) == (
+        "UNKNOWN", "OWNER_CHANGED", True, ()
+    )
+
+
+def test_gateway_range_scope_and_config_are_fenced(gateway, monkeypatch):
+    store, state = gateway
+    original = GatewayBtApi.trading_calendar_windows
+    start, end = dt.datetime(2026, 10, 12, 1, tzinfo=UTC), dt.datetime(2026, 10, 12, 2, tzinfo=UTC)
+    value = feed(store)
+
+    def wrong_scope(_self, _route, **kwargs):
+        return GatewayCalendarWindowsResult.from_wire(
+            wire_range(kwargs["start_utc"], kwargs["end_utc"], contract="cu2602")
+        )
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", wrong_scope)
+    result = value.trading_windows(start, end)
+    assert (result.status, result.reason, result.incomplete) == ("UNKNOWN", "READ_UNAVAILABLE", True)
+
+    def changed_config(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        store._gateway_strategy_config.calendar_settings = SimpleNamespace(range_read=False)
+        return result
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", changed_config)
+    result = value.trading_windows(start, end)
+    assert (result.status, result.reason, result.incomplete) == ("UNKNOWN", "STORE_CHANGED", True)
+    assert len(state["range_calls"]) == 1
+
+    store._gateway_strategy_config.calendar_settings.range_read = True
+    def mutate_setting(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        store._gateway_strategy_config.calendar_settings.range_read = False
+        return result
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", mutate_setting)
+    result = value.trading_windows(start, end)
+    assert (result.status, result.reason, result.incomplete) == ("UNKNOWN", "STORE_CHANGED", True)
+
+
+def test_gateway_range_rejects_more_than_366_days_before_rpc(gateway):
+    store, state = gateway
+    start = dt.datetime(2026, 1, 1, tzinfo=UTC)
+    result = feed(store).trading_windows(start, start + dt.timedelta(days=367))
+    assert (result.status, result.reason, result.incomplete) == ("UNKNOWN", "INVALID_QUERY_RANGE", True)
+    assert not state["range_calls"] and not state["calls"]
 
 
 def test_gateway_missing_config_and_changed_scope_are_unavailable(gateway, monkeypatch):

@@ -4974,6 +4974,86 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 return unavailable("STORE_CHANGED")
             return result
 
+    def trading_calendar_windows(self, route, *, venue, kind, product, contract, start_utc,
+                                 end_utc, mode=None):
+        """Read one explicitly enabled Gateway simulation range, with no local fallback."""
+        def unavailable(reason):
+            return _CalendarStatusUnavailable(reason=reason)
+
+        if type(mode) is not str or mode != "SIMULATION_ONLY":
+            return unavailable("SIMULATION_MODE_REQUIRED")
+        pattern = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}"
+        if any(type(value) is not str or re.fullmatch(pattern, value) is None
+               for value in (route, venue, kind, product, contract)):
+            return unavailable("INVALID_QUERY_SCOPE")
+        if (type(start_utc) is not _dt.datetime or type(end_utc) is not _dt.datetime
+                or start_utc.tzinfo is None or end_utc.tzinfo is None
+                or start_utc.utcoffset() is None or end_utc.utcoffset() is None):
+            return unavailable("INVALID_QUERY_RANGE")
+        start_utc, end_utc = start_utc.astimezone(_UTC), end_utc.astimezone(_UTC)
+        if not start_utc < end_utc or end_utc - start_utc > _dt.timedelta(days=366):
+            return unavailable("INVALID_QUERY_RANGE")
+        with self._calendar_status_lock:
+            api, config, run_lock = self._api, self._gateway_strategy_config, self._gateway_run_lock
+            generation, status_generation = self._gateway_session_generation, self._calendar_status_generation
+            stream_generation, routes = self._stream_generation, tuple(self._sdk_exchanges)
+            ready = (self._gateway_mode and not self._service_read_only and self._started
+                     and self._connected and not self._gateway_closed and self._gateway_pid == os.getpid()
+                     and api is not None and run_lock is not None and run_lock.held
+                     and not self._calendar_status_transitions and not self._calendar_status_stopping)
+        if route not in routes:
+            return unavailable("ROUTE_UNCONFIGURED")
+        if not ready:
+            return unavailable("STORE_UNAVAILABLE")
+        try:
+            from bt_api_py.gateway_api import GatewayBtApi
+            from bt_api_py.gateway_strategy_calendar import GatewayCalendarWindowsResult
+
+            settings = None if config is None else config.calendar_settings
+            if type(api) is not GatewayBtApi or settings is None or settings.range_read is not True:
+                return unavailable("CAPABILITY_UNAVAILABLE")
+            if config.calendar_settings != settings or not self.is_connected:
+                return unavailable("STORE_UNAVAILABLE")
+            start_text = start_utc.isoformat().replace("+00:00", "Z")
+            end_text = end_utc.isoformat().replace("+00:00", "Z")
+            result = api.trading_calendar_windows(
+                route, route=route, venue=venue, kind=kind, product=product, contract=contract,
+                start_utc=start_text, end_utc=end_text, timeout_seconds=5.0,
+            )
+            if type(result) is not GatewayCalendarWindowsResult:
+                raise ValueError("invalid Gateway calendar range result")
+
+            def plain(value):
+                if isinstance(value, Mapping):
+                    return {key: plain(item) for key, item in value.items()}
+                if type(value) is tuple:
+                    return [plain(item) for item in value]
+                return value
+
+            wire = {key: plain(getattr(result, key)) for key in result.__dataclass_fields__}
+            checked = GatewayCalendarWindowsResult.from_wire(wire)
+            expected = {"mode": "SIMULATION_ONLY", "route": route, "venue": venue,
+                        "kind": kind, "product": product, "contract": contract,
+                        "start_utc": start_text, "end_utc": end_text}
+            if checked != result or dict(result.scope) != expected:
+                raise ValueError("Gateway calendar range scope changed")
+            if (config.calendar_settings != settings or settings.range_read is not True
+                    or not self.is_connected):
+                return unavailable("STORE_CHANGED")
+        except Exception:
+            return unavailable("READ_UNAVAILABLE")
+        with self._calendar_status_lock:
+            if not (self._gateway_mode and not self._service_read_only and self._api is api
+                    and self._gateway_strategy_config is config and self._gateway_run_lock is run_lock
+                    and run_lock.held and self._gateway_pid == os.getpid() and not self._gateway_closed
+                    and self._gateway_session_generation == generation
+                    and self._calendar_status_generation == status_generation
+                    and self._stream_generation == stream_generation
+                    and tuple(self._sdk_exchanges) == routes and self._started and self._connected
+                    and not self._calendar_status_transitions and not self._calendar_status_stopping):
+                return unavailable("STORE_CHANGED")
+            return result
+
     def configure_instrument_status_port(self, port):
         """Attach the explicit read-only instrument-status observation source.
 
