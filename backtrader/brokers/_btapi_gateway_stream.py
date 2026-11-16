@@ -266,7 +266,7 @@ class GatewayExecutionStreamBrokerMixin:
                             canceled.ref = current.ref
                             canceled.notification_id, canceled.replayed = cancel["notification_id"], True
                             queue_local(canceled)
-                    elif (host.load_record(key) is not None
+                    elif (not self._is_market_data_only() and host.load_record(key) is not None
                           and host.load_record(key).state in ("RELEASED", "EXPIRED")):
                         self._gateway_finalize_release(binding, current, key)
             for key, order in notices.orders.items():
@@ -524,6 +524,8 @@ class GatewayExecutionStreamBrokerMixin:
         return Position(size=value, price=float("nan") if value else 0.0)
 
     def _gateway_submit_order(self, order):
+        if self._is_market_data_only():
+            return self._market_data_only_submit(order)
         from bt_api_py._contracts.models import OrderRequest, OrderType, Side
         from bt_api_py.gateway_direct_client import build_gateway_order_intent
         from ._btapi_gateway_projection import capture_framework_state
@@ -864,6 +866,9 @@ class GatewayExecutionStreamBrokerMixin:
 
     def _gateway_release_unsent(self, binding, order, key):
         """Release a reservation BT never dispatched (or that was refused)."""
+        if self._is_market_data_only():
+            binding.state = "OBSERVATION_ONLY_RECOVERY_PENDING"
+            return False
         if order.info.get("gateway_risk_routed") is True:
             return self._gateway_risk_release_unsent(binding, order, key)
         digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
@@ -898,6 +903,9 @@ class GatewayExecutionStreamBrokerMixin:
     def _gateway_finalize_rejection(self, binding, order, key, code, info=None):
         from ._btapi_gateway_projection import capture_framework_state
 
+        if self._is_market_data_only():
+            binding.state = "OBSERVATION_ONLY_RECOVERY_PENDING"
+            return
         if order.status == order.Rejected:
             return
         if order.status != order.Submitted or order.executed.size != 0:
@@ -918,6 +926,8 @@ class GatewayExecutionStreamBrokerMixin:
             raise
 
     def _gateway_cancel_order(self, order):
+        if self._is_market_data_only():
+            return self._market_data_only_cancel(order)
         binding = self._gateway_stream_binding
         binding.next_idle_read = 0.0  # local work: the next step runs at once
         self._gateway_stream_check(binding)
@@ -976,6 +986,9 @@ class GatewayExecutionStreamBrokerMixin:
     def _gateway_finalize_release(self, binding, order, key):
         from ._btapi_gateway_projection import capture_framework_state
 
+        if self._is_market_data_only():
+            binding.state = "OBSERVATION_ONLY_RECOVERY_PENDING"
+            return
         if order.status == order.Canceled:
             return
         if order.status != order.Submitted or order.executed.size != 0:
@@ -1001,6 +1014,8 @@ class GatewayExecutionStreamBrokerMixin:
     # delegate principal the Gateway reported for that key.
 
     def _gateway_risk_prepare(self, binding, key, permit):
+        if self._is_market_data_only():
+            _fail("MARKET_DATA_ONLY")
         intent = binding.host.load_intent(key)
         binding.host.save_delegated_command(key, reservation_id=permit.reservation_id,
             digest=intent.digest, permit_id=permit.permit_id, view_digest=permit.view_digest)
@@ -1065,6 +1080,8 @@ class GatewayExecutionStreamBrokerMixin:
 
     def _gateway_risk_cancel(self, binding, order, key):
         """Cancel through this strategy's delegated Gateway operations, never via Risk."""
+        if self._is_market_data_only():
+            return self._market_data_only_cancel(order)
         record = binding.host.load_delegated_command(key)
         if record is None:
             # Risk's reserve outcome is not known yet: nothing to name.
@@ -1204,6 +1221,11 @@ class GatewayExecutionStreamBrokerMixin:
         except Exception as exc:
             summary["refused"][type(exc).__name__] = 1
             summary["unresolved_working_orders"] = None  # the working set could not be read
+            return summary
+        if self._is_market_data_only():
+            summary["unresolved_working_orders"] = len(working)
+            if working:
+                summary["refused"]["market_data_only"] = len(working)
             return summary
         requested = []
         attempted_unknown = []
@@ -1537,6 +1559,12 @@ class GatewayExecutionStreamBrokerMixin:
         local_notices = binding.host.local_order_notifications()
         risk_recovery_state = None
         for key in notice.orders:
+            if self._is_market_data_only() and notice.orders[key].alive():
+                # Keep restored work untouched. Stream observations can still
+                # be consumed, but recovery must not release or infer a local
+                # terminal result from a missing reservation.
+                risk_recovery_state = "OBSERVATION_ONLY_RECOVERY_PENDING"
+                continue
             execution_route = binding.host.load_execution_route(key)
             if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
                 # Query the original intent only. Missing records and NOT_FOUND

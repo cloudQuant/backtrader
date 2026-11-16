@@ -203,6 +203,8 @@ class BtApiBroker(
         # bounded observation can distinguish "no attempt" from "attempted
         # but stopped before reaching the Store".
         self._market_data_only_rejections: collections.Counter[str] = collections.Counter()
+        self._market_gateway_cleanup_pending = False
+        self._market_data_only_mode_frozen = False
         self._approval_lock = threading.Lock()
         self._approval_operation_count = 0
         self._approval_expires_at_utc = self._parse_approval_expiry(self.p.approval_expires_at_utc)
@@ -323,6 +325,12 @@ class BtApiBroker(
             raise ValueError("BtApiBroker requires a BtApiStore instance")
 
         if getattr(self.store, "_gateway_mode", False):
+            if self._is_market_data_only():
+                if self._execution_recovery is not None:
+                    raise ValueError("market_data_only cannot be combined with execution_recovery")
+                self._trading_enabled = False
+                self._market_data_only_mode_frozen = True
+                self._market_gateway_cleanup_pending = True
             self.store.start(broker=self)
             self._live_started = True
             return
@@ -727,7 +735,8 @@ class BtApiBroker(
         if name == "market_data_only":
             if not isinstance(value, bool):
                 raise ValueError("market_data_only must be a boolean")
-            if getattr(self, "_startup_ready", False):
+            if (getattr(self, "_startup_ready", False) or getattr(self, "_live_started", False)
+                    or getattr(self, "_market_data_only_mode_frozen", False)):
                 raise ValueError("market_data_only is frozen after broker startup")
         if name == "startup_account_state" and getattr(self, "_startup_ready", False):
             raise ValueError("startup_account_state is frozen after broker startup")
@@ -991,6 +1000,8 @@ class BtApiBroker(
 
     def stop(self):
         """Run the existing shutdown path and report its result to an owner."""
+        if self._is_market_data_only():
+            return self._stop_registered_session()
         if self._direct_owns_stop():
             return self._direct_stop()
         # Gateway mode (D62-19): first ask the Gateway to cancel this strategy's
@@ -1026,7 +1037,8 @@ class BtApiBroker(
             self._live_started = False
             return None
         if self._is_market_data_only():
-            if not self._live_started and not self.store.is_connected:
+            if (not self._live_started and not self._market_gateway_cleanup_pending
+                    and not self.store.is_connected):
                 return dict(self._shutdown_summary)
             return self._stop_market_data_only()
         if self._uses_service_execution_recovery():
@@ -1347,7 +1359,8 @@ class BtApiBroker(
             "market_data_only": True,
             "cancel_requested": 0,
             "close_requested": 0,
-            "unknown_orders": 0,
+            "unknown_orders": (None if local_active_order_count
+                               and getattr(self.store, "_gateway_mode", False) else 0),
             # Do not turn a startup/periodic cache into a claim that the
             # account was flat at shutdown.  A regular execution session owns
             # the stricter reconciliation proof.
@@ -1369,7 +1382,7 @@ class BtApiBroker(
         self._live_started = False
         store_health = None
         if (
-            self.store.is_connected
+            (self._market_gateway_cleanup_pending or self.store.is_connected)
             and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
         ):
             try:
@@ -1381,6 +1394,8 @@ class BtApiBroker(
 
         store_state = store_health.get("shutdown_state") if isinstance(store_health, dict) else None
         summary["store_shutdown_state"] = store_state or "UNPROVEN"
+        if store_state == "PASS":
+            self._market_gateway_cleanup_pending = False
         if summary["status"] != "FAIL" and store_state == "FAIL":
             summary.update(status="FAIL", reason="store_shutdown_failed")
         elif summary["status"] != "FAIL" and store_state != "PASS":
@@ -1489,6 +1504,33 @@ class BtApiBroker(
             "batch_cancel_rejected": batch_cancel_rejected,
             "total_rejected": submit_rejected + cancel_rejected + batch_cancel_rejected,
         }
+
+    def _market_data_only_submit(self, order):
+        self._trading_enabled = False
+        self._record_market_data_only_rejection("submit")
+        # A restored or previously submitted order has an unknown external
+        # outcome; only a new Created order can be rejected locally.
+        if order.status != order.Created or order.ref in self.orders:
+            return order
+        return self._reject_order(
+            order, "market_data_only",
+            "Order routing is disabled for this observation-only broker session")
+
+    def _market_data_only_cancel(self, order):
+        self._trading_enabled = False
+        if order is None or not order.alive():
+            return order
+        self._record_market_data_only_rejection("cancel")
+        order.addinfo(cancel_requested_remote=False, cancel_rejected_local=True,
+                      error_code="market_data_only",
+                      error_msg="Order cancellation is disabled for this observation-only broker session")
+        self.notify(order)
+        self._emit_runtime_event(
+            "order_cancel_rejected_local", level="ERROR", order_ref=getattr(order, "ref", None),
+            error_code="market_data_only",
+            error_msg="Order cancellation is disabled for this observation-only broker session",
+            status="rejected", details={"data_name": self._position_key(order.data)})
+        return order
 
     def _record_market_data_only_rejection(self, operation: str) -> None:
         """Record a local rejection on this Broker and its owning Store.
@@ -1946,6 +1988,9 @@ class BtApiBroker(
     def submit_group_order(self, strategy, intent):
         """Submit one typed group intent without degrading it to ordinary orders."""
 
+        if self._is_market_data_only():
+            self._record_market_data_only_rejection("submit")
+            raise ValueError("market_data_only")
         session = self._service_execution_session
         if session is None or self.store is None:
             raise ValueError("group submission requires an active service session")
@@ -1964,6 +2009,9 @@ class BtApiBroker(
     ):
         """Request a source-bound group CLOSE through the coordinator."""
 
+        if self._is_market_data_only():
+            self._record_market_data_only_rejection("submit")
+            raise ValueError("market_data_only")
         session = self._service_execution_session
         if session is None or self.store is None:
             raise ValueError("group roll-exit requires an active service session")
@@ -2152,6 +2200,8 @@ class BtApiBroker(
 
     def submit(self, order):
         """Submit an order through the store."""
+        if self._is_market_data_only():
+            return self._market_data_only_submit(order)
         if (getattr(self.store, "_gateway_mode", False)
                 and self.__dict__.get("_gateway_stream_binding") is None):
             self._gateway_auto_bind(order.owner)
@@ -2178,13 +2228,6 @@ class BtApiBroker(
                 order,
                 route_error,
                 "This Strategy does not match the active execution writer scope.",
-            )
-        if self._is_market_data_only():
-            self._record_market_data_only_rejection("submit")
-            return self._reject_order(
-                order,
-                "market_data_only",
-                "Order routing is disabled for this observation-only broker session",
             )
         if (
             bool(getattr(self.store, "_sdk_mode", False))
@@ -2393,6 +2436,8 @@ class BtApiBroker(
             raise
     def cancel(self, order):
         """Cancel an existing order through the store."""
+        if self._is_market_data_only():
+            return self._market_data_only_cancel(order)
         if (getattr(self.store, "_gateway_mode", False)
                 and self.__dict__.get("_gateway_stream_binding") is None):
             if order is None:
@@ -2443,26 +2488,6 @@ class BtApiBroker(
             return order
 
         if not order.alive():
-            return order
-
-        if self._is_market_data_only():
-            self._record_market_data_only_rejection("cancel")
-            order.addinfo(
-                cancel_requested_remote=False,
-                cancel_rejected_local=True,
-                error_code="market_data_only",
-                error_msg="Order cancellation is disabled for this observation-only broker session",
-            )
-            self.notify(order)
-            self._emit_runtime_event(
-                "order_cancel_rejected_local",
-                level="ERROR",
-                order_ref=getattr(order, "ref", None),
-                error_code="market_data_only",
-                error_msg="Order cancellation is disabled for this observation-only broker session",
-                status="rejected",
-                details={"data_name": self._position_key(order.data)},
-            )
             return order
 
         if (
@@ -3524,6 +3549,9 @@ class BtApiBroker(
 
     def _cancel_remote_open_order(self, item):
         """Cancel only a neutral order observation accepted by the SDK facade."""
+        if self._is_market_data_only():
+            self._record_market_data_only_rejection("cancel")
+            raise ValueError("market_data_only")
         if self.store is None:
             raise ValueError("BtApiBroker requires a BtApiStore instance")
         if not isinstance(item, Mapping):
