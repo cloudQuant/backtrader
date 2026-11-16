@@ -34,7 +34,12 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import backtrader as bt
-from backtrader.live_trading import RunStatusWriter, stop_on_terminate
+from backtrader.live_trading import (
+    DEFAULT_HEARTBEAT_INTERVAL_S,
+    RunStatusWriter,
+    stop_on_terminate,
+)
+from backtrader.live_state import load_identity
 import yaml
 
 from pair_spread_strategy import PairSpreadStrategy
@@ -408,6 +413,10 @@ def main(argv=None):
                         help="run UUID (default: generated; bt_api_runtime passes its own)")
     parser.add_argument("--run-seconds", type=float, default=None,
                         help="stop after N seconds (default: run_timeout_seconds in config)")
+    parser.add_argument("--heartbeat-interval", type=float, default=None,
+                        help="heartbeat interval seconds (default: 1.0; runtime passes it)")
+    parser.add_argument("--stop-request-file", default=None,
+                        help="opt-in runtime stop-request file (bt_api_runtime passes it)")
     args = parser.parse_args(argv)
 
     try:
@@ -475,10 +484,34 @@ def main(argv=None):
     print(f"Running {TITLE}: symbols={', '.join(symbols)} logs={log_dir} timeout={seconds:.0f}s",
           flush=True)
     status = "PASS"
-    termination = stop_on_terminate(cerebro)
+    stop_request_file = args.stop_request_file
+    if stop_request_file is not None:
+        # Opt-in stop-file channel: the request is bound to this exact
+        # strategy UUID and the run id supplied by bt_api_runtime.
+        if args.run_id is None:
+            report("BLOCKED", error_code="stop_request_requires_run_id")
+            return EXIT_BLOCKED
+        try:
+            stop_request_strategy_uuid = load_identity(RUN_DIR).strategy_uuid
+        except Exception:
+            report("BLOCKED", error_code="stop_request_identity_unavailable")
+            return EXIT_BLOCKED
+    else:
+        stop_request_strategy_uuid = None
+    termination = stop_on_terminate(
+        cerebro,
+        stop_request_file=stop_request_file,
+        stop_request_strategy_uuid=stop_request_strategy_uuid,
+        stop_request_run_id=args.run_id,
+    )
     contract = RunStatusWriter(
         RUN_DIR,
         run_id=args.run_id,
+        heartbeat_interval_s=(
+            DEFAULT_HEARTBEAT_INTERVAL_S
+            if args.heartbeat_interval is None
+            else args.heartbeat_interval
+        ),
         broker=broker,
         feeds=feeds,
         stop_request_provider=termination.request_state,

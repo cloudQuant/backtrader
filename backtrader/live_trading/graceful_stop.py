@@ -37,9 +37,12 @@ import signal
 import threading
 from typing import Any, Dict, Optional, Tuple
 
+from .stop_request_file import StopRequestFileSource
+
 __all__ = ("TerminateStop", "stop_on_terminate")
 
 _POLL_SECONDS = 0.05
+_STOP_FILE_POLL_SECONDS = 0.2
 #: Sources a request may name; ``stop_file``/``internal`` arrive through
 #: :meth:`TerminateStop.request`, never through a signal.
 STOP_REQUEST_SOURCES = ("SIGTERM", "SIGBREAK", "stop_file", "internal")
@@ -66,7 +69,15 @@ class TerminateStop:
         requested_at_utc: UTC time of the first stop request, else ``None``.
     """
 
-    def __init__(self, cerebro: Any) -> None:
+    def __init__(
+        self,
+        cerebro: Any,
+        *,
+        stop_request_file: Optional[str] = None,
+        stop_request_strategy_uuid: Optional[str] = None,
+        stop_request_run_id: Optional[str] = None,
+        stop_file_poll_interval_s: float = _STOP_FILE_POLL_SECONDS,
+    ) -> None:
         if not callable(getattr(cerebro, "runstop", None)):
             raise TypeError("stop_on_terminate needs an object with runstop()")
         self._cerebro = cerebro
@@ -74,6 +85,26 @@ class TerminateStop:
         self._closed = threading.Event()
         self._pending = threading.Event()
         self._deliverer: Optional[threading.Thread] = None
+        self._stop_file_thread: Optional[threading.Thread] = None
+        self._stop_file_source: Optional[StopRequestFileSource] = None
+        if stop_request_file is not None:
+            # The opt-in file channel is bound to this exact strategy and run;
+            # a missing identity would make every request unverifiable, so it
+            # is refused here instead of silently weakening the check.
+            if stop_request_strategy_uuid is None or stop_request_run_id is None:
+                raise ValueError("stop_request_file needs strategy_uuid and run_id")
+            if (
+                type(stop_file_poll_interval_s) is bool
+                or type(stop_file_poll_interval_s) not in (int, float)
+                or not 0.0 < float(stop_file_poll_interval_s) <= 60.0
+            ):
+                raise ValueError("stop_file_poll_interval_s")
+            self._stop_file_source = StopRequestFileSource(
+                stop_request_file,
+                strategy_uuid=stop_request_strategy_uuid,
+                run_id=stop_request_run_id,
+            )
+        self._stop_file_poll_interval_s = float(stop_file_poll_interval_s)
         self.installed: Tuple[str, ...] = ()
         self.received: Optional[str] = None
         self.count = 0
@@ -81,6 +112,13 @@ class TerminateStop:
         self.requested_at_utc: Optional[str] = None
 
     def __enter__(self) -> "TerminateStop":
+        if self._stop_file_source is not None:
+            self._stop_file_thread = threading.Thread(
+                target=self._poll_stop_file,
+                name="bt-stop-file",
+                daemon=True,
+            )
+            self._stop_file_thread.start()
         if threading.current_thread() is not threading.main_thread():
             return self
         names = []
@@ -101,20 +139,27 @@ class TerminateStop:
             except (OSError, RuntimeError, ValueError):
                 pass
         self._previous.clear()
-        deliverer = self._deliverer
-        if deliverer is not None:
-            deliverer.join(timeout=1.0)
+        for worker in (self._deliverer, self._stop_file_thread):
+            if worker is not None:
+                worker.join(timeout=1.0)
 
     def _handle(self, signum: int, _frame: Any) -> None:
         self.request(signal.Signals(signum).name, signal=True)
 
-    def request(self, source: str = "internal", *, signal: bool = False) -> None:
+    def request(
+        self,
+        source: str = "internal",
+        *,
+        signal: bool = False,
+        at_utc: Optional[str] = None,
+    ) -> None:
         """Request the graceful stop from a non-signal caller (or the handler).
 
         Reuses the same latch as the signal handler: the request reaches
         ``runstop()`` now when the run is active, otherwise as soon as it opens.
         Only the first request records ``source``/``requested_at_utc``; later
-        ones (including a second signal) only repeat the request.
+        ones (including a second signal) only repeat the request.  ``at_utc``
+        lets a stop-file request keep the supervisor's original request time.
         """
         if signal:
             self.count += 1
@@ -122,8 +167,25 @@ class TerminateStop:
                 self.received = source
         if self.source is None:
             self.source = source if source in STOP_REQUEST_SOURCES else "internal"
-            self.requested_at_utc = _utc_text()
+            self.requested_at_utc = (
+                at_utc if at_utc is not None else _utc_text()
+            )
         self._request_stop()
+
+    def _poll_stop_file(self) -> None:
+        source = self._stop_file_source
+        if source is None:  # pragma: no cover - only built with a source
+            return
+        while not self._closed.wait(self._stop_file_poll_interval_s):
+            if self.source is not None:
+                return  # a signal already requested the stop
+            try:
+                state = source.poll()
+            except Exception:  # noqa: BLE001 - an unreadable request is not a stop
+                continue
+            if state is not None:
+                self.request(state[0], at_utc=state[1])
+                return
 
     def request_state(self) -> Optional[Tuple[str, Optional[str]]]:
         """``(source, requested_at_utc)`` of the first request, else ``None``.
@@ -157,7 +219,13 @@ class TerminateStop:
                 return
 
 
-def stop_on_terminate(cerebro: Any) -> TerminateStop:
+def stop_on_terminate(
+    cerebro: Any,
+    *,
+    stop_request_file: Optional[str] = None,
+    stop_request_strategy_uuid: Optional[str] = None,
+    stop_request_run_id: Optional[str] = None,
+) -> TerminateStop:
     """Return a context in which SIGTERM (SIGBREAK on Windows) stops ``cerebro`` gracefully.
 
     Example::
@@ -165,5 +233,16 @@ def stop_on_terminate(cerebro: Any) -> TerminateStop:
         with stop_on_terminate(cerebro) as termination:
             cerebro.run()
         print(termination.received)  # e.g. "SIGTERM", or None
+
+    ``stop_request_file`` opts into the local stop-file channel (iteration 66,
+    §5.2 B1): a valid ``bt_api_stop_request/v1`` document for this exact
+    strategy UUID and run id requests the same graceful stop as a signal.  It
+    is off unless the caller supplies the path, the strategy UUID and the run
+    id; a malformed, expired, duplicate or cross-unit document is ignored.
     """
-    return TerminateStop(cerebro)
+    return TerminateStop(
+        cerebro,
+        stop_request_file=stop_request_file,
+        stop_request_strategy_uuid=stop_request_strategy_uuid,
+        stop_request_run_id=stop_request_run_id,
+    )
