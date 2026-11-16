@@ -306,3 +306,70 @@ def test_rejected_route_requires_matching_durable_notice(state, ready, inputs, m
         mutate(broken)
         with pytest.raises(LiveStateCorrupt):
             validate_pending_state(broken, state.pending.path, state.strategy_uuid)
+
+
+@pytest.mark.parametrize('kind', ['PENDING', 'EXECUTION_PARENT', 'EXECUTION_REJECTED', 'GATEWAY', 'RISK'])
+@pytest.mark.parametrize('change', ['run', 'other_scope'])
+def test_restore_historical_route_only_allows_execution_and_run_change(state, ready, inputs, monkeypatch, kind, change):
+    from dataclasses import replace
+    from bt_api_py.execution_routing import verify_execution_parent_route
+    from backtrader.brokers._btapi_gateway_stream import GatewayExecutionStreamError
+    from tests.unit.brokers.test_iter63_gateway_stream_consumer import _rebind, api_for
+    host, api, data, broker, strategy, order, calls, router = setup_route(
+        state, ready, inputs, monkeypatch, matched=(kind not in ('GATEWAY', 'RISK')))
+    if kind == 'PENDING':
+        monkeypatch.setattr(api, 'route_execution_order', lambda *a, **k:
+                            ExecutionRoutingResult(ExecutionRoutingOutcome.EXECUTION_UNKNOWN))
+    elif kind == 'EXECUTION_REJECTED':
+        router._clock = lambda: 8000000000000000000
+    elif kind == 'RISK':
+        from types import MethodType
+        monkeypatch.setattr(GatewayBtApi, 'risk_selected', property(lambda _: True))
+        router._risk_selected = True
+        def reserve(self, route, request, *, timeout_seconds, first_send_ticket):
+            assert host.consume_risk_reserve_ticket(host.load_intent(request.idempotency_key), first_send_ticket)
+            return GatewayClientResult('UNKNOWN')
+        bound = MethodType(reserve, api)
+        monkeypatch.setattr(api, 'risk_first_send_reserve_contract', lambda:
+                            ('local-first-send-ticket-v1', bound, host.risk_first_send_host_contract()))
+    broker.submit(order)
+    key = order.info['gateway_request_key']
+    assert host.load_execution_route(key).kind == kind
+    old_intent = host.load_intent(key)
+    stream = broker._gateway_stream_binding.stream
+    current = stream._route
+    scope = replace(current.scope, run_id='other-run')
+    changed_route = replace(current, scope=scope)
+    if change == 'other_scope':
+        changed_route = replace(changed_route, instance_id='other-instance')
+    new_api = api_for(host, changed_route)
+    monkeypatch.setattr(new_api, 'verify_execution_parent_route', lambda intent, prepared:
+                        verify_execution_parent_route(router, intent=intent, prepared=prepared))
+    monkeypatch.setattr(new_api, 'command_status', lambda *a, **k: pytest.fail('Gateway status for Execution'))
+    monkeypatch.setattr(new_api, 'cancel_order', lambda *a, **k: pytest.fail('Gateway cancel for Execution'))
+    if change == 'other_scope' or kind in ('GATEWAY', 'RISK'):
+        with pytest.raises(GatewayExecutionStreamError, match='ORDER_BINDING'):
+            _rebind(state, host, new_api, monkeypatch)
+        return
+    _, restored, new_strategy = _rebind(state, host, new_api, monkeypatch)
+    recovered = restored._gateway_binding(new_strategy, required=True).orders[key]
+    assert recovered.status == (recovered.Rejected if kind == 'EXECUTION_REJECTED' else recovered.Submitted)
+    assert host.load_intent(key) == old_intent
+    restored._gateway_cancel_order(recovered)
+    assert host.load_intent(key) == old_intent
+    assert [c[0] for c in calls] == (['parent'] if kind == 'EXECUTION_PARENT' else [])
+
+
+def test_restore_parent_rejects_failed_sdk_journal_check(state, ready, inputs, monkeypatch):
+    from dataclasses import replace
+    from backtrader.brokers._btapi_gateway_stream import GatewayExecutionStreamError
+    from tests.unit.brokers.test_iter63_gateway_stream_consumer import _rebind, api_for
+    host, api, data, broker, strategy, order, calls, router = setup_route(state, ready, inputs, monkeypatch, matched=True)
+    broker.submit(order)
+    stream = broker._gateway_stream_binding.stream
+    current = stream._route
+    new_api = api_for(host, replace(current, scope=replace(current.scope, run_id='other-run')))
+    monkeypatch.setattr(new_api, 'verify_execution_parent_route', lambda *args: False)
+    with pytest.raises(GatewayExecutionStreamError, match='ORDER_BINDING'):
+        _rebind(state, host, new_api, monkeypatch)
+    assert [c[0] for c in calls] == ['parent']

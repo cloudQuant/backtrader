@@ -13,7 +13,7 @@ import os
 import threading
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal, localcontext
 from types import MethodType
 
@@ -1348,10 +1348,36 @@ class GatewayExecutionStreamBrokerMixin:
         if record is None and risk_route:
             # A Risk-placed order: its delegated command record stands in.
             delegated = binding.host.load_delegated_command(key)
+        historical_execution = False
+        if (allow_unreserved and intent is not None and route is not None
+                and route.kind in ("PENDING", "EXECUTION_PARENT", "EXECUTION_REJECTED")
+                and intent.route != binding.stream._route):
+            # Project a durable Execution order under a new run, without
+            # changing the saved intent or authorizing a write. A parent also
+            # needs its original SDK journal binding, checked read-only.
+            try:
+                snapshot = binding.host.load_order_snapshot(key)
+                same_route = replace(intent.route, scope=replace(
+                    intent.route.scope, run_id=binding.stream._route.scope.run_id)) == binding.stream._route
+                historical_execution = (same_route and type(snapshot) is dict and context is not None
+                    and snapshot.get("bt_ref") == context.bt_ref
+                    and snapshot.get("local_seq") == context.local_seq
+                    and route.request_key == key and route.intent_digest == intent.digest
+                    and binding.host.load_intent(key) == intent)
+                if historical_execution and route.kind == "EXECUTION_PARENT":
+                    from bt_api_py.execution_routing import ExecutionPreparedRoute
+                    prepared = ExecutionPreparedRoute(
+                        account=route.account, strategy=route.strategy, request_key=route.request_key,
+                        intent_digest=route.intent_digest, request_id=route.request_id,
+                        request_sha256=route.request_sha256, configuration_id=route.configuration_id,
+                        execution_domain_ref=route.execution_domain_ref, parent_ref=route.parent_ref)
+                    historical_execution = binding.api.verify_execution_parent_route(intent, prepared) is True
+            except Exception:
+                historical_execution = False
         if (intent is None or (record is None and delegated is None and not allow_unreserved)
                 or context is None
                 or intent.binding != binding.host._binding
-                or intent.route != binding.stream._route
+                or (intent.route != binding.stream._route and not historical_execution)
                 or (record is not None and (record.binding != intent.binding or record.request_key != key
                 or record.digest != intent.digest))
                 or (delegated is not None and (delegated.request_key != key
