@@ -3,8 +3,9 @@
 UNIT/FAKE. The fake facade mirrors the SDK ``make_order`` wrap (real
 ``ExecutionOrderRouter`` over a temporary SQLite file) and adds an injected
 read-only parent facts port. Nothing here starts a service, opens a socket,
-contacts a provider or an account. An Execution "ACCEPTED" is the fake port's
-reply: it proves no Gateway acceptance, no Risk approval and no venue fill.
+contacts a provider or an account. The write-side reply is unverified. Injected
+read-side facts exercise projection behavior only; they prove no source, Gateway
+acceptance, Risk approval or venue fill.
 """
 
 from __future__ import annotations
@@ -587,7 +588,8 @@ def test_execution_projection_metadata_round_trips(env):
     assert len(entries) == 1
     entry = entries[0]
     assert entry["request_id"] == request_id
-    assert entry["parent_ref"] == "parent-1"
+    # The unverified write reply cannot supply a parent identity.
+    assert entry["parent_ref"] is None
     assert entry["request_key"] == broker._direct_meta[order.ref]["execution_request_key"]
     assert entry["run_id"] == RUN_ID
     assert entry["binding"] == {
@@ -601,6 +603,16 @@ def test_execution_projection_metadata_round_trips(env):
     assert broker.restore_execution_projection(entries, orders={request_id: order}) == {
         request_id: None
     }
+    # A separate injected facts fixture may subsequently populate projection
+    # state; it is a fake and does not establish a trusted real source.
+    env.facts.status_value = status_of(order, parent_ref="fact-parent")
+    broker.next()
+    state = broker.execution_projection_snapshot()
+    assert state["projection"]["requests"][request_id]["parent_ref"] == "fact-parent"
+    # Metadata still reflects the routing result, not that later fact.
+    assert broker.execution_projection_metadata()[0]["parent_ref"] is None
+    assert len(env.parent_port.submit_calls) == 1
+    assert env.api.direct_places == 0 and env.api.place_calls == []
 
 
 def test_an_invalid_restart_state_is_a_finite_refusal(env):
@@ -809,7 +821,10 @@ def test_routed_cancels_still_go_through_the_key_hook_before_stop(env):
 
     assert len(env.parent_port.cancel_calls) == 1
     assert env.api.direct_cancels == 0 and env.api.cancel_calls == []
-    assert order.info["execution_cancel_outcome"] == "EXECUTION_CANCEL_ACCEPTED"
+    assert order.info["execution_cancel_outcome"] == "EXECUTION_UNKNOWN"
+    assert order.info["execution_cancel_unknown"] is True
+    assert order.info["execution_cancel_code"] == "EXECUTION_UNVERIFIED_REPLY"
+    assert env.parent_port.cancel_calls[0]["remote_parent_ref"] is None
 
     summary = broker.stop()
     assert order.alive()

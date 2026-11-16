@@ -308,8 +308,10 @@ def test_matched_place_is_submitted_without_venue_identity(env, broker):
     assert meta["identity"] is None
     assert meta["marker_id"] is None
     assert order.executed.size == 0
-    assert order.info["execution_routing_outcome"] == "EXECUTION_ACCEPTED"
-    assert order.info["execution_parent_ref"] == "parent-1"
+    assert order.info["execution_routing_outcome"] == "EXECUTION_UNKNOWN"
+    assert order.info["execution_routing_code"] == "EXECUTION_UNVERIFIED_REPLY"
+    assert order.info["outcome_unknown"] is True
+    assert order.info["execution_parent_ref"] is None
     assert order.info["execution_request_id"].startswith("sdk-request-v1:")
     assert len(order.info["execution_request_sha256"]) == 64
     # The fake Execution port saw exactly one submit; the direct path never ran.
@@ -356,7 +358,10 @@ def test_request_key_is_the_same_after_a_restart(env, broker):
     # the stored outcome instead of creating or resending anything.
     target = ExecutionCancelTarget(request_key=first[0], run_id=RUN_ID)
     replay = restarted.store.execution_routing_selection.router.cancel_target(target)
-    assert replay.outcome is ExecutionRoutingOutcome.EXECUTION_CANCEL_ACCEPTED
+    assert replay.outcome is ExecutionRoutingOutcome.EXECUTION_UNKNOWN
+    assert replay.code == "EXECUTION_UNVERIFIED_REPLY"
+    assert replay.request_id == order.info["execution_request_id"]
+    assert replay.request_sha256 == order.info["execution_request_sha256"]
     assert len(env.port.submit_calls) == 1
     assert len(env.port.cancel_calls) == 1
 
@@ -398,7 +403,7 @@ def test_an_unproven_identity_refuses_before_the_sdk(env, broker):
 # ---------------------------------------------------------------------------
 
 
-def test_a_local_receipt_is_submitted_but_not_reported_as_accepted(env, tmp_path):
+def test_an_unverified_local_receipt_keeps_the_order_unknown(env, tmp_path):
     port = FakeExecutionParentPort(reply={"status": "LOCAL_RECEIVED"})
     environment = RoutingEnv(tmp_path / "alt", port=port)
     try:
@@ -407,10 +412,16 @@ def test_a_local_receipt_is_submitted_but_not_reported_as_accepted(env, tmp_path
         order = place(environment, broker)
 
         assert order.status == bt.Order.Submitted
-        assert order.info["execution_routing_outcome"] == "EXECUTION_LOCAL_RECEIPT"
-        assert order.info.get("execution_prepared") is True
-        assert order.info.get("outcome_unknown") is None
-        assert broker._direct_meta[order.ref]["execution_routing"]["code"] is None
+        assert order.info["execution_routing_outcome"] == "EXECUTION_UNKNOWN"
+        assert order.info.get("execution_prepared") is None
+        assert order.info.get("outcome_unknown") is True
+        assert broker._direct_meta[order.ref]["execution_routing"]["code"] == (
+            "EXECUTION_UNVERIFIED_REPLY"
+        )
+        assert broker._direct_meta[order.ref]["identity"] is None
+        assert order.info["execution_parent_ref"] is None
+        assert len(port.submit_calls) == 1
+        assert environment.api.direct_places == 0 and environment.api.place_calls == []
     finally:
         environment.close()
 
@@ -424,7 +435,7 @@ def test_unknown_place_keeps_the_order_submitted_and_never_resends(env, broker):
     assert order.status == bt.Order.Submitted
     assert order.info.get("outcome_unknown") is True
     assert order.info["execution_routing_outcome"] == "EXECUTION_UNKNOWN"
-    assert order.info["execution_routing_code"] == "CALL_OUTCOME_UNKNOWN"
+    assert order.info["execution_routing_code"] == "EXECUTION_UNVERIFIED_REPLY"
     assert env.api.direct_places == 0
     assert len(env.port.submit_calls) == 1
     # The SDK keeps the outcome under the same key: replaying the exact intent
@@ -442,15 +453,38 @@ def test_unknown_place_keeps_the_order_submitted_and_never_resends(env, broker):
     assert len(env.port.submit_calls) == 1
 
 
-def test_rejected_place_is_a_local_rejection(env, broker):
+def test_unverified_rejected_place_remains_submitted_and_unknown(env, broker):
     env.port.submit_reply = {"status": "REJECTED", "code": "EXECUTION_RULE_REJECTED"}
 
     order = place(env, broker)
 
-    assert order.status == bt.Order.Rejected
-    assert "execution_rejected:EXECUTION_RULE_REJECTED" in str(order.info.get("error_code"))
+    assert order.status == bt.Order.Submitted
+    assert order.info["outcome_unknown"] is True
+    assert order.info["execution_routing_outcome"] == "EXECUTION_UNKNOWN"
+    assert order.info["execution_routing_code"] == "EXECUTION_UNVERIFIED_REPLY"
+    assert order.info["execution_parent_ref"] is None
+    assert broker._direct_meta[order.ref]["identity"] is None
+    assert broker._direct_meta[order.ref]["marker_id"] is None
+    assert order.executed.size == 0
+    assert len(env.port.submit_calls) == 1
     assert env.api.direct_places == 0
     assert env.api.place_calls == []
+
+    from bt_api_py.gateway_direct_client import build_gateway_order_intent
+
+    meta = broker._direct_meta[order.ref]
+    intent = build_gateway_order_intent(
+        env.selection.binding,
+        env.selection.route,
+        broker._direct_request(order, dict(meta)),
+        ttl_seconds=env.selection.ttl_seconds,
+    )
+    replay = env.selection.router.route(intent)
+    assert replay.outcome is ExecutionRoutingOutcome.EXECUTION_UNKNOWN
+    assert replay.request_id == order.info["execution_request_id"]
+    assert replay.request_sha256 == order.info["execution_request_sha256"]
+    assert len(env.port.submit_calls) == 1
+    assert env.api.direct_places == 0 and env.api.place_calls == []
 
 
 def test_unavailable_execution_never_falls_back_to_direct(env, broker):
@@ -591,7 +625,10 @@ def test_matched_cancel_routes_by_the_same_key_and_never_direct(env, broker):
     assert payload["request_id"] == request_id
     assert payload["operation_id"].startswith("sdk-cancel-v1:")
     assert payload["request_sha256"] == order.info["execution_request_sha256"]
-    assert order.info["execution_cancel_outcome"] == "EXECUTION_CANCEL_ACCEPTED"
+    assert order.info["execution_cancel_outcome"] == "EXECUTION_UNKNOWN"
+    assert order.info["execution_cancel_unknown"] is True
+    assert order.info["execution_cancel_code"] == "EXECUTION_UNVERIFIED_REPLY"
+    assert payload["remote_parent_ref"] is None
     assert env.api.direct_cancels == 0
     assert env.api.cancel_calls == []
     assert parent_row(env.strategy_dir, key)[4] is not None
