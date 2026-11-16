@@ -13,6 +13,10 @@ Rows proved here:
   order status, including after a persisted restart;
 * dedupe holds across two fact snapshots, a JSON persistence round trip and a
   restart, and a later fact advances exactly once;
+* a repeated identical parent state -- including the pre-acceptance states
+  ``RECEIVED``/``RISK_CLAIMED``/``REGISTERING`` -- is an idempotent identity
+  transition (D65-03), while a genuinely regressive transition is still
+  refused with ``EXECUTION_STATE_REGRESSED``;
 * a foreign status/fill identity is refused with a finite code, no emitted fact
   and no position delta, including after a restart;
 * parent/child totals and per-child state are projected only from the supplied
@@ -202,35 +206,85 @@ def test_a_frozen_pre_acceptance_fact_is_non_terminal():
     assert not ({item.kind for item in result.notifications} & TERMINAL_KINDS)
 
 
-# The row below is the one place a BT product change would be required
-# (INV65-07 / D65-03): ``PARENT_TRANSITIONS`` omits the identity transition for
-# RECEIVED/RISK_CLAIMED/REGISTERING, so re-projecting the same authoritative
-# pre-acceptance state is refused as EXECUTION_STATE_REGRESSED instead of being
-# idempotent.  BT product code is not changed here; the strict xfail records the
-# evidence and fails if a later change ever makes the row pass without removing
-# this marker.  The fact itself stays non-terminal and no delta is duplicated.
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "repeated pre-acceptance state is refused as EXECUTION_STATE_REGRESSED; "
-        "fixing it changes BT product code (INV65-07/D65-03)"
-    ),
-)
+# The row below is the D65-03 product change (user-authorized): the committed
+# Execution journal can re-commit the same pre-acceptance state, so
+# ``PARENT_TRANSITIONS`` carries the identity transition for RECEIVED,
+# RISK_CLAIMED and REGISTERING.  Re-projecting the same snapshot -- twice in one
+# instance and again after a persisted restart -- is idempotent: no regression,
+# no second notification and no second position delta.
 @pytest.mark.parametrize("state", ["RECEIVED", "RISK_CLAIMED", "REGISTERING"])
 def test_repeating_the_same_pre_acceptance_state_is_idempotent(state):
     ports = Ports(
         {"req-1": make_order()[1]},
         statuses={"req-1": status(state)},
+        fills={"req-1": (fill("f1", quantity="1", price="3500"),)},
+    )
+    proj = projection(ports)
+    first = proj.project("req-1")
+    assert first.refused is False
+    assert first.code is None
+    assert [item.kind for item in first.notifications] == ["submitted"]
+    assert [delta.fill_id for delta in first.position_deltas] == ["f1"]
+
+    # The same snapshot again: the identity transition is idempotent, so the
+    # fact, the state and its one notification/delta do not churn.
+    first_snapshot = _persist(proj)
+    second = proj.project("req-1")
+    assert second.refused is False
+    assert second.code is None
+    assert second.notifications == ()
+    assert second.position_deltas == ()
+    assert second.suppressed_notifications == 1
+    assert second.suppressed_fills == 1
+    assert second.parent_fact == first.parent_fact
+    assert _persist(proj) == first_snapshot
+
+    # A restart resumes from the restored snapshot: still no regression and no
+    # duplicate notification/delta.
+    restarted = projection(ports, restore=first_snapshot)
+    again = restarted.project("req-1")
+    assert again.refused is False
+    assert again.code is None
+    assert again.notifications == ()
+    assert again.position_deltas == ()
+    assert again.suppressed_notifications == 1
+    assert again.suppressed_fills == 1
+    assert again.parent_fact == first.parent_fact
+
+
+# A genuine regression is still refused: the identity rule must not have
+# widened the table into allowing a backward or cross-line move.
+@pytest.mark.parametrize(
+    "prior_state, next_state",
+    [
+        ("RISK_CLAIMED", "RECEIVED"),
+        ("REGISTERING", "RISK_CLAIMED"),
+        ("REGISTERING", "RECEIVED"),
+        ("ACCEPTED", "REGISTERING"),
+    ],
+)
+def test_a_genuinely_regressive_transition_is_still_refused(prior_state, next_state):
+    ports = Ports(
+        {"req-1": make_order()[1]},
+        statuses={"req-1": status(prior_state)},
         fills={"req-1": ()},
     )
     proj = projection(ports)
     first = proj.project("req-1")
     assert first.refused is False
-    second = proj.project("req-1")
-    assert second.refused is False
-    assert second.code is None
-    assert second.notifications == ()
-    assert second.parent_fact.bt_status == first.parent_fact.bt_status
+    issued_before = proj.projection_status().notifications_issued
+    snapshot_before = _persist(proj)
+
+    ports.statuses["req-1"] = status(next_state)
+    refused = proj.project("req-1")
+    assert refused.refused is True
+    assert refused.code == "EXECUTION_STATE_REGRESSED"
+    assert refused.code in CODES
+    assert refused.notifications == ()
+    assert refused.position_deltas == ()
+    assert refused.parent_fact == first.parent_fact
+    assert proj.projection_status().notifications_issued == issued_before
+    assert _persist(proj) == snapshot_before
 
 
 # ---------------------------------------------------------------------------

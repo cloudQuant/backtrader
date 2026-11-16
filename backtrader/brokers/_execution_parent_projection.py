@@ -86,7 +86,11 @@ deterministic key derived from the request identity and the fact content.  The
 same facts twice (in one instance, or after :meth:`snapshot` and constructing a
 new instance with ``restore=``) produce no second notification and no second
 delta; a later fact advances exactly once; a regressed or foreign parent/child
-identity is refused with a finite code and no state change.
+identity is refused with a finite code and no state change.  A parent state
+repeated identically is an idempotent identity transition for every committed
+state -- including ``RECEIVED``/``RISK_CLAIMED``/``REGISTERING`` before
+acceptance -- and never raises ``EXECUTION_STATE_REGRESSED``; only a genuine
+backward or cross-line move is refused.
 
 Evidence level: UNIT/FAKE.  Nothing here proves an Execution service, a
 Gateway acceptance, a venue fill, an account permission or a Strategy
@@ -140,14 +144,21 @@ FILL_SOURCES = ("VENUE",)
 
 # Legal forward transitions of the committed Execution journal.  A poll can
 # skip intermediate states, so every later state of the same line is allowed.
+# A repeated identical state is an idempotent identity transition, not a
+# regression: the journal can commit the same state again while the parent has
+# not moved, and re-projecting the same snapshot must not raise a regression.
 # UNKNOWN has no outgoing journal transition; an authoritative query that
 # resolves it to ACCEPTED or REJECTED is accepted, any other move is a
 # regression.  ACCEPTED and REJECTED are terminal here.
 PARENT_TRANSITIONS = MappingProxyType(
     {
-        "RECEIVED": frozenset({"RISK_CLAIMED", "REGISTERING", "ACCEPTED", "REJECTED", "UNKNOWN"}),
-        "RISK_CLAIMED": frozenset({"REGISTERING", "ACCEPTED", "REJECTED", "UNKNOWN"}),
-        "REGISTERING": frozenset({"ACCEPTED", "REJECTED", "UNKNOWN"}),
+        "RECEIVED": frozenset(
+            {"RECEIVED", "RISK_CLAIMED", "REGISTERING", "ACCEPTED", "REJECTED", "UNKNOWN"}
+        ),
+        "RISK_CLAIMED": frozenset(
+            {"RISK_CLAIMED", "REGISTERING", "ACCEPTED", "REJECTED", "UNKNOWN"}
+        ),
+        "REGISTERING": frozenset({"REGISTERING", "ACCEPTED", "REJECTED", "UNKNOWN"}),
         "ACCEPTED": frozenset({"ACCEPTED"}),
         "REJECTED": frozenset({"REJECTED"}),
         "UNKNOWN": frozenset({"UNKNOWN", "ACCEPTED", "REJECTED"}),
