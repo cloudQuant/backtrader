@@ -54,7 +54,8 @@ KEY = MarketInstrumentKey("ctp", VENUE, "demo", "future", SYMBOL, SYMBOL)
 
 def routing_option(**overrides):
     value = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "algorithm_build_id": "synthetic-build-1",
         "component": "exec-instance",
         "account_ref": ACCOUNT,
         "strategy_ref": STRATEGY,
@@ -73,6 +74,7 @@ def routing_option(**overrides):
                     "minimum_quantity": "1",
                     "quantity_unit": "base",
                 },
+                "schedule_binding": {"quantity_step": "1", "price_step": "1", "retry_limit": 2},
                 "scheme": {"name": "pass-v1", "version": 1},
                 "algorithm": {"class": "PASS", "version": 1, "params": {}},
                 "deadline": {"kind": "absolute", "at": "2099-12-31T08:00:00+08:00"},
@@ -335,6 +337,15 @@ def test_place_request_carries_the_key_and_gateway_account(env, broker):
     assert env.port.submit_calls[0]["spec"]["quantity"] == "1.0"
     assert env.port.submit_calls[0]["spec"]["limit_price"] == "3500.0"
     assert env.port.submit_calls[0]["order_type"] == "limit"
+    plan = env.port.submit_calls[0]["algorithm_plan"]
+    assert plan["build_id"] == "synthetic-build-1"
+    assert plan["schedule"]["binding"] == {
+        "deadline_ns": env.port.submit_calls[0]["spec"]["expires_at_ns"],
+        "quantity_step": "1",
+        "price_step": "1",
+        "parent_limit": "3500",
+        "retry_limit": 2,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -692,3 +703,53 @@ def test_a_routed_order_is_not_reported_as_a_venue_working_order(env, broker):
     # No return can be matched to it and nothing pretends one was received.
     broker.next()
     assert order.status == bt.Order.Submitted
+
+
+def test_v1_matched_order_is_locally_rejected_without_execution_or_direct(tmp_path):
+    raw = routing_option()
+    raw["schema_version"] = 1
+    del raw["algorithm_build_id"]
+    del raw["rules"][0]["schedule_binding"]
+    config = parse_execution_routing(raw)
+    environment = RoutingEnv(tmp_path / "legacy", config=config)
+    try:
+        broker = environment.start(first_init=True)
+        order = place(environment, broker)
+
+        assert order.status == bt.Order.Rejected
+        assert "execution_rejected:EXECUTION_FROZEN_PLAN_REQUIRED" in str(
+            order.info.get("error_code")
+        )
+        assert environment.port.submit_calls == []
+        assert environment.port.cancel_calls == []
+        assert environment.api.direct_places == 0 and environment.api.place_calls == []
+        key = broker._direct_meta[order.ref]["execution_request_key"]
+        assert parent_row(environment.strategy_dir, key) is None
+    finally:
+        environment.close()
+
+
+def test_sdk_source_bound_local_receipt_is_submitted_without_venue_acceptance(env, broker):
+    # This models the SDK result of a source-bound client call; it tests BT
+    # projection only and does not authenticate this test-created object.
+    from bt_api_py.execution_routing import ExecutionRoutingResult
+
+    env.api.foreign_replies.append(
+        ExecutionRoutingResult(
+            ExecutionRoutingOutcome.EXECUTION_LOCAL_RECEIPT,
+            request_id="sdk-request-v1:synthetic",
+            request_sha256="a" * 64,
+            parent_ref="synthetic-parent",
+        )
+    )
+    order = place(env, broker)
+    meta = broker._direct_meta[order.ref]
+
+    assert order.status == bt.Order.Submitted and order.alive()
+    assert order.info["execution_routing_outcome"] == "EXECUTION_LOCAL_RECEIPT"
+    assert order.info["execution_prepared"] is True
+    assert order.info["execution_parent_ref"] == "synthetic-parent"
+    assert meta["identity"] is None and meta["marker_id"] is None
+    assert order.executed.size == 0
+    assert [bt.Order.Status[item.status] for item in drain(broker)] == ["Submitted"]
+    assert env.port.submit_calls == [] and env.api.direct_places == 0 and env.api.place_calls == []

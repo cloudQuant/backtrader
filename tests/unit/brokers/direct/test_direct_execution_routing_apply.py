@@ -55,7 +55,8 @@ KEY = MarketInstrumentKey("ctp", VENUE, "demo", "future", SYMBOL, SYMBOL)
 # ---------------------------------------------------------------------------
 def routing_option(**overrides):
     value = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "algorithm_build_id": "synthetic-build-1",
         "component": "exec-instance",
         "account_ref": ACCOUNT,
         "strategy_ref": STRATEGY,
@@ -74,6 +75,7 @@ def routing_option(**overrides):
                     "minimum_quantity": "1",
                     "quantity_unit": "base",
                 },
+                "schedule_binding": {"quantity_step": "1", "price_step": "1", "retry_limit": 2},
                 "scheme": {"name": "pass-v1", "version": 1},
                 "algorithm": {"class": "PASS", "version": 1, "params": {}},
                 "deadline": {"kind": "absolute", "at": "2099-12-31T08:00:00+08:00"},
