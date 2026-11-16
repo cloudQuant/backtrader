@@ -66,9 +66,64 @@ gateway_resource_provider: local_files
 gateway_strategy:
   schema_version: 1
   exchange_name: CTP___FUTURE
-  # Required (D64-01): none, or the Risk service client through which every new
-  # order is placed. A risk key outside gateway_strategy is refused at start.
-  risk: none
+  # Every new order is submitted through the separately authorized Risk service.
+  risk:
+    client_config:
+      client_config_schema_version: 1
+      process_role: strategy_client
+      registration:
+        strategy_ref: replace-with-registered-strategy-uuid
+      clients:
+        risk:
+          config_schema_version: 1
+          settings:
+            bindings:
+            - mount: broker.risk_order
+              service_id: risk
+              instance_id: risk-a
+              scope_ref: risk-scope
+              account_ref: account
+              transport_ref: risk-transport
+      communication:
+        config_schema_version: 1
+        profiles:
+          risk-transport:
+            backend: zmq
+            config_schema_version: 1
+            endpoints:
+              rpc_connect: tcp://127.0.0.1:12355
+            security_profile_ref: risk-security
+    route:
+      mount: broker.risk_order
+      service_id: risk
+      instance_id: risk-a
+      scope_ref: risk-scope
+      scope:
+        execution_domain_ref: domain
+        account_ref: account
+        account_refs: []
+        strategy_ref: replace-with-registered-strategy-uuid
+        run_id: run
+        manual_book_ref: null
+        portfolio_ref: null
+        group_id: null
+        leg_id: null
+      identity:
+        role: strategy_client
+        principal_ref: principal
+        actor_ref: replace-with-registered-strategy-uuid
+        delegate_ref: null
+    peer:
+      role: service
+      principal_ref: risk-principal
+      actor_ref: risk
+      delegate_ref: null
+    requested_operations:
+    - risk.order.reserve
+    - risk.order.dispatch
+    - risk.order.release
+    - risk.order.status
+    - risk.status
   client_config:
     client_config_schema_version: 1
     process_role: strategy_client
@@ -136,10 +191,11 @@ gateway_strategy:
   # is refused. Without a budget for this strategy in that section the reads are unavailable.
   # strategy_finance_currency: CNY
   requested_operations:
-  - direct.reserve
   - direct.release
   # - direct.strategy_financial
-  - direct.dispatch
+  - direct.delegated_command_status
+  - direct.delegated_cancel
+  - direct.delegated_cancel_status
   - direct.command_status
   - direct.cancel
   - direct.cancel_status
@@ -193,3 +249,7 @@ gateway_resource_files:
     server_public_key_file: state/keys/gateway.public
     client_public_key_file: state/keys/strategy.public
     client_secret_key_file: state/keys/strategy.secret
+  risk-security:
+    server_public_key_file: state/keys/risk.public
+    client_public_key_file: state/keys/risk-strategy.public
+    client_secret_key_file: state/keys/risk-strategy.secret

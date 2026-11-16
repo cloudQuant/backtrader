@@ -453,6 +453,8 @@ conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --dry-r
 conda run -n base python examples/live/007_ctp/sa_dual_ma_gateway/run.py --run-seconds 600
 ```
 
+11 个 Gateway 模板默认选择独立 Risk 客户端，新订单通过 Risk；Risk 不可用时不能直接绕过。Gateway 与 Risk 的服务地址、服务身份、账户、策略、运行作用域和授权均为占位，部署时须分别与实际服务一致；两者使用独立的安全配置及受保护密钥文件。Runtime 管理和 Monitor 观察由独立服务组合提供，模板未证明 Execution 已接通完整订单链路。默认自成交检查缺少完整来源切点时，Risk 对 OPEN/CLOSE 失败关闭。
+
 `config.yaml` 为公开占位配置，须与实际 Gateway 的账户、策略、会话、合约和授权配置对齐。默认 `local_files` 加载器从受保护文件读取 CURVE 密钥，并要求首次显式 `--first-init` 创建本地身份及示例初始化标记、登记授权后再 `--upgrade-state`；标记仅防误用，不证明账户空仓、writer fence 或授权；也可选择安装可信 `bt_api_py.gateway_example_resources` entry point。密钥不应放进 YAML、命令行或日志；加载器不授予账户权限。文件权限、初始化和受信工厂接口见各示例 README；离线 `--dry-run` 不加载密钥也不联网。
 
 Gateway 会话/行情断线不触发 direct 回退或假设委托已取消；策略停止不会停止共享 Gateway。行情时钟校准默认关闭，必须显式提供受信 SNTP 配置且两端证据有效才可能取得交易资格。策略资金与权益是可选功能（各 Gateway 示例目录的 README 说明如何开启）；策略资金和可平仓账本、真实 CTP 一致基线、部分订单类型与完整恢复尚未验收；合成测试和离线配置检查均不是 SimNow 或真实账户证据。详见各目录 README 与迭代 63 验收矩阵。
