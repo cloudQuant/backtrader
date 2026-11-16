@@ -86,14 +86,74 @@ class ListFeed(bt.feeds.DataBase):
         return True
 
 
-def make_feed(symbol: str = SYMBOL, price: float = 3500.0) -> ListFeed:
+# A published-file calendar identity as the Feed reports it: the version and
+# the publication it was resolved from.  Test data only, never an exchange fact.
+FEED_CALENDAR_REF = "calendar-v1#pub-1"
+
+
+def calendar_binding(
+    calendar_ref: Optional[str] = "calendar-v1",
+    publication_id: Optional[str] = "pub-1",
+    *,
+    status: str = "BOUND",
+    reason: str = "CALENDAR_BOUND",
+    trading_day: Optional[dt.date] = dt.date(2026, 11, 6),
+    stale: bool = False,
+    coverage_end_utc: Optional[dt.datetime] = None,
+    source_ids: tuple = ("MOCK.simulation_only",),
+    source_classification: str = "DECLARED_MOCK",
+):
+    """One ``FeedTradingCalendarState``-shaped stand-in (no I/O)."""
+    return SimpleNamespace(
+        status=status,
+        reason=reason,
+        trading_day=trading_day,
+        calendar_ref=calendar_ref,
+        publication_id=publication_id,
+        content_sha256=None,
+        coverage_status="DECLARED_UNVERIFIED",
+        stale=stale,
+        environment="SIMULATION_ONLY",
+        bound="NOT_BOUND",
+        account_use="NOT_AUTHORIZED",
+        source_ids=tuple(source_ids),
+        source_classification=source_classification,
+        coverage_end_utc=coverage_end_utc,
+    )
+
+
+def make_feed(
+    symbol: str = SYMBOL, price: float = 3500.0, *, with_calendar: bool = True
+) -> ListFeed:
     feed = ListFeed(dataname=symbol, bars=[(dt.datetime(2026, 11, 5, 9, 1), price)])
     feed._start()
     assert feed.load() is True
     feed.qualification = SimpleNamespace(ok=True, reasons=())
     # The Broker reads ``data.trade_qualification()`` (BtApiFeed contract).
     feed.trade_qualification = lambda: feed.qualification
+    if with_calendar:
+        set_calendar(feed)
     return feed
+
+
+def set_calendar(feed, **kwargs) -> None:
+    """Replace one feed's read-only calendar binding (G4 identity source)."""
+    feed.calendar_state = calendar_binding(**kwargs)
+    feed.calendar_refresh_calls = getattr(feed, "calendar_refresh_calls", [])
+    feed.trading_calendar_binding = lambda: feed.calendar_state
+
+    def refresh(day, **_kwargs):
+        feed.calendar_refresh_calls.append(day)
+        return feed.calendar_state
+
+    feed.refresh_trading_calendar = refresh
+
+
+def drop_calendar(feed) -> None:
+    """Remove the test double's optional calendar contract (no exceptions)."""
+    namespace = getattr(feed, "__dict__", {})
+    for name in ("trading_calendar_binding", "refresh_trading_calendar", "calendar_state"):
+        namespace.pop(name, None)
 
 
 def not_live(feed) -> None:

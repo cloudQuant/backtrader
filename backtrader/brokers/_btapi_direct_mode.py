@@ -261,7 +261,6 @@ _CALENDAR_REF_MAX_LEN = 256
 _STICKY_CALENDAR_DISPOSITIONS = frozenset(
     ("legacy_unbound", "calendar_ref_missing", "calendar_ref_changed")
 )
-_UNKNOWN_PHASE = object()
 
 
 def _calendar_ref(value: Any) -> Optional[str]:
@@ -276,16 +275,54 @@ def _calendar_ref(value: Any) -> Optional[str]:
     return value
 
 
-def _session_calendar_ref(answer: Any) -> Optional[str]:
-    if answer is None:
-        return None
-    return _calendar_ref(getattr(answer, "calendar_ref", None))
-
-
 def _target_calendar_ref(target: Any) -> Optional[str]:
     if type(target) is not dict:
         return None
     return _calendar_ref(target.get("calendar_ref"))
+
+
+def _trading_day_date(value: Any) -> Optional[_dt.date]:
+    """``YYYYMMDD`` text as its date, else ``None`` (never a guess)."""
+    if not _valid_trading_day(value):
+        return None
+    # ``_valid_trading_day`` already parsed this exact text as a real date.
+    return _dt.date(int(value[0:4]), int(value[4:6]), int(value[6:8]))
+
+
+def _published_calendar_ref(binding: Any) -> Optional[str]:
+    """The published file calendar identity in use: version + publication.
+
+    Only a ``BOUND``/``STALE`` Feed binding with both Store-validated
+    identifiers names a usable identity; a retained version stays usable after
+    a failed re-read (``STALE``). Anything else (``UNBOUND``/``UNAVAILABLE``,
+    a missing identifier or an over-long composite) is unknown, never matched.
+    """
+    if binding is None or getattr(binding, "status", None) not in ("BOUND", "STALE"):
+        return None
+    version = _calendar_ref(getattr(binding, "calendar_ref", None))
+    publication = _calendar_ref(getattr(binding, "publication_id", None))
+    if version is None or publication is None:
+        return None
+    if version == publication:
+        return version
+    return _calendar_ref(version + "#" + publication)
+
+
+def _finite_calendar_code(value: Any, default: Optional[str]) -> Optional[str]:
+    """A report-safe finite code (uppercase/digits/underscore), else ``default``."""
+    if type(value) is str and 0 < len(value) <= 64:
+        if all(
+            character.isupper() or character.isdigit() or character == "_" for character in value
+        ):
+            return value
+    return default
+
+
+def _calendar_instant_text(value: Any) -> Optional[str]:
+    """A timezone-aware instant as UTC text, else ``None``."""
+    if type(value) is not _dt.datetime or value.utcoffset() is None:
+        return None
+    return _utc_text(value)
 
 
 def _settlement_class(outcome: Optional[Dict[str, Any]]) -> str:
@@ -1918,7 +1955,12 @@ class BtApiDirectModeMixin:
         return list(getattr(self, "_direct_restored", ()))
 
     def get_direct_reconcile_report(self) -> Dict[str, Any]:
-        return dict(getattr(self, "_direct_report", {}) or {})
+        report = dict(getattr(self, "_direct_report", {}) or {})
+        # D67-11/INV67-08: an aggregated projection of the published file
+        # calendar each attached Feed is actually bound to.  It adds no facts
+        # and never substitutes for the per-symbol switch view.
+        report["trading_calendar"] = self._direct_trading_calendar_report()
+        return report
 
     def direct_writes_blocked(self) -> Dict[str, str]:
         blocked = dict(self._direct_blocked)
@@ -3750,12 +3792,42 @@ class BtApiDirectModeMixin:
     # ------------------------------------------------------------------
     # waiting orders (D62-30/31/34/35/36; plan 5.3c)
     # ------------------------------------------------------------------
+    def _direct_feed_binding(self, data: Any) -> Any:
+        """This Feed's read-only published calendar binding, or ``None``."""
+        accessor = getattr(data, "trading_calendar_binding", None)
+        if not callable(accessor):
+            return None
+        try:
+            return accessor()
+        except Exception:
+            # Unknown is fail-closed for every caller; report it without
+            # payload and keep the per-bar dispatch path quiet.
+            throttled_warning(
+                _log,
+                "direct_feed_calendar_binding",
+                "feed calendar binding read failed: feed_calendar_binding_failed",
+                exc_info=False,
+            )
+            return None
+
+    def _direct_feed_calendar_ref(self, data: Any) -> Optional[str]:
+        """The published identity this Feed currently uses, else ``None``."""
+        return _published_calendar_ref(self._direct_feed_binding(data))
+
+    def _direct_symbol_calendar_ref(self, symbol: str) -> Optional[str]:
+        data = self._direct_data_for_symbol(symbol)
+        if data is None:
+            return None
+        return self._direct_feed_calendar_ref(data)
+
     def _direct_enqueue_waiting(self, order: Order, meta: Dict[str, Any]) -> Order:
         state = self._direct_phase(meta["symbol"])
         window = getattr(state, "next_continuous", None)
         if window is None:
             return self._direct_reject(order, "target_session_unknown")
-        calendar_ref = _session_calendar_ref(state)
+        # D67-15/17 (G4): the identity is the published file calendar binding
+        # this Feed/Store resolved, never the plan module's own reference.
+        calendar_ref = self._direct_feed_calendar_ref(order.data)
         if calendar_ref is None:
             # D67-15/17: a target session is never bound to a local-date guess.
             return self._direct_reject(order, "target_calendar_unknown")
@@ -3849,14 +3921,14 @@ class BtApiDirectModeMixin:
             self._direct_deferred_notices.remove(marker)
             self._direct_build_notice(marker, data)
 
-    def _direct_waiting_calendar_disposition(
-        self, record: Dict[str, Any], phase: Any = _UNKNOWN_PHASE
-    ) -> Optional[str]:
+    def _direct_waiting_calendar_disposition(self, record: Dict[str, Any]) -> Optional[str]:
         """Why this order cannot be scheduled/resumed, or ``None``.
 
         ``legacy_unbound`` covers a version-1 record (no calendar reference was
-        ever stored): it is explicitly unknown and never guessed.  A changed or
-        unavailable reference fails closed; the original target is untouched.
+        ever stored): it is explicitly unknown and never guessed.  The current
+        identity is the published file binding this Feed/Store resolved (G4),
+        not the plan module's reference.  A changed or unavailable reference
+        fails closed; the original target is untouched.
         """
         target = record.get("target_session")
         if type(target) is not dict or "calendar_ref" not in target:
@@ -3864,9 +3936,7 @@ class BtApiDirectModeMixin:
         recorded = _target_calendar_ref(target)
         if recorded is None:
             return "calendar_ref_missing"
-        if phase is _UNKNOWN_PHASE:
-            phase = self._direct_phase(record["symbol"])
-        current = _session_calendar_ref(phase)
+        current = self._direct_symbol_calendar_ref(record["symbol"])
         if current is None:
             return "calendar_unavailable"
         if current != recorded:
@@ -4067,7 +4137,7 @@ class BtApiDirectModeMixin:
                 # retargeted, expired by the old deadline or re-sent.
                 self._direct_pause_waiting(meta, block, order=order)
                 return
-            block = self._direct_waiting_calendar_disposition(meta, phase=phase)
+            block = self._direct_waiting_calendar_disposition(meta)
             if block is not None:
                 self._direct_pause_waiting(meta, block, order=order)
                 return
@@ -4980,6 +5050,7 @@ class BtApiDirectModeMixin:
             "unverified_positions": [],
             "split_sources": {},
             "calendar": {},
+            "calendar_reload": None,
             "blocked": {},
             "completed_at_utc": None,
         }
@@ -5216,6 +5287,13 @@ class BtApiDirectModeMixin:
         self._direct_trading_day = to_day
         self._direct_session_generation = generation
         self._direct_report["trading_day"] = to_day
+        # D67-05 B: a publication becomes effective at this verified day
+        # switch.  Each Feed holding a binding re-reads CURRENT for exactly the
+        # qualified day; a failure keeps its previous version (STALE) and never
+        # fails the already-verified switch.
+        reload_result = self._direct_refresh_feed_calendars(to_day)
+        self._direct_report["trading_calendar_reload"] = reload_result
+        switch["calendar_reload"] = dict(reload_result)
         resolution = self._direct_settlement
         if (
             resolution is not None
@@ -5394,6 +5472,201 @@ class BtApiDirectModeMixin:
         for marker in meta.pop("cancel_markers", []):
             self._direct_state.pending.mark(marker, "TERMINAL", final_status="order_" + status)
         return True
+
+    # ------------------------------------------------------------------
+    # published file calendar bridge (iteration 67, D67-05 B / INV67-07)
+    # ------------------------------------------------------------------
+    # One row per attached Feed, projected only from its read-only
+    # ``trading_calendar_binding()``.  Nothing here queries a Store, writes a
+    # calendar file or infers a trading day; an absent/unreadable binding is an
+    # explicit unknown row, never an omission or a guess.
+    def _direct_calendar_feed_row(
+        self,
+        feed: Any,
+        state: Any,
+        *,
+        previous: Any = None,
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        name = feed if type(feed) is str and 0 < len(feed) <= 128 else None
+        if state is None:
+            return {
+                "feed": name,
+                "status": "UNAVAILABLE",
+                "reason": _finite_calendar_code(reason, None) or "CALENDAR_UNAVAILABLE",
+                "trading_day": None,
+                "version": None,
+                "publication_id": None,
+                "source_ids": [],
+                "source_classification": "UNVERIFIED",
+                "coverage_status": "UNKNOWN",
+                "coverage_end_utc": None,
+                "stale": False,
+                "last_reread": _finite_calendar_code(reason, None) or "CALENDAR_UNAVAILABLE",
+                "environment": "SIMULATION_ONLY",
+                "bound": "NOT_BOUND",
+                "account_use": "NOT_AUTHORIZED",
+                "previous_version": None,
+                "previous_publication_id": None,
+            }
+        status = getattr(state, "status", None)
+        current_reason = None
+        if status not in ("BOUND", "STALE", "UNBOUND", "UNAVAILABLE"):
+            status = "UNAVAILABLE"
+            current_reason = "CALENDAR_BINDING_INVALID"
+        else:
+            current_reason = _finite_calendar_code(getattr(state, "reason", None), None)
+        current_reason = (
+            _finite_calendar_code(reason, None) or current_reason or "CALENDAR_UNAVAILABLE"
+        )
+        day = getattr(state, "trading_day", None)
+        source_ids = getattr(state, "source_ids", ())
+        if type(source_ids) is not tuple:
+            source_ids = ()
+        sources = [item for item in source_ids[:32] if type(item) is str and 0 < len(item) <= 128]
+        return {
+            "feed": name,
+            "status": status,
+            "reason": current_reason,
+            "trading_day": day.isoformat() if type(day) is _dt.date else None,
+            "version": _calendar_ref(getattr(state, "calendar_ref", None)),
+            "publication_id": _calendar_ref(getattr(state, "publication_id", None)),
+            "source_ids": sources,
+            "source_classification": _finite_calendar_code(
+                getattr(state, "source_classification", None), "UNVERIFIED"
+            ),
+            "coverage_status": _finite_calendar_code(
+                getattr(state, "coverage_status", None), "UNKNOWN"
+            ),
+            "coverage_end_utc": _calendar_instant_text(getattr(state, "coverage_end_utc", None)),
+            "stale": bool(getattr(state, "stale", False)),
+            "last_reread": current_reason,
+            "environment": _finite_calendar_code(
+                getattr(state, "environment", None), "SIMULATION_ONLY"
+            ),
+            "bound": _finite_calendar_code(getattr(state, "bound", None), "NOT_BOUND"),
+            "account_use": _finite_calendar_code(
+                getattr(state, "account_use", None), "NOT_AUTHORIZED"
+            ),
+            "previous_version": _calendar_ref(getattr(previous, "calendar_ref", None)),
+            "previous_publication_id": _calendar_ref(getattr(previous, "publication_id", None)),
+        }
+
+    @staticmethod
+    def _direct_calendar_aggregate(rows: List[Dict[str, Any]]) -> Tuple[str, str]:
+        statuses = [row["status"] for row in rows]
+        if not statuses:
+            return "UNKNOWN", "CALENDAR_BINDING_UNAVAILABLE"
+        usable = [status for status in statuses if status in ("BOUND", "STALE")]
+        if not usable:
+            return "UNKNOWN", "CALENDAR_UNAVAILABLE"
+        if len(usable) != len(statuses):
+            return "PARTIAL", "PARTIAL_ROUTE_RESULTS"
+        if "STALE" in statuses:
+            return "STALE", "STALE_RETAINED"
+        return "BOUND", "EXPLICIT_DATA"
+
+    def _direct_trading_calendar_report(self) -> Dict[str, Any]:
+        """Aggregated calendar section built only from each Feed's binding."""
+        rows: List[Dict[str, Any]] = []
+        for data in list(getattr(self.store, "_data_feeds", []) or []):
+            symbol = self._direct_symbol(data)
+            accessor = getattr(data, "trading_calendar_binding", None)
+            if not callable(accessor):
+                rows.append(
+                    self._direct_calendar_feed_row(
+                        symbol, None, reason="CALENDAR_CONTRACT_UNAVAILABLE"
+                    )
+                )
+                continue
+            try:
+                state = accessor()
+            except Exception:
+                throttled_warning(
+                    _log,
+                    "direct_trading_calendar_report",
+                    "calendar report binding read failed: feed_calendar_binding_failed",
+                    exc_info=False,
+                )
+                rows.append(
+                    self._direct_calendar_feed_row(
+                        symbol, None, reason="CALENDAR_BINDING_UNAVAILABLE"
+                    )
+                )
+                continue
+            rows.append(self._direct_calendar_feed_row(symbol, state))
+        status, reason = self._direct_calendar_aggregate(rows)
+        reload_result = getattr(self, "_direct_report", {}).get("trading_calendar_reload")
+        return {
+            "status": status,
+            "reason": reason,
+            "feeds": rows,
+            "reload": dict(reload_result) if type(reload_result) is dict else None,
+        }
+
+    def _direct_refresh_feed_calendars(self, to_day: str) -> Dict[str, Any]:
+        """Qualified day switch: one re-read request per bound attached Feed.
+
+        Only a Feed that already holds a ``BOUND``/``STALE`` binding is asked;
+        ``UNBOUND``/``UNAVAILABLE`` Feeds are surfaced as explicit rows and are
+        not queried (no first read is invented here).  The Feed's contract owns
+        the day-advance rule, the same-day no-op, the regression refusal and
+        the retained-version STALE answer; this bridge copies its answer and
+        never upgrades an UNKNOWN re-read to "current".
+        """
+        result: Dict[str, Any] = {
+            "trading_day": to_day,
+            "status": "UNKNOWN",
+            "reason": "TRADING_DAY_REQUIRED",
+            "feeds": [],
+        }
+        day = _trading_day_date(to_day)
+        rows: List[Dict[str, Any]] = result["feeds"]
+        if day is None:
+            return result
+        for data in list(getattr(self.store, "_data_feeds", []) or []):
+            accessor = getattr(data, "trading_calendar_binding", None)
+            reader = getattr(data, "refresh_trading_calendar", None)
+            if not callable(accessor) or not callable(reader):
+                continue
+            symbol = self._direct_symbol(data)
+            try:
+                before = accessor()
+            except Exception:
+                throttled_warning(
+                    _log,
+                    "direct_feed_calendar_reload_binding",
+                    "day-switch calendar binding read failed: feed_calendar_binding_failed",
+                    exc_info=False,
+                )
+                rows.append(
+                    self._direct_calendar_feed_row(
+                        symbol, None, reason="CALENDAR_BINDING_UNAVAILABLE"
+                    )
+                )
+                continue
+            if getattr(before, "status", None) not in ("BOUND", "STALE"):
+                rows.append(self._direct_calendar_feed_row(symbol, before))
+                continue
+            try:
+                after = reader(day)
+            except Exception:
+                throttled_warning(
+                    _log,
+                    "direct_feed_calendar_reload",
+                    "day-switch calendar re-read failed: feed_calendar_refresh_failed",
+                    exc_info=False,
+                )
+                rows.append(
+                    self._direct_calendar_feed_row(symbol, before, reason="CALENDAR_REFRESH_FAILED")
+                )
+                continue
+            rows.append(self._direct_calendar_feed_row(symbol, after, previous=before))
+        if not rows:
+            result["reason"] = "CALENDAR_BINDING_UNAVAILABLE"
+            return result
+        result["status"], result["reason"] = self._direct_calendar_aggregate(rows)
+        return result
 
     def _direct_calendar_check(self, symbol: str, to_day: str) -> str:
         """``match``/``mismatch`` of the venue calendar's trading day now, else ``unknown``."""

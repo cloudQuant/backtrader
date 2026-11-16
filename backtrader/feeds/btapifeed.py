@@ -297,6 +297,17 @@ def _bounded_calendar_reason(value, default="CALENDAR_UNAVAILABLE"):
     return value if type(value) is str and value in _CALENDAR_REASON_CODES else default
 
 
+def _retained_coverage_end(windows):
+    """Last retained window end, or ``None`` when the binding has no windows."""
+    end = None
+    for window in windows:
+        value = getattr(window, "end_utc", None)
+        if type(value) is _dt.datetime and value.utcoffset() is not None:
+            if end is None or value > end:
+                end = value
+    return end
+
+
 @dataclass(frozen=True)
 class FeedTradingCalendarState:
     """Read-only state of this Feed's per-process calendar binding (D67-11).
@@ -305,8 +316,12 @@ class FeedTradingCalendarState:
     COMPLETE query, ``STALE`` when a re-read failed and the previous published
     version was retained, and ``UNAVAILABLE`` when no published version could
     be read. ``stale`` is True only while a retained version is being
-    reported. ``bound``/``account_use`` remain ``NOT_BOUND``/``NOT_AUTHORIZED``:
-    an observation never binds a strategy or authorizes trading.
+    reported. ``source_ids``/``source_classification`` are the whole-result
+    source references the Store validated, and ``coverage_end_utc`` is the
+    last retained window end (``None`` when the binding has no windows: an
+    explicit unknown, never a guess). ``bound``/``account_use`` remain
+    ``NOT_BOUND``/``NOT_AUTHORIZED``: an observation never binds a strategy or
+    authorizes trading.
     """
 
     status: str = "UNBOUND"
@@ -320,6 +335,9 @@ class FeedTradingCalendarState:
     environment: str = "SIMULATION_ONLY"
     bound: str = "NOT_BOUND"
     account_use: str = "NOT_AUTHORIZED"
+    source_ids: Tuple[str, ...] = ()
+    source_classification: str = "UNVERIFIED"
+    coverage_end_utc: Optional[_dt.datetime] = None
 
 
 _UNBOUND_CALENDAR = FeedTradingCalendarState()
@@ -1282,6 +1300,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 environment=result.environment,
                 bound=result.bound,
                 account_use=result.account_use,
+                source_ids=source_ids,
+                source_classification=result.source_classification,
+                coverage_end_utc=_retained_coverage_end(windows),
             ),
             scope=scope,
             windows=windows,
