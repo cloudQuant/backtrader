@@ -163,6 +163,9 @@ def _gateway(root, endpoint, server_keys, publics, messages, controls):
             GatewayDirectServiceBinding,
         )
         from bt_api_py.gateway_execution_stream_service import GatewayExecutionStreamService
+        from bt_api_py.gateway_execution_subject_scopes import (
+            GatewayExecutionSubjectBinding, GatewayExecutionSubjectScopes,
+        )
         from bt_api_py.gateway_parent_service import OPERATIONS as PARENT_OPERATIONS
         from bt_api_py.gateway_parent_service import (
             GatewayParentGrant,
@@ -278,6 +281,8 @@ def _gateway(root, endpoint, server_keys, publics, messages, controls):
                                               instruments=frozenset({INSTRUMENT}))
         read_service = _read_service(root, observers)
         template = WireScope(DOMAIN, account_ref=ACCOUNT, strategy_ref=STRATEGY.actor_ref)
+        subject = GatewayExecutionSubjectBinding(
+            GatewayExecutionSubjectScopes(frozenset({ACCOUNT}), {template: None}), journal)
 
         def direct(operations):
             return ResourceGrant("gateway-a", "service.direct_write", "scope-a", template, operations)
@@ -296,7 +301,7 @@ def _gateway(root, endpoint, server_keys, publics, messages, controls):
             lambda *_: ComponentResources.borrowed({"binding": binding, "delegation_service": delegation,
                 "delegate_actor_service": actor, "parent_service": parent_service,
                 "read_service": read_service, "account_observer": observer,
-                "account_comparison": comparison}, ready=lambda: True))
+                "account_comparison": comparison, "execution_subject_binding": subject}, ready=lambda: True))
         host.start()
         messages.put(("ready", os.getpid(), journal.journal_id))
         while True:
