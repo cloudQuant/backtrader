@@ -3,6 +3,7 @@
 Commands (all print one JSON document to stdout)::
 
     init    <strategy_dir> [--exchange E --account-hash H [--route R]]
+    gateway-init <strategy_dir>
     show    <strategy_dir> [--audit-limit N]
     rebind  <strategy_dir> --mode move|new_instance --operator NAME --reason TEXT
     resolve <strategy_dir> <marker_id> --conclusion C --operator NAME --evidence REF [...]
@@ -207,6 +208,9 @@ def _parser() -> argparse.ArgumentParser:
     p_init.add_argument("--account-hash", dest="account_hash")
     p_init.add_argument("--route")
 
+    p_gateway_init = sub.add_parser("gateway-init", help="prepare a fresh local Gateway identity")
+    p_gateway_init.add_argument("strategy_dir")
+
     p_show = sub.add_parser("show", help="print identity, sequence, markers, waiting orders")
     p_show.add_argument("strategy_dir")
     p_show.add_argument("--audit-limit", dest="audit_limit", type=int, default=5)
@@ -250,6 +254,12 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _run(args: argparse.Namespace) -> dict:
+    if args.command == "gateway-init":
+        from .gateway_initialization import prepare_gateway_state
+
+        state = prepare_gateway_state(args.strategy_dir)
+        return {"ok": True, "code": "GATEWAY_LOCAL_STATE_INITIALIZED",
+                "strategy_uuid": state.strategy_uuid}
     if args.command == "init":
         binding = None
         given = [args.exchange, args.account_hash, args.route]
@@ -315,11 +325,27 @@ def _run(args: argparse.Namespace) -> dict:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "gateway-init" and (
+        len(argv) != 2 or argv[1].startswith("-")
+    ):
+        sys.stdout.write(json.dumps({"ok": False, "code": "GATEWAY_LOCAL_STATE_INITIALIZATION_FAILED"},
+                                    separators=(",", ":")) + "\n")
+        return 2
     parser = _parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
         return int(exc.code) if isinstance(exc.code, int) else 2
+    if args.command == "gateway-init":
+        try:
+            result = _run(args)
+            code = 0
+        except Exception:
+            result = {"ok": False, "code": "GATEWAY_LOCAL_STATE_INITIALIZATION_FAILED"}
+            code = 1
+        sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
+        return code
     try:
         result = _run(args)
         code = 0

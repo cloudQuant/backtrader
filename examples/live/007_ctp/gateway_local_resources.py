@@ -5,10 +5,16 @@ It uses local state identity and separately protected CURVE key files.
 """
 from __future__ import annotations
 
-import json
 import os
 import stat
 from pathlib import Path
+
+from backtrader.live_state.gateway_initialization import (
+    _verify_new_identity_marker as _verify_new_identity_marker,
+    _write_new_identity_marker as _write_new_identity_marker,
+    prepare_gateway_state,
+    verify_gateway_preparation,
+)
 
 
 class ResourceSetupRequired(RuntimeError):
@@ -17,83 +23,6 @@ class ResourceSetupRequired(RuntimeError):
     def __init__(self, code):
         self.code = code
         super().__init__(code)
-
-
-_SETUP_MARKER = "gateway_example_init.json"
-
-
-def _setup_directory(state):
-    if os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "geteuid"):
-        raise RuntimeError("STATE_SETUP_PLATFORM_UNSUPPORTED")
-    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
-    fd = os.open(state.paths.state_dir, flags)
-    info = os.fstat(fd)
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o022:
-        os.close(fd)
-        raise RuntimeError("STATE_SETUP_DIRECTORY_UNTRUSTED")
-    return fd
-
-
-def _write_new_identity_marker(state):
-    directory = _setup_directory(state)
-    fd = None
-    try:
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
-        fd = os.open(_SETUP_MARKER, flags, 0o600, dir_fd=directory)
-        data = json.dumps({"version": 1, "strategy_uuid": state.strategy_uuid},
-                          sort_keys=True, separators=(",", ":")).encode("ascii")
-        view = memoryview(data)
-        while view:
-            written = os.write(fd, view)
-            if written <= 0:
-                raise RuntimeError("STATE_SETUP_MARKER_WRITE_FAILED")
-            view = view[written:]
-        os.fsync(fd)
-        os.fsync(directory)
-    finally:
-        if fd is not None:
-            os.close(fd)
-        os.close(directory)
-
-
-def _verify_new_identity_marker(state):
-    directory = _setup_directory(state)
-    fd = None
-    try:
-        flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
-        before = os.stat(_SETUP_MARKER, dir_fd=directory, follow_symlinks=False)
-        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
-                or before.st_mode & 0o077 or before.st_nlink != 1 or before.st_size > 512):
-            raise RuntimeError("STATE_SETUP_MARKER_INVALID")
-        fd = os.open(_SETUP_MARKER, flags, dir_fd=directory)
-        opened = os.fstat(fd)
-        attrs = ("st_dev", "st_ino", "st_uid", "st_mode", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns")
-        if any(getattr(before, key) != getattr(opened, key) for key in attrs):
-            raise RuntimeError("STATE_SETUP_MARKER_INVALID")
-        data = os.read(fd, 513)
-        after = os.fstat(fd)
-        visible = os.stat(_SETUP_MARKER, dir_fd=directory, follow_symlinks=False)
-        if (len(data) > 512 or any(getattr(opened, key) != getattr(after, key) for key in attrs)
-                or any(getattr(opened, key) != getattr(visible, key) for key in attrs)):
-            raise RuntimeError("STATE_SETUP_MARKER_INVALID")
-        def unique(pairs):
-            result = {}
-            for key, value in pairs:
-                if key in result:
-                    raise ValueError("duplicate key")
-                result[key] = value
-            return result
-        marker = json.loads(data, object_pairs_hook=unique)
-        if (type(marker) is not dict or set(marker) != {"version", "strategy_uuid"}
-                or type(marker["version"]) is not int or marker["version"] != 1
-                or marker["strategy_uuid"] != state.strategy_uuid):
-            raise RuntimeError("STATE_SETUP_MARKER_INVALID")
-    except (OSError, ValueError, TypeError, KeyError, UnicodeDecodeError):
-        raise RuntimeError("STATE_SETUP_MARKER_INVALID") from None
-    finally:
-        if fd is not None:
-            os.close(fd)
-        os.close(directory)
 
 
 def _open_key(path, *, private):
@@ -219,23 +148,20 @@ def _security_profiles(config, raw, strategy_dir):
 
 def load_local_resources(config, *, strategy_dir, first_init, upgrade_state, security_files):
     """Open existing strategy state and matching keys, or perform explicit setup."""
+    strategy_dir = Path(strategy_dir)
+    if first_init:
+        if upgrade_state:
+            raise RuntimeError("SETUP_OPTIONS_CONFLICT")
+        prepare_gateway_state(strategy_dir)
+        # Initialization generates UUID4. It must be registered at Gateway and
+        # copied into the public route/binding before any session can be used.
+        raise ResourceSetupRequired("LOCAL_STATE_INITIALIZED_CONFIGURE_IDENTITY")
     from bt_api_base.gateway_execution_stream_protocol import gateway_execution_consumer_ref
     from backtrader.live_state.atomic import read_json
     from backtrader.live_state.gateway_pending import GatewayPendingHost
     from backtrader.live_state.pending import validate_pending_state
     from backtrader.live_state.state_dir import StrategyStateDir
 
-    strategy_dir = Path(strategy_dir)
-    if first_init:
-        if upgrade_state:
-            raise RuntimeError("SETUP_OPTIONS_CONFLICT")
-        if os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "geteuid"):
-            raise RuntimeError("STATE_SETUP_PLATFORM_UNSUPPORTED")
-        state = StrategyStateDir.initialize(strategy_dir)
-        _write_new_identity_marker(state)
-        # Initialization generates UUID4. It must be registered at Gateway and
-        # copied into the public route/binding before any session can be used.
-        raise ResourceSetupRequired("LOCAL_STATE_INITIALIZED_CONFIGURE_IDENTITY")
     state = StrategyStateDir(strategy_dir)
     if state.strategy_uuid != config.binding.strategy_scope:
         raise RuntimeError("STRATEGY_IDENTITY_MISMATCH")
@@ -250,7 +176,7 @@ def load_local_resources(config, *, strategy_dir, first_init, upgrade_state, sec
                 # A fresh local identity is not proof that the venue is flat.
                 # Existing direct state may only migrate through the separately
                 # authorized direct-to-Gateway reconciliation procedure.
-                _verify_new_identity_marker(state)
+                verify_gateway_preparation(state)
                 sequence = state.sequence.read()
                 if (state.identity.account_binding is not None or pending["active"] or pending["history"]
                         or sequence["local_seq"] != 0 or sequence["ref_high_water"] != 0
