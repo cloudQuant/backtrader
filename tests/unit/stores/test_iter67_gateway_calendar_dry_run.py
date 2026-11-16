@@ -252,12 +252,7 @@ def test_invalid_sections_are_reported_without_runtime(
 @pytest.mark.parametrize("dry_run,kind", [(True, "package_seed"), (False, "declared")])
 def test_package_seed_is_accepted_as_a_declaration_only(tmp_path, monkeypatch, dry_run, kind):
     """The Shared Gateway gate accepts the keyword; this process never reads it."""
-    import bt_api_py.trading_calendar_config as calendar
-
     monkeypatch.syspath_prepend(str(RUNNER.parent))
-    if not dry_run:
-        # The live path never parses the section; the Gateway process owns it.
-        monkeypatch.setattr(calendar, "parse_trading_calendar_config", forbidden_parser)
     from calendar_gate import check_gateway_calendar
 
     path = tmp_path / "synthetic.yaml"
@@ -266,10 +261,6 @@ def test_package_seed_is_accepted_as_a_declaration_only(tmp_path, monkeypatch, d
     gate = check_gateway_calendar(config, config_file=path, dry_run=dry_run)
     assert gate.code is None and gate.kind == kind
     assert not (tmp_path / "package_seed").exists()
-
-
-def forbidden_parser(*args, **kwargs):
-    pytest.fail("the package-seed keyword must not need the SDK parser")
 
 
 def test_unknown_root_kind_still_exits_2(tmp_path, monkeypatch, capsys):
@@ -296,9 +287,7 @@ def test_unknown_root_kind_still_exits_2(tmp_path, monkeypatch, capsys):
     assert json.loads(capsys.readouterr().out)["error_code"] == "CALENDAR_CONFIG_INVALID"
 
 
-def test_live_start_does_not_parse_calendar_or_change_resource_path(tmp_path, monkeypatch, capsys):
-    import bt_api_py.trading_calendar_config as calendar
-
+def test_live_start_rejects_invalid_calendar_before_resources(tmp_path, monkeypatch, capsys):
     monkeypatch.syspath_prepend(str(RUNNER.parent))
     namespace = runpy.run_path(str(RUNNER), run_name="calendar_runner_test")
     main = namespace["main"]
@@ -308,15 +297,12 @@ def test_live_start_does_not_parse_calendar_or_change_resource_path(tmp_path, mo
     )
 
     def forbidden(*args, **kwargs):
-        pytest.fail("live startup should not parse new calendar option")
+        pytest.fail("invalid calendar must be rejected before resource access")
 
-    monkeypatch.setattr(calendar, "parse_trading_calendar_config", forbidden)
-    main.__globals__["configure_run_logging"] = lambda *args: None
-    main.__globals__["resolve_resources"] = lambda *args, **kwargs: (_ for _ in ()).throw(
-        ValueError()
-    )
+    main.__globals__["configure_run_logging"] = forbidden
+    main.__globals__["resolve_resources"] = forbidden
     assert main(type("Strategy", (), {}), "synthetic", tmp_path, ["--config", str(path)]) == 2
-    assert json.loads(capsys.readouterr().out)["error_code"] == "GATEWAY_RESOURCES_UNAVAILABLE"
+    assert json.loads(capsys.readouterr().out)["error_code"] == "CALENDAR_CONFIG_INVALID"
 
 
 def test_missing_calendar_dry_run_does_not_import_parser(tmp_path, monkeypatch, capsys):

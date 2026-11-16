@@ -138,43 +138,35 @@ def check_direct_calendar(config, *, config_file, ctp_routes, configured_routes)
 def check_gateway_calendar(config, *, config_file, dry_run):
     """Classify a Gateway entry's ``calendars`` section.
 
-    ``--dry-run`` parses the declared section with the SDK parser, as before.
-    A live Gateway start is refused when no root is declared.  ``package_seed``
-    is accepted as a declaration only: the separately operated Gateway process
-    must install or read it (iteration 63); this strategy process neither
-    installs nor reads the root, and a live start does not parse the section.
+    Both paths parse the declaration without reading the target directory.
+    A live Gateway start is refused when no root is declared. ``package_seed``
+    is a declaration only; this strategy process neither installs nor reads it.
     """
     section = _section(config)
     if section is None:
         return CalendarGateResult(
             "unconfigured", CALENDAR_ROOT_UNCONFIGURED, _REASONS[CALENDAR_ROOT_UNCONFIGURED]
         )
-    if dry_run:
-        from bt_api_py.trading_calendar_config import parse_trading_calendar_config
+    from bt_api_py.trading_calendar_config import parse_trading_calendar_config
 
-        try:
-            calendar = parse_trading_calendar_config(
-                _parser_config(config),
-                config_file=config_file,
-                gateway_enabled=True,
-                direct_write_enabled=False,
-            )
-        except Exception:
-            raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID) from None
-        if calendar.root_kind == "package_seed":
-            return CalendarGateResult("package_seed")
-        if calendar.root_kind != "directory":
-            raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID)
-        return CalendarGateResult("directory")
-    if not isinstance(section, Mapping):
-        raise CalendarGateRefusal(CALENDAR_CONFIG_INVALID)
-    root = section.get("root")
-    if root == "package_seed":
-        return CalendarGateResult("declared")
-    if root is None:
+    try:
+        calendar = parse_trading_calendar_config(
+            _parser_config(config),
+            config_file=config_file,
+            gateway_enabled=True,
+            direct_write_enabled=False,
+        )
+    except Exception as exc:
+        if (not dry_run and isinstance(section, Mapping) and section.get("root") is None
+                and getattr(exc, "code", None) == "calendar_root_invalid"):
+            raise CalendarGateRefusal(CALENDAR_ROOT_UNCONFIGURED) from None
+        raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID) from None
+    if calendar.root_kind == "unconfigured" and not dry_run:
         raise CalendarGateRefusal(
             CALENDAR_ROOT_UNCONFIGURED,
             "calendars.root is not configured (the declared calendars section is "
             "invalid); the live start is refused",
         )
-    return CalendarGateResult("declared")
+    if calendar.root_kind not in ("directory", "package_seed"):
+        raise CalendarGateRefusal(GATEWAY_CALENDAR_CONFIG_INVALID)
+    return CalendarGateResult(calendar.root_kind if dry_run else "declared")
