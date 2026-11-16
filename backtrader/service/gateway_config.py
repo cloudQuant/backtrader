@@ -114,6 +114,15 @@ def _release_owned_gateway_lock(store):
         store._gateway_owns_run_lock = False
 
 
+def _gateway_facade_cleanup_confirmed(api):
+    """Require the SDK's explicit confirmation for all facade-owned resources."""
+    try:
+        state = api.lifecycle_state
+        return api.cleanup_confirmed is True and type(state) is str and state == "closed"
+    except Exception:
+        return False
+
+
 def _check_gateway_sequence_consistency(host, state, error_type):
     """Reject state that cannot preserve request, sequence and BT ref identity."""
     from ..live_state.atomic import read_json
@@ -289,8 +298,10 @@ def reconnect_gateway_store(store, *, timeout=None):
             _LOG.warning("Gateway session not re-registered yet: %s", reason)
         return False
 
+    api = store._api
+    run_lock = store._gateway_run_lock
     try:
-        closed = _close_with_cleanup_retry(store._api, timeout)
+        closed = _close_with_cleanup_retry(api, timeout)
     except Exception as error:
         return waiting("OLD_SESSION_CLOSE_FAILED", error)
     # The SDK close returns only after the runtime closed every transport and
@@ -299,6 +310,11 @@ def reconnect_gateway_store(store, *, timeout=None):
     # not "closed". A second runtime is never started beside a live thread.
     if closed.state not in ("closed", "failed") or closed.thread_alive is not False:
         return waiting("OLD_SESSION_STILL_RUNNING")
+    if not _gateway_facade_cleanup_confirmed(api):
+        return waiting("OLD_SESSION_CLEANUP_UNCONFIRMED")
+    if (store._api is not api or store._gateway_run_lock is not run_lock
+            or not gateway_session_recoverable(store)):
+        return waiting("OLD_SESSION_BINDING_CHANGED")
     # Its counters now only say what the old Gateway side could not be told
     # (unregister, unsubscribe): that registration ends with its lease or
     # with its Gateway and is not a reason to keep the strategy waiting.
@@ -353,6 +369,7 @@ def stop_gateway_store(store, *, timeout):
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0:
         raise ValueError("invalid Gateway stop timeout")
     api = store._api
+    run_lock = store._gateway_run_lock
     if api is None:
         store._connected = False
         store._started = False
@@ -378,7 +395,9 @@ def stop_gateway_store(store, *, timeout):
         raise
     if (snapshot.state != "closed" or snapshot.thread_alive is not False
             or snapshot.cleanup_failures != 0 or snapshot.unregister_uncertainties != 0
-            or snapshot.owner_cleanup_uncertainties != 0):
+            or snapshot.owner_cleanup_uncertainties != 0
+            or not _gateway_facade_cleanup_confirmed(api)
+            or store._api is not api or store._gateway_run_lock is not run_lock):
         store._shutdown_state = "INCOMPLETE"
         return store.get_command_health()
     try:

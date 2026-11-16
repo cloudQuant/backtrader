@@ -39,6 +39,14 @@ class FakeApi:
         self.state = "new"
         self.close_complete = True
 
+    @property
+    def lifecycle_state(self):
+        return "closed" if self.closes and self.close_complete and self.state in ("closed", "failed") else "running"
+
+    @property
+    def cleanup_confirmed(self):
+        return self.lifecycle_state == "closed"
+
     def start(self, *, timeout_seconds):
         self.starts += 1
         self.state = "running"
@@ -288,6 +296,52 @@ def test_cleanup_uncertainty_keeps_owned_lock_until_confirmed(setup_gateway, sta
     store.stop()
     assert store.gateway_api is None
     state.acquire_run_lock().release()
+
+
+@pytest.mark.parametrize("confirmation,lifecycle", [(False, "closed"), (1, "closed"), (True, "closing")])
+def test_stop_retains_lock_until_facade_cleanup_confirmed(
+        setup_gateway, state, monkeypatch, confirmation, lifecycle):
+    from backtrader.live_state.atomic import LiveStateLocked
+
+    class UncertainFacade(FakeApi):
+        cleanup_confirmed = confirmation
+        lifecycle_state = lifecycle
+
+    api = UncertainFacade()
+    monkeypatch.setattr(GatewayStrategyConfig, "create_api", lambda *_a, **_kw: api)
+    store = make_store(setup_gateway)
+    store.start()
+    lock = store._gateway_run_lock
+    store.stop(timeout=0)
+    assert store.gateway_api is api and store._gateway_run_lock is lock and lock.held
+    assert store._shutdown_state == "INCOMPLETE"
+    with pytest.raises(LiveStateLocked):
+        state.acquire_run_lock()
+    api.cleanup_confirmed, api.lifecycle_state = True, "closed"
+    store.stop(timeout=0)
+    assert store.gateway_api is None and api.closes == 2 and not lock.held
+    state.acquire_run_lock().release()
+
+
+def test_stop_does_not_release_lock_after_api_binding_changes(setup_gateway, monkeypatch):
+    api, replacement = FakeApi(), FakeApi()
+    monkeypatch.setattr(GatewayStrategyConfig, "create_api", lambda *_a, **_kw: api)
+    store = make_store(setup_gateway)
+    store.start()
+    lock = store._gateway_run_lock
+    close = api.close
+
+    def changing_close(*, timeout_seconds):
+        snapshot = close(timeout_seconds=timeout_seconds)
+        store._api = replacement
+        return snapshot
+
+    api.close = changing_close
+    store.stop(timeout=0)
+    assert store.gateway_api is replacement and store._gateway_run_lock is lock and lock.held
+    assert store._shutdown_state == "INCOMPLETE"
+    store.stop(timeout=0)
+    assert store.gateway_api is None and not lock.held
 
 
 def test_store_cannot_be_reused_after_process_change(setup_gateway, monkeypatch):
@@ -712,6 +766,44 @@ def test_no_second_runtime_while_the_lost_one_is_not_closed(setup_gateway, monke
     first.__dict__.pop("close", None)
     first.state = "failed"
     assert store.gateway_reconnect() is True and store.gateway_api is second
+
+
+@pytest.mark.parametrize("confirmation,lifecycle", [(False, "closed"), (1, "closed"), (True, "closing")])
+def test_reconnect_waits_for_facade_cleanup_confirmation(setup_gateway, monkeypatch, confirmation, lifecycle):
+    class UncertainFacade(ReconnectApi):
+        cleanup_confirmed = confirmation
+        lifecycle_state = lifecycle
+
+    first, second = UncertainFacade(), ReconnectApi()
+    store, created = _reconnect_store(setup_gateway, monkeypatch, [first, second])
+    lock = store._gateway_run_lock
+    first.state = "failed"
+    assert store.gateway_reconnect() is False
+    assert store._gateway_reconnect_reason == "OLD_SESSION_CLEANUP_UNCONFIRMED"
+    assert store.gateway_api is first and len(created) == 1 and lock.held
+    first.cleanup_confirmed, first.lifecycle_state = True, "closed"
+    assert store.gateway_reconnect() is True
+    assert store.gateway_api is second and len(created) == 2 and first.closes == 2
+    assert store._gateway_run_lock is lock and lock.held
+    store.stop()
+
+
+def test_reconnect_does_not_replace_a_changed_api_binding(setup_gateway, monkeypatch):
+    first, replacement, unused = ReconnectApi(), ReconnectApi(), ReconnectApi()
+    store, created = _reconnect_store(setup_gateway, monkeypatch, [first, unused])
+    first.state = "failed"
+    close = first.close
+
+    def changing_close(*, timeout_seconds):
+        snapshot = close(timeout_seconds=timeout_seconds)
+        store._api = replacement
+        return snapshot
+
+    first.close = changing_close
+    assert store.gateway_reconnect() is False
+    assert store._gateway_reconnect_reason == "OLD_SESSION_BINDING_CHANGED"
+    assert store.gateway_api is replacement and len(created) == 1 and unused.starts == 0
+    store.stop(timeout=0)
 
 
 def test_reconnect_attempts_are_spaced_by_a_backoff(setup_gateway, monkeypatch):

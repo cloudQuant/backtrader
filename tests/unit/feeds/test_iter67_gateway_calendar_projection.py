@@ -441,6 +441,10 @@ def test_real_store_gateway_lifecycle_closes_original_fake_facade(setup_gateway,
     monkeypatch.setattr(GatewayBtApi, "start", start)
     monkeypatch.setattr(GatewayBtApi, "status", status)
     monkeypatch.setattr(GatewayBtApi, "close", close)
+    monkeypatch.setattr(GatewayBtApi, "lifecycle_state", property(
+        lambda _self: "closed" if state["closes"] else "running"))
+    monkeypatch.setattr(GatewayBtApi, "cleanup_confirmed", property(
+        lambda _self: bool(state["closes"])))
     monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", lambda _self, _route, **kw:
                         GatewayCalendarQueryResult.from_wire(wire(dt.date.fromisoformat(kw["trading_day"]))))
     store = make_store((config, host, keys))
