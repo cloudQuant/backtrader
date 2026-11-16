@@ -264,6 +264,15 @@ _CALENDAR_REASON_CODES = frozenset(
         "CALENDAR_REFRESHED",
         "CALENDAR_SCOPE_UNAVAILABLE",
         "CALENDAR_UNAVAILABLE",
+        "DAY_OUT_OF_RANGE",
+        "FRESH_QUERY_REQUIRED",
+        "GATEWAY_BINDING_STALE",
+        "INVALID_RESULT",
+        "OWNER_CHANGED",
+        "OUT_OF_SCOPE",
+        "QUERY_UNAVAILABLE",
+        "SOURCE_UNAVAILABLE",
+        "STORE_CHANGED",
         "CAPABILITY_UNAVAILABLE",
         "CONFIGURATION_CHANGED",
         "COVERAGE_UNAVAILABLE",
@@ -338,9 +347,34 @@ class FeedTradingCalendarState:
     source_ids: Tuple[str, ...] = ()
     source_classification: str = "UNVERIFIED"
     coverage_end_utc: Optional[_dt.datetime] = None
+    gateway_binding: Optional[FeedGatewayCalendarBinding] = None
 
 
 _UNBOUND_CALENDAR = FeedTradingCalendarState()
+
+
+@dataclass(frozen=True)
+class FeedGatewayCalendarBinding:
+    """Observed simulation binding identity, without source or trade authority."""
+
+    registration_id: str
+    service_epoch: str
+    route: str
+    source_generation: str
+    bound_trading_day: _dt.date
+    calendar_ref: str
+    publication_id: str
+    content_sha256: str
+    coverage_manifest_sha256: str
+    binding_sha256: str
+    version_sha256: str
+    coverage_status: str
+    coverage_start: _dt.date
+    coverage_end: _dt.date
+    load_status: str
+    data_origin: str
+    source_authentication: str = "NOT_PROVEN"
+    trade_authorization: str = "NONE"
 
 
 @dataclass(frozen=True)
@@ -375,6 +409,7 @@ class FeedTradingSession:
     account_use: str = "NOT_AUTHORIZED"
     stale: bool = False
     trading_day_transition: str = "NOT_PROVEN"
+    gateway_binding: Optional[FeedGatewayCalendarBinding] = None
 
 
 @dataclass(frozen=True)
@@ -392,12 +427,12 @@ class FeedTradingWindows:
     """UTC half-open window projection of one Feed-bound calendar scope (D67-11).
 
     ``status`` is ``COMPLETE`` when every candidate trading day answered,
-    ``PARTIAL`` when some did and ``gaps`` names the unanswered ones, and
-    ``UNKNOWN`` when none did. Candidate days are the Feed's bound trading day
-    plus each ``Asia/Shanghai`` local date intersecting ``[start_utc,
-    end_utc)``; the Feed never infers a trading day from weekdays or fixed
-    weekend rules. Returned windows keep their original boundaries and are
-    only those intersecting the range.
+    ``PARTIAL`` for a direct read when some did, ``STALE`` for a Gateway
+    snapshot explicitly reported stale, and ``UNKNOWN`` when a Gateway day
+    cannot be verified or no direct day answered. Candidate days are the ``Asia/Shanghai`` local
+    dates intersecting ``[start_utc, end_utc)``. The Feed never infers an
+    overnight window's owner day from a natural date or weekday rule. Returned
+    windows keep their original boundaries and intersect the range.
     """
 
     status: str
@@ -417,6 +452,55 @@ class FeedTradingWindows:
     account_use: str = "NOT_AUTHORIZED"
     stale: bool = False
     incomplete: bool = False
+    gateway_binding: Optional[FeedGatewayCalendarBinding] = None
+
+
+@dataclass(frozen=True)
+class _FeedGatewayWindow:
+    window_id: str
+    phase: str
+    trading_day: _dt.date
+    start_utc: _dt.datetime
+    end_utc: _dt.datetime
+    start_local: _dt.datetime
+    end_local: _dt.datetime
+    interval_semantics: str = "START_INCLUSIVE_END_EXCLUSIVE"
+
+
+@dataclass(frozen=True)
+class _FeedGatewayQuery:
+    """BT projection of the distinct SDK Gateway DTO."""
+
+    windows: Tuple[_FeedGatewayWindow, ...]
+    gateway_binding: FeedGatewayCalendarBinding
+    status: str = "COMPLETE"
+    reason: str = "EXPLICIT_DATA"
+    source_ids: Tuple[str, ...] = ()
+    source_classification: str = "UNVERIFIED"
+    environment: str = "SIMULATION_ONLY"
+    bound: str = "NOT_BOUND"
+    account_use: str = "NOT_AUTHORIZED"
+    trading_day_transition: str = "NOT_PROVEN"
+
+    @property
+    def calendar_ref(self):
+        return self.gateway_binding.calendar_ref
+
+    @property
+    def publication_id(self):
+        return self.gateway_binding.publication_id
+
+    @property
+    def content_sha256(self):
+        return self.gateway_binding.content_sha256
+
+    @property
+    def version_sha256(self):
+        return self.gateway_binding.version_sha256
+
+    @property
+    def coverage_status(self):
+        return self.gateway_binding.coverage_status
 
 
 @dataclass(frozen=True)
@@ -430,6 +514,7 @@ class _FeedCalendarBinding:
     source_ids: Tuple[str, ...] = ()
     source_classification: str = "UNVERIFIED"
     trading_day_transition: str = "NOT_PROVEN"
+    gateway_binding: Optional[FeedGatewayCalendarBinding] = None
 
 
 def _bounded_context_value(value):
@@ -1257,6 +1342,42 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         except Exception:
             return None, "READ_UNAVAILABLE"
         reason = _bounded_calendar_reason(getattr(result, "reason", None))
+        if getattr(store, "_gateway_mode", False):
+            try:
+                from bt_api_py.gateway_strategy_calendar import GatewayCalendarQueryResult
+
+                if type(result) is not GatewayCalendarQueryResult:
+                    raise ValueError("gateway binding unavailable")
+                if result.status != "COMPLETE" and (
+                    result.binding is None or result.binding["load_status"] != "STALE"
+                ):
+                    return None, reason
+                if result.binding is None:
+                    raise ValueError("gateway binding unavailable")
+                values = dict(result.binding)
+                for name in ("bound_trading_day", "coverage_start", "coverage_end"):
+                    values[name] = _dt.date.fromisoformat(values[name])
+                binding = FeedGatewayCalendarBinding(
+                    registration_id=result.registration_id,
+                    service_epoch=result.service_epoch,
+                    **values,
+                )
+                windows = []
+                for item in result.windows:
+                    start = _dt.datetime.fromisoformat(item["start_utc"].replace("Z", "+00:00"))
+                    end = _dt.datetime.fromisoformat(item["end_utc"].replace("Z", "+00:00"))
+                    windows.append(_FeedGatewayWindow(
+                        window_id=item["window_id"], phase=item["phase"], trading_day=trading_day,
+                        start_utc=start, end_utc=end, start_local=start.astimezone(_SHANGHAI),
+                        end_local=end.astimezone(_SHANGHAI),
+                    ))
+                return _FeedGatewayQuery(
+                    tuple(windows), binding,
+                    status="COMPLETE" if result.status == "COMPLETE" else "STALE",
+                    reason="EXPLICIT_DATA" if result.status == "COMPLETE" else reason,
+                ), reason
+            except Exception:
+                return None, "READ_UNAVAILABLE"
         if getattr(result, "status", None) != "COMPLETE":
             return None, reason
         return result, reason
@@ -1303,6 +1424,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 source_ids=source_ids,
                 source_classification=result.source_classification,
                 coverage_end_utc=_retained_coverage_end(windows),
+                gateway_binding=getattr(result, "gateway_binding", None),
             ),
             scope=scope,
             windows=windows,
@@ -1310,6 +1432,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             source_ids=source_ids,
             source_classification=result.source_classification,
             trading_day_transition=result.trading_day_transition,
+            gateway_binding=getattr(result, "gateway_binding", None),
         )
 
     def trading_calendar_binding(self):
@@ -1318,11 +1441,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         The value is a :class:`FeedTradingCalendarState`: ``UNBOUND`` before
         the first read, ``BOUND`` after a COMPLETE read, ``STALE`` while a
         previous published version is retained after a failed re-read, and
-        ``UNAVAILABLE`` when none could be read. This accessor never queries
-        the Store, rewrites configuration or proves source identity.
+        ``UNAVAILABLE`` when none could be read. A Gateway result is a prior
+        observation, reported as STALE until the next explicit query. This
+        accessor performs no I/O or source authentication.
         """
         with self._calendar_lock:
-            return self._calendar_binding.public
+            state = self._calendar_binding.public
+        if state.gateway_binding is not None:
+            return replace(state, status="STALE", reason="FRESH_QUERY_REQUIRED", stale=True)
+        return state
 
     def refresh_trading_calendar(
         self,
@@ -1345,6 +1472,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         rewinds silently. When the day advances, one Store query reads
         CURRENT; COMPLETE replaces the binding, while failure keeps the
         previous version and reports ``STALE`` with the bounded failure code.
+        Gateway instead makes a bounded SDK query on each explicit call; it
+        does not reuse local cached windows or fall back to local CURRENT.
         Scope keywords default to the Feed's ``calendar_*`` parameters. The
         method is read-only: it does not write the calendar store or start an
         updater.
@@ -1366,6 +1495,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         )
         if error is not None:
             return FeedTradingCalendarState(status="UNAVAILABLE", reason=error)
+        store = self.store or getattr(self, "_store", None)
+        gateway = bool(getattr(store, "_gateway_mode", False))
         with self._calendar_lock:
             current = self._calendar_binding
             same_scope = current.scope == scope
@@ -1375,7 +1506,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 return FeedTradingCalendarState(
                     status="UNAVAILABLE", reason="TRADING_DAY_REQUIRED"
                 )
-            if same_scope and current.public.trading_day is not None:
+            if not gateway and same_scope and current.public.trading_day is not None:
                 if trading_day == current.public.trading_day and not force:
                     return replace(current.public, reason="SAME_DAY")
                 if trading_day < current.public.trading_day:
@@ -1398,10 +1529,14 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                     binding = replace(
                         binding, public=replace(binding.public, reason=bind_reason)
                     )
+                    if gateway and binding.gateway_binding.load_status == "STALE":
+                        binding = replace(binding, public=replace(
+                            binding.public, status="STALE", reason="GATEWAY_BINDING_STALE", stale=True
+                        ))
                     self._calendar_binding = binding
                     return binding.public
                 reason = "CALENDAR_UNAVAILABLE"
-            if same_scope and current.public.trading_day is not None:
+            if not gateway and same_scope and current.public.trading_day is not None:
                 stale = replace(
                     current.public, status="STALE", reason=reason, stale=True
                 )
@@ -1469,7 +1604,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             trading_day = binding.public.trading_day
         if trading_day is None:
             return FeedTradingSession("UNKNOWN", "TRADING_DAY_REQUIRED", None)
-        if binding.scope != scope or binding.public.trading_day != trading_day:
+        store = self.store or getattr(self, "_store", None)
+        gateway = bool(getattr(store, "_gateway_mode", False))
+        if gateway or binding.scope != scope or binding.public.trading_day != trading_day:
             self.refresh_trading_calendar(
                 trading_day,
                 route=route,
@@ -1494,7 +1631,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             )
         phase, active, active_window = "unknown", None, None
         reason = "EXPLICIT_DATA" if binding.windows else "NO_WINDOWS_RETURNED"
-        if instant is not None:
+        gateway_stale = gateway and state.stale
+        if gateway_stale:
+            reason = "GATEWAY_BINDING_STALE"
+        if instant is not None and not gateway_stale:
             moment = instant.astimezone(_UTC)
             for window in binding.windows:
                 if window.start_utc <= moment < window.end_utc:
@@ -1505,7 +1645,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             elif binding.windows:
                 reason = "INSTANT_OUTSIDE_WINDOWS"
         return FeedTradingSession(
-            status="COMPLETE",
+            status="STALE" if gateway_stale else "COMPLETE",
             reason=reason,
             trading_day=trading_day,
             phase=phase,
@@ -1524,6 +1664,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             account_use=state.account_use,
             stale=state.stale,
             trading_day_transition=binding.trading_day_transition,
+            gateway_binding=binding.gateway_binding,
         )
 
     def trading_windows(
@@ -1540,20 +1681,23 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         """Return published windows intersecting ``[start, end)`` in UTC (D67-11).
 
         ``start``/``end`` are timezone-aware datetimes; the range is half-open
-        and converted to UTC. Candidate trading days are the Feed's bound day
-        plus each ``Asia/Shanghai`` local date intersecting the range (bounded
-        to ``_CALENDAR_WINDOW_MAX_DAYS``); every candidate is asked of the
-        published calendar, so an unpublished day is an explicit gap rather
-        than a weekday guess. Windows keep their original half-open boundaries
-        and are returned only when they intersect the range.
+        and converted to UTC. Candidate days are the ``Asia/Shanghai`` local
+        dates intersecting the range (bounded to ``_CALENDAR_WINDOW_MAX_DAYS``).
+        A natural date does not identify an overnight window's trading-day
+        owner. An unanswered candidate is a gap rather than a weekday guess.
+        Windows keep their original half-open boundaries and are returned only
+        when they intersect the range.
 
         Returns a :class:`FeedTradingWindows`: ``COMPLETE`` when every
         candidate day answered (an empty window tuple does not prove a closed
-        range), ``PARTIAL`` with ``gaps`` when some did not, and ``UNKNOWN``
-        when none did or the calendar is unavailable. A concurrent version
+        range), ``PARTIAL`` with ``gaps`` for incomplete direct reads,
+        ``STALE`` for an explicitly stale Gateway view, and ``UNKNOWN`` for
+        an unanswered Gateway day or unavailable calendar. A concurrent version
         change across days discards the whole read as
-        ``CONFIGURATION_CHANGED`` instead of mixing versions. This method is
-        read-only and never changes the Feed's day binding.
+        ``CONFIGURATION_CHANGED`` instead of mixing versions. Gateway makes a
+        bounded SDK call per candidate day, each with a five-second timeout;
+        it never reuses local cached windows. This method is read-only and
+        never changes the Feed's day binding.
         """
         if (
             type(start) is not _dt.datetime
@@ -1588,9 +1732,13 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             first + _dt.timedelta(days=offset)
             for offset in range((last - first).days + 1)
         ]
+        store = self.store or getattr(self, "_store", None)
+        gateway = bool(getattr(store, "_gateway_mode", False))
         cached = (
             binding
             if (
+                not gateway
+                and
                 binding.scope == scope
                 and binding.public.trading_day in days
                 and binding.public.status in ("BOUND", "STALE")
@@ -1624,7 +1772,26 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 result, reason = self._calendar_query(scope, day)
                 if result is None:
                     gaps.append(FeedTradingWindowGap(day, None, None, reason))
+                    if gateway:
+                        return FeedTradingWindows(
+                            "UNKNOWN", reason, start_utc, end_utc, gaps=tuple(gaps)
+                        )
                     continue
+                if gateway and result.status != "COMPLETE":
+                    return FeedTradingWindows(
+                        "UNKNOWN", result.reason, start_utc, end_utc,
+                        gaps=(FeedTradingWindowGap(day, None, None, result.reason),),
+                        calendar_ref=result.calendar_ref,
+                        publication_id=result.publication_id,
+                        content_sha256=result.content_sha256,
+                        coverage_status=result.coverage_status,
+                        source_ids=result.source_ids,
+                        source_classification=result.source_classification,
+                        environment=result.environment,
+                        bound=result.bound,
+                        account_use=result.account_use,
+                        stale=True, incomplete=True, gateway_binding=result.gateway_binding,
+                    )
                 try:
                     day_windows = tuple(result.windows)
                     day_source_ids = tuple(result.source_ids)
@@ -1633,7 +1800,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                         FeedTradingWindowGap(day, None, None, "CALENDAR_UNAVAILABLE")
                     )
                     continue
-                day_identity = (result.calendar_ref, result.publication_id)
+                day_identity = (
+                    result.gateway_binding if gateway else (result.calendar_ref, result.publication_id)
+                )
+                if gateway:
+                    stale = stale or result.gateway_binding.load_status == "STALE"
                 day_metadata = (
                     result.calendar_ref,
                     result.publication_id,
@@ -1679,8 +1850,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             account_use,
         ) = metadata
         return FeedTradingWindows(
-            status="PARTIAL" if gaps else "COMPLETE",
-            reason="RANGE_PARTIAL" if gaps else "EXPLICIT_DATA",
+            status="PARTIAL" if gaps else "STALE" if stale and gateway else "COMPLETE",
+            reason="RANGE_PARTIAL" if gaps else "GATEWAY_BINDING_STALE" if stale and gateway else "EXPLICIT_DATA",
             start_utc=start_utc,
             end_utc=end_utc,
             windows=tuple(windows),
@@ -1695,6 +1866,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             bound=bound,
             account_use=account_use,
             stale=stale,
+            gateway_binding=identity if gateway else None,
             incomplete=bool(gaps),
         )
 

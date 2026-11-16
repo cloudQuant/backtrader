@@ -161,6 +161,24 @@ def test_missing_risk_selection_is_rejected_before_calendar(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["error_code"] == "GATEWAY_CONFIG_INVALID"
 
 
+def test_simulation_calendar_opt_in_is_explicit_in_dry_run(tmp_path, capsys):
+    main = runpy.run_path(str(RUNNER), run_name="calendar_runner_test")["main"]
+    config = synthetic_config()
+    gateway = config["gateway_strategy"]
+    assert "calendar_settings" not in gateway
+    bindings = gateway["client_config"]["clients"]["gateway"]["settings"]["bindings"]
+    bindings.append({**bindings[0], "mount": "store.calendar"})
+    gateway["calendar_settings"] = {
+        "mode": "SIMULATION_ONLY",
+        "scopes": [{"route": "CTP___FUTURE", "venue": "CFFEX", "kind": "future",
+                    "product": "IF", "contract": "IF2612"}],
+    }
+    path = tmp_path / "synthetic.yaml"
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
+    assert main(type("Strategy", (), {}), "synthetic", tmp_path, ["--config", str(path), "--dry-run"]) == 0
+    assert json.loads(capsys.readouterr().out)["calendar"] == "calendar_root_unconfigured"
+
+
 @pytest.mark.parametrize(
     "calendars,expected",
     [
