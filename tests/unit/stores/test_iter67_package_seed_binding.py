@@ -79,6 +79,9 @@ def test_seed_snapshot_is_readable_through_the_simulation_query(tmp_path):
     assert (result.status, result.reason) == ("COMPLETE", "EXPLICIT_DATA")
     assert [window.window_id for window in result.windows] == ["day_am", "day_pm"]
     assert result.coverage_status == "DECLARED_UNVERIFIED"
+    assert result.data_origin == "SYNTHETIC_MOCK"
+    assert result.simulation_provenance is None
+    assert result.source_authentication == "NOT_PROVEN"
 
 
 def test_seed_installation_is_idempotent_across_stores(tmp_path):

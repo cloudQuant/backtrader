@@ -208,6 +208,23 @@ def test_mode_routes_and_faults_are_fail_closed(monkeypatch, tmp_path):
     assert query(store).reason == "ROUTE_UNAVAILABLE"
 
 
+def test_synthetic_origin_rejects_conflicting_or_unsupported_attribution(monkeypatch, tmp_path):
+    publish(tmp_path / "calendars/ctp")
+    store, _ = local_store(monkeypatch, tmp_path)
+    good = query(store)
+    assert good.status == "COMPLETE" and good.data_origin == "UNSPECIFIED"
+    synthetic = replace(good, data_origin="SYNTHETIC_MOCK")
+    monkeypatch.setattr(store._calendar_local_reader, "query", lambda *a, **kw: synthetic)
+    assert query(store).data_origin == "SYNTHETIC_MOCK"
+    for bad in (
+        replace(synthetic, data_origin="REAL"),
+        replace(synthetic, simulation_provenance={"schema": "mixed"}),
+        replace(synthetic, source_ids=("AKSHARE.simulation_unverified",)),
+    ):
+        monkeypatch.setattr(store._calendar_local_reader, "query", lambda *a, _bad=bad, **kw: _bad)
+        assert (query(store).status, query(store).reason) == ("UNKNOWN", "READ_UNAVAILABLE")
+
+
 def test_unknown_reader_or_facade_generation_is_rejected(monkeypatch, tmp_path):
     publish(tmp_path / "calendars/ctp")
     store, _ = local_store(monkeypatch, tmp_path)

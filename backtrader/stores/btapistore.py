@@ -4825,7 +4825,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 elif result.status == "COMPLETE":
                     origin = getattr(result, "data_origin", "UNSPECIFIED")
                     provenance = getattr(result, "simulation_provenance", None)
-                    if type(origin) is not str or origin not in {"UNSPECIFIED", "AKSHARE_MOCK"}:
+                    if type(origin) is not str or origin not in {
+                        "UNSPECIFIED", "AKSHARE_MOCK", "SYNTHETIC_MOCK"
+                    }:
                         raise ValueError("invalid query origin")
                     if ("AKSHARE.simulation_unverified" in result.source_ids
                             and (origin != "AKSHARE_MOCK" or provenance is None)):

@@ -26,7 +26,7 @@ UTC = dt.timezone.utc
 
 
 def wire(day, contract="cu2601", *, generation="g1", registration="r1", epoch="e1",
-         version="v1", bound=MONDAY, load="CURRENT", empty=False):
+         version="v1", bound=MONDAY, load="CURRENT", empty=False, origin="UNSPECIFIED"):
     scope = {"mode": "SIMULATION_ONLY", "route": ROUTE, "venue": "XSH", "kind": "future",
              "product": "cu", "contract": contract, "trading_day": day.isoformat()}
     morning = dt.datetime.combine(day, dt.time(1), UTC)
@@ -49,7 +49,7 @@ def wire(day, contract="cu2601", *, generation="g1", registration="r1", epoch="e
             "content_sha256": "a" * 64, "coverage_manifest_sha256": "b" * 64,
             "binding_sha256": "c" * 64, "version_sha256": "d" * 64,
             "coverage_status": "DECLARED_UNVERIFIED", "coverage_start": "2026-10-01",
-            "coverage_end": "2026-12-31", "load_status": load, "data_origin": "UNSPECIFIED",
+            "coverage_end": "2026-12-31", "load_status": load, "data_origin": origin,
         },
         "venue_day": {"status": "COMPLETE", "day_status": "open"}, "windows": windows,
         "source_authentication": "NOT_PROVEN", "trade_authorization": "NONE",
@@ -381,6 +381,32 @@ def test_gateway_range_rejects_more_than_366_days_before_rpc(gateway):
     result = feed(store).trading_windows(start, start + dt.timedelta(days=367))
     assert (result.status, result.reason, result.incomplete) == ("UNKNOWN", "INVALID_QUERY_RANGE", True)
     assert not state["range_calls"] and not state["calls"]
+
+
+def test_gateway_synthetic_origin_survives_session_and_range(gateway, monkeypatch):
+    store, _ = gateway
+
+    def session(_self, _route, **kwargs):
+        return GatewayCalendarQueryResult.from_wire(
+            wire(dt.date.fromisoformat(kwargs["trading_day"]), origin="SYNTHETIC_MOCK")
+        )
+
+    def windows(_self, _route, **kwargs):
+        return GatewayCalendarWindowsResult.from_wire(
+            wire_range(kwargs["start_utc"], kwargs["end_utc"], origin="SYNTHETIC_MOCK")
+        )
+
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_query", session)
+    monkeypatch.setattr(GatewayBtApi, "trading_calendar_windows", windows)
+    value = feed(store)
+    observed = value.trading_session(trading_day=MONDAY)
+    interval = value.trading_windows(dt.datetime(2026, 10, 12, 1, tzinfo=UTC),
+                                     dt.datetime(2026, 10, 12, 2, tzinfo=UTC))
+    for result in (observed, interval):
+        assert result.status == "COMPLETE"
+        assert result.gateway_binding.data_origin == "SYNTHETIC_MOCK"
+        assert result.gateway_binding.source_authentication == "NOT_PROVEN"
+        assert result.gateway_binding.trade_authorization == "NONE"
 
 
 def test_gateway_missing_config_and_changed_scope_are_unavailable(gateway, monkeypatch):
