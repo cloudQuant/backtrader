@@ -201,6 +201,10 @@ tests/functional/**/backtest_result.json
 # ---------------------------------------------------------------------------
 # Private account configuration and provider runtime state
 # ---------------------------------------------------------------------------
+# Strategy-root initialization reservation and coordination lock; retain the
+# files locally because they fence interrupted initialization and state writes.
+/examples/live/007_ctp/*/.gateway_example_init.reserve
+/examples/live/007_ctp/*/.state-coordination.lock
 # The 007 CTP runtime directories carry their own .gitignore; the 000 suites
 # are listed here because one ignored config.yaml sits at each suite root.
 account_config.yaml
