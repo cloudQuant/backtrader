@@ -1,0 +1,91 @@
+{
+  "captured_at": "2026-11-17T16:43:50+08:00",
+  "scope": "iterations 63-68; no iteration 69",
+  "backtrader_head_before_handoff": "d334e3a5713ce6f4a71afeda9607cba08b0aed11",
+  "sdk_head": "19dd5df5d7ba38e40751a9744a56209242df747c",
+  "sdk_branch": "dev",
+  "risk_head": "f115ceebc37f1de9aa208adf1b86944244e31900",
+  "sdk_uncommitted_files": {
+    "bt_api_py/ctp_gateway_local_profile.py": {
+      "sha256": "d1c58497943ae747cb65949c8f02c99d60b8e8479af15c6129878755123f3096",
+      "bytes": 64673
+    },
+    "bt_api_py/ctp_gateway_operator_profile.py": {
+      "sha256": "81b42e222253e48a67578872b7413489e056ec2ee40a8e245665dadda3c3331c",
+      "bytes": 13337
+    },
+    "bt_api_py/ctp_gateway_order_cut.py": {
+      "sha256": "9738565ac96f23ee504f56d73b89fcd319d8d5e50b8c43806112f6724d3ab9e9",
+      "bytes": 21288
+    },
+    "bt_api_py/ctp_gateway_order_cut_source.py": {
+      "sha256": "26d6458b866b4ab0c18390fa11092fdf18082b17ea649381d8095bba695e9903",
+      "bytes": 7486
+    },
+    "bt_api_py/ctp_gateway_return_maintenance.py": {
+      "sha256": "71998b5a031d609e7a41c669a1916c550bc0e9957904e8440010726b03e92a26",
+      "bytes": 22042
+    },
+    "bt_api_py/ctp_gateway_trading.py": {
+      "sha256": "3508799eb7c9d5f9d5de22ac3c2986bc199c4bffece9642bad04ccff628d3f6d",
+      "bytes": 177876
+    },
+    "bt_api_py/gateway_direct_service.py": {
+      "sha256": "8c69b00b8f82dd0d92f10bffeb31c27056dbd6b831cc6072c2541dd47def23aa",
+      "bytes": 118769
+    },
+    "bt_api_py/gateway_order_cut_client.py": {
+      "sha256": "832a296cb11a6374a7ceba76f7bc0e4598b000ad0d7897ff22319f4e4e5e126c",
+      "bytes": 12023
+    },
+    "bt_api_py/gateway_order_cut_codec.py": {
+      "sha256": "b2e4597c6403da5838578e5b610df148e1acd850b46ce7c8526fc1a548763f77",
+      "bytes": 9079
+    },
+    "bt_api_py/gateway_order_cut_service.py": {
+      "sha256": "4d8fa00131d9b9533d563dc073d14482ff4154eab699c01d473ce28b5091c815",
+      "bytes": 14475
+    },
+    "bt_api_py/service_components.py": {
+      "sha256": "284f4520693a49450ae82de0e5bf85694e885abdfe98a8b4bb16f9d131e66855",
+      "bytes": 223038
+    },
+    "bt_api_py/service_host.py": {
+      "sha256": "a18779e0bec0a39cea897c1f2a33ef2de747f78be6e944cab9bf622e3152995e",
+      "bytes": 208007
+    },
+    "bt_api_py/service_registry.py": {
+      "sha256": "0fd1df34c30c303946a0bacf983fffc302f28c6a1eef6ba6284e7eb3491985dd",
+      "bytes": 440593
+    },
+    "bt_api_py/service_runtime.py": {
+      "sha256": "c615010a77f762bb0ff6ebda196e5f2bd3ba478e8d8f67dc02ca4e4eefa7c5b1",
+      "bytes": 259553
+    },
+    "bt_api_py/service_runtime_thread.py": {
+      "sha256": "09050a656ca2c3f234012d106117623a01b7cf4f27f23e3350d1870b3f01c375",
+      "bytes": 118665
+    },
+    "tests/integration/test_ctp_gateway_order_cut_source.py": {
+      "sha256": "b35904e0bf314315b2857c046939490442a0a6c7741c61e873fda907933cae53",
+      "bytes": 5283
+    },
+    "tests/integration/test_gateway_order_cut_curve.py": {
+      "sha256": "ec765ab633e23a95afe081aa6dbce6833c1354f588856d65117fea582ac32037",
+      "bytes": 31603
+    },
+    "tests/unit/test_ctp_gateway_order_cut_profile.py": {
+      "sha256": "a8cb20a0f3a588497911a5948bb7a0b339ce146209bd66fe3359c5a02f5ade36",
+      "bytes": 15249
+    },
+    "tests/unit/test_gateway_order_cut_service.py": {
+      "sha256": "d36e511776a7a768e2d1396be06141bc1d0e8d4df9495ea1c31d68097d11e980",
+      "bytes": 5065
+    }
+  },
+  "unrelated_backtrader_change_preserved": "CLAUDE.md",
+  "new_risk_host_wheel_build": "NOT_RUN",
+  "real_gateway_attempt_21": "NOT_RUN",
+  "actual_trade_writes_enabled": false,
+  "native_orders_or_cancels_sent_in_this_acceptance": false
+}
