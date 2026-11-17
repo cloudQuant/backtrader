@@ -133,9 +133,8 @@ _SETTLEMENT_MANUAL_RESULTS = frozenset(
 # Global blocks a trading-day switch cannot clear by itself (operator restart).
 _DAY_SWITCH_TERMINAL_BLOCKS = frozenset(("trading_day_regressed", "account_binding_mismatch"))
 # Iteration 67.06 (D67-08 B): a read-only instrument-status gate in front of an
-# immediate send.  These are finite local refusal codes.  The gate never sends,
-# defers, retargets or authorizes anything; only a current observation-backed
-# TRADABLE answer lets an immediate order continue to the existing checks.
+# Finite diagnostics for the waiting-order status composition. These do not
+# reject, retarget, dispatch or authorize an order.
 INSTRUMENT_STATUS_PAUSED = "instrument_status_paused"
 INSTRUMENT_STATUS_CLOSED = "instrument_status_closed"
 INSTRUMENT_STATUS_UNKNOWN = "instrument_status_unknown"
@@ -2708,9 +2707,6 @@ class BtApiDirectModeMixin:
                 return self._direct_reject(order, "trading_day_switch_pending")
             if route != "dispatch":
                 return self._direct_reject(order, route)
-            status_reason = self._direct_instrument_status_gate(order, meta)
-            if status_reason is not None:
-                return self._direct_reject(order, status_reason)
             return self._direct_dispatch(order, meta)
 
     def _direct_precheck(
@@ -2838,56 +2834,71 @@ class BtApiDirectModeMixin:
     # ------------------------------------------------------------------
     # iteration 67.06: read-only instrument-status gate (D67-08 B)
     # ------------------------------------------------------------------
-    def _direct_instrument_status_gate(self, order: Order, meta: Dict[str, Any]) -> Optional[str]:
-        """Refuse an immediate send unless the composition reports TRADABLE.
+    def _direct_waiting_instrument_status(self, order: Order, meta: Dict[str, Any], now,
+                                          *, calendar_version=None):
+        """Compose a waiting order's current phase without changing its target.
 
-        Applies only to an order about to be dispatched now: waiting orders
-        keep their own durable contract and are not consulted here, and every
-        precheck and calendar decision above has already run.  A Store without
-        an explicitly configured observation port has no status source, so the
-        gate is inactive; once a port is attached it fails closed on every
-        answer that is not a current, observation-backed ``TRADABLE``.  Nothing
-        here sends, defers, retargets or writes; a refusal is the same local
-        pre-send rejection as the prechecks above.
+        The SDK result is only a phase observation; it does not authorize a
+        write or replace the existing target, market and execution checks.
+        An attached but unavailable source leaves the FIFO order waiting.
         """
         store = self.store
         configured = getattr(store, "instrument_status_source_configured", None)
         if not callable(configured):
-            return None  # a Store without the status-source contract: no source, no gate
+            return None, False
         try:
-            if configured() is not True:
-                return None
+            selected = configured()
         except Exception:
-            return INSTRUMENT_STATUS_UNAVAILABLE
-        scope = self._direct_instrument_status_scope(order, meta)
+            return INSTRUMENT_STATUS_UNAVAILABLE, False
+        if selected is False:
+            return None, False
+        if selected is not True:
+            return INSTRUMENT_STATUS_UNAVAILABLE, False
+        target = meta.get("target_session")
+        if (type(target) is not dict or target.get("trading_day") != self._direct_trading_day):
+            return INSTRUMENT_STATUS_SCOPE_INVALID, False
+        scope = self._direct_instrument_status_scope(order, meta, at=now)
         if scope is None:
-            return INSTRUMENT_STATUS_SCOPE_INVALID
+            return INSTRUMENT_STATUS_SCOPE_INVALID, False
         reader = getattr(store, "instrument_status", None)
         if not callable(reader):
-            return INSTRUMENT_STATUS_UNAVAILABLE
+            return INSTRUMENT_STATUS_UNAVAILABLE, False
         try:
+            from bt_api_py.instrument_status_composition import InstrumentStatusComposition
+            if calendar_version is None:
+                calendar_version = getattr(self._direct_feed_binding(order.data), "calendar_ref", None)
             status = reader(**scope)
+            if (type(status) is not InstrumentStatusComposition
+                    or status.venue != scope["venue"] or status.instrument != scope["instrument"]
+                    or status.trading_day != scope["trading_day"].isoformat()
+                    or status.calendar_state != "COMPLETE"
+                    or status.calendar_ref != calendar_version
+                    or status.authorizes_trading is not False):
+                return INSTRUMENT_STATUS_UNAVAILABLE, False
         except Exception:
-            return INSTRUMENT_STATUS_UNAVAILABLE
-        state = getattr(status, "state", None)
-        if state == "TRADABLE" and getattr(status, "observation_state", None) == "CURRENT":
-            return None
+            return INSTRUMENT_STATUS_UNAVAILABLE, False
+        state = status.state
         if state == "PAUSED":
             code = INSTRUMENT_STATUS_PAUSED
         elif state == "CLOSED":
             code = INSTRUMENT_STATUS_CLOSED
-        elif state == "TRADABLE":
-            # The SDK may let the plan calendar answer when no observation was
-            # received (``CALENDAR_*_NO_OBSERVATION``); this gate requires an
-            # effective observation and reports its absence instead.
-            code = INSTRUMENT_STATUS_NO_OBSERVATION
-        else:
+        elif state != "TRADABLE" or status.session_phase != "CONTINUOUS":
             code = INSTRUMENT_STATUS_UNKNOWN
+        elif (status.observation_state == "CURRENT" and status.source == "OBSERVATION"
+              and status.observation_generation == scope["session_generation"]
+              and status.observation_trading_day == scope["trading_day"].strftime("%Y%m%d")):
+            self._direct_note_instrument_status(order, status, None)
+            return None, True
+        else:
+            # Neither ABSENT nor NEVER_OBSERVED proves that the source recovered
+            # after losing an old observation. D67-16 needs a provider/SDK
+            # recovery contract before such a result can release this queue.
+            code = INSTRUMENT_STATUS_NO_OBSERVATION
         self._direct_note_instrument_status(order, status, code)
-        return code
+        return code, False
 
     def _direct_instrument_status_scope(
-        self, order: Order, meta: Dict[str, Any]
+        self, order: Order, meta: Dict[str, Any], *, at=None
     ) -> Optional[Dict[str, Any]]:
         """The exact scope the composition must answer, or ``None`` if unproven.
 
@@ -2938,10 +2949,10 @@ class BtApiDirectModeMixin:
             "instrument": symbol,
             "trading_day": trading_day,
             "session_generation": str(generation),
-            "at": _utc_now(),
+            "at": at if at is not None else _utc_now(),
         }
 
-    def _direct_note_instrument_status(self, order: Order, status: Any, code: str) -> None:
+    def _direct_note_instrument_status(self, order: Order, status: Any, code: Optional[str]) -> None:
         """Keep the composition's finite diagnostics on the order and in the log."""
         details = {
             "state": getattr(status, "state", None),
@@ -2950,13 +2961,19 @@ class BtApiDirectModeMixin:
             "observation_state": getattr(status, "observation_state", None),
             "calendar_state": getattr(status, "calendar_state", None),
             "calendar_reason": getattr(status, "calendar_reason", None),
+            "calendar_phase": getattr(status, "calendar_phase", None),
+            "calendar_ref": getattr(status, "calendar_ref", None),
+            "conflict": getattr(status, "conflict", None),
+            "calendar_stale": getattr(status, "calendar_stale", None),
             "source": getattr(status, "source", None),
         }
         order.addinfo(instrument_status=details)
+        if code is None:
+            return
         throttled_warning(
             _log,
-            "direct_order_refused:" + code,
-            "direct order refused for %s: %s (status: %s/%s, calendar: %s/%s)",
+            "direct_waiting_held:" + code,
+            "direct waiting order held for %s: %s (status: %s/%s, calendar: %s/%s)",
             self._direct_symbol(order.data),
             code,
             details["state"],
@@ -4129,6 +4146,13 @@ class BtApiDirectModeMixin:
             order = self.orders[ref]
             meta = self._direct_meta[ref]
             target = meta["target_session"]
+            target_snapshot = dict(target)
+            waiting_id = meta["waiting_id"]
+            symbol = meta["symbol"]
+            sequence = meta["local_seq"]
+            feed = order.data
+            trading_day = self._direct_trading_day
+            session_generation = self._direct_session_generation
             phase = self._direct_phase(meta["symbol"], now)
             block = meta.get("calendar_block")
             if block in _STICKY_CALENDAR_DISPOSITIONS:
@@ -4163,8 +4187,17 @@ class BtApiDirectModeMixin:
                 return  # R-3: hold the FIFO queue (not rejected) until the new day is verified
             if self._direct_account_gap_pending():
                 return  # hold the FIFO queue (not rejected) until the gap is reconciled
-            if phase is None or phase.reason or phase.phase.value != "continuous":
-                return  # auction / unknown: no dispatch (D62-34)
+            if phase is None or phase.reason or phase.phase.value not in ("continuous", "closed", "auction"):
+                return  # unknown phase cannot be overridden
+            status_reason, realtime_continuous = self._direct_waiting_instrument_status(order, meta, now)
+            if status_reason is not None:
+                return  # preserve FIFO, identity and original target
+            if phase.phase.value != "continuous" and not realtime_continuous:
+                return
+            block = self._direct_waiting_calendar_disposition(meta)
+            if block is not None:
+                self._direct_pause_waiting(meta, block, order=order)
+                return
             qualify = _trade_qualification_reader(order.data)
             qualification = qualify() if qualify is not None else None
             if qualification is None or not getattr(qualification, "ok", False):
@@ -4186,8 +4219,109 @@ class BtApiDirectModeMixin:
                 ):
                     self._direct_reject(order, reason)
                 continue
+            # Run every qualification, precheck and calendar/phase reader
+            # before the final status read. They can call external code that
+            # publishes a newer status.
+            final_now = _utc_now()
+            if final_now < start or (end is not None and final_now >= end):
+                return
+            final_phase = self._direct_phase(symbol, final_now)
+            if (final_phase is None or final_phase.reason
+                    or final_phase.phase.value not in ("continuous", "closed", "auction")):
+                return
+            block = self._direct_waiting_calendar_disposition(meta)
+            if block is not None:
+                self._direct_pause_waiting(meta, block, order=order)
+                return
+            qualify = _trade_qualification_reader(feed)
+            qualification = qualify() if qualify is not None else None
+            if qualification is None or not getattr(qualification, "ok", False):
+                return
+            if self._direct_precheck(order, meta) is not None:
+                return
+            if self._direct_day_switch_active() or self._direct_account_gap_pending():
+                return
+            # The Feed's published binding is local state. Capture the version
+            # before the reader; BtApiFeed replaces its frozen binding object
+            # on updates. A generic Feed may not expose that local marker.
+            calendar_binding = self._direct_feed_binding(feed)
+            calendar_version = getattr(calendar_binding, "calendar_ref", None)
+            local_feed = vars(feed)
+            missing = object()
+            binding_marker = local_feed.get("_calendar_binding", missing)
+            calendar_state = local_feed.get("calendar_state", missing)
+            calendar_fields = ("calendar_ref", "publication_id", "status", "stale")
+            calendar_state_values = (tuple(vars(calendar_state).get(name, missing) for name in calendar_fields)
+                                     if calendar_state is not missing and hasattr(calendar_state, "__dict__")
+                                     else None)
+            qualification_fields = ("ok", "live", "reasons", "expires_monotonic_ns")
+            qualification_values = (tuple(vars(qualification).get(name, missing) for name in qualification_fields)
+                                    if hasattr(qualification, "__dict__") else None)
+            params = getattr(feed, "p", None)
+            manager = vars(params).get("_param_manager") if hasattr(params, "__dict__") else None
+            parameter_values = vars(manager).get("_values") if hasattr(manager, "__dict__") else None
+            scope_fields = ("calendar_route", "calendar_venue", "calendar_kind",
+                            "calendar_product", "calendar_contract")
+            parameter_scope = (tuple(parameter_values.get(name, missing) for name in scope_fields)
+                               if type(parameter_values) is dict else None)
+            store_fields = ("_calendar_status_generation", "_stream_generation", "_started",
+                            "_connected", "_calendar_status_stopping", "_calendar_status_transitions")
+            store_objects = ("_api", "_instrument_status_port", "_instrument_status_ports_bound_for")
+            local_store = vars(self.store)
+            store_snapshot = tuple(local_store.get(name, missing) for name in store_fields)
+            store_object_snapshot = tuple(local_store.get(name, missing) for name in store_objects)
+            status_ports = local_store.get("_instrument_status_ports", missing)
+            status_ports_snapshot = dict(status_ports) if type(status_ports) is dict else None
+            calendar_block = meta.get("calendar_block")
+            status_reason, realtime_continuous = self._direct_waiting_instrument_status(
+                order, meta, final_now, calendar_version=calendar_version)
+            if (status_reason is not None
+                    or (final_phase.phase.value != "continuous" and not realtime_continuous)):
+                return
+            # From the final status read to DISPATCHING, compare only local
+            # fields and time. This is not an atomic fence against future
+            # status changes or a provider/venue authorization.
+            boundary_now = _utc_now()
+            gap = self._direct_return_gap
+            if (self._direct_trading_day != trading_day
+                    or self._direct_session_generation != session_generation
+                    or self._direct_day_switch is not None
+                    or (gap is not None and gap.get("scope") != "fill")
+                    or self._direct_stopping or not self._direct_writes_enabled
+                    or self._direct_global_block or self._direct_blocked.get("*")
+                    or self._direct_blocked.get(symbol)
+                    or any(entry.get("symbol") == symbol and entry.get("state") != "watch"
+                           for entry in self._direct_fill_gaps.values())
+                    or self.orders.get(ref) is not order or self._direct_meta.get(ref) is not meta
+                    or order.data is not feed or order.status != Order.Submitted
+                    or meta.get("waiting_id") != waiting_id or meta.get("identity") is not None
+                    or meta.get("local_seq") != sequence or meta.get("symbol") != symbol
+                    or meta.get("target_session") is not target or target != target_snapshot
+                    or meta.get("calendar_block") != calendar_block
+                    or vars(feed).get("_calendar_binding", missing) is not binding_marker
+                    or vars(feed).get("calendar_state", missing) is not calendar_state
+                    or (calendar_state_values is not None
+                        and tuple(vars(calendar_state).get(name, missing) for name in calendar_fields)
+                            != calendar_state_values)
+                    or (qualification_values is not None
+                        and tuple(vars(qualification).get(name, missing) for name in qualification_fields)
+                            != qualification_values)
+                    or (parameter_scope is not None and (
+                        vars(params).get("_param_manager") is not manager
+                        or vars(manager).get("_values") is not parameter_values
+                        or tuple(parameter_values.get(name, missing) for name in scope_fields) != parameter_scope))
+                    or tuple(vars(self.store).get(name, missing) for name in store_fields) != store_snapshot
+                    or any(vars(self.store).get(name, missing) is not previous
+                           for name, previous in zip(store_objects, store_object_snapshot))
+                    or vars(self.store).get("_instrument_status_ports", missing) is not status_ports
+                    or (status_ports_snapshot is not None and (
+                        status_ports.keys() != status_ports_snapshot.keys()
+                        or any(status_ports.get(name, missing) is not value
+                               for name, value in status_ports_snapshot.items())))
+                    or boundary_now < start or (end is not None and boundary_now >= end)):
+                return
             if not self._direct_state.waiting.transition(
-                meta["waiting_id"], "WAITING", "DISPATCHING"
+                waiting_id, "WAITING", "DISPATCHING"
             ):
                 continue
             self._direct_dispatch_waiting_order(order, meta)
