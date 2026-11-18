@@ -214,3 +214,15 @@ def test_other_private_and_group_write_entries_are_blocked(state, ready, inputs,
         broker.submit_group_order(strategy, object())
     with pytest.raises(ValueError, match='market_data_only'):
         broker.submit_group_roll_exit(strategy, 'group', 'leg', 10)
+
+
+def test_local_market_data_only_rejection_stays_out_of_gateway_notifications(
+        state, ready, inputs, monkeypatch):
+    host, api, data, broker, strategy = _bound_submit_fixture(
+        state, ready, inputs, monkeypatch)
+    broker.set_param('market_data_only', True)
+    order = bt.BuyOrder(owner=strategy, data=data, size=1, price=10,
+                        exectype=bt.Order.Limit)
+    order.addinfo(error_code='market_data_only')
+    assert broker._gateway_validate_notification_entry(strategy, order) is None
+    assert broker._gateway_prepare_notifications(strategy, [order], []) is None

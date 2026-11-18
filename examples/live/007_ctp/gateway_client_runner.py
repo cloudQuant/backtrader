@@ -58,7 +58,12 @@ def contract_broker_summary(summary):
     working = summary.get("gateway_working_orders")
     working = working if isinstance(working, Mapping) else None
     unresolved = working.get("unresolved_working_orders") if working is not None else None
-    gateway_status = summary.get("status")
+    # The broker summary carries the session-level status under
+    # ``gateway_status`` and its own local status under ``status``.  Read the
+    # nested value first so an ``OBSERVATION_ONLY`` Gateway run is not mistaken
+    # for a local ``UNKNOWN`` stop.
+    gateway_status = summary.get("gateway_status", summary.get("status"))
+    market_data_only = summary.get("market_data_only") is True
     translated = dict(summary, gateway_status=gateway_status)
     if isinstance(unresolved, int) and not isinstance(unresolved, bool) and unresolved > 0:
         return dict(
@@ -67,6 +72,17 @@ def contract_broker_summary(summary):
             unresolved_working_orders=unresolved,
         )
     if gateway_status == "PASS" and unresolved == 0:
+        return dict(translated, status="STOPPED")
+    # A read-only market-data run mutates no orders.  ``OBSERVATION_ONLY`` with
+    # zero observed active orders is therefore a clean stop, not an unknown
+    # one; the run still reports ``market_data_only`` and never claims a
+    # remote-flat or order capability.
+    if (
+        market_data_only
+        and gateway_status == "OBSERVATION_ONLY"
+        and not unresolved
+        and summary.get("active_order_count") == 0
+    ):
         return dict(translated, status="STOPPED")
     return dict(translated, status="UNKNOWN")
 
@@ -142,8 +158,12 @@ def validate_config(config):
         raise ValueError("FEED_CONFIG_INVALID")
     if type(feed.get("backfill_start", False)) is not bool:
         raise ValueError("FEED_CONFIG_INVALID")
+    if type(feed.get("allow_stale_market_feed", False)) is not bool:
+        raise ValueError("FEED_CONFIG_INVALID")
     for symbol in symbols:
         row = contracts[symbol]
+        if type(row.get("allow_stale_market_feed", feed.get("allow_stale_market_feed", False))) is not bool:
+            raise ValueError("FEED_CONFIG_INVALID")
         for key in ("event_time_max_age", "receive_time_max_age"):
             number = row.get(key, feed.get(key, 2.0))
             if type(number) not in (int, float) or not math.isfinite(number) or number <= 0:
@@ -396,7 +416,8 @@ def main(strategy, title, run_dir, argv=None, *, _retained_wait=None):
             for symbol in config["symbols"]:
                 options = dict(feed_defaults)
                 options.update(calendar_scopes.get(symbol, {}))
-                for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars"):
+                for key in ("event_time_max_age", "receive_time_max_age", "incomplete_volume_bars",
+                            "allow_stale_market_feed"):
                     if key in contracts[symbol]:
                         options[key] = contracts[symbol][key]
                 frame = timeframe[options.pop("timeframe", "ticks")]

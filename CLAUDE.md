@@ -13,8 +13,7 @@ metaprogramming** in favor of explicit mixin + factory initialization while
 keeping the public API compatible.
 
 - **Version**: `1.4.0` (`backtrader/version.py`)
-- **License**: GPLv3 (`LICENSE`). Note: `setup.py`'s classifier still says MIT —
-  trust `LICENSE`, and do not "fix" one without confirming with the maintainer.
+- **License**: GPLv3 (`LICENSE`; `setup.py`'s classifier also declares GPLv3).
 - **Python**: 3.8–3.13 (3.11 recommended); research features require 3.11+pandas.
 - **PyPI**: distribution `back-trader-python` (import name stays `backtrader`).
   A separate pybind11/C++ wheel ships as `back-trader-cpp`; this repo is the
@@ -27,15 +26,28 @@ keeping the public API compatible.
 > source tree and prefer `AGENTS.md` for iteration-specific status; neither
 > file's status claims are proof that a capability is accepted.
 
-> Recent work (iteration 62, opts line): SDK write admission, direct base
-> layers (CTP/OKX/Binance), BT direct mode inside `BtApiBroker`
-> (`brokers/_btapi_direct_mode.py`, local state in `backtrader/live_state/`)
-> and the 007_ctp direct/Gateway examples. Always check `AGENTS.md` for the
-> current iteration. Plan:
-> `docs/_internal/opts/requirements/迭代62-问题修复/迭代计划.md` (change log
-> `计划修改记录.md` there). Iteration 60 (unified containers, direct/Gateway
-> access; plan under `迭代60-统一行情容器与低转换数据链路/`) remains the base. Iteration 53 was abandoned by the
-> user on 2026-11-02; its "stop for review" restriction no longer applies.
+> Recent work (iterations 64–68, opts line; local `dev`, unpushed). Iteration
+> 64 (Risk): v1 decisions stay source-quarantined (A-1), counters-less v2
+> policies activate (B-1), the full R-04/R-11 v2 rule is wired (B-2), and the
+> SDK holds one exact Risk core with instance ports (C-1); the authenticated
+> source contract (A-2) is frozen but not implemented. Iteration 65
+> (Execution): parent/child journal, UNKNOWN latch, scheduler recovery,
+> opt-in netting, Gateway parent-fault recovery and day-switch proof.
+> Iteration 66 (Runtime): run-file/heartbeat plumbing, opt-in stop file, and a
+> loopback HTTP/JSON control transport (D66-03 option a). Iteration 67
+> (calendar): file-backed trading calendar, day-switch Feed re-read,
+> instrument-status chain, package seed. Iteration 68 (Monitor): frozen event
+> contracts, base alert catalog, heartbeat responder.
+>
+> Status and evidence live in `docs/_internal/opts/requirements/迭代<NN>-…/`
+> (`迭代计划.md`, `开发验收状态矩阵.md`, handoff notes); the 2026-11-16
+> cross-iteration handoff is
+> `迭代65-bt_api_execution独立执行服务/迭代64-68开发交接说明-2026-11-16.md`.
+> Nothing there is ACCEPTED; real accounts, SimNow, real Gateway/Risk,
+> SMTP/Webhook and Windows/Ubuntu are NOT_RUN. Iteration 60 (unified
+> containers, direct/Gateway access) remains the base contract. Iteration 53
+> was abandoned by the user on 2026-11-02; its "stop for review" restriction
+> no longer applies.
 
 ### Branch model
 
@@ -49,6 +61,8 @@ Authoritative source: `docs/source/developer-guide/branch-governance.md`.
 
 **Push to `dev`.** Do not push directly to `master` or `development`. `git push`
 targets both GitHub (`cloudQuant/backtrader`) and Gitee (`yunjinqi/backtrader`).
+Commit messages follow Conventional Commits (`feat:`, `fix:`, `perf:`, `docs:`,
+`test:`, `refactor:`).
 
 ### Private inputs
 
@@ -58,6 +72,26 @@ sanitized snapshots. An authorized account read must use the protected bounded
 reader and emit only categories/booleans — never values or raw lines. Never
 fall back to `cat`/`Get-Content`/`rg` on a private input.
 
+### Status and evidence discipline
+
+- Iteration status/evidence lives in `docs/_internal/opts/requirements/迭代<NN>-…/`
+  (`迭代计划.md`, `开发验收状态矩阵.md`, handoff notes). Source code proves
+  intent, not acceptance; neither these docs nor a green local run makes a step
+  ACCEPTED — only the user's acceptance does. Keep `NO-GO` / `IN_PROGRESS` /
+  `NOT_RUN` visible rather than quietly dropping them.
+- Evidence levels: `UNIT/FAKE` (synthetic ports), `INTEGRATION_SIM` (real
+  components, simulated provider), `REAL` or `NOT_RUN`. Never promote a
+  fake/sim result into a real-account, SimNow, provider or release claim.
+- "Suite green" means the failure set was compared test-by-test against a clean
+  baseline. Several suites carry long-standing failures (Risk state-machine and
+  counter fixtures; Gateway `test_iter65_parent_*` errors that appear only in a
+  full-suite run). Record them as pre-existing with the ids, not as green.
+- Guard and contract changes need a mutation check: remove the guard, see the
+  intended test fail, restore the file and verify its hash.
+- `UNKNOWN` stays `UNKNOWN`: never clear pending rows, reset ledgers, release
+  reservations, swap identities or auto-resend; journal backups are not a
+  rollback path.
+
 ## Development commands
 
 ### Install
@@ -65,7 +99,10 @@ fall back to `cat`/`Get-Content`/`rg` on a private input.
 ```bash
 pip install -r requirements.txt   # core + dev deps
 pip install -U .                  # build & install
-pip install -e .                  # editable/dev install
+pip install -e .                  # editable install
+pip install -e '.[dev]'           # editable + test/lint extras
+pip install -e '.[live]'          # BtApi SDK live integration (Python 3.11+)
+pip install -e '.[execution]'     # optional durable-execution journal deps
 ```
 
 No Cython step is required: there are no tracked `.pyx` files and no
@@ -109,6 +146,13 @@ pytest tests -m slow -n 8 -q                            # test-slow
 pytest tests/functional/strategies -n 8 -q              # test-strategies
 pytest tests -m "not performance" -n 8 -q               # test-all part 1
 ```
+
+**xdist caveat (this machine).** Full-suite `pytest -n` runs have twice hung
+at ~0% CPU with no progress (the functional fast loop, then `tests/unit`); the
+same tree completes serially. For verification prefer serial pytest
+(`PYTHONDONTWRITEBYTECODE=1 python -m pytest … -q -p no:cacheprovider`) or
+split by directory, and treat a 0%-CPU stall as an environment hang, not a
+product failure. `tests/unit -n 4` took ~10–15 min serial for ~6,470 tests.
 
 **Dynamic slow tier** (`conftest.py`): reads the committed
 `tests/functional/strategies/.test_durations.json`, computes the
@@ -167,8 +211,9 @@ plot/bokeh, and `btrun` (see `[[tool.mypy.overrides]]` in `pyproject.toml`).
 ### Docs
 
 ```bash
-make docs / docs-en / docs-zh   # Sphinx, English + Chinese
-make docs-offline / docs-offline-zh   # no network-only extensions
+make docs                       # offline Sphinx build, English + Chinese
+make docs-en / docs-zh          # one language each
+make docs-offline / docs-offline-zh   # explicit no-network variants
 make docs-view / docs-view-zh   # open the built HTML
 make help                       # list targets
 make clean
@@ -242,7 +287,7 @@ Access: `data.close[0]` (current bar), `data.close[-1]` (previous).
   `channel`, `execution`, `presentation`, and the engine loops in
   `runnext`/`runonce`. `run()` → `runstrategies()` → `_runonce()` (vectorized)
   or `_runnext()` (event-driven); tick-level mode is also supported.
-- `strategy.py` (~5,250 lines) — `Strategy.__new__`/`__init__`, order and
+- `strategy.py` (~5,370 lines) — `Strategy.__new__`/`__init__`, order and
   broker/analyzer state, notification hooks.
 - `strategies/` — built-in strategy classes (`FactorStrategy`, `CTPFuture`),
   distinct from user strategies defined in tests/examples.
@@ -298,6 +343,27 @@ any `bt_api*` integration; `docs/TRADING_SYSTEM_ARCHITECTURE.md` covers the
 cross-repository topology. Existence of source code is not evidence that a
 route, account capability, or acceptance test is approved.
 
+### Cross-repo workspace (`bt_api_py` SDK family)
+
+Work that spans BT and the SDKs is routine on this line, so know the layout
+before editing:
+
+- The SDK parent checkout is a **sibling** of this repo (`../bt_api_py`), with
+  provider/service submodules under `../bt_api_py/bt_api/` (`bt_api_base`,
+  `bt_api_ctp`, `bt_api_risk`, `bt_api_execution`, `bt_api_runtime`,
+  `bt_api_monitor`, `bt_api_gateway`, `bt_api_transport_zmq`, …). Each has its
+  own `dev` branch, tests, and its own `AGENTS.md`.
+- Commit order for a cross-repo change: **subrepo → SDK parent gitlink → Backtrader**.
+  Never leave a parent pointing at an unpushed subrepo state that reviewers
+  cannot reproduce.
+- Run SDK tests from the submodule root, e.g.
+  `cd ../bt_api_py/bt_api/bt_api_execution && python -m pytest tests -q`.
+  Cross-submodule tests need the sibling `tests`/`src` dirs on `PYTHONPATH`;
+  the SDK root `conftest.py` registers three cross-module fixture providers.
+- The interpreter used here is `/Users/yunjinqi/opt/anaconda3/bin/python` (3.11).
+  Subagents must not commit or push; the main session reviews the diff and
+  commits.
+
 ### Special modes
 
 - TS (time series) and CS (cross-section) modes for multi-asset portfolios.
@@ -345,8 +411,9 @@ top-level directories include `archived/` (frozen iteration snapshots),
 is `archived/`; `testpaths = tests` is what actually keeps these out of the
 default run.
 
-AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`) and the
-`fincore` analytics library are maintained in separate repositories.
+AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`), the
+`backtrader_web` platform, and the `fincore` analytics library are maintained
+in separate repositories.
 
 ## Tests
 
@@ -365,7 +432,7 @@ AI products (`backtrader-skills`, `backtrader-mcp`, `backtrader-agent`) and the
   flaky under `-n 8`; they pass in isolation.
 - `tests/datas/` holds fixtures (MT5 daily CSVs in `tests/datas/mt5_1d_data/`).
 - `pytest.ini` markers include `slow`, `performance`, `integration`,
-  `websocket`, `trading`, `live`, and priority tags.
+  `websocket`, `trading`, `live`, `simnow_serial`, and priority tags.
 
 ## Common tasks
 

@@ -106,8 +106,12 @@ class GatewayMarketAdapter:
                 "max_latency_seconds": min(requested_limit, feed_limit),
                 "max_clock_error_ms": options.get("max_clock_error_ms", 500),
                 "timeout_seconds": options.get("rpc_timeout_seconds", 1)}
+            allow_stale = getattr(feed.p, "allow_stale_market_feed", False)
+            if type(allow_stale) is not bool:
+                raise ValueError("GATEWAY_CLOCK_CONFIGURATION_INVALID")
             self._qualifier = GatewayTradeClockQualifier(
-                self._projector._client, self._clock_verifier, **self._qualifier_options)
+                self._projector._client, self._clock_verifier,
+                allow_stale_event_time=allow_stale, **self._qualifier_options)
         with self._claim_lock:
             if name in claims and claims[name] is not feed:
                 raise ValueError("GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED")

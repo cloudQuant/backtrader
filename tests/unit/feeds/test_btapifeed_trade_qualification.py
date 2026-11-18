@@ -499,6 +499,70 @@ def test_continuity_and_data_defects_still_degrade_the_feed(harness, overrides):
     assert "FEED_NOT_LIVE" in verdict.reasons
 
 
+def _stale_marked_overrides(age_seconds):
+    """A days-stale but explicitly marked, verified-clock SDK tick payload."""
+    event_time = T0 - dt.timedelta(seconds=age_seconds)
+    return dict(
+        provider_event_time_utc=_utc_text(event_time),
+        received_at_utc=_utc_text(T0),
+        received_monotonic_ns=MONO0,
+        quality_contract_ref="ctp.quote.v2:allow_stale=1",
+        source_clock_quality=typed.MarketClockQuality.VERIFIED,
+        receive_clock_quality=typed.MarketClockQuality.VERIFIED,
+        source_clock_error_ms=1.0,
+        receive_clock_error_ms=1.0,
+        freshness_status=typed.MarketFreshnessStatus.STALE,
+        freshness_reason_codes=("EVENT_TIME_STALE",),
+        execution_eligible=True,
+    )
+
+
+def test_stale_feed_stays_untradable_by_default(harness):
+    """Default strictness: a stale marked tick enters lines but not orders."""
+    feed, store, clock = harness
+    _feed_ticks(feed, store, clock, _event(8, 10, **_stale_marked_overrides(2 * 86400)))
+    verdict = feed.trade_qualification()
+    assert verdict.ok is False
+    assert "FRESHNESS_STALE" in verdict.reasons
+    assert "EVENT_TIME_STALE" in verdict.reasons
+
+
+def test_allow_stale_market_feed_qualifies_a_stale_marked_tick(harness):
+    """The opt-in drops only the stale-event reasons; the receive-time bound
+    still gates on the (real-time) receipt clock."""
+    feed, store, clock = harness
+    feed.p.allow_stale_market_feed = True
+    _feed_ticks(feed, store, clock, _event(8, 10, **_stale_marked_overrides(2 * 86400)))
+    verdict = feed.trade_qualification()
+    assert verdict.ok is True
+    assert verdict.reasons == ()
+
+
+def test_allow_stale_market_feed_still_rejects_unverified_clocks(harness):
+    """With the opt-in on, an unverified clock stays refused (no silent
+    widening) at the adapter layer the feed uses for its tick state."""
+    feed, store, clock = harness
+    feed.p.allow_stale_market_feed = True
+    unverified = dict(
+        quality_contract_ref=None,
+        source_clock_quality=typed.MarketClockQuality.UNKNOWN,
+        receive_clock_quality=typed.MarketClockQuality.UNKNOWN,
+        source_clock_error_ms=None,
+        receive_clock_error_ms=None,
+        freshness_status=typed.MarketFreshnessStatus.UNAVAILABLE,
+        freshness_reason_codes=("SOURCE_CLOCK_CALIBRATION_NOT_PROVIDED",),
+        execution_eligible=False,
+    )
+    result = ingest_market_tick_event(
+        _event(8, 10, **unverified),
+        event_time_max_age=2.0,
+        allow_stale_event_time=True,
+    )
+    assert result.qualification.trade_qualified_at_receipt is False
+    assert "SOURCE_CLOCK_UNVERIFIED" in result.qualification.qualification_reasons
+    assert "FRESHNESS_UNAVAILABLE" in result.qualification.qualification_reasons
+
+
 def test_historical_backfill_is_not_live_and_realtime_ticks_are():
     history = {
         "datetime": T0.replace(tzinfo=None) - dt.timedelta(minutes=1),

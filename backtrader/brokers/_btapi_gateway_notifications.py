@@ -634,6 +634,14 @@ class GatewayNotificationsBrokerMixin:
         binding = self._gateway_binding(strategy)
         if binding is None:
             return None
+        # A local observation-only rejection is not a Gateway event: it has no
+        # remote order binding and must not enter the local-notification
+        # receipt path.
+        if orders:
+            orders = [order for order in orders
+                      if order.info.get("error_code") != "market_data_only"]
+        if not orders and not trades:
+            return None
         if binding.armed is not None:
             _reject_metadata_notification(binding.armed)
         if binding.active is not None:
@@ -704,6 +712,10 @@ class GatewayNotificationsBrokerMixin:
         """Reject a new framework notification before it changes Strategy state."""
         binding = self._gateway_binding(strategy)
         if binding is None:
+            return None
+        # A local observation-only rejection has no remote order binding: it
+        # was never sent, so its framework notification must stay local.
+        if order is not None and order.info.get("error_code") == "market_data_only":
             return None
         if binding.active is not None or binding.replaying:
             _error("BUSY")

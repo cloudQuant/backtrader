@@ -703,6 +703,11 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         ("bar_watermark_ms", 500),
         ("event_time_max_age", 2.0),
         ("receive_time_max_age", 2.0),
+        # Opt-in (default off): allow a Gateway market feed whose latest tick
+        # carries a stale event time (e.g. SimNow 7x24 replay) to still qualify
+        # for dispatch. Only the event-age freshness bound is dropped; clock
+        # binding, session validity and expiry still gate the qualification.
+        ("allow_stale_market_feed", False),
         ("gateway_clock_verification", None),
         # D62-38: consecutive real-time ticks whose exchange time went
         # backwards before the feed degrades; fewer are dropped and counted.
@@ -2569,11 +2574,15 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                         # an unqualified clock still freezes the epoch.
                         tick = adapt_market_tick_event(event)
                         ingest = qualify_market_tick_event(
-                            event, event_time_max_age=self.p.event_time_max_age
+                            event,
+                            event_time_max_age=self.p.event_time_max_age,
+                            allow_stale_event_time=self.p.allow_stale_market_feed,
                         )
                     else:
                         ingest = ingest_market_tick_event(
-                            event, event_time_max_age=self.p.event_time_max_age
+                            event,
+                            event_time_max_age=self.p.event_time_max_age,
+                            allow_stale_event_time=self.p.allow_stale_market_feed,
                         )
                         tick = ingest.tick
                 except MarketTickAdapterError as error:

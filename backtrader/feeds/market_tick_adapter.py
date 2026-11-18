@@ -225,6 +225,19 @@ MARKET_TICK_QUALIFICATION_REASONS = frozenset(
 )
 
 
+# Reasons whose only root cause is a stale event time. With an explicit
+# allow_stale_event_time opt-in they are dropped from the receipt-time
+# qualification when the rest of the evidence is sound; every other reason
+# (clocks unverified, freshness unavailable/invalid, event after receive)
+# is kept unchanged.
+_EVENT_STALE_REASONS = frozenset(
+    {
+        "FRESHNESS_STALE",
+        "EVENT_TIME_STALE",
+    }
+)
+
+
 @dataclass(frozen=True)
 class MarketTickQualification:
     """Whether one admitted SDK tick could back a live order when received.
@@ -286,9 +299,13 @@ def _max_age_seconds(value):
     return limit
 
 
-def _qualify(value, types, event_time_max_age):
+def _qualify(value, types, event_time_max_age, allow_stale_event_time=False):
     """Return ``(qualification, error_code, event_time, received_at)``."""
     MarketClockQuality, MarketFreshnessStatus, MarketTickEvent, _schema, _version = types
+    if type(allow_stale_event_time) is not bool:
+        raise MarketTickAdapterError(
+            "MARKET_TICK_EVENT_INVALID", market_tick_event=value
+        )
     if type(value) is not MarketTickEvent:
         raise MarketTickAdapterError("MARKET_TICK_EVENT_INVALID", market_tick_event=value)
     clock = value.clock
@@ -303,28 +320,51 @@ def _qualify(value, types, event_time_max_age):
         return None, "TICK_RECEIVE_MONOTONIC_UNAVAILABLE", None, None
 
     reasons = []
+    event_stale_only = True
     if clock.source_clock_quality is not MarketClockQuality.VERIFIED:
         reasons.append("SOURCE_CLOCK_UNVERIFIED")
+        event_stale_only = False
     if clock.receive_clock_quality is not MarketClockQuality.VERIFIED:
         reasons.append("RECEIVE_CLOCK_UNVERIFIED")
+        event_stale_only = False
     status = clock.freshness_status
     if status is MarketFreshnessStatus.UNAVAILABLE:
         reasons.append("FRESHNESS_UNAVAILABLE")
+        event_stale_only = False
     elif status is MarketFreshnessStatus.STALE:
         reasons.append("FRESHNESS_STALE")
     elif status is not MarketFreshnessStatus.FRESH:
         reasons.append("FRESHNESS_INVALID")
+        event_stale_only = False
     if value.data.execution_eligible is not True:
         # The SDK's own verdict; Backtrader never promotes it (fail closed).
+        # Exempted only when the opt-in is on and the sole recorded root cause
+        # is the stale event time; a genuinely ineligible upstream stays here.
         reasons.append("UPSTREAM_EXECUTION_INELIGIBLE")
     latency = (received_at - event_time).total_seconds()
     limit = _max_age_seconds(event_time_max_age)
     if latency < 0:
         reasons.append("EVENT_TIME_AFTER_RECEIVE")
+        event_stale_only = False
     elif limit is None:
         reasons.append("EVENT_TIME_MAX_AGE_INVALID")
+        event_stale_only = False
     elif latency > limit:
         reasons.append("EVENT_TIME_STALE")
+    if (
+        allow_stale_event_time
+        and event_stale_only
+        and clock.source_clock_quality is MarketClockQuality.VERIFIED
+        and clock.receive_clock_quality is MarketClockQuality.VERIFIED
+        and status is MarketFreshnessStatus.STALE
+        and set(reasons) <= _EVENT_STALE_REASONS | {"UPSTREAM_EXECUTION_INELIGIBLE"}
+    ):
+        # Only the event-age bound caused the failure; the clocks are verified
+        # and freshness is exactly STALE (not UNAVAILABLE or invalid). The
+        # upstream ineligibility then can only echo the stale freshness, so it
+        # is exempted with the event-stale reasons; any other defect keeps
+        # every reason and fails closed.
+        reasons = []
     qualification = MarketTickQualification(
         trade_qualified_at_receipt=not reasons,
         qualification_reasons=tuple(reasons),
@@ -336,22 +376,25 @@ def _qualify(value, types, event_time_max_age):
     return qualification, None, event_time, received_at
 
 
-def qualify_market_tick_event(value, *, event_time_max_age):
+def qualify_market_tick_event(value, *, event_time_max_age, allow_stale_event_time=False):
     """Classify one exact SDK tick's receipt-time trade qualification only.
 
     Never raises for a missing or unparseable time (that is ``error_code``);
     raises :class:`MarketTickAdapterError` only when the SDK API is missing or
-    ``value`` is not the exact public SDK tick type.
+    ``value`` is not the exact public SDK tick type. With
+    ``allow_stale_event_time`` the only exempted defects are a stale event
+    time (freshness STALE / EVENT_TIME_STALE) and an upstream verdict that
+    echoes it; clocks, receive latency and every other reason still gate.
     """
 
     types = _resolved_market_tick_api()[0]
     qualification, error_code, _event_time, _received_at = _qualify(
-        value, types, event_time_max_age
+        value, types, event_time_max_age, allow_stale_event_time
     )
     return MarketTickIngestResult(tick=None, qualification=qualification, error_code=error_code)
 
 
-def ingest_market_tick_event(value, *, event_time_max_age):
+def ingest_market_tick_event(value, *, event_time_max_age, allow_stale_event_time=False):
     """Project one exact SDK tick for data lines, with its trade qualification.
 
     Unlike :func:`adapt_market_tick_event`, an unverified clock, unavailable or
@@ -366,7 +409,7 @@ def ingest_market_tick_event(value, *, event_time_max_age):
 
     types = _resolved_market_tick_api()[0]
     qualification, error_code, event_time, received_at = _qualify(
-        value, types, event_time_max_age
+        value, types, event_time_max_age, allow_stale_event_time
     )
     if error_code is not None:
         return MarketTickIngestResult(tick=None, qualification=None, error_code=error_code)

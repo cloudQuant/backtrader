@@ -435,3 +435,24 @@ def test_uncertain_cleanup_never_restores_guard(scenario, monkeypatch):
         patch.setattr(RunnerLifecycle, 'restore_signal_guard', failed_restore)
         with pytest.raises(Escape):
             scenario.run(lambda lifecycle: (_ for _ in ()).throw(Escape()))
+
+def test_market_data_only_observation_only_is_a_clean_stop():
+    summary = {
+        "status": "UNKNOWN",
+        "gateway_status": "OBSERVATION_ONLY",
+        "market_data_only": True,
+        "active_order_count": 0,
+        "observed_remote_open_order_count": 0,
+        "gateway_working_orders": {"unresolved_working_orders": 0},
+    }
+    assert runner.contract_broker_summary(summary)["status"] == "STOPPED"
+
+
+def test_observation_only_without_market_data_only_stays_unknown():
+    summary = {
+        "status": "UNKNOWN",
+        "gateway_status": "OBSERVATION_ONLY",
+        "active_order_count": 0,
+        "gateway_working_orders": {"unresolved_working_orders": 0},
+    }
+    assert runner.contract_broker_summary(summary)["status"] == "UNKNOWN"

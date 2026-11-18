@@ -404,7 +404,7 @@ class GatewayExecutionStreamBrokerMixin:
                     or observation.binding != binding.host._binding
                     or observation.instrument != instrument or observation.quantity_unit != unit
                     or not binding.api.strategy_position_is_current(
-                        binding.policy.route, observation, max_age_seconds=1.0)):
+                        binding.policy.route, observation, max_age_seconds=5.0)):
                 _fail("STRATEGY_POSITION_UNAVAILABLE")
             if order is not None and (observation.strategy_close_available is None
                     or observation.strategy_close_available < Decimal(str(abs(order.size)))):
