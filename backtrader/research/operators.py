@@ -85,6 +85,8 @@ _PRESENCE_LINE_GETATTR = getattr(_PresenceLine, "__getattr__", None)
 _LINES_GETATTRIBUTE = Lines.__getattribute__
 _LINES_GETATTR = getattr(Lines, "__getattr__", None)
 _LINES_BUFLEN = Lines.buflen
+_INDICATOR_GETATTRIBUTE = Indicator.__getattribute__
+_INDICATOR_GETATTR = getattr(Indicator, "__getattr__", None)
 
 
 def _qbuffer_logical_to_physical(line: Any, logical_index: int) -> Optional[int]:
@@ -732,8 +734,374 @@ def _presence_line_relation_plan(
     return _PresenceLineRelationPlan.bind(source, target)
 
 
+_PANEL_RELATION_ABSENT = object()
+
+
+def _panel_relation_class_methods(instance: Any, kind: str):
+    """Return the expected lookup hooks for a standard relation object."""
+    cls = type(instance)
+    if kind == "line":
+        if cls is not LineBuffer:
+            return None
+        methods = _LINEBUFFER_GETATTRIBUTE, _LINEBUFFER_GETATTR
+    if kind == "target":
+        if not isinstance(instance, PandasData):
+            return None
+        methods = _PANDASDATA_GETATTRIBUTE, _PANDASDATA_GETATTR
+    if kind == "lines":
+        if not _standard_lines_instance(instance):
+            return None
+        methods = _LINES_GETATTRIBUTE, _LINES_GETATTR
+    if kind == "indicator":
+        if not isinstance(instance, Indicator):
+            return None
+        methods = _INDICATOR_GETATTRIBUTE, _INDICATOR_GETATTR
+    if kind not in ("line", "target", "lines", "indicator"):
+        return None
+    if (
+        getattr(cls, "__getattribute__", None) is not methods[0]
+        or getattr(cls, "__getattr__", None) is not methods[1]
+    ):
+        return None
+    return methods
+
+
+def _panel_relation_has_class_field(instance: Any, name: str) -> bool:
+    """Whether a relation field is supplied by a class instead of instance state."""
+    return any(name in cls.__dict__ for cls in type(instance).__mro__)
+
+
+def _relation_mro_field_signature(instance: Any, names: Tuple[str, ...]):
+    """Snapshot class attributes that can shadow guarded relationship fields."""
+    signature = []
+    for cls in type(instance).__mro__:
+        class_state = cls.__dict__
+        fields = []
+        for name in names:
+            value = class_state.get(name, _PANEL_RELATION_ABSENT)
+            if value is not _PANEL_RELATION_ABSENT:
+                value_type = type(value)
+                if any(
+                    "__set__" in descriptor_base.__dict__
+                    or "__delete__" in descriptor_base.__dict__
+                    for descriptor_base in value_type.__mro__
+                ):
+                    # A data descriptor takes precedence over an instance
+                    # dictionary entry. Leave it to ordinary getattr-based
+                    # provenance resolution instead of proving the dict value.
+                    return None
+            fields.append((name, value))
+        signature.append((cls, tuple(fields)))
+    return tuple(signature)
+
+
+class _PanelInputRelationPlan:
+    """A relation proof guarded by live object/topology identities only.
+
+    The plan never retains line values, backing arrays, clocks, or positions.
+    It accepts only standard LineBuffer/Indicator graphs which the ordinary
+    resolver can prove target-local.  Any unsupported or changed topology
+    returns a miss so the general provenance and clock checks still run.
+    """
+
+    __slots__ = (
+        "source",
+        "target",
+        "_state_guards",
+        "_sequence_guards",
+        "_target_line_guards",
+        "_lookup_guards",
+        "_mro_field_guards",
+        "_class_mro_guards",
+        "_line_operand_classifier",
+    )
+
+    def __init__(self, source: Any, target: Any) -> None:
+        self.source = source
+        self.target = target
+        self._state_guards: List[Tuple[Any, Tuple[Tuple[str, Any], ...]]] = []
+        self._sequence_guards: List[Tuple[Any, str, Any, Tuple[Any, ...]]] = []
+        self._target_line_guards: List[Tuple[Any, Any, Any, Any]] = []
+        self._lookup_guards: List[Tuple[Any, Any, Any, Any]] = []
+        self._mro_field_guards: List[Tuple[Any, Tuple[Tuple[str, Any], ...]]] = []
+        self._class_mro_guards: List[Tuple[Any, Any]] = []
+        self._line_operand_classifier = _is_line_operand
+
+    @classmethod
+    def bind(cls, source: Any, target: Any) -> Optional["_PanelInputRelationPlan"]:
+        if (
+            type(source) is not LineBuffer
+            or not isinstance(target, PandasData)
+            or _panel_relation_class_methods(source, "line") is None
+            or _panel_relation_class_methods(target, "target") is None
+        ):
+            return None
+
+        plan = cls(source, target)
+        if plan._collect_true_relation(source, set()):
+            return plan
+        return None
+
+    def _snapshot_state(self, instance: Any, names: Tuple[str, ...], kind: str) -> bool:
+        state = _relation_instance_dict(instance)
+        methods = _panel_relation_class_methods(instance, kind)
+        if state is None or methods is None:
+            return False
+
+        for name in names:
+            if name not in state and _panel_relation_has_class_field(instance, name):
+                return False
+        descriptor_signature = _relation_mro_field_signature(instance, names)
+        if descriptor_signature is None:
+            return False
+
+        fields = tuple(
+            (name, state.get(name, _PANEL_RELATION_ABSENT)) for name in names
+        )
+        for cls, class_fields in descriptor_signature:
+            for index, (existing_cls, existing_fields) in enumerate(
+                self._mro_field_guards
+            ):
+                if existing_cls is cls:
+                    merged = dict(existing_fields)
+                    merged.update(class_fields)
+                    self._mro_field_guards[index] = (cls, tuple(merged.items()))
+                    break
+            else:
+                self._mro_field_guards.append((cls, class_fields))
+        for index, (existing, existing_fields) in enumerate(self._state_guards):
+            if existing is instance:
+                merged = dict(existing_fields)
+                merged.update(fields)
+                self._state_guards[index] = (existing, tuple(merged.items()))
+                break
+        else:
+            self._state_guards.append((instance, fields))
+
+        cls = type(instance)
+        for existing, existing_cls, getattribute, getattr_hook in self._lookup_guards:
+            if existing is instance:
+                if existing_cls is not cls or (getattribute, getattr_hook) != methods:
+                    return False
+                break
+        else:
+            self._lookup_guards.append((instance, cls, methods[0], methods[1]))
+
+        mro = cls.__mro__
+        if not any(
+            existing_cls is cls
+            for existing_cls, _ in self._class_mro_guards
+        ):
+            self._class_mro_guards.append((cls, mro))
+        return True
+
+    def _snapshot_sequence(self, instance: Any, name: str, sequence: Any) -> bool:
+        if type(sequence) not in (list, tuple):
+            return False
+        if type(sequence) is list:
+            for existing, existing_name, existing_sequence, _items in self._sequence_guards:
+                if existing is instance and existing_name == name:
+                    if existing_sequence is not sequence:
+                        return False
+                    break
+            else:
+                self._sequence_guards.append(
+                    (instance, name, sequence, tuple(sequence))
+                )
+        return True
+
+    def _target_line(self, source: Any) -> bool:
+        target_state = _relation_instance_dict(self.target)
+        if target_state is None:
+            return False
+        lines_owner = target_state.get("lines")
+        if lines_owner is None or not _standard_lines_instance(lines_owner):
+            return False
+        owner_state = _relation_instance_dict(lines_owner)
+        if owner_state is None:
+            return False
+        lines = owner_state.get("lines")
+        if type(lines) is not list or not any(line is source for line in lines):
+            return False
+        if not self._snapshot_state(self.target, ("lines",), "target"):
+            return False
+        if not self._snapshot_state(lines_owner, ("lines",), "lines"):
+            return False
+        self._target_line_guards.append((self.target, lines_owner, lines, source))
+        return True
+
+    def _collect_true_relation(self, source: Any, path: set) -> bool:
+        if source is self.target or self._target_line(source):
+            return True
+
+        identity = id(source)
+        if identity in path or type(source) is not LineBuffer:
+            return False
+        path.add(identity)
+        try:
+            source_state = _relation_instance_dict(source)
+            if source_state is None or not self._snapshot_state(
+                source, ("_factor_research_target", "_owner"), "line"
+            ):
+                return False
+
+            marker = source_state.get("_factor_research_target")
+            if marker is not None:
+                return marker is self.target
+
+            owner = source_state.get("_owner")
+            if owner is None or not _standard_lines_instance(owner):
+                return False
+            owner_state = _relation_instance_dict(owner)
+            if owner_state is None or not self._snapshot_state(
+                owner, ("_owner_ref", "_owner"), "lines"
+            ):
+                return False
+
+            indicator = owner_state.get("_owner_ref")
+            if indicator is None:
+                indicator = owner_state.get("_owner")
+            if (
+                indicator is None
+                or _panel_relation_class_methods(indicator, "indicator") is None
+            ):
+                return False
+            indicator_state = _relation_instance_dict(indicator)
+            indicator_fields = (
+                "outputs",
+                "_factor_target_datas",
+                "_operand_args",
+                "datas",
+            )
+            if indicator_state is None or not self._snapshot_state(
+                indicator, indicator_fields, "indicator"
+            ):
+                return False
+
+            # The normal resolver searches a FactorIndicator output map before
+            # examining operands/datas.  Leave that uncommon and mutable shape
+            # on the general path unless its source line already had a direct
+            # target marker above.
+            if indicator_state.get("outputs") is not None:
+                return False
+
+            operands = indicator_state.get("_operand_args")
+            if operands is not None:
+                if (
+                    not isinstance(indicator, _OperatorIndicator)
+                    or type(operands) is not tuple
+                    or not self._snapshot_sequence(indicator, "_operand_args", operands)
+                ):
+                    return False
+
+                dependencies = []
+                for operand in operands:
+                    if self._line_operand_classifier(operand):
+                        if type(operand) is not LineBuffer:
+                            return False
+                        dependencies.append(operand)
+                    elif type(operand) in (int, float):
+                        continue
+                    else:
+                        return False
+
+                if dependencies:
+                    return all(
+                        self._collect_true_relation(dependency, path.copy())
+                        for dependency in dependencies
+                    )
+                if operands and all(type(operand) in (int, float) for operand in operands):
+                    return True
+
+            datas = indicator_state.get("datas", ())
+            if type(datas) not in (list, tuple) or not datas:
+                return False
+            if not self._snapshot_sequence(indicator, "datas", datas):
+                return False
+
+            for data in datas:
+                if data is self.target or self._target_line(data):
+                    continue
+                if not self._collect_true_relation(data, path.copy()):
+                    return False
+            return True
+        finally:
+            path.remove(identity)
+
+    def resolve(self, source: Any, target: Any) -> Any:
+        """Return the proven relation, or request the ordinary resolver."""
+        if (
+            source is not self.source
+            or target is not self.target
+            or _is_line_operand is not self._line_operand_classifier
+        ):
+            return _PANEL_RELATION_MISS
+
+        for instance, expected_cls, getattribute, getattr_hook in self._lookup_guards:
+            cls = type(instance)
+            if (
+                cls is not expected_cls
+                or getattr(cls, "__getattribute__", None) is not getattribute
+                or getattr(cls, "__getattr__", None) is not getattr_hook
+            ):
+                return _PANEL_RELATION_MISS
+
+        for cls, expected_mro in self._class_mro_guards:
+            if cls.__mro__ is not expected_mro:
+                return _PANEL_RELATION_MISS
+
+        for cls, fields in self._mro_field_guards:
+            class_state = cls.__dict__
+            for name, expected in fields:
+                if class_state.get(name, _PANEL_RELATION_ABSENT) is not expected:
+                    return _PANEL_RELATION_MISS
+
+        for instance, fields in self._state_guards:
+            state = _relation_instance_dict(instance)
+            if state is None:
+                return _PANEL_RELATION_MISS
+            for name, expected in fields:
+                if state.get(name, _PANEL_RELATION_ABSENT) is not expected:
+                    return _PANEL_RELATION_MISS
+
+        for instance, name, sequence, items in self._sequence_guards:
+            state = _relation_instance_dict(instance)
+            current = state.get(name, _PANEL_RELATION_ABSENT) if state is not None else None
+            if current is not sequence or type(sequence) is not list:
+                return _PANEL_RELATION_MISS
+            if len(sequence) != len(items) or any(
+                current_item is not expected_item
+                for current_item, expected_item in zip(sequence, items)
+            ):
+                return _PANEL_RELATION_MISS
+
+        for target, lines_owner, lines, source in self._target_line_guards:
+            target_state = _relation_instance_dict(target)
+            owner_state = _relation_instance_dict(lines_owner)
+            if (
+                target_state is None
+                or target_state.get("lines") is not lines_owner
+                or owner_state is None
+                or owner_state.get("lines") is not lines
+                or not any(line is source for line in lines)
+            ):
+                return _PANEL_RELATION_MISS
+
+        return True
+
+
+def _panel_input_relation_plan(source: Any, target: Any) -> Optional[Any]:
+    """Build a fast proof only for a standard, currently target-local graph."""
+    if source is None or isinstance(source, numbers.Real):
+        return None
+    plan = _presence_line_relation_plan(source, target)
+    if plan is not None:
+        return plan
+    return _PanelInputRelationPlan.bind(source, target)
+
+
 def _resolve_panel_relation(
-    source: Any, target: Any, relation_plan: Optional[_PresenceLineRelationPlan] = None
+    source: Any, target: Any, relation_plan: Optional[Any] = None
 ) -> Optional[bool]:
     if relation_plan is not None:
         relation = relation_plan.resolve(source, target)
@@ -746,7 +1114,7 @@ def _panel_value_array(
     source: Any,
     target: Any,
     grid_index: int,
-    relation_plan: Optional[_PresenceLineRelationPlan] = None,
+    relation_plan: Optional[Any] = None,
 ) -> Tuple[Optional[Any], Optional[int], OperatorReason, bool]:
     """Resolve a target-aligned value array and its current physical slot."""
     if source is None:
@@ -796,7 +1164,7 @@ def _read_panel_value_at(
     source: Any,
     target: Any,
     grid_index: int,
-    relation_plan: Optional[_PresenceLineRelationPlan] = None,
+    relation_plan: Optional[Any] = None,
 ) -> Tuple[float, OperatorReason]:
     """Read one panel parameter at an absolute target-grid index."""
     source_array, physical_index, readiness, _ = _panel_value_array(
@@ -818,7 +1186,7 @@ def _read_panel_value_at(
 def _read_panel_value(
     source: Any,
     target: Any,
-    relation_plan: Optional[_PresenceLineRelationPlan] = None,
+    relation_plan: Optional[Any] = None,
 ) -> Tuple[float, OperatorReason]:
     """Read a panel parameter at the target feed's populated current grid."""
     target_line = _target_clock_line(target)
@@ -831,7 +1199,7 @@ def _read_panel_value(
 
 
 def _read_panel_window(
-    source: Any, target: Any, period: int
+    source: Any, target: Any, period: int, relation_plan: Optional[Any] = None
 ) -> Tuple[Optional[List[float]], OperatorReason]:
     """Read a scalar-equivalent window by absolute target-grid indices.
 
@@ -853,7 +1221,7 @@ def _read_panel_window(
         return None, OperatorReason.NOT_READY
 
     source_array, _, readiness, source_is_qbuffer = _panel_value_array(
-        source, target, grid_index
+        source, target, grid_index, relation_plan=relation_plan
     )
     if source_array is None:
         return None, readiness
@@ -903,10 +1271,12 @@ def _line_pair(left: Any, right: Any) -> Tuple[float, float, OperatorReason]:
     return _line_pair_results(_read_operand(left), _read_operand(right))
 
 
-def _read_panel_operand(source: Any, target: Any) -> Tuple[float, OperatorReason]:
+def _read_panel_operand(
+    source: Any, target: Any, relation_plan: Optional[Any] = None
+) -> Tuple[float, OperatorReason]:
     if isinstance(source, numbers.Real):
         return _read_operand(source)
-    return _read_panel_value(source, target)
+    return _read_panel_value(source, target, relation_plan=relation_plan)
 
 
 class _OperatorIndicator(Indicator):
@@ -1969,10 +2339,14 @@ class _PanelOperator(FactorIndicator):
             if len(self._groups) != len(targets):
                 raise ValueError("groups must contain one feed category line per bound feed")
 
-        # Keep a live-guarded relation proof for the repeated standard
-        # formula-presence reads; all other inputs use the general resolver.
+        # Bind live-guarded provenance proofs for repeatedly read panel inputs.
+        # Unsupported/custom shapes stay on the general resolver.
+        self._value_relation_plans = tuple(
+            _panel_input_relation_plan(source, target)
+            for target, source in zip(targets, self._values)
+        )
         self._member_relation_plans = tuple(
-            _presence_line_relation_plan(member, target) if member is not None else None
+            _panel_input_relation_plan(member, target) if member is not None else None
             for target, member in zip(targets, self._members)
         )
 
@@ -2044,7 +2418,9 @@ class _PanelOperator(FactorIndicator):
                 eligible.append(False)
                 reasons.append(OperatorReason.FORMULA_INELIGIBLE)
                 continue
-            value, reason = _read_panel_value(source, target)
+            value, reason = _read_panel_value(
+                source, target, self._value_relation_plans[index]
+            )
             values.append(value)
             eligible.append(reason is OperatorReason.READY)
             reasons.append(reason)
@@ -2115,6 +2491,10 @@ class _PairedPanelOperator(_PanelOperator):
         self._right_values = tuple(self.p.right_inputs)
         if len(self._right_values) != len(self._factor_target_datas):
             raise ValueError("right_values must contain one operand per bound feed")
+        self._right_relation_plans = tuple(
+            _panel_input_relation_plan(operand, target)
+            for target, operand in zip(self._factor_target_datas, self._right_values)
+        )
         input_minperiod = 1
         for operand in self._values + self._right_values:
             if isinstance(operand, bool) or not (
@@ -2210,8 +2590,18 @@ class _RollingCorrelationPanel(_PairedPanelOperator):
             return _NAN, OperatorReason.DOMAIN_ERROR
         target = self._factor_target_datas[asset_index]
         left, right, reason = _pair_window_result(
-            _read_panel_window(self._values[asset_index], target, self._period),
-            _read_panel_window(self._right_values[asset_index], target, self._period),
+            _read_panel_window(
+                self._values[asset_index],
+                target,
+                self._period,
+                relation_plan=self._value_relation_plans[asset_index],
+            ),
+            _read_panel_window(
+                self._right_values[asset_index],
+                target,
+                self._period,
+                relation_plan=self._right_relation_plans[asset_index],
+            ),
         )
         if left is None:
             return _NAN, reason
@@ -2232,8 +2622,16 @@ class _MultiplyPanel(_PairedPanelOperator):
     def _evaluate_target(self, asset_index: int) -> Tuple[float, OperatorReason]:
         target = self._factor_target_datas[asset_index]
         left, right, reason = _line_pair_results(
-            _read_panel_operand(self._values[asset_index], target),
-            _read_panel_operand(self._right_values[asset_index], target),
+            _read_panel_operand(
+                self._values[asset_index],
+                target,
+                relation_plan=self._value_relation_plans[asset_index],
+            ),
+            _read_panel_operand(
+                self._right_values[asset_index],
+                target,
+                relation_plan=self._right_relation_plans[asset_index],
+            ),
         )
         if reason is not OperatorReason.READY:
             return _NAN, reason

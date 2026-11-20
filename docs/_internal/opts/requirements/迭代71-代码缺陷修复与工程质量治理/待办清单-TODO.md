@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
-| 7 | 性能专项（P1/P2） | 19 | 7 |
+| 8 | 性能专项（P1/P2） | 19 | 8 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 7 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **113** |
+| | **合计** | **207** | **114** |
 
 ---
 
@@ -195,7 +195,7 @@
 - [ ] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / CI 守卫局部修复**（精确排除三条已跟踪的迭代 51 历史证据，保留其他嵌套 build/dist/egg-info 拒绝；本地实际 guard 与 5 项专项通过、独立复审通过。远端近期 CI 误报证据见 #447/#449，本地提交尚无远端 CI 验收；PR 矩阵缩减仍待确认安全门禁，本项保持未完成）。
 - [x] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控子进程**（刷新默认 p35 并与 Make worker profile 对齐；拒绝非有限分位、失败或不完整日志，原子替换保护旧文件。from-log 只能依据日志文本，不能证明原进程退出码）。
 - [ ] **R71-111** `[P2]` `research/operators.py:1871-1885` — 相关系数/协方差未做 near-zero snap，ULP 噪声（±1e-16）成为不同 rank 值，`rank(correlation(...))` 破坏平局；alpha15 实测 0.4/0.6 而非 0.5 → 把 ±1 已用的 `8*eps` snap 同样应用到 0 附近。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（相关系数仅对精确 binary64 协方差为零的微小残差归零，真实微小非零保留；专项 6 项和相邻 6 项通过。6 feed × 300 bar 实测候选约 1.17%，整条运行耗时变化处于噪声范围；密集候选核算开销约增加 88%–115%。协方差路径未改，本条保持未完成）。
-- [ ] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。
+- [x] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro+本地基准**（缓存关系证明而非数据；拓扑、MRO 或描述符变化时回退原解析器。85 项相关回归及独立复审通过，含跨 Feed、动态 MRO、QBuffer 滚动窗口；20 alpha × 6 feed × 320 bar 单对基准 25.54→20.43 秒、输出 hash 相同，极端主动更改描述符类型未覆盖）。
 - [ ] **R71-114** `[P2]` `strategies/factor_strategy.py:364→767` — `_collect_grid_point()` 每 bar 重新 freeze/Counter 比较所有 factor graph，`_validate_research_ownership` 302 calls、`_freeze_factor_graph` 6,060 calls、2.39s/22.0s（11%）→ `start()` 时验证一次，仅显式 topology 变化时重验。CONFIRMED(runtime)。
 - [x] **R71-115** `[P2]` `research/factor_indicator.py:329,869` — 每个 factor 和每个 panel operator node 每 bar append 一个 datetime 到无界 `_factor_call_times`，alpha15 单独保留 4 个列表 × N bars → 用 bounded deque 或默认只存计数。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（默认保存最多 64 条真实样本，逐点/区间校验与完整覆盖计数保留；显式离线 capture 才保留完整原始轨迹，多组聚合标明来源及截断。116 项近期回归通过，另有 101 项通过/1 项环境跳过；独立复审通过。兼容变化：默认诊断时间序列变为有界样本，详见开发指南）。
 - [x] **R71-174** `[P2]` `research/factor_indicator.py:842-856`（caller `factor_strategy.py:183`） — `_bind_grid_tree` 每个节点存全网格 tuple，caller 每节点 `_bind_grid(...)` 重绑所有可达节点，O(nodes²×bars) tuple 比较 → 网格物化一次、root 绑定一次、已绑定相同序列身份的节点跳过。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（网格物化一次并共享不可变 tuple，绑定遍历普通中间指标及共享节点；86 项回归、独立静态复审通过。6 节点 128 bar 场景物化 7 次降至 1 次；每 bar 归属校验和无界历史列表保持原状）。
