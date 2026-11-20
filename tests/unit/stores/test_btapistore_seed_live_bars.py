@@ -15,6 +15,7 @@ from backtrader.stores.btapistore import (
     BtApiStore,
     BtApiStoreError,
 )
+from backtrader.service import service_read_proxy as proxy_module
 
 
 def _store(**kwargs):
@@ -103,6 +104,85 @@ def _borrowed_api_store(api, *, config=None, live_bars=None):
         autostart=False,
         preserve_raw_bars=True,
     )
+
+
+def _service_read_only_store(monkeypatch):
+    """Build the exact production proxy type with inert transport leaves."""
+    monkeypatch.setattr(
+        proxy_module,
+        "validate_service_account_client",
+        lambda _client: (object(), ()),
+    )
+    monkeypatch.setattr(
+        proxy_module, "validate_service_market_bindings", lambda *_args, **_kwargs: {}
+    )
+    api = proxy_module.ServiceReadProxy(
+        SimpleNamespace(), {}, valuation_currency="USD", position_mode="net"
+    )
+    calls = {
+        "connect": 0,
+        "disconnect": 0,
+        "balance": 0,
+        "positions": 0,
+        "history": 0,
+        "orders": 0,
+        "subscribe": 0,
+        "wakers": {},
+    }
+
+    def connect():
+        calls["connect"] += 1
+
+    def disconnect():
+        calls["disconnect"] += 1
+
+    def get_balance():
+        calls["balance"] += 1
+        return {"cash": 10.0, "value": 12.0}
+
+    def get_positions():
+        calls["positions"] += 1
+        return []
+
+    def fetch_bars(*_args, **_kwargs):
+        calls["history"] += 1
+        return []
+
+    def fetch_open_orders():
+        calls["orders"] += 1
+        return []
+
+    def subscribe(_dataname):
+        calls["subscribe"] += 1
+
+    def register_event_waker(callback):
+        token = object()
+        calls["wakers"][token] = callback
+        return token
+
+    def unregister_event_waker(token):
+        return calls["wakers"].pop(token, None) is not None
+
+    api.connect = connect
+    api.disconnect = disconnect
+    api.get_balance = get_balance
+    api.get_positions = get_positions
+    api.fetch_bars = fetch_bars
+    api.fetch_open_orders = fetch_open_orders
+    api.subscribe = subscribe
+    api.register_event_waker = register_event_waker
+    api.unregister_event_waker = unregister_event_waker
+    store = BtApiStore(
+        api=api,
+        config={"exchange_kwargs": {"CTP___FUTURE": {}}},
+        autostart=False,
+        preserve_raw_bars=True,
+    )
+    monkeypatch.setattr(
+        BtApiStore, "_begin_funding_refresh_generation", lambda _self: None
+    )
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    return store, api, calls
 
 
 def _bind_store_owned_api(store, api):
@@ -1679,6 +1759,354 @@ def test_partial_borrowed_api_start_does_not_reuse_source_after_verified_stop(
     assert api.close_calls == 0
     assert api.poll_calls == []
     assert api.queued_events() == (pending,)
+
+
+def test_service_first_start_leases_readiness_and_stopped_store_rejects_restart(
+    monkeypatch,
+):
+    store, api, calls = _service_read_only_store(monkeypatch)
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    entered, release = threading.Event(), threading.Event()
+    start_results, start_errors = [], []
+
+    def blocked_initial_balance():
+        calls["balance"] += 1
+        entered.set()
+        if not release.wait(2):
+            raise AssertionError("timed out waiting to release initial service balance")
+        return {"cash": 21.0, "value": 24.0}
+
+    api.get_balance = blocked_initial_balance
+
+    def start_store():
+        try:
+            start_results.append(store.start())
+        except BaseException as exc:
+            start_errors.append(exc)
+
+    start_thread = threading.Thread(target=start_store, daemon=True)
+    start_thread.start()
+    try:
+        assert entered.wait(1)
+        assert store._sdk_start_in_progress is True
+        assert store._sdk_api_activity_count >= 1
+        assert calls["connect"] == 1
+        assert store._event_notifier.has_sdk_binding is True
+        with pytest.raises(
+            BtApiStoreError, match="store_service_start_already_in_progress"
+        ):
+            store.stop(timeout=0.1)
+        assert calls["disconnect"] == 0
+        assert store._event_notifier.has_sdk_binding is True
+    finally:
+        release.set()
+        start_thread.join(2)
+
+    assert not start_thread.is_alive()
+    assert not start_errors
+    assert len(start_results) == 1
+    assert store._started is True
+    assert store._cash == 21.0
+    assert store._value == 24.0
+    assert store._sdk_api_activity_count == 0
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert calls["disconnect"] == 1
+    assert calls["wakers"] == {}
+    assert store._event_notifier.has_sdk_binding is False
+
+    for refused in (lambda: store.start(), lambda: store.get_balance(),
+                    lambda: store._ensure_api_ready()):
+        with pytest.raises(
+            BtApiStoreError,
+            match="a stopped read-only service Store requires fresh client facades",
+        ):
+            refused()
+    assert calls["connect"] == 1
+    assert calls["disconnect"] == 1
+    assert calls["wakers"] == {}
+    assert store._event_notifier.has_sdk_binding is False
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+def test_service_stop_waits_for_read_commit_before_unbind_and_disconnect(monkeypatch):
+    store, api, calls = _service_read_only_store(monkeypatch)
+    store.start()
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    entered, release = threading.Event(), threading.Event()
+    read_results, read_errors = [], []
+    stop_results, stop_errors = [], []
+
+    def blocked_balance():
+        calls["balance"] += 1
+        entered.set()
+        if not release.wait(2):
+            raise AssertionError("timed out waiting to release service balance read")
+        return {"cash": 31.0, "value": 37.0}
+
+    def observed_disconnect():
+        assert store._cash == 31.0
+        assert store._value == 37.0
+        assert store._last_balance_refresh is not None
+        assert calls["wakers"] == {}
+        calls["disconnect"] += 1
+
+    api.get_balance = blocked_balance
+    api.disconnect = observed_disconnect
+
+    def read_balance():
+        try:
+            read_results.append(store.get_balance())
+        except BaseException as exc:
+            read_errors.append(exc)
+
+    def stop_store():
+        try:
+            stop_results.append(store.stop(timeout=1.0))
+        except BaseException as exc:
+            stop_errors.append(exc)
+
+    read_thread = threading.Thread(target=read_balance, daemon=True)
+    read_thread.start()
+    try:
+        assert entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        stop_thread = threading.Thread(target=stop_store, daemon=True)
+        stop_thread.start()
+        with store._sdk_start_state_lock:
+            assert store._sdk_start_state_lock.wait_for(
+                lambda: store._sdk_stop_in_progress, timeout=1
+            )
+        assert store._sdk_api_activity_count == 1
+        assert store._connected is True
+        assert store._started is True
+        assert store._event_notifier.has_sdk_binding is True
+        assert len(calls["wakers"]) == 1
+        assert calls["disconnect"] == 0
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_lifecycle_transition_in_progress"
+        ):
+            store.get_balance()
+        assert calls["balance"] == 2  # first start read and this blocked read
+        release.set()
+        read_thread.join(2)
+        stop_thread.join(2)
+    finally:
+        release.set()
+        read_thread.join(2)
+        if "stop_thread" in locals():
+            stop_thread.join(2)
+
+    assert not read_thread.is_alive()
+    assert not stop_thread.is_alive()
+    assert not read_errors
+    assert not stop_errors
+    assert read_results == [{"cash": 31.0, "value": 37.0}]
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert store._cash == 31.0
+    assert store._value == 37.0
+    assert store._connected is False
+    assert store._started is False
+    assert store._sdk_api_activity_count == 0
+    assert calls["disconnect"] == 1
+    assert calls["wakers"] == {}
+    assert store._event_notifier.has_sdk_binding is False
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+def test_service_close_failure_retires_store_but_allows_close_retry(monkeypatch):
+    store, api, calls = _service_read_only_store(monkeypatch)
+    store.start()
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    attempts = []
+
+    def fail_once_then_close():
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise RuntimeError("service close failed")
+        calls["disconnect"] += 1
+
+    api.disconnect = fail_once_then_close
+    balance_calls_before_close = calls["balance"]
+
+    with pytest.raises(RuntimeError, match="service close failed"):
+        store.stop(timeout=0.2)
+
+    assert store._shutdown_state == "INCOMPLETE"
+    assert store._service_read_only_stopped is True
+    assert store._connected is True
+    assert store._started is True
+    assert store._event_notifier.has_sdk_binding is False
+    assert calls["wakers"] == {}
+    with pytest.raises(
+        BtApiStoreError,
+        match="a stopped read-only service Store requires fresh client facades",
+    ):
+        store.get_balance()
+    with pytest.raises(
+        BtApiStoreError,
+        match="a stopped read-only service Store requires fresh client facades",
+    ):
+        store.start()
+    assert calls["balance"] == balance_calls_before_close
+    assert calls["connect"] == 1
+
+    # The Store can retry its direct close operation without reopening the
+    # retired facade or restoring this Store's notifier.
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert attempts == [True, True]
+    assert calls["disconnect"] == 1
+    assert store._connected is False
+    assert store._started is False
+    assert calls["wakers"] == {}
+    assert store._event_notifier.has_sdk_binding is False
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+def test_service_stop_reentry_from_active_getter_fails_without_deadlock(monkeypatch):
+    store, api, calls = _service_read_only_store(monkeypatch)
+    store.start()
+
+    def getter_with_reentrant_stop():
+        calls["balance"] += 1
+        with pytest.raises(
+            BtApiStoreError,
+            match="store_service_stop_from_active_api_activity",
+        ):
+            store.stop(timeout=0)
+        return {"cash": 41.0, "value": 43.0}
+
+    api.get_balance = getter_with_reentrant_stop
+    assert store.get_balance() == {"cash": 41.0, "value": 43.0}
+    assert store._cash == 41.0
+    assert store._value == 43.0
+    assert store._sdk_api_activity_count == 0
+    assert store._sdk_stop_in_progress is False
+    assert calls["disconnect"] == 0
+
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert calls["disconnect"] == 1
+
+
+@pytest.mark.parametrize(
+    "operation,api_method",
+    [
+        ("balance", "get_balance"),
+        ("positions", "get_positions"),
+        ("history", "fetch_bars"),
+        ("open_orders", "fetch_open_orders"),
+        ("live", "poll_bar"),
+        ("tick", "poll_tick"),
+        ("orderbook", "poll_orderbook"),
+        ("pending_tick", "has_pending_tick"),
+        ("pending_orderbook", "has_pending_orderbook"),
+        ("supports_tick", "supports_live_ticks"),
+        ("supports_orderbook", "supports_live_orderbook"),
+        ("source_exhausted", "is_source_exhausted"),
+        ("watermark", "get_source_event_time_watermark"),
+        ("broker_update", "poll_broker_update"),
+        ("subscribe", "subscribe"),
+    ],
+)
+def test_service_direct_api_operations_hold_activity_through_call(
+    monkeypatch, operation, api_method
+):
+    store, api, calls = _service_read_only_store(monkeypatch)
+    store.start()
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    entered, release = threading.Event(), threading.Event()
+    results, errors = [], []
+
+    def blocked_api_call(*_args, **_kwargs):
+        entered.set()
+        if not release.wait(2):
+            raise AssertionError(f"timed out waiting to release {operation} service call")
+        return {
+            "balance": {"cash": 10.0, "value": 12.0},
+            "positions": [],
+            "history": [],
+            "open_orders": [],
+            "live": None,
+            "tick": None,
+            "orderbook": None,
+            "pending_tick": False,
+            "pending_orderbook": False,
+            "supports_tick": False,
+            "supports_orderbook": False,
+            "source_exhausted": False,
+            "watermark": None,
+            "broker_update": None,
+            "subscribe": None,
+        }[operation]
+
+    setattr(api, api_method, blocked_api_call)
+
+    def invoke():
+        try:
+            if operation == "balance":
+                result = store.get_balance()
+            elif operation == "positions":
+                result = store.get_positions()
+            elif operation == "history":
+                result = store.fetch_history("SA")
+            elif operation == "open_orders":
+                result = store.fetch_open_orders()
+            elif operation == "live":
+                result = store.poll_live("SA")
+            elif operation == "tick":
+                result = store.poll_tick("SA")
+            elif operation == "orderbook":
+                result = store.poll_orderbook("SA")
+            elif operation == "pending_tick":
+                result = store.has_pending_tick("SA")
+            elif operation == "pending_orderbook":
+                result = store.has_pending_orderbook("SA")
+            elif operation == "supports_tick":
+                result = store.supports_live_ticks("SA")
+            elif operation == "supports_orderbook":
+                result = store.supports_live_orderbook("SA")
+            elif operation == "source_exhausted":
+                result = store.is_source_exhausted("SA")
+            elif operation == "watermark":
+                result = store.get_source_event_time_watermark("SA")
+            elif operation == "broker_update":
+                result = store.poll_broker_update()
+            else:
+                result = store.subscribe("SA")
+            results.append(result)
+        except BaseException as exc:
+            errors.append(exc)
+
+    operation_thread = threading.Thread(target=invoke, daemon=True)
+    operation_thread.start()
+    try:
+        assert entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        assert len(calls["wakers"]) == 1
+        with pytest.raises(
+            BtApiStoreError, match="store_service_api_activity_wait_timeout"
+        ):
+            store.stop(timeout=0.02)
+        assert store._connected is True
+        assert store._started is True
+        assert store._shutdown_state != "PASS"
+        assert store._sdk_stop_in_progress is False
+        assert store._event_notifier.has_sdk_binding is True
+        assert len(calls["wakers"]) == 1
+        assert calls["disconnect"] == 0
+    finally:
+        release.set()
+        operation_thread.join(2)
+
+    assert not operation_thread.is_alive()
+    assert not errors
+    assert len(results) == 1
+    assert store._sdk_api_activity_count == 0
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert calls["disconnect"] == 1
+    assert calls["wakers"] == {}
+    assert store._event_notifier.has_sdk_binding is False
+    store._unregister_live_bar_event_waker(waker_token)
 
 
 def test_owned_factory_restart_uses_a_fresh_sdk_facade(monkeypatch):

@@ -12,7 +12,7 @@ from typing import Optional
 
 
 def stop_store(store, timeout: Optional[float] = None, *, safe_log):
-    """Bound Store work and close only an API this Store owns."""
+    """Bound Store work and close its owned SDK API or service facade session."""
     if getattr(store, "_gateway_mode", False):
         from .gateway_config import stop_gateway_store
         return stop_gateway_store(store, timeout=timeout)
@@ -70,7 +70,16 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
                 details={"reason": "funding_reader_still_active"},
             )
             return store.get_command_health()
+        # From this point the facade close may have taken effect even if it
+        # raises. Retire the Store/facade pairing before touching the caller's
+        # API so a later getter cannot reconnect or rebind after an uncertain
+        # close. A subsequent stop may retry the close directly.
+        store._service_read_only_stopped = True
         try:
+            # A service facade is caller-owned, but this Store's notifier
+            # binding is not.  Remove the binding only after BtApiStore.stop
+            # has waited for every admitted service operation to finish.
+            store._unbind_live_bar_event_notifier()
             if store._api is not None and callable(getattr(store._api, "disconnect", None)):
                 store._api.disconnect()
         except Exception:
@@ -86,7 +95,6 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         store._subscribed_datanames.clear()
         store._tick_consumers.clear()
         store._shutdown_state = "PASS"
-        store._service_read_only_stopped = True
         store.emit_runtime_event("store_disconnected", status="disconnected")
         return store.get_command_health()
     with store._latest_tick_lock:
@@ -502,6 +510,10 @@ def prepare_store_sdk_start(store, *, error_type) -> None:
 
 def ensure_store_api_ready(store, *, error_type, gateway_entrypoint, gateway_error_type, placeholder_providers, provider_not_implemented_error_type, safe_log):
     """Instantiate and connect the underlying bt_api_py client on demand."""
+    if store._service_read_only and store._service_read_only_stopped:
+        raise error_type(
+            "a stopped read-only service Store requires fresh client facades"
+        )
     if (
         store._managed_runtime_borrowed_api is not None
         and store._managed_runtime_stopped
