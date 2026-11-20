@@ -6280,28 +6280,19 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         return copy_mapping_tree(value)
 
     def _cache_account_risk_snapshot_before_shutdown(self) -> None:
-        """Retain an existing safe view without starting shutdown-time network I/O.
+        """Leave the generation cache intact without refreshing during shutdown.
 
-        Account-risk reads can require several authenticated venue requests.  A
-        fresh read here would consume the caller's shutdown deadline before the
-        SDK transports are closed.  When no identity-bound SDK account-risk
-        snapshot is already cached, post-stop callers receive the explicit
-        unavailable contract instead of a guessed snapshot.
+        Account-risk reads can require several authenticated venue requests.
+        Shutdown preserves an already published snapshot and deliberately
+        leaves a missing cache empty; after an owned API is closed, a later
+        risk read fails closed without a transport.
         """
         if not self._sdk_owned_api or self._api is None:
             return
-        cached = self._account_risk_state.has_cached_snapshot(self._stream_generation)
-        if cached:
-            return
-        try:
-            snapshot = self._read_account_risk_snapshot(self._api)
-        except Exception as exc:
-            # Shutdown must still close a synchronous compatibility client if
-            # its optional risk diagnostic violates the public contract.
-            _safe_log("warning", "btapistore:13461 fallback on Exception")
-            self.sanitize_exception(exc)
-            return
-        self._cache_account_risk_snapshot(snapshot)
+        # A cache hit is already retained by the generation-bound state owner.
+        # A miss is intentionally not filled here: shutdown must not start a
+        # provider read whose duration can exceed its close deadline.
+        return
 
     def _cache_account_risk_snapshot(self, snapshot: Mapping[str, Any]) -> Dict[str, Any]:
         """Publish one validated, redacted account-risk snapshot for callback reads."""

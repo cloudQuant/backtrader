@@ -2088,3 +2088,97 @@ def test_stopped_borrowed_account_risk_read_uses_only_local_state(monkeypatch):
     assert api.poll_calls == []
     assert api.queued_events() == (pending_order_event,)
     assert api.close_calls == 0
+
+
+def _owned_active_store_for_shutdown_risk_cache(
+    monkeypatch, *, async_commands=True
+):
+    api = _FakeUnifiedApiFacade()
+    store = _store()
+    _bind_store_owned_api(store, api)
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    store._shutdown_state = "RUNNING"
+    monkeypatch.setattr(
+        BtApiStore,
+        "uses_async_commands",
+        property(lambda _self: async_commands),
+    )
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    return store, api
+
+
+@pytest.mark.parametrize("async_commands", [True, False])
+def test_stop_without_risk_cache_does_not_start_sdk_risk_read(
+    monkeypatch, async_commands
+):
+    store, api = _owned_active_store_for_shutdown_risk_cache(
+        monkeypatch, async_commands=async_commands
+    )
+    read_entered = threading.Event()
+    release_read = threading.Event()
+    read_calls = []
+
+    def blocking_risk_read(candidate):
+        read_calls.append(candidate)
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("shutdown entered a blocking SDK risk read")
+        return store._cached_account_risk_unavailable()
+
+    monkeypatch.setattr(store, "_read_account_risk_snapshot", blocking_risk_read)
+    results = []
+    errors = []
+
+    def stop_store():
+        try:
+            results.append(store.stop(timeout=0.1))
+        except BaseException as exc:
+            errors.append(exc)
+
+    stopper = threading.Thread(target=stop_store, daemon=True)
+    stopper.start()
+    try:
+        reader_was_called = read_entered.wait(0.2)
+        if reader_was_called:
+            release_read.set()
+        stopper.join(1.5)
+    finally:
+        release_read.set()
+        stopper.join(1.5)
+
+    assert not stopper.is_alive()
+    assert reader_was_called is False
+    assert read_calls == []
+    assert not errors
+    assert len(results) == 1
+    assert results[0]["shutdown_state"] == "PASS"
+    assert api.close_calls == 1
+    assert store._api is None
+
+
+@pytest.mark.parametrize("async_commands", [True, False])
+def test_stop_preserves_existing_account_risk_cache_without_refresh(
+    monkeypatch, async_commands
+):
+    store, api = _owned_active_store_for_shutdown_risk_cache(
+        monkeypatch, async_commands=async_commands
+    )
+    expected = store._cached_account_risk_unavailable()
+    cached = store._cache_account_risk_snapshot(expected)
+    monkeypatch.setattr(
+        store,
+        "_read_account_risk_snapshot",
+        lambda *_args, **_kwargs: pytest.fail(
+            "shutdown must preserve an existing cache without refreshing"
+        ),
+    )
+
+    result = store.stop(timeout=0.2)
+
+    assert result["shutdown_state"] == "PASS"
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._account_risk_state.cached_snapshot(store._stream_generation) == cached
+    assert store.get_account_risk_snapshot() == cached
