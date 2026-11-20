@@ -32,11 +32,11 @@
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 8 | 性能专项（P1/P2） | 19 | 8 |
-| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 9 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 10 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **116** |
+| | **合计** | **207** | **117** |
 
 ---
 
@@ -219,7 +219,7 @@
 - [ ] **R72-OPT-02 + N72-19** `[P2]` `examples/live/007_ctp/gateway_local_resources.py:13-14` — 【状态变化】两个导入仍全文件未被引用，但本轮给它们加了 `as` 冗余别名使 ruff 对该文件显示 `All checks passed!`，属**掩盖告警而非清理** → 删除两行导入；**不要以 ruff 通过当作此条已完成**。CONFIRMED(source+ruff)。
 - [ ] **R72-OPT-03** `[P2]` `stores/btapistore.py:3601` — `get_info = getattr(...)` 赋值后从未使用（F841）→ 删除。CONFIRMED(ruff)。
 - [ ] **R72-OPT-04** `[P2]` `stores/_bar_history_cache.py:12,15` — 从 `collections.abc` 与 `typing` 重复导入 `Mapping`（F811）→ 合并导入。CONFIRMED(ruff)。
-- [ ] **R72-OPT-05/06/07** `[P2]` `store.py:23`（`SingletonMixin`）、`research/sink.py:15,16,19`（`shutil`/`Sequence`/`Dict`）、`service/store_event_notifier.py:11`（`Optional`）— F401 未用导入 → 清理。CONFIRMED(ruff)。
+- [x] **R72-OPT-05/06/07** `[P2]` `store.py:23`（`SingletonMixin`）、`research/sink.py:15,16,19`（`shutil`/`Sequence`/`Dict`）、`service/store_event_notifier.py:11`（`Optional`）— F401 未用导入 → 清理。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Ruff**（sink/notifier 未使用导入已于此前小轮清理；SingletonMixin 是既有兼容导入，显式同名重导出以保留模块属性和星号导入，未删除。目标 Ruff 及相关 34 项回归通过）。
 - [ ] **R72-OPT-08/09** `[P2]` `brokers/_btapi_gateway_notifications.py:715,719,735,737`；`brokers/_btapi_recovery.py:1169,1172` — RET501 冗余 `return None` → 规范化（`--fix` 可处理）。CONFIRMED(ruff)。
 - [x] **R72-OPT-10/11/12** `[P2]` `brokers/_btapi_direct_mode.py:946`（C408 `dict(...)`→字面量）、`brokers/_btapi_gateway_projection.py:961-964`（SIM114 合并相同 elif）、`service/_service_execution_recovery.py:244`（E731 lambda→def）→ 按 ruff 建议重构。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Ruff**（C408 已在前一快照修复提交处理；本轮合并 Gateway 等价条件并保留 recovery reader 延迟调用，相关 67 项回归与独立静态复审通过）。
 - [ ] **N72-17** `[P3]` `backtrader/_cerebro/registry.py:159,280,443,462`；`lineiterator.py:1298,2743` — B026 ×4（`*args` 解包在关键字实参之后）、B004 ×2（`hasattr(x,"__call__")` 应 `callable(x)`）。**项目当前 ruff 配置下不报**（`ruff check` 对这两个文件 `All checks passed!`），仅 `--select B026,B004` 时暴露 → 作为可选扩展规则；**若要纳入，需先在 ruff 配置启用并更新基线，不计入「45 处清零」验收目标**。CONFIRMED(`--select` 实跑)。

@@ -20,7 +20,7 @@ import collections
 from typing import Any, Optional
 
 # Keep the generic mixin import path; Store itself does not inherit it.
-from .mixins.singleton import SingletonMixin
+from .mixins.singleton import SingletonMixin as SingletonMixin
 from .parameters import make_legacy_parameter_accessor
 
 # Remove MetaParams import since we'll eliminate metaclass usage
