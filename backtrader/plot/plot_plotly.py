@@ -495,11 +495,20 @@ class PlotlyPlot(ParameterizedBase):
 
         if isinstance(start, datetime.date):
             start = bisect.bisect_left(st_dtime, self._date2num(start))
+
+        # Normalize the start index before determining each figure's range.
+        # Otherwise negative starts are sliced correctly once, then reused as
+        # negative absolute offsets by the data lines.
+        if start < 0:
+            start = max(0, len(st_dtime) + start)
+        else:
+            start = min(len(st_dtime), start)
+
         if isinstance(end, datetime.date):
             end = bisect.bisect_right(st_dtime, self._date2num(end))
 
         if end < 0:
-            end = len(st_dtime) + 1 + end
+            end = max(0, len(st_dtime) + 1 + end)
 
         # Create figures
         figs = []
@@ -547,6 +556,9 @@ class PlotlyPlot(ParameterizedBase):
 
         # Convert datetime
         xdata = [self._num2date(x) for x in st_dtime[pstart:pend]]
+        if not xdata:
+            return fig
+
         current_row = 1
 
         # Plot each data feed

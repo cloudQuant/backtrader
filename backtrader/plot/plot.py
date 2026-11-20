@@ -946,11 +946,19 @@ class Plot_OldSync(ParameterizedBase):
         if isinstance(start, datetime.date):
             start = bisect.bisect_left(st_dtime, date2num(start))
 
+        # Convert negative indices to absolute positions before computing
+        # figure ranges. Keeping a negative ``pstart`` here makes the selected
+        # slice and the later data-line ranges disagree.
+        if start < 0:
+            start = max(0, len(st_dtime) + start)
+        else:
+            start = min(len(st_dtime), start)
+
         if isinstance(end, datetime.date):
             end = bisect.bisect_right(st_dtime, date2num(end))
 
         if end < 0:
-            end = len(st_dtime) + 1 + end  # -1 =  len() -2 = len() - 1
+            end = max(0, len(st_dtime) + 1 + end)  # -1 maps to len()
 
         slen = len(st_dtime[start:end])
         d, m = divmod(slen, numfigs)
@@ -978,6 +986,14 @@ class Plot_OldSync(ParameterizedBase):
             self.pinf.xreal = self.pinf.clock.datetime.plot(self.pinf.pstart, self.pinf.psize)
             self.pinf.xlen = len(self.pinf.xreal)
             self.pinf.x = list(range(self.pinf.xlen))
+
+            if not self.pinf.psize:
+                # LineBuffer.plot(size=0) means "the full buffer". Preserve
+                # that plot metadata, but skip drawing because the requested
+                # index window itself contains no bars.
+                self.pinf.xdata = []
+                continue
+
             # self.pinf.pfillers = {None: []}
             # for key, val in pfillers.items():
             #     pfstart = bisect.bisect_left(val, self.pinf.pstart)
@@ -1114,6 +1130,17 @@ class Plot_OldSync(ParameterizedBase):
         fordata = MyDateFormatter(self.pinf.xreal, fmt=fmtdata)
         for dax in self.pinf.daxis.values():
             dax.fmt_xdata = fordata
+
+        if len(self.pinf.xreal) == 1:
+            # AutoDateLocator cannot derive a date interval from a single
+            # selected bar. Keep the tick at its sole x position and format
+            # it through the same date formatter used for larger windows.
+            ax.xaxis.set_major_locator(mticker.FixedLocator([0]))
+            fmt = self.pinf.sch.fmt_x_ticks
+            if fmt is None:
+                fmt = fmtdata
+            ax.xaxis.set_major_formatter(MyDateFormatter(self.pinf.xreal, fmt=fmt))
+            return
 
         # Major locator / formatter
         locmajor = loc.AutoDateLocator(self.pinf.xreal)

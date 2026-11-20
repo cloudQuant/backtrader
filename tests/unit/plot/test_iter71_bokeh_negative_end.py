@@ -108,25 +108,22 @@ def test_bokeh_end_minus_n_minus_one_is_empty_slice_with_matplotlib_observation(
     assert figurepage._data.empty
 
 
-def test_bokeh_end_minus_n_minus_two_matches_matplotlib_slice_on_real_history():
+def test_bokeh_extreme_negative_end_clamps_to_empty_on_real_history():
     strategy = _run_real_nvda_history()
     total = len(strategy.data)
     end = -(total + 2)
 
     matplotlib_plotter = Plot()
     matplotlib_plotter.plot(strategy, iplot=False, start=0, end=end)
-    expected_end = matplotlib_plotter.pinf.pend
-    assert expected_end == total - 1
+    assert matplotlib_plotter.pinf.pend == 0
+    assert matplotlib_plotter.pinf.psize == 0
 
     bokeh_plotter = BokehPlot(style="bar")
     bokeh_plotter.plot(strategy, iplot=False, start=0, end=end)
     figurepage = bokeh_plotter._app.get_figurepage(0)
 
     assert figurepage is not None
-    assert len(figurepage._data) == expected_end
-    assert list(figurepage._data["close"]) == [
-        float(value) for value in strategy.data.close.plotrange(0, expected_end)
-    ]
+    assert figurepage._data.empty
 
 
 @pytest.mark.parametrize("end_kind", ("date", "datetime"))

@@ -195,10 +195,7 @@ class BokehPlot:
             value = int(value)
             if value < 0:
                 if is_end:
-                    value = len(dtline) + 1 + value
-                    if value < 0:
-                        # Matplotlib then applies Python's negative-slice rule.
-                        value = len(dtline) + value
+                    value = max(0, len(dtline) + 1 + value)
                 else:
                     value = len(dtline) + value
             return max(0, value)
