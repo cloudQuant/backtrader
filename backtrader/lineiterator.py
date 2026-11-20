@@ -862,6 +862,9 @@ class LineIteratorMixin:
             # _obj has no lines collection yet; keep the existing minperiod.
             pass
 
+        # Include child indicators before making the period visible to lines.
+        _obj._periodrecalc()
+
         # CRITICAL FIX: After indicator's __init__ has set its minperiod,
         # propagate this minperiod to all its lines so that other indicators
         # using these lines as data sources will inherit the correct minperiod.
@@ -874,9 +877,6 @@ class LineIteratorMixin:
         except (AttributeError, TypeError):
             # Lines not iterable or lack updateminperiod; propagation is best-effort.
             pass
-
-        # Recalculate period
-        _obj._periodrecalc()
 
         # Register self as indicator to owner
         # CRITICAL FIX: Handle indicators created in dict comprehensions

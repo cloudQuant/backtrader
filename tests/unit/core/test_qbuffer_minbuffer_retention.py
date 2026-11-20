@@ -1,5 +1,9 @@
 """Regression tests for QBuffer retention of self-referential indicator lines.
 
+Iteration 71 also propagates composite child warmup to output lines. Some
+composites therefore retain enough history even with the legacy QBuffer
+implementation; indicators with semantic period one still need its fix.
+
 Background
 ----------
 ``LineBuffer.qbuffer`` sizes the ring buffer from the **line's own** ``_minperiod``::
@@ -175,18 +179,12 @@ def unfixed_qbuffer():
 # ============================================================================
 
 
-def test_line_minperiod_can_lag_behind_object_minperiod():
-    """Document the root cause: lines do not inherit the object's minperiod.
-
-    This asymmetry is what made ``qbuffer`` under-size the ring buffer.
-    """
+def test_composite_line_minperiod_matches_object_minperiod():
+    """Composite lines expose the child warmup to their consumers."""
     _, info = run_indicator(lambda s: btind.KST(s.data.close), runonce=False, preload=True)
 
     assert info["object_minperiod"] > 1, "KST should need substantial warmup"
-    assert info["line_minperiods"] == [1, 1], (
-        "KST never calls addminperiod/updateminperiod, so its lines stay at 1 -- "
-        "this is precisely why qbuffer used to compute maxlen == 1"
-    )
+    assert info["line_minperiods"] == [info["object_minperiod"]] * 2
 
 
 def test_minbuffer_is_a_noop_outside_qbuffer_mode():
@@ -239,9 +237,12 @@ def test_bug_reproduces_without_fix(unfixed_qbuffer, name, factory):
     baseline, _ = run_indicator(factory, runonce=False, preload=True)
     queued, info = run_indicator(factory, exactbars=1)
 
-    assert min(info["line_maxlens"]) == 1, (
-        f"{name}: expected the pre-fix body to leave maxlen == 1 " f"(got {info['line_maxlens']})"
-    )
+    if min(info["line_maxlens"]) > 1:
+        # Composite minperiod propagation now also gives this particular
+        # indicator sufficient retention, independently of the qbuffer fix.
+        assert min(info["line_maxlens"]) >= info["object_minperiod"]
+        assert not count_mismatches(baseline, queued)
+        return
     assert count_mismatches(
         baseline, queued
     ), f"{name}: expected exactbars to corrupt values without the fix"

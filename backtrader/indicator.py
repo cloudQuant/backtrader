@@ -140,6 +140,12 @@ class Indicator(IndicatorBase):
                 with OwnerContext.set_owner(self):
                     result = init(self, *args, **kwargs)
 
+                # Child indicators are registered during the subclass's
+                # constructor, after LineIterator's base initialization.
+                self._periodrecalc()
+                for line in self.lines:
+                    line.updateminperiod(self._minperiod)
+
                 if (
                     parent_owner is not None
                     and parent_owner is not self
