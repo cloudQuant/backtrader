@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from collections.abc import Mapping
 from datetime import datetime, timezone
+from threading import Lock
 from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 from .. import Strategy
@@ -214,6 +215,24 @@ class FactorStrategy(Strategy):
         self._factor_graphs: Dict[
             int, Tuple[Tuple[FactorIndicator, ...], Tuple[Tuple[Any, Any], ...]]
         ] = {}
+        self._factor_validation_parents: Tuple[
+            Tuple[Any, Dict[int, Tuple[Any, int]], int], ...
+        ] = ()
+        self._factor_validation_roots: Tuple[FactorIndicator, ...] = ()
+        self._factor_validation_root_by_id: Dict[int, FactorIndicator] = {}
+        self._factor_validation_graphs: Dict[
+            int, Tuple[Tuple[FactorIndicator, ...], Tuple[Tuple[Any, Any], ...]]
+        ] = {}
+        self._factor_validation_expected_parents: Dict[int, int] = {}
+        self._factor_validation_nested_ids = set()
+        self._factor_validation_duplicate_parent = False
+        self._factor_validation_objects: Tuple[Tuple[Any, bool], ...] = ()
+        self._factor_validation_lock = Lock()
+        self._factor_validation_child_counts: Dict[int, int] = {}
+        self._factor_validation_host_counts: Dict[int, int] = {}
+        self._factor_validation_observed: Dict[int, int] = {}
+        self._factor_validation_visited = set()
+        self._factor_validation_pending: List[Any] = []
         calculation_times: Optional[Tuple[datetime, ...]] = None
         for name, spec in self._factor_specs_by_name.items():
             if spec.panel_line not in spec.indicator._factor_template_names():
@@ -264,6 +283,8 @@ class FactorStrategy(Strategy):
                 self.factor_instances[name] = _FactorGroupInstances(
                     instances_by_group, self._target_datas
                 )
+
+        self._prepare_factor_graph_validation()
 
         if calculation_times is None:
             calculation_times = self._calculation_times()
@@ -433,12 +454,12 @@ class FactorStrategy(Strategy):
                 raise DatasetError(
                     "factor source actual close clock does not match the research grid"
                 )
-        graphs = self._validate_research_ownership()
+        self._validate_research_ownership()
         # Refuse to read or publish a row until every factor in its native
         # graph has actually computed this point (or its once range).
         for instances in self._factor_instances_by_name.values():
             for root in instances:
-                for node in graphs[id(root)]:
+                for node in self._factor_graphs[id(root)][0]:
                     if (
                         node._factor_call_count + node._factor_once_covered_count
                         <= self._grid_cursor
@@ -737,10 +758,10 @@ class FactorStrategy(Strategy):
                 return
             if self._grid_cursor != len(self._grid):
                 raise RuntimeError("FactorStrategy did not sample every ResearchSpec grid point")
-            graphs = self._validate_research_ownership()
+            self._validate_research_ownership()
             for name, instances in self._factor_instances_by_name.items():
                 for factor in instances:
-                    for nested in graphs[id(factor)]:
+                    for nested in self._factor_graphs[id(factor)][0]:
                         if not nested.lifecycle_diagnostics["coverage_matches"]:
                             raise RuntimeError(
                                 "factor %s did not cover every calculation-grid point" % name
@@ -821,65 +842,211 @@ class FactorStrategy(Strategy):
             if child._owner is not parent or counts_by_parent_and_type[key][id(child)] != 1:
                 raise RuntimeError("research factor graph changed during collection")
 
-    def _validate_factor_graph(
-        self, root: FactorIndicator, host_counts: Counter[int]
-    ) -> Tuple[FactorIndicator, ...]:
-        nodes, edges = self._factor_graphs[id(root)]
-        if (
-            root._owner is not self
-            or host_counts[id(root)] != 1
-            or any(host_counts[id(child)] for _, child in edges)
-        ):
-            raise RuntimeError("research factor graph changed during collection")
-        current_nodes, current_edges = self._freeze_factor_graph(root)
-        if Counter(map(id, nodes)) != Counter(map(id, current_nodes)) or Counter(
-            (id(parent), id(child)) for parent, child in edges
-        ) != Counter((id(parent), id(child)) for parent, child in current_edges):
-            raise RuntimeError("research factor graph changed during collection")
-        return nodes
+    def _prepare_factor_graph_validation(self) -> None:
+        """Index the frozen graph once; later checks still inspect every live edge."""
+        roots: List[FactorIndicator] = []
+        root_by_id: Dict[int, FactorIndicator] = {}
+        graphs: Dict[int, Tuple[Tuple[FactorIndicator, ...], Tuple[Tuple[Any, Any], ...]]] = {}
+        expected_parents: Dict[int, int] = {}
+        nested_ids = set()
+        parent_children: Dict[
+            int, Tuple[Any, Dict[int, Tuple[Any, int]], int]
+        ] = {}
+        objects: Dict[int, Tuple[Any, bool]] = {}
+        duplicate_parent = False
 
-    def _validate_research_ownership(self) -> Dict[int, Tuple[FactorIndicator, ...]]:
-        """Require each protected graph node to have its one expected driver."""
-        expected_parents = {}
-        graphs: Dict[int, Tuple[FactorIndicator, ...]] = {}
-        host_counts = Counter(id(item) for item in self._lineiterators[LineIterator.IndType])
+        def remember_parent(node: Any) -> None:
+            identity = id(node)
+            if identity not in parent_children:
+                parent_children[identity] = (node, {}, 0)
+            remember_object(node)
+
+        def remember_object(node: Any) -> None:
+            identity = id(node)
+            if identity not in objects:
+                objects[identity] = (node, isinstance(node, FactorIndicator))
+
         for instances in self._factor_instances_by_name.values():
             for root in instances:
-                if root._owner is not self or host_counts[id(root)] != 1:
-                    raise RuntimeError("research factor is missing from its owner graph")
-                graphs[id(root)] = self._validate_factor_graph(root, host_counts)
-                for parent, child in ((self, root),) + self._factor_graphs[id(root)][1]:
+                roots.append(root)
+                root_by_id[id(root)] = root
+                graphs[id(root)] = self._factor_graphs[id(root)]
+                remember_parent(root)
+                if id(root) in expected_parents:
+                    duplicate_parent = True
+                else:
+                    expected_parents[id(root)] = id(self)
+                for parent, child in self._factor_graphs[id(root)][1]:
+                    remember_parent(parent)
+                    remember_parent(child)
+                    parent_id = id(parent)
                     child_id = id(child)
+                    record = parent_children[parent_id]
+                    counts = record[1]
+                    prior = counts.get(child_id)
+                    if prior is None:
+                        counts[child_id] = (child._ltype, 1)
+                    else:
+                        counts[child_id] = (prior[0], prior[1] + 1)
+                    parent_children[parent_id] = (parent, counts, record[2] + 1)
                     if child_id in expected_parents:
-                        raise RuntimeError("research factor graph has multiple scheduling paths")
-                    expected_parents[child_id] = id(parent)
+                        duplicate_parent = True
+                    else:
+                        expected_parents[child_id] = parent_id
+                    nested_ids.add(child_id)
 
-        observed: Counter[int] = Counter()
-        strategies = tuple(getattr(getattr(self, "cerebro", None), "runningstrats", ()))
-        if not any(strategy is self for strategy in strategies):
-            strategies += (self,)
-        for strategy in strategies:
-            visited = set()
-            pending = [strategy]
-            while pending:
-                parent = pending.pop()
-                parent_id = id(parent)
-                if parent_id in visited:
-                    continue
-                visited.add(parent_id)
-                for children in getattr(parent, "_lineiterators", {}).values():
+        self._factor_validation_roots = tuple(roots)
+        self._factor_validation_root_by_id = root_by_id
+        self._factor_validation_graphs = graphs
+        self._factor_validation_expected_parents = expected_parents
+        self._factor_validation_nested_ids = nested_ids
+        self._factor_validation_parents = tuple(parent_children.values())
+        self._factor_validation_duplicate_parent = duplicate_parent
+        self._factor_validation_objects = tuple(objects.values())
+
+    def _validate_research_ownership(self) -> None:
+        """Check live edges against a cached identity index on every call."""
+        lock = self._factor_validation_lock
+        if not lock.acquire(blocking=False):
+            raise RuntimeError("research factor graph validation is already active")
+
+        child_counts = self._factor_validation_child_counts
+        host_counts = self._factor_validation_host_counts
+        observed = self._factor_validation_observed
+        visited = self._factor_validation_visited
+        pending = self._factor_validation_pending
+
+        try:
+            root_count = 0
+            duplicate_root = False
+            for instances in self._factor_instances_by_name.values():
+                for root in instances:
+                    root_count += 1
+                    root_id = id(root)
+                    if (
+                        self._factor_validation_root_by_id.get(root_id) is not root
+                        or self._factor_graphs.get(root_id)
+                        is not self._factor_validation_graphs.get(root_id)
+                    ):
+                        raise RuntimeError("research factor graph changed during collection")
+                    root_occurrences = host_counts.get(root_id, 0) + 1
+                    host_counts[root_id] = root_occurrences
+                    duplicate_root = duplicate_root or root_occurrences > 1
+            if duplicate_root:
+                raise RuntimeError("research factor graph has multiple scheduling paths")
+            if root_count != len(self._factor_validation_roots):
+                raise RuntimeError("research factor is missing from its owner graph")
+            host_counts.clear()
+
+            host_indicators = self._lineiterators[LineIterator.IndType]
+            root_by_id = self._factor_validation_root_by_id
+            expected_parents = self._factor_validation_expected_parents
+            nested_ids = self._factor_validation_nested_ids
+            for item in host_indicators:
+                item_id = id(item)
+                if item_id in nested_ids:
+                    raise RuntimeError("research factor graph changed during collection")
+                if item_id in root_by_id:
+                    host_counts[item_id] = host_counts.get(item_id, 0) + 1
+                elif item_id in expected_parents:
+                    raise RuntimeError("research factor graph changed during collection")
+            for root in self._factor_validation_roots:
+                if root._owner is not self or host_counts.get(id(root), 0) != 1:
+                    raise RuntimeError("research factor is missing from its owner graph")
+
+            for parent, expected_children, expected_edge_count in self._factor_validation_parents:
+                lineiterators = getattr(parent, "_lineiterators", {})
+                child_counts.clear()
+                edge_count = 0
+
+                for type_key, children in lineiterators.items():
                     for child in children:
                         child_id = id(child)
-                        if child_id in expected_parents:
-                            if expected_parents[child_id] != parent_id:
-                                raise RuntimeError(
-                                    "research factor graph has multiple scheduling paths"
-                                )
-                            observed[child_id] += 1
-                        pending.append(child)
-        if any(observed[child_id] != 1 for child_id in expected_parents):
-            raise RuntimeError("research factor graph has multiple scheduling paths")
-        return graphs
+                        expected = expected_children.get(child_id)
+                        if child._owner is not parent:
+                            raise RuntimeError("research factor graph changed during collection")
+                        if (
+                            expected is None
+                            or child._ltype != expected[0]
+                            or type_key != expected[0]
+                        ):
+                            raise RuntimeError("research factor graph changed during collection")
+                        expected_count = expected[1]
+                        actual_count = child_counts.get(child_id, 0) + 1
+                        if actual_count > expected_count:
+                            raise RuntimeError("research factor graph changed during collection")
+                        child_counts[child_id] = actual_count
+                        edge_count += 1
+
+                if edge_count != expected_edge_count:
+                    raise RuntimeError("research factor graph changed during collection")
+
+            for node, was_factor in self._factor_validation_objects:
+                if isinstance(node, FactorIndicator) is not was_factor:
+                    raise RuntimeError("research factor graph changed during collection")
+
+            if self._factor_validation_duplicate_parent:
+                raise RuntimeError("research factor graph has multiple scheduling paths")
+
+            # Keep the full scheduler walk: another strategy can acquire a
+            # protected node after initialization, and that must still fail.
+            strategies = getattr(getattr(self, "cerebro", None), "runningstrats", ())
+            found_self = False
+            for strategy in strategies:
+                if strategy is self:
+                    found_self = True
+                visited.clear()
+                pending.clear()
+                pending.append(strategy)
+                while pending:
+                    parent = pending.pop()
+                    parent_id = id(parent)
+                    if parent_id in visited:
+                        continue
+                    visited.add(parent_id)
+                    for children in getattr(parent, "_lineiterators", {}).values():
+                        for child in children:
+                            child_id = id(child)
+                            if child_id in expected_parents:
+                                if expected_parents[child_id] != parent_id:
+                                    raise RuntimeError(
+                                        "research factor graph has multiple scheduling paths"
+                                    )
+                                observed[child_id] = observed.get(child_id, 0) + 1
+                            pending.append(child)
+            if not found_self:
+                visited.clear()
+                pending.clear()
+                pending.append(self)
+                while pending:
+                    parent = pending.pop()
+                    parent_id = id(parent)
+                    if parent_id in visited:
+                        continue
+                    visited.add(parent_id)
+                    for children in getattr(parent, "_lineiterators", {}).values():
+                        for child in children:
+                            child_id = id(child)
+                            if child_id in expected_parents:
+                                if expected_parents[child_id] != parent_id:
+                                    raise RuntimeError(
+                                        "research factor graph has multiple scheduling paths"
+                                    )
+                                observed[child_id] = observed.get(child_id, 0) + 1
+                            pending.append(child)
+
+            for child_id in expected_parents:
+                if observed.get(child_id, 0) != 1:
+                    raise RuntimeError("research factor graph has multiple scheduling paths")
+        finally:
+            try:
+                child_counts.clear()
+                host_counts.clear()
+                observed.clear()
+                visited.clear()
+                pending.clear()
+            finally:
+                lock.release()
 
     @staticmethod
     def _factor_tree(root: FactorIndicator) -> Tuple[FactorIndicator, ...]:
