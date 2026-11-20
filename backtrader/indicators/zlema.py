@@ -21,8 +21,6 @@ Example:
                 self.sell()
 """
 
-import math
-
 from . import MovingAverageBase
 from .ema import EMA
 
@@ -58,7 +56,9 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         self.lag = (self.p.period - 1) // 2
         self.alpha = 2.0 / (1.0 + self.p.period)
         self.alpha1 = 1.0 - self.alpha
-        self.addminperiod(self.lag + self.p.period)
+        # MovingAverageBase has already added the EMA period.  ZLEMA needs
+        # only the additional lagged input history beyond that window.
+        self.addminperiod(self.lag + 1)
 
     def nextstart(self):
         """Seed ZLEMA calculation with SMA on first valid bar.
@@ -88,6 +88,9 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
 
         Applies EMA to lag-adjusted data across all bars.
         """
+        if start >= end:
+            return
+
         darray = self.data.array
         larray = self.lines.zlema.array
         period = self.p.period
@@ -98,38 +101,41 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        minperiod = lag + period
-        for i in range(min(minperiod - 1, len(darray))):
-            if i < len(larray):
-                larray[i] = float("nan")
+        source_start = max(0, getattr(self.data, "_minperiod", 1) - 1)
+        seed_idx = source_start + lag + period - 1
+        data_end = min(end, len(darray))
 
-        # Seed value
-        seed_idx = minperiod - 1
-        if seed_idx < len(darray) and seed_idx >= lag:
+        # Warmup values belong to this call's range only.  In particular, a
+        # segmented ``once`` must not clear earlier values or preseed the next
+        # segment's seed slot.
+        for i in range(start, min(end, seed_idx)):
+            larray[i] = float("nan")
+
+        # Match the source buffer's available extent without touching any
+        # output outside [start, end).
+        for i in range(max(start, len(darray)), end):
+            larray[i] = float("nan")
+
+        if seed_idx >= len(darray) or end <= seed_idx:
+            return
+
+        if start <= seed_idx:
+            # The requested range contains the first complete adjusted window.
             seed_sum = 0.0
             for j in range(period):
                 idx = seed_idx - j
-                if idx >= lag and idx < len(darray) and idx - lag >= 0:
-                    adjusted = 2.0 * darray[idx] - darray[idx - lag]
-                    seed_sum += adjusted
+                adjusted = 2.0 * darray[idx] - darray[idx - lag]
+                seed_sum += adjusted
             prev = seed_sum / period
-            if seed_idx < len(larray):
-                larray[seed_idx] = prev
+            larray[seed_idx] = prev
+            calc_start = seed_idx + 1
         else:
-            prev = 0.0
+            # Later ranges continue the recursive state written by the prior
+            # range.  NaN is a valid state and must propagate as in next().
+            prev = larray[start - 1]
+            calc_start = start
 
-        # Calculate ZLEMA
-        for i in range(minperiod, min(end, len(darray))):
-            if i >= lag and i - lag >= 0:
-                adjusted = 2.0 * darray[i] - darray[i - lag]
-            else:
-                adjusted = darray[i]
-
-            if i > 0 and i - 1 < len(larray):
-                prev_val = larray[i - 1]
-                if not (isinstance(prev_val, float) and math.isnan(prev_val)):
-                    prev = prev_val
-
+        for i in range(calc_start, data_end):
+            adjusted = 2.0 * darray[i] - darray[i - lag]
             prev = prev * alpha1 + adjusted * alpha
-            if i < len(larray):
-                larray[i] = prev
+            larray[i] = prev
