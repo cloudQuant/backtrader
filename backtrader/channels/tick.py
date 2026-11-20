@@ -141,6 +141,8 @@ class TickChannel(DataChannel):
 
             for row in reader:
                 try:
+                    if any(row.get(field) is None for field in required):
+                        raise ValueError("Missing required tick field")
                     tick = TickEvent(
                         timestamp=_parse_required_float(row["timestamp"]),
                         symbol=row.get("symbol", self.symbol),

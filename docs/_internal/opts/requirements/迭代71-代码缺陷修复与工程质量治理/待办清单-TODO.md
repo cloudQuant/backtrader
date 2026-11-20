@@ -28,7 +28,7 @@
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 16 | 5 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 6 |
 | 5 | 指标正确性（P1/P2） | 29 | 0 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
@@ -36,7 +36,7 @@
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **37** |
+| | **合计** | **207** | **38** |
 
 ---
 
@@ -103,7 +103,7 @@
 - [x] **R71-009** `[P1]` `dataseries.py:80` — `TimeFrame.getname(tframe, compression=None)` 默认 `None` 紧接 `compression > 1` 抛 `TypeError` → 默认改 1 或先归一化。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+RUNTIME**（修前默认参数复现 TypeError；修后默认、显式 None、复数和已有数据序列测试 5 项通过）。
 - [x] **R71-010** `[P1]` `channels/live_queue.py:84` — `put()` 在锁外读 `_closed`，producer 通过检查后仍可入队，事件永不被消费 → 锁内复检。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+线程竞态**（修前同步竞态稳定复现；修后关闭竞态与关闭前已接收事件排空 2 项通过）。
 - [x] **R71-011** `[P1]` `channels/orderbook.py:205` — `"bids": null` 时 `data.get("bids", [])` 返回 `None`，`_parse_level_pairs(None)` 抛 `TypeError`（不在捕获元组），单行坏数据中止整个 load → 校验 list 类型或把 `TypeError` 纳入捕获。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回放集成**（修前 CSV/JSONL 买卖档位 null 均复现异常；修后解析边界、异常行后续读取与回放共 42 项通过）。
-- [ ] **R71-012** `[P1]` `channels/tick.py:159` — CSV 缺字段时 `float(None)`→`TypeError`、`row["direction"].strip()`→`AttributeError`，均不在捕获元组 → 纳入捕获或做字段完整性校验。CONFIRMED(source)。
+- [x] **R71-012** `[P1]` `channels/tick.py:159` — CSV 缺字段时 `float(None)`→`TypeError`、`row["direction"].strip()`→`AttributeError`，均不在捕获元组 → 纳入捕获或做字段完整性校验。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回放集成**（修前四类必填字段缺失均复现异常；修后缺字段、解析边界及回放 31 项通过）。
 - [ ] **R71-086** `[P1]` `cerebro.py:889` — `add_signal()+addstrategy()` 组合下 `signalst, sargs, skwargs = self.strats.pop(0)` 抛 `ValueError: not enough values to unpack`；异常分支 reinsert 的三元组也不可被 `itertools.product(*self.strats)` 消费 → 改为解包单元素并 reinsert 列表。CONFIRMED(source)。
 - [ ] **R71-087** `[P1]` `comminfo.py:450` — `get_credit_interest` 用 `size*price*mult`，空头返回负利息，`BackBroker._cash -= credit` 给空头加钱 → 空头用 `abs(position_value)`。CONFIRMED(source)。
 - [ ] **R71-095** `[P1]` `linebuffer.py:581-614` — `preload=True`（默认）负索引越界回绕返回**未来值**（bar 3 读 `close[-20]` 得 bar 13），`preload=False` 抛 `IndexError`；`home()` 后 `[0]` 还可能返回最后预加载 bar → 索引前检查 `target = current_idx + ago`，`<0` 抛 `IndexError`/NaN；`_raw_linebuffer_value` 同修。CONFIRMED(runtime)。
