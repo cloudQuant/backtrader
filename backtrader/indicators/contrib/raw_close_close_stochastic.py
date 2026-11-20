@@ -70,5 +70,6 @@ class CloseCloseEmaStochastic(Indicator):
     def __init__(self):
         """Build the EMA-smoothed %K and %D lines from the raw Stochastic."""
         raw = RawCloseCloseStochastic(self.data, period=int(self.p.period))
-        self.lines.percK = ExponentialMovingAverage(raw, period=int(self.p.slowing))
-        self.lines.percD = ExponentialMovingAverage(self.lines.percK, period=int(self.p.dperiod))
+        perc_k = ExponentialMovingAverage(raw, period=int(self.p.slowing))
+        self.lines.percK = perc_k
+        self.lines.percD = ExponentialMovingAverage(perc_k, period=int(self.p.dperiod))
