@@ -42,7 +42,7 @@ class FundingRateChannel(DataChannel):
         maxlen: Maximum buffer size.
         validate: Whether to validate incoming events.
         auto_fix: Whether to auto-fix invalid data.
-        rate_threshold: Max absolute funding rate for anomaly warning.
+        rate_threshold: Absolute funding-rate level above which valid events warn.
         **kwargs: Additional parameters passed to DataChannel.
     """
 
@@ -66,7 +66,7 @@ class FundingRateChannel(DataChannel):
             maxlen: Maximum number of events to buffer.
             validate: Whether to validate incoming events.
             auto_fix: Whether to attempt auto-fixing invalid data.
-            rate_threshold: Maximum allowed rate difference threshold.
+            rate_threshold: Absolute funding-rate level above which valid events warn.
             **kwargs: Additional arguments passed to parent.
         """
         super().__init__(
@@ -79,26 +79,52 @@ class FundingRateChannel(DataChannel):
         )
         self._dataname = dataname
         self._rate_threshold = rate_threshold
-        self._last_rate = None
 
     def _validate_event(self, event) -> DataValidationResult:
         """Validate funding rate specific fields beyond base validation.
 
         Additional checks:
-            - Rate change anomaly detection
+            - Absolute funding-rate threshold warning
         """
         result = super()._validate_event(event)
         if not result.valid:
             return result
 
-        # Rate anomaly detection
-        if self._last_rate is not None and abs(event.rate) > self._rate_threshold:
-            result.warnings.append(
-                f"High funding rate: {event.rate} (threshold: {self._rate_threshold})"
-            )
-
-        self._last_rate = event.rate
+        self._check_rate_anomaly(event, result)
         return result
+
+    def _check_rate_anomaly(self, event, result=None):
+        """Warn for a valid event whose absolute funding rate exceeds threshold.
+
+        Logger output is deliberately static: funding events can contain
+        account- or instrument-specific values, so anomaly diagnostics avoid
+        formatting the event, symbol, rate, or threshold into the log record.
+        """
+        # Keep the original strict greater-than semantics. In particular,
+        # NaN rates or thresholds compare false and must not warn.
+        if not (abs(event.rate) > self._rate_threshold):
+            return
+
+        if result is not None:
+            rate_type = type(event.rate)
+            threshold_type = type(self._rate_threshold)
+            if (rate_type is int or rate_type is float) and (
+                threshold_type is int or threshold_type is float
+            ):
+                detail = (
+                    f"High funding rate: {event.rate} "
+                    f"(threshold: {self._rate_threshold})"
+                )
+            else:
+                detail = "High funding rate exceeded the configured absolute threshold"
+            result.warnings.append(detail)
+
+        logger.warning("Funding rate exceeded configured absolute warning threshold")
+
+    def _check_loaded_event(self, event):
+        """Apply only the warning check to valid loaded events when enabled."""
+        if self._validate and event.validate():
+            self._check_rate_anomaly(event)
 
     def load(self) -> Iterator[FundingEvent]:
         """Load funding rate events from file.
@@ -161,6 +187,7 @@ class FundingRateChannel(DataChannel):
                         or 0.0,
                         predicted_rate=_parse_optional_float(row.get("predicted_rate")) or 0.0,
                     )
+                    self._check_loaded_event(fe)
                     yield fe
                 except (ValueError, KeyError) as e:
                     logger.warning("Skipping invalid funding row: %s (error: %s)", row, e)
@@ -201,6 +228,7 @@ class FundingRateChannel(DataChannel):
                         or 0.0,
                         predicted_rate=_parse_optional_float(data.get("predicted_rate")) or 0.0,
                     )
+                    self._check_loaded_event(fe)
                     yield fe
                 except (ValueError, KeyError, json.JSONDecodeError) as e:
                     logger.warning("Skipping invalid funding JSONL line %d: %s", line_num, e)
