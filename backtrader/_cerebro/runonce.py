@@ -27,7 +27,7 @@ class RunOnceMixin:
         # here again, because pointers are at 0
         data0 = self.datas[0]
         datas = self.datas[1:]
-        for i in range(data0.buflen()):
+        for _ in range(data0.buflen()):
             self._storenotify()
             if self._event_stop:  # stop if requested
                 return
