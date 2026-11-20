@@ -199,10 +199,27 @@ class StandardDeviation(Indicator):
 
         prev_mean = None
         prev_meansq = None
+        # Track missing values in the rolling window without rescanning it.
+        nan_count = 0
+        if actual_end >= period:
+            nan_count = sum(value != value for value in darray[0:period])
+
         for i in range(period - 1, actual_end):
-            if i == period - 1:
-                window = darray[0:period]
-                if len(window) != period or any(value != value for value in window):
+            if i >= period:
+                outgoing = darray[i - period]
+                incoming = darray[i]
+                nan_count -= outgoing != outgoing
+                nan_count += incoming != incoming
+
+            if nan_count:
+                # next() leaves the smoothed state untouched while a window
+                # contains NaN; retain it so recurrence resumes identically.
+                larray[i] = nan_val
+                continue
+
+            if prev_meansq is None:
+                window = darray[i - period + 1 : i + 1]
+                if len(window) != period:
                     larray[i] = nan_val
                     continue
                 prev_meansq = math.fsum(value * value for value in window) / period
@@ -210,14 +227,8 @@ class StandardDeviation(Indicator):
                     prev_mean = math.fsum(window) / period
             else:
                 value = float(darray[i])
-                if value != value or prev_meansq is None:
-                    larray[i] = nan_val
-                    continue
                 prev_meansq = prev_meansq * (1.0 - alpha) + value * value * alpha
                 if mean_array is None:
-                    if prev_mean is None:
-                        larray[i] = nan_val
-                        continue
                     prev_mean = prev_mean * (1.0 - alpha) + value * alpha
 
             if mean_array is not None:

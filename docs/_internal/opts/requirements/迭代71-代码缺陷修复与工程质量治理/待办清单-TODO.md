@@ -260,7 +260,7 @@
 - [x] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（仅用于成员检查的 resample 索引改为 set，混合 resample/replay 时钟回归保留；专项 21 项、相邻回归 8 项通过，独立静态复审通过）。
 - [ ] **R71-063** `[P2]` `feeds/blaze.py:91` — `_load` 每 bar 对每个 datafield 做 `getattr(self.params,...)`/`getattr(self.lines,...)`，值不变可缓存 → `start()` 预计算列索引/线引用。
 - [ ] **R71-159** `[P2]` `indicators/basicops.py:140-156` — `OperationN.once` 每 bar 切片并调 Python func，`Highest/Lowest/SumN/FindFirstIndex*` 为 O(n·period)+每 bar 分配，被 Stochastic/Aroon/Donchian 继承；1M bar period 50 ≈ 50M 元素复制 → 单调 deque / running sum / 数组循环，slice 仅 fallback。
-- [ ] **R71-160** `[P2]` `indicators/sma.py:119-133` — `once` 每 bar 双窗口扫描（先求 sum 再求 sum of squares），O(n·period) → 滚动和/平方和。
+- [ ] **R71-160** `[P2]` `indicators/sma.py:119-133` — `once` 每 bar 双窗口扫描（先求 sum 再求 sum of squares），O(n·period) → 滚动和/平方和。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（相邻 StandardDeviation 的 EMA/SMMA 源窗口遇 NaN 后批量计算可恢复，与逐步计算对齐；15 项相关回归及独立静态复审通过。外部均值 NaN 的既有差异和本条滚动计算性能优化均未处理，保持未完成；清单所述平方和实现位于 deviation.py）。
 - [ ] **R71-112b** `[P2]` `contrib/` 其余 minperiod/runonce 条目 — 按 B0-02 的复现结果逐条处理；本批次未单列的 contrib P2 条目以 `审阅发现清单-2026-11-17.md` §2/§3 为准，复现后再登记到本清单。
 
 ## 批次 10 · P3 结构演进 / 文档 / 类型治理
