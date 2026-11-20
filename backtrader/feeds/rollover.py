@@ -111,8 +111,10 @@ class RollOver(DataBase):
         # Prepare futures contracts for rollover
         self._dts = None
         self._dexp = None
+        self._dexp_dt = None
         self._d = None
         self._ds = None
+        self._pending_dt = None
         self._rolls = args
 
     def start(self):
@@ -132,6 +134,8 @@ class RollOver(DataBase):
         self._d = self._ds.pop(0) if self._ds else None
         # Expiration data
         self._dexp = None
+        self._dexp_dt = None
+        self._pending_dt = None
         # Here defaults a minimum time, when comparing with any time, will move
         self._dts = [datetime.min for xx in self._ds]
 
@@ -170,41 +174,50 @@ class RollOver(DataBase):
     def _load(self):
         # Method to load data
         while self._d is not None:
-            # When self._d is not None, call next
-            _next = self._d.next()
-            # If _next value is None, continue calling next
-            if _next is None:  # no values yet, more will come
-                continue
-            # If _next value is False, current data switches to next data,
-            if _next is False:  # no values from current data src
-                if self._ds:
-                    self._d = self._ds.pop(0)
-                    self._dts.pop(0)
-                else:
-                    self._d = None
-                continue
-            # Current time of current data
-            dt0 = self._d.datetime.datetime()  # current dt for active data
+            if self._pending_dt is None:
+                result = self._d.next()
+                if result is None:
+                    return None
+                if result is False:
+                    if self._ds:
+                        self._d = self._ds.pop(0)
+                        self._dts.pop(0)
+                    else:
+                        self._d = None
+                    continue
+                # Keep this bar while other live feeds catch up.
+                self._pending_dt = self._d.datetime.datetime()
+            dt0 = self._pending_dt
 
             # Synchronize other datas using dt0
             # Synchronize other data based on current time
-            for i, d_dt in enumerate(zip(self._ds, self._dts)):
-                d, dt = d_dt
+            i = 0
+            while i < len(self._ds):
+                d, dt = self._ds[i], self._dts[i]
                 # If other data's time is less than current time, move other data forward, increase time, and save time to self._dts
                 while dt < dt0:
-                    if d.next() is None:
-                        continue
+                    result = d.next()
+                    if result is None:
+                        return None
+                    if result is False:
+                        self._ds.pop(i)
+                        self._dts.pop(i)
+                        break
                     self._dts[i] = dt = d.datetime.datetime()
+                else:
+                    i += 1
 
             # Move expired future as much as needed
             # Move expired data
-            while self._dexp is not None:
-                if not self._dexp.next():
+            while self._dexp is not None and (self._dexp_dt is None or self._dexp_dt < dt0):
+                result = self._dexp.next()
+                if result is None:
+                    return None
+                if result is False:
                     self._dexp = None
+                    self._dexp_dt = None
                     break
-
-                if self._dexp.datetime.datetime() < dt0:
-                    continue
+                self._dexp_dt = self._dexp.datetime.datetime()
 
             if self._dexp is None and self._checkdate(dt0, self._d):
                 # rule has been met ... check other factors only if 2 datas
@@ -212,6 +225,7 @@ class RollOver(DataBase):
                 if self._ds and self._checkcondition(self._d, self._ds[0]):
                     # Time to switch to next data
                     self._dexp = self._d
+                    self._dexp_dt = dt0
                     self._d = self._ds.pop(0)
                     self._dts.pop(0)
 
@@ -223,6 +237,7 @@ class RollOver(DataBase):
             self.lines.close[0] = self._d.lines.close[0]
             self.lines.volume[0] = self._d.lines.volume[0]
             self.lines.openinterest[0] = self._d.lines.openinterest[0]
+            self._pending_dt = None
             return True
 
         # Out of the loop -> self._d is None, no data feed to return from
