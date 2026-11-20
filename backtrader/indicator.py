@@ -343,6 +343,38 @@ class Indicator(IndicatorBase):
             for ind in self._lineiterators.get(LineIterator.IndType, []):
                 ind.advance(size)
 
+    @staticmethod
+    def _method_target(method):
+        """Return the implementation behind a bound method, if present."""
+        return getattr(method, "__func__", method)
+
+    def once(self, start, end):
+        """Keep the default composite once hook from extending prefilled lines.
+
+        ``LineIterator._once`` allocates each indicator line to the clock length
+        before it evaluates child indicators and line actions.  A composite
+        indicator with the base no-op ``next`` has no own per-bar work to run in
+        ``LineIterator.once``; that fallback would only append another range of
+        default values after the children have populated the bound outputs.
+
+        This is deliberately gated by the effective method identities at call
+        time.  Indicators with custom ``next``, ``once`` or lifecycle methods
+        continue through the established dispatch path.
+        """
+        from .lineroot import LineRoot
+
+        if (
+            Indicator._method_target(self.once) is Indicator.once
+            and Indicator._method_target(self.next) is LineRoot.next
+            and Indicator._method_target(self.preonce) is LineIterator.preonce
+            and Indicator._method_target(self.oncestart) is LineIterator.oncestart
+            and Indicator._method_target(self.prenext) is LineIterator.prenext
+            and Indicator._method_target(self.nextstart) is LineIterator.nextstart
+        ):
+            return
+
+        return super().once(start, end)
+
     def preonce_via_prenext(self, start, end):
         """Implement preonce using prenext for batch calculation.
 
