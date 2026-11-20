@@ -180,7 +180,7 @@ class PercentagePriceOscillator(_PriceOscBase):
         self.lines.signal[0] = ppo_val
 
         # Calculate histogram
-        self.lines.histo[0] = 0.0
+        self.lines.histo[0] = self.lines.ppo[0] - self.lines.signal[0]
 
     def once(self, start, end):
         """Calculate PPO in runonce mode."""
@@ -197,20 +197,28 @@ class PercentagePriceOscillator(_PriceOscBase):
             while len(arr) < end:
                 arr.append(float("nan"))
 
-        prev_signal = 0.0
+        prev_signal = None
+        first_signal_index = self._minperiod - 1
+        has_signal_state = start > first_signal_index or any(
+            not (isinstance(value, float) and math.isnan(value))
+            for value in signal_array[:start]
+        )
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
 
-            if isinstance(ma1_val, float) and math.isnan(ma1_val):
+            if (
+                isinstance(ma1_val, float)
+                and math.isnan(ma1_val)
+                or isinstance(ma2_val, float)
+                and math.isnan(ma2_val)
+            ):
                 ppo_array[i] = float("nan")
                 signal_array[i] = float("nan")
                 histo_array[i] = float("nan")
-                continue
-            if isinstance(ma2_val, float) and math.isnan(ma2_val):
-                ppo_array[i] = float("nan")
-                signal_array[i] = float("nan")
-                histo_array[i] = float("nan")
+                if has_signal_state or i >= first_signal_index:
+                    prev_signal = float("nan")
+                    has_signal_state = True
                 continue
 
             po_val = ma1_val - ma2_val
@@ -222,16 +230,20 @@ class PercentagePriceOscillator(_PriceOscBase):
                 ppo_val = 0.0
             ppo_array[i] = ppo_val
 
-            # Update signal
+            # Seed the signal from the first valid PPO, matching nextstart.
             if i > 0 and i - 1 < len(signal_array):
                 prev_val = signal_array[i - 1]
                 if not (isinstance(prev_val, float) and math.isnan(prev_val)):
                     prev_signal = prev_val
 
-            prev_signal = prev_signal * signal_alpha1 + ppo_val * signal_alpha
+            if prev_signal is None:
+                prev_signal = float("nan") if has_signal_state else ppo_val
+            else:
+                prev_signal = prev_signal * signal_alpha1 + ppo_val * signal_alpha
             signal_array[i] = prev_signal
 
             histo_array[i] = ppo_val - prev_signal
+            has_signal_state = True
 
 
 class PercentagePriceOscillatorShort(PercentagePriceOscillator):

@@ -17,8 +17,6 @@ Example:
                 self.buy()
 """
 
-import math
-
 from ..utils.log_message import get_logger
 from . import MovingAverageBase
 
@@ -77,6 +75,9 @@ class ExponentialMovingAverage(MovingAverageBase):
 
     def once(self, start, end):
         """Calculate EMA in runonce mode"""
+        if start >= end:
+            return
+
         larray = self.lines[0].array
         alpha = self.alpha
         alpha1 = self.alpha1
@@ -97,47 +98,45 @@ class ExponentialMovingAverage(MovingAverageBase):
 
         darray = self.data.array
         data_len = len(darray)
-        if data_len == 0:
-            return
 
-        # Find first valid (non-NaN) index for seed calculation
-        first_valid = 0
-        for i in range(data_len):
-            val = darray[i]
-            if not (isinstance(val, float) and math.isnan(val)):
-                first_valid = i
-                break
+        # The input line's minperiod identifies structural warmup NaNs from
+        # upstream indicators. Do not scan for the first non-NaN value here:
+        # a NaN in a raw input is real missing data and must remain in the
+        # first period-sized seed window, just as it does in nextstart().
+        source_start = max(0, getattr(self.data, "_minperiod", 1) - 1)
+        seed_idx = source_start + period - 1
 
-        # Calculate seed index
-        seed_idx = first_valid + period - 1
-
-        # CRITICAL FIX: Pre-fill warmup period with NaN up to seed_idx
-        # This ensures indices before the seed are NaN, not 0.0
-        for i in range(min(seed_idx, data_len)):
+        # Only write the requested slice. In particular, a seed-before range
+        # must not populate warmup or seed slots that belong to later calls.
+        write_start = max(0, start)
+        write_end = min(end, data_len)
+        for i in range(write_start, min(write_end, seed_idx)):
             larray[i] = float("nan")
 
-        if seed_idx < data_len:
-            seed_sum = 0.0
-            valid_count = 0
-            for i in range(first_valid, seed_idx + 1):
-                val = darray[i]
-                if not (isinstance(val, float) and math.isnan(val)):
-                    seed_sum += val
-                    valid_count += 1
-            if valid_count > 0:
-                prev = seed_sum / valid_count
-                larray[seed_idx] = prev
-            else:
-                return  # No valid data
-        else:
-            return  # Not enough data
+        # If the requested output extends beyond the available source, those
+        # requested positions are missing rather than stale destination data.
+        for i in range(max(write_start, data_len), end):
+            larray[i] = float("nan")
 
-        # EMA is recursive - must calculate ALL values from seed onwards
-        for i in range(seed_idx + 1, min(end, data_len)):
+        if seed_idx >= data_len or end <= seed_idx:
+            return  # No complete seed window in this range
+
+        if start <= seed_idx:
+            seed_sum = 0.0
+            for i in range(source_start, seed_idx + 1):
+                seed_sum += darray[i]
+            prev = seed_sum / period
+            larray[seed_idx] = prev
+            calc_start = seed_idx + 1
+        else:
+            # once may be called over consecutive ranges. Continue from the
+            # previous range's output so a NaN poisons the same recursive
+            # state as repeated next() calls.
+            prev = larray[start - 1]
+            calc_start = start
+
+        for i in range(calc_start, min(end, data_len)):
             current_val = darray[i]
-            if isinstance(current_val, float) and math.isnan(current_val):
-                larray[i] = float("nan")
-                continue
             prev = prev * alpha1 + float(current_val) * alpha
             larray[i] = prev
 

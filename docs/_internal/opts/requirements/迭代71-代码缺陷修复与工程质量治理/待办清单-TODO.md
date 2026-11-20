@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 9 |
+| 5 | 指标正确性（P1/P2） | 29 | 10 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **57** |
+| | **合计** | **207** | **58** |
 
 ---
 
@@ -128,7 +128,7 @@
 - [x] **R71-151** `[P1]` `indicators/williams.py:175-194` — WilliamsAD runonce 丢第一根贡献：`once()` 每次 `accum=0.0`，`oncestart(1,2)` 后再 `once(2,end)` 从 0 重启，后续每根固定偏移 0.4365 → 从 `dst[start-1]` 继续（像 `Accum.once`）。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（批量后续区间从前一输出继续累计；实际 Cerebro 两模式完整序列及 Williams 现有回归共 5 项通过，独立源码复核无阻断）。
 - [x] **R71-152** `[P1]` `indicators/kama.py:139-149` — KAMA runonce seed 晚一根：`seed_idx=period`、`darray[0:period]` 播种，next 首个有效 len 30、once 31，后续最大差 0.0066 → `seed_idx = period-1`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（批量播种跟随输入最小周期并使用完整窗口，保持分段边界与 NaN 传播；真实 Cerebro 的原始及 SMA 上游输入和既有 KAMA 回归共 17 项通过，独立源码复核无阻断）。
 - [x] **R71-153** `[P1]` `indicators/tsi.py:81-95,138-155` — TSI 首值恒 100.0 且 runonce 不一致：`nextstart` 用当前 price change 播种四个平滑值，`100*sm12/sm22` 恒 100；once 从 0 递归，首有效 11.85 → 两级 EMA 都用前 `period1` 个 price change 的 SMA 播种。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（两级平滑使用对应初始化并尊重可配置均线，分段仅写请求区间；实际 Cerebro 两模式、缺失值及原有 TSI 回归共 16 项通过，独立源码复核无阻断。多数据与下游指标组合未单独验收）。
-- [ ] **R71-154** `[P1]` `indicators/priceoscillator.py:200-232` — PPO signal runonce seed 不同（once 从 `prev_signal=0.0` 写 `ppo*alpha`，nextstart 写 `signal=ppo`），115 根不同 → 用首个有效 PPO 初始化 `prev_signal`。CONFIRMED(runtime)。
+- [x] **R71-154** `[P1]` `indicators/priceoscillator.py:200-232` — PPO signal runonce seed 不同（once 从 `prev_signal=0.0` 写 `ppo*alpha`，nextstart 写 `signal=ppo`），115 根不同 → 用首个有效 PPO 初始化 `prev_signal`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（signal 批量播种与逐根一致，首点缺失时柱线保持 NaN；EMA 批量路径按输入预热和逐根递推传播缺失，并限制分段写入。真实 Cerebro 上游 SMA、缺失及原有 EMA/PPO 派生回归共 25 项通过，独立源码复核无阻断）。
 - [ ] **R71-033** `[P1]` `indicators/contrib/trend_continuation_indicator.py:124` 等 6 文件 — 递归指标用 `len(self)>0`/`==1` 判断前值，`next()` 内恒真/恒假，读未写入 NaN 槽位，首根 NaN 传播整条线 → 无条件读 `lines.x[-1]` 并 NaN 检查后回退 seed。CONFIRMED(FAKE runtime，100% NaN/171 bars)。
 - [ ] **R71-034** `[P1]` `contrib/accumulation_distribution_line.py:66` — `LineCCI` 无 `addminperiod`（`_minperiod=1`），作为 `CCIDualOnMA` 输入时 runonce `len(self.data)==0` 预热分支每根触发，两条线恒 0.0 → 声明 `addminperiod(self.p.period)`。CONFIRMED(FAKE)。
 - [ ] **R71-035** `[P1]` `contrib/color_bb_candles_indicator.py:43` — 子指标线绑定 + `addminperiod(period+5)` 变相对加法，实测 `_minperiod==204`（目标 105），历史不足 204 根时 runonce 抛 `IndexError` → 去掉 `price_line` 别名或用 `incminperiod`/显式 `max(...)`。CONFIRMED(FAKE)。
