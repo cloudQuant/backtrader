@@ -17,8 +17,6 @@ Example:
                 self.buy()
 """
 
-import math
-
 from . import MovingAverageBase
 
 
@@ -127,26 +125,33 @@ class AdaptiveMovingAverage(MovingAverageBase):
         fast_sc = self.fast_sc
         slow_sc = self.slow_sc
 
+        if start >= end:
+            return
+
         while len(larray) < end:
             larray.append(float("nan"))
 
-        # Pre-fill warmup with NaN
-        for i in range(min(period, len(darray))):
+        # The input's first valid index comes from its structural minperiod.
+        # Seed after collecting `period` valid input samples, while respecting
+        # this once() invocation's [start, end) slice.
+        input_minperiod = max(1, getattr(self.data, "_minperiod", 1))
+        seed_idx = input_minperiod + period - 2
+        warmup_start = max(start, 0)
+        warmup_end = min(seed_idx, end, len(darray))
+        for i in range(warmup_start, warmup_end):
             if i < len(larray):
                 larray[i] = float("nan")
 
         # Calculate seed value (SMA)
-        seed_idx = period
-        if seed_idx < len(darray):
-            seed_sum = sum(darray[seed_idx - period : seed_idx])
-            prev_kama = seed_sum / period
+        if start <= seed_idx < end and seed_idx < len(darray):
+            seed_start = seed_idx - period + 1
+            seed_sum = sum(darray[seed_start : seed_idx + 1])
+            seed_value = seed_sum / period
             if seed_idx < len(larray):
-                larray[seed_idx] = prev_kama
-        else:
-            prev_kama = 0.0
+                larray[seed_idx] = seed_value
 
         # Calculate KAMA
-        for i in range(seed_idx + 1, min(end, len(darray))):
+        for i in range(max(start, seed_idx + 1), min(end, len(darray))):
             # direction
             if i >= period and i - period >= 0:
                 direction = darray[i] - darray[i - period]
@@ -169,11 +174,10 @@ class AdaptiveMovingAverage(MovingAverageBase):
             # smoothing constant
             sc = pow(er * (fast_sc - slow_sc) + slow_sc, 2)
 
-            # Get previous KAMA
-            if i > 0 and i - 1 < len(larray):
-                prev_val = larray[i - 1]
-                if not (isinstance(prev_val, float) and math.isnan(prev_val)):
-                    prev_kama = prev_val
+            # The preceding output is the recursive state, including NaN.
+            # Keeping NaN here matches next() and prevents a later chunk from
+            # restarting from the original seed after a NaN has propagated.
+            prev_kama = larray[i - 1]
 
             # KAMA formula
             prev_kama = prev_kama + sc * (darray[i] - prev_kama)
