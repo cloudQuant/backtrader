@@ -40,6 +40,7 @@ class VChartData(feed.DataBase):
 
     def __init__(self):
         """Initialize the VChart data feed."""
+        super().__init__()
         self.barfmt = None
         self.f = None
         self.barsize = None

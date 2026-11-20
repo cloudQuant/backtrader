@@ -66,6 +66,7 @@ class BlazeData(DataBase):
 
         Sets up internal row iterator.
         """
+        super().__init__()
         self._rows = None
 
     def start(self):

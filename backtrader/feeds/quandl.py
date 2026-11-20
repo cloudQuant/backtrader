@@ -196,6 +196,7 @@ class Quandl(QuandlCSV):
 
         Sets up error tracking for data downloads.
         """
+        super().__init__()
         self.error = None
 
     def start(self):

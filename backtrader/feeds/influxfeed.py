@@ -79,6 +79,7 @@ class InfluxDB(DataBase):
 
     def __init__(self):
         """Initialize the InfluxDB data feed."""
+        super().__init__()
         self.biter: Optional[Iterator[Any]] = None
         self.ndb = None
 
