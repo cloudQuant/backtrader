@@ -63,7 +63,10 @@ class DetrendedPriceOscillator(Indicator):
         """
         super().__init__()
         self.ma = self.p.movav(self.data, period=self.p.period)
-        self.lookback = self.p.period // 2 - 1
+        self.lookback = max(self.p.period // 2 - 1, 0)
+        # The DPO reads a prior MA value, so its first valid output is delayed
+        # by the MA's own warmup plus this historical offset.
+        self.updateminperiod(self.ma._minperiod + self.lookback)
 
     def next(self):
         """Calculate DPO for the current bar.
