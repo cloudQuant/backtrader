@@ -149,6 +149,15 @@ class ReportChart:
         if not MATPLOTLIB_AVAILABLE or not PANDAS_AVAILABLE:
             return None
 
+        if dates is None or values is None:
+            return None
+
+        try:
+            dates = list(dates)
+            values = list(values)
+        except TypeError:
+            return None
+
         if not dates or not values:
             return None
 
@@ -160,17 +169,21 @@ class ReportChart:
             period_name, period_code = self._get_periodicity(dates)
         else:
             period_map = {
-                "daily": ("Daily", "D"),
-                "weekly": ("Weekly", "W"),
+                "daily": ("Daily", pd.offsets.Day()),
+                "weekly": ("Weekly", pd.offsets.Week(weekday=6)),
                 "monthly": ("Monthly", pd.offsets.MonthEnd()),
-                "yearly": ("Yearly", "YE"),
+                "yearly": ("Yearly", pd.offsets.YearEnd()),
             }
-            period_name, period_code = period_map.get(period, ("Daily", "D"))
+            period_name, period_code = period_map.get(
+                period, ("Daily", pd.offsets.Day())
+            )
 
         # Resample and calculate returns
         try:
-            resampled = series.resample(period_code).last()
-            returns = 100 * resampled.pct_change().dropna()
+            # Empty calendar bins (notably weekends and exchange holidays) are
+            # not observations; dropping them avoids synthetic zero-return bars.
+            resampled = series.resample(period_code).last().dropna()
+            returns = 100 * resampled.pct_change(fill_method=None).dropna()
         except (AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to resample returns with period %s: %s", period_code, e)
             return None
@@ -291,7 +304,15 @@ class ReportChart:
         return fig
 
     def _get_periodicity(self, dates):
-        """Intelligently determine the best display period.
+        """Choose display bins from calendar span and observed cadence.
+
+        Calendar spans choose yearly, monthly, or weekly bins; spans over five
+        days use daily bins. For shorter spans, advancing local dates at a
+        consistent local time or a near-daily median interval identifies daily
+        data across DST changes. Otherwise, the median positive interval
+        chooses hourly bins at one-hour cadence or coarser, with minute bins
+        for faster data. Sorting and deduplicating makes the cadence estimate
+        insensitive to input order and duplicate timestamps.
 
         Args:
             dates: List of dates
@@ -299,34 +320,45 @@ class ReportChart:
         Returns:
             tuple: (period name, period code)
         """
-        if not dates or len(dates) < 2:
+        if not PANDAS_AVAILABLE:
             return ("Daily", "D")
 
         try:
-            start_date = dates[0]
-            end_date = dates[-1]
+            dates = pd.DatetimeIndex(pd.to_datetime(dates))
+            dates = dates[~dates.isna()].drop_duplicates().sort_values()
+            if len(dates) < 2:
+                return ("Daily", pd.offsets.Day())
 
-            from datetime import datetime
-
-            if isinstance(start_date, datetime):
-                time_interval_days = (end_date - start_date).days
-            else:
-                time_interval_days = 30  # Default
+            time_interval_days = (dates[-1] - dates[0]).total_seconds() / 86400.0
 
             if time_interval_days > 5 * 365.25:
-                return ("Yearly", "YE")
+                return ("Yearly", pd.offsets.YearEnd())
             if time_interval_days > 365.25:
                 return ("Monthly", pd.offsets.MonthEnd())
             if time_interval_days > 50:
-                return ("Weekly", "W")
-            if time_interval_days > 5:
-                return ("Daily", "D")
-            if time_interval_days > 0.5:
-                return ("Hourly", "H")
-            return ("Per Minute", "T")
+                return ("Weekly", pd.offsets.Week(weekday=6))
+            if time_interval_days > 5.0:
+                return ("Daily", pd.offsets.Day())
+
+            intervals = dates.to_series().diff().dropna()
+            intervals = intervals[intervals > pd.Timedelta(0)]
+            median_interval = intervals.median() if not intervals.empty else pd.Timedelta(0)
+            local_dates = dates.date
+            local_dates_advance = any(
+                current > previous for previous, current in zip(local_dates, local_dates[1:])
+            )
+            local_times = dates.strftime("%H:%M:%S.%f")
+            same_local_time = len(set(local_times)) == 1
+            if local_dates_advance and (
+                same_local_time or median_interval >= pd.Timedelta(hours=20)
+            ):
+                return ("Daily", pd.offsets.Day())
+            if median_interval >= pd.Timedelta(hours=1):
+                return ("Hourly", pd.offsets.Hour())
+            return ("Per Minute", pd.offsets.Minute())
         except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.warning("Failed to determine periodicity: %s", e)
-            return ("Daily", "D")
+            return ("Daily", pd.offsets.Day())
 
     def save_to_file(self, fig, filename, format="png"):
         """Save chart to file.
