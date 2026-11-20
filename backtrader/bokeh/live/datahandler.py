@@ -177,7 +177,7 @@ class LiveDataHandler:
         if hasattr(fp, "get_cds_streamdata_from_df") and hasattr(fp, "cds"):
             data = fp.get_cds_streamdata_from_df(update_df)
             if data:
-                _logger.debug(f"Streaming data to figurepage: {len(data)} columns")
+                _logger.debug("Streaming data to figurepage: %s columns", len(data))
                 fp.cds.stream(data, stream_length)
 
         # Push to each figure
@@ -206,7 +206,7 @@ class LiveDataHandler:
             if hasattr(fp, "get_cds_patchdata_from_series") and hasattr(fp, "cds"):
                 p_data, s_data = fp.get_cds_patchdata_from_series(patch)
                 if len(p_data) > 0:
-                    _logger.debug(f"Patching figurepage: {len(p_data)} fields")
+                    _logger.debug("Patching figurepage: %s fields", len(p_data))
                     fp.cds.patch(p_data)
                 if len(s_data) > 0:
                     fp.cds.stream(s_data, self._get_data_stream_length())

@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 22 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 12 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 13 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **157** |
+| | **合计** | **207** | **158** |
 
 ---
 
@@ -270,7 +270,7 @@
 - [ ] **R72-STR-03 + N72-18** `[P3]` 全仓 Mypy 静态类型断层 — 核心数据线动态 Line 机制导致检查器无法识别属性；本机 mypy 1.14.1 实测 **559 errors in 75 files**（迭代 72 记 471/1.19.1，不可直接比较），全仓无 `.pyi` 存根 → 引入 `.pyi` 存根或在 `pyproject.toml` 配精细化忽略，逐步提升核心模块类型严谨度；**验收基线必须固定工具版本+配置+数字**。
 - [ ] **N72-18** `[P2]` `pyproject.toml:21-46` — 合并后验收基线固定工具版本三元组；不要在计划里直接引用 471 作为门禁值。CONFIRMED(实跑)。
 - [ ] **R71-116** `[P3]` `research/alpha101/alpha062.py:42-50` 等 — 重复构造相同节点/无操作 `Multiply(x, 1.0)`（alpha062 两个 `CrossSectionalRank(open)`，alpha046/049/051 两个相同 `close_delay10`）→ 复用首个节点，去掉 `*1.0`。
-- [ ] **R71-065** `[P3]` `bokeh/live/datahandler.py:153` — 热路径 debug 日志用 eager f-string，DEBUG 关闭时仍格式化 → 改 lazy `%s` 参数。
+- [x] **R71-065** `[P3]` `bokeh/live/datahandler.py:153` — 热路径 debug 日志用 eager f-string，DEBUG 关闭时仍格式化 → 改 lazy `%s` 参数。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（两处流式 DEBUG 日志改为惰性插值，保留长度求值与输出；13 项相关回归通过）。
 - [x] **R71-067** `[P3]` `_cerebro/presentation.py:84` — `if backend == "plotly"` 整块死代码（`has_txn` 计算后未用，`if not has_txn: pass` 无效果）→ 删除或实现原意。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（移除只计算局部值后 pass 的 Plotly 分支，绘图器自己的 Transactions/broker 回退保留；22 项相关回归通过）。
 - [ ] **R71-068** `[P3]` `_cerebro/channel.py:349` — 日志 `"channel:297 suppressed bare"` 是重构残留、行号失效 → 改为说明 `StrategySkipError` 的可诊断日志。
 - [x] **R71-069** `[P3]` `indicators/__init__.py:144` — 注释引用不存在的 `_register_common_moving_averages` → 删除注释块。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 子进程验证**（删除引用不存在函数的过期注释；完整及轻量导入的 SMA/EMA 注册别名验证通过）。
