@@ -2242,6 +2242,15 @@ class RollingCovariance(_RollingPair):
             normalized_left, left_scales = centered_left
             normalized_right, right_scales = centered_right
             covariance = math.fsum(a * b for a, b in zip(normalized_left, normalized_right))
+            # Use the dimensionless residual only to select cancellation cases;
+            # exact binary64 input math decides whether a candidate is zero.
+            normalized_covariance = covariance / count
+            if (
+                normalized_covariance != 0.0
+                and abs(normalized_covariance) <= 8.0 * _FLOAT64_EPSILON
+                and _exact_binary_covariance_is_zero(left, right)
+            ):
+                return 0.0
             return _stable_product([covariance, 1.0 / count] + left_scales + right_scales)
 
         return _guarded_result(calculate)

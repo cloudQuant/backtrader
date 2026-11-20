@@ -1,6 +1,7 @@
 """Regression contracts for stable near-zero rolling correlation and covariance."""
 
 import math
+import sys
 from decimal import Decimal, localcontext
 from fractions import Fraction
 
@@ -218,8 +219,8 @@ def test_alpha015_preserves_nonzero_binary64_correlations_near_zero(runonce):
             left = [high_rows[bar][asset] for bar in range(end - 2, end + 1)]
             right = [volume_rows[bar][asset] for bar in range(end - 2, end + 1)]
             correlations.append(_exact_correlation(left, right))
-        assert 0.0 < abs(correlations[0]) <= 8.0 * math.ulp(1.0)
-        assert 0.0 < abs(correlations[1]) <= 8.0 * math.ulp(1.0)
+        assert 0.0 < abs(correlations[0]) <= 8.0 * sys.float_info.epsilon
+        assert 0.0 < abs(correlations[1]) <= 8.0 * sys.float_info.epsilon
         ranked_correlations.append(_average_rank(correlations))
     expected = tuple(
         -sum(ranked_correlations[time][asset] for time in range(3))
@@ -242,14 +243,14 @@ def test_near_constant_finite_variance_and_nan_windows_keep_their_reasons(runonc
             "above-snap",
             _frame_with_initial_nan(
                 [-1.0, 0.0, 1.0],
-                [1.0, -2.0, 1.0 + 32.0 * math.ulp(1.0)],
+                [1.0, -2.0, 1.0 + 32.0 * sys.float_info.epsilon],
             ),
         ),
         (
             "nonzero-below-snap",
             _frame_with_initial_nan(
                 [-1.0, 0.0, 1.0],
-                [1.0, -2.0, 1.0 + math.ulp(1.0)],
+                [1.0, -2.0, 1.0 + sys.float_info.epsilon],
             ),
         ),
     ]
@@ -284,11 +285,14 @@ def test_near_constant_finite_variance_and_nan_windows_keep_their_reasons(runonc
     assert missing_value == pytest.approx(1.0, abs=5e-16)
     assert missing_reason == OperatorReason.READY
     above_value, above_reason = result.rows[-1][3]
-    assert above_value > 8.0 * math.ulp(1.0)
+    assert above_value > 8.0 * sys.float_info.epsilon
     assert above_reason == OperatorReason.READY
     small_value, small_reason = result.rows[-1][4]
-    assert 0.0 < small_value <= 8.0 * math.ulp(1.0)
-    assert _exact_population_covariance(
-        [-1.0, 0.0, 1.0], [1.0, -2.0, 1.0 + math.ulp(1.0)]
-    ) != 0.0
+    assert 0.0 < small_value <= 8.0 * sys.float_info.epsilon
+    assert (
+        _exact_population_covariance(
+            [-1.0, 0.0, 1.0], [1.0, -2.0, 1.0 + sys.float_info.epsilon]
+        )
+        != 0.0
+    )
     assert small_reason == OperatorReason.READY
