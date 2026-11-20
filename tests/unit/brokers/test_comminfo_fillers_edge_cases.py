@@ -48,10 +48,9 @@ class TestComminfoDCCreditInterest:
 
         # With .seconds bug: gap_seconds = 43200 (only 12h component), days = 0.5
         # With .total_seconds() fix: gap_seconds = 216000 (2.5 days), days = 2.5
-        # ComminfoDC formula for size<0: days * creditrate * position_value
-        # position_value = size * price * mult (negative for short)
+        # Interest is a positive cost based on the absolute position value.
         expected_days = 2.5
-        position_value = -10 * 100.0 * 1.0  # -1000.0
+        position_value = 10 * 100.0 * 1.0
         expected = expected_days * (3.0 / 365.0) * position_value
         assert abs(interest - expected) < 1e-6, (
             f"Interest {interest} != expected {expected}; "
@@ -79,7 +78,7 @@ class TestComminfoDCCreditInterest:
         interest = comm.get_credit_interest(data, pos, dt_now)
 
         expected_days = 6.0 / 24.0  # 0.25 days
-        position_value = -5 * 200.0 * 1.0  # -1000.0
+        position_value = 5 * 200.0 * 1.0
         expected = expected_days * (3.0 / 365.0) * position_value
         assert abs(interest - expected) < 1e-6
 

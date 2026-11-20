@@ -456,7 +456,7 @@ class ComminfoDC(CommInfoBase):
         if size > 0 and position_value <= total_value:
             return 0
         if size < 0:
-            return days * self._creditrate * position_value
+            return days * self._creditrate * abs(position_value)
         return 0
 
 
