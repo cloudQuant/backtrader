@@ -374,7 +374,7 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
       - https://en.wikipedia.org/wiki/Average_directional_movement_index
     """
 
-    alias = (("PlusDI", "+DI"),)
+    alias = ("PlusDI", "+DI")
     lines = ("plusDI",)
 
     plotinfo = {"plotname": "+DirectionalIndicator"}
@@ -500,7 +500,7 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
       - https://en.wikipedia.org/wiki/Average_directional_movement_index
     """
 
-    alias = (("MinusDI", "-DI"),)
+    alias = ("MinusDI", "-DI")
     lines = ("minusDI",)
 
     plotinfo = {"plotname": "-DirectionalIndicator"}
