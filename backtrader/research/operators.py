@@ -1817,6 +1817,33 @@ def _centered_unit_deviations(
     return unit, scale_factors
 
 
+def _exact_binary_covariance_is_zero(left: Sequence[float], right: Sequence[float]) -> bool:
+    """Check a cancellation candidate against the exact binary64 inputs.
+
+    Float denominators are powers of two, so each window can be represented by
+    integers on a common dyadic scale. The population covariance is zero exactly
+    iff ``n * sum(x*y) - sum(x) * sum(y)`` is zero; common denominators cancel.
+    """
+    left_ratios = [value.as_integer_ratio() for value in left]
+    right_ratios = [value.as_integer_ratio() for value in right]
+    left_exponent = max(denominator.bit_length() - 1 for _, denominator in left_ratios)
+    right_exponent = max(denominator.bit_length() - 1 for _, denominator in right_ratios)
+    left_integers = [
+        numerator << (left_exponent - (denominator.bit_length() - 1))
+        for numerator, denominator in left_ratios
+    ]
+    right_integers = [
+        numerator << (right_exponent - (denominator.bit_length() - 1))
+        for numerator, denominator in right_ratios
+    ]
+    count = len(left_integers)
+    return (
+        count * sum(x * y for x, y in zip(left_integers, right_integers))
+        - sum(left_integers) * sum(right_integers)
+        == 0
+    )
+
+
 class RollingCovariance(_RollingPair):
     """Population covariance (ddof=0); a one-value window is zero.
 
@@ -1878,6 +1905,12 @@ def _correlation_window_result(
             if correlation >= -1.0 - 4.0 * _FLOAT64_EPSILON:
                 return -1.0
             raise ValueError("correlation result is outside its mathematical domain")
+        if (
+            correlation != 0.0
+            and abs(correlation) <= 8.0 * _FLOAT64_EPSILON
+            and _exact_binary_covariance_is_zero(left, right)
+        ):
+            return 0.0
         return correlation
 
     try:
