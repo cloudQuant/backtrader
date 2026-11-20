@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 12 |
+| 9 | P2 其余正确性 / 清理 | 36 | 13 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **132** |
+| | **合计** | **207** | **133** |
 
 ---
 
@@ -232,7 +232,7 @@
 - [x] **R71-091** `[P2]` `strategy.py:2099` — `_stop` 把策略最大/主时钟时间写到**所有** data feed 的 `datetime[0]`，多时间框架下慢速 feed 被改到未来时间 → 只恢复策略线和时钟 feed。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（stop 保留策略聚合时间但不改写各 Feed 时间，快慢 Feed 顺序及 runonce/runnext 真实回归覆盖；17 项相关测试及独立静态复审通过）。
 - [ ] **R71-092** `[P2]` `_cerebro/execution.py:153` — 启动失败时每个已成功停止且带 observer 的策略都被追加 "observer cleanup outcome is unobservable" 假 incomplete → 仅在 observer 捕获不可用时记录。
 - [x] **R71-093** `[P2]` `_cerebro/channel.py:245` — `_run_channel` 永久设置 `self.p.quicknotify = True`，复用同一 Cerebro 做普通运行时通知时序被静默改变 → 保存/恢复原值或用局部标志。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（channel 临时启用 quicknotify 后恢复 run 的有效参数；外部无 data 策略保留会话内即时通知。37 项相关回归及独立静态复审通过；setup 异常的既有资源清理另项处理）。
-- [ ] **R71-094** `[P2]` `_cerebro/execution.py:406` — 日志 `"execution:122 suppressed bare"` 为重构残留，隐藏 `StrategySkipError` 原因 → 记录策略类与 skip 原因。
+- [x] **R71-094** `[P2]` `_cerebro/execution.py:406` — 日志 `"execution:122 suppressed bare"` 为重构残留，隐藏 `StrategySkipError` 原因 → 记录策略类与 skip 原因。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（skip 日志记录有界策略类标识和固定原因，不输出异常消息；21 项相关回归含特殊字符/元类专项，独立静态复审通过）。
 - [x] **R71-098** `[P2]` `filters/renko.py:155-158` — 下跌 Renko brick 写 `low=top`、`high=bot`，产生 `high < low`，污染 ATR/TrueRange/Stochastic → 交换为 `high=top`、`low=bot`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（修复下跌砖 high/low，保留方向与砖边界；上下砖、反转及连续多砖相关 5 项回归和独立静态复审通过。未覆盖 hilo 模式或单根源 bar 拆多砖）。
 - [x] **R71-099** `[P2]` `lineseries.py:2408-2564` — 导入时 `_patch_strategy_clk_update()` 用忽略 `_single_clock_data`、返回 `len(self)` 的简化版替换 `Strategy._clk_update`；当前因 `strategy` 尚未导入未生效，属潜伏 monkey-patch → 删除导入时 patch，保留 `strategy.py:1455` 真实实现。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+子进程**（移除 lineseries 模块尾自动时钟 patch，保留显式 helper；default/light 新进程及相关时钟回归 42 项、独立静态复审通过；其他模块 patch 未改）。
 - [ ] **R71-112** `[P2]` `strategies/factor_strategy.py:422-436`；`factor_indicator.py:433` — `prenext` 在声明 `lookback_h` 之前发布部分公式值，`_window_is_complete` 只查尾部 presence；alpha7 预热 47 根输出 -1.0、alpha1 第 21-23 行 0.5（oracle 为 NaN）→ 按 `cursor < spec.lookback_h` 掩码/跳过或 `prenext` 写 NaN。PLAUSIBLE(panel values verified; downstream not run)。

@@ -30,6 +30,24 @@ def _record_startup_attempt(phase, component):
         startup_attempts[phase].append(component)
 
 
+def _safe_strategy_identity(strategy_class):
+    """Return a bounded class identity without invoking user formatting hooks."""
+    try:
+        module = type.__getattribute__(strategy_class, "__module__")
+        name = type.__getattribute__(strategy_class, "__qualname__")
+    except (AttributeError, TypeError):
+        return "unknown"
+
+    if type(module) is not str or type(name) is not str:
+        return "unknown"
+
+    identity = "{}.{}".format(module, name)
+    identity = "".join(
+        char if char.isalnum() or char in "._" else "_" for char in identity
+    )
+    return identity[:160] or "unknown"
+
+
 class ExecutionMixin:
     """Run orchestration half of Cerebro (see module docstring)."""
 
@@ -403,7 +421,13 @@ class ExecutionMixin:
                             # Fallback to direct instantiation
                             strat = stratcls(*sargs, **skwargs)
                 except errors.StrategySkipError:
-                    logger.warning("execution:122 suppressed bare")
+                    # The exception message is user supplied and may contain
+                    # private strategy inputs; record only a finite reason and
+                    # a bounded class identity.
+                    logger.warning(
+                        "strategy skipped during construction: strategy=%s reason=StrategySkipError",
+                        _safe_strategy_identity(stratcls),
+                    )
                     continue  # do not add strategy to the mix
                 # Old data synchronization method
                 if self.p.oldsync:
