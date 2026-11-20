@@ -242,11 +242,9 @@ class AverageTrueRange(Indicator):
         period = self.p.period
         tr_sum = 0.0
         for i in range(period):
-            if i == 0:
-                tr = self.data.high[-i] - self.data.low[-i]
-            else:
-                tr = self._calc_tr(self.data.high[-i], self.data.low[-i], self.data.close[-i - 1])
-            tr_sum += tr
+            tr_sum += self._calc_tr(
+                self.data.high[-i], self.data.low[-i], self.data.close[-i - 1]
+            )
         self.lines.atr[0] = tr_sum / period
 
     def next(self):
