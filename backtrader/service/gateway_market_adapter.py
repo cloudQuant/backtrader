@@ -19,6 +19,50 @@ from bt_api_py.gateway_market_projection import (
 # retired once finished). Never terminal for this adapter.
 _TRANSIENT_OWNER_CODES = ("OWNER_TIMEOUT_QUEUED", "OWNER_TIMEOUT_RUNNING", "OWNER_OPERATION_PENDING")
 
+
+def _session_generation(store):
+    """Read the local Store session generation, or return no release proof."""
+    try:
+        generation = store.gateway_session_generation
+    except Exception:
+        return None
+    return generation if type(generation) is int and generation >= 0 else None
+
+
+def _new_session_proves_cursor_isolation(store, tombstone, api):
+    """A successful Store reconnect gives a new local client and cursor owner.
+
+    This proves local session separation only. The old Gateway-side unsubscribe
+    may still be uncertain and is governed by its registration lease.
+    """
+    if type(tombstone) is not tuple or len(tombstone) != 3 or tombstone[2] is not True:
+        return False
+    old_api_id, old_generation, terminal = tombstone
+    try:
+        current_api = store.gateway_api
+        generation = store.gateway_session_generation
+        connected = store.is_connected is True
+        final_api = store.gateway_api
+        final_generation = store.gateway_session_generation
+    except Exception:
+        return False
+    return (
+        terminal is True
+        and type(old_api_id) is int
+        and type(old_generation) is int
+        and old_generation >= 0
+        and type(generation) is int
+        and generation is not None
+        and generation > old_generation
+        and api is not None
+        and current_api is api
+        and id(api) != old_api_id
+        and connected
+        and final_api is api
+        and type(final_generation) is int
+        and final_generation == generation
+    )
+
 class GatewayMarketAdapter:
     """Own a single feed cursor; never create a provider or a market source."""
 
@@ -40,10 +84,17 @@ class GatewayMarketAdapter:
             raise ValueError("GATEWAY_MARKET_INSTRUMENT_MISMATCH")
         if type(timeout_seconds) not in (int, float) or not math.isfinite(timeout_seconds):
             raise ValueError("GATEWAY_MARKET_TIMEOUT_INVALID")
+        if feed is None:
+            raise ValueError("GATEWAY_MARKET_FEED_REQUIRED")
         claims = store.__dict__.setdefault("_gateway_market_feed_claims", {})
         self._claim_lock = store.__dict__.setdefault("_gateway_market_feed_claim_lock", threading.Lock())
-        self._claims, self._name, self._feed = claims, name, feed
+        tombstones = store.__dict__.setdefault("_gateway_market_feed_claim_tombstones", {})
+        self._claims, self._claim_tombstones, self._name, self._feed = claims, tombstones, name, feed
         self._store, self._api, self._key = store, store.gateway_api, setting.key
+        self._session_generation = _session_generation(store)
+        self._lifecycle_lock = threading.RLock()
+        self._closing = False
+        self._closed = False
         self._reason = "STARTING"
         self._backoff = (0, 1, 2, 5, 10, 30)
         self._attempt = 0
@@ -113,11 +164,43 @@ class GatewayMarketAdapter:
                 self._projector._client, self._clock_verifier,
                 allow_stale_event_time=allow_stale, **self._qualifier_options)
         with self._claim_lock:
-            if name in claims and claims[name] is not feed:
+            existing = claims.get(name)
+            if existing is not None:
+                # The SDK facade shares one consumer and cursor per
+                # subscription. Even the same Feed object must never be
+                # backed by two adapters with independent local sequence
+                # state.
                 raise ValueError("GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED")
-            claims[name] = feed
+            if name in claims or name in tombstones:
+                if not _new_session_proves_cursor_isolation(
+                    store, tombstones.get(name), self._api
+                ):
+                    raise ValueError("GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED")
+                claims.pop(name, None)
+                tombstones.pop(name, None)
+            claims[name] = self
+
+    def _owns_claim(self):
+        with self._claim_lock:
+            current = self._store.__dict__.get("_gateway_market_feed_claims")
+            return current is self._claims and current.get(self._name) is self
+
+    def _mark_claim_lost(self):
+        self._last_event = self._last_receipt = None
+        self._latest_event = self._latest_receipt = None
+        self._pending_operation = None
+        self._reason = "GATEWAY_MARKET_SUBSCRIPTION_CLAIM_LOST"
 
     def start(self):
+        with self._lifecycle_lock:
+            if self._closing or self._closed:
+                raise RuntimeError("GATEWAY_MARKET_ADAPTER_CLOSED")
+            if not self._owns_claim():
+                self._mark_claim_lost()
+                raise RuntimeError("GATEWAY_MARKET_SUBSCRIPTION_CLAIM_LOST")
+            return self._start_open()
+
+    def _start_open(self):
         if self._clock_owned and not self._clock_started:
             self._clock_verifier.start_background_refresh(self._clock_interval)
             self._clock_started = True
@@ -195,10 +278,16 @@ class GatewayMarketAdapter:
         is carried over and the feed is not tradable until fresh real-time
         ticks arrive (the feed reports DELAYED, then LIVE again).
         """
+        if self._closing or self._closed or not self._owns_claim():
+            return False
         store = self._store
         if not store.is_connected:
             return False
         api = store.gateway_api
+        generation = _session_generation(store)
+        if (self._session_generation is not None
+                and (generation is None or generation <= self._session_generation)):
+            return False
         config = store.gateway_strategy_config
         try:
             client = api.market_subscription(config.exchange_name, self._name)
@@ -213,12 +302,29 @@ class GatewayMarketAdapter:
                                                        **self._qualifier_options)
         except Exception:
             return False
+        if (store.gateway_api is not api
+                or _session_generation(store) != generation
+                or not store.is_connected):
+            return False
         self._api, self._projector, self._qualifier = api, projector, qualifier
+        self._session_generation = generation
         self._reason, self._pending_operation = "STARTING", "start"
         self._attempt, self._next_retry = 0, 0.0
         return True
 
     def poll(self):
+        with self._lifecycle_lock:
+            if self._closing or self._closed:
+                self._last_event = self._last_receipt = None
+                self._latest_event = self._latest_receipt = None
+                self._reason = "GATEWAY_MARKET_ADAPTER_CLOSED"
+                return None
+            if not self._owns_claim():
+                self._mark_claim_lost()
+                return None
+            return self._poll_open()
+
+    def _poll_open(self):
         self._last_event = self._last_receipt = None
         if self._store.gateway_api is not self._api:
             self._latest_event = self._latest_receipt = None
@@ -273,40 +379,70 @@ class GatewayMarketAdapter:
 
     def receipt_for(self, event):
         """Return the SDK's exact receipt only for the just-delivered event."""
-        if event is not self._last_event:
-            return None
-        return self._last_receipt
+        with self._lifecycle_lock:
+            if self._closing or self._closed:
+                return None
+            owns_claim = self._owns_claim()
+            if not owns_claim:
+                self._mark_claim_lost()
+                return None
+            if event is not self._last_event:
+                return None
+            return self._last_receipt
 
     def latest_realtime(self):
         """The latest real-time delivery pair; not itself trading authority."""
-        if self._reason is not None:
-            return None
-        if self._latest_event is None or self._latest_receipt is None:
-            return None
-        return self._latest_event, self._latest_receipt
+        with self._lifecycle_lock:
+            if self._closing or self._closed:
+                return None
+            owns_claim = self._owns_claim()
+            if not owns_claim:
+                self._mark_claim_lost()
+                return None
+            if self._reason is not None:
+                return None
+            if self._latest_event is None or self._latest_receipt is None:
+                return None
+            return self._latest_event, self._latest_receipt
 
     def matches(self, store, feed, instrument):
         """Check the exact Store, Feed, subscription and complete instrument."""
         from bt_api_base.market_protocol import MarketInstrumentKey
 
-        if type(instrument) is not MarketInstrumentKey:
-            return False
-        if store is not self._store or feed is not self._feed or instrument != self._key.instrument:
-            return False
-        try:
-            with self._claim_lock:
-                claimed = self._claims.get(self._name) is feed
-            config = store.gateway_strategy_config
-            selected = config.market_settings.subscriptions[self._name]
-            return bool(claimed and store.gateway_api is self._api
-                        and selected.key == self._key
-                        and self._api.market_subscription(config.exchange_name, self._name)
-                        is self._projector._client)
-        except (AttributeError, KeyError, TypeError, RuntimeError, ValueError):
-            return False
+        with self._lifecycle_lock:
+            if self._closed:
+                return False
+            if type(instrument) is not MarketInstrumentKey:
+                return False
+            if store is not self._store or feed is not self._feed or instrument != self._key.instrument:
+                return False
+            try:
+                claimed = self._owns_claim()
+                if self._closed:
+                    return False
+                if not claimed:
+                    self._mark_claim_lost()
+                    return False
+                config = store.gateway_strategy_config
+                selected = config.market_settings.subscriptions[self._name]
+                return bool(claimed and store.gateway_api is self._api
+                            and selected.key == self._key
+                            and self._api.market_subscription(config.exchange_name, self._name)
+                            is self._projector._client)
+            except (AttributeError, KeyError, TypeError, RuntimeError, ValueError):
+                return False
 
     def qualify_latest(self):
         """Run authenticated clock checks only at the order boundary."""
+        with self._lifecycle_lock:
+            if self._closing or self._closed:
+                return None
+            if not self._owns_claim():
+                self._mark_claim_lost()
+                return None
+            return self._qualify_latest_open()
+
+    def _qualify_latest_open(self):
         from bt_api_py.clock_verification import GatewayTradeClockQualification
         from bt_api_py.service_market import MarketReceiveReceipt
 
@@ -341,15 +477,32 @@ class GatewayMarketAdapter:
         except Exception:
             return None
     def close(self):
+        with self._lifecycle_lock:
+            if self._closed:
+                return None
+            self._closing = True
+            return self._close_open()
+
+    def _close_open(self):
         self._last_event = self._last_receipt = None
         self._latest_event = self._latest_receipt = None
+        self._pending_operation = None
         if self._clock_owned and self._clock_started:
             if not self._clock_verifier.stop_background_refresh(timeout_seconds=5):
                 raise RuntimeError("GATEWAY_CLOCK_SHUTDOWN_PENDING")
             self._clock_started = False
         with self._claim_lock:
-            if self._claims.get(self._name) is self._feed:
+            self._closed = True
+            self._reason = "GATEWAY_MARKET_ADAPTER_CLOSED"
+            current = self._store.__dict__.get("_gateway_market_feed_claims")
+            if current is self._claims and current.get(self._name) is self:
                 # The SDK proxy has no per-subscription close/unsubscribe yet.
-                # Prevent reuse of a stale bootstrap cursor; session shutdown
-                # remains the owner of unsubscription.
+                # Retain a tombstone in this session. A later Store reconnect
+                # may replace it only after the Store reports a new, healthy
+                # session generation and API identity. This proves local cursor
+                # isolation, not remote unsubscribe completion; the SDK's
+                # registration lease remains authoritative for that outcome.
                 self._claims[self._name] = None
+                self._claim_tombstones[self._name] = (
+                    id(self._api), self._session_generation, self._closed
+                )
