@@ -71,12 +71,8 @@ class TimeFrame:
         Returns:
             str: Name of the timeframe (singular or plural).
         """
-        # The default parameter setting for compression is not actually reasonable here,
-        # if the default parameter is passed directly, an error will occur in the comparison below
-        # Modify the default parameter to 1 or add judgment for compression,
-        # I feel changing it to 1 might be more appropriate
-        # @classmethod
-        # def getname(cls, tframe, compression=1):
+        if compression is None:
+            compression = 1
         tname = cls.Names[tframe]
         if compression > 1 or tname == cls.Names[-1]:
             return tname  # for plural or 'NoTimeFrame' return plain entry
