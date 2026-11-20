@@ -13,6 +13,8 @@ Functions:
     sharpe_ratio_defacto: Defacto Sharpe ratio calculation.
 """
 
+import math
+
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
@@ -377,6 +379,8 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
 
     if m is None:
         m = trials_returns.shape[1]
+        if m <= 0:
+            raise ValueError("num_independent_trials requires m > 0")
 
     if p is None:
         p = _average_upper_triangle_correlation(trials_returns)
@@ -395,7 +399,7 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
 
     n = p + (1 - p) * m
 
-    n = int(n) + 1  # round up
+    n = min(m, max(1, math.ceil(n)))
 
     return n
 

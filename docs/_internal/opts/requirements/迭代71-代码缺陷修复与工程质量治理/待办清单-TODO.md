@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 12 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 13 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **88** |
+| | **合计** | **207** | **89** |
 
 ---
 
@@ -165,7 +165,7 @@
 - [x] **R71-125** `[P2]` `notifications/core.py:721-732` — dedup 时间戳在 `runtime.enqueue` **之前**记录；队列满丢弃后同 `dedup_key` 在冷却期内重试被报 `deduped`，永不投递 → enqueue 成功后再记 dedup 或 dropped 时回滚。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控队列**（只在消息准入成功后提交去重键，告警/统计在锁外执行；队列满、并发重试、重入及入队后辅助失败等相关回归 27 项通过，独立源码复核无阻断；未发送外部通知）。
 - [x] **R71-126** `[P2]` `notifications/channels.py:442-445` 等 — `parse_json` 对非 JSON body 返回 `{}`，DingTalk/WeCom/Bark/QQ 把缺失 `errcode/code` 默认 0，HTTP 200 HTML/代理页被误判 delivered → 非对象/空 body 视为 `bad_request`，要求渠道显式成功字段。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控 HTTP**（DingTalk、WeCom、Feishu、Bark 和 QQ 按各自明确成功字段判定；空体、非对象或错误页不再当成功。专项及邻接回归 110 项通过，独立源码和公开接口合同复核无阻断；未发外部通知，QQ 当前主动发送可用性未验收）。
 - [x] **R71-165** `[P2]` `analyzers/annualreturn.py:206-229` — `MyAnnualReturn` 第一年恒 0.0：`pre_value=value.shift(1)` 首年无前值被转 0.0；2020-H1–2021 报 2020 持平而 `AnnualReturn` 报 1.17% → 首年用首个 value/初始资金。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（首年以首个观察权益为基数，后续年度以前一年末为基数；真实 Cerebro 两模式及更新后的既有回归共 9 项通过，独立源码复核无阻断）。
-- [ ] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。
+- [x] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（有效独立试验数向上取整并限制在有效范围，零列输入明确拒绝；专项和既有分析器回归 98 项通过，独立源码复核无阻断）。
 - [ ] **R71-167** `[P2]` `analyzers/pyfolio.py:414` — `ALPHA` 把日均 active return 复利 252 天而非回归 intercept 线性年化，10bp/day 报 ~28.6% 而非 ~25.2% → `mean(active)*252`。PLAUSIBLE。
 - [ ] **R71-168** `[P2]` `reports/performance.py:267-271` — `avg_trade_duration` 恒 `None`：`TradeAnalyzer` 存 `len.average`，代码找 `len.total.average`，`isinstance(...,dict)` 永不成立 → 直接读 `len_info.get("average")`。CONFIRMED(runtime)。
 - [ ] **R71-169** `[P2]` `reports/performance.py:190-196` — Calmar 用 `abs(...)`，亏损策略得到正 ratio（年收益 -7.59%/max DD 1.78% 报 4.27）→ 去 abs 或另设 magnitude 指标；**先确认产品定义，现有单测固化了 abs**。CONFIRMED(runtime)。
