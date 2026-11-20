@@ -51,6 +51,7 @@ import array
 import functools
 import math
 import operator
+import types
 from collections import deque
 
 from ..utils.log_message import get_logger
@@ -59,6 +60,7 @@ from . import Indicator
 
 logger = get_logger(__name__)
 _MIN_PERIOD_FOR_MONOTONIC_ONCE = 32
+_MIN_PERIOD_FOR_MONOTONIC_INDEX_ONCE = 32
 
 
 def _once_monotonic_extreme(src, dst, start, end, period, choose_max):
@@ -120,6 +122,57 @@ def _once_monotonic_extreme(src, dst, start, end, period, choose_max):
             # A complete non-NaN-first window always has a candidate. Keep a
             # safe fallback for malformed/nonstandard array contents.
             dst[index] = nan
+
+
+def _once_monotonic_index(src, dst, start, end, period, choose_max, choose_latest):
+    """Calculate rolling built-in extremum indexes with a monotonic deque."""
+    nan = float("nan")
+    while len(dst) < end:
+        dst.append(nan)
+
+    if start >= end:
+        return
+
+    candidates = deque()
+
+    def add(index):
+        value = src[index]
+        if value != value:  # NaNs after the window's first value are ignored
+            return
+
+        while candidates:
+            previous = src[candidates[-1]]
+            is_better = value > previous if choose_max else value < previous
+            if is_better or (choose_latest and value == previous):
+                candidates.pop()
+            else:
+                break
+        candidates.append(index)
+
+    seed_start = max(0, start - period + 1)
+    for index in range(seed_start, min(start, len(src))):
+        add(index)
+
+    for index in range(start, end):
+        if index >= len(src):
+            dst[index] = nan
+            continue
+
+        add(index)
+        left = index - period + 1
+        while candidates and candidates[0] < left:
+            candidates.popleft()
+
+        if index < period - 1:
+            dst[index] = nan
+        elif src[left] != src[left]:
+            # Match the built-in max/min followed by equality search: when
+            # the left edge is NaN, no element compares equal to the result.
+            raise StopIteration
+        elif candidates:
+            dst[index] = float(index - candidates[0])
+        else:
+            raise StopIteration
 
 
 class PeriodN(Indicator):
@@ -191,6 +244,75 @@ class OperationN(PeriodN):
                 choose_max = True
             elif type(self) is Lowest and func is min:
                 choose_max = False
+
+            index_choice = None
+            choose_latest = None
+            index_func = None
+            if type(func) is types.MethodType and func.__self__ is self:
+                index_func = func.__func__
+
+            if (
+                type(self) is FindFirstIndexHighest
+                and index_func is FindFirstIndex.func
+                and self.p._evalfunc is max
+            ):
+                index_choice = True
+                choose_latest = True
+            elif (
+                type(self) is FindFirstIndexLowest
+                and index_func is FindFirstIndex.func
+                and self.p._evalfunc is min
+            ):
+                index_choice = False
+                choose_latest = True
+            elif (
+                type(self) is FindLastIndexHighest
+                and index_func is FindLastIndex.func
+                and self.p._evalfunc is max
+            ):
+                index_choice = True
+                choose_latest = False
+            elif (
+                type(self) is FindLastIndexLowest
+                and index_func is FindLastIndex.func
+                and self.p._evalfunc is min
+            ):
+                index_choice = False
+                choose_latest = False
+
+            if (
+                index_choice is not None
+                and type(period) is int
+                and period >= _MIN_PERIOD_FOR_MONOTONIC_INDEX_ONCE
+                and type(start) is int
+                and type(end) is int
+                and start >= 0
+                and end >= 0
+                and type(src) is array.array
+                and src.typecode == "d"
+                and type(dst) is array.array
+                and dst.typecode == "d"
+            ):
+                # The generic path's NaN-left behavior includes a StopIteration
+                # fallback. Skip the fast path for any affected window so that
+                # existing per-mode exception/fallback behavior stays intact.
+                first_current = max(start, period - 1)
+                last_current = min(end, len(src))
+                has_nan_left = any(
+                    src[current - period + 1] != src[current - period + 1]
+                    for current in range(first_current, last_current)
+                )
+                if not has_nan_left:
+                    _once_monotonic_index(
+                        src,
+                        dst,
+                        start,
+                        end,
+                        period,
+                        index_choice,
+                        choose_latest,
+                    )
+                    return
 
             # Only the concrete built-ins over the standard double arrays have
             # the ordering contract implemented by the monotonic deque. Keep
