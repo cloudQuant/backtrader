@@ -12,7 +12,7 @@ import weakref
 from collections.abc import Mapping, MutableMapping, MutableSet
 from copy import copy, deepcopy
 from decimal import Decimal
-from typing import Any, DefaultDict, Dict, List, Optional
+from typing import Any, DefaultDict, Dict, List as List, Optional
 
 from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
@@ -27,11 +27,16 @@ from ._btapi_gateway_stream import GatewayExecutionStreamBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
-from ..order import BuyOrder, OrderBase, OrderExecutionBit, SellOrder
+from ..order import (
+    BuyOrder,
+    OrderBase,
+    OrderExecutionBit as OrderExecutionBit,
+    SellOrder,
+)
 from ..position import (
     Position,
     POSITION_MODE_DUAL_SIDE,
-    infer_position_side,
+    infer_position_side as infer_position_side,
     normalize_order_position_meta,
     normalize_position_mode,
     normalize_position_offset,
@@ -443,17 +448,17 @@ class BtApiBroker(
                 self._market_gateway_cleanup_pending = True
             self.store.start(broker=self)
             self._live_started = True
-            return
+            return None
 
         if self._direct_active():
-            return
+            return None
         if self._direct_selected():
             # Iteration 62 direct mode: no execution component (see
             # ``_btapi_direct_mode``); live_state reconciliation gates writes.
             return self._direct_start()
 
         if self._live_started and self._startup_ready and self.store.is_connected:
-            return
+            return None
 
         is_service_read_only = bool(getattr(self.store, "_service_read_only", False))
         if not self.supports_position_mode(self.get_param("position_mode")):
@@ -1042,7 +1047,7 @@ class BtApiBroker(
             raise RuntimeError("service execution session must attach before startup")
         session._bind_broker(self)
         self._service_execution_session = session
-        return None
+        return
 
     def attach_managed_runtime_session(self, session):
         """Attach the generic SDK host before Store/Broker startup."""
@@ -1087,7 +1092,7 @@ class BtApiBroker(
             session.broker_binding_failed(self, error)
             raise
         self._managed_runtime_session = session
-        return None
+        return
 
     @staticmethod
     def _store_shutdown_reserve(store, shutdown_timeout):
@@ -2930,7 +2935,7 @@ class BtApiBroker(
                 and self.__dict__.get("_gateway_stream_binding") is None):
             self._gateway_auto_bind()
             if self.__dict__.get("_gateway_stream_binding") is None:
-                return
+                return None
         if self.__dict__.get("_gateway_stream_binding") is not None:
             return self._gateway_stream_next()
         if self._direct_active():
@@ -2949,7 +2954,7 @@ class BtApiBroker(
         if self._uses_async_commands():
             if not service_recovery:
                 self._schedule_sdk_reconcile()
-            return
+            return None
         self._refresh_account()
         self._sync_positions()
         self._sync_remote_open_orders()
