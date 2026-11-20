@@ -206,14 +206,14 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
         Returns a dictionary (with . notation support and subdctionaries) with
         drawdown stats as values, the following keys/attributes are available:
 
-        - ``drawdown`` - drawdown value in 0.xx %
-        - ``maxdrawdown`` - drawdown value in monetary units
+        - ``drawdown`` - drawdown value in percent (e.g. ``12.34`` means 12.34%)
+        - ``maxdrawdown`` - maximum drawdown in percent (e.g. ``12.34`` means 12.34%)
         - ``maxdrawdownperiod`` - drawdown length
 
       - Those are available during runs as attributes
-        - ``dd``
-        - ``maxdd``
-        - ``maxddlen``
+        - ``dd`` - current drawdown in percent
+        - ``maxdd`` - maximum drawdown in percent
+        - ``maxddlen`` - maximum drawdown length in periods
     """
 
     params = (("fund", None),)

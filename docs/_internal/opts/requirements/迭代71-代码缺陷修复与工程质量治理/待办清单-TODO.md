@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 20 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 1 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 2 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **144** |
+| | **合计** | **207** | **145** |
 
 ---
 
@@ -274,7 +274,7 @@
 - [ ] **R71-067** `[P3]` `_cerebro/presentation.py:84` — `if backend == "plotly"` 整块死代码（`has_txn` 计算后未用，`if not has_txn: pass` 无效果）→ 删除或实现原意。
 - [ ] **R71-068** `[P3]` `_cerebro/channel.py:349` — 日志 `"channel:297 suppressed bare"` 是重构残留、行号失效 → 改为说明 `StrategySkipError` 的可诊断日志。
 - [x] **R71-069** `[P3]` `indicators/__init__.py:144` — 注释引用不存在的 `_register_common_moving_averages` → 删除注释块。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 子进程验证**（删除引用不存在函数的过期注释；完整及轻量导入的 SMA/EMA 注册别名验证通过）。
-- [ ] **R71-070** `[P3]` `analyzers/drawdown.py:210` — `maxdrawdown` 文档称货币单位，实际 `maxdd` 为百分比 → 修正文档。
+- [x] **R71-070** `[P3]` `analyzers/drawdown.py:210` — `maxdrawdown` 文档称货币单位，实际 `maxdd` 为百分比 → 修正文档。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / Cerebro**（修正文档为百分比；合成账户价值 1010→990 的运行结果约 1.9802%，对应金额回撤 20）。
 - [ ] **R71-071** `[P3]` `bokeh/analyzers/recorder.py:131` — 警告串 `"recorder:124 fallback on Exception"` 含失效行号且无上下文 → 改带对象/线名的 lazy 日志。
 - [ ] **R71-072** `[P3]` `bokeh/plot_adapter.py:111` — `iplot` 已在前面赋给 `self._iplot`，此处再赋值无效果 → 删除。
 - [ ] **R71-073** `[P3]` `bokeh/app.py:718` — `ColumnDataSource` 构造后丢弃，`# Fill area` 块无渲染效果 → 接入 varea/patch 或删除。
