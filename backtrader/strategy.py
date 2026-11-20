@@ -49,6 +49,7 @@ from typing import Optional
 from ._cerebro.lifecycle import (
     _record_startup_observer_stop_error,
     _startup_observer_stop_capture_active,
+    _startup_observer_stop_capture_context_active,
 )
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
@@ -87,6 +88,7 @@ from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 logger = get_logger(__name__)
+_STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE = "_backtrader_startup_observer_stop_capture"
 _NATIVE_LINES_ITER = Lines.__iter__
 _INF = float("inf")
 _SERVICE_RECOVERY_TRADE_STATE_SCHEMA = "backtrader.managed_paper_trade.v1"
@@ -124,6 +126,17 @@ _SERVICE_RECOVERY_TRADE_STATE_FIELDS_V2 = _SERVICE_RECOVERY_TRADE_STATE_FIELDS |
 _SERVICE_RECOVERY_TRADE_NOTIFICATION_FIELDS = frozenset(
     {"callback", "data_name", "tradeid"}
 )
+
+
+def _startup_observer_stop_capture_marker_active(strategy):
+    """Return whether startup cleanup installed a marker for this Strategy."""
+    try:
+        capture = object.__getattribute__(strategy, "__dict__").get(
+            _STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE
+        )
+    except (AttributeError, TypeError):
+        return False
+    return type(capture) is dict and capture.get("strategy") is strategy
 
 
 def _service_recovery_strategy_position_ref(value):
@@ -2117,7 +2130,10 @@ class Strategy(StrategyBase):
                     observer.stop()
             except Exception as exc:
                 _record_startup_observer_stop_error(self, observer_index, observer, exc)
-                if _startup_observer_stop_capture_active():
+                if (
+                    _startup_observer_stop_capture_context_active()
+                    or _startup_observer_stop_capture_marker_active(self)
+                ):
                     logger.warning("Observer %s.stop() raised an exception", type(observer).__name__)
                 else:
                     logger.warning(
@@ -2125,6 +2141,31 @@ class Strategy(StrategyBase):
                         type(observer).__name__,
                         exc_info=True,
                     )
+
+        # Startup cleanup installs this per-strategy marker so it can tell
+        # whether an _stop override actually completed the observer loop.
+        try:
+            strategy_namespace = object.__getattribute__(self, "__dict__")
+            observer_capture = strategy_namespace.get(
+                _STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE
+            )
+            observer_getter = type.__getattribute__(type(self), "_get_all_observers")
+        except AttributeError:
+            observer_capture = None
+            strategy_namespace = {}
+            observer_getter = None
+        except TypeError:
+            observer_capture = None
+            strategy_namespace = {}
+            observer_getter = None
+        if (
+            type(observer_capture) is dict
+            and observer_capture.get("strategy") is self
+            and _startup_observer_stop_capture_active(self)
+            and observer_getter is _BASE_STRATEGY_GET_ALL_OBSERVERS
+            and "_get_all_observers" not in strategy_namespace
+        ):
+            observer_capture["loop_completed"] = True
 
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
@@ -4850,6 +4891,11 @@ class Strategy(StrategyBase):
         if hasattr(self._sizer, "broker") and self._sizer.broker is None:
             self._sizer.set(self, self.broker)
         return self._sizer.getsizing(data, isbuy)
+
+
+# Keep the framework implementation identity separate from the mutable class
+# attribute so a runtime monkeypatch cannot make itself look like the base.
+_BASE_STRATEGY_GET_ALL_OBSERVERS = Strategy._get_all_observers
 
 
 class SignalStrategy(Strategy):

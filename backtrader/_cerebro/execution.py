@@ -21,6 +21,8 @@ from .lifecycle import _capture_startup_observer_stop_errors
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
 logger = get_logger("backtrader.cerebro")
 _STARTUP_ATTEMPTS = ContextVar("backtrader_cerebro_startup_attempts", default=None)
+_STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE = "_backtrader_startup_observer_stop_capture"
+_MISSING_STARTUP_OBSERVER_STOP_CAPTURE = object()
 
 
 def _record_startup_attempt(phase, component):
@@ -142,11 +144,35 @@ class ExecutionMixin:
         # Match the ordinary teardown order, excluding final writer reporting
         # because startup did not reach the point where reports are complete.
         observer_stop_errors = {}
+        observer_stop_loop_completed = {}
 
         def stop_strategy(strategy, method):
-            with _capture_startup_observer_stop_errors(strategy) as captured:
-                observer_stop_errors[id(strategy)] = captured
-                getattr(strategy, method)()
+            try:
+                strategy_namespace = vars(strategy)
+                previous_capture = strategy_namespace.get(
+                    _STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE,
+                    _MISSING_STARTUP_OBSERVER_STOP_CAPTURE,
+                )
+                capture_state = {"strategy": strategy, "loop_completed": False}
+                strategy_namespace[_STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE] = capture_state
+            except BaseException:
+                strategy_namespace = None
+                previous_capture = _MISSING_STARTUP_OBSERVER_STOP_CAPTURE
+                capture_state = None
+
+            try:
+                with _capture_startup_observer_stop_errors(strategy) as captured:
+                    observer_stop_errors[id(strategy)] = captured
+                    getattr(strategy, method)()
+            finally:
+                observer_stop_loop_completed[id(strategy)] = (
+                    capture_state is not None and capture_state.get("loop_completed") is True
+                )
+                if strategy_namespace is not None:
+                    if previous_capture is _MISSING_STARTUP_OBSERVER_STOP_CAPTURE:
+                        strategy_namespace.pop(_STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE, None)
+                    else:
+                        strategy_namespace[_STARTUP_OBSERVER_STOP_CAPTURE_ATTRIBUTE] = previous_capture
 
         strategy_stop_failed = stop_many(
             "strategy",
@@ -168,13 +194,18 @@ class ExecutionMixin:
                 )
             if id(strategy) in strategy_stop_failed:
                 continue
+            if (
+                observer_stop_loop_completed.get(id(strategy)) is True
+                and id(strategy) in observer_stop_errors
+            ):
+                continue
             try:
                 if strategy.stats.items:
                     incomplete.append(
                         (
                             "strategy[%d]._stop.observers" % index,
                             type(strategy).__name__,
-                            "Strategy._stop suppresses observer.stop exceptions; outcome is unobservable",
+                            "observer stop loop completion was not captured; observer state is unknown",
                         )
                     )
             except BaseException as exc:

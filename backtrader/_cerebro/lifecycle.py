@@ -35,8 +35,14 @@ def _capture_startup_observer_stop_errors(strategy):
         _STARTUP_OBSERVER_STOP_CAPTURE.reset(token)
 
 
-def _startup_observer_stop_capture_active():
-    """Return whether observer teardown runs inside any startup cleanup capture."""
+def _startup_observer_stop_capture_active(strategy):
+    """Return whether ``strategy`` owns the active observer-stop capture."""
+    state = _STARTUP_OBSERVER_STOP_CAPTURE.get()
+    return state is not None and state["strategy"] is strategy
+
+
+def _startup_observer_stop_capture_context_active():
+    """Return whether any startup observer-stop capture is active in context."""
     return _STARTUP_OBSERVER_STOP_CAPTURE.get() is not None
 
 

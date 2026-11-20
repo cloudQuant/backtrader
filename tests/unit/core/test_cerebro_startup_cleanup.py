@@ -2,10 +2,12 @@
 
 import logging
 import traceback
+from contextlib import contextmanager
 
 from datetime import time
 from types import SimpleNamespace
 import backtrader as bt
+import backtrader._cerebro.execution as execution_module
 import pytest
 from backtrader.feed import DataBase, FeedBase
 from backtrader.brokers.bbroker import BackBroker
@@ -339,6 +341,176 @@ def test_strategy_stop_failure_marks_child_teardown_unknown(monkeypatch):
     ) in caught.value._backtrader_startup_cleanup_incomplete
 
 
+def test_successful_observer_stop_is_not_reported_as_unobservable(monkeypatch):
+    control = _LifecycleControl(fail_at="writer.start")
+    cerebro, _data = _make_cerebro(control, with_writer=True)
+    cerebro.addstrategy(bt.Strategy)
+    cerebro.addobserver(bt.observers.Broker)
+    monkeypatch.setattr(bt.Strategy, "start", lambda _self: control.events.append("strategy.start"))
+    monkeypatch.setattr(bt.Strategy, "stop", lambda _self: control.events.append("strategy.stop"))
+
+    observer_stop_calls = []
+    monkeypatch.setattr(
+        bt.observers.Broker,
+        "stop",
+        lambda _observer: observer_stop_calls.append("stopped"),
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        cerebro.run()
+
+    assert caught.value is control.primary
+    assert observer_stop_calls == ["stopped"]
+    assert not any(
+        phase == "strategy[0]._stop.observers"
+        for phase, _component, _reason in getattr(
+            caught.value, "_backtrader_startup_cleanup_incomplete", ()
+        )
+    )
+
+
+def test_successful_strategy_stop_override_without_super_keeps_observers_unknown(monkeypatch):
+    control = _LifecycleControl(fail_at="writer.start")
+    cerebro, _data = _make_cerebro(control, with_writer=True)
+
+    class StopWithoutSuper(bt.Strategy):
+        def _stop(self):
+            control.events.append("strategy._stop.override")
+
+    cerebro.addstrategy(StopWithoutSuper)
+    cerebro.addobserver(bt.observers.Broker)
+
+    observer_stop_calls = []
+    monkeypatch.setattr(
+        bt.observers.Broker,
+        "stop",
+        lambda _observer: observer_stop_calls.append("stopped"),
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        cerebro.run()
+
+    assert caught.value is control.primary
+    assert observer_stop_calls == []
+    assert (
+        "strategy[0]._stop.observers",
+        "StopWithoutSuper",
+        "observer stop loop completion was not captured; observer state is unknown",
+    ) in caught.value._backtrader_startup_cleanup_incomplete
+
+
+def test_observer_getter_override_keeps_observer_cleanup_unknown(monkeypatch):
+    control = _LifecycleControl(fail_at="writer.start")
+    cerebro, _data = _make_cerebro(control, with_writer=True)
+
+    class HideObservers(bt.Strategy):
+        def _get_all_observers(self):
+            return []
+
+    cerebro.addstrategy(HideObservers)
+    cerebro.addobserver(bt.observers.Broker)
+
+    observer_stop_calls = []
+    monkeypatch.setattr(
+        bt.observers.Broker,
+        "stop",
+        lambda _observer: observer_stop_calls.append("stopped"),
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        cerebro.run()
+
+    assert caught.value is control.primary
+    assert observer_stop_calls == []
+    assert (
+        "strategy[0]._stop.observers",
+        "HideObservers",
+        "observer stop loop completion was not captured; observer state is unknown",
+    ) in caught.value._backtrader_startup_cleanup_incomplete
+
+
+def test_monkeypatched_base_observer_getter_keeps_observers_unknown(monkeypatch):
+    control = _LifecycleControl(fail_at="writer.start")
+    cerebro, _data = _make_cerebro(control, with_writer=True)
+    cerebro.addstrategy(bt.Strategy)
+    cerebro.addobserver(bt.observers.Broker)
+
+    observer_start_calls = []
+    observer_stop_calls = []
+    monkeypatch.setattr(
+        bt.observers.Broker,
+        "start",
+        lambda _observer: observer_start_calls.append("started"),
+    )
+    monkeypatch.setattr(
+        bt.observers.Broker,
+        "stop",
+        lambda _observer: observer_stop_calls.append("stopped"),
+    )
+
+    def hide_observers_after_strategy_start(_strategy):
+        monkeypatch.setattr(bt.Strategy, "_get_all_observers", lambda _self: [])
+
+    monkeypatch.setattr(bt.Strategy, "start", hide_observers_after_strategy_start)
+    monkeypatch.setattr(bt.Strategy, "stop", lambda _self: None)
+
+    with pytest.raises(RuntimeError) as caught:
+        cerebro.run()
+
+    assert caught.value is control.primary
+    assert observer_start_calls == ["started"]
+    assert observer_stop_calls == []
+    assert (
+        "strategy[0]._stop.observers",
+        "Strategy",
+        "observer stop loop completion was not captured; observer state is unknown",
+    ) in caught.value._backtrader_startup_cleanup_incomplete
+
+
+def test_missing_observer_stop_capture_keeps_unknown_and_redacts_observer_error(
+    monkeypatch, caplog, request
+):
+    control = _LifecycleControl(fail_at="writer.start")
+    cerebro, _data = _make_cerebro(control, with_writer=True)
+    cerebro.addstrategy(bt.Strategy)
+    cerebro.addobserver(bt.observers.Broker)
+    monkeypatch.setattr(bt.Strategy, "start", lambda _self: control.events.append("strategy.start"))
+    monkeypatch.setattr(bt.Strategy, "stop", lambda _self: control.events.append("strategy.stop"))
+    caplog.set_level(logging.WARNING, logger="backtrader.strategy")
+    _capture_strategy_logs(caplog, request)
+
+    observer_stop_calls = []
+    observer_sentinel = "NO_CAPTURE_OBSERVER_STOP_SENTINEL"
+
+    def fail_observer_stop(_observer):
+        observer_stop_calls.append("attempted")
+        raise RuntimeError(observer_sentinel)
+
+    monkeypatch.setattr(bt.observers.Broker, "stop", fail_observer_stop)
+
+    @contextmanager
+    def no_observer_capture(_strategy):
+        yield []
+
+    monkeypatch.setattr(
+        execution_module,
+        "_capture_startup_observer_stop_errors",
+        no_observer_capture,
+    )
+
+    with pytest.raises(RuntimeError) as caught:
+        cerebro.run()
+
+    assert caught.value is control.primary
+    assert observer_stop_calls == ["attempted"]
+    assert observer_sentinel not in caplog.text
+    assert (
+        "strategy[0]._stop.observers",
+        "Strategy",
+        "observer stop loop completion was not captured; observer state is unknown",
+    ) in caught.value._backtrader_startup_cleanup_incomplete
+
+
 def test_swallowed_observer_stop_error_is_reported_without_logging_message(monkeypatch, caplog, request):
     control = _LifecycleControl(fail_at="writer.start")
     cerebro, _data = _make_cerebro(control, with_writer=True)
@@ -373,10 +545,14 @@ def test_swallowed_observer_stop_error_is_reported_without_logging_message(monke
     assert observer_failures[0][3]
     assert observer_sentinel not in caplog.text
     assert (
-        "strategy[0]._stop.observers",
-        "Strategy",
-        "Strategy._stop suppresses observer.stop exceptions; outcome is unobservable",
+        "strategy[0]._stop.observer[0].stop",
+        "Broker",
+        "observer.stop raised and was suppressed; observer state is unknown",
     ) in caught.value._backtrader_startup_cleanup_incomplete
+    assert not any(
+        phase == "strategy[0]._stop.observers"
+        for phase, _component, _reason in caught.value._backtrader_startup_cleanup_incomplete
+    )
 
 
 def test_normal_run_keeps_legacy_observer_stop_exception_suppression(monkeypatch, caplog, request):
@@ -453,6 +629,13 @@ def test_nested_observer_stop_failure_does_not_pollute_outer_cleanup(monkeypatch
     ]
     assert inner_sentinel not in caplog.text
     assert outer_sentinel not in caplog.text
+    assert caught.value._backtrader_startup_cleanup_incomplete == (
+        (
+            "strategy[0]._stop.observer[0].stop",
+            "Broker",
+            "observer.stop raised and was suppressed; observer state is unknown",
+        ),
+    )
     assert [event for event in outer_control.events if event.endswith(".stop")] == [
         "outer.observer.stop",
         "writer.stop",
@@ -460,6 +643,70 @@ def test_nested_observer_stop_failure_does_not_pollute_outer_cleanup(monkeypatch
         "data.stop",
         "store.stop",
     ]
+
+
+def test_nested_cleanup_without_inner_capture_keeps_inner_observer_unknown(monkeypatch, caplog, request):
+    outer_control = _LifecycleControl(fail_at="writer.start")
+    outer_cerebro, _outer_data = _make_cerebro(outer_control, with_writer=True)
+    outer_cerebro.addstrategy(bt.Strategy)
+    outer_cerebro.addobserver(bt.observers.Broker)
+
+    inner_control = _LifecycleControl(fail_at="writer.start")
+    inner_cerebro, _inner_data = _make_cerebro(inner_control, with_writer=True)
+
+    class _NestedObserver(bt.Observer):
+        lines = ("value",)
+
+    inner_cerebro.addstrategy(bt.Strategy)
+    inner_cerebro.addobserver(_NestedObserver)
+    caplog.set_level(logging.WARNING, logger="backtrader.strategy")
+    _capture_strategy_logs(caplog, request)
+
+    inner_errors = []
+    inner_observer_sentinel = "INNER_NO_CAPTURE_OBSERVER_STOP"
+
+    def fail_inner_observer_stop(_observer):
+        raise RuntimeError(inner_observer_sentinel)
+
+    @contextmanager
+    def no_inner_capture(_strategy):
+        yield []
+
+    def fail_outer_observer_stop(_observer):
+        with monkeypatch.context() as nested_patch:
+            nested_patch.setattr(
+                execution_module,
+                "_capture_startup_observer_stop_errors",
+                no_inner_capture,
+            )
+            with pytest.raises(RuntimeError) as inner_caught:
+                inner_cerebro.run()
+        inner_errors.append(inner_caught.value)
+        raise RuntimeError("OUTER_OBSERVER_STOP")
+
+    monkeypatch.setattr(_NestedObserver, "stop", fail_inner_observer_stop)
+    monkeypatch.setattr(bt.observers.Broker, "stop", fail_outer_observer_stop)
+
+    with pytest.raises(RuntimeError) as caught:
+        outer_cerebro.run()
+
+    assert caught.value is outer_control.primary
+    assert inner_errors == [inner_control.primary]
+    assert inner_errors[0]._backtrader_startup_cleanup_incomplete == (
+        (
+            "strategy[0]._stop.observers",
+            "Strategy",
+            "observer stop loop completion was not captured; observer state is unknown",
+        ),
+    )
+    assert inner_observer_sentinel not in caplog.text
+    assert caught.value._backtrader_startup_cleanup_incomplete == (
+        (
+            "strategy[0]._stop.observer[0].stop",
+            "Broker",
+            "observer.stop raised and was suppressed; observer state is unknown",
+        ),
+    )
 
 
 def test_unknown_feed_owner_skips_direct_data_stop_and_marks_cleanup_incomplete():
