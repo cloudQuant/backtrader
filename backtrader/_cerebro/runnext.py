@@ -421,7 +421,7 @@ class RunNextMixin:
                     if self._event_stop:  # stop if requested
                         return
 
-                    self._next_writers(runstrats)
+                self._next_writers(runstrats)
 
         # Last notification chance before stopping
         self._datanotify()
@@ -611,7 +611,7 @@ class RunNextMixin:
 
             d0ret = True
             # index for resample only, not replay
-            rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
+            rsonly = {i for i, x in enumerate(datas) if x.resampling and not x.replaying}
             # Check if only doing resample
             onlyresample = len(datas) == len(rsonly)
             # Check if no data needs resample
@@ -1465,8 +1465,6 @@ class RunNextMixin:
                             _raise_invalid_source_error_after_winddown()
                             return
 
-                        if has_runwriters:
-                            self._next_writers(runstrats)
                     else:
                         for strat in runstrats:
                             strat._next()
@@ -1474,8 +1472,8 @@ class RunNextMixin:
                                 _raise_invalid_source_error_after_winddown()
                                 return
 
-                            if has_runwriters:
-                                self._next_writers(runstrats)
+                    if has_runwriters:
+                        self._next_writers(runstrats)
             # Last notification chance before stopping
             # Notify data info
             if not single_default_datanotify or data0.notifs:

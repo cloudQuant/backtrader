@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 5 |
+| 9 | P2 其余正确性 / 清理 | 36 | 7 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **125** |
+| | **合计** | **207** | **127** |
 
 ---
 
@@ -228,7 +228,7 @@
 
 - [ ] **R71-088** `[P2]` `order.py:632` — `valid` 第三分支只算局部 `valid` 未赋 `self.valid`，`valid=0` 时 `Order.expire()` 的 `if self.valid` 永假、订单不过期 → 分支末尾 `self.valid = self.data.date2num(valid)`。
 - [x] **R71-089** `[P2]` `strategy.py:1205` — `_getanalyzer_slave` 返回 `self._slave_analyzers.append[idx]`（对 bound method 取下标），任何调用 `TypeError` → 改 `self._slave_analyzers[idx]`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（按列表索引获取 slave analyzer，覆盖双策略隔离和生命周期、runonce/runnext；41 项相关回归及独立静态复审通过）。
-- [ ] **R71-090** `[P2]` `_cerebro/runnext.py:1471` — `_next_writers(runstrats)` 在 per-strategy 循环内却一次写所有 datas，N 个策略每根 bar 写 N 次、CSV 重复行 → 移到策略循环外。
+- [x] **R71-090** `[P2]` `_cerebro/runnext.py:1471` — `_next_writers(runstrats)` 在 per-strategy 循环内却一次写所有 datas，N 个策略每根 bar 写 N 次、CSV 重复行 → 移到策略循环外。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（四种新旧同步/运行模式在所有策略完成后每 bar 写一次；stop 触发轮不写，覆盖单策略及最后策略 stop；专项 21 项、相邻回归 8 项通过，独立静态复审通过）。
 - [x] **R71-091** `[P2]` `strategy.py:2099` — `_stop` 把策略最大/主时钟时间写到**所有** data feed 的 `datetime[0]`，多时间框架下慢速 feed 被改到未来时间 → 只恢复策略线和时钟 feed。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（stop 保留策略聚合时间但不改写各 Feed 时间，快慢 Feed 顺序及 runonce/runnext 真实回归覆盖；17 项相关测试及独立静态复审通过）。
 - [ ] **R71-092** `[P2]` `_cerebro/execution.py:153` — 启动失败时每个已成功停止且带 observer 的策略都被追加 "observer cleanup outcome is unobservable" 假 incomplete → 仅在 observer 捕获不可用时记录。
 - [ ] **R71-093** `[P2]` `_cerebro/channel.py:245` — `_run_channel` 永久设置 `self.p.quicknotify = True`，复用同一 Cerebro 做普通运行时通知时序被静默改变 → 保存/恢复原值或用局部标志。
@@ -257,7 +257,7 @@
 - [x] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（NaN 和 ±inf 时间戳统一明确 ValueError，秒/毫秒既有阈值不变；56 项相关回归和独立静态复审通过。布尔、超大/越界值与负毫秒仍沿用原合同）。
 - [ ] **R71-059** `[P2]` `utils/autodict.py:207` — `__iadd__` 同类型分支 `return self + other`，但 `AutoOrderedDict` 未定义 `__add__`，`aod1 += aod2` 抛 `TypeError`；`__isub__/__imul__` 同类问题 → 实现 `__add__/__sub__/__mul__` 或改同类型分支语义。
 - [ ] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。
-- [ ] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。
+- [x] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（仅用于成员检查的 resample 索引改为 set，混合 resample/replay 时钟回归保留；专项 21 项、相邻回归 8 项通过，独立静态复审通过）。
 - [ ] **R71-063** `[P2]` `feeds/blaze.py:91` — `_load` 每 bar 对每个 datafield 做 `getattr(self.params,...)`/`getattr(self.lines,...)`，值不变可缓存 → `start()` 预计算列索引/线引用。
 - [ ] **R71-159** `[P2]` `indicators/basicops.py:140-156` — `OperationN.once` 每 bar 切片并调 Python func，`Highest/Lowest/SumN/FindFirstIndex*` 为 O(n·period)+每 bar 分配，被 Stochastic/Aroon/Donchian 继承；1M bar period 50 ≈ 50M 元素复制 → 单调 deque / running sum / 数组循环，slice 仅 fallback。
 - [ ] **R71-160** `[P2]` `indicators/sma.py:119-133` — `once` 每 bar 双窗口扫描（先求 sum 再求 sum of squares），O(n·period) → 滚动和/平方和。

@@ -49,7 +49,7 @@ class RunOnceMixin:
                 if self._event_stop:  # stop if requested
                     return
 
-                self._next_writers(runstrats)
+            self._next_writers(runstrats)
 
         self._datanotify()
         if self._event_stop:  # stop if requested
@@ -138,5 +138,5 @@ class RunOnceMixin:
                 strat._oncepost(dt0)
                 if self._event_stop:  # stop if requested
                     return
-                if has_runwriters:
-                    self._next_writers(runstrats)
+            if has_runwriters:
+                self._next_writers(runstrats)
