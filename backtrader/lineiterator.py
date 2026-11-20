@@ -1889,11 +1889,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         self.home()
 
-        self._factor_run_callback(self.preonce, "once", 0, self._minperiod - 1)
-        self._factor_run_callback(
-            self.oncestart, "once", self._minperiod - 1, self._minperiod
-        )
-        self._factor_run_callback(self.once, "once", self._minperiod, self.buflen())
+        available = self.buflen()
+        start = self._minperiod - 1
+        self._factor_run_callback(self.preonce, "once", 0, min(start, available))
+        if start < available:
+            self._factor_run_callback(self.oncestart, "once", start, start + 1)
+            self._factor_run_callback(self.once, "once", start + 1, available)
 
         for line in self.lines:
             line.oncebinding()
