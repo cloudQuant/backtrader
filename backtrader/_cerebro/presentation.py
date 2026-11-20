@@ -80,17 +80,6 @@ class PresentationMixin:
         if self._exactbars > 0:
             return None
 
-        # For plotly backend, ensure Transactions analyzer exists for buy/sell signals
-        if backend == "plotly":
-            for stratlist in self.runstrats:
-                for strat in stratlist:
-                    # Check if Transactions analyzer already exists
-                    has_txn = any(a.__class__.__name__ == "Transactions" for a in strat.analyzers)
-                    if not has_txn:
-                        # Add Transactions analyzer retroactively is not possible
-                        # So we'll rely on broker.orders instead
-                        pass
-
         if not plotter:
             # `use` is a matplotlib backend selector; if provided, the caller
             # wants matplotlib output, so honor that even when the default
