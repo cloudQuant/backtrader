@@ -174,9 +174,11 @@ class ReportChart:
                 "monthly": ("Monthly", pd.offsets.MonthEnd()),
                 "yearly": ("Yearly", pd.offsets.YearEnd()),
             }
-            period_name, period_code = period_map.get(
+            period_selection = period_map.get(
                 period, ("Daily", pd.offsets.Day())
             )
+            period_name = period_selection[0]
+            period_code = period_selection[1]
 
         # Resample and calculate returns
         try:
