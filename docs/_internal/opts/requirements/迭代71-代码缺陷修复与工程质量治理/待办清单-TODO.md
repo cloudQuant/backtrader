@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 21 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 6 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 7 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **150** |
+| | **合计** | **207** | **151** |
 
 ---
 
@@ -285,7 +285,7 @@
 - [x] **R71-078** `[P3]` `filters/daysteps.py:12` — 示例 `BarReplayerOpen()` 与 `__init__(self, data)` 不符，`addfilter` 应传类而非实例 → 修正示例。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（示例向 addfilter 传过滤器类，由 Feed 注入 data；专项回归和示例注册检查通过）。
 - [ ] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。
 - [x] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 文档核对**（修正 adddata 与 Keeping 拼写，已核对 Cerebro 实际方法名；仅文档更改）。
-- [ ] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。
+- [x] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（删除写入 marker 后无后续读取的两个局部赋值，保留均价计算所需读取；4 项回归通过）。
 - [ ] **R71-082** `[P3]` `_cerebro/runonce.py:30` — 循环变量 `i` 未使用 → 改为 `_`。
 - [ ] **R71-083** `[P3]` `reports/reporter.py:588` — `math` 已在模块顶部导入，函数内重复 `import math` → 删除局部导入。
 - [ ] **R71-084** `[P3]` `channels/bridge.py:18` — 模块级 `logger` 未使用；文档示例 `bridge.lines.price[0]` 与实际接口 `bridge['price'][0]` 不符 → 删除/使用 logger 并修正示例。

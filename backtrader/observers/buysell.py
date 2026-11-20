@@ -117,7 +117,6 @@ class BuySell(Observer):
             self.lines.buy[0] = pbuy
 
         # Update buylen values
-        curbuy = buyops
         self.curbuylen = buylen
 
         # For sell orders, similar logic
@@ -140,5 +139,4 @@ class BuySell(Observer):
             self.lines.sell[0] = psell
 
         # Update selllen values
-        cursell = sellops
         self.curselllen = selllen
