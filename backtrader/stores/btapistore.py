@@ -2584,43 +2584,48 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             self._last_balance_refresh = time.monotonic()
             return {"cash": self._cash, "value": self._value}
         if self._sdk_mode:
-            api = self._ensure_api_ready()
-            try:
-                live_names = self._facade_exchange_names(api)
-                configured_names = list(self._sdk_exchanges)
-                route = self._sdk_account_read_adapter.single_configured_route(
-                    live_names, configured_names
-                )
-                snapshot = self._sdk_balance_snapshot_for_route(
-                    api, route, force=force
-                )
-            except BtApiStoreError:
-                raise
-            except Exception as exc:
-                self.sanitize_exception(exc)
-                error = BtApiStoreError("SDK account balance snapshot is unavailable")
-                error.code = "account_balance_snapshot_unavailable"
-                raise error from None
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    raise BtApiStoreError(
+                        "store_sdk_lifecycle_transition_in_progress"
+                    )
+                api = self._ensure_api_ready()
+                try:
+                    live_names = self._facade_exchange_names(api)
+                    configured_names = list(self._sdk_exchanges)
+                    route = self._sdk_account_read_adapter.single_configured_route(
+                        live_names, configured_names
+                    )
+                    snapshot = self._sdk_balance_snapshot_for_route(
+                        api, route, force=force
+                    )
+                except BtApiStoreError:
+                    raise
+                except Exception as exc:
+                    self.sanitize_exception(exc)
+                    error = BtApiStoreError("SDK account balance snapshot is unavailable")
+                    error.code = "account_balance_snapshot_unavailable"
+                    raise error from None
 
-            # Keep this guard before the lazy SDK type import to preserve the
-            # established failure order for ambiguous account snapshots. The
-            # standalone projector repeats the same checks defensively.
-            _require_single_balance_currency(snapshot, error_type=BtApiStoreError)
-            try:
-                from bt_api_py.account_balance_contracts import AccountValuation
-            except ImportError as exc:
-                raise BtApiMissingDependencyError(
-                    "bt_api_py.account_balance_contracts.AccountValuation is required"
-                ) from exc
-            projected = _project_account_balance_snapshot(
-                snapshot,
-                account_valuation_type=AccountValuation,
-                error_type=BtApiStoreError,
-            )
-            self._cash = projected["cash"]
-            self._value = projected["value"]
-            self._last_balance_refresh = time.monotonic()
-            return {"cash": self._cash, "value": self._value}
+                # Keep this guard before the lazy SDK type import to preserve the
+                # established failure order for ambiguous account snapshots. The
+                # standalone projector repeats the same checks defensively.
+                _require_single_balance_currency(snapshot, error_type=BtApiStoreError)
+                try:
+                    from bt_api_py.account_balance_contracts import AccountValuation
+                except ImportError as exc:
+                    raise BtApiMissingDependencyError(
+                        "bt_api_py.account_balance_contracts.AccountValuation is required"
+                    ) from exc
+                projected = _project_account_balance_snapshot(
+                    snapshot,
+                    account_valuation_type=AccountValuation,
+                    error_type=BtApiStoreError,
+                )
+                self._cash = projected["cash"]
+                self._value = projected["value"]
+                self._last_balance_refresh = time.monotonic()
+                return {"cash": self._cash, "value": self._value}
         error = BtApiStoreError(
             "cash and value require the unified typed account valuation facade"
         )
@@ -2670,7 +2675,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             # SDK position reads are always obtained from and revalidated
             # against a fresh, complete account snapshot. The legacy Store
             # cache is not evidence that a new account snapshot was read.
-            return self._get_sdk_account_positions()
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    raise BtApiStoreError(
+                        "store_sdk_lifecycle_transition_in_progress"
+                    )
+                return self._get_sdk_account_positions()
         raise BtApiStoreError("position reads require the unified SDK or read-only service facade")
 
     def _get_sdk_account_positions(self) -> List[Dict[str, Any]]:
@@ -6347,6 +6357,24 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         cached = self._account_risk_state.cached_snapshot(self._stream_generation)
         if cached is not None and (self._started or self._api is None):
             return cached
+        if self._sdk_mode:
+            # A borrowed facade remains caller-owned after Store stop. Keep
+            # risk reads local once its Store generation is retired, even if
+            # the facade object itself is still present.
+            borrowed_store_stopped = (
+                not self._sdk_owned_api
+                and not self._started
+                and self._shutdown_state == "PASS"
+            )
+            if (
+                borrowed_store_stopped
+                or self._sdk_borrowed_event_lifecycle_error() is not None
+            ):
+                return self._cached_account_risk_unavailable()
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    return self._cached_account_risk_unavailable()
+                return self._read_account_risk_snapshot(self._api)
         return self._read_account_risk_snapshot(self._api)
 
     def initialize_account_risk_baseline(self) -> Dict[str, Any]:

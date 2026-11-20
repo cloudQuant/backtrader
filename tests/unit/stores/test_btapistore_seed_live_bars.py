@@ -1765,3 +1765,326 @@ def test_managed_runtime_health_fails_closed_on_api_identity_mismatch():
 
     assert mismatch_health["sdk_api_ownership"] == "UNPROVEN"
     assert mismatch_health["sdk_api_close_state"] == "OWNERSHIP_MISMATCH"
+
+
+def _owned_active_store_for_read_activity(monkeypatch, api, *, on_close=None):
+    store = _store()
+    if on_close is not None:
+        original_close = api.close
+
+        def observed_close():
+            on_close()
+            original_close()
+
+        api.close = observed_close
+    _bind_store_owned_api(store, api)
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    store._shutdown_state = "RUNNING"
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    return store
+
+
+def _start_stop_thread_waiting_for_api_activity(store):
+    entered = threading.Event()
+    results = []
+    errors = []
+
+    def stop_store():
+        entered.set()
+        try:
+            results.append(store.stop(timeout=1.5))
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=stop_store, daemon=True)
+    thread.start()
+    assert entered.wait(1)
+    deadline = time.monotonic() + 1
+    while time.monotonic() < deadline:
+        with store._sdk_start_state_lock:
+            stop_in_progress = store._sdk_stop_in_progress
+        if stop_in_progress:
+            break
+        time.sleep(0.001)
+    assert stop_in_progress is True
+    return thread, results, errors
+
+
+def test_get_balance_activity_covers_io_projection_and_cache_before_stop(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    close_snapshots = []
+    store = _owned_active_store_for_read_activity(
+        monkeypatch,
+        api,
+        on_close=lambda: close_snapshots.append((store._cash, store._value)),
+    )
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "_facade_exchange_names", lambda _api: [api.route])
+    monkeypatch.setattr(
+        store,
+        "_sdk_balance_snapshot_for_route",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "backtrader.stores.btapistore._require_single_balance_currency",
+        lambda *args, **kwargs: None,
+    )
+    projection_entered = threading.Event()
+    release_projection = threading.Event()
+
+    def blocked_projection(*args, **kwargs):
+        projection_entered.set()
+        if not release_projection.wait(2):
+            raise AssertionError("timed out waiting to release balance projection")
+        return {"cash": 31.0, "value": 42.0}
+
+    monkeypatch.setattr(
+        "backtrader.stores.btapistore._project_account_balance_snapshot",
+        blocked_projection,
+    )
+    results = []
+    errors = []
+
+    def read_balance():
+        try:
+            results.append(store.get_balance())
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=read_balance, daemon=True)
+    reader.start()
+    try:
+        assert projection_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        prior_cash = store._cash
+        prior_value = store._value
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == "RUNNING"
+        assert store._sdk_stop_in_progress is False
+        assert store._api is api
+        assert api.close_calls == 0
+        assert (store._cash, store._value) == (prior_cash, prior_value)
+
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_projection.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_projection.set()
+        reader.join(2)
+
+    assert not reader.is_alive()
+    assert not stopper.is_alive()
+    assert not errors
+    assert not stop_errors
+    assert results == [{"cash": 31.0, "value": 42.0}]
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert close_snapshots == [(31.0, 42.0)]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_sdk_start_owner_can_run_first_balance_read_with_activity_lease(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _store()
+    _bind_store_owned_api(store, api)
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **kwargs: None)
+    monkeypatch.setattr(store, "_recover_sdk_startup_journal", lambda: None)
+    monkeypatch.setattr(store, "_begin_funding_refresh_generation", lambda: None)
+    monkeypatch.setattr(store, "_configure_owned_facade_calendar", lambda _api: None)
+    monkeypatch.setattr(
+        store, "_attach_configured_instrument_status_ports", lambda _api: None
+    )
+    monkeypatch.setattr(
+        store,
+        "_sdk_balance_snapshot_for_route",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "backtrader.stores.btapistore._require_single_balance_currency",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "backtrader.stores.btapistore._project_account_balance_snapshot",
+        lambda *args, **kwargs: {"cash": 7.0, "value": 9.0},
+    )
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    store.start()
+
+    assert store._started is True
+    assert store._connected is True
+    assert store._cash == 7.0
+    assert store._value == 9.0
+    assert store._sdk_api_activity_count == 0
+    assert store._has_successful_sdk_stream_generation is True
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert api.close_calls == 1
+
+
+def test_get_positions_activity_keeps_owned_api_open_through_snapshot(monkeypatch):
+    read_entered = threading.Event()
+    release_read = threading.Event()
+    read_finished = threading.Event()
+    close_observations = []
+    api = _FakeUnifiedApiFacade()
+    store = _owned_active_store_for_read_activity(
+        monkeypatch,
+        api,
+        on_close=lambda: close_observations.append(read_finished.is_set()),
+    )
+
+    def blocked_positions_read():
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("timed out waiting to release position snapshot")
+        read_finished.set()
+        return [{"symbol": "SA", "size": 2.0}]
+
+    monkeypatch.setattr(store, "_get_sdk_account_positions", blocked_positions_read)
+    results = []
+    errors = []
+
+    def read_positions():
+        try:
+            results.append(store.get_positions())
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=read_positions, daemon=True)
+    reader.start()
+    try:
+        assert read_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_read.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_read.set()
+        reader.join(2)
+
+    assert not reader.is_alive()
+    assert not stopper.is_alive()
+    assert not errors
+    assert not stop_errors
+    assert results == [[{"symbol": "SA", "size": 2.0}]]
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert close_observations == [True]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_get_account_risk_snapshot_activity_covers_sdk_cache_commit(monkeypatch):
+    read_entered = threading.Event()
+    release_read = threading.Event()
+    close_observations = []
+    api = _FakeUnifiedApiFacade()
+    store = _owned_active_store_for_read_activity(
+        monkeypatch,
+        api,
+        on_close=lambda: close_observations.append(
+            store._account_risk_state.cached_snapshot(store._stream_generation)
+        ),
+    )
+    expected = store._cached_account_risk_unavailable()
+
+    def blocked_risk_read(_api):
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("timed out waiting to release account-risk read")
+        return store._cache_account_risk_snapshot(expected)
+
+    monkeypatch.setattr(store, "_read_account_risk_snapshot", blocked_risk_read)
+    results = []
+    errors = []
+
+    def read_risk_snapshot():
+        try:
+            results.append(store.get_account_risk_snapshot())
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=read_risk_snapshot, daemon=True)
+    reader.start()
+    try:
+        assert read_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_read.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_read.set()
+        reader.join(2)
+
+    assert not reader.is_alive()
+    assert not stopper.is_alive()
+    assert not errors
+    assert not stop_errors
+    assert results == [expected]
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert close_observations == [expected]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_stopped_borrowed_account_risk_read_uses_only_local_state(monkeypatch):
+    api = _QueueBacklogApi()
+    pending_order_event = {"kind": "order", "sequence": 1}
+    api.event_queue.put(pending_order_event)
+    store = _borrowed_api_store(api)
+    store._started = False
+    store._connected = False
+    store._shutdown_state = "PASS"
+    store._has_successful_sdk_stream_generation = False
+    monkeypatch.setattr(
+        store,
+        "_read_account_risk_snapshot",
+        lambda *_args, **_kwargs: pytest.fail(
+            "stopped borrowed Store must not read its caller-owned facade"
+        ),
+    )
+
+    cached = store._cache_account_risk_snapshot(
+        store._cached_account_risk_unavailable()
+    )
+    stopped = store.get_account_risk_snapshot()
+    assert stopped["evidence_complete"] is False
+    assert stopped["blocked_reasons"] == ["account_risk_cache_unavailable"]
+    assert store._account_risk_state.cached_snapshot(store._stream_generation) == cached
+    store._account_risk_state.reset_generation()
+    unavailable = store.get_account_risk_snapshot()
+
+    assert unavailable["evidence_complete"] is False
+    assert unavailable["blocked_reasons"] == ["account_risk_cache_unavailable"]
+    assert api.poll_calls == []
+    assert api.queued_events() == (pending_order_event,)
+    assert api.close_calls == 0
