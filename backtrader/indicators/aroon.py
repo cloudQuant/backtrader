@@ -77,6 +77,35 @@ class _AroonBase(Indicator):
 
         super().__init__()
 
+    @staticmethod
+    def _index_since_extreme(source, index, period, highest):
+        """Return bars since the most recent extreme in the period+1 window."""
+        extreme = source[index]
+        bars_ago = 0
+
+        for offset in range(1, period + 1):
+            value = source[index - offset]
+            is_more_extreme = value > extreme if highest else value < extreme
+            if is_more_extreme:
+                extreme = value
+                bars_ago = offset
+
+        return bars_ago
+
+    @classmethod
+    def _once_line(cls, source, destination, start, end, period, highest):
+        """Calculate one Aroon component directly from its source line array."""
+        while len(destination) < end:
+            destination.append(float("nan"))
+
+        for index in range(start, end):
+            if index < period or index >= len(source):
+                destination[index] = float("nan")
+                continue
+
+            bars_ago = cls._index_since_extreme(source, index, period, highest)
+            destination[index] = 100.0 * (period - bars_ago) / period
+
 
 class AroonUp(_AroonBase):
     """
@@ -121,16 +150,16 @@ class AroonUp(_AroonBase):
     def once(self, start, end):
         """Calculate Aroon Up in runonce mode.
 
-        Copies up values across all bars.
+        Computes each value from the source highs for the complete lookback.
         """
-        up_array = self.up.lines[0].array
-        aroonup_array = self.lines.aroonup.array
-
-        while len(aroonup_array) < end:
-            aroonup_array.append(float("nan"))
-
-        for i in range(start, min(end, len(up_array))):
-            aroonup_array[i] = up_array[i] if i < len(up_array) else 0.0
+        self._once_line(
+            self.data.high.array,
+            self.lines.aroonup.array,
+            start,
+            end,
+            self.p.period,
+            highest=True,
+        )
 
 
 class AroonDown(_AroonBase):
@@ -176,16 +205,16 @@ class AroonDown(_AroonBase):
     def once(self, start, end):
         """Calculate Aroon Down in runonce mode.
 
-        Copies down values across all bars.
+        Computes each value from the source lows for the complete lookback.
         """
-        down_array = self.down.lines[0].array
-        aroondown_array = self.lines.aroondown.array
-
-        while len(aroondown_array) < end:
-            aroondown_array.append(float("nan"))
-
-        for i in range(start, min(end, len(down_array))):
-            aroondown_array[i] = down_array[i] if i < len(down_array) else 0.0
+        self._once_line(
+            self.data.low.array,
+            self.lines.aroondown.array,
+            start,
+            end,
+            self.p.period,
+            highest=False,
+        )
 
 
 class AroonUpDown(AroonUp, AroonDown):
@@ -214,6 +243,18 @@ class AroonUpDown(AroonUp, AroonDown):
     """
 
     alias = ("AroonIndicator",)
+
+    def next(self):
+        """Calculate each Aroon component exposed by the combined indicator."""
+        AroonUp.next(self)
+        if "aroondown" in self.lines.getlinealiases():
+            self.lines.aroondown[0] = self.down[0]
+
+    def once(self, start, end):
+        """Calculate each Aroon component exposed in runonce mode."""
+        AroonUp.once(self, start, end)
+        if "aroondown" in self.lines.getlinealiases():
+            AroonDown.once(self, start, end)
 
 
 class AroonOscillator(_AroonBase):
@@ -260,30 +301,30 @@ class AroonOscillator(_AroonBase):
     def once(self, start, end):
         """Calculate Aroon Oscillator in runonce mode.
 
-        Computes oscillator as difference of up and down values.
+        Computes both components from their source arrays and subtracts them.
         """
-        import math
-
-        up_array = self.up.lines[0].array
-        down_array = self.down.lines[0].array
+        high_array = self.data.high.array
+        low_array = self.data.low.array
         aroonosc_array = self.lines.aroonosc.array
 
         while len(aroonosc_array) < end:
             aroonosc_array.append(float("nan"))
 
-        for i in range(start, min(end, len(up_array), len(down_array))):
-            up_val = up_array[i] if i < len(up_array) else 0.0
-            down_val = down_array[i] if i < len(down_array) else 0.0
+        period = self.p.period
+        for index in range(start, end):
+            if index < period or index >= len(high_array) or index >= len(low_array):
+                aroonosc_array[index] = float("nan")
+                continue
 
-            if (
-                isinstance(up_val, float)
-                and math.isnan(up_val)
-                or isinstance(down_val, float)
-                and math.isnan(down_val)
-            ):
-                aroonosc_array[i] = float("nan")
-            else:
-                aroonosc_array[i] = up_val - down_val
+            up_bars_ago = self._index_since_extreme(
+                high_array, index, period, highest=True
+            )
+            down_bars_ago = self._index_since_extreme(
+                low_array, index, period, highest=False
+            )
+            up_value = 100.0 * (period - up_bars_ago) / period
+            down_value = 100.0 * (period - down_bars_ago) / period
+            aroonosc_array[index] = up_value - down_value
 
 
 class AroonUpDownOscillator(AroonUpDown, AroonOscillator):
@@ -298,3 +339,15 @@ class AroonUpDownOscillator(AroonUpDown, AroonOscillator):
     """
 
     alias = ("AroonUpDownOsc",)
+
+    def next(self):
+        """Calculate all Aroon outputs currently exposed by the combined class."""
+        AroonUpDown.next(self)
+        if "aroonosc" in self.lines.getlinealiases():
+            self.lines.aroonosc[0] = self.up[0] - self.down[0]
+
+    def once(self, start, end):
+        """Calculate all Aroon outputs currently exposed in runonce mode."""
+        AroonUpDown.once(self, start, end)
+        if "aroonosc" in self.lines.getlinealiases():
+            AroonOscillator.once(self, start, end)
