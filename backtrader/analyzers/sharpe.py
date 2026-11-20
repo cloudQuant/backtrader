@@ -49,10 +49,12 @@ class SharpeRatio(Analyzer):
 
         Expressed in annual terms (see ``convertrate`` below)
 
-      - ``convertrate`` (default: ``True``) # Whether to convert risk-free rate from annual to monthly, weekly, daily, no intraday support
+      - ``convertrate`` (default: ``True``) # Whether to convert annual risk-free rate to the selected timeframe
 
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
-        rate. Sub-day conversions are not supported
+        rate. Sub-day conversion requires an explicit ``factor`` because the
+        number of periods per year depends on the feed compression and trading
+        schedule; no factor is inferred automatically.
 
       - ``factor`` (default: ``None``) # If not specified, will convert according to specified date, 1 year = 12 months = 52 weeks = 252 trading days
 
@@ -63,14 +65,21 @@ class SharpeRatio(Analyzer):
 
         Else the specified value will be used
 
+        Sub-day timeframes have no default factor. Supply the number of
+        ``TimeReturn`` periods per year to request annualization or to convert
+        a non-zero annual ``riskfreerate``. Without it, those calculations
+        return ``None``. A zero-rate, non-annualized sub-day Sharpe ratio is
+        still available in its native period units.
+
       - ``annualize`` (default: ``False``) # If set to True, will convert to annualized return
 
         If ``convertrate`` is `True`, the *SharpeRatio* will be delivered in
         the ``timeframe`` of choice.
 
         On most occasions, the SharpeRatio is delivered in annualized form.
-        Convert the ``riskfreerate`` from annual to monthly, weekly or daily
-        rate. Sub-day conversions are not supported
+        Convert the ``riskfreerate`` from annual to the configured timeframe.
+        Sub-day conversion and Sharpe annualization require an explicit
+        ``factor``.
 
       - ``stddev_sample`` (default: ``False``) # Whether to subtract 1 when calculating standard deviation
 
@@ -208,6 +217,13 @@ class SharpeRatio(Analyzer):
             return self.RATEFACTORS[self.p.timeframe]
         return None
 
+    def _is_subday_timeframe(self):
+        """Return whether the effective return timeframe is below one day."""
+        timeframe = self.p.timeframe
+        if timeframe is None:
+            timeframe = getattr(self.timereturn, "timeframe", None)
+        return timeframe is not None and timeframe < TimeFrame.Days
+
     def _timeframe_ratio(self):
         """Sharpe ratio using the TimeReturn sub-analyzer with optional annualization."""
         # Get the returns from the subanalyzer (daily returns)
@@ -215,6 +231,14 @@ class SharpeRatio(Analyzer):
         # Risk-free rate
         rate = self.p.riskfreerate
         factor = self._resolve_factor()
+
+        # Sub-day annual conversions need an explicit periods-per-year factor.
+        # A zero-rate, non-annualized result remains meaningful in period units.
+        if factor is None and self._is_subday_timeframe():
+            needs_annual_factor = self.p.annualize or not self.p.convertrate
+            needs_rate_conversion = not is_finite_real(rate) or rate != 0.0
+            if needs_annual_factor or needs_rate_conversion:
+                return None
 
         # Convert either the rate (down to the timeframe) or the returns (up to
         # yearly) depending on convertrate, when a factor is available.
