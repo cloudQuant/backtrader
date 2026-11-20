@@ -140,9 +140,3 @@ else:
     # Add some custom indicators
     from .myind import *
     from .contrib import *
-
-# # At the end of the file, after all imports
-# from .mabase import _register_common_moving_averages
-#
-# # Register moving averages after all modules are loaded to avoid circular imports
-# _register_common_moving_averages()
