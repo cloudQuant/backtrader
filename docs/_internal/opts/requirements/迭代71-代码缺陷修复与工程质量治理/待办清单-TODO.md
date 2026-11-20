@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 1 |
+| 5 | 指标正确性（P1/P2） | 29 | 2 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **49** |
+| | **合计** | **207** | **50** |
 
 ---
 
@@ -120,7 +120,7 @@
 > 统一验证：`once` vs `next` 全序列逐 bar parity；minperiod 断言；`/tmp` 合成 OHLCV sweep。内置指标先跑，contrib 用 FAKE runtime。
 
 - [x] **R71-014** `[P1]` `indicators/atr.py:244` — `nextstart` 的 `i==0` 分支用 `high[0]-low[0]`，漏 `close[-1]`，seed 与 `once` 不一致 → 统一 `_calc_tr(high[0], low[0], close[-1])`。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前跳空时 seed 两模式不一致；修后不同方向、周期和短历史全序列与独立参考一致，12 项通过；once 局部分段写入边界另待修复）。
-- [ ] **R71-015** `[P1]` `indicators/bollinger.py:92` — `movav` 参数声明并出现在 `_plotlabel`，但 `next()/once()` 硬编码算术均值，配 EMA/WMA 被静默忽略 → 用 `self.p.movav` 或删除参数并标注不兼容。CONFIRMED(source)。
+- [x] **R71-015** `[P1]` `indicators/bollinger.py:92` — `movav` 参数声明并出现在 `_plotlabel`，但 `next()/once()` 硬编码算术均值，配 EMA/WMA 被静默忽略 → 用 `self.p.movav` 或删除参数并标注不兼容。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前 EMA/WMA 被忽略；修后 SMA、EMA、WMA 两种运行模式全序列与独立参考匹配，5 项通过；带宽维持既有总体标准差合同）。
 - [ ] **R71-016** `[P1]` `indicators/awesomeoscillator.py:48,62` — `movav` 未用；`addminperiod(self.p.slow)` 假设 `slow>=fast`，`fast>slow` 时 `next()` 越界 → 用 `self.p.movav`，minperiod 取 `max(fast, slow)`。CONFIRMED(source)。
 - [ ] **R71-017** `[P1]` `indicators/accdecoscillator.py:50,61` — `movav` 未用；AC 只继承 AO 的 minperiod，未加 `period-1`，声明有效区间内 `ao[-1..-4]` 仍 NaN → 用 `self.p.movav` 并 `addminperiod(self.ao._minperiod + period - 1)`。CONFIRMED(source)。
 - [ ] **R71-149** `[P1]` `indicators/aroon.py:121-133,176-188,260-286` — **所有 Aroon 变体 runonce 全 NaN**：从 `self.up`/`self.down` line-operation arrays 复制，但这些数组在 `once` 中从未调度 → `__init__` 绑定 `self.lines.aroonup = self.up` 或在 `once` 直接由 high/low 计算。CONFIRMED(runtime)。

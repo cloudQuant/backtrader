@@ -31,7 +31,7 @@ class BollingerBands(Indicator):
     upper and lower bands at distance x standard deviations
 
     Formula:
-      - midband = SimpleMovingAverage(close, period)
+      - midband = MovingAverage(data, period)
       - topband = midband + devfactor * StandardDeviation(data, period)
       - botband = midband - devfactor * StandardDeviation(data, period)
 
@@ -67,21 +67,23 @@ class BollingerBands(Indicator):
     def __init__(self):
         """Initialize the Bollinger Bands indicator.
 
-        Sets minimum period to the configured period.
+        Creates the configured moving average for the middle band and sets the
+        minimum period to the configured period.
         """
         super().__init__()
+        self.midma = self.p.movav(self.data, period=self.p.period)
         self.addminperiod(self.p.period)
 
     def next(self):
         """Calculate Bollinger Bands for the current bar.
 
-        Calculates mid (SMA), top (mid + devfactor*stddev), and
-        bot (mid - devfactor*stddev) bands.
+        Calculates mid (configured moving average), top (mid + devfactor*stddev),
+        and bot (mid - devfactor*stddev) bands.
         """
         period = self.p.period
         devfactor = self.p.devfactor
 
-        # Calculate SMA (mid)
+        # Calculate the arithmetic mean used by the population standard deviation.
         data_sum = 0.0
         data_sq_sum = 0.0
         for i in range(period):
@@ -89,11 +91,12 @@ class BollingerBands(Indicator):
             data_sum += val
             data_sq_sum += val * val
 
-        mid = data_sum / period
+        mean = data_sum / period
+        mid = self.midma[0]
 
         # Calculate StdDev
         meansq = data_sq_sum / period
-        sqmean = mid * mid
+        sqmean = mean * mean
         diff = abs(meansq - sqmean)
         stddev = math.sqrt(max(0, diff))
 
@@ -108,9 +111,10 @@ class BollingerBands(Indicator):
         mid_array = self.lines.mid.array
         top_array = self.lines.top.array
         bot_array = self.lines.bot.array
+        midma_array = self.midma.lines[0].array
         period = self.p.period
         devfactor = self.p.devfactor
-        actual_end = min(end, len(darray))
+        actual_end = min(end, len(darray), len(midma_array))
         darray_len = len(darray)
 
         # Ensure arrays are sized
@@ -151,9 +155,10 @@ class BollingerBands(Indicator):
                 bot_array[i] = nan_val
                 continue
 
-            mid = data_sum / period
+            mean = data_sum / period
+            mid = midma_array[i]
             meansq = data_sq_sum / period
-            sqmean = mid * mid
+            sqmean = mean * mean
             diff = abs(meansq - sqmean)
             stddev = sqrt(max(0, diff))
 
