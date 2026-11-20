@@ -12,7 +12,7 @@ import weakref
 from collections.abc import Mapping, MutableMapping, MutableSet
 from copy import copy, deepcopy
 from decimal import Decimal
-from typing import Any, DefaultDict, Dict, List as List, Optional
+from typing import Any, DefaultDict, Dict, Optional
 
 from ..broker import BrokerBase
 from ._btapi_recovery import ServiceRecoveryBrokerMixin
@@ -27,16 +27,10 @@ from ._btapi_gateway_stream import GatewayExecutionStreamBrokerMixin
 from ._btapi_strategy_events import StrategyNotificationRecoveryBrokerMixin
 from ._btapi_strategy_ledger import StrategyLedgerBrokerMixin
 from ._btapi_direct_mode import BtApiDirectModeMixin, direct_params
-from ..order import (
-    BuyOrder,
-    OrderBase,
-    OrderExecutionBit as OrderExecutionBit,
-    SellOrder,
-)
+from ..order import BuyOrder, OrderBase, SellOrder
 from ..position import (
     Position,
     POSITION_MODE_DUAL_SIDE,
-    infer_position_side as infer_position_side,
     normalize_order_position_meta,
     normalize_position_mode,
     normalize_position_offset,

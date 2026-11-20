@@ -11,8 +11,6 @@ import struct
 from pathlib import Path
 
 from backtrader.live_state.gateway_initialization import (
-    _verify_new_identity_marker as _verify_new_identity_marker,
-    _write_new_identity_marker as _write_new_identity_marker,
     prepare_gateway_state,
     verify_gateway_preparation,
 )
