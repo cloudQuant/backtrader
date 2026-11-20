@@ -6113,22 +6113,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 "bt_api_py account-session workflow contracts are required"
             ) from exc
 
-        api = self._ensure_api_ready()
-        if not self._sdk_mode or self._service_read_only:
-            raise BtApiStoreError(
-                "account-session capabilities require the unified SDK facade"
-            )
-        selected = self._resolve_sdk_route_name(api, exchange_name)
-        if not isinstance(api, AccountSessionWorkflowFacade):
-            raise BtApiStoreError(
-                "SDK facade does not expose AccountSessionWorkflowFacade"
-            )
-        snapshot = api.account_session_snapshot(selected)
-        if type(snapshot) is not AccountSessionSnapshot:
-            raise BtApiStoreError(
-                "SDK account-session workflow returned an invalid snapshot"
-            )
-        return snapshot
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError(
+                    "store_sdk_lifecycle_transition_in_progress"
+                )
+            api = self._ensure_api_ready()
+            if not self._sdk_mode or self._service_read_only:
+                raise BtApiStoreError(
+                    "account-session capabilities require the unified SDK facade"
+                )
+            selected = self._resolve_sdk_route_name(api, exchange_name)
+            if not isinstance(api, AccountSessionWorkflowFacade):
+                raise BtApiStoreError(
+                    "SDK facade does not expose AccountSessionWorkflowFacade"
+                )
+            snapshot = api.account_session_snapshot(selected)
+            if type(snapshot) is not AccountSessionSnapshot:
+                raise BtApiStoreError(
+                    "SDK account-session workflow returned an invalid snapshot"
+                )
+            return snapshot
 
     def account_preflight(self, request):
         """Return request-bound neutral readiness evidence from the SDK.
@@ -6148,22 +6153,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             ) from exc
         if type(request) is not AccountPreflightRequest:
             raise TypeError("request must be an exact AccountPreflightRequest")
-        api = self._ensure_api_ready()
-        if not self._sdk_mode or self._service_read_only:
-            raise BtApiStoreError(
-                "account-session capabilities require the unified SDK facade"
-            )
-        selected = self._resolve_sdk_route_name(api, request.exchange_name)
-        if request.exchange_name != selected:
-            raise BtApiStoreError("account preflight route does not match the selected SDK route")
-        if not isinstance(api, AccountSessionWorkflowFacade):
-            raise BtApiStoreError(
-                "SDK facade does not expose AccountSessionWorkflowFacade"
-            )
-        snapshot = api.account_preflight(request)
-        if type(snapshot) is not AccountPreflightSnapshot:
-            raise BtApiStoreError("SDK account-session workflow returned an invalid preflight")
-        return snapshot
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError(
+                    "store_sdk_lifecycle_transition_in_progress"
+                )
+            api = self._ensure_api_ready()
+            if not self._sdk_mode or self._service_read_only:
+                raise BtApiStoreError(
+                    "account-session capabilities require the unified SDK facade"
+                )
+            selected = self._resolve_sdk_route_name(api, request.exchange_name)
+            if request.exchange_name != selected:
+                raise BtApiStoreError("account preflight route does not match the selected SDK route")
+            if not isinstance(api, AccountSessionWorkflowFacade):
+                raise BtApiStoreError(
+                    "SDK facade does not expose AccountSessionWorkflowFacade"
+                )
+            snapshot = api.account_preflight(request)
+            if type(snapshot) is not AccountPreflightSnapshot:
+                raise BtApiStoreError("SDK account-session workflow returned an invalid preflight")
+            return snapshot
 
     def verify_account_settlement(self, exchange_name: str, *, deadline):
         """Perform an SDK-owned active, read-only settlement server readback."""
@@ -6185,22 +6195,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             raise ValueError("deadline must be a timezone-aware UTC datetime")
         if deadline <= _dt.datetime.now(_UTC):
             raise ValueError("deadline must be in the future")
-        api = self._ensure_api_ready()
-        if not self._sdk_mode or self._service_read_only:
-            raise BtApiStoreError(
-                "account-session capabilities require the unified SDK facade"
-            )
-        selected = self._resolve_sdk_route_name(api, exchange_name)
-        if not isinstance(api, AccountSessionWorkflowFacade):
-            raise BtApiStoreError(
-                "SDK facade does not expose AccountSessionWorkflowFacade"
-            )
-        receipt = api.verify_account_settlement(selected, deadline=deadline)
-        if type(receipt) is not SettlementVerificationReceipt:
-            raise BtApiStoreError(
-                "SDK account-session workflow returned an invalid settlement receipt"
-            )
-        return receipt
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError(
+                    "store_sdk_lifecycle_transition_in_progress"
+                )
+            api = self._ensure_api_ready()
+            if not self._sdk_mode or self._service_read_only:
+                raise BtApiStoreError(
+                    "account-session capabilities require the unified SDK facade"
+                )
+            selected = self._resolve_sdk_route_name(api, exchange_name)
+            if not isinstance(api, AccountSessionWorkflowFacade):
+                raise BtApiStoreError(
+                    "SDK facade does not expose AccountSessionWorkflowFacade"
+                )
+            receipt = api.verify_account_settlement(selected, deadline=deadline)
+            if type(receipt) is not SettlementVerificationReceipt:
+                raise BtApiStoreError(
+                    "SDK account-session workflow returned an invalid settlement receipt"
+                )
+            return receipt
 
     def confirm_account_settlement(self, request):
         """Attempt one separately authorized settlement confirmation.

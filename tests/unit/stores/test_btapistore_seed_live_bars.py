@@ -3,7 +3,7 @@
 import queue
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +15,7 @@ from backtrader.stores.btapistore import (
     BtApiStore,
     BtApiStoreError,
 )
+from backtrader.stores import btapistore as store_module
 from backtrader.service import service_read_proxy as proxy_module
 
 
@@ -183,6 +184,77 @@ def _service_read_only_store(monkeypatch):
     )
     monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
     return store, api, calls
+
+
+def _account_session_workflow_values(route):
+    from bt_api_py.facade_protocol import (
+        AccountPreflightRequest,
+        AccountPreflightSnapshot,
+        AccountSessionSnapshot,
+        SettlementVerificationReceipt,
+    )
+
+    now = datetime.now(timezone.utc)
+    deadline = now + timedelta(seconds=30)
+    request = AccountPreflightRequest(
+        exchange_name=route,
+        symbol="BTC-USDT",
+        operation="submit",
+        deadline=deadline,
+    )
+    session = AccountSessionSnapshot(
+        exchange_name=route,
+        source_ref="source-1",
+        generation="generation-1",
+        session_ref="session-1",
+        connected=True,
+        authenticated=True,
+        trading_enabled=True,
+        business_day="20261120",
+        settlement_status="confirmed",
+        observed_at=now,
+        available=True,
+    )
+    preflight = AccountPreflightSnapshot(
+        request=request,
+        source_ref="source-1",
+        generation="generation-1",
+        observed_at=now,
+        ready=False,
+        available=True,
+        blockers=("execution_evidence_unavailable",),
+    )
+    settlement = SettlementVerificationReceipt(
+        exchange_name=route,
+        source_ref=None,
+        generation=None,
+        business_day=None,
+        status="unknown",
+        observed_at=None,
+        complete=False,
+        read_only_safe=True,
+        receipt_ref=None,
+        reason_code="readback_unavailable",
+    )
+    return request, deadline, session, preflight, settlement
+
+
+def _started_account_session_store(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **_kwargs: None)
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_ensure_api_ready", lambda: api)
+        patch.setattr(store, "get_balance", lambda **_kwargs: {"cash": 0.0, "value": 0.0})
+        patch.setattr(
+            BtApiStore, "_begin_funding_refresh_generation", lambda _self: None
+        )
+        store.start()
+    store._connected = True
+    return store, api
 
 
 def _bind_store_owned_api(store, api):
@@ -2107,6 +2179,221 @@ def test_service_direct_api_operations_hold_activity_through_call(
     assert calls["wakers"] == {}
     assert store._event_notifier.has_sdk_binding is False
     store._unregister_live_bar_event_waker(waker_token)
+
+
+@pytest.mark.parametrize(
+    "operation,api_method",
+    [
+        ("session", "account_session_snapshot"),
+        ("preflight", "account_preflight"),
+        ("settlement_readback", "verify_account_settlement"),
+    ],
+)
+@pytest.mark.parametrize("stop_timeout", [False, True])
+def test_account_session_readers_hold_activity_through_api_projection(
+    monkeypatch, operation, api_method, stop_timeout
+):
+    from bt_api_py.facade_protocol import AccountSessionWorkflowFacade
+
+    store, api = _started_account_session_store(monkeypatch)
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **_kwargs: None)
+    request, deadline, session, preflight, settlement = (
+        _account_session_workflow_values(api.route)
+    )
+    responses = {
+        "session": session,
+        "preflight": preflight,
+        "settlement_readback": settlement,
+    }
+    api.account_session_snapshot = lambda _route: session
+    api.account_preflight = lambda _request: preflight
+    api.verify_account_settlement = lambda _route, *, deadline: settlement
+    assert isinstance(api, AccountSessionWorkflowFacade)
+
+    entered, release = threading.Event(), threading.Event()
+    calls, results, errors = [], [], []
+    stop_results, stop_errors = [], []
+    store._cash = 17.25
+    store._value = 21.5
+    account_cache_before = (store._cash, store._value)
+
+    def blocked_read(*args, **kwargs):
+        calls.append((args, kwargs))
+        entered.set()
+        if not release.wait(2):
+            raise AssertionError(f"timed out waiting to release {operation}")
+        return responses[operation]
+
+    setattr(api, api_method, blocked_read)
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+
+    def invoke():
+        try:
+            if operation == "session":
+                result = store.account_session_snapshot(api.route)
+            elif operation == "preflight":
+                result = store.account_preflight(request)
+            else:
+                result = store.verify_account_settlement(api.route, deadline=deadline)
+            results.append(result)
+        except BaseException as exc:
+            errors.append(exc)
+
+    operation_thread = threading.Thread(target=invoke, daemon=True)
+    operation_thread.start()
+    stop_thread = None
+    try:
+        assert entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        assert store._event_notifier.has_sdk_binding is True
+        assert len(api.event_wakers) == 1
+        if stop_timeout:
+            with pytest.raises(
+                BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+            ):
+                store.stop(timeout=0.02)
+        else:
+            def stop_store():
+                try:
+                    stop_results.append(store.stop(timeout=1.0))
+                except BaseException as exc:
+                    stop_errors.append(exc)
+
+            stop_thread = threading.Thread(target=stop_store, daemon=True)
+            stop_thread.start()
+            with store._sdk_start_state_lock:
+                assert store._sdk_start_state_lock.wait_for(
+                    lambda: store._sdk_stop_in_progress, timeout=1
+                )
+        assert store._connected is True
+        assert store._started is True
+        assert store._sdk_stop_in_progress is (not stop_timeout)
+        assert store._sdk_api_activity_count == 1
+        assert store._cash == account_cache_before[0]
+        assert store._value == account_cache_before[1]
+        assert store._event_notifier.has_sdk_binding is True
+        assert len(api.event_wakers) == 1
+        assert api.close_calls == 0
+    finally:
+        release.set()
+        operation_thread.join(2)
+        if stop_thread is not None:
+            stop_thread.join(2)
+
+    assert not operation_thread.is_alive()
+    assert stop_thread is None or not stop_thread.is_alive()
+    assert not errors
+    assert not stop_errors
+    assert len(calls) == 1
+    assert len(results) == 1
+    assert results[0] is responses[operation]
+    assert store._sdk_api_activity_count == 0
+    if stop_timeout:
+        stop_results.append(store.stop(timeout=0.2))
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert store._started is False
+    assert store._connected is False
+    assert (store._cash, store._value) == account_cache_before
+    assert store._event_notifier.has_sdk_binding is False
+    assert api.event_wakers == {}
+    assert api.close_calls == 0
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+@pytest.mark.parametrize(
+    "operation,api_method",
+    [
+        ("session", "account_session_snapshot"),
+        ("preflight", "account_preflight"),
+        ("settlement_readback", "verify_account_settlement"),
+    ],
+)
+def test_account_session_readers_preserve_api_exceptions_and_release_activity(
+    monkeypatch, operation, api_method
+):
+    store, api = _started_account_session_store(monkeypatch)
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **_kwargs: None)
+    request, deadline, _session, _preflight, _settlement = (
+        _account_session_workflow_values(api.route)
+    )
+    marker = RuntimeError(f"{operation} failed")
+    calls = []
+
+    def fail_read(*_args, **_kwargs):
+        calls.append(True)
+        raise marker
+
+    api.account_session_snapshot = lambda _route: None
+    api.account_preflight = lambda _request: None
+    api.verify_account_settlement = lambda _route, *, deadline: None
+    setattr(api, api_method, fail_read)
+
+    with pytest.raises(RuntimeError) as exc:
+        if operation == "session":
+            store.account_session_snapshot(api.route)
+        elif operation == "preflight":
+            store.account_preflight(request)
+        else:
+            store.verify_account_settlement(api.route, deadline=deadline)
+
+    assert exc.value is marker
+    assert calls == [True]
+    assert store._sdk_api_activity_count == 0
+
+
+def test_account_session_input_validation_precedes_readiness(monkeypatch):
+    store, _api = _started_account_session_store(monkeypatch)
+    readiness_calls = []
+    monkeypatch.setattr(
+        store,
+        "_ensure_api_ready",
+        lambda: readiness_calls.append(True),
+    )
+
+    with pytest.raises(TypeError, match="exact AccountPreflightRequest"):
+        store.account_preflight(object())
+    with pytest.raises(ValueError, match="timezone-aware UTC"):
+        store.verify_account_settlement(
+            "CTP___FUTURE", deadline=datetime.now()
+        )
+
+    assert readiness_calls == []
+    assert store._sdk_api_activity_count == 0
+
+
+def test_account_session_reader_is_admitted_from_start_owner_thread(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **_kwargs: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    request, deadline, session, _preflight, _settlement = (
+        _account_session_workflow_values(api.route)
+    )
+    calls = []
+    api.account_session_snapshot = lambda route: calls.append(route) or session
+    api.account_preflight = lambda _request: None
+    api.verify_account_settlement = lambda _route, *, deadline: None
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+
+    def start_bridge(actual_store, *_args, **_kwargs):
+        actual_store._connected = True
+        actual_store._started = True
+        return actual_store.account_session_snapshot(api.route)
+
+    monkeypatch.setattr(store_module, "_start_store", start_bridge)
+    result = store.start()
+
+    assert result is session
+    assert calls == [api.route]
+    assert store._sdk_api_activity_count == 0
+    assert store._sdk_start_in_progress is False
+    assert store._started is True
+    assert store._connected is True
+    assert request.exchange_name == api.route
+    assert deadline > datetime.now(timezone.utc)
 
 
 def test_owned_factory_restart_uses_a_fresh_sdk_facade(monkeypatch):
