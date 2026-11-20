@@ -30,13 +30,12 @@ class Alpha046Native(FactorIndicator):
         self._nodes = {}
         close = self.field_lines("close")
         close_delay20 = per_asset(self, "close_delay20", Delay, close, period=20)
-        close_delay10_a = per_asset(self, "close_delay10_a", Delay, close, period=10)
-        move_a = per_asset(self, "delay20_minus_delay10", Subtract, close_delay20, close_delay10_a)
+        close_delay10 = per_asset(self, "close_delay10", Delay, close, period=10)
+        move_a = per_asset(self, "delay20_minus_delay10", Subtract, close_delay20, close_delay10)
         normalized_a = per_asset(
             self, "normalized_delay_move", Divide, move_a, (10.0,) * len(self.datas)
         )
-        close_delay10_b = per_asset(self, "close_delay10_b", Delay, close, period=10)
-        move_b = per_asset(self, "delay10_minus_close", Subtract, close_delay10_b, close)
+        move_b = per_asset(self, "delay10_minus_close", Subtract, close_delay10, close)
         normalized_b = per_asset(
             self, "normalized_recent_move", Divide, move_b, (10.0,) * len(self.datas)
         )
@@ -76,11 +75,10 @@ class Alpha046Native(FactorIndicator):
     def build(cls, ctx, **params):
         close = ctx.field("close")
         close_delay20 = ctx.delay(close, 20)
-        close_delay10_a = ctx.delay(close, 10)
-        move_a = close_delay20 - close_delay10_a
+        close_delay10 = ctx.delay(close, 10)
+        move_a = close_delay20 - close_delay10
         normalized_a = move_a / 10.0
-        close_delay10_b = ctx.delay(close, 10)
-        move_b = close_delay10_b - close
+        move_b = close_delay10 - close
         normalized_b = move_b / 10.0
         slope = normalized_a - normalized_b
         above_quarter = ctx.less_than(0.25, slope)

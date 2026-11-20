@@ -40,11 +40,8 @@ class Alpha062Native(FactorIndicator):
             period=9.91009,
         )
         ranked_correlation = panel(self, "rank_correlation", CrossSectionalRank, correlation)
-        open_rank_left = panel(self, "rank_open_left", CrossSectionalRank, self.field_lines("open"))
-        open_rank_right = panel(
-            self, "rank_open_right", CrossSectionalRank, self.field_lines("open")
-        )
-        open_rank_sum = per_asset(self, "open_rank_sum", Add, open_rank_left, open_rank_right)
+        open_rank = panel(self, "rank_open", CrossSectionalRank, self.field_lines("open"))
+        open_rank_sum = per_asset(self, "open_rank_sum", Add, open_rank, open_rank)
         midpoint = per_asset(
             self,
             "midpoint",
@@ -77,9 +74,8 @@ class Alpha062Native(FactorIndicator):
         adv_sum = ctx.sum(adv20, 22.4101)
         correlation = ctx.correlation(ctx.field("vwap"), adv_sum, 9.91009)
         ranked_correlation = ctx.rank(correlation)
-        open_rank_left = ctx.rank(ctx.field("open"))
-        open_rank_right = ctx.rank(ctx.field("open"))
-        open_rank_sum = open_rank_left + open_rank_right
+        open_rank = ctx.rank(ctx.field("open"))
+        open_rank_sum = open_rank + open_rank
         midpoint = (ctx.field("high") + ctx.field("low")) / 2.0
         midpoint_rank = ctx.rank(midpoint)
         high_rank = ctx.rank(ctx.field("high"))
