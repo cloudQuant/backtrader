@@ -131,12 +131,14 @@ class RegistryMixin:
         tzdata=None,
         strats=False,
         cheat=False,
-        *args,
-        **kwargs,
+        callback_args=(),
+        callback_kwargs=None,
     ):
         """Internal method to really create the timer (not started yet) which
         can be called by cerebro instances or other objects which can access
-        cerebro"""
+        cerebro. Callback arguments are kept separate from timer settings so
+        names such as ``owner`` and ``strats`` remain valid callback keywords.
+        """
 
         # Normalize mutable-default placeholders (B006): Timer treats None as
         # "all days", identical to the previous empty-list default.
@@ -156,9 +158,9 @@ class RegistryMixin:
             allow=allow,
             tzdata=tzdata,
             cheat=cheat,
-            *args,
-            **kwargs,
         )
+        timer.args = callback_args
+        timer.kwargs = {} if callback_kwargs is None else callback_kwargs
 
         self._pretimers.append(timer)
         return timer
@@ -262,23 +264,21 @@ class RegistryMixin:
           - The created timer
 
         """
-        # NOTE: *args (extra notify_timer args) are forwarded positionally after
-        # the named timer kwargs; _add_timer collects them into its own *args.
         return self._add_timer(
-            owner=self,
-            when=when,
-            offset=offset,
-            repeat=repeat,
-            weekdays=weekdays,
-            weekcarry=weekcarry,
-            monthdays=monthdays,
-            monthcarry=monthcarry,
-            allow=allow,
-            tzdata=tzdata,
-            strats=strats,
-            cheat=cheat,
-            *args,
-            **kwargs,
+            self,
+            when,
+            offset,
+            repeat,
+            weekdays,
+            weekcarry,
+            monthdays,
+            monthcarry,
+            allow,
+            tzdata,
+            strats,
+            cheat,
+            args,
+            kwargs,
         )
 
     def addtz(self, tz):

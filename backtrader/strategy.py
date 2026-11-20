@@ -3479,20 +3479,20 @@ class Strategy(StrategyBase):
             The created timer instance
         """
         return self.cerebro._add_timer(
-            owner=self,
-            when=when,
-            offset=offset,
-            repeat=repeat,
-            weekdays=weekdays,
-            weekcarry=weekcarry,
-            monthdays=monthdays,
-            monthcarry=monthcarry,
-            allow=allow,
-            tzdata=tzdata,
-            strats=False,
-            cheat=cheat,
-            *args,
-            **kwargs,
+            self,
+            when,
+            offset,
+            repeat,
+            weekdays,
+            weekcarry,
+            monthdays,
+            monthcarry,
+            allow,
+            tzdata,
+            False,
+            cheat,
+            args,
+            kwargs,
         )
 
     def notify_timer(self, timer, when, *args, **kwargs):
