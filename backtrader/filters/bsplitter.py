@@ -46,6 +46,11 @@ class DaySplitterClose(ParameterizedBase):
         absolute terms from 0.0 to 1.0, has to be assigned to the *closing*
         tick. The rest will be assigned to the ``OHLX`` tick.
 
+    The opening OHLX tick has ``OpenInterest`` set to 0; the closing CCCC
+    tick retains the source bar value. Earlier versions kept the source value
+    on both ticks, so callers relying on the opening-tick value should account
+    for this compatibility change.
+
     **This filter is meant to be used together with** ``cerebro.replaydata``
 
     """
@@ -108,7 +113,7 @@ class DaySplitterClose(ParameterizedBase):
         closebar[data.High] = cprice
         closebar[data.Low] = cprice
         closebar[data.Volume] = vol - vohl
-        ohlbar[data.OpenInterest] = oi
+        closebar[data.OpenInterest] = oi
 
         # Adjust times
         dt = datetime.datetime.combine(datadt, data.p.sessionend)

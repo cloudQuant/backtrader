@@ -396,6 +396,11 @@ cerebro.replaydata(data)  # Use with replaydata
 
 ```bash
 
+- The opening OHLX tick has `openinterest=0`; the closing CCCC tick keeps
+  the source bar value. Earlier versions kept the source value on both ticks,
+  so callers relying on the opening-tick value should account for this
+  compatibility change.
+
 ### BarReplayerOpen (DayStepsFilter)
 
 Splits bars into open and OHLC parts to simulate replay.

@@ -1,4 +1,4 @@
-- --
+﻿- --
 
 title: Filter API
 description: Filter 类完整 API 参考
@@ -370,6 +370,9 @@ cerebro.replaydata(data, timeframe=bt.TimeFrame.Minutes)
 - *拆分逻辑**:
 - 第一部分 OHLX: 开盘时间，Close = (Open + High + Low) / 3
 - 第二部分 CCCC: 收盘时间，OHLC 全等于收盘价
+
+- 开盘合成 OHLX tick 的 `openinterest` 设为 `0`，收盘 CCCC tick 保留源日线原值，避免收盘持仓量提前暴露到开盘。
+- 旧版本会在两个 tick 都保留源持仓量；依赖开盘 tick 旧值的调用方需注意这项兼容性变化。
 
 ### BarReplayerOpen (DayStepsFilter)
 
