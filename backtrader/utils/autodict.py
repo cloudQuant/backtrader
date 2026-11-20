@@ -221,12 +221,6 @@ class AutoOrderedDict(OrderedDict):
 
         return self * other
 
-    def __idiv__(self, other):
-        if not isinstance(other, type(self)):
-            return type(other)() // other
-
-        return self // other
-
     def __itruediv__(self, other):
         if not isinstance(other, type(self)):
             return type(other)() / other
