@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 21 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 11 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 12 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **155** |
+| | **合计** | **207** | **156** |
 
 ---
 
@@ -281,7 +281,7 @@
 - [ ] **R71-074** `[P3]` `bokeh/__init__.py:73` — 捕获所有 `ImportError` 当作"bokeh 未安装"，会掩盖 bokeh 自身依赖损坏 → 区分 `ModuleNotFoundError` 与其它 ImportError 并记录日志。
 - [ ] **R71-075** `[P3]` `utils/autodict.py:224` — `__idiv__` 是 Python 2 钩子，Python 3 `//=` 走 `__ifloordiv__`，方法为死代码 → 删除或改名。
 - [x] **R71-076** `[P3]` `feeds/btcsv.py:182` — 日志硬编码 `btcsv:181`，行号漂移且描述"ignored"与实际 fallback 重试不符 → 删除硬编码行号，描述真实行为。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（日志描述真实 LineBuffer fallback，去除固定行号；触发 IndexError 并验证七条线写入的回归及相邻 CSV 测试共 3 项通过）。
-- [ ] **R71-077** `[P3]` `filters/heikinashi.py:30` — 构造器要求 `data` 位置参数但未使用，模块示例 `HeikinAshi()` 会 `TypeError` → `data` 可选或修正示例。
+- [x] **R71-077** `[P3]` `filters/heikinashi.py:30` — 构造器要求 `data` 位置参数但未使用，模块示例 `HeikinAshi()` 会 `TypeError` → `data` 可选或修正示例。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（两个示例改为向 addfilter 传 HeikinAshi 类并由 Feed 注入 data；保留构造器合同，专项回归通过）。
 - [x] **R71-078** `[P3]` `filters/daysteps.py:12` — 示例 `BarReplayerOpen()` 与 `__init__(self, data)` 不符，`addfilter` 应传类而非实例 → 修正示例。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（示例向 addfilter 传过滤器类，由 Feed 注入 data；专项回归和示例注册检查通过）。
 - [x] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（修正填充日期、价格和数据线的文档以匹配实际实现；7 项相关过滤器测试通过。）。
 - [x] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 文档核对**（修正 adddata 与 Keeping 拼写，已核对 Cerebro 实际方法名；仅文档更改）。

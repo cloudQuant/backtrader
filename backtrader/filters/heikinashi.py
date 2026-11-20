@@ -9,7 +9,7 @@ Classes:
 
 Example:
     >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> data.addfilter(bt.filters.HeikinAshi())
+    >>> data.addfilter(bt.filters.HeikinAshi)
     >>> cerebro.adddata(data)
 """
 

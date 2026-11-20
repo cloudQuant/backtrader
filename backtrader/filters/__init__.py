@@ -18,9 +18,8 @@ Available Filters:
 Example:
     Using a filter with data:
     >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.HeikinAshi)
     >>> cerebro.adddata(data)
-    >>> cerebro.adddata(bt.feeds.GenericCSVData(dataname='data2.csv'),
-    ...                  filter=bt.filters.HeikinAshi())
 """
 
 from ..flt import Filter as Filter
