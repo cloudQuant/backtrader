@@ -8,14 +8,10 @@ Example::
 
     bridge = ChannelBridge(tick_channel, fields=['price', 'volume'])
     bridge.update(tick_event)
-    # Now bridge.lines.price[0] contains the latest tick price
+    # Now bridge['price'][0] contains the latest tick price
 """
 
 from collections import deque
-
-from ..utils.log_message import get_logger
-
-logger = get_logger(__name__)
 
 __all__ = ["ChannelBridge"]
 

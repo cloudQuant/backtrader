@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 22 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 13 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 14 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **158** |
+| | **合计** | **207** | **159** |
 
 ---
 
@@ -288,7 +288,7 @@
 - [x] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（删除写入 marker 后无后续读取的两个局部赋值，保留均价计算所需读取；4 项回归通过）。
 - [x] **R71-082** `[P3]` `_cerebro/runonce.py:30` — 循环变量 `i` 未使用 → 改为 `_`。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（旧 runonce 循环未使用索引，改为下划线；现代路径仍保留所需索引，2 项定向回归通过。）。
 - [x] **R71-083** `[P3]` `reports/reporter.py:588` — `math` 已在模块顶部导入，函数内重复 `import math` → 删除局部导入。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（删除函数内重复 math 导入，保留模块级导入；6 项序列化回归通过。）。
-- [ ] **R71-084** `[P3]` `channels/bridge.py:18` — 模块级 `logger` 未使用；文档示例 `bridge.lines.price[0]` 与实际接口 `bridge['price'][0]` 不符 → 删除/使用 logger 并修正示例。
+- [x] **R71-084** `[P3]` `channels/bridge.py:18` — 模块级 `logger` 未使用；文档示例 `bridge.lines.price[0]` 与实际接口 `bridge['price'][0]` 不符 → 删除/使用 logger 并修正示例。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（示例改用 bridge 索引访问，移除未使用 logger；49 项 channel 回归通过。模块偶然提供的 logger/get_logger 直接属性随之移除）。
 - [ ] **R71-085** `[P3]` `channels/orderbook.py:79` — `_last_best_bid/_last_best_ask` 只写不读，为死状态 → 接入异常检测或删除。
 
 ## 批次 11 · 回归验收与矩阵同步
