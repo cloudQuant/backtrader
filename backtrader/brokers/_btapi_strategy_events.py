@@ -27,6 +27,16 @@ durable ``SqliteEventCursorStore`` (no cursor logic lives here).
 
 from __future__ import annotations
 
+import hashlib as _hashlib
+import json as _json
+import math as _math
+import os as _os
+import uuid as _uuid
+from decimal import Decimal as _Decimal
+from pathlib import Path as _Path
+from types import MappingProxyType as _MappingProxyType
+from types import SimpleNamespace as _SimpleNamespace
+
 from ..utils.log_message import get_logger
 
 _logger = get_logger(__name__)
@@ -191,16 +201,6 @@ class StrategyLedgerEventsBrokerMixin:
 # re-delivered is ignored; a lower fee, another currency or a fill booked
 # without a fee disables trading and freezes openings (``fee_correction_fence``)
 # as in the live path.
-
-import hashlib as _hashlib
-import json as _json
-import math as _math
-import os as _os
-import uuid as _uuid
-from decimal import Decimal as _Decimal
-from pathlib import Path as _Path
-from types import MappingProxyType as _MappingProxyType
-from types import SimpleNamespace as _SimpleNamespace
 
 _PAYLOAD_VERSION = 2
 _INDEX_VERSION = 1

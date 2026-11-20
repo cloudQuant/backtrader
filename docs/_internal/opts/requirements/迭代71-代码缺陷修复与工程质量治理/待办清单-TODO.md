@@ -32,11 +32,11 @@
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
 | 7 | 性能专项（P1/P2） | 19 | 6 |
-| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 1 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 2 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **104** |
+| | **合计** | **207** | **105** |
 
 ---
 
@@ -210,7 +210,7 @@
 - [ ] **R72-BUG-06 ≡ N72-B023-b** `[P1]` `brokers/_btapi_direct_mode.py:3773-3774` — `for symbol` 内定义 `_side(...)` 捕获 `split`（B023）→ 提取为独立辅助函数显式传 `split`。CONFIRMED(ruff)。
 - [ ] **R72-BUG-07** `[P1]` `futures/calendar.py:503,563-567,584` — 同一函数内 `windows` 先赋 tuple（`:503`）后赋 `[]` 并 `.append()`（`:563`），`:584` 再 `tuple(windows)`，类型变异引发 Mypy 报错 → 拆分为 `raw_windows` / `session_windows`。CONFIRMED(source)。
 - [ ] **R72-BUG-08** `[P1]` `futures/ranking_projection.py:110-111` — `_aware_utc` 连续两次 `value.utcoffset()`，第二次直接 `.total_seconds()`，静态类型无法保证非空 → 提前解构 `offset = value.utcoffset()` 并单一判定。CONFIRMED(source)。
-- [ ] **N72-11** `[P2]` `brokers/_btapi_strategy_events.py:195-203` — **E402 ×9**（module level import not at top），占 45 处的 1/5，迭代 72 完全未登记 → 导入移到顶部或 `# noqa: E402` 显式声明延迟导入（需先确认是否有循环导入约束）。CONFIRMED(ruff)。
+- [x] **N72-11** `[P2]` `brokers/_btapi_strategy_events.py:195-203` — **E402 ×9**（module level import not at top），占 45 处的 1/5，迭代 72 完全未登记 → 导入移到顶部或 `# noqa: E402` 显式声明延迟导入（需先确认是否有循环导入约束）。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+集成**（仅移动九个标准库导入，BT/SDK 局部延迟导入保持；目标 Ruff 通过，31 项策略事件回归及独立静态复审通过）。
 - [ ] **N72-12** `[P2]` `brokers/btapibroker.py:336,339,346,2821,2840`；`linebuffer.py:2902`；`stores/btapistore.py:1581` — RET502 ×6 / RET501 ×1，迭代 72 遗漏 → 统一返回样式（`--fix` 可处理）。CONFIRMED(ruff)。
 - [ ] **N72-13** `[P2]` `brokers/btapibroker.py:14,29,33` — `List`、`OrderExecutionBit`、`infer_position_side` 三个 F401 未使用导入 → 清理（自动修复）。CONFIRMED(ruff)。
 - [ ] **N72-14** `[P2]` `futures/__init__.py:18` — `CHINA_TIME` 导入未用且 `__all__` 未列出（F401），属公共符号导出遗漏 → 补 `__all__` 或删除导入；**先确认下游是否依赖 `bt.futures.CHINA_TIME`**。CONFIRMED(ruff)。
