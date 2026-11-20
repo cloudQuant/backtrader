@@ -105,26 +105,32 @@ class XRVIIndicator(Indicator):
 
         rvi_period = max(1, int(self.p.rvi_period))
         sign_period = max(1, int(self.p.sign_period))
-        prev_xrvi = None
-        prev_signal = None
+        start = max(0, start)
         actual_end = min(end, len(open_array), len(high_array), len(low_array), len(close_array))
         raw_values = [
             self._raw_rvi_at(i, open_array, high_array, low_array, close_array)
             for i in range(actual_end)
         ]
-        xrvi_values = []
-        for i in range(actual_end):
+
+        for i in range(start, actual_end):
             raw_start = max(0, i - rvi_period + 1)
+            prev_xrvi = float(xrvi_line[i - 1]) if i > 0 else None
             xrvi = self._window_ma(
                 raw_values[raw_start : i + 1], self.p.rvi_method, rvi_period, prev_xrvi
             )
-            xrvi_values.append(xrvi)
-            if i >= start:
-                xrvi_line[i] = xrvi
-            prev_xrvi = xrvi
+            xrvi_line[i] = xrvi
+
             signal_start = max(0, i - sign_period + 1)
-            signal_values = xrvi_values[signal_start : i + 1]
-            signal = self._window_ma(signal_values, self.p.sign_method, sign_period, prev_signal)
-            if i >= start:
-                signal_line[i] = signal
-            prev_signal = signal
+            signal_values = [
+                float(xrvi_line[index])
+                for index in range(signal_start, i)
+                if xrvi_line[index] == xrvi_line[index]
+            ]
+            signal_values.append(xrvi)
+            prev_signal = float(signal_line[i - 1]) if i > 0 else None
+            signal_line[i] = self._window_ma(
+                signal_values,
+                self.p.sign_method,
+                sign_period,
+                prev_signal,
+            )

@@ -232,6 +232,16 @@ class UltraXMAIndicator(Indicator):
         alpha = 2.0 / (period + 1.0)
         prev_bulls = None
         prev_bears = None
+        if start > 0:
+            prev_bulls = float(bulls_line[start - 1])
+            prev_bears = float(bears_line[start - 1])
+            # Cerebro calls oncestart for the first valid bar. Its preceding
+            # output is still the warmup NaN, so that bar must seed from the
+            # current counts; later once() ranges continue from the prior line.
+            if prev_bulls != prev_bulls:
+                prev_bulls = None
+            if prev_bears != prev_bears:
+                prev_bears = None
         actual_end = min([end] + [len(array) for array in ma_arrays])
         for i in range(start, actual_end):
             upsch = 0.0

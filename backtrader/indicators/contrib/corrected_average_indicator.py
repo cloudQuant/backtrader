@@ -110,12 +110,22 @@ class CorrectedAverageIndicator(Indicator):
         while len(corrected_line) < end:
             corrected_line.append(float("nan"))
 
+        # Cerebro calls ``oncestart`` for the first output bar and ``once``
+        # for the remaining bars. ``once`` may also be called with further
+        # consecutive subranges, so continue from the last completed output
+        # instead of reseeding the recurrence at every range boundary.
         prev = None
+        first_output = self._minperiod - 1
+        if start > first_output and start - 1 < len(corrected_line):
+            prev = float(corrected_line[start - 1])
+
         actual_end = min(end, len(ma_array), len(std_array))
         for i in range(start, actual_end):
             ma = float(ma_array[i])
             std = float(std_array[i])
             previous = ma if prev is None else prev
+            if previous != previous:
+                previous = ma
             v1 = std**2
             v2 = (previous - ma) ** 2
             if v2 < v1 or v2 == 0:
