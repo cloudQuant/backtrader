@@ -142,7 +142,7 @@ def project_store_account_positions(
         if not position_read_has_positions(read, unavailable=unavailable):
             continue
 
-        def feed_name_for(instrument: Any) -> str:
+        def feed_name_for(instrument: Any, *, route=route, read=read) -> str:
             matches = set()
             for feed in store._data_feeds:
                 private_name = getattr(feed, "_dataname", None)

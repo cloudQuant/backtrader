@@ -32,11 +32,11 @@
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
 | 7 | 性能专项（P1/P2） | 19 | 6 |
-| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 1 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **103** |
+| | **合计** | **207** | **104** |
 
 ---
 
@@ -206,7 +206,7 @@
 > 统一验证：`ruff check backtrader` → **0 errors**；`ocr delegate rule <files>` 无 Dead Code/高危告警。**先跑 `ruff check backtrader --fix`**（26 处自动修复，见 N72-16），复核 diff 后再人工处理 B023/E731/E402/C408/SIM114。
 
 - [ ] **N72-16** `[P2]` 全仓 Ruff 45 处 — 45 处中 26 处可 `--fix` 自动修复（另 4 处需 `--unsafe-fixes`）；迭代 72 清单未区分机械项与人工项 → 先跑 `--fix` 并复核 diff，再处理人工项。CONFIRMED(`ruff --statistics`)。
-- [ ] **R72-BUG-05 ≡ N72-B023-a** `[P1]` `stores/_account_position_projection.py:164,170` — `for read in batch.routes` 内定义 `feed_name_for(...)` 捕获 `route`/`read`（B023）→ 函数提升至循环外，把 `route`/`read` 作为形参显式传入。CONFIRMED(ruff)。
+- [x] **R72-BUG-05 ≡ N72-B023-a** `[P1]` `stores/_account_position_projection.py:164,170` — `for read in batch.routes` 内定义 `feed_name_for(...)` 捕获 `route`/`read`（B023）→ 函数提升至循环外，把 `route`/`read` 作为形参显式传入。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（按每轮 route/read 绑定闭包；延迟执行跨 route 回归 1 项通过，目标 Ruff 与独立静态复审通过）。
 - [ ] **R72-BUG-06 ≡ N72-B023-b** `[P1]` `brokers/_btapi_direct_mode.py:3773-3774` — `for symbol` 内定义 `_side(...)` 捕获 `split`（B023）→ 提取为独立辅助函数显式传 `split`。CONFIRMED(ruff)。
 - [ ] **R72-BUG-07** `[P1]` `futures/calendar.py:503,563-567,584` — 同一函数内 `windows` 先赋 tuple（`:503`）后赋 `[]` 并 `.append()`（`:563`），`:584` 再 `tuple(windows)`，类型变异引发 Mypy 报错 → 拆分为 `raw_windows` / `session_windows`。CONFIRMED(source)。
 - [ ] **R72-BUG-08** `[P1]` `futures/ranking_projection.py:110-111` — `_aware_utc` 连续两次 `value.utcoffset()`，第二次直接 `.total_seconds()`，静态类型无法保证非空 → 提前解构 `offset = value.utcoffset()` 并单一判定。CONFIRMED(source)。
