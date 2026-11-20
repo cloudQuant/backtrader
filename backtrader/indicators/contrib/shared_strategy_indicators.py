@@ -892,11 +892,14 @@ class AmlIndicator(Indicator):
         lag = max(1, int(self.p.lag))
         fractal = max(1, int(self.p.fractal))
         self._smooth = deque(maxlen=lag + 1)
+        self._last_aml = None
         self.addminperiod(max(fractal * 2 + 2, lag + 2))
 
     def _range(self, start, count):
         highs = [float(self.data.high[-(start + i)]) for i in range(count)]
         lows = [float(self.data.low[-(start + i)]) for i in range(count)]
+        if not all(math.isfinite(value) for value in highs + lows):
+            return float("nan")
         return max(highs) - min(lows)
 
     def next(self):
@@ -910,6 +913,10 @@ class AmlIndicator(Indicator):
             + 2.0 * float(self.data.close[0])
         ) / 6.0
 
+        if not math.isfinite(price):
+            self.lines.aml[0] = float("nan")
+            return
+
         if len(self.data) < fractal * 2 + 1:
             self._smooth.append(price)
             self.lines.aml[0] = float(self.lines.aml[-1]) if len(self) > 1 else price
@@ -918,6 +925,10 @@ class AmlIndicator(Indicator):
         r1 = self._range(0, fractal) / fractal
         r2 = self._range(fractal, fractal) / fractal
         r3 = self._range(0, fractal * 2) / (fractal * 2)
+
+        if not all(math.isfinite(value) for value in (r1, r2, r3)):
+            self.lines.aml[0] = float("nan")
+            return
 
         dim = 0.0
         if r1 + r2 > 0 and r3 > 0:
@@ -931,10 +942,14 @@ class AmlIndicator(Indicator):
         lagged_smooth = self._smooth[0] if len(self._smooth) == self._smooth.maxlen else 0.0
         self._smooth.append(smooth)
 
-        if abs(smooth - lagged_smooth) >= lag * lag * float(self.p.point):
-            self.lines.aml[0] = smooth
+        threshold = lag * lag * float(self.p.point)
+        if self._last_aml is None or abs(smooth - lagged_smooth) >= threshold:
+            aml = smooth
         else:
-            self.lines.aml[0] = float(self.lines.aml[-1]) if len(self) > 1 else smooth
+            aml = self._last_aml
+
+        self._last_aml = aml
+        self.lines.aml[0] = aml
 
 
 class FunctionalAwesomeOscillator(Indicator):

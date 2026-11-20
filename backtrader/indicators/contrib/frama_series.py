@@ -33,6 +33,9 @@ class FramaSeries(Indicator):
         if len(window) < period:
             self.lines.frama[0] = float(self.data[0])
             return
+        if not all(math.isfinite(value) for value in window):
+            self.lines.frama[0] = float("nan")
+            return
         first = window[:half]
         second = window[-half:]
         n1 = (max(first) - min(first)) / float(half)
@@ -44,8 +47,11 @@ class FramaSeries(Indicator):
             dim = 1.0
         alpha = math.exp(-4.6 * (dim - 1.0))
         alpha = min(max(alpha, 0.01), 1.0)
-        prev = float(self.lines.frama[-1]) if len(self) > 0 else float(self.data[0])
-        self.lines.frama[0] = alpha * float(self.data[0]) + (1.0 - alpha) * prev
+        current = float(self.data[0])
+        prev = float(self.lines.frama[-1])
+        if not math.isfinite(prev):
+            prev = current
+        self.lines.frama[0] = alpha * current + (1.0 - alpha) * prev
 
 
 class FramaLinesIndicator(Indicator):
@@ -68,6 +74,14 @@ class FramaLinesIndicator(Indicator):
         h = float(self.frama_high[0])
         low_price = float(self.frama_low[0])
         c = float(self.frama_close[0])
+        if not all(math.isfinite(value) for value in (o, h, low_price, c)):
+            missing = float("nan")
+            self.lines.o[0] = missing
+            self.lines.h[0] = missing
+            self.lines.l[0] = missing
+            self.lines.c[0] = missing
+            self.lines.color[0] = missing
+            return
         mx = max(o, c)
         mn = min(o, c)
         h = max(mx, h)

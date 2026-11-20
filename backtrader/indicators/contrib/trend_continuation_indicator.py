@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -93,8 +95,16 @@ class TrendContinuationIndicator(Indicator):
         self._ma_cls = resolve_ma_class(self.p.xmethod)
         self.addminperiod(int(self.p.nperiod) + int(self.p.xperiod) + 5)
 
+    def nextstart(self):
+        """Seed the recursive lines from the first bar at the minimum period."""
+        self._update(seed=True)
+
     def next(self):
-        """Compute smoothed up/down continuation values from directional price differences."""
+        """Continue the smoothed lines, preserving NaNs from missing inputs."""
+        self._update()
+
+    def _update(self, seed=False):
+        """Compute directional components and apply the recursive EMA update."""
         nperiod = max(2, int(self.p.nperiod))
         float(self._price[0]) - float(self._price[-1])
         positives = []
@@ -105,8 +115,11 @@ class TrendContinuationIndicator(Indicator):
         running_n = 0.0
         for i in range(nperiod):
             diff = float(self._price[-i]) - float(self._price[-i - 1])
-            pos = -diff if diff > 0 else 0.0
-            neg = diff if diff < 0 else 0.0
+            if math.isnan(diff):
+                pos = neg = float("nan")
+            else:
+                pos = -diff if diff > 0 else 0.0
+                neg = diff if diff < 0 else 0.0
             running_p += pos
             running_n += neg
             positives.append(pos)
@@ -121,7 +134,12 @@ class TrendContinuationIndicator(Indicator):
         k_n = ch_n - cff_p
         period = max(1, int(self.p.xperiod))
         alpha = 2.0 / (period + 1.0)
-        prev_up = float(self.lines.up[-1]) if len(self) > 0 else k_p
-        prev_dn = float(self.lines.down[-1]) if len(self) > 0 else k_n
-        self.lines.up[0] = alpha * k_p + (1.0 - alpha) * prev_up if len(self) > 0 else k_p
-        self.lines.down[0] = alpha * k_n + (1.0 - alpha) * prev_dn if len(self) > 0 else k_n
+        if seed:
+            self.lines.up[0] = k_p
+            self.lines.down[0] = k_n
+            return
+
+        prev_up = float(self.lines.up[-1])
+        prev_dn = float(self.lines.down[-1])
+        self.lines.up[0] = alpha * k_p + (1.0 - alpha) * prev_up
+        self.lines.down[0] = alpha * k_n + (1.0 - alpha) * prev_dn

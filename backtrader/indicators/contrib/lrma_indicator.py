@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -169,9 +171,16 @@ class VininITrendLRMAIndicator(Indicator):
     def next(self):
         """Score LRMA versus the MA fan and exponentially smooth the result."""
         lrma_value = float(self._lrma.lrma[0])
+        ma_values = [float(ma_line[0]) for ma_line in self._ma_lines]
+        if not math.isfinite(lrma_value) or not all(
+            math.isfinite(value) for value in ma_values
+        ):
+            self.lines.trend[0] = float("nan")
+            return
+
         score = 0
-        for ma_line in self._ma_lines:
-            if lrma_value > float(ma_line[0]):
+        for ma_value in ma_values:
+            if lrma_value > ma_value:
                 score += 1
             else:
                 score -= 1
@@ -179,7 +188,6 @@ class VininITrendLRMAIndicator(Indicator):
         period = max(1, int(self.p.length2))
         alpha = 2.0 / (period + 1.0)
         prev = float(self.lines.trend[-1]) if len(self) > 0 else raw
-        if len(self) == 0:
-            self.lines.trend[0] = raw
-        else:
-            self.lines.trend[0] = alpha * raw + (1.0 - alpha) * prev
+        if not math.isfinite(prev):
+            prev = raw
+        self.lines.trend[0] = alpha * raw + (1.0 - alpha) * prev

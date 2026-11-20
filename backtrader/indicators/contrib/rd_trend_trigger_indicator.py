@@ -45,7 +45,10 @@ class RDTrendTriggerIndicator(Indicator):
         sell_power = highest_high_older - lowest_low_recent
         denom = buy_power + sell_power
         ttf = ((buy_power - sell_power) / (0.5 * denom) * 100.0) if denom else 0.0
-        prev = float(self.lines.value[-1]) if len(self) > 0 else ttf
+        if len(self) == self._minperiod:
+            prev = ttf
+        else:
+            prev = float(self.lines.value[-1])
         period = max(1, int(self.p.t3_length))
         alpha = 2.0 / (period + 1.0)
         self.lines.value[0] = alpha * ttf + (1.0 - alpha) * prev

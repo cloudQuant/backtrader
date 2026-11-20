@@ -27,11 +27,12 @@ class IAMMAIndicator(Indicator):
         self.price_offset = float(self.p.point) * float(self.p.price_shift)
         self.addminperiod(2)
 
+    def nextstart(self):
+        """Seed from the current close on the first eligible bar."""
+        self.l.value[0] = float(self.data.close[0])
+
     def next(self):
         """Compute adaptive MA value for current bar."""
-        if len(self) == 1:
-            self.l.value[0] = float(self.data.close[0])
-            return
         period = max(int(self.p.ma_period), 1)
         prev = float(self.l.value[-1])
         price = float(self.data.close[0])
