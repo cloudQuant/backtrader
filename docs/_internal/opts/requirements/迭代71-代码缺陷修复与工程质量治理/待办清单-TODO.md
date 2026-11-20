@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 23 |
+| 5 | 指标正确性（P1/P2） | 29 | 24 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **71** |
+| | **合计** | **207** | **72** |
 
 ---
 
@@ -142,7 +142,7 @@
 - [x] **R71-043** `[P2]` `contrib/shared_strategy_indicators.py:826` — `AdaptiveMarketLevel` 未 `addminperiod`，`_minperiod==1`，前 ~157 根把 close 当 AML 输出 → `addminperiod(self._min_period)`，预热期保持 NaN。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（默认最小周期 158，预热线保持 NaN；实际 Cerebro 两模式、上下游周期与跨 lag 历史共 6 项通过，独立源码复核通过。可见期仍按原零种子递推，提前预热内部状态的语义待核实。两份现有 AML 策略测试走预计算数据而非本指标；被同名覆盖的 inline 策略在内存对照中少一笔原 warmup close 触发的信号且 next 计数少157，不以预计算策略通过证明该接线验收）。
 - [x] **R71-155** `[P2]` `indicators/kst.py:78-109` — KST signal 声明 minperiod 40 后仍 NaN 8 根（signal 读 `kst[-i]`），signal 48 才有效 → minperiod 加 `rsignal-1` 或建成真实 MovAv 线。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（最小周期计入 signal 窗口，预热中保留 KST 历史；真实 Cerebro 两模式、短历史、下游周期和既有回归共 11 项通过，独立源码复核无阻断。KST 与 signal 共享保守的完整最小周期，单独消费 KST 线也会等待 signal）。
 - [x] **R71-156** `[P2]` `indicators/dpo.py:59-73` — DPO 声明 minperiod 20 后仍 NaN 9 根（`next` 读 `ma[-lookback]`）→ minperiod 加 `lookback` 或绑定 `data - ma(-lookback)`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（最小周期包含均线回看与上游周期；period=1 的回看下限为0，避免读取未来均线。真实 Cerebro 两模式、短历史、上游/下游及既有回归共 21 项通过，独立源码复核无阻断）。
-- [ ] **R71-157** `[P2]` `indicators/demarker.py:67-98` — DeMarkerRolling 实际需 `2*period` 根、声明 `period+1`，period 14 首有效 28 而 `_minperiod=15` → `nextstart` 用历史播种或 line-based rolling sums。CONFIRMED(runtime)。
+- [x] **R71-157** `[P2]` `indicators/demarker.py:67-98` — DeMarkerRolling 实际需 `2*period` 根、声明 `period+1`，period 14 首有效 28 而 `_minperiod=15` → `nextstart` 用历史播种或 line-based rolling sums。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（首个可计算点从历史播种完整变化窗口，保留 period+1 最小周期；真实 Cerebro 两模式、短历史、上游 SMA 与缺失窗口恢复共 12 项通过，独立源码复核无阻断）。
 - [ ] **R71-158** `[P2]` `indicators/zlema.py:61` — minperiod 重复计 period（`MovingAverageBase` 已加 period，再 `addminperiod(lag+period)` 得 `2*period+lag-1`，period 30 → 73 而非 44）→ `updateminperiod(lag+period)` 或直接设 `_minperiod`。CONFIRMED(runtime)。
 - [ ] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。
 - [ ] **R71-162** `[P2]` `indicators/directionalmove.py:377,503` — 嵌套 alias tuple 使 `bt.indicators.PlusDI`/`MinusDI` 缺失（alias 解析只展开一层）→ 扁平化 alias tuple。CONFIRMED(source)。

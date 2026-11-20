@@ -65,37 +65,62 @@ class DeMarkerRollingIndicator(Indicator):
     params = {"period": 14}
 
     def __init__(self):
-        """Register the minimum period and prepare the rolling move buffers."""
+        """Register the first complete window and prepare its move buffers."""
         self.addminperiod(int(self.p.period) + 1)
         self._up_moves = []
         self._down_moves = []
 
-    def next(self):
-        """Append today's up/down move and emit the rolling DeMarker value.
+    def _move_at(self, offset):
+        """Return the positive high/low moves ending at ``offset`` bars ago."""
+        high_now = float(self.data.high[-offset])
+        high_prev = float(self.data.high[-(offset + 1)])
+        low_now = float(self.data.low[-offset])
+        low_prev = float(self.data.low[-(offset + 1)])
+        up_move = max(high_now - high_prev, 0.0)
+        down_move = max(low_prev - low_now, 0.0)
+        return up_move, down_move
 
-        Maintains two Python lists capped at ``period`` entries. Until
-        the buffer is full, both output lines are set to ``NaN``;
-        afterwards the DeMarker formula is applied and the result is
-        written to both lines. A zero denominator falls back to ``0.5``.
+    def _write_value(self):
+        """Write the current buffered value, preserving missing input as NaN."""
+        period = int(self.p.period)
+        if len(self._up_moves) < period:
+            value = float("nan")
+        else:
+            up_sum = sum(self._up_moves)
+            down_sum = sum(self._down_moves)
+            denom = up_sum + down_sum
+            value = 0.5 if denom == 0.0 else up_sum / denom
+
+        self.lines.demarker[0] = value
+        self.lines.dem[0] = value
+
+    def nextstart(self):
+        """Seed the first full window from the history available at startup.
+
+        The first callback occurs after ``period + 1`` bars are available,
+        which already contain all ``period`` high/low changes for the initial
+        result. Seeding those changes avoids delaying the first value while
+        keeping subsequent updates incremental.
         """
-        up_move = max(float(self.data.high[0]) - float(self.data.high[-1]), 0.0)
-        down_move = max(float(self.data.low[-1]) - float(self.data.low[0]), 0.0)
+        period = int(self.p.period)
+        for offset in reversed(range(period)):
+            up_move, down_move = self._move_at(offset)
+            self._up_moves.append(up_move)
+            self._down_moves.append(down_move)
+        self._write_value()
+
+    def next(self):
+        """Append today's move and emit the current rolling DeMarker value."""
+        up_move, down_move = self._move_at(0)
         self._up_moves.append(up_move)
         self._down_moves.append(down_move)
+
         period = int(self.p.period)
         if len(self._up_moves) > period:
             self._up_moves.pop(0)
             self._down_moves.pop(0)
-        if len(self._up_moves) < period:
-            self.lines.demarker[0] = float("nan")
-            self.lines.dem[0] = float("nan")
-            return
-        up_sum = sum(self._up_moves)
-        down_sum = sum(self._down_moves)
-        denom = up_sum + down_sum
-        value = 0.5 if denom == 0.0 else up_sum / denom
-        self.lines.demarker[0] = value
-        self.lines.dem[0] = value
+
+        self._write_value()
 
 
 class WilliamsPercentR(Indicator):
