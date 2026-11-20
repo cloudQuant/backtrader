@@ -19,6 +19,23 @@ _KEEPALIVE: list[tuple[Any, ...]] = []
 _KEEPALIVE_LOCK = threading.Lock()
 
 
+def _retain_uncertain_resources(clients: Any, proxy: Any, store: Any,
+                                bindings: Mapping[str, Any]) -> None:
+    """Keep one strong-reference tuple per exact uncertain resource group.
+
+    Identity comparisons avoid invoking user-defined equality on owner objects.
+    Entries are never evicted here: only a separate, positively confirmed
+    cleanup path could make releasing one safe.
+    """
+    resources = (clients, proxy, store, bindings)
+    with _KEEPALIVE_LOCK:
+        for retained in _KEEPALIVE:
+            if (type(retained) is tuple and len(retained) == len(resources)
+                    and all(held is current for held, current in zip(retained, resources))):
+                return
+        _KEEPALIVE.append(resources)
+
+
 def _error(code: str) -> Exception:
     from bt_api_py.service_observation_assembly import ServiceObservationError
 
@@ -131,8 +148,9 @@ class ServiceObservationSession:
             )
         except Exception:
             result = self._clients.close_report
-            with _KEEPALIVE_LOCK:
-                _KEEPALIVE.append((self._clients, self.proxy, self.store, self.bindings))
+            _retain_uncertain_resources(
+                self._clients, self.proxy, self.store, self.bindings,
+            )
             self.cleanup_report = result
             raise _error("SERVICE_CLEANUP_UNCONFIRMED") from None
         self.cleanup_report = result
