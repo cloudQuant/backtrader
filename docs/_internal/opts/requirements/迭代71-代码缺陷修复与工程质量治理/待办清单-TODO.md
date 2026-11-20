@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 21 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 3 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 4 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **147** |
+| | **合计** | **207** | **148** |
 
 ---
 
@@ -284,7 +284,7 @@
 - [ ] **R71-077** `[P3]` `filters/heikinashi.py:30` — 构造器要求 `data` 位置参数但未使用，模块示例 `HeikinAshi()` 会 `TypeError` → `data` 可选或修正示例。
 - [ ] **R71-078** `[P3]` `filters/daysteps.py:12` — 示例 `BarReplayerOpen()` 与 `__init__(self, data)` 不符，`addfilter` 应传类而非实例 → 修正示例。
 - [ ] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。
-- [ ] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。
+- [x] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 文档核对**（修正 adddata 与 Keeping 拼写，已核对 Cerebro 实际方法名；仅文档更改）。
 - [ ] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。
 - [ ] **R71-082** `[P3]` `_cerebro/runonce.py:30` — 循环变量 `i` 未使用 → 改为 `_`。
 - [ ] **R71-083** `[P3]` `reports/reporter.py:588` — `math` 已在模块顶部导入，函数内重复 `import math` → 删除局部导入。

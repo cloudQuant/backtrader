@@ -39,7 +39,7 @@ class Benchmark(TimeReturn):
         Reference asset to track to allow for comparison.
 
         :note:: this data must have been added to a ``cerebro`` instance with
-                  ``addata``, ``resampledata`` or ``replaydata``.
+                  ``adddata``, ``resampledata`` or ``replaydata``.
 
 
       - ``_doprenext`` (default: ``False``)
@@ -52,7 +52,7 @@ class Benchmark(TimeReturn):
 
       - ``firstopen`` (default: ``False``)
 
-        Keepint it as ``False`` ensures that the 1st comparison point between
+        Keeping it as ``False`` ensures that the 1st comparison point between
         the value and the benchmark starts at 0%, because the benchmark will
         not use its opening price.
 
