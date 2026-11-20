@@ -200,12 +200,12 @@ def test_up_down_candles_strategy(runonce):
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
-    assert strat.bar_num == 1218, f"Expected bar_num=1218, got {strat.bar_num}"
-    assert abs(final_value - 99976.91) < 0.01, f"Expected final_value=99976.91, got {final_value}"
-    assert abs(sharpe_ratio - (-0.11438879840513524)) < 1e-6, f"Expected sharpe_ratio=-0.11438879840513524, got {sharpe_ratio}"
-    assert abs(annual_return - (-4.629057819258505e-05)) < 1e-12, f"Expected annual_return=-4.629057819258505e-05, got {annual_return}"
-    assert abs(max_drawdown - 0.13256895983198377) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    # PercentReturnsPeriod now waits for period + 1 bars before its first value.
+    assert strat.bar_num == 1217
+    assert abs(final_value - 99977.31) < 0.01
+    assert abs(sharpe_ratio - (-0.1125480911369895)) < 1e-6
+    assert abs(annual_return - (-4.548769998271663e-05)) < 1e-12
+    assert abs(max_drawdown - 0.13256842923305684) < 1e-6
 
     print("\nTest passed!")
 

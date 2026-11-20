@@ -166,6 +166,15 @@ def _strict_numeric_value(context, value, phase, operation):
 
 def _raw_linebuffer_value(line, ago):
     """Read an underlying line value without applying its legacy inf-to-zero rule."""
+    current_idx = line._idx
+    if line.lencount > 0 and current_idx >= line.lencount:
+        current_idx = line.lencount - 1
+    if current_idx + ago < 0:
+        if getattr(line, "_is_data_feed_line", False):
+            raise IndexError("array index out of range")
+        if not line.array and not getattr(line, "_is_indicator", False):
+            return 0.0
+        return NAN
     if ago == 0:
         try:
             current_idx = line._idx
@@ -578,6 +587,15 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             Value at the specified position
         """
+        current_idx = self._idx
+        if self.lencount > 0 and current_idx >= self.lencount:
+            current_idx = self.lencount - 1
+        if current_idx + ago < 0:
+            if getattr(self, "_is_data_feed_line", False):
+                raise IndexError("array index out of range")
+            if not self.array and not getattr(self, "_is_indicator", False):
+                return 0.0
+            return NAN
         if ago == 0:
             try:
                 current_idx = self._idx

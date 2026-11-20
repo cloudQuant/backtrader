@@ -90,7 +90,7 @@ class PercentReturnsPeriod(Indicator):
 
     def __init__(self):
         """Reserve the rolling window used for the percentage return."""
-        self.addminperiod(self.p.period)
+        self.addminperiod(self.p.period + 1)
 
     def next(self):
         """Write ``(close - close[-period]) / close[-period]`` to ``returns``.
@@ -100,9 +100,15 @@ class PercentReturnsPeriod(Indicator):
         When the baseline is zero the value is forced to ``0`` to
         avoid a division-by-zero error.
         """
+        try:
+            current = self.data.close[0]
+        except IndexError:
+            # A batch start callback may run when the input is shorter than
+            # the minimum period; there is no current bar to calculate.
+            return
         previous = self.data.close[-self.p.period]
         if previous != 0:
-            self.lines.returns[0] = (self.data.close[0] - previous) / previous
+            self.lines.returns[0] = (current - previous) / previous
         else:
             self.lines.returns[0] = 0
 

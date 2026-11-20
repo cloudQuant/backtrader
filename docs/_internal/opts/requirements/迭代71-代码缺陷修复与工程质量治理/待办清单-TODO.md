@@ -28,15 +28,15 @@
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 16 | 8 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 9 |
 | 5 | 指标正确性（P1/P2） | 29 | 0 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
-| 9 | P2 其余正确性 / 清理 | 36 | 0 |
+| 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **40** |
+| | **合计** | **207** | **42** |
 
 ---
 
@@ -106,7 +106,7 @@
 - [x] **R71-012** `[P1]` `channels/tick.py:159` — CSV 缺字段时 `float(None)`→`TypeError`、`row["direction"].strip()`→`AttributeError`，均不在捕获元组 → 纳入捕获或做字段完整性校验。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回放集成**（修前四类必填字段缺失均复现异常；修后缺字段、解析边界及回放 31 项通过）。
 - [x] **R71-086** `[P1]` `cerebro.py:889` — `add_signal()+addstrategy()` 组合下 `signalst, sargs, skwargs = self.strats.pop(0)` 抛 `ValueError: not enough values to unpack`；异常分支 reinsert 的三元组也不可被 `itertools.product(*self.strats)` 消费 → 改为解包单元素并 reinsert 列表。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回测**（修前普通及 signal 子类组合复现失败；修后策略顺序、普通策略优化及重复运行共 19 项通过；signal 策略自身参数优化尚未接线：可能额外创建默认 signal 策略，另行处理）。
 - [x] **R71-087** `[P1]` `comminfo.py:450` — `get_credit_interest` 用 `size*price*mult`，空头返回负利息，`BackBroker._cash -= credit` 给空头加钱 → 空头用 `abs(position_value)`。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地 Broker**（修前空头利息错误增加现金；修后成本计算、现金扣减与佣金回归 33 项通过）。
-- [ ] **R71-095** `[P1]` `linebuffer.py:581-614` — `preload=True`（默认）负索引越界回绕返回**未来值**（bar 3 读 `close[-20]` 得 bar 13），`preload=False` 抛 `IndexError`；`home()` 后 `[0]` 还可能返回最后预加载 bar → 索引前检查 `target = current_idx + ago`，`<0` 抛 `IndexError`/NaN；`_raw_linebuffer_value` 同修。CONFIRMED(runtime)。
+- [x] **R71-095** `[P1]` `linebuffer.py:581-614` — `preload=True`（默认）负索引越界回绕返回**未来值**（bar 3 读 `close[-20]` 得 bar 13），`preload=False` 抛 `IndexError`；`home()` 后 `[0]` 还可能返回最后预加载 bar → 索引前检查 `target = current_idx + ago`，`<0` 抛 `IndexError`/NaN；`_raw_linebuffer_value` 同修。CONFIRMED(runtime) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回测**（修前预加载起点和历史越界复现未来值；修后预加载/逐根、QBuffer、显式前瞻、指标及策略回归 183 通过/1 跳过，因子严格模式 82 通过；空普通缓冲保留原默认值，非空普通缓冲历史下溢改为 NaN）。
 - [ ] **R71-096** `[P1]` `linebuffer.py:648-665` — QBuffer/`exactbars=1` 下 `LineBuffer.get(size=N)` 计算负 `start`，`islice` 抛 `ValueError`；同调用在 `exactbars=0/-1` 正常（内置 `basicops/hurst` 用到）→ `start = max(0, start)`。CONFIRMED(runtime)。
 - [ ] **R71-097** `[P1]` `lineiterator.py:869-879` — `dopostinit` 在 `_periodrecalc()` **之前**传播 `_minperiod`，复合指标（RSI/DPO/TRIX/PPO/Stochastic）lines 仍为 1，表达式/`If`/`SMA` 继承错误周期、可能提前输出伪造值 → 先 `_periodrecalc()` 再传播。CONFIRMED(runtime)。
 - [ ] **R71-110** `[P1]` `research/factor_indicator.py:860`（调用 `lineiterator.py:1893`） — native alpha 在 `runonce=True` 且历史短于 `lookback_h+1` 时 `oncestart` 以 index H 越界读 `data.datetime[0]` 抛 `IndexError`，同数据 runnext 返回 NaN → clamp 到 `min(minperiod-1, buflen())`，诊断读取前判空。CONFIRMED(runtime，150-bar Alpha024 H=199)。
@@ -147,7 +147,7 @@
 - [ ] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。
 - [ ] **R71-162** `[P2]` `indicators/directionalmove.py:377,503` — 嵌套 alias tuple 使 `bt.indicators.PlusDI`/`MinusDI` 缺失（alias 解析只展开一层）→ 扁平化 alias tuple。CONFIRMED(source)。
 - [ ] **R71-163** `[P2]` `indicators/ols.py:226` — 使用已从现代 pandas 移除的 `pd.ols`，OLS 指标在新 pandas 不可用 → 改 `numpy.linalg.lstsq`/`statsmodels`。CONFIRMED(source)。
-- [ ] **R71-164** `[P2]` `indicators/priceops_ext.py:91-105` — `PercentReturnsPeriod` minperiod off-by-one，首个 `close[-period]` 越界，依赖 R71-095 的负索引回绕时可能读到未来 bar → minperiod 加 1，**并与 R71-095 一起修**。CONFIRMED(source)。
+- [x] **R71-164** `[P2]` `indicators/priceops_ext.py:91-105` — `PercentReturnsPeriod` minperiod off-by-one，首个 `close[-period]` 越界，依赖 R71-095 的负索引回绕时可能读到未来 bar → minperiod 加 1，**并与 R71-095 一起修**。CONFIRMED(source) → **2026-11-20 / 与 R71-095 同一 Backtrader dev 提交 / UNIT+本地回测**（修前首个有效 bar 提前及不足历史 runonce 出错；修后预加载/逐根/批量、短历史与策略回归通过；策略正确等待一根 bar，历史快照已按两种模式一致结果更新）。
 
 ## 批次 6 · 分析器 / 报告 / Bokeh / 通知（P1/P2）
 
