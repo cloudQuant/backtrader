@@ -388,6 +388,7 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `log_signals` (default: `True`) - Log buy/sell signals
 - `log_position_snapshot` (default: `True`) - Save position snapshot to YAML
 - `snapshot_file` (default: `'current_position.yaml'`) - Snapshot filename
+- `snapshot_interval` (default: `1`) - Minimum observer `next()` callbacks between YAML position snapshots
 - `log_format` (default: `'json'`) - Log format ('json' or 'text')
 - `log_to_console` (default: `False`) - Also print to console
 - `mysql_enabled` (default: `False`) - Enable MySQL logging
@@ -398,6 +399,8 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `mysql_database` (default: `'backtrader'`) - MySQL database
 - `report_max_records` (default: `100`) - Maximum in-memory order and trade
   summaries retained by the generic report; `0` retains counters only
+
+`TradeLogger` refreshes the YAML position snapshot on every observer `next()` callback by default; in a standard bar run, that is once per bar. The first enabled callback writes immediately, then refreshes are separated by at least `snapshot_interval` callbacks. The interval must be a positive integer and is read on subsequent callbacks, so it can be changed during a run. Values greater than `1` reduce file writes and snapshot data reads, but the timestamp, current price, and valuation can be stale between refreshes. `stop()` still forces a final refresh attempt while `log_position_snapshot=True`; disabling that option suppresses both periodic and stop-time refreshes.
 
 #### In-memory report API
 

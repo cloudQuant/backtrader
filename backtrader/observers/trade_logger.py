@@ -150,6 +150,11 @@ class TradeLogger(Observer):
         log_bars (bool): Enable bar logging. Default: True
         log_position_snapshot (bool): Enable YAML position snapshot. Default: True
         snapshot_file (str): Snapshot filename. Default: 'current_position.yaml'
+        snapshot_interval (int): Minimum observer ``next`` callback interval
+            between YAML position snapshots. Default: 1 (every callback).
+            Values greater than 1 can leave the timestamp and valuation fields
+            stale between writes; ``stop`` always attempts a final refresh while
+            ``log_position_snapshot`` remains enabled.
         startup_snapshot_file (str | None): Optional YAML filename for one
             startup-only snapshot of the broker's already-cached report state.
             The snapshot has no market-data mark and never invokes provider
@@ -200,6 +205,7 @@ class TradeLogger(Observer):
         "log_value": True,
         "log_position_snapshot": True,
         "snapshot_file": "current_position.yaml",
+        "snapshot_interval": 1,
         # An opt-in, separate file avoids changing the established legacy
         # snapshot output while allowing live users to retain the account
         # state observed before the first strategy bar.
@@ -228,6 +234,7 @@ class TradeLogger(Observer):
     def __init__(self):
         """Initialize the TradeLogger observer."""
         super().__init__()
+        self._validate_snapshot_interval(self.p.snapshot_interval)
         # CRITICAL: Set _ltype AFTER super().__init__() and ensure registration
         self._ltype = 2  # LineIterator.ObsType
         # Register self to owner's _lineiterators if not already done
@@ -249,6 +256,8 @@ class TradeLogger(Observer):
         self._error_logger = None
         self._mysql_conn = None
         self._last_position_state = {}
+        self._position_snapshot_callback_count = 0
+        self._position_snapshot_last_callback = None
         self._run_id = self._generate_run_id()
         self._monitoring: collections.Counter = collections.Counter()
         self._duplicate_requests = collections.defaultdict(collections.deque)
@@ -1068,6 +1077,9 @@ class TradeLogger(Observer):
 
     def start(self):
         """Called at the start of the backtest/live run."""
+        self._validate_snapshot_interval(self.p.snapshot_interval)
+        self._position_snapshot_callback_count = 0
+        self._position_snapshot_last_callback = None
         # CRITICAL: Ensure registration to _lineiterators for next() to be called
         self._ltype = 2  # LineIterator.ObsType
         if hasattr(self, "_owner") and self._owner is not None:
@@ -2376,6 +2388,32 @@ class TradeLogger(Observer):
                 )
                 continue
 
+    @staticmethod
+    def _validate_snapshot_interval(value):
+        """Return a valid snapshot interval or reject the setting."""
+        if type(value) is not int or value < 1:
+            raise ValueError("snapshot_interval must be a positive integer")
+        return value
+
+    def _maybe_save_position_snapshot(self):
+        """Refresh the YAML snapshot on its configured callback cadence.
+
+        The interval is read on every observer callback so callers can adjust
+        it while a run is active. A logger that is re-enabled writes on its
+        next callback if it has not written before; otherwise it resumes once
+        the current interval has elapsed since its previous refresh attempt.
+        """
+        self._position_snapshot_callback_count += 1
+        if not self.p.log_position_snapshot:
+            return
+
+        interval = self._validate_snapshot_interval(self.p.snapshot_interval)
+        callback_count = self._position_snapshot_callback_count
+        last_callback = self._position_snapshot_last_callback
+        if last_callback is None or callback_count - last_callback >= interval:
+            self._save_position_snapshot()
+            self._position_snapshot_last_callback = callback_count
+
     def next(self):
         """Called on every bar - log positions and indicators."""
         self._ensure_loggers_initialized()
@@ -2406,8 +2444,7 @@ class TradeLogger(Observer):
             if self.p.log_indicators:
                 self._log_indicators()
 
-            if self.p.log_position_snapshot:
-                self._save_position_snapshot()
+            self._maybe_save_position_snapshot()
         except Exception as e:
             self._log_internal_error("next", e)
             if self.p.log_to_console:

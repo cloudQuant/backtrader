@@ -1,4 +1,4 @@
-- --
+﻿- --
 
 title: 观察器 API
 description: 完整的观察器类 API 参考文档
@@ -388,6 +388,7 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `log_signals`（默认：`True`）- 记录买卖信号
 - `log_position_snapshot`（默认：`True`）- 将持仓快照保存为 YAML
 - `snapshot_file`（默认：`'current_position.yaml'`）- 快照文件名
+- `snapshot_interval`（默认：`1`）- 两次 YAML 持仓快照间的最少 observer `next()` 回调数
 - `log_format`（默认：`'json'`）- 日志格式（'json' 或 'text'）
 - `log_to_console`（默认：`False`）- 同时打印到控制台
 - `mysql_enabled`（默认：`False`）- 启用 MySQL 日志记录
@@ -397,6 +398,8 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `mysql_password`（默认：`''`）- MySQL 密码
 - `mysql_database`（默认：`'backtrader'`）- MySQL 数据库
 - `report_max_records`（默认：`100`）- 通用内存报告保留的订单和成交摘要上限；`0` 仅保留计数
+
+`TradeLogger` 默认每次 observer `next()` 回调都刷新 YAML 持仓快照；标准 bar 回调中这表示每个 bar。首次启用回调会立即刷新，之后至少间隔 `snapshot_interval` 个回调；该值必须是正整数，运行中会在后续回调读取新值。设置为大于 `1` 会减少文件与快照数据读取，但 `datetime`、现价和估值在两次刷新间可能变旧；`stop()` 在 `log_position_snapshot=True` 时仍强制执行最终刷新尝试。关闭 `log_position_snapshot` 会同时停用周期刷新和停止阶段刷新。
 
 #### 内存报告 API
 
