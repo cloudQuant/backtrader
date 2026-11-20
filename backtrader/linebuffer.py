@@ -2302,8 +2302,11 @@ class _LineDelay(LineActions):
             value = self.a[idx + self.ago]
             if value is None:
                 return 0.0
-            if isinstance(value, float) and (value in (INF, NEG_INF) or value != value):
-                return 0.0
+            if isinstance(value, float):
+                if value != value:
+                    return NAN
+                if value in (INF, NEG_INF):
+                    return 0.0
             return value
         except (IndexError, TypeError):
             return 0.0
@@ -2335,11 +2338,11 @@ class _LineDelay(LineActions):
             # Get the delayed value - ago is already negative for lookback
             delayed_val = self.a[self.ago]
 
-            # Ensure value is never None or NaN
-            if (
-                delayed_val is None
-                or isinstance(delayed_val, float)
-                and (delayed_val in (INF, NEG_INF) or delayed_val != delayed_val)
+            # Preserve missing NaN while retaining the legacy None/inf fallback.
+            if isinstance(delayed_val, float) and delayed_val != delayed_val:
+                delayed_val = NAN
+            elif delayed_val is None or (
+                isinstance(delayed_val, float) and delayed_val in (INF, NEG_INF)
             ):
                 delayed_val = 0.0
 
