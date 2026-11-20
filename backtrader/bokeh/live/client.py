@@ -230,41 +230,49 @@ class LiveClient:
             return
 
         self.doc.hold()
+        try:
+            # update figurepage with filter
+            self._app.update_figurepage(filter=self._get_filter())
 
-        # update figurepage with filter
-        self._app.update_figurepage(filter=self._get_filter())
+            # generate panels
+            panels = self._app.generate_model_panels()
 
-        # generate panels
-        panels = self._app.generate_model_panels()
+            # add tab panels
+            for t in self._app.tabs:
+                tab = t(self._app, self._figurepage, self)
+                if tab.is_useable():
+                    panels.append(tab.get_panel())
 
-        # add tab panels
-        for t in self._app.tabs:
-            tab = t(self._app, self._figurepage, self)
-            if tab.is_useable():
-                panels.append(tab.get_panel())
+            # set all tabs (filter out None)
+            tabs = self._get_tabs()
+            if tabs is not None:
+                tabs.tabs = [p for p in panels if p is not None]
 
-        # set all tabs (filter out None)
-        tabs = self._get_tabs()
-        if tabs is not None:
-            tabs.tabs = [p for p in panels if p is not None]
+            # create new data handler
+            if self._datahandler is not None:
+                self._datahandler.stop()
 
-        # create new data handler
-        if self._datahandler is not None:
-            self._datahandler.stop()
+            self._datahandler = LiveDataHandler(
+                doc=self.doc,
+                app=self._app,
+                figid=self._figid,
+                lookback=self.lookback,
+                fill_gaps=self.fill_gaps,
+            )
 
-        self._datahandler = LiveDataHandler(
-            doc=self.doc,
-            app=self._app,
-            figid=self._figid,
-            lookback=self.lookback,
-            fill_gaps=self.fill_gaps,
-        )
-
-        # refresh model
-        if self._refresh_fnc is not None:
-            self._refresh_fnc()
-
-        self.doc.unhold()
+            # refresh model
+            if self._refresh_fnc is not None:
+                self._refresh_fnc()
+        except BaseException as update_error:
+            try:
+                self.doc.unhold()
+            except BaseException as unhold_error:
+                if unhold_error is update_error:
+                    raise
+                raise update_error from unhold_error
+            raise
+        else:
+            self.doc.unhold()
 
     def _get_filter(self):
         """Get current filter settings.

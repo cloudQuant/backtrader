@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 28 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 6 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 7 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **81** |
+| | **合计** | **207** | **82** |
 
 ---
 
@@ -156,7 +156,7 @@
 - [x] **R71-022** `[P1]` `reports/charts.py:166` — `"YE"` 别名仅 pandas>=2.2 支持，项目声明 `pandas>=1.3.0`，1.3–2.1 上 `resample("YE")` 抛 `ValueError` 且被吞，年度收益图静默缺失 → 用 `"A"`/`pd.offsets.YearEnd()` 或按版本分支。CONFIRMED(source)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（年度重采样使用 YearEnd 偏移，避免依赖版本特定别名。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
 - [x] **R71-023** `[P1]` `bokeh/analyzers/recorder.py:90` — `__init__` 用 `getattr(data,"_name",None) or f"data{i}"` 建 key，`_record_datas` 用 `getattr(data,"_name",f"data{i}")`；feed `_name` 初始为 `""` 得空串，`name in self._data` 恒假，OHLCV 静默丢弃 → 两处统一 `or f"data{i}"`。CONFIRMED(source)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+合成回测**（当前源码初始化与采集均对空名称使用相同 data 索引回退；真实 Cerebro 两模式测试验证 OHLCV 完整。本轮仅补回归，未重复修改已有实现；专项 2 项通过，独立源码复核通过。同名非空 feed 的键冲突仍开放）。
 - [x] **R71-025** `[P1]` `bokeh/plot_adapter.py:196` — `value = len + value` 先执行，`if is_end and value < 0` 对 `end=-1` 不可达，比 matplotlib `len+1+end` 少一根 bar → 先处理 `is_end` 再统一归一化。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+公开数据绘图**（负 end 按既有 Matplotlib 索引语义归一化；NVDA 公开数据、日期终点和 Bokeh 负起点等 7 项通过，伴随 12 条现有 pandas FutureWarning，独立源码复核通过。极端零长度边界仅声明 Bokeh 空切片，Matplotlib 零长度绘制回退不同；日期起点未专项验证）。
-- [ ] **R71-026** `[P1]` `bokeh/live/client.py:232` — `self.doc.hold()` 后无 `try/finally`，任一更新步骤抛错 `unhold()` 不执行，文档保持 hold、后续更新冻结 → `try/finally: self.doc.unhold()`。CONFIRMED(source)。
+- [x] **R71-026** `[P1]` `bokeh/live/client.py:232` — `self.doc.hold()` 后无 `try/finally`，任一更新步骤抛错 `unhold()` 不执行，文档保持 hold、后续更新冻结 → `try/finally: self.doc.unhold()`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（更新失败后仍执行 unhold；双重失败保留更新异常并附清理原因，单独清理失败继续传播。真实 LiveClient 方法配合受控文档/协作者，12 项专项通过，独立源码复核无阻断；未验证真实浏览器连接）。
 - [ ] **R71-027** `[P1]` `bokeh/analyzers/plot.py:173` — `stop()` 只停 clients 不调 `self._webapp.stop()`，`_t_server` 的 loop 线程和 HTTP socket 泄漏到进程结束 → stop 中停 server/loop。CONFIRMED(source)。
 - [ ] **R71-028** `[P1]` `bokeh/live/datahandler.py:245` — `_process` 每行重建 `index.values` 并线性扫描，UPDATE 分支再 `.loc[...]` 全列扫描，O(N×M) → 循环前构建 `set(existing)`/索引映射。CONFIRMED(source)。
 - [ ] **R71-122** `[P2]` `utils/redaction.py:103-104`；`runtime_redaction.py:120-125` — `masked_copy` 用 `dataclasses.asdict` 深拷贝所有字段，含 lock/socket/mappingproxy 的 dataclass 抛 `TypeError`，可能替换原始 broker/对账错误 → 按 `dataclasses.fields` 原地遍历。CONFIRMED(source)。
