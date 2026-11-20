@@ -166,6 +166,8 @@ def test_positive_lookback_masks_missing_window_then_recovers(runonce: bool) -> 
     )
 
     assert list(aligned.present) == [True] * len(index)
-    assert values.iloc[0] == 10.0
+    # A positive lookback requires the full initial window before publishing
+    # even when the formula's current-row value happens to be finite.
+    assert values.iloc[:3].isna().all()
     assert values.iloc[1:4].isna().all()
     assert values.iloc[4:].tolist() == [14.0, 15.0]

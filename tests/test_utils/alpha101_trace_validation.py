@@ -1160,7 +1160,7 @@ def _collector_expected_matrix(
     for row in range(rows):
         start = max(0, row - lookback)
         for column in range(columns):
-            complete = presence[row][column] and (
+            complete = row >= lookback and presence[row][column] and (
                 invalid_prefixes[column][row + 1] - invalid_prefixes[column][start] == 0
             )
             if not complete:

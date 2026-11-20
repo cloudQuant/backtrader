@@ -487,17 +487,19 @@ class FactorStrategy(Strategy):
         return values
 
     def _window_is_complete(self, data: Any, cursor: int, spec: FactorSpec) -> bool:
-        """True when every bar and every declared input in the window is usable.
+        """True when the declared lookback and its inputs are fully usable.
 
-        A missing bar nulls its own grid point and the next ``lookback_h``
-        points, and a present bar whose declared input value is non-finite does
-        the same; this reproduces the previously published factor results
-        without rebuilding the deleted per-cell availability table.  Per-field
-        cumulative presence counts answer each query in constant time.
+        The first eligible point needs ``lookback_h + 1`` bars.  A missing bar
+        nulls its own grid point and the next ``lookback_h`` points, and a
+        present bar whose declared input value is non-finite does the same.
+        Per-field cumulative presence counts answer each query in constant
+        time without rebuilding the deleted per-cell availability table.
         """
         lookback = spec.lookback_h
-        start = max(0, cursor - lookback)
-        expected = cursor - start + 1
+        if cursor < lookback:
+            return False
+        start = cursor - lookback
+        expected = lookback + 1
         sources = self._input_sources_by_spec[id(spec)]
         for source_id, alias in sources:
             counts = self._field_counts.get((id(data) if source_id is None else source_id, alias))
