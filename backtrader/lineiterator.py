@@ -1243,6 +1243,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Initialize basic attributes first
         instance._lineiterators = collections.defaultdict(list)
+        # Most iterators have no prefiltered LineActions inputs.  Keeping an
+        # explicit None avoids a per-bar missing-attribute lookup in _next;
+        # Strategy replaces it with its prefiltered tuple during _start().
+        instance._lineaction_datas = None
 
         # NOTE: Data source extraction and minperiod initialization removed from __new__
         # to avoid interfering with normal donew/dopreinit flow.
@@ -1954,15 +1958,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
             if not _clock_is_replaying(clock):
                 return
 
-        filter_lineactions = False
         try:
             datas = self._lineaction_datas
         except AttributeError:
+            # Older pickled iterator states predate this private default.
+            # Keep their historical fallback without penalizing initialized
+            # instances with a missing-attribute probe.
+            datas = None
+        filter_lineactions = datas is None
+        if filter_lineactions:
             try:
                 datas = self.datas
             except AttributeError:
                 datas = ()
-            filter_lineactions = True
 
         for data in datas:
             if filter_lineactions and (

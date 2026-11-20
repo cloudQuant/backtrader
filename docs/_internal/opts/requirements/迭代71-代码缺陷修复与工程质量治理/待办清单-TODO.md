@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
-| 7 | 性能专项（P1/P2） | 19 | 5 |
+| 7 | 性能专项（P1/P2） | 19 | 6 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **102** |
+| | **合计** | **207** | **103** |
 
 ---
 
@@ -183,7 +183,7 @@
 
 - [ ] **R71-101** `[P1]` `strategy.py:1378,1411`；`indicator.py:331` — `_oncepost` 每 bar 每 indicator 探测 `_resolved_secondary_clock`/`_once_called`，属性通常不存在走 `__getattr__` 抛异常；30k bar/16 indicator runonce 实测 **4.16s→2.73s（−34%）** → 类级默认值 + 缓存 lencount 同步列表。CONFIRMED(runtime+cProfile)。
 - [ ] **R71-102** `[P1]` `lineiterator.py:384,405-407` — `_factor_run_callback` 每次 next/prenext 遍历 owner 链找 factor context，1.3M calls/50k bars，30k bar runnext **5.81s→5.08s（−12.6%）** → 缓存解析后的 context（含 None），仅 late-attachment 时重走。CONFIRMED(runtime)。
-- [ ] **R71-103** `[P1]` `lineiterator.py:1957-1960` — `LineIterator._next` 每 iterator 每 bar `try: self._lineaction_datas except AttributeError`，只有 Strategy 设置该属性，约 33µs/bar（~17% runnext loop）→ `__init__` 初始化为 None，用 `is None` 分支。CONFIRMED(runtime)。
+- [x] **R71-103** `[P1]` `lineiterator.py:1957-1960` — `LineIterator._next` 每 iterator 每 bar `try: self._lineaction_datas except AttributeError`，只有 Strategy 设置该属性，约 33µs/bar（~17% runnext loop）→ `__init__` 初始化为 None，用 `is None` 分支。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（初始化缺省字段并保留旧序列化状态的缺字段回退；覆盖真实非空 action tuple、双 Feed 时钟和 runonce/runnext。专项及 periodset 10 项通过，独立静态复审无阻断）。
 - [ ] **R71-173** `[P1]` `observers/trade_logger.py:2409-2410,2994-3039` — `TradeLogger.next` 每 bar 调 `_save_position_snapshot()`，`_last_position_state` 初始化后从未读取、无变更检测；默认 `log_position_snapshot=True` 时 1M bar 做 1M 次 YAML open/truncate/dump → 用 `_last_position_state` 做变更检测或按配置间隔写。CONFIRMED(source)。
 - [ ] **R71-031** `[P1]` `broker.py:181` — `getcommissioninfo` 每次重建 4 个 getattr、str/upper/lower、set 成员测试（注释称 2.1M+ 次调用），key 对同一 data 不变 → 按 data 缓存 key 元组，`setcommission` 变更时失效。CONFIRMED(source)。
 - [ ] **R71-032** `[P1]` `feeds/_btapi_cohort.py:439` — `_cohort_capture_source` 每 bar/tick 调 `_check_cohort_stream_health()`，`Store.get_stream_health()` 每次构造 ~30 key dict、复制计数器、`list(...)`、取队列锁 → 按 epoch/事件批次采样或缓存到 generation 变化。CONFIRMED(source)。
