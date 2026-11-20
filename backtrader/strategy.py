@@ -2095,21 +2095,12 @@ class Strategy(StrategyBase):
         except Exception:
             logger.warning("Failed to update indicator lencount in _stop", exc_info=True)
 
-        # CRITICAL FIX: Restore last valid datetime before calling user's stop()
-        # This ensures datetime[0] is valid for logging in stop() method
+        # Restore the strategy's aggregate datetime before calling user's stop()
+        # so strategy-level logging has a valid timestamp.  Each data feed owns
+        # an independent clock; its last bar can legitimately precede this time.
         if hasattr(self, "_last_valid_datetime") and self._last_valid_datetime > 0:
             try:
-                # Restore strategy datetime
                 self.lines.datetime[0] = self._last_valid_datetime
-                # CRITICAL: Also restore all data feed datetimes
-                for data in self.datas:
-                    try:
-                        data.datetime[0] = self._last_valid_datetime
-                    except Exception:
-                        logger.debug(
-                            "Failed to restore datetime for data %s in _stop",
-                            getattr(data, "_name", data),
-                        )
             except Exception:
                 logger.debug("Failed to restore strategy datetime in _stop", exc_info=True)
 
