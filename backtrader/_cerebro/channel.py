@@ -16,6 +16,7 @@ from ..lineseries import LineSeries
 from ..metabase import OwnerContext
 from ..utils import date2num
 from ..utils.log_message import _is_output_enabled_for, get_logger, throttled_warning
+from .execution import _safe_strategy_identity
 
 UTC = timezone.utc
 
@@ -358,7 +359,13 @@ class ChannelMixin:
                         else:
                             strat = stratcls(*sargs, **skwargs)
                 except errors.StrategySkipError:
-                    logger.warning("channel:297 suppressed bare")
+                    # The exception message may contain user-supplied data.
+                    # Log only a bounded class identity and the fixed reason.
+                    logger.warning(
+                        "channel strategy skipped during construction: "
+                        "strategy=%s reason=StrategySkipError",
+                        _safe_strategy_identity(stratcls),
+                    )
                     continue  # user requested skip, same as standard run() path
                 if self.p.oldsync:
                     strat._oldsync = True

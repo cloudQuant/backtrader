@@ -37,7 +37,9 @@ def _safe_strategy_identity(strategy_class):
     try:
         module = type.__getattribute__(strategy_class, "__module__")
         name = type.__getattribute__(strategy_class, "__qualname__")
-    except (AttributeError, TypeError):
+    except Exception:
+        # Metaclass descriptors can raise arbitrary ordinary exceptions. Never
+        # let diagnostic identity formatting interrupt strategy skipping.
         return "unknown"
 
     if type(module) is not str or type(name) is not str:

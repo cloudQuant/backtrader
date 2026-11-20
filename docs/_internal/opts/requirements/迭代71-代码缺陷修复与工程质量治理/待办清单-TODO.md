@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 22 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 18 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 19 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **163** |
+| | **合计** | **207** | **164** |
 
 ---
 
@@ -272,7 +272,7 @@
 - [ ] **R71-116** `[P3]` `research/alpha101/alpha062.py:42-50` 等 — 重复构造相同节点/无操作 `Multiply(x, 1.0)`（alpha062 两个 `CrossSectionalRank(open)`，alpha046/049/051 两个相同 `close_delay10`）→ 复用首个节点，去掉 `*1.0`。
 - [x] **R71-065** `[P3]` `bokeh/live/datahandler.py:153` — 热路径 debug 日志用 eager f-string，DEBUG 关闭时仍格式化 → 改 lazy `%s` 参数。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（两处流式 DEBUG 日志改为惰性插值，保留长度求值与输出；13 项相关回归通过）。
 - [x] **R71-067** `[P3]` `_cerebro/presentation.py:84` — `if backend == "plotly"` 整块死代码（`has_txn` 计算后未用，`if not has_txn: pass` 无效果）→ 删除或实现原意。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（移除只计算局部值后 pass 的 Plotly 分支，绘图器自己的 Transactions/broker 回退保留；22 项相关回归通过）。
-- [ ] **R71-068** `[P3]` `_cerebro/channel.py:349` — 日志 `"channel:297 suppressed bare"` 是重构残留、行号失效 → 改为说明 `StrategySkipError` 的可诊断日志。
+- [x] **R71-068** `[P3]` `_cerebro/channel.py:349` — 日志 `"channel:297 suppressed bare"` 是重构残留、行号失效 → 改为说明 `StrategySkipError` 的可诊断日志。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（通道 skip 日志使用有界策略标识和固定原因，不输出异常信息；元类描述符异常回退 unknown 且中断信号仍传播。48 项相关回归及独立静态复审通过）。
 - [x] **R71-069** `[P3]` `indicators/__init__.py:144` — 注释引用不存在的 `_register_common_moving_averages` → 删除注释块。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 子进程验证**（删除引用不存在函数的过期注释；完整及轻量导入的 SMA/EMA 注册别名验证通过）。
 - [x] **R71-070** `[P3]` `analyzers/drawdown.py:210` — `maxdrawdown` 文档称货币单位，实际 `maxdd` 为百分比 → 修正文档。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / Cerebro**（修正文档为百分比；合成账户价值 1010→990 的运行结果约 1.9802%，对应金额回撤 20）。
 - [x] **R71-071** `[P3]` `bokeh/analyzers/recorder.py:131` — 警告串 `"recorder:124 fallback on Exception"` 含失效行号且无上下文 → 改带对象/线名的 lazy 日志。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（行读取失败日志采用惰性、有界对象与线标识并保留 None 回退，不输出异常内容；10 项相关回归与独立复审通过，其他数据源日志不在本轮范围）。
