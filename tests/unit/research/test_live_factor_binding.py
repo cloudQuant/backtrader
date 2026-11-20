@@ -744,7 +744,7 @@ def test_custom_nan_without_reason_stays_unknown_even_when_inputs_are_live_ready
 
 @pytest.mark.parametrize("mode", ("native", "build"))
 @pytest.mark.parametrize("runonce", (False, True))
-def test_live_diagnostic_cap_does_not_truncate_offline_factor_coverage(mode, runonce):
+def test_offline_diagnostic_samples_are_bounded_without_truncating_coverage(mode, runonce):
     grid = pd.date_range(START, periods=96, freq="min", name="close_time")
     closes = [100.0 + index for index in range(len(grid))]
     source = pd.DataFrame(
@@ -781,12 +781,24 @@ def test_live_diagnostic_cap_does_not_truncate_offline_factor_coverage(mode, run
     cerebro.addstrategy(FactorStrategy, research=research, factors={"scaled_close": spec})
 
     strategy = cerebro.run(runonce=runonce)[0]
-    diagnostics = strategy.factor_instances["scaled_close"].lifecycle_diagnostics
+    factor = strategy.factor_instances["scaled_close"]
+    diagnostics = factor.lifecycle_diagnostics
     expected_times = tuple(grid.to_pydatetime())
-    assert diagnostics["coverage_times"] == expected_times
+    assert diagnostics["diagnostic_kind"] == "bounded_offline_samples"
+    assert diagnostics["call_count"] == len(grid)
+    assert len(diagnostics["call_times"]) <= 64
+    assert diagnostics["call_times_truncated"] is (diagnostics["call_count"] > 64)
+    assert diagnostics["call_times_source"] == "actual_bounded_sample"
+    assert diagnostics["expected_coverage_times_sample"] == expected_times[-64:]
+    assert diagnostics["expected_coverage_times_sample_source"] == "validated_grid_sample"
+    if diagnostics["call_count"]:
+        assert diagnostics["expected_call_times_sample"] == expected_times[-64:]
+        assert diagnostics["expected_call_times_sample_source"] == "validated_grid_sample"
     assert diagnostics["coverage_count"] == len(grid) > 64
+    assert diagnostics["coverage_times"] == diagnostics["call_times"]
+    assert diagnostics["coverage_times_source"] == "actual_next_samples"
+    assert diagnostics["coverage_times_truncated"] is True
     assert diagnostics["coverage_matches"] is True
-    assert diagnostics.get("call_times_truncated", False) is False
     panel = strategy.get_panel()
     assert len(panel.factors) == len(grid)
     assert panel.factors["scaled_close"].tolist() == [value * 2.0 for value in closes]

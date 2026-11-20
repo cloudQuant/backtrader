@@ -49,23 +49,91 @@ class _FactorGroupInstances:
             group: instance.lifecycle_diagnostics
             for group, instance in self.group_instances.items()
         }
+        grouped_sources = {
+            name: tuple((group, item[source_key]) for group, item in by_group.items())
+            for name, source_key in (
+                ("call_times", "call_times_source"),
+                ("next_times", "next_times_source"),
+                ("once_ranges", "once_ranges_source"),
+                ("once_times", "once_times_source"),
+                ("coverage_times", "coverage_times_source"),
+            )
+        }
+        grouped_truncation = {
+            name: tuple((group, item[flag_key]) for group, item in by_group.items())
+            for name, flag_key in (
+                ("call_times", "call_times_truncated"),
+                ("next_times", "next_times_truncated"),
+                ("once_ranges", "once_ranges_truncated"),
+                ("once_times", "once_times_truncated"),
+                ("coverage_times", "coverage_times_truncated"),
+            )
+        }
+        truncation_summary = {
+            name: any(truncated for _group, truncated in flags)
+            for name, flags in grouped_truncation.items()
+        }
         return {
+            "diagnostic_kind": "grouped_lifecycle_samples",
+            "sample_limit_by_group": tuple(
+                (group, item["sample_limit"]) for group, item in by_group.items()
+            ),
+            "full_trace_captured": bool(by_group)
+            and all(
+                item["diagnostic_kind"] == "captured_offline_trace"
+                for item in by_group.values()
+            ),
+            "samples_complete": not any(truncation_summary.values()),
             "call_count": sum(item["call_count"] for item in by_group.values()),
             "call_times": tuple((group, item["call_times"]) for group, item in by_group.items()),
+            "call_times_source": "per_group_actual_samples",
+            "call_times_source_by_group": grouped_sources["call_times"],
+            "call_times_truncated": truncation_summary["call_times"],
+            "call_times_truncated_by_group": grouped_truncation["call_times"],
             "grid_count": max((item["grid_count"] for item in by_group.values()), default=0),
             "grid_matches": bool(by_group)
             and all(item["grid_matches"] for item in by_group.values()),
             "next_count": sum(item["next_count"] for item in by_group.values()),
             "next_times": tuple((group, item["next_times"]) for group, item in by_group.items()),
+            "next_times_source": "per_group_actual_samples",
+            "next_times_source_by_group": grouped_sources["next_times"],
+            "next_times_truncated": truncation_summary["next_times"],
+            "next_times_truncated_by_group": grouped_truncation["next_times"],
             "once_ranges": tuple((group, item["once_ranges"]) for group, item in by_group.items()),
+            "once_ranges_source": "per_group_actual_ranges",
+            "once_ranges_source_by_group": grouped_sources["once_ranges"],
+            "once_ranges_truncated": truncation_summary["once_ranges"],
+            "once_ranges_truncated_by_group": grouped_truncation["once_ranges"],
+            "once_range_count": sum(item["once_range_count"] for item in by_group.values()),
             "once_count": sum(item["once_count"] for item in by_group.values()),
             "once_times": tuple((group, item["once_times"]) for group, item in by_group.items()),
+            "once_times_source": "per_group_diagnostics",
+            "once_times_source_by_group": grouped_sources["once_times"],
+            "once_times_truncated": truncation_summary["once_times"],
+            "once_times_truncated_by_group": grouped_truncation["once_times"],
             "coverage_count": sum(item["coverage_count"] for item in by_group.values()),
             "coverage_times": tuple(
                 (group, item["coverage_times"]) for group, item in by_group.items()
             ),
+            "coverage_times_source": "per_group_diagnostics",
+            "coverage_times_source_by_group": grouped_sources["coverage_times"],
+            "coverage_times_truncated": truncation_summary["coverage_times"],
+            "coverage_times_truncated_by_group": grouped_truncation["coverage_times"],
             "coverage_matches": bool(by_group)
             and all(item["coverage_matches"] for item in by_group.values()),
+            "expected_call_count": sum(item["expected_call_count"] for item in by_group.values()),
+            "expected_call_times_sample": tuple(
+                (group, item["expected_call_times_sample"]) for group, item in by_group.items()
+            ),
+            "expected_call_times_sample_source": "per_group_validated_grid_samples",
+            "expected_coverage_count": sum(
+                item["expected_coverage_count"] for item in by_group.values()
+            ),
+            "expected_coverage_times_sample": tuple(
+                (group, item["expected_coverage_times_sample"])
+                for group, item in by_group.items()
+            ),
+            "expected_coverage_times_sample_source": "per_group_validated_grid_samples",
             "group_diagnostics": by_group,
         }
 

@@ -119,7 +119,13 @@ built = FactorSpec("built", alpha, "factor", field_bindings=bindings, mode="buil
 
 025/026 的原生 CloseMA、ROC、KDJ 和普通 RSV 子指标在标准同步 PandasData、完整数组及原始回调条件下，使用 Cerebro 的 `preonce/oncestart/once` 批量计算。数值仍经过普通 line 读写与严格错误检查；build 模式、自定义回调或不支持的 feed/clock 保留逐点回放。这里没有增加调度器。
 
-`lifecycle_diagnostics` 的 `call_count/call_times`（以及同义的 `next_count/next_times`）只记录实际逐点计算调用。批量计算另记半开区间 `once_ranges` 和对应的 `once_count/once_times`。检查完整网格覆盖应使用 `coverage_count/coverage_times/coverage_matches`；`grid_matches` 继续只比较逐点调用与网格，不能把批量覆盖解释成发生了同样数量的 `next()` 调用。性能优化的实测进度见[开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
+`lifecycle_diagnostics` 将完整计数与时间样本分开：`call_count/next_count`、`once_range_count` 和 `once_count` 是完整计数；普通离线与 live 实例默认只保留最近 64 个实际 `call_times/next_times` 和 `once_ranges`。`call_times_truncated`、`next_times_truncated`、`once_ranges_truncated` 及 `coverage_times_truncated` 标明对应样本是否不完整。`coverage_times` 默认只是实际逐点调用样本，不包含批量区间的推导时间；不能用它的长度判断整体覆盖。
+
+批量执行只实际记录完成的半开区间 `(start, end)`。默认诊断不把区间展开为观测时间；`once_times` 为空，并在存在批量覆盖时标记为不可用。完整覆盖由逐点调用时对每个 UTC 网格点的真实校验、连续且不重叠的 once 区间校验和相应计数器共同确认：`coverage_count/coverage_matches` 表示两种执行方式的总覆盖，`grid_matches` 只表示逐点调用本身覆盖了整个网格。`expected_call_times_sample` 与 `expected_coverage_times_sample` 是最多 64 项的网格预期样本，来源标记为 `validated_grid_sample`；它们是网格投影，不能当成实际回调观测。
+
+需要完整离线 trace 的受控工具，必须在 `Cerebro.run()` 前进入内部作用域 `_factor_diagnostic_history_capture()`，以便 FactorIndicator 实例构造时保留全量原始调用时间和 once 区间。live 实例即使运行在该作用域内仍保持有界。捕集模式的 `call_times` 是原始逐点观察；`once_times` 以及 `coverage_times` 中由 once 区间展开的部分来自已校验区间对应的网格时间，分别通过 `once_times_source="validated_grid_ranges"` 和 `coverage_times_source="captured_calls_and_validated_ranges"` 明确标记，并非原始时间戳观察。显式捕集会使用无界历史，`lifecycle_capacity_facts` 会报告该存储状态。性能优化的实测进度见[开发与验收记录](../../_internal/opts/requirements/迭代49-因子分析性能优化/开发与验收记录.md)。
+
+一个因子按多个研究组构造实例时，`FactorStrategy.factor_instances[name].lifecycle_diagnostics` 返回按组标记的样本集合，而不是拼成单条完整历史。顶层 `call_times_source="per_group_actual_samples"` 与 `once_ranges_source="per_group_actual_ranges"` 标明字段仍是实际分组样本；相应的 `*_source_by_group` 与 `*_truncated_by_group` 给出每组实际来源及截断状态。顶层 `*_truncated` 在任一组样本被截断时为真，`group_diagnostics` 保留各实例的完整诊断。计数按研究组实例求和：`call_count/next_count`、`once_range_count/once_count`、`coverage_count` 及两个 `expected_*_count` 都是各组之和；`grid_count` 则是共同计算网格长度的最大值，不是组间求和。`grid_matches` 与 `coverage_matches` 要求所有组都匹配。`samples_complete` 只表示五个实际 lifecycle 样本字段（`call_times`、`next_times`、`once_ranges`、`once_times`、`coverage_times`）未被截断；`expected_*_times_sample` 是独立的网格推导样本，不参与此标志。`full_trace_captured` 仅在每组实例都于显式捕集作用域中保留完整历史时为真。检查分组后的原始样本或截断状态时，应使用这些逐组字段；顶层聚合 tuple 本身不代表完整历史。
 
 ## 装配研究
 

@@ -237,7 +237,7 @@ def test_l0_factors_share_factor_strategy_and_match_independent_references(runon
         spec = strategy._factor_specs_by_name[factor_name]
         assert spec.indicator is get_alpha(formula_id)
         assert spec.lookback_h == declared_h
-        assert len(factor._factor_call_times) == len(grid)
+        assert factor._factor_call_count == len(grid)
         for asset in _ASSETS:
             expected = references[factor_name][asset]
             actual = [float(raw.at[(point, asset), factor_name]) for point in grid]

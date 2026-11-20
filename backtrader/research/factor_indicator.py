@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from collections import deque
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from functools import wraps
 from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, cast
 
 from ..feed import AbstractDataBase
 from ..feeds.pandafeed import PandasData
@@ -26,7 +28,25 @@ _FACTOR_ONCE_ITERATOR_ADVANCE = LineIterator.advance
 _FACTOR_ONCE_INDICATOR_ADVANCE = Indicator.advance
 _FACTOR_ONCE_LINES_ADVANCE = Lines.advance
 _FACTOR_ONCE_LINE_ADVANCE = LineBuffer.advance
-_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT = 64
+_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT = 64
+_FACTOR_FULL_DIAGNOSTIC_HISTORY: ContextVar[bool] = ContextVar(
+    "backtrader_factor_full_diagnostic_history", default=False
+)
+
+
+@contextmanager
+def _factor_diagnostic_history_capture() -> Iterator[None]:
+    """Opt a controlled trace run into retaining complete lifecycle observations.
+
+    Production and ordinary test runs keep bounded samples. The Alpha101 trace
+    harness uses this scope when it needs the original callback timestamps and
+    segmented once ranges as raw observations.
+    """
+    token = _FACTOR_FULL_DIAGNOSTIC_HISTORY.set(True)
+    try:
+        yield
+    finally:
+        _FACTOR_FULL_DIAGNOSTIC_HISTORY.reset(token)
 
 
 class _OutputLines:
@@ -319,15 +339,18 @@ class FactorIndicator(Indicator):
         if asset_names and len(asset_names) != len(output_datas):
             raise RuntimeError("factor asset names do not match its output lines")
         self._factor_live_bounded_diagnostics = bool(runtime.get("live_source_binding", False))
+        self._factor_full_diagnostic_history = bool(
+            not self._factor_live_bounded_diagnostics and _FACTOR_FULL_DIAGNOSTIC_HISTORY.get()
+        )
         self._factor_call_count = 0
         self._factor_once_range_count = 0
         self._factor_once_covered_count = 0
-        if self._factor_live_bounded_diagnostics:
-            self._factor_call_times = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
-            self._factor_once_ranges = deque(maxlen=_LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
-        else:
+        if self._factor_full_diagnostic_history:
             self._factor_call_times: List[datetime] = []
             self._factor_once_ranges: List[Tuple[int, int]] = []
+        else:
+            self._factor_call_times = deque(maxlen=_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
+            self._factor_once_ranges = deque(maxlen=_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT)
         self._factor_grid: Optional[Tuple[datetime, ...]] = None
         self._field_line_cache: Dict[str, Tuple[Any, ...]] = {}
         self._formula_member_lines: Optional[Tuple[Any, ...]] = None
@@ -905,63 +928,136 @@ class FactorIndicator(Indicator):
 
     @property
     def lifecycle_diagnostics(self) -> Dict[str, Any]:
-        """Read-only count and UTC-grid observations for lifecycle acceptance."""
+        """Return lifecycle counts and clearly labeled observed trace samples."""
         calls = tuple(self._factor_call_times)
         once_ranges = tuple(self._factor_once_ranges)
+        call_count = self._factor_call_count
+        once_range_count = self._factor_once_range_count
+        once_count = self._factor_once_covered_count
+        call_times_truncated = call_count > len(calls)
+        once_ranges_truncated = once_range_count > len(once_ranges)
         if self._factor_live_bounded_diagnostics:
-            coverage_count = self._factor_call_count + self._factor_once_covered_count
+            coverage_count = call_count + once_count
             return {
                 "diagnostic_kind": "bounded_live_samples",
-                "sample_limit": _LIVE_FACTOR_DIAGNOSTIC_SAMPLE_LIMIT,
-                "call_count": self._factor_call_count,
+                "sample_limit": _FACTOR_DIAGNOSTIC_SAMPLE_LIMIT,
+                "call_count": call_count,
                 "call_times": calls,
-                "call_times_truncated": self._factor_call_count > len(calls),
+                "call_times_source": "actual_bounded_sample",
+                "call_times_truncated": call_times_truncated,
                 "grid_count": None,
                 "grid_matches": None,
-                "next_count": self._factor_call_count,
+                "next_count": call_count,
                 "next_times": calls,
+                "next_times_source": "actual_bounded_sample",
+                "next_times_truncated": call_times_truncated,
                 "once_ranges": once_ranges,
-                "once_ranges_truncated": self._factor_once_range_count > len(once_ranges),
-                "once_count": self._factor_once_covered_count,
+                "once_ranges_source": "actual_bounded_sample",
+                "once_ranges_truncated": once_ranges_truncated,
+                "once_range_count": once_range_count,
+                "once_count": once_count,
                 "once_times": (),
+                "once_times_source": None,
+                "once_times_truncated": once_count > 0,
                 "coverage_count": coverage_count,
                 "coverage_times": calls,
+                "coverage_times_source": "actual_next_samples",
                 "coverage_times_truncated": coverage_count > len(calls),
                 "coverage_matches": None,
             }
         grid = self._factor_grid
-        once_count = sum(end - start for start, end in once_ranges)
-        once_times = (
-            tuple(value for start, end in once_ranges for value in grid[start:end])
+        grid_count = len(grid) if grid is not None else 0
+        coverage_count = call_count + once_count
+        expected_call_sample = (
+            tuple(grid[max(0, call_count - _FACTOR_DIAGNOSTIC_SAMPLE_LIMIT) : call_count])
             if grid is not None
             else ()
         )
-        coverage_times = calls + once_times
-        coverage_matches = bool(grid is not None and coverage_times == grid)
+        expected_coverage_sample = (
+            tuple(
+                grid[
+                    max(0, coverage_count - _FACTOR_DIAGNOSTIC_SAMPLE_LIMIT) : coverage_count
+                ]
+            )
+            if grid is not None
+            else ()
+        )
+        grid_matches = bool(grid is not None and call_count == grid_count and once_count == 0)
+        coverage_matches = bool(grid is not None and coverage_count == grid_count)
+        if self._factor_full_diagnostic_history:
+            once_times = (
+                tuple(value for start, end in once_ranges for value in grid[start:end])
+                if grid is not None
+                else ()
+            )
+            coverage_times = calls + once_times
+            grid_matches = bool(grid is not None and calls == grid)
+            coverage_matches = bool(grid is not None and coverage_times == grid)
+            diagnostic_kind = "captured_offline_trace"
+            call_times_source = "captured_actual"
+            once_ranges_source = "captured_actual_ranges"
+            once_times_source = "validated_grid_ranges"
+            coverage_times_source = "captured_calls_and_validated_ranges"
+            call_times_truncated = False
+            once_ranges_truncated = False
+        else:
+            once_times = ()
+            coverage_times = calls
+            diagnostic_kind = "bounded_offline_samples"
+            call_times_source = "actual_bounded_sample"
+            once_ranges_source = "actual_bounded_sample"
+            once_times_source = None
+            coverage_times_source = "actual_next_samples"
         return {
-            "call_count": len(calls),
+            "diagnostic_kind": diagnostic_kind,
+            "sample_limit": (
+                None if self._factor_full_diagnostic_history else _FACTOR_DIAGNOSTIC_SAMPLE_LIMIT
+            ),
+            "call_count": call_count,
             "call_times": calls,
-            "grid_count": len(grid or ()),
-            "grid_matches": bool(grid is not None and calls == grid),
-            "next_count": len(calls),
+            "call_times_source": call_times_source,
+            "call_times_truncated": call_times_truncated,
+            "expected_call_count": call_count,
+            "expected_call_times_sample": expected_call_sample,
+            "expected_call_times_sample_source": (
+                "validated_grid_sample" if grid is not None else None
+            ),
+            "grid_count": grid_count,
+            "grid_matches": grid_matches,
+            "grid_match_basis": "validated_call_count" if grid is not None else None,
+            "next_count": call_count,
             "next_times": calls,
+            "next_times_source": call_times_source,
+            "next_times_truncated": call_times_truncated,
             "once_ranges": once_ranges,
+            "once_ranges_source": once_ranges_source,
+            "once_ranges_truncated": once_ranges_truncated,
+            "once_range_count": once_range_count,
             "once_count": once_count,
             "once_times": once_times,
-            "coverage_count": len(calls) + once_count,
+            "once_times_source": once_times_source,
+            "once_times_truncated": once_count > 0 and not self._factor_full_diagnostic_history,
+            "coverage_count": coverage_count,
             "coverage_times": coverage_times,
+            "coverage_times_source": coverage_times_source,
+            "coverage_times_truncated": coverage_count > len(coverage_times),
+            "expected_coverage_count": coverage_count,
+            "expected_coverage_times_sample": expected_coverage_sample,
+            "expected_coverage_times_sample_source": (
+                "validated_grid_sample" if grid is not None else None
+            ),
             "coverage_matches": coverage_matches,
+            "coverage_match_basis": "validated_call_and_once_counters" if grid is not None else None,
         }
 
     @property
     def lifecycle_capacity_facts(self) -> Dict[str, Any]:
         """Return count-only lifecycle storage facts without copying samples.
 
-        Live capacity observers call this from the engine callback thread, the
-        same thread that appends lifecycle samples.  This projection never
-        iterates or copies the retained timestamps/ranges.  Non-live instances
-        use lists and are reported as unbounded rather than being mistaken for
-        a bounded zero-length cache.
+        This projection never iterates or copies retained timestamps/ranges.
+        Default live and offline instances use bounded deques; only an
+        explicitly scoped full-trace run retains lists and reports them as
+        unbounded.
         """
         calls = self._factor_call_times
         ranges = self._factor_once_ranges

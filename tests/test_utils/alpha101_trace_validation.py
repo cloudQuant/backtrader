@@ -535,8 +535,7 @@ def _factor_graph_pair_records(factor: Any, alpha_id: int) -> Dict[str, Any]:
     physical_views = _validated_pair_panel_views(factor, targets)
     asset_names = _factor_asset_names(factor)
     target_order = tuple(_factor_asset_names_for_output(factor, target) for target in targets)
-    grid = tuple(getattr(factor, "_factor_grid", None) or factor._factor_call_times)
-    call_times = tuple(factor._factor_call_times)
+    grid, call_times = _require_captured_factor_trace(factor)
     if not grid or call_times != grid:
         raise AssertionError("factor graph grid and actual call-time identities differ")
     rows = len(grid)
@@ -779,6 +778,21 @@ def _factor_asset_names_for_output(factor: Any, data: Any) -> str:
     return name
 
 
+def _require_captured_factor_trace(factor: Any) -> Tuple[Tuple[Any, ...], Tuple[Any, ...]]:
+    """Return raw full call observations only from an explicit capture run."""
+    if not getattr(factor, "_factor_full_diagnostic_history", False):
+        raise AssertionError(
+            "factor trace requires _factor_diagnostic_history_capture() during execution"
+        )
+    calls = tuple(factor._factor_call_times)
+    if len(calls) != factor._factor_call_count:
+        raise AssertionError("captured factor calls are incomplete or were truncated")
+    grid = tuple(getattr(factor, "_factor_grid", None) or ())
+    if not grid:
+        raise AssertionError("factor trace requires its validated calculation grid")
+    return grid, calls
+
+
 def compare_factor_graphs(left_factor: Any, right_factor: Any, alpha_id: int) -> Dict[str, Any]:
     """Compare complete native/build operator graphs by semantic node identity.
 
@@ -929,7 +943,8 @@ def _field_lines(factor: Any) -> Dict[int, Tuple[str, int]]:
 def _production_graph(
     factor: Any, alpha_id: int
 ) -> Tuple[Tuple[Any, ...], Dict[Tuple[Any, ...], List[List[List[float]]]]]:
-    rows = len(factor._factor_call_times)
+    _grid, call_times = _require_captured_factor_trace(factor)
+    rows = len(call_times)
     targets = tuple(getattr(factor, "target_datas", ())) or tuple(factor._factor_target_datas)
     physical_views = _validated_pair_panel_views(factor, targets)
     aliases = _field_lines(factor)

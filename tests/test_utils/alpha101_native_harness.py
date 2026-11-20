@@ -18,7 +18,10 @@ import pandas as pd
 
 import backtrader as bt
 from backtrader.research.alpha101 import ALPHA_REGISTRY, get_alpha
-from backtrader.research.factor_indicator import FactorIndicator
+from backtrader.research.factor_indicator import (
+    FactorIndicator,
+    _factor_diagnostic_history_capture,
+)
 from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.research.specs import FactorSpec, ResearchSpec
 from tests.test_utils.alpha101_full_reference import (
@@ -405,7 +408,8 @@ def run_native_batch(
 
     broker.submit = counted_submit
     broker.cancel = counted_cancel
-    strategy = cerebro.run()[0]
+    with _factor_diagnostic_history_capture():
+        strategy = cerebro.run()[0]
     strategy._alpha101_broker_call_counts = dict(broker_calls)
     strategy._alpha101_factor_modes_expected = {
         alpha_name(alpha_id): modes[alpha_id] for alpha_id in ids

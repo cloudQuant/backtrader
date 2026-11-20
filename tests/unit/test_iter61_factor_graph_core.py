@@ -15,6 +15,8 @@ from backtrader.research import (
     ResearchSpec,
     align_to_grid,
 )
+from backtrader.research import factor_indicator as factor_indicator_module
+from backtrader.research.factor_indicator import _factor_diagnostic_history_capture
 from backtrader.strategies.factor_strategy import FactorStrategy
 from backtrader.metabase import OwnerContext
 
@@ -263,8 +265,10 @@ def _run(
     return_cerebro=False,
     writer=None,
     broker=None,
+    count=4,
+    capture_lifecycle=False,
 ):
-    index = pd.date_range("2025-01-01 16:00", periods=4, tz="UTC", name="close_time")
+    index = pd.date_range("2025-01-01 16:00", periods=count, tz="UTC", name="close_time")
     research = ResearchSpec(
         grid=pd.DataFrame({"open_time": index - pd.Timedelta(hours=6)}, index=index),
         start=index[0],
@@ -286,7 +290,8 @@ def _run(
         cerebro.addwriter(writer)
     if broker:
         cerebro.setbroker(broker)
-    for asset, values in (("A", [0.0, 1.0, 2.0, 3.0]), ("B", [4.0, 5.0, 6.0, 7.0])):
+    for asset, offset in (("A", 0.0), ("B", 4.0)):
+        values = [offset + index for index in range(count)]
         frame = pd.DataFrame(
             {key: values for key in ("open", "high", "low", "close", "volume")}, index=index
         )
@@ -301,6 +306,9 @@ def _run(
     cerebro.addstrategy(strategy, research=research, factors={"f": spec}, sink=sink)
     if return_cerebro:
         return cerebro
+    if capture_lifecycle:
+        with _factor_diagnostic_history_capture():
+            return cerebro.run(runonce=runonce)[0]
     return cerebro.run(runonce=runonce)[0]
 
 
@@ -318,6 +326,85 @@ def test_group_graph_values_and_coverage(mode, runonce):
         assert sum(item is instance for item in strategy.getindicators()) == 1
         assert instance.lifecycle_diagnostics["coverage_matches"]
         assert instance.lifecycle_diagnostics["coverage_count"] == 4
+
+
+def test_grouped_diagnostics_identify_truncation_per_group():
+    strategy = _run("native", False, count=96)
+    aggregate = strategy.factor_instances["f"]
+    diagnostics = aggregate.lifecycle_diagnostics
+
+    assert diagnostics["diagnostic_kind"] == "grouped_lifecycle_samples"
+    assert diagnostics["full_trace_captured"] is False
+    assert diagnostics["samples_complete"] is False
+    assert diagnostics["call_times_source"] == "per_group_actual_samples"
+    assert diagnostics["call_count"] == diagnostics["coverage_count"] == 192
+    assert diagnostics["coverage_matches"] is True
+    assert diagnostics["call_times_truncated"] is True
+    assert diagnostics["call_times_truncated_by_group"] == (("x", True), ("y", True))
+    assert diagnostics["call_times_source_by_group"] == (
+        ("x", "actual_bounded_sample"),
+        ("y", "actual_bounded_sample"),
+    )
+    assert tuple((group, len(sample)) for group, sample in diagnostics["call_times"]) == (
+        ("x", 64),
+        ("y", 64),
+    )
+    assert diagnostics["coverage_times_truncated_by_group"] == (("x", True), ("y", True))
+    assert diagnostics["group_diagnostics"]["x"]["call_times_truncated"] is True
+    assert diagnostics["group_diagnostics"]["y"]["call_times_truncated"] is True
+
+
+def test_grouped_full_trace_capture_is_explicit_for_every_group():
+    strategy = _run("native", False, count=96, capture_lifecycle=True)
+    diagnostics = strategy.factor_instances["f"].lifecycle_diagnostics
+
+    assert diagnostics["full_trace_captured"] is True
+    assert diagnostics["samples_complete"] is True
+    assert diagnostics["call_times_source_by_group"] == (
+        ("x", "captured_actual"),
+        ("y", "captured_actual"),
+    )
+    assert diagnostics["call_times_truncated_by_group"] == (("x", False), ("y", False))
+    assert tuple((group, len(sample)) for group, sample in diagnostics["call_times"]) == (
+        ("x", 96),
+        ("y", 96),
+    )
+
+
+def test_grouped_once_ranges_report_per_group_truncation(monkeypatch):
+    strategy = _run("native", False, count=96)
+    aggregate = strategy.factor_instances["f"]
+    monkeypatch.setattr(factor_indicator_module, "_factor_once_supported", lambda *args: True)
+
+    for factor in aggregate.group_instances.values():
+        factor._factor_call_times.clear()
+        factor._factor_call_count = 0
+        factor._factor_once_ranges.clear()
+        factor._factor_once_range_count = 0
+        factor._factor_once_covered_count = 0
+        for index in range(96):
+            assert factor_indicator_module._factor_once_execute(
+                factor,
+                _Scaled,
+                lambda _start, _end: None,
+                index,
+                index + 1,
+            )
+
+    diagnostics = aggregate.lifecycle_diagnostics
+    assert diagnostics["once_range_count"] == diagnostics["once_count"] == 192
+    assert diagnostics["coverage_count"] == 192
+    assert diagnostics["coverage_matches"] is True
+    assert diagnostics["once_ranges_source"] == "per_group_actual_ranges"
+    assert diagnostics["once_ranges_truncated"] is True
+    assert diagnostics["once_ranges_truncated_by_group"] == (("x", True), ("y", True))
+    assert tuple((group, len(sample)) for group, sample in diagnostics["once_ranges"]) == (
+        ("x", 64),
+        ("y", 64),
+    )
+    assert diagnostics["once_times_source_by_group"] == (("x", None), ("y", None))
+    assert diagnostics["once_times_truncated_by_group"] == (("x", True), ("y", True))
+    assert diagnostics["coverage_times_truncated_by_group"] == (("x", True), ("y", True))
 
 
 @pytest.mark.parametrize("runonce", [False, True], ids=["runnext", "runonce"])
