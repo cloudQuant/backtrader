@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 15 |
+| 5 | 指标正确性（P1/P2） | 29 | 16 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **63** |
+| | **合计** | **207** | **64** |
 
 ---
 
@@ -134,7 +134,7 @@
 - [x] **R71-035** `[P1]` `contrib/color_bb_candles_indicator.py:43` — 子指标线绑定 + `addminperiod(period+5)` 变相对加法，实测 `_minperiod==204`（目标 105），历史不足 204 根时 runonce 抛 `IndexError` → 去掉 `price_line` 别名或用 `incminperiod`/显式 `max(...)`。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（周期上限非累加，period=100 的最小周期由 204 修为 105，价格线在预热中输出实际价格；实际 Cerebro 两模式及短历史共 8 项通过，独立源码复核无阻断。旧 fake 的短历史 IndexError 本次未复现）。
 - [x] **R71-036** `[P1]` `contrib/aroon_oscillator_sign_alert.py:41` — Aroon Oscillator 符号反了：`highest/lowest` 是 bars-ago 偏移，标准 `100*(lowest-highest)/p`，代码算成相反数，交叉方向相反 → 改为 `100.0*(lowest-highest)/p`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修正 bars-ago 偏移的振荡符号；真实 Cerebro 两模式全序列、交叉方向、并列极值和预热边界共 10 项通过，独立源码复核无阻断；报警价所用 ATR 未由本专项独立验算）。
 - [x] **R71-037** `[P2]` `contrib/adx_cross_hull_style_indicator.py:233` 等 ≥6 文件 — `once()` 每次重置递归状态（`prev=None`、新建 smoother），分 `oncestart`/`once` 两段调用导致边界重启，runonce 与 runnext 分叉 88–466 根 → `start>0` 时从 `line[start-1]` 播种。CONFIRMED(FAKE)。 **2026-11-20 / 本轮 Backtrader dev 提交 / 部分修复**（UltraXMA、CorrectedAverage、XRVI 的批量分段与逐根状态对齐；真实 Cerebro 暖机、缺失和连续分段合计 16 项通过，独立源码复核无新增阻断。UltraWPR、BinaryWave、ColorSchaff 及 BinaryWave 默认 CCI 缺失值分歧仍待处理，因此此项保持未完成）。 **2026-11-20 / 本轮 Backtrader dev 提交 / 部分修复**（UltraWPR 重放平滑器状态，ColorSchaff 保留跨段回看；两模式、缺失与分段共 10 项通过，独立源码复核无确定阻断。UltraWPR 在大量小分段时重放开销可达二次方；BinaryWave 及其默认 CCI 的缺失值分歧仍待处理）。 **2026-11-20 / Backtrader dev b4685c04e + 本轮提交 / 公共依赖修复**：一元批量运算保留 NaN，纯线组合指标的默认批量路径不再重复扩展输出缓冲；BinaryWave、CCI、LineCCI 与公共运算联合 39 项通过，独立源码复核无确定阻断。直接调用 LineOwnOperation.next 的非有限值旧行为未改；自定义生命周期及类定义后动态修改回调仍沿原调度合同。另有 BlauErgodic、Color3rdGenXMA、OsHMA、JMASlope、CloseCloseEmaStochastic、RFTL、RsiomaV2、SmoothedRelativeVigorIndex、ZeroLagMacd、SpreadZScore 十类原有逐根/批量数值差异仍待独立核查。BinaryWave 自身分段修复待提交，此项继续未完成。 **2026-11-20 / 本条目完成于本轮 Backtrader dev 提交 / UNIT+合成回测**（BinaryWave 批量递推跨段续接，配合公共 NaN 和缓冲修复，默认 CCI 权重的完整数组与逐根一致；专项及 CCI 9 项、策略回归 1 项通过。此前注记中 UltraWPR、ColorSchaff 和 BinaryWave 的待修状态由后续各轮结果取代；十类新发现的其他数值差异仍开放）。
-- [ ] **R71-038** `[P2]` `contrib/as_ctrend_indicator.py:99` — 两个独立 `if/else` 都写 `value11`，第二个覆盖第一个，仅 MRO1 命中时被重置为默认 2 → 先赋默认值再独立 `if` 覆盖。CONFIRMED(source)。
+- [x] **R71-038** `[P2]` `contrib/as_ctrend_indicator.py:99` — 两个独立 `if/else` 都写 `value11`，第二个覆盖第一个，仅 MRO1 命中时被重置为默认 2 → 先赋默认值再独立 `if` 覆盖。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（保留默认索引并按 MRO1、MRO2 独立条件选择；真实 Cerebro 两模式的四种命中组合及独立 WPR 参考共 8 项通过，独立源码复核无阻断）。
 - [ ] **R71-039** `[P2]` `contrib/color_step_xccx_indicator.py:146` — `once()` 从 `±999999` sentinel 重启，段边界 `ftrend==0` 时输出 `-1000004.0` 真实通道值 → 从 `mplus_line[start-1]` 播种并跨段保留 `_ftrend/_strend`。CONFIRMED(FAKE)。
 - [ ] **R71-040** `[P2]` `contrib/digital_macd.py:178` — `signal = SMA(parent.macd)`，但父类 `next()` 在子指标之后写 `macd`，子指标只看到 NaN，signal 全 NaN → 父类 `next()` 用 macd 历史 deque 算 signal 或改线表达式。CONFIRMED(FAKE)。
 - [ ] **R71-041** `[P2]` `contrib/shared_strategy_indicators.py:996` — `BlauErgodicMDI` 声明 4 条线只写 `hist/up/dn`，`color_idx` 全 NaN → 实现颜色状态或从 lines 删除。CONFIRMED(FAKE)。

@@ -98,12 +98,8 @@ class ASCtrendIndicator(Indicator):
 
         if mro1 > -1:
             value11 = 0
-        else:
-            value11 = value10
         if mro2 > -1:
             value11 = 1
-        else:
-            value11 = value10
 
         # Current WPR value with the selected period
         wpr_raw = self._get_wpr_val(value11, 0)
