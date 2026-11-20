@@ -47,15 +47,79 @@ Example:
                 self.sell()
 """
 
+import array
 import functools
 import math
 import operator
+from collections import deque
 
 from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
 
 logger = get_logger(__name__)
+_MIN_PERIOD_FOR_MONOTONIC_ONCE = 32
+
+
+def _once_monotonic_extreme(src, dst, start, end, period, choose_max):
+    """Calculate a built-in rolling min/max while preserving Python ordering.
+
+    The deque retains the earliest occurrence of an equal extreme, matching
+    ``min``/``max`` on a window. NaNs are not candidates because Python's
+    built-ins ignore a NaN that follows the first item; a NaN at the window's
+    left edge is emitted directly because it remains the built-in result.
+    """
+    nan = float("nan")
+    while len(dst) < end:
+        dst.append(nan)
+
+    if start >= end:
+        return
+
+    candidates = deque()
+
+    def add(index):
+        value = src[index]
+        if value != value:  # NaN is ignored unless it is the window's first value
+            return
+        while candidates:
+            previous = src[candidates[-1]]
+            is_better = value > previous if choose_max else value < previous
+            if is_better:
+                candidates.pop()
+            else:
+                break
+        candidates.append(index)
+
+    # ``oncestart`` and ``once`` are separate calls in the normal runonce
+    # scheduler. Rebuild only the preceding portion of the first requested
+    # window so this routine is also correct when called on arbitrary chunks.
+    seed_start = max(0, start - period + 1)
+    for index in range(seed_start, min(start, len(src))):
+        add(index)
+
+    for index in range(start, end):
+        if index >= len(src):
+            dst[index] = nan
+            continue
+
+        add(index)
+        left = index - period + 1
+        while candidates and candidates[0] < left:
+            candidates.popleft()
+
+        if index < period - 1:
+            dst[index] = nan
+        elif src[left] != src[left]:
+            # Python max/min returns its first value when it is NaN because
+            # all later comparisons against that current result are false.
+            dst[index] = src[left]
+        elif candidates:
+            dst[index] = src[candidates[0]]
+        else:
+            # A complete non-NaN-first window always has a candidate. Keep a
+            # safe fallback for malformed/nonstandard array contents.
+            dst[index] = nan
 
 
 class PeriodN(Indicator):
@@ -121,6 +185,33 @@ class OperationN(PeriodN):
             src = self.data.array
             period = self.p.period
             func = self.func
+
+            choose_max = None
+            if type(self) is Highest and func is max:
+                choose_max = True
+            elif type(self) is Lowest and func is min:
+                choose_max = False
+
+            # Only the concrete built-ins over the standard double arrays have
+            # the ordering contract implemented by the monotonic deque. Keep
+            # subclasses, custom callables and nonstandard storage on the
+            # established generic path. Short windows stay on C-level max/min;
+            # the deque becomes faster at the measured 32-period crossover.
+            if (
+                choose_max is not None
+                and type(period) is int
+                and period >= _MIN_PERIOD_FOR_MONOTONIC_ONCE
+                and type(start) is int
+                and type(end) is int
+                and start >= 0
+                and end >= 0
+                and type(src) is array.array
+                and src.typecode == "d"
+                and type(dst) is array.array
+                and dst.typecode == "d"
+            ):
+                _once_monotonic_extreme(src, dst, start, end, period, choose_max)
+                return
 
             # CRITICAL FIX: Handle case where start >= end (not enough data for this indicator)
             # This can happen when nested indicators have larger minperiod than available data
