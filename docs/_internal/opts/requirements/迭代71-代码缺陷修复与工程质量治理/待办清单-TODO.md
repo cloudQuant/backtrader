@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 8 | 性能专项（P1/P2） | 19 | 8 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 0 |
+| 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **119** |
+| | **合计** | **207** | **120** |
 
 ---
 
@@ -233,7 +233,7 @@
 - [ ] **R71-092** `[P2]` `_cerebro/execution.py:153` — 启动失败时每个已成功停止且带 observer 的策略都被追加 "observer cleanup outcome is unobservable" 假 incomplete → 仅在 observer 捕获不可用时记录。
 - [ ] **R71-093** `[P2]` `_cerebro/channel.py:245` — `_run_channel` 永久设置 `self.p.quicknotify = True`，复用同一 Cerebro 做普通运行时通知时序被静默改变 → 保存/恢复原值或用局部标志。
 - [ ] **R71-094** `[P2]` `_cerebro/execution.py:406` — 日志 `"execution:122 suppressed bare"` 为重构残留，隐藏 `StrategySkipError` 原因 → 记录策略类与 skip 原因。
-- [ ] **R71-098** `[P2]` `filters/renko.py:155-158` — 下跌 Renko brick 写 `low=top`、`high=bot`，产生 `high < low`，污染 ATR/TrueRange/Stochastic → 交换为 `high=top`、`low=bot`。
+- [x] **R71-098** `[P2]` `filters/renko.py:155-158` — 下跌 Renko brick 写 `low=top`、`high=bot`，产生 `high < low`，污染 ATR/TrueRange/Stochastic → 交换为 `high=top`、`low=bot`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（修复下跌砖 high/low，保留方向与砖边界；上下砖、反转及连续多砖相关 5 项回归和独立静态复审通过。未覆盖 hilo 模式或单根源 bar 拆多砖）。
 - [ ] **R71-099** `[P2]` `lineseries.py:2408-2564` — 导入时 `_patch_strategy_clk_update()` 用忽略 `_single_clock_data`、返回 `len(self)` 的简化版替换 `Strategy._clk_update`；当前因 `strategy` 尚未导入未生效，属潜伏 monkey-patch → 删除导入时 patch，保留 `strategy.py:1455` 真实实现。
 - [ ] **R71-112** `[P2]` `strategies/factor_strategy.py:422-436`；`factor_indicator.py:433` — `prenext` 在声明 `lookback_h` 之前发布部分公式值，`_window_is_complete` 只查尾部 presence；alpha7 预热 47 根输出 -1.0、alpha1 第 21-23 行 0.5（oracle 为 NaN）→ 按 `cursor < spec.lookback_h` 掩码/跳过或 `prenext` 写 NaN。PLAUSIBLE(panel values verified; downstream not run)。
 - [ ] **R71-140** `[P2]` `feeds/btapifeed.py:3999-4015` — `compression=2` 日线仍每天一个 bucket，`_get_bucket_end()` 加两天产生重叠/重复 bars；Weeks/Months 落到 minute-style bucketing 且 end 加 `compression` 分钟，周线实际发分钟 bars → 按 compression epoch 对齐 day start，实现或显式拒绝 Weeks/Months/Years。
