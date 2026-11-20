@@ -488,6 +488,19 @@ def _snapshot_qty(value: Any) -> Any:
     return int(number) if number.is_integer() else number
 
 
+def _snapshot_position_side(
+    split: Mapping[str, Mapping[str, Any]], name: str, total: Any
+) -> Dict[str, Any]:
+    """Build one snapshot side from the split for its own symbol."""
+    today = split["today"][name]
+    yesterday = split["yesterday"][name]
+    return {
+        "total": total,
+        "today": None if today is None else _snapshot_qty(today),
+        "yesterday": None if yesterday is None else _snapshot_qty(yesterday),
+    }
+
+
 def _leg_fact(fact: Any) -> Any:
     """Map a one-way (``net``) venue position onto the long or short leg."""
     if fact.side in ("long", "short"):
@@ -950,7 +963,12 @@ class BtApiDirectModeMixin:
         raise AssertionError("unreachable")  # pragma: no cover
 
     def _direct_read_facts(self, *, trades=False, all_orders=False, **sections):
-        kwargs = dict(positions=True, active_orders=True, trades=trades, balance=True)
+        kwargs = {
+            "positions": True,
+            "active_orders": True,
+            "trades": trades,
+            "balance": True,
+        }
         kwargs.update(sections)
         if all_orders:
             kwargs["all_orders"] = True
@@ -3827,19 +3845,9 @@ class BtApiDirectModeMixin:
             if not long_total and not short_total:
                 continue
             split = self._direct_split_of(symbol)
-
-            def _side(name: str, total: int) -> Dict[str, Any]:
-                today = split["today"][name]
-                yesterday = split["yesterday"][name]
-                return {
-                    "total": total,
-                    "today": None if today is None else _snapshot_qty(today),
-                    "yesterday": None if yesterday is None else _snapshot_qty(yesterday),
-                }
-
             positions[symbol] = {
-                "long": _side("long", long_total),
-                "short": _side("short", short_total),
+                "long": _snapshot_position_side(split, "long", long_total),
+                "short": _snapshot_position_side(split, "short", short_total),
                 "net": (
                     _snapshot_qty(_qty_sum(long_total, -short_total))
                     if long_total and short_total
