@@ -1,4 +1,4 @@
-- --
+﻿- --
 
 title: 数据源 API
 description: Backtrader 完整数据源 API 参考
@@ -8,6 +8,14 @@ description: Backtrader 完整数据源 API 参考
 # 数据源 API
 
 数据源是 Backtrader 中回测和实盘交易的行情数据来源。它们提供带有时间索引的 OHLCV（开盘、最高、最低、收盘、成交量、持仓量）数据。
+
+## 导入行为
+
+`from backtrader.feeds import *` 现在会在原有数据源导出项之外包含本地市场因子源 API。该模块使用集成 SDK 的 `backtrader.futures` 包提供的期货日历类型。
+
+SDK 支持的市场 cohort 类型仍在 `feeds.__all__` 中并继续参与通配符导入，以保留原有导出合同。它们在请求时懒加载；通配符导入会请求这些类型，因此仍需要可选 `bt_api_py` SDK。显式导入或属性访问也会按需解析这些类型。
+
+`BtApiFeed` 仍可显式或通过通配符导入，并在访问时懒加载。已弃用的 `BlazeData` 仍可通过 `backtrader.feeds.BlazeData` 或 `from backtrader.feeds import BlazeData` 使用；解析该名称会加载兼容模块并发出 `DeprecationWarning`。它不在通配符导出列表中，因此普通通配符导入不会触发该警告。
 
 ## 类层次结构
 

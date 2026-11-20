@@ -9,6 +9,14 @@ description: Complete Data Feed API reference for Backtrader
 
 Data feeds are the source of price/volume data for backtesting and live trading in Backtrader. They provide OHLCV (Open, High, Low, Close, Volume, OpenInterest) data with datetime indexing.
 
+## Import behavior
+
+`from backtrader.feeds import *` now includes the local market-factor source API in addition to the existing feed exports. Its futures calendar types come from the SDK-integrated `backtrader.futures` package.
+
+SDK-backed market-cohort types remain in `feeds.__all__` and in wildcard imports, preserving the existing export contract. They resolve lazily when requested, but a wildcard import still requires the optional `bt_api_py` SDK because it requests those types.
+
+`BtApiFeed` remains available through explicit or wildcard import and resolves lazily. Deprecated `BlazeData` remains available through `backtrader.feeds.BlazeData` or `from backtrader.feeds import BlazeData`; resolving it imports the compatibility module and emits `DeprecationWarning`. It is excluded from wildcard exports so a wildcard import does not emit that warning.
+
 ## Class Hierarchy
 
 ```bash

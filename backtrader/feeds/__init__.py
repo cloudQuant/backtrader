@@ -88,13 +88,16 @@ _MARKET_COHORT_EXPORTS = frozenset(
 )
 
 _OPTIONAL_FEED_EXPORTS = frozenset({"BtApiFeed"})
+_DEPRECATED_FEED_EXPORTS = frozenset({"BlazeData"})
 
 
 def __getattr__(name):
-    """Load optional SDK-backed market projections only when requested."""
+    """Resolve optional feed and SDK-backed exports on explicit access."""
 
     if name in _OPTIONAL_FEED_EXPORTS:
         module = _importlib.import_module(".btapifeed", __name__)
+    elif name in _DEPRECATED_FEED_EXPORTS:
+        module = _importlib.import_module(".blaze", __name__)
     elif name in _MARKET_COHORT_EXPORTS:
         module = _importlib.import_module("bt_api_py.market_cohort")
     elif name in _MARKET_FACTOR_SOURCE_EXPORTS:
@@ -112,13 +115,15 @@ def __dir__():
         | _MARKET_FACTOR_SOURCE_EXPORTS
         | _MARKET_COHORT_EXPORTS
         | _OPTIONAL_FEED_EXPORTS
+        | _DEPRECATED_FEED_EXPORTS
     )
 
 
-# Keep star imports of the package's already-eager public names compatible.
-# Cohort attributes are resolved only if a caller explicitly imports them.
+# Preserve the public star-import surface; optional SDK and factor names resolve
+# lazily while deprecated Blaze remains an explicit-only compatibility export.
 __all__ = sorted(
     {name for name in globals() if not name.startswith("_")}
     | _MARKET_COHORT_EXPORTS
+    | _MARKET_FACTOR_SOURCE_EXPORTS
     | _OPTIONAL_FEED_EXPORTS
 )
