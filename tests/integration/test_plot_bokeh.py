@@ -57,11 +57,13 @@ def _build_nasdaq_data(start=None, end=None):
     )
 
 
-def _run_strategy(start=None, end=None):
+def _run_strategy(start=None, end=None, *, include_broker_observer=False):
     """Run the smoke strategy over the sample feed and return the results."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(_build_nasdaq_data(start=start, end=end), name="NVDA")
     cerebro.addstrategy(BokehSmokeStrategy)
+    if include_broker_observer:
+        cerebro.addobserver(bt.observers.Broker)
     return cerebro.run()
 
 
@@ -83,13 +85,28 @@ class TestBokehPlotter:
 
     def test_bokehplotter_plot_show_and_savefig(self, tmp_path):
         results = _run_strategy(
-            start=datetime.datetime(2010, 1, 1), end=datetime.datetime(2010, 6, 30)
+            start=datetime.datetime(2010, 1, 1),
+            end=datetime.datetime(2010, 6, 30),
+            include_broker_observer=True,
         )
         strategy = results[0]
 
         plotter = BokehPlot(style="candle")
 
         plotter.plot(strategy, iplot=False)
+        figurepage = plotter._app.get_figurepage(0)
+        equity_figure = next(
+            figure
+            for figure in figurepage.figures
+            if figure.figure.title.text == "Equity Curve"
+        )
+        equity_glyphs = [
+            renderer.glyph
+            for renderer in equity_figure.figure.renderers
+            if hasattr(renderer, "glyph")
+        ]
+        assert [type(glyph).__name__ for glyph in equity_glyphs] == ["Line"]
+
         figs = plotter.show()
         assert len(figs) == 1
         assert figs[0] is not None
@@ -97,6 +114,7 @@ class TestBokehPlotter:
         out = tmp_path / "bokeh_smoke_chart.html"
         plotter.savefig(figs[0], str(out))
         assert out.exists()
+        assert "Equity Curve" in out.read_text(encoding="utf-8")
 
     def test_bokehplotter_start_end_slice(self):
         results = _run_strategy(

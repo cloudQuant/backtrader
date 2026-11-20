@@ -713,16 +713,6 @@ class BacktraderBokeh:
                 legend_label="Equity",
             )
 
-            # Fill area
-
-            ColumnDataSource(
-                data={
-                    "x": equity_df[x_col].tolist(),
-                    "y": equity_df["equity"].tolist(),
-                    "lower": [equity_df["equity"].min()] * len(equity_df),
-                }
-            )
-
         # Add crosshair
         crosshair = CrosshairTool(line_color=self.scheme.crosshair_line_color)
         fig.figure.add_tools(crosshair)
