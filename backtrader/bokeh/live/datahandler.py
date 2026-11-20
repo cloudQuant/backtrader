@@ -6,8 +6,12 @@ Handles real-time data updates and pushes.
 """
 
 import importlib.util
+import numbers
+import operator
 import time
+from collections import deque
 from enum import Enum
+from itertools import chain
 from threading import Lock, Thread
 
 from backtrader.utils.log_message import get_logger
@@ -73,6 +77,7 @@ class LiveDataHandler:
 
         # Data storage
         self._datastore = None
+        self._datastore_may_be_aliased = False
         self._last_idx = -1
         self._patches = []
 
@@ -96,6 +101,10 @@ class LiveDataHandler:
         )
 
         self._set_data(df)
+        # generate_data returns a fresh private frame that is not retained by
+        # the caller after _fill returns, so this initial store has no external
+        # mutable alias.
+        self._datastore_may_be_aliased = False
 
         # Initialize CDS columns
         if self._figurepage is not None and hasattr(self._figurepage, "set_cds_columns_from_df"):
@@ -112,21 +121,35 @@ class LiveDataHandler:
             return
 
         with self._lock:
-            if isinstance(data, pd.DataFrame):
-                self._datastore = data
-                self._last_idx = -1
-            elif isinstance(data, pd.Series):
-                if idx is None:
-                    self._datastore = pd.concat([self._datastore, data.to_frame().T])
-                else:
-                    self._datastore.loc[idx] = data
-            else:
-                _logger.warning(f"Unsupported data type: {type(data)}")
-                return
+            self._set_data_locked(data, idx)
 
-            # Keep data length within lookback range
-            if self._datastore is not None:
-                self._datastore = self._datastore.tail(self._get_data_stream_length())
+    def _set_data_locked(self, data, idx=None):
+        """Set data when the caller already holds ``_lock``."""
+        if not PANDAS_AVAILABLE:
+            return
+
+        if isinstance(data, pd.DataFrame):
+            self._datastore = data
+            # DataFrame.tail may return a view. The public set(df) caller can
+            # therefore mutate the index column without changing this object's
+            # identity, so _process must keep legacy per-row classification.
+            self._datastore_may_be_aliased = True
+            self._last_idx = -1
+        elif isinstance(data, pd.Series):
+            if idx is None:
+                self._datastore = pd.concat([self._datastore, data.to_frame().T])
+                # concat creates a new frame and severs any alias introduced by
+                # set(DataFrame), matching pandas' observable behavior.
+                self._datastore_may_be_aliased = False
+            else:
+                self._datastore.loc[idx] = data
+        else:
+            _logger.warning(f"Unsupported data type: {type(data)}")
+            return
+
+        # Keep data length within lookback range
+        if self._datastore is not None:
+            self._datastore = self._datastore.tail(self._get_data_stream_length())
 
     def _cb_push_adds(self):
         """Push new data to ColumnDataSources."""
@@ -238,7 +261,199 @@ class LiveDataHandler:
         if not PANDAS_AVAILABLE or rows is None:
             return
 
-        for idx, row in rows.iterrows():
+        if rows.empty:
+            return
+
+        # Read both fields under the same lock: set(DataFrame) replaces the
+        # datastore and marks it externally aliased in one critical section.
+        with self._lock:
+            datastore = self._datastore
+            datastore_may_be_aliased = getattr(
+                self, "_datastore_may_be_aliased", False
+            )
+
+        if datastore_may_be_aliased:
+            self._process_rows_slow(rows.iterrows())
+            return
+
+        # The Bokeh app emits an integer bar id both as the DataFrame index and
+        # in its ``index`` column. Build the lookup once for that common shape;
+        # unusual labels retain the original pandas membership/selection path
+        # below so its equality and duplicate-label behavior remains intact.
+        lookback = self._integer_index_key(self._lookback)
+        if self._can_process_as_adds(rows, datastore, lookback):
+            # Generated live batches are commonly a monotonic run of new bars.
+            # Their ids are beyond the current high-water mark, so skip both
+            # membership lookup and map construction while keeping one append
+            # and one stream notification per row.
+            expected_datastore = datastore
+            row_iterator = iter(rows.iterrows())
+            for idx, row in row_iterator:
+                with self._lock:
+                    if (
+                        self._datastore is not expected_datastore
+                        or getattr(self, "_datastore_may_be_aliased", False)
+                    ):
+                        store_changed = True
+                    else:
+                        self._set_data_locked(row)
+                        expected_datastore = self._datastore
+                        store_changed = False
+
+                if store_changed:
+                    self._process_rows_slow(chain(((idx, row),), row_iterator))
+                    return
+
+                self._push_adds()
+            return
+
+        if (
+            lookback is None
+            or lookback <= 0
+            or datastore is None
+            or "index" not in datastore.columns
+            or "index" not in rows.columns
+            or datastore.shape[0] > lookback
+            or not pd.api.types.is_integer_dtype(datastore["index"].dtype)
+            or not pd.api.types.is_integer_dtype(rows["index"].dtype)
+            or not pd.api.types.is_integer_dtype(datastore.index.dtype)
+            or not pd.api.types.is_integer_dtype(rows.index.dtype)
+            or not datastore.index.is_unique
+            or not rows.index.is_unique
+        ):
+            self._process_rows_slow(rows.iterrows())
+            return
+
+        index_to_label = {}
+        row_ids = deque()
+        for label, value in zip(datastore.index, datastore["index"].array):
+            label_key = self._integer_index_key(label)
+            value_key = self._integer_index_key(value)
+            if label_key is None or value_key is None or label_key != value_key:
+                self._process_rows_slow(rows.iterrows())
+                return
+            if value_key in index_to_label:
+                self._process_rows_slow(rows.iterrows())
+                return
+            index_to_label[value_key] = label
+            row_ids.append(value_key)
+
+        # A fast-path row must preserve the same bar-id/index-label identity as
+        # generated Bokeh frames. This also rejects exotic equality/hash cases
+        # before any row is applied, allowing the exact legacy path to handle
+        # them without partial processing.
+        for label, value in zip(rows.index, rows["index"].array):
+            label_key = self._integer_index_key(label)
+            value_key = self._integer_index_key(value)
+            if label_key is None or value_key is None or label_key != value_key:
+                self._process_rows_slow(rows.iterrows())
+                return
+
+        expected_datastore = datastore
+        row_iterator = iter(rows.iterrows())
+        for idx, row in row_iterator:
+            with self._lock:
+                if (
+                    self._datastore is not expected_datastore
+                    or getattr(self, "_datastore_may_be_aliased", False)
+                ):
+                    store_changed = True
+                    size_mismatch = False
+                    update_type = None
+                else:
+                    store_changed = False
+                    idx_key = self._integer_index_key(idx)
+                    if idx_key in index_to_label:
+                        ds_idx = index_to_label[idx_key]
+                        self._set_data_locked(row, ds_idx)
+                        expected_datastore = self._datastore
+                        update_type = UpdateType.UPDATE
+                        size_mismatch = False
+                    else:
+                        old_size = len(self._datastore)
+                        self._set_data_locked(row)
+                        expected_datastore = self._datastore
+                        new_size = len(self._datastore)
+                        expected_size = min(lookback, old_size + 1)
+                        size_mismatch = new_size != expected_size
+                        update_type = UpdateType.ADD
+
+                        if not size_mismatch:
+                            # _set_data tails after each append. Mirror that
+                            # window so an evicted id becomes an ADD again.
+                            drop_count = old_size + 1 - new_size
+                            for _ in range(drop_count):
+                                dropped_id = row_ids.popleft()
+                                index_to_label.pop(dropped_id, None)
+
+                            if new_size:
+                                row_ids.append(idx_key)
+                                index_to_label[idx_key] = idx
+
+            if store_changed:
+                self._process_rows_slow(chain(((idx, row),), row_iterator))
+                return
+
+            if update_type == UpdateType.UPDATE:
+                self._patches.append(row)
+                self._push_patches()
+            else:
+                self._push_adds()
+                if size_mismatch:
+                    # Preserve the original behavior if an unexpected store
+                    # shape prevents this lookup map from tracking tail().
+                    self._process_rows_slow(row_iterator)
+                    return
+
+    def _can_process_as_adds(self, rows, datastore, lookback):
+        """Check the narrow, monotonic all-new batch shape without scanning rows repeatedly."""
+        if (
+            lookback is None
+            or lookback <= 0
+            or datastore is None
+            or "index" not in datastore.columns
+            or "index" not in rows.columns
+            or not pd.api.types.is_integer_dtype(datastore["index"].dtype)
+            or not pd.api.types.is_integer_dtype(datastore.index.dtype)
+            or not pd.api.types.is_integer_dtype(rows["index"].dtype)
+            or not pd.api.types.is_integer_dtype(rows.index.dtype)
+            or not datastore["index"].is_unique
+            or not datastore["index"].is_monotonic_increasing
+            or not rows["index"].is_unique
+            or not rows["index"].is_monotonic_increasing
+            or not rows.index.is_unique
+            or not rows.index.is_monotonic_increasing
+        ):
+            return False
+
+        try:
+            for label, value in zip(rows.index, rows["index"].array):
+                if self._integer_index_key(label) != self._integer_index_key(value):
+                    return False
+
+            if len(datastore["index"]) == 0:
+                return True
+            if len(rows) == 0:
+                return False
+            first_new = self._integer_index_key(rows["index"].iloc[0])
+            last_existing = self._integer_index_key(datastore["index"].iloc[-1])
+            return first_new is not None and last_existing is not None and first_new > last_existing
+        except (TypeError, ValueError, OverflowError):
+            return False
+
+    @staticmethod
+    def _integer_index_key(value):
+        """Return an exact integer key, or ``None`` for the slow path."""
+        if not isinstance(value, numbers.Integral):
+            return None
+        try:
+            return operator.index(value)
+        except TypeError:
+            return None
+
+    def _process_rows_slow(self, row_iterator):
+        """Process unusual index shapes with the original pandas semantics."""
+        for idx, row in row_iterator:
             if (
                 self._datastore is not None
                 and self._datastore.shape[0] > 0
