@@ -844,16 +844,35 @@ class FactorIndicator(Indicator):
         self._bind_grid_tree(tuple(grid), set())
 
     def _bind_grid_tree(self, grid: Tuple[datetime, ...], seen: set) -> None:
-        if id(self) in seen:
-            return
-        seen.add(id(self))
-        if self._factor_grid is not None and self._factor_grid != grid:
-            raise RuntimeError("factor grid is already bound to a different sequence")
-        self._factor_grid = tuple(grid)
-        for children in getattr(self, "_lineiterators", {}).values():
-            for child in children:
-                if isinstance(child, FactorIndicator):
-                    child._bind_grid_tree(grid, seen)
+        """Bind this factor graph, crossing ordinary indicators on the way.
+
+        A FactorIndicator can be nested below a regular Backtrader indicator,
+        so restricting traversal to direct FactorIndicator children would
+        leave that node without its calculation grid.  ``seen`` covers every
+        iterator node to avoid revisiting shared descendants or looping on a
+        cycle; only FactorIndicator nodes receive the grid.
+        """
+
+        def bind(node: Any) -> None:
+            identity = id(node)
+            if identity in seen:
+                return
+            seen.add(identity)
+
+            if isinstance(node, FactorIndicator):
+                current_grid = node._factor_grid
+                if current_grid is not None and current_grid is not grid:
+                    if current_grid != grid:
+                        raise RuntimeError(
+                            "factor grid is already bound to a different sequence"
+                        )
+                node._factor_grid = grid
+
+            for children in getattr(node, "_lineiterators", {}).values():
+                for child in children:
+                    bind(child)
+
+        bind(self)
 
     def _record_factor_call(self) -> None:
         data = self._factor_target_datas[0] if self._factor_target_datas else self.datas[0]

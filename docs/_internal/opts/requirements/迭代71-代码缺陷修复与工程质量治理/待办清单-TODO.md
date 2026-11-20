@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 20 |
-| 7 | 性能专项（P1/P2） | 19 | 1 |
+| 7 | 性能专项（P1/P2） | 19 | 2 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **97** |
+| | **合计** | **207** | **98** |
 
 ---
 
@@ -198,7 +198,7 @@
 - [ ] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。
 - [ ] **R71-114** `[P2]` `strategies/factor_strategy.py:364→767` — `_collect_grid_point()` 每 bar 重新 freeze/Counter 比较所有 factor graph，`_validate_research_ownership` 302 calls、`_freeze_factor_graph` 6,060 calls、2.39s/22.0s（11%）→ `start()` 时验证一次，仅显式 topology 变化时重验。CONFIRMED(runtime)。
 - [ ] **R71-115** `[P2]` `research/factor_indicator.py:329,869` — 每个 factor 和每个 panel operator node 每 bar append 一个 datetime 到无界 `_factor_call_times`，alpha15 单独保留 4 个列表 × N bars → 用 bounded deque 或默认只存计数。CONFIRMED(source)。
-- [ ] **R71-174** `[P2]` `research/factor_indicator.py:842-856`（caller `factor_strategy.py:183`） — `_bind_grid_tree` 每个节点存全网格 tuple，caller 每节点 `_bind_grid(...)` 重绑所有可达节点，O(nodes²×bars) tuple 比较 → 网格物化一次、root 绑定一次、已绑定相同序列身份的节点跳过。PLAUSIBLE。
+- [x] **R71-174** `[P2]` `research/factor_indicator.py:842-856`（caller `factor_strategy.py:183`） — `_bind_grid_tree` 每个节点存全网格 tuple，caller 每节点 `_bind_grid(...)` 重绑所有可达节点，O(nodes²×bars) tuple 比较 → 网格物化一次、root 绑定一次、已绑定相同序列身份的节点跳过。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（网格物化一次并共享不可变 tuple，绑定遍历普通中间指标及共享节点；86 项回归、独立静态复审通过。6 节点 128 bar 场景物化 7 次降至 1 次；每 bar 归属校验和无界历史列表保持原状）。
 - [ ] **R71-175** `[P2]` `research/specs.py:742-744`（`align.py:107`） — `ResearchSpec.grid` 每次访问深拷贝完整 grid DataFrame，`align_to_grid` 每 asset 调一次，N assets 做 N 次全 grid 拷贝 → 提供内部只读 grid accessor 或 caller 只拷贝一次。CONFIRMED(source)。
 
 ## 批次 8 · 静态坏味道清零（Ruff 45 处 + OCR Dead Code）

@@ -146,6 +146,7 @@ class FactorStrategy(Strategy):
         self._factor_graphs: Dict[
             int, Tuple[Tuple[FactorIndicator, ...], Tuple[Tuple[Any, Any], ...]]
         ] = {}
+        calculation_times: Optional[Tuple[datetime, ...]] = None
         for name, spec in self._factor_specs_by_name.items():
             if spec.panel_line not in spec.indicator._factor_template_names():
                 raise ResearchConfigError("factor %s selects an unknown panel_line" % name)
@@ -179,8 +180,9 @@ class FactorStrategy(Strategy):
                 if sum(item is instance for item in self._lineiterators[LineIterator.IndType]) != 1:
                     raise RuntimeError("research factor must occur exactly once in the owner graph")
                 graph = self._freeze_factor_graph(instance)
-                for node in graph[0]:
-                    node._bind_grid(self._calculation_times())
+                if calculation_times is None:
+                    calculation_times = self._calculation_times()
+                instance._bind_grid(calculation_times)
                 self._factor_graphs[id(instance)] = graph
                 instances_by_group[group] = instance
             instances = tuple(instances_by_group.values())
@@ -195,7 +197,9 @@ class FactorStrategy(Strategy):
                     instances_by_group, self._target_datas
                 )
 
-        self._grid = self._calculation_times()
+        if calculation_times is None:
+            calculation_times = self._calculation_times()
+        self._grid = calculation_times
         self._grid_cursor = 0
         if owns_sink and type(self) is FactorStrategy and self._has_complete_price_alignment():
             from ..research.sink import MemorySink
