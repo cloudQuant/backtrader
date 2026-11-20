@@ -38,7 +38,7 @@ class AroonOscillatorSignAlert(Indicator):
         lows = [float(self.data.low[-i]) for i in range(p)]
         highest = highs.index(max(highs))
         lowest = lows.index(min(lows))
-        osc = 100.0 * (highest - lowest) / float(p)
+        osc = 100.0 * (lowest - highest) / float(p)
         prev = float(self.lines.osc[-1]) if len(self) > 1 else osc
         self.lines.osc[0] = osc
         self.lines.buy[0] = float("nan")
