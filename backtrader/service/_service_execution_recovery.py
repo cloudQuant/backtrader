@@ -241,7 +241,11 @@ class ServiceExecutionRecoveryMixin:
 
         if callable(owner_book_reader):
             source_reader = owner_book_reader
-            owner_book_reader = lambda: _owner_book_payload(source_reader())
+
+            def read_owner_book_payload() -> Any:
+                return _owner_book_payload(source_reader())
+
+            owner_book_reader = read_owner_book_payload
         try:
             return self._require_recovery().initialize(
                 owner_book_reader=owner_book_reader,

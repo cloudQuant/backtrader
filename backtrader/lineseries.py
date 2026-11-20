@@ -631,13 +631,12 @@ class LinesManager:
         if hasattr(line_container, "_getlines"):
             lines = line_container._getlines() or ()
             return tuple(lines), 0, line_container, None
-        elif isinstance(line_container, (tuple, list)):
+        if isinstance(line_container, (tuple, list)):
             lines = tuple(line_container)
             extralines = getattr(otherbase, "extralines", 0)
             return lines, extralines, None, otherbase
-        else:
-            lines = getattr(otherbase, "_lines", ())
-            extralines = getattr(otherbase, "_extralines", 0)
+        lines = getattr(otherbase, "_lines", ())
+        extralines = getattr(otherbase, "_extralines", 0)
 
         return tuple(lines), extralines, None, None
 

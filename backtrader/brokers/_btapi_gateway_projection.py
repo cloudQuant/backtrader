@@ -958,9 +958,10 @@ def _bounded(snapshot):
                 stack.append((value, depth + 1))
         elif type(obj) is list:
             stack.extend((item, depth + 1) for item in obj)
-        elif obj is not None and type(obj) not in (str, int, bool, float):
-            _fail()
-        elif type(obj) is float and not math.isfinite(obj):
+        elif (
+            (obj is not None and type(obj) not in (str, int, bool, float))
+            or (type(obj) is float and not math.isfinite(obj))
+        ):
             _fail()
     ensure_no_secret_keys(snapshot, "gateway_framework_projection")
     size = 0

@@ -371,7 +371,7 @@ class Indicator(IndicatorBase):
             and Indicator._method_target(self.prenext) is LineIterator.prenext
             and Indicator._method_target(self.nextstart) is LineIterator.nextstart
         ):
-            return
+            return None
 
         return super().once(start, end)
 

@@ -1172,10 +1172,9 @@ class ServiceRecoveryBrokerMixin:
                 != tuple(by_name.items())
             ):
                 raise RuntimeError("service execution recovery feeds already bound")
-            return None
+            return
         self._service_execution_recovery_feeds = by_name
         self._service_execution_recovery_feed_names = by_identity
-        return None
 
     def service_execution_recovery_feed(self, data_name):
         """Resolve only a feed from the frozen V2 composition map."""
