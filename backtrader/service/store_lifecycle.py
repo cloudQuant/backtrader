@@ -13,6 +13,16 @@ from typing import Optional
 
 def stop_store(store, timeout: Optional[float] = None, *, safe_log):
     """Bound Store work and close its owned SDK API or service facade session."""
+    if (
+        getattr(store, "_sdk_mode", False)
+        and callable(getattr(store, "_sdk_event_batch_stop_unproven", None))
+        and store._sdk_event_batch_stop_unproven()
+    ):
+        # The SDK batch lease has no producer-quiescence receipt. Do not
+        # unbind its event waker, close its API, clear projections or report
+        # PASS on an empty queue snapshot.
+        store._retain_unproven_sdk_event_batch()
+        return store.get_command_health()
     if getattr(store, "_gateway_mode", False):
         from .gateway_config import stop_gateway_store
         return stop_gateway_store(store, timeout=timeout)

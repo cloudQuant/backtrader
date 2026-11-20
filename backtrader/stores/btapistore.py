@@ -84,8 +84,10 @@ from ..execution.unverified_order_projection import (
     record_store_unverified_execution_event as _record_store_unverified_execution_event,
 )
 from ..service.store_event_dispatch import (
+    dispatch_store_sdk_event_locked as _dispatch_store_sdk_event_locked,
     dispatch_store_sdk_events_locked as _dispatch_store_sdk_events_locked,
     poll_store_sdk_events as _poll_store_sdk_events,
+    preflight_store_sdk_event_batch as _preflight_store_sdk_event_batch,
     require_store_event_dispatch_contracts as _require_store_event_dispatch_contracts,
 )
 from ..execution.account_risk_state import (
@@ -95,6 +97,10 @@ from ..service.bounded_metadata_probe import (
     run_store_metadata_probe as _run_store_metadata_probe,
 )
 from ..service.store_event_notifier import StoreEventNotifier
+from ..service.store_event_batch import (
+    StoreEventBatchCoordinator,
+    StoreEventBatchError,
+)
 from ..service.store_lifecycle import (
     ensure_store_api_ready as _ensure_store_api_ready,
     prepare_store_sdk_start as _prepare_store_sdk_start,
@@ -565,6 +571,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 discovered or faked by the Store. Without it a routing selection
                 is refused rather than replaced by an in-process service.
             **kwargs: Additional SDK configuration values.
+                ``event_batch_handoff=True`` is an explicit, irreversible
+                single-route opt-in. It uses the SDK's process-local
+                poll/dispatch/ACK lease and never falls back to legacy polling;
+                because this SDK exposes no producer-quiescence receipt,
+                ``stop()`` remains INCOMPLETE and retains the API/waker after
+                the claim.
         """
         super().__init__()
         if type(preserve_raw_bars) is not bool:
@@ -707,6 +719,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 or api_cls is not None
             )
         )
+        event_batch_handoff = sdk_options.get("event_batch_handoff", False)
+        if type(event_batch_handoff) is not bool:
+            raise BtApiStoreError("event_batch_handoff must be a boolean")
+        self._sdk_event_batch_handoff = event_batch_handoff
+        if self._sdk_event_batch_handoff and not self._sdk_mode:
+            raise BtApiStoreError("event_batch_handoff requires direct SDK mode")
         self._service_read_only_stopped = False
         # Iteration 62 (D62-01/I62-08): the SDK direct write path is selected
         # when write admission is enabled for a route and no optional execution
@@ -723,6 +741,13 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         has_execution = "execution_config" in sdk_options or any(
             key in sdk_options for key in _exec_keys
         )
+        if self._sdk_event_batch_handoff and has_execution:
+            # The SDK refuses the irreversible queue claim while an execution
+            # session owns event reconciliation. Reject this configuration
+            # before a Store factory or any consumer registration attempt.
+            raise BtApiStoreError(
+                "event_batch_handoff is unavailable with execution configuration"
+            )
         self._direct_write_mode = bool(
             self._sdk_mode
             and not self._service_read_only
@@ -747,6 +772,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         else:
             self._sdk_direct_exchange_kwargs = None
             self._sdk_exchanges = {}
+        if self._sdk_event_batch_handoff and len(self._sdk_exchanges) != 1:
+            # Consumer registration cannot be rolled back per route. Restrict
+            # this opt-in to one route so registration is atomic at Store scope.
+            raise BtApiStoreError("event_batch_handoff requires exactly one route")
         self._sdk_direct_api_assembly = None
         self._sdk_routes = dict(sdk_options.get("symbol_routes") or {})
         configured_route_names = self._sdk_route_policy.write_route_names(
@@ -929,6 +958,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._sdk_api_activity_threads: Dict[int, int] = {}
         self._sdk_partial_start_failed_generation = None
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
+        self._sdk_event_batch_event_limit = min(self._sdk_event_batch_size, 1024)
+        self._sdk_event_batch_scan_limit = 256
+        self._sdk_event_batch_coordinator = None
+        self._sdk_event_batch_claim_lock = threading.Lock()
+        self._sdk_event_batch_continuation_pending = False
+        self._sdk_event_batch_stop_requested = False
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
         if isinstance(configured_coalescing, str):
             configured_coalescing = (configured_coalescing,)
@@ -1845,6 +1880,20 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     raise BtApiStoreError(
                         "store_sdk_command_worker_shutdown_unproven"
                     )
+                if self._sdk_mode and self._sdk_event_batch_stop_requested:
+                    raise BtApiStoreError(
+                        "store_sdk_event_batch_producer_quiescence_unproven"
+                    )
+                if self._sdk_mode:
+                    coordinator = self._sdk_event_batch_coordinator
+                    if coordinator is not None and coordinator.state not in {
+                        "new",
+                        "claimed",
+                        "claim_blocked",
+                    }:
+                        raise BtApiStoreError(
+                            "store_sdk_event_batch_consumer_unavailable"
+                        )
                 if self._sdk_mode and self._sdk_stop_pending_broker_updates:
                     raise BtApiStoreError(
                         "store_sdk_broker_update_handoff_blocked"
@@ -2400,6 +2449,15 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         raise BtApiStoreError("store_sdk_stop_from_event_drain")
                     # Take the stop slot before waiting so no new API activity
                     # or start can enter while the in-flight operation finishes.
+                    if self._sdk_mode and self._sdk_event_batch_handoff and (
+                        self._sdk_event_batch_stop_unproven()
+                        or self._sdk_api_activity_count
+                    ):
+                        # Once stop races a claimed or in-flight claim, a later
+                        # start cannot prove that the old producer is quiescent.
+                        # Keep this fence sticky even if the bounded wait below
+                        # times out or the claim completes while it is waiting.
+                        self._sdk_event_batch_stop_requested = True
                     self._sdk_stop_in_progress = True
                     self._sdk_start_state_lock.notify_all()
                     owns_stop_slot = True
@@ -2417,6 +2475,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         # Condition.wait releases the shared state lock. API
                         # calls and provider I/O never run under this lock.
                         self._sdk_start_state_lock.wait(remaining)
+                    if self._sdk_mode and self._sdk_event_batch_stop_unproven():
+                        self._sdk_event_batch_stop_requested = True
                 if self._sdk_mode:
                     # Refuse before lifecycle teardown if updates already
                     # handed to the Store have not reached the Broker.  The
@@ -2437,6 +2497,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         self._command_health[
                             "stop_blocked_by_pending_broker_updates"
                         ] += 1
+                        return self.get_command_health()
+                    if self._sdk_event_batch_stop_unproven():
+                        # A successful SDK close or an empty queue snapshot is
+                        # not proof that deferred provider callbacks have
+                        # stopped. Keep the route lease, API and notifier intact.
+                        self._retain_unproven_sdk_event_batch()
                         return self.get_command_health()
             lifecycle_timeout = timeout
             if stop_deadline is not None:
@@ -4593,6 +4659,9 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             "shutdown_state": self._shutdown_state,
             "shutdown_blocked_by_broker_update_handoff": bool(
                 self._sdk_stop_pending_broker_updates
+            ),
+            "shutdown_blocked_by_event_batch_producer_quiescence": bool(
+                self._sdk_event_batch_stop_unproven()
             ),
             "shutdown_blocked_by_command_worker": bool(
                 self._sdk_stop_command_worker_unproven
@@ -6899,12 +6968,13 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             borrowed_event_error = self._sdk_borrowed_event_lifecycle_error()
             if borrowed_event_error is not None:
                 raise BtApiStoreError(borrowed_event_error)
+            self._sdk_event_batch_continuation_pending = False
             self._sdk_event_drain_in_progress = True
             self._sdk_event_drain_owner_thread_id = threading.get_ident()
         return True
 
-    def _finish_sdk_event_drain(self) -> None:
-        """Release the poll lease and wake bounded Store stop waiters."""
+    def _finish_sdk_event_drain(self) -> bool:
+        """Atomically take this drain's wake and release its bounded poll lease."""
         owner_thread_id = threading.get_ident()
         with self._sdk_start_state_lock:
             if (
@@ -6912,9 +6982,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 or self._sdk_event_drain_owner_thread_id != owner_thread_id
             ):
                 raise BtApiStoreError("store_sdk_event_drain_lease_owner_mismatch")
+            continuation_pending = self._sdk_event_batch_continuation_pending
+            self._sdk_event_batch_continuation_pending = False
             self._sdk_event_drain_in_progress = False
             self._sdk_event_drain_owner_thread_id = None
             self._sdk_start_state_lock.notify_all()
+            return continuation_pending
 
     def _drain_sdk_events(self):
         if not self._sdk_mode:
@@ -6924,7 +6997,23 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         try:
             self._drain_sdk_events_locked()
         finally:
-            self._finish_sdk_event_drain()
+            # Detach this drain's marker under the lease lock. A following
+            # drain can start as soon as _finish returns and must not clear or
+            # steal the wake associated with this completed result.
+            continuation_pending = self._finish_sdk_event_drain()
+            if continuation_pending:
+                # Wake only after releasing the drain lease.  The notifier may
+                # run callbacks synchronously; signaling under the lease could
+                # make an immediate bounded retry lose its only wakeup.
+                try:
+                    self._signal_live_bar_event()
+                except Exception:
+                    # The SDK batch has already been ACKed.  Preserve that
+                    # outcome and leave a finite diagnostic if an engine wake
+                    # callback fails; never turn it into a dispatch retry.
+                    self._command_health[
+                        "sdk_event_batch_continuation_wake_failed"
+                    ] += 1
 
     def _drain_sdk_events_locked(self):
         """Poll unlocked, then dispatch each ordered venue batch under lock."""
@@ -6933,6 +7022,71 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         event_header = _require_store_event_dispatch_contracts(
             missing_dependency_error_type=BtApiMissingDependencyError,
         )
+        if self._sdk_event_batch_handoff:
+            coordinator = self._sdk_event_batch_coordinator
+            if coordinator is None or coordinator.state != "claimed":
+                # Never switch to destructive legacy polling after an opt-in
+                # claim attempt. Registration is irreversible at Store scope.
+                self._command_health["sdk_event_batch_consumer_unavailable"] += 1
+                self._shutdown_state = "INCOMPLETE"
+                raise BtApiStoreError("store_sdk_event_batch_consumer_unavailable")
+            if len(self._sdk_exchanges) != 1:
+                self._command_health["sdk_event_batch_route_configuration_changed"] += 1
+                self._shutdown_state = "INCOMPLETE"
+                raise BtApiStoreError("store_sdk_event_batch_route_configuration_changed")
+            venue = next(iter(self._sdk_exchanges))
+
+            def preflight(batch_venue, events):
+                if batch_venue != venue:
+                    raise BtApiStoreError("store_sdk_event_batch_route_mismatch")
+                with self._sdk_event_drain_lock:
+                    _preflight_store_sdk_event_batch(
+                        self,
+                        venue,
+                        events,
+                        error_type=BtApiStoreError,
+                        event_header=event_header,
+                    )
+
+            def dispatch(batch_venue, event):
+                if batch_venue != venue:
+                    raise BtApiStoreError("store_sdk_event_batch_route_mismatch")
+                with self._sdk_event_drain_lock:
+                    _dispatch_store_sdk_event_locked(
+                        self,
+                        venue,
+                        event,
+                        error_type=BtApiStoreError,
+                        event_header=event_header,
+                    )
+
+            try:
+                result = coordinator.drain_once(
+                    dispatch,
+                    preflight_events=preflight,
+                )
+            except StoreEventBatchError as exc:
+                self._command_health["sdk_event_batch_drain_failed"] += 1
+                self._shutdown_state = "INCOMPLETE"
+                raise BtApiStoreError(
+                    "store_sdk_event_batch_{}_{}".format(exc.phase, exc.code)
+                ) from None
+            except BaseException:
+                # The coordinator records dispatch/ACK uncertainty before it
+                # re-raises process-control exceptions. Preserve that exact
+                # exception while making the Store health projection fail closed.
+                if coordinator.state != "claimed":
+                    self._command_health["sdk_event_batch_drain_interrupted"] += 1
+                    self._shutdown_state = "INCOMPLETE"
+                raise
+
+            self._sdk_event_batch_continuation_pending = bool(
+                result.continuation_required
+            )
+            if result.status == "raw_budget_blocked":
+                self._command_health["sdk_event_batch_raw_budget_blocked"] += 1
+            return
+
         for venue in self._sdk_exchanges:
             # poll_events() also advances execution-session reconciliation and
             # may perform synchronous provider I/O. The lifecycle lease keeps
@@ -7040,6 +7194,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             "transport_mode",
             "forwarding_config",
             "event_bus",
+            "event_batch_handoff",
             *DIRECT_EXECUTION_CONFIG_KEYS,
         ):
             self._config.pop(key, None)
@@ -7065,6 +7220,13 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if not self._started or not self.is_connected:
                 raise BtApiStoreError("GATEWAY_SESSION_UNAVAILABLE")
             return self._api
+        if self._sdk_event_batch_handoff:
+            # Fail before facade construction/connect can start an SDK source.
+            # This resolver imports and checks the public event dispatch
+            # contracts only; it performs no provider or transport operation.
+            _require_store_event_dispatch_contracts(
+                missing_dependency_error_type=BtApiMissingDependencyError,
+            )
         api = _ensure_store_api_ready(
             self, error_type=BtApiStoreError,
             gateway_entrypoint=_legacy_gateway_entrypoint,
@@ -7081,7 +7243,101 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         # caller of the CTP ingress -> ledger -> SDK composition chain; absent
         # calendar configuration leaves the direct-order gate unchanged.
         self._attach_configured_instrument_status_ports(api)
+        self._ensure_sdk_event_batch_consumer_claimed()
         return api
+
+    def _ensure_sdk_event_batch_consumer_claimed(self) -> None:
+        """Claim the sole opt-in route before any Store legacy poll can run."""
+        if not self._sdk_event_batch_handoff:
+            return
+        with self._sdk_event_batch_claim_lock:
+            self._claim_sdk_event_batch_consumer_locked()
+
+    def _claim_sdk_event_batch_consumer_locked(self) -> None:
+        """Serialize Store-local claim creation and the one-way SDK call."""
+        if not self._sdk_mode or self._api is None or len(self._sdk_exchanges) != 1:
+            raise BtApiStoreError("store_sdk_event_batch_configuration_invalid")
+        coordinator = self._sdk_event_batch_coordinator
+        if coordinator is None or coordinator.state == "new":
+            # Resolve every dependency needed to validate and dispatch a batch
+            # before taking the SDK's irreversible single-consumer claim.
+            # This resolver imports only the public event contracts; it does
+            # not poll, connect, or call a provider transport.
+            _require_store_event_dispatch_contracts(
+                missing_dependency_error_type=BtApiMissingDependencyError,
+            )
+            required_methods = (
+                "register_event_consumer",
+                "poll_event_batch",
+                "ack_event_batch",
+            )
+            if any(
+                not callable(getattr(self._api, name, None))
+                for name in required_methods
+            ):
+                raise BtApiMissingDependencyError(
+                    "bt_api_py event batch handoff contract is required"
+                )
+        venue = next(iter(self._sdk_exchanges))
+        if coordinator is None:
+            coalesce = (
+                self._sdk_coalesce_market_snapshots
+                if self.uses_async_commands
+                else ("orderbook",)
+            )
+            coordinator = StoreEventBatchCoordinator(
+                self._api,
+                venue,
+                max_raw_items=self._sdk_event_batch_event_limit,
+                max_events=self._sdk_event_batch_event_limit,
+                max_scan_items=self._sdk_event_batch_scan_limit,
+                coalesce_market_snapshots=coalesce,
+            )
+            # Publish the coordinator before the irreversible SDK claim.  If
+            # claim raises after taking effect, all later paths see and retain
+            # its unknown state instead of falling back to poll_events.
+            self._sdk_event_batch_coordinator = coordinator
+        if coordinator.api is not self._api or coordinator.venue != venue:
+            raise BtApiStoreError("store_sdk_event_batch_api_binding_changed")
+        if coordinator.state == "new":
+            try:
+                coordinator.claim()
+            except StoreEventBatchError as exc:
+                self._command_health["sdk_event_batch_claim_failed"] += 1
+                self._shutdown_state = "INCOMPLETE"
+                raise BtApiStoreError(
+                    "store_sdk_event_batch_claim_" + exc.code
+                ) from None
+            except BaseException:
+                # The SDK call may have claimed before control returned to the
+                # Store. Keep its unknown token state and propagate unchanged.
+                if coordinator.state != "new":
+                    self._command_health["sdk_event_batch_claim_interrupted"] += 1
+                    self._shutdown_state = "INCOMPLETE"
+                raise
+        if coordinator.state != "claimed":
+            raise BtApiStoreError("store_sdk_event_batch_consumer_fail_closed")
+
+    def _sdk_event_batch_stop_unproven(self) -> bool:
+        """Whether an irreversible batch claim still lacks producer-stop proof."""
+        coordinator = self._sdk_event_batch_coordinator
+        return bool(
+            self._sdk_event_batch_handoff
+            and coordinator is not None
+            and coordinator.state not in {"new", "claim_blocked"}
+        )
+
+    def _retain_unproven_sdk_event_batch(self) -> None:
+        """Keep the route, waker, and lease intact when source stop is unknown."""
+        with self._sdk_start_state_lock:
+            self._sdk_event_batch_stop_requested = True
+        self._shutdown_state = "INCOMPLETE"
+        self._command_health["stop_event_batch_producer_quiescence_unproven"] += 1
+        self.emit_runtime_event(
+            "store_disconnect_incomplete",
+            status="incomplete",
+            details={"reason": "event_batch_producer_quiescence_unproven"},
+        )
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""
