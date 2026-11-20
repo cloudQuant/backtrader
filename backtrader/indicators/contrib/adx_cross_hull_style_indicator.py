@@ -165,7 +165,12 @@ class UltraXMAIndicator(Indicator):
 
     Computes a fan of moving averages over increasing periods, counts how many
     are rising (bulls) versus falling (bears) each bar, and smooths those counts
-    with an exponential factor to produce trend-strength breadth lines.
+    with an EMA recurrence using ``smooth_length`` (alpha = 2 / (length + 1)).
+
+    ``smooth_method`` and ``smooth_phase`` remain accepted for caller
+    compatibility but do not affect the output. In particular, the default
+    ``jjma``/phase 100 settings still use this EMA and are not a faithful JJMA
+    implementation.
     """
 
     lines = ("bulls", "bears")
