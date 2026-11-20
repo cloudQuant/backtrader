@@ -14,6 +14,7 @@ from matplotlib.dates import (
     HOURS_PER_DAY,
     MIN_PER_HOUR,
     MONTHS_PER_YEAR,
+    date2num as mpl_date2num,
 )
 from matplotlib.dates import AutoDateFormatter as ADFormatter
 from matplotlib.dates import AutoDateLocator as ADLocator
@@ -21,7 +22,9 @@ from matplotlib.dates import MicrosecondLocator
 from matplotlib.dates import RRuleLocator as RRLocator
 from matplotlib.dates import num2date, rrulewrapper
 
+from ..utils.dateintern import num2date as bt_num2date, tzparse as bt_tzparse
 from ..utils.log_message import get_logger, throttled_warning
+from ..utils.py3 import string_types
 
 logger = get_logger(__name__)
 
@@ -350,4 +353,10 @@ class AutoDateFormatter(ADFormatter):
         if x < 0:
             x = 0
 
-        return super()
+        if ldates:
+            tz = self._tz
+            if isinstance(tz, string_types):
+                tz = bt_tzparse(tz)
+            x = mpl_date2num(bt_num2date(self._dates[x], tz=tz, naive=False))
+
+        return super().__call__(x, pos)
