@@ -1077,7 +1077,7 @@ class TradeLogger(Observer):
 
     def start(self):
         """Called at the start of the backtest/live run."""
-        self._validate_snapshot_interval(self.p.snapshot_interval)
+        self._validate_snapshot_interval(getattr(self.p, "snapshot_interval", 1))
         self._position_snapshot_callback_count = 0
         self._position_snapshot_last_callback = None
         # CRITICAL: Ensure registration to _lineiterators for next() to be called
@@ -1605,12 +1605,16 @@ class TradeLogger(Observer):
         payload.update(fields)
         return payload
 
-    def _emit_payload(self, logger, payload, text_line=None):
-        """Write a structured payload to a logger."""
+    def _emit_payload(self, logger, payload, text_line=None, text_line_factory=None):
+        """Write a structured payload, building specialized text only on demand."""
         if logger is None:
             return
 
-        if self.p.log_format == "json":
+        # Select the format once for this record. ``log_format`` remains
+        # changeable between records, while the selected representation and
+        # its optional text formatter stay consistent within one emission.
+        log_format = self.p.log_format
+        if log_format == "json":
             # JSON has no NaN: preserve unknown scoped financial metrics as
             # null and include their finite, queryable unavailability reasons.
             reasons = vars(self).get("_strategy_financial_unavailable", {})
@@ -1625,6 +1629,9 @@ class TradeLogger(Observer):
                 payload["strategy_financial_unavailable"] = unavailable
             logger.info(json.dumps(payload, ensure_ascii=False, default=str))
             return
+
+        if text_line_factory is not None:
+            text_line = text_line_factory()
 
         if text_line is None:
             parts = [
@@ -2371,16 +2378,25 @@ class TradeLogger(Observer):
                     "broker_value": broker_value,
                     "broker_cash": broker_cash,
                 }
-                self._emit_payload(
-                    self._bar_logger,
-                    log_data,
-                    text_line=(
+
+                def text_line_factory(
+                    log_data=log_data,
+                    data_name=data_name,
+                    broker_value=broker_value,
+                    broker_cash=broker_cash,
+                ):
+                    return (
                         f"{log_data['log_time']} | BAR | datetime={log_data['datetime']} | "
                         f"data_name={data_name} | open={log_data['open']:.4f} | "
                         f"high={log_data['high']:.4f} | low={log_data['low']:.4f} | "
                         f"close={log_data['close']:.4f} | volume={log_data['volume']:.2f} | "
                         f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
-                    ),
+                    )
+
+                self._emit_payload(
+                    self._bar_logger,
+                    log_data,
+                    text_line_factory=text_line_factory,
                 )
             except Exception as e:
                 logger.debug(
@@ -2407,7 +2423,7 @@ class TradeLogger(Observer):
         if not self.p.log_position_snapshot:
             return
 
-        interval = self._validate_snapshot_interval(self.p.snapshot_interval)
+        interval = self._validate_snapshot_interval(getattr(self.p, "snapshot_interval", 1))
         callback_count = self._position_snapshot_callback_count
         last_callback = self._position_snapshot_last_callback
         if last_callback is None or callback_count - last_callback >= interval:
@@ -2475,7 +2491,11 @@ class TradeLogger(Observer):
         if not self.p.log_orders:
             return
 
-        self._emit_payload(self._order_logger, log_data, text_line=self._format_order_text(order))
+        self._emit_payload(
+            self._order_logger,
+            log_data,
+            text_line_factory=lambda: self._format_order_text(order),
+        )
 
         if is_rejected:
             self._log_event(
@@ -2510,7 +2530,11 @@ class TradeLogger(Observer):
         if not self.p.log_trades:
             return
 
-        self._emit_payload(self._trade_logger, log_data, text_line=self._format_trade_text(trade))
+        self._emit_payload(
+            self._trade_logger,
+            log_data,
+            text_line_factory=lambda: self._format_trade_text(trade),
+        )
 
         # MySQL logging
         if self.p.mysql_enabled and self._mysql_conn:
@@ -2552,7 +2576,7 @@ class TradeLogger(Observer):
         self._emit_payload(
             self._signal_logger,
             log_data,
-            text_line=(
+            text_line_factory=lambda: (
                 f"{log_data['log_time']} | {action.upper()} | datetime={log_data['datetime']} | "
                 f"data_name={log_data['data_name'] or ''} | size={size} | "
                 f"price={price} | reason={reason or ''}"
@@ -2621,7 +2645,7 @@ class TradeLogger(Observer):
             self._emit_payload(
                 self._tick_logger,
                 log_data,
-                text_line=(
+                text_line_factory=lambda: (
                     f"{log_data['log_time']} | TICK | "
                     f"symbol={tick_dict.get('symbol', '')} | "
                     f"price={tick_dict.get('price', '')} | "
@@ -2701,7 +2725,7 @@ class TradeLogger(Observer):
             self._emit_payload(
                 self._bar_logger,
                 log_data,
-                text_line=(
+                text_line_factory=lambda: (
                     f"{log_data['log_time']} | BAR | "
                     f"symbol={bar_dict.get('symbol', '')} | "
                     f"O={bar_dict.get('open', '')} H={bar_dict.get('high', '')} "
@@ -2810,7 +2834,7 @@ class TradeLogger(Observer):
         self._emit_payload(
             self._value_logger,
             log_data,
-            text_line=(
+            text_line_factory=lambda: (
                 f"{log_data['log_time']} | "
                 f"datetime={log_data['datetime']} | "
                 f"value={broker_value:.2f} | cash={broker_cash:.2f}"
@@ -2897,16 +2921,25 @@ class TradeLogger(Observer):
 
             # File logging
             if self._position_logger:
-                self._emit_payload(
-                    self._position_logger,
-                    log_data,
-                    text_line=(
+                def text_line_factory(
+                    log_data=log_data,
+                    data_name=data_name,
+                    position=position,
+                    broker_value=broker_value,
+                    broker_cash=broker_cash,
+                ):
+                    return (
                         f"{log_data['log_time']} | POSITION | datetime={log_data['datetime']} | "
                         f"data_name={data_name} | size={position.size} | "
                         f"price={position.price:.4f} | "
                         f"value={log_data['value']:.2f} | "
                         f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
-                    ),
+                    )
+
+                self._emit_payload(
+                    self._position_logger,
+                    log_data,
+                    text_line_factory=text_line_factory,
                 )
 
             # MySQL logging
@@ -2938,7 +2971,7 @@ class TradeLogger(Observer):
             self._emit_payload(
                 self._indicator_logger,
                 log_data,
-                text_line=(
+                text_line_factory=lambda: (
                     f"{log_data['log_time']} | INDICATOR | datetime={log_data['datetime']} | "
                     f"{indicator_str}"
                 ),
