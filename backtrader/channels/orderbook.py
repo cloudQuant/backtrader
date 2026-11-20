@@ -254,4 +254,9 @@ def _parse_required_float(value) -> float:
 
 
 def _parse_level_pairs(levels) -> List[Tuple[float, float]]:
-    return [(_parse_required_float(p), _parse_required_float(q)) for p, q in levels]
+    if not isinstance(levels, list):
+        raise ValueError("Order book levels must be a list")
+    try:
+        return [(_parse_required_float(p), _parse_required_float(q)) for p, q in levels]
+    except TypeError as exc:
+        raise ValueError("Invalid order book level") from exc
