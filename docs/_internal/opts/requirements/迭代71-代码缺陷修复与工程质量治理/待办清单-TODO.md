@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 14 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 15 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **90** |
+| | **合计** | **207** | **91** |
 
 ---
 
@@ -167,7 +167,7 @@
 - [x] **R71-165** `[P2]` `analyzers/annualreturn.py:206-229` — `MyAnnualReturn` 第一年恒 0.0：`pre_value=value.shift(1)` 首年无前值被转 0.0；2020-H1–2021 报 2020 持平而 `AnnualReturn` 报 1.17% → 首年用首个 value/初始资金。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（首年以首个观察权益为基数，后续年度以前一年末为基数；真实 Cerebro 两模式及更新后的既有回归共 9 项通过，独立源码复核无阻断）。
 - [x] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（有效独立试验数向上取整并限制在有效范围，零列输入明确拒绝；专项和既有分析器回归 98 项通过，独立源码复核无阻断）。
 - [ ] **R71-167** `[P2]` `analyzers/pyfolio.py:414` — `ALPHA` 把日均 active return 复利 252 天而非回归 intercept 线性年化，10bp/day 报 ~28.6% 而非 ~25.2% → `mean(active)*252`。PLAUSIBLE。
-- [ ] **R71-168** `[P2]` `reports/performance.py:267-271` — `avg_trade_duration` 恒 `None`：`TradeAnalyzer` 存 `len.average`，代码找 `len.total.average`，`isinstance(...,dict)` 永不成立 → 直接读 `len_info.get("average")`。CONFIRMED(runtime)。
+- [x] **R71-168** `[P2]` `reports/performance.py:267-271` — `avg_trade_duration` 恒 `None`：`TradeAnalyzer` 存 `len.average`，代码找 `len.total.average`，`isinstance(...,dict)` 永不成立 → 直接读 `len_info.get("average")`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（读取 TradeAnalyzer 的 len.average；真实 Cerebro 两模式闭合交易及既有报告回归共 92 项通过，独立源码复核无阻断）。
 - [ ] **R71-169** `[P2]` `reports/performance.py:190-196` — Calmar 用 `abs(...)`，亏损策略得到正 ratio（年收益 -7.59%/max DD 1.78% 报 4.27）→ 去 abs 或另设 magnitude 指标；**先确认产品定义，现有单测固化了 abs**。CONFIRMED(runtime)。
 - [x] **R71-170** `[P2]` `reports/charts.py:162-168,311-326` — pandas resample alias 版本不稳（`"H"/"T"` 在 pandas 3.0.3 无效、`"YE"` 在 <2.2 无效）；`(end-start).days` 截断使 1–5 天跨度被判 Hourly，短回测收益图静默省略 → 用 `pd.offsets.YearEnd()/Hour()/Minute()` 和 fractional-day。CONFIRMED(runtime)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（频率使用日期偏移并按真实时间跨度与采样间隔分类，空桶不再生成零收益。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
 - [ ] **R71-171** `[P2]` `observers/trades.py:138-149,275` — `DataTrades` 固定 10 条线（data0..data9），`next()` 仅在 `data_id < len(self.lines)` 写，11+ feeds 的 trade 被静默丢弃 → 按 owner feed 动态建线或 >10 显式报错。CONFIRMED(runtime)。

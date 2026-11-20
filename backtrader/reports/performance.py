@@ -266,9 +266,7 @@ class PerformanceCalculator:
             # Average trade duration
             len_info = trade_analysis.get("len", {})
             if isinstance(len_info, dict):
-                total_len = len_info.get("total", {})
-                if isinstance(total_len, dict):
-                    metrics["avg_trade_duration"] = total_len.get("average")
+                metrics["avg_trade_duration"] = len_info.get("average")
 
         return metrics
 
