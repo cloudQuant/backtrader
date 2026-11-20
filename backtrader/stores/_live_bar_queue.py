@@ -5,7 +5,14 @@ from __future__ import annotations
 import threading
 from collections import defaultdict, deque
 from collections.abc import Mapping
-from typing import Any, Callable, Deque, Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Deque, Dict, Optional, Set, Tuple
+
+
+@dataclass(frozen=True, eq=False)
+class _QueuedLiveBar:
+    generation: Optional[int]
+    bar: Any
 
 
 class StoreLiveBarQueue:
@@ -44,17 +51,31 @@ class StoreLiveBarQueue:
         self._on_stale = on_stale
         self._on_enqueued = on_enqueued
         self._lock = threading.RLock()
-        self._queues: Dict[Any, Deque[Any]] = defaultdict(
+        self._queues: Dict[Any, Deque[_QueuedLiveBar]] = defaultdict(
             lambda: deque(maxlen=self.capacity)
         )
         self._overflow_counts: Dict[Any, int] = {}
         self._stale_reasons: Dict[Any, str] = {}
+        self._generation_symbols: Dict[int, Set[Any]] = defaultdict(set)
+        self._committed_generation = -1
+        self._closed_through_generation = -1
 
     def pop(self, symbol: Any) -> Tuple[bool, Optional[Any]]:
         """Consume the oldest completed bar, preserving a queued ``None`` value."""
         with self._lock:
             queue = self._queues[symbol]
-            return (True, queue.popleft()) if queue else (False, None)
+            return (True, queue.popleft().bar) if queue else (False, None)
+
+    def pop_entry(
+        self, symbol: Any
+    ) -> Tuple[bool, Optional[Any], Optional[int]]:
+        """Consume a bar with its local Store generation for lifecycle checks."""
+        with self._lock:
+            queue = self._queues[symbol]
+            if not queue:
+                return False, None, None
+            entry = queue.popleft()
+            return True, entry.bar, entry.generation
 
     def snapshot(self, symbol: Any) -> Tuple[int, int, str]:
         """Return queue depth, total evictions, and the sticky stale reason."""
@@ -77,12 +98,13 @@ class StoreLiveBarQueue:
             self._queues.clear()
             self._overflow_counts.clear()
             self._stale_reasons.clear()
+            self._generation_symbols.clear()
 
     def get(self, symbol: Any, default: Any = None) -> Any:
         """Return a read-only snapshot for the Store's existing Feed probe."""
         with self._lock:
             queue = self._queues.get(symbol)
-            return tuple(queue) if queue is not None else default
+            return tuple(entry.bar for entry in queue) if queue is not None else default
 
     def stale_reason(self, symbol: Any) -> str:
         with self._lock:
@@ -93,12 +115,29 @@ class StoreLiveBarQueue:
         with self._lock:
             return self._mark_stale_locked(symbol, str(reason))
 
-    def enqueue(self, symbol: Any, bar: Any) -> None:
-        """Append one bar, accounting for bounded eviction and unsafe input."""
+    def enqueue(
+        self, symbol: Any, bar: Any, *, generation: Optional[int] = None
+    ) -> bool:
+        """Append one bar, accounting for bounded eviction and unsafe input.
+
+        ``None`` is reserved for constructor seed bars. Runtime bars carry the
+        Store generation that admitted them so an aborted start can discard
+        only entries from that attempt without reconstructing already-consumed
+        or overflowed seed data.
+        """
+        if generation is not None and (
+            type(generation) is not int or generation < 0
+        ):
+            raise ValueError("live bar generation must be a non-negative integer")
         with self._lock:
+            if (
+                generation is not None
+                and generation <= self._closed_through_generation
+            ):
+                return False
             queue = self._queues[symbol]
             if len(queue) >= self.capacity:
-                evicted = queue.popleft()
+                evicted = queue.popleft().bar
                 self._overflow_counts[symbol] = self._overflow_counts.get(symbol, 0) + 1
                 self._on_evicted(symbol, evicted)
                 self._mark_stale_locked(symbol, "store_live_bar_queue_overflow")
@@ -108,10 +147,60 @@ class StoreLiveBarQueue:
             if unhealthy_reason is not None:
                 self._mark_stale_locked(symbol, unhealthy_reason)
 
-            queue.append(bar)
+            queue.append(_QueuedLiveBar(generation, bar))
+            if generation is not None and generation > self._committed_generation:
+                self._generation_symbols[generation].add(symbol)
             event_id = self._event_id(bar)
             if event_id:
                 self._on_enqueued(symbol, event_id)
+            return True
+
+    def commit_generation(self, generation: int) -> None:
+        """Forget temporary failure tracking after a successful Store start."""
+        with self._lock:
+            self._committed_generation = max(self._committed_generation, generation)
+            for symbol, queue in self._queues.items():
+                self._queues[symbol] = deque(
+                    (
+                        _QueuedLiveBar(generation, entry.bar)
+                        if entry.generation is None
+                        else entry
+                        for entry in queue
+                    ),
+                    maxlen=self.capacity,
+                )
+            for previous in tuple(self._generation_symbols):
+                if previous <= self._committed_generation:
+                    self._generation_symbols.pop(previous, None)
+
+    def discard_generation(
+        self, generation: int
+    ) -> Tuple[Tuple[Any, ...], Tuple[Tuple[Any, Any], ...]]:
+        """Close a failed generation and remove only its still-queued bars.
+
+        The first tuple includes symbols whose generation bars were already
+        consumed or evicted. The second contains the exact queued bar objects
+        removed. Existing seed bars and all queue loss counters/reasons remain
+        untouched.
+        """
+        if type(generation) is not int or generation < 0:
+            raise ValueError("live bar generation must be a non-negative integer")
+        with self._lock:
+            self._closed_through_generation = max(
+                self._closed_through_generation, generation
+            )
+            symbols = set(self._generation_symbols.pop(generation, set()))
+            removed = []
+            for symbol, queue in self._queues.items():
+                retained = deque(maxlen=self.capacity)
+                for entry in queue:
+                    if entry.generation == generation:
+                        symbols.add(symbol)
+                        removed.append((symbol, entry.bar))
+                    else:
+                        retained.append(entry)
+                self._queues[symbol] = retained
+            return tuple(symbols), tuple(removed)
 
     def _mark_stale_locked(self, symbol: Any, reason: str) -> str:
         self._stale_reasons.setdefault(symbol, reason)

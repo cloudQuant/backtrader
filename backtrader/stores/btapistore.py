@@ -910,6 +910,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         # polled result was not ACTIVE), so a Feed can leave LIVE meanwhile.
         self._tick_stream_recovery: Dict[str, str] = {}
         self._stream_generation = 0
+        self._has_successful_sdk_stream_generation = False
+        self._sdk_start_state_lock = threading.Lock()
+        self._sdk_start_in_progress = False
+        self._sdk_stop_in_progress = False
+        self._sdk_partial_start_failed_generation = None
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
         if isinstance(configured_coalescing, str):
@@ -1806,13 +1811,28 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def start(self, data=None, broker=None):
         """Start the Store and attach framework objects through its lifecycle bridge."""
-        with self._calendar_status_lock:
-            self._calendar_status_generation += 1
-            generation = self._calendar_status_generation
-            self._calendar_status_transitions += 1
-            self._calendar_status_stopping = True
+        owns_start_slot = False
+        if self._sdk_mode:
+            with self._sdk_start_state_lock:
+                if self._sdk_partial_start_failed_generation is not None:
+                    raise BtApiStoreError(
+                        "store_partial_sdk_start_requires_verified_stop"
+                    )
+                if self._sdk_stop_in_progress:
+                    raise BtApiStoreError("store_sdk_stop_already_in_progress")
+                if self._sdk_start_in_progress:
+                    raise BtApiStoreError("store_sdk_start_already_in_progress")
+                self._sdk_start_in_progress = True
+                owns_start_slot = True
+        previous_stream_generation = self._stream_generation
         started = False
+        transition_generation = None
         try:
+            with self._calendar_status_lock:
+                self._calendar_status_generation += 1
+                transition_generation = self._calendar_status_generation
+                self._calendar_status_transitions += 1
+                self._calendar_status_stopping = True
             # Iteration 65: the strategy directory is known only here; compose
             # before the SDK client (which receives the selection) is created.
             self._compose_execution_routing(broker)
@@ -1821,13 +1841,76 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 gateway_entrypoint=_legacy_gateway_entrypoint,
                 gateway_error_type=LegacyGatewayMigrationRequiredError,
             )
+            if self._sdk_mode:
+                # Commit the successful-start boundary only after API setup,
+                # worker setup, and the Store lifecycle bridge all return.
+                with self._sdk_event_drain_lock:
+                    self._live_bar_queue.commit_generation(self._stream_generation)
+                    self._has_successful_sdk_stream_generation = True
             started = True
             return result
+        except BaseException:
+            if (
+                self._sdk_mode
+                and self._stream_generation != previous_stream_generation
+            ):
+                failed_generation = self._stream_generation
+                with self._sdk_event_drain_lock:
+                    symbols, removed = self._live_bar_queue.discard_generation(
+                        failed_generation
+                    )
+                if self._sdk_partial_start_requires_verified_stop():
+                    with self._sdk_start_state_lock:
+                        self._sdk_partial_start_failed_generation = failed_generation
+                for symbol, bar in removed:
+                    self._record_market_drop(
+                        bar,
+                        "store_live_bar_start_aborted",
+                        safety_impact="bar_discarded_after_partial_store_start",
+                        symbol=symbol,
+                        kind="bar",
+                    )
+                for symbol in symbols:
+                    self._mark_live_bar_queue_stale(
+                        symbol, "store_live_bar_start_aborted"
+                    )
+            raise
         finally:
-            with self._calendar_status_lock:
-                self._calendar_status_transitions -= 1
-                if started and self._calendar_status_generation == generation:
-                    self._calendar_status_stopping = False
+            if owns_start_slot:
+                with self._sdk_start_state_lock:
+                    self._sdk_start_in_progress = False
+            if transition_generation is not None:
+                with self._calendar_status_lock:
+                    self._calendar_status_transitions -= 1
+                    if (
+                        started
+                        and self._calendar_status_generation == transition_generation
+                    ):
+                        self._calendar_status_stopping = False
+
+    def _sdk_partial_start_requires_verified_stop(self) -> bool:
+        """Return whether an aborted SDK start still owns running resources."""
+        if (
+            self._started
+            or self._connected
+            or self._market_stream_adapter.has_subscriptions
+            or self._restart_blocked_by_close
+            or self._sdk_close_thread is not None
+            or self._sdk_api_close_state is not None
+            or (self._sdk_owned_api and self._api is not None)
+            or self._managed_runtime_borrowed_api is not None
+        ):
+            return True
+        try:
+            command_state = self._command_runtime.snapshot()
+            if command_state.worker_alive or command_state.has_active_work:
+                return True
+            funding_health = self.get_funding_refresh_health()
+        except Exception:
+            # A failed health read cannot prove that a partially initialized
+            # Store is safe to start again.
+            return True
+        return bool(funding_health.get("worker_alive") or funding_health.get("inflight"))
 
     @staticmethod
     def _bounded_metadata_probe_shutdown_proven(health: Any) -> bool:
@@ -1905,12 +1988,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
 
     def _reset_sdk_stream_generation(self) -> None:
-        """Discard every event identity and completed bar from the prior SDK generation."""
-        # The drain lock is the lifecycle barrier for SDK-poll event delivery.
-        # Wait for any prior drain to finish, then clear its queued bars before
-        # the next generation can expose the Store to a new SDK session.
+        """Reset Store-owned event projections before starting an SDK generation."""
+        # Wait for an already-running Store poll/drain, then clear the prior
+        # completed-bar handoff after the first successfully started generation.
+        # This Store barrier does not inspect or purge SDK-owned poll_events queues.
         with self._sdk_event_drain_lock:
-            has_prior_generation = self._stream_generation > 0
+            has_prior_generation = self._has_successful_sdk_stream_generation
             self._stream_generation += 1
             self._account_risk_state.reset_generation()
             self._sdk_execution_identity_fence.clear_session()
@@ -2168,11 +2251,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def stop(self, timeout: Optional[float] = None):
         """Coordinate shutdown through the Backtrader lifecycle bridge."""
-        with self._calendar_status_lock:
-            self._calendar_status_generation += 1
-            self._calendar_status_transitions += 1
-            self._calendar_status_stopping = True
+        owns_stop_slot = False
+        if self._sdk_mode:
+            with self._sdk_start_state_lock:
+                if self._sdk_start_in_progress:
+                    raise BtApiStoreError("store_sdk_start_already_in_progress")
+                if self._sdk_stop_in_progress:
+                    raise BtApiStoreError("store_sdk_stop_already_in_progress")
+                self._sdk_stop_in_progress = True
+                owns_stop_slot = True
+        transition_generation = None
         try:
+            with self._calendar_status_lock:
+                self._calendar_status_generation += 1
+                transition_generation = self._calendar_status_generation
+                self._calendar_status_transitions += 1
+                self._calendar_status_stopping = True
             resync = getattr(self, "_tick_stream_resync", None)
             if resync is not None:
                 resync.fence()  # no automatic tick-stream resync once stop began
@@ -2186,10 +2280,59 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 # Iteration 65: the router file is closed only with a verified
                 # shutdown; an incomplete one keeps it for the pending close.
                 self._close_execution_routing()
+            with self._sdk_start_state_lock:
+                failed_generation = self._sdk_partial_start_failed_generation
+            if (
+                failed_generation is not None
+                and self._sdk_partial_start_stop_proven(result)
+            ):
+                with self._sdk_start_state_lock:
+                    if self._sdk_partial_start_failed_generation == failed_generation:
+                        self._sdk_partial_start_failed_generation = None
             return result
         finally:
-            with self._calendar_status_lock:
-                self._calendar_status_transitions -= 1
+            if owns_stop_slot:
+                with self._sdk_start_state_lock:
+                    self._sdk_stop_in_progress = False
+            if transition_generation is not None:
+                with self._calendar_status_lock:
+                    self._calendar_status_transitions -= 1
+
+    def _sdk_partial_start_stop_proven(self, result: Any) -> bool:
+        """Require concrete shutdown facts before clearing a partial-start fence."""
+        shutdown_state = (
+            result.get("shutdown_state")
+            if isinstance(result, Mapping)
+            else getattr(result, "shutdown_state", None)
+        )
+        if (
+            shutdown_state != "PASS"
+            or self._shutdown_state != "PASS"
+            or self._started
+            or self._connected
+            or self._sdk_configured
+            or self._market_stream_adapter.has_subscriptions
+            or self._restart_blocked_by_close
+            or self._sdk_close_thread is not None
+            or self._sdk_api_close_state is not None
+        ):
+            return False
+        if self._api is not None and not (
+            self._managed_runtime_borrowed_api is self._api
+            or self._last_successfully_closed_api is self._api
+        ):
+            return False
+        try:
+            command_state = self._command_runtime.snapshot()
+            funding_health = self.get_funding_refresh_health()
+        except Exception:
+            return False
+        return not (
+            command_state.worker_alive
+            or command_state.has_active_work
+            or funding_health.get("worker_alive")
+            or funding_health.get("inflight")
+        )
 
     def _close_execution_routing(self) -> None:
         """Close the durable router file and forget the composed selection."""
@@ -2910,19 +3053,47 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         """Compatibility alias for fetch_open_orders()."""
         return self.fetch_open_orders()
 
+    def _pop_live_bar_for_generation(self, dataname: str) -> Tuple[bool, Optional[Any]]:
+        """Consume one bar atomically with respect to Store generation reset."""
+        if not self._sdk_mode:
+            return self._live_bar_queue.pop(dataname)
+        with self._sdk_event_drain_lock:
+            generation = self._stream_generation
+            has_bar, bar, bar_generation = self._live_bar_queue.pop_entry(dataname)
+        if (
+            has_bar
+            and bar_generation is not None
+            and (
+                bar_generation != generation
+                or generation != self._stream_generation
+            )
+        ):
+            self._record_market_drop(
+                bar,
+                "store_live_bar_generation_changed_during_poll",
+                safety_impact="bar_not_delivered_across_store_generations",
+                symbol=dataname,
+                kind="bar",
+            )
+            self._mark_live_bar_queue_stale(
+                dataname, "store_live_bar_generation_changed_during_poll"
+            )
+            return False, None
+        return has_bar, bar
+
     def poll_live(self, dataname: str) -> Optional[Any]:
         """Poll a live bar, preserving source fields when explicitly requested."""
         if self._service_read_only:
             api = self._ensure_api_ready()
             bar = api.poll_bar(dataname)
             return None if bar is None else self._copy_or_normalize_bar(bar)
-        has_queued_bar, bar = self._live_bar_queue.pop(dataname)
+        has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
         if has_queued_bar:
             return cast(Optional[Dict[str, Any]], bar)
 
         self._ensure_api_ready()
         self._drain_sdk_events()
-        _has_queued_bar, bar = self._live_bar_queue.pop(dataname)
+        _has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
 
         if bar is None:
             return None
@@ -6029,11 +6200,26 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             return
         for dataname, bars in live_bars.items():
             for bar in bars:
-                self._enqueue_live_bar(str(dataname), self._copy_or_normalize_bar(bar))
+                self._live_bar_queue.enqueue(
+                    str(dataname), self._copy_or_normalize_bar(bar)
+                )
 
     def _enqueue_live_bar(self, symbol: str, bar: Any) -> None:
         """Append one copied bar to the Backtrader-owned bounded queue."""
-        self._live_bar_queue.enqueue(symbol, bar)
+        accepted = self._live_bar_queue.enqueue(
+            symbol, bar, generation=self._stream_generation
+        )
+        if not accepted:
+            self._record_market_drop(
+                bar,
+                "store_live_bar_start_aborted",
+                safety_impact="bar_rejected_from_failed_store_generation",
+                symbol=symbol,
+                kind="bar",
+            )
+            self._mark_live_bar_queue_stale(
+                symbol, "store_live_bar_start_aborted"
+            )
 
     def mark_feed_dropped(self, event: Any, reason: str) -> None:
         """Close a polled event's accounting when the Feed cannot dispatch it."""
