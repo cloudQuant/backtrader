@@ -143,15 +143,21 @@ class UltraWPRIndicator(Indicator):
         prev_values = [None for _ in self._periods]
         bull_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
         bear_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
+        # ``once`` is called for separate ranges (including the one-bar
+        # ``oncestart`` range).  Rebuild every smoother's complete hidden
+        # state from the first bar on which ``next`` is eligible, rather than
+        # trying to infer that state from the single emitted output value.
+        first_output = max(0, self._minperiod - 1)
         actual_end = min(end, len(base_wpr_array))
-        for i in range(start, actual_end):
+        for i in range(first_output, actual_end):
             upsch = 0.0
             dnsch = 0.0
             current_values = []
             base_wpr = float(base_wpr_array[i])
             if math.isnan(base_wpr):
-                bulls_line[i] = float("nan")
-                bears_line[i] = float("nan")
+                if i >= start:
+                    bulls_line[i] = float("nan")
+                    bears_line[i] = float("nan")
                 continue
             for index, smoother in enumerate(smoothers):
                 value = smoother.update(base_wpr)
@@ -163,8 +169,11 @@ class UltraWPRIndicator(Indicator):
                     upsch += 1.0
                 else:
                     dnsch += 1.0
-            bulls_line[i] = bull_smoother.update(upsch)
-            bears_line[i] = bear_smoother.update(dnsch)
+            bulls = bull_smoother.update(upsch)
+            bears = bear_smoother.update(dnsch)
+            if i >= start:
+                bulls_line[i] = bulls
+                bears_line[i] = bears
             prev_values = current_values
 
         self._smoothers = smoothers

@@ -159,6 +159,10 @@ class ColorSchaffTrendCycleIndicator(Indicator):
         cycle = max(2, int(self.p.cycle))
         prev_value = None
         actual_end = min(end, len(fast_array), len(slow_array))
+        # once() may be split between the warmup, first-valid bar, and the
+        # remaining bars. Continue the recursive state from the prior slice.
+        has_previous = start > 0
+        prev_value = value_line[start - 1] if has_previous else None
         for i in range(start, actual_end):
             macd_vals = [
                 float(fast_array[i - j]) - float(slow_array[i - j])
@@ -168,25 +172,31 @@ class ColorSchaffTrendCycleIndicator(Indicator):
             llv1 = min(macd_vals)
             hhv1 = max(macd_vals)
             prev_st = 0.0 if prev_value is None else prev_value
+            if prev_st != prev_st:
+                prev_st = 0.0
             cur_macd = macd_vals[0]
             st = ((cur_macd - llv1) / (hhv1 - llv1) * 100.0) if (hhv1 - llv1) != 0 else prev_st
-            if prev_value is not None:
+            if has_previous:
                 st = 0.5 * (st - prev_st) + prev_st
 
             st_vals = [st]
             for j in range(1, cycle):
                 idx = i - j
-                if idx < start:
+                if idx < 0:
                     break
-                st_vals.append(float(value_line[idx]))
+                value = float(value_line[idx])
+                if value == value:
+                    st_vals.append(value)
             llv2 = min(st_vals)
             hhv2 = max(st_vals)
             prev_stc = 0.0 if prev_value is None else prev_value
+            if prev_stc != prev_stc:
+                prev_stc = 0.0
             stc = ((st - llv2) / (hhv2 - llv2) * 200.0 - 100.0) if (hhv2 - llv2) != 0 else prev_stc
-            if prev_value is not None:
+            if has_previous:
                 stc = 0.5 * (stc - prev_stc) + prev_stc
 
-            delta = stc - prev_stc if prev_value is not None else 0.0
+            delta = stc - prev_stc if has_previous else 0.0
             color = 4
             if stc > 0:
                 if stc > float(self.p.high_level):
@@ -201,3 +211,4 @@ class ColorSchaffTrendCycleIndicator(Indicator):
             value_line[i] = stc
             color_line[i] = color
             prev_value = stc
+            has_previous = True
