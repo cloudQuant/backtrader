@@ -8,7 +8,7 @@ include credentials in their default representation.
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, is_dataclass
+from dataclasses import fields, is_dataclass
 from decimal import Decimal
 from typing import Any, Mapping, Optional
 
@@ -110,7 +110,14 @@ def masked_copy(value: Any, _active: Optional[set[int]] = None) -> Any:
         if isinstance(value, frozenset):
             return tuple(masked_copy(item, active) for item in value)
         if is_dataclass(value) and not isinstance(value, type):
-            return masked_copy(asdict(value), active)
+            return {
+                field.name: (
+                    "***"
+                    if is_sensitive_key(field.name)
+                    else masked_copy(getattr(value, field.name, None), active)
+                )
+                for field in fields(value)
+            }
         try:
             attributes = vars(value)
         except (TypeError, AttributeError):

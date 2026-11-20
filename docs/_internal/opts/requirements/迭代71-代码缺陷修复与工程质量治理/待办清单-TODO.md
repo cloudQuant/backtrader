@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 7 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 8 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **83** |
+| | **合计** | **207** | **84** |
 
 ---
 
@@ -159,7 +159,7 @@
 - [x] **R71-026** `[P1]` `bokeh/live/client.py:232` — `self.doc.hold()` 后无 `try/finally`，任一更新步骤抛错 `unhold()` 不执行，文档保持 hold、后续更新冻结 → `try/finally: self.doc.unhold()`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（更新失败后仍执行 unhold；双重失败保留更新异常并附清理原因，单独清理失败继续传播。真实 LiveClient 方法配合受控文档/协作者，12 项专项通过，独立源码复核无阻断；未验证真实浏览器连接）。
 - [ ] **R71-027** `[P1]` `bokeh/analyzers/plot.py:173` — `stop()` 只停 clients 不调 `self._webapp.stop()`，`_t_server` 的 loop 线程和 HTTP socket 泄漏到进程结束 → stop 中停 server/loop。CONFIRMED(source)。
 - [ ] **R71-028** `[P1]` `bokeh/live/datahandler.py:245` — `_process` 每行重建 `index.values` 并线性扫描，UPDATE 分支再 `.loc[...]` 全列扫描，O(N×M) → 循环前构建 `set(existing)`/索引映射。CONFIRMED(source)。
-- [ ] **R71-122** `[P2]` `utils/redaction.py:103-104`；`runtime_redaction.py:120-125` — `masked_copy` 用 `dataclasses.asdict` 深拷贝所有字段，含 lock/socket/mappingproxy 的 dataclass 抛 `TypeError`，可能替换原始 broker/对账错误 → 按 `dataclasses.fields` 原地遍历。CONFIRMED(source)。
+- [x] **R71-122** `[P2]` `utils/redaction.py:103-104`；`runtime_redaction.py:120-125` — `masked_copy` 用 `dataclasses.asdict` 深拷贝所有字段，含 lock/socket/mappingproxy 的 dataclass 抛 `TypeError`，可能替换原始 broker/对账错误 → 按 `dataclasses.fields` 原地遍历。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成对象**（按字段递归遮罩，避免深拷贝锁、socket 和 mappingproxy；相关 12 项通过，独立源码复核无明确泄密阻断。masked_copy 和 runtime 路径处理循环；独立 redact_diagnostic 对普通循环容器仍可能递归失败，需另行处理）。
 - [ ] **R71-123** `[P2]` `plot/locator.py:353` — `AutoDateFormatter.__call__` 返回 `super()` 代理对象而非格式化日期，`fmt_x_ticks=None` 时 x 轴显示 `<super: ...>` → `return super().__call__(x, pos)`。CONFIRMED(runtime, Agg)。
 - [ ] **R71-124** `[P2]` `plot/plot.py:941-955`；`plot_plotly.py:491-515` — 负 `start` 未归一化（负 `end` 有），`cerebro.plot(start=-5)` 在 matplotlib 抛 `IndexError`、plotly 抛 `ValueError`，bokeh 正常 → `start = len(st_dtime)+start` 后 clamp，统一三后端。CONFIRMED(source)。
 - [ ] **R71-125** `[P2]` `notifications/core.py:721-732` — dedup 时间戳在 `runtime.enqueue` **之前**记录；队列满丢弃后同 `dedup_key` 在冷却期内重试被报 `deduped`，永不投递 → enqueue 成功后再记 dedup 或 dropped 时回滚。CONFIRMED(source)。
