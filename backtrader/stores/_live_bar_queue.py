@@ -71,6 +71,13 @@ class StoreLiveBarQueue:
         with self._lock:
             return tuple(self._queues)
 
+    def reset(self) -> None:
+        """Discard queued bars and loss state before a new Store generation."""
+        with self._lock:
+            self._queues.clear()
+            self._overflow_counts.clear()
+            self._stale_reasons.clear()
+
     def get(self, symbol: Any, default: Any = None) -> Any:
         """Return a read-only snapshot for the Store's existing Feed probe."""
         with self._lock:

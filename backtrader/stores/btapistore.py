@@ -1905,13 +1905,23 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
 
     def _reset_sdk_stream_generation(self) -> None:
-        """Discard every market-event identity from the previous SDK generation."""
-        self._stream_generation += 1
-        self._account_risk_state.reset_generation()
-        self._sdk_execution_identity_fence.clear_session()
-        self._market_delivery_state.reset_generation()
-        self._tick_stream_resync.reset()
-        self._tick_stream_recovery.clear()
+        """Discard every event identity and completed bar from the prior SDK generation."""
+        # The drain lock is the lifecycle barrier for SDK-poll event delivery.
+        # Wait for any prior drain to finish, then clear its queued bars before
+        # the next generation can expose the Store to a new SDK session.
+        with self._sdk_event_drain_lock:
+            has_prior_generation = self._stream_generation > 0
+            self._stream_generation += 1
+            self._account_risk_state.reset_generation()
+            self._sdk_execution_identity_fence.clear_session()
+            self._market_delivery_state.reset_generation()
+            # Constructor-supplied live_bars belong to the first generation.
+            # Only a restart has a prior Store generation whose queued bars
+            # and sticky loss state must be discarded.
+            if has_prior_generation:
+                self._live_bar_queue.reset()
+            self._tick_stream_resync.reset()
+            self._tick_stream_recovery.clear()
 
     def _prepare_sdk_start(self) -> None:
         """Check Store-local restart fences through its lifecycle bridge."""

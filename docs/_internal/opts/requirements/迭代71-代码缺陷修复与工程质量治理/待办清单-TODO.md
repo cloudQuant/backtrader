@@ -28,7 +28,7 @@
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 16 |
 | 5 | 指标正确性（P1/P2） | 29 | 0 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
@@ -36,7 +36,7 @@
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **48** |
+| | **合计** | **207** | **49** |
 
 ---
 
@@ -113,7 +113,7 @@
 - [x] **R71-136** `[P1]` `feeds/blaze.py:64-69`、`influxfeed.py:80-83`、`quandl.py:194-199`、`yahoo.py:266-271`、`vchart.py:41-47` — 自定义 `__init__` 未调 `DataBase.__init__`，`p.sessionstart/sessionend` 为 `None`，`_start_finish()` 抛 `AttributeError: 'NoneType' has no attribute 'hour'`（`BlazeData(...)._start()` 已复现）→ 每个子类先 `super().__init__()`。CONFIRMED(runtime) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+离线文件**（修前五类 Feed 未建立 session 默认值；修后定向及相关 Feed 28 项通过，包含 Blaze 和 VChart 本地启动关闭；全 Feed 目录收集因安装的 bt_api_ctp 缺 calendar_snapshot 失败，未验收网络服务）。
 - [x] **R71-137** `[P1]` `feeds/chainer.py:97-99` — 把 `None`（live feed 暂无数据）当 exhaustion 永久丢弃当前 feed，而 `DataBase.next()` 只在 EOF 返回 `False` → 区分 `ret is False`（前进链）与 `ret is None`（返回 None 稍后重试）。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（修前 not-ready 误切源；修后同源重试、EOF 切源及数据投影与相关 Feed 回归 5 项通过）。
 - [x] **R71-138** `[P1]` `feeds/rollover.py:194-197` — 同步循环在 subordinate 返回 `None` 时 `continue` 且不推进 `dt`，live 暂无数据时无限自旋占满 CPU → `None` 视为 not ready，返回 `None` 让引擎下次重试。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（修前 not-ready 会立即重复读取；修后保留待发主 bar、同步进度、过期源及换月回归 10 项通过；主源 EOF 切换时已预读候选 bar 的既有处理仍待核查）。
-- [ ] **R71-139** `[P1]` `stores/btapistore.py:1907-1914`；`_live_bar_queue.py:84-113` — `_reset_sdk_stream_generation()` 不重置 `_live_bar_queue`（`:977` 创建一次），clean stop/start 后旧 completed bars 仍在 FIFO，`_stale_reasons` latched 也让新会话 `is_stream_ready()` 为 false → 增加 `StoreLiveBarQueue.reset()`（清队列/overflow/stale reasons）并在 reset/start 调用。CONFIRMED(source)。
+- [x] **R71-139** `[P1]` `stores/btapistore.py:1907-1914`；`_live_bar_queue.py:84-113` — `_reset_sdk_stream_generation()` 不重置 `_live_bar_queue`（`:977` 创建一次），clean stop/start 后旧 completed bars 仍在 FIFO，`_stale_reasons` latched 也让新会话 `is_stream_ready()` 为 false → 增加 `StoreLiveBarQueue.reset()`（清队列/overflow/stale reasons）并在 reset/start 调用。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（修前旧队列与 stale 残留且在途 drain 可跨代入队；修后首启 seed 保留、重启清除及线程屏障和相关回归 28 项通过；不代表真实 SDK/账户验收）。
 
 ## 批次 5 · 指标正确性（P1/P2）
 
