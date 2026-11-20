@@ -9,10 +9,19 @@ by Backtrader feeds.
 from __future__ import annotations
 
 import collections
+import datetime as _datetime
 from copy import deepcopy
 from threading import RLock
 from types import MappingProxyType
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
+
+
+_NORMALIZED_BAR_FIELDS = frozenset(
+    {"datetime", "open", "high", "low", "close", "volume", "openinterest"}
+)
+_NORMALIZED_BAR_VALUE_FIELDS = _NORMALIZED_BAR_FIELDS - {"datetime"}
+_NORMALIZED_BAR_OPTIONAL_FIELDS = frozenset({"bar_final"})
+_NORMALIZED_BAR_ALLOWED_FIELDS = _NORMALIZED_BAR_FIELDS | _NORMALIZED_BAR_OPTIONAL_FIELDS
 
 
 def history_timeframe(timeframe, compression: int) -> Optional[str]:
@@ -100,7 +109,48 @@ class StoreBarHistoryCache:
         """Return independent history rows with the existing opt-in PIT rule."""
         if self._preserve_raw_bars:
             return [self.copy_or_normalize_bar(bar) for bar in bars]
-        return deepcopy(list(bars))
+
+        rows = list(bars)
+        if all(self._is_shallow_copy_safe_bar(row) for row in rows):
+            # Normalized rows contain only immutable values. Cloning each
+            # exact dict preserves caller isolation while avoiding recursive
+            # deepcopy traversal of every field for long default histories.
+            # Keep deepcopy's memo behavior when the input repeats a row.
+            copied_rows = []
+            row_copies = {}
+            for row in rows:
+                row_id = id(row)
+                copied = row_copies.get(row_id)
+                if copied is None:
+                    copied = dict(row)
+                    row_copies[row_id] = copied
+                copied_rows.append(copied)
+            return copied_rows
+        return deepcopy(rows)
+
+    @staticmethod
+    def _is_shallow_copy_safe_bar(bar: Any) -> bool:
+        """Recognize only the exact immutable shape produced by normalization."""
+        if type(bar) is not dict or len(bar) not in (
+            len(_NORMALIZED_BAR_FIELDS),
+            len(_NORMALIZED_BAR_FIELDS) + 1,
+        ):
+            return False
+        if any(type(key) is not str for key in bar):
+            return False
+        if not _NORMALIZED_BAR_FIELDS.issubset(bar):
+            return False
+        if any(key not in _NORMALIZED_BAR_ALLOWED_FIELDS for key in bar):
+            return False
+
+        dt = bar["datetime"]
+        if type(dt) is not _datetime.datetime or dt.tzinfo is not None:
+            return False
+        if any(type(bar[field]) is not float for field in _NORMALIZED_BAR_VALUE_FIELDS):
+            return False
+        if "bar_final" in bar and type(bar["bar_final"]) is not bool:
+            return False
+        return True
 
     def project_market_bars(self, bars: Iterable[Any]) -> List[Any]:
         """Project typed neutral OHLCV bars to Backtrader's cached rows."""

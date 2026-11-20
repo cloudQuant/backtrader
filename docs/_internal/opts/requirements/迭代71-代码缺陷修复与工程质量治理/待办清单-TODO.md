@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 11 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
-| 9 | P2 其余正确性 / 清理 | 36 | 23 |
+| 9 | P2 其余正确性 / 清理 | 36 | 24 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 21 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **169** |
+| | **合计** | **207** | **170** |
 
 ---
 
@@ -243,7 +243,7 @@
 - [ ] **R71-144** `[P2]` `service/service_execution_adapter.py:150-155,404-407,462-465` — `_returned_intents`/`_projected_revisions`/`_known_record_intents` 每 managed intent 增一项且不清理 → 有界/LRU 或 terminal ack 后清理。
 - [ ] **R71-145** `[P2]` `service/service_observation.py:18-19,127-137` — 未确认 cleanup 时 `close()` 把整个 `(clients, proxy, store, bindings)` 追加到无界模块级 `_KEEPALIVE`，重复失败 close 永久保留 threads/sockets → 限制 keepalive 或只保留 bounded diagnostic token。
 - [ ] **R71-146** `[P2]` `feeds/btapifeed.py:3256-3266,3332` — `_cached_price_tick()` 无缓存：未配置 `price_tick` 时每 tick 调 `configured_metadata_price_tick()`，高频 feed 每 tick 做 metadata lookup/scan → 按 dataname 缓存，`contract_metadata` 变化时失效，`start()` 预计算。
-- [ ] **R71-147** `[P2]` `stores/_bar_history_cache.py:124-149,184-196` — 每个不同 `(dataname,timeframe,compression,since,limit)` 请求把完整 bar list 加入 `_query_cache` 且无 eviction，每次 hit 深拷贝整个序列 → LRU 限界，避免每次深拷贝完整默认历史。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT**（查询结果缓存默认最多 128 条，按 LRU 淘汰并保护并发容器；5 项专项及独立静态复审通过。单条数据量不受限、并发 miss 不合并、默认历史命中仍复制完整序列，未实现代际失效栅栏，本项保持未完成）。
+- [x] **R71-147** `[P2]` `stores/_bar_history_cache.py:124-149,184-196` — 每个不同 `(dataname,timeframe,compression,since,limit)` 请求把完整 bar list 加入 `_query_cache` 且无 eviction，每次 hit 深拷贝整个序列 → LRU 限界，避免每次深拷贝完整默认历史。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT**（查询结果缓存默认最多 128 条，按 LRU 淘汰并保护并发容器；5 项专项及独立静态复审通过。单条数据量不受限、并发 miss 不合并、默认历史命中仍复制完整序列，未实现代际失效栅栏，本项保持未完成）。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+合成基准**（规范不可变字段行浅复制并保持重复行 alias，其他行仍深复制、raw 合同不变；18 项专项与 LRU 回归及独立复审通过。1k/10k/50k 行合成基准约快 2.77/2.41/2.34 倍；单条结果大小与 generation 失效仍沿用现有合同）。
 - [x] **R71-148** `[P2]` `service/service_recovery_attestation.py:206,232` — `attest_event_context()` 直接 `paper_fill["commission_currency"]` 并比较 `quote_as_of_ns > paper_fill.get("match_time_ns", 0)`，缺 key 或非整数抛 `KeyError`/`TypeError`，逃出文档化 fail-closed 的 `ServiceRecoveryAttestationError` → 先 `.get()` + 精确类型校验，统一抛有限 attestation error。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成输入**（currency 和成交时间缺失或无效时统一有限拒绝，并校验 quote 绑定时间的精确正整数类型；26 项相关回归和独立静态复审通过。仅验证 attestor，未验证 Broker 集成或真实账户）。
 - [ ] **R71-044** `[P2]` `contrib/xma_ichimoku.py:39` — `_raw_buf` 每根 append 不裁剪，`sum(self._raw_buf[-period:])` 每根切片分配，5000 bars 后 4965 项 → `deque(maxlen=period)` + 滚动和。CONFIRMED(FAKE)。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（原序 deque 求和消除无界历史和列表切片，13 项专项、1 项功能回归及独立静态复审通过；运行时扩大 SMA 周期若所需历史已淘汰则明确 ValueError，属于兼容变化。仍逐窗 O(period) 求和，滚动和性能目标未闭合，本项保持未完成）。
 - [x] **R71-045** `[P2]` `contrib/shared_strategy_indicators.py:830` — `_smooth_history`/`_aml_history` 无界 list，`_range()` 每根新建两个 list，5000 bars 后 4843 项、约 3.7× 慢于 deque 版 → `deque(maxlen=lag+1)`，高低点增量维护。CONFIRMED(FAKE)。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（递归历史和高低点窗口有界，33 项相关回归及独立复审通过；5000 bar 合成基准约 1.255→0.369 秒。兼容变化：fractal/lag 运行中修改明确抛 RuntimeError，point 仍可动态修改；索引回退/跳跃已有定向验证但未作持久回归）。
