@@ -94,7 +94,10 @@ class Chainer(DataBase):
     # Load data, this processing looks quite clever, planning to handle futures contract rollover or remove data when it expires later
     def _load(self):
         while self._d is not None:
-            if not self._d.next():  # no values from current data source
+            result = self._d.next()
+            if result is None:
+                return None  # Live source is not ready; retry it later.
+            if result is False:  # Current source is exhausted.
                 self._d = self._ds.pop(0) if self._ds else None
                 continue
 

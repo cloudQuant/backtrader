@@ -28,7 +28,7 @@
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 16 | 13 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 14 |
 | 5 | 指标正确性（P1/P2） | 29 | 0 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
@@ -36,7 +36,7 @@
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **46** |
+| | **合计** | **207** | **47** |
 
 ---
 
@@ -111,7 +111,7 @@
 - [x] **R71-097** `[P1]` `lineiterator.py:869-879` — `dopostinit` 在 `_periodrecalc()` **之前**传播 `_minperiod`，复合指标（RSI/DPO/TRIX/PPO/Stochastic）lines 仍为 1，表达式/`If`/`SMA` 继承错误周期、可能提前输出伪造值 → 先 `_periodrecalc()` 再传播。CONFIRMED(runtime) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地回测**（修前复合指标线周期为 1；构造完成后重算并传播，覆盖内置复合指标及下游 SMA；核心回归 134 通过/1 跳过，因子及策略另 19 通过；旧 QBuffer 缺陷复现断言按新周期合同更新；多输出指标中可更早有效的单条线可能被整体周期延后，仍需逐指标核查）。
 - [x] **R71-110** `[P1]` `research/factor_indicator.py:860`（调用 `lineiterator.py:1893`） — native alpha 在 `runonce=True` 且历史短于 `lookback_h+1` 时 `oncestart` 以 index H 越界读 `data.datetime[0]` 抛 `IndexError`，同数据 runnext 返回 NaN → clamp 到 `min(minperiod-1, buflen())`，诊断读取前判空。CONFIRMED(runtime，150-bar Alpha024 H=199) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+本地因子回测**（修前短数据 preonce 超出范围及 Alpha024 批量模式失败；修后零/短/足够历史阶段、150 bar 逐根与批量均缺失及因子生命周期回归 57 项通过，移除 R71-164 的临时短数据保护后定向 11 项通过；非等长多 Feed 仍沿用所选时钟长度，未专项验证）。
 - [x] **R71-136** `[P1]` `feeds/blaze.py:64-69`、`influxfeed.py:80-83`、`quandl.py:194-199`、`yahoo.py:266-271`、`vchart.py:41-47` — 自定义 `__init__` 未调 `DataBase.__init__`，`p.sessionstart/sessionend` 为 `None`，`_start_finish()` 抛 `AttributeError: 'NoneType' has no attribute 'hour'`（`BlazeData(...)._start()` 已复现）→ 每个子类先 `super().__init__()`。CONFIRMED(runtime) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+离线文件**（修前五类 Feed 未建立 session 默认值；修后定向及相关 Feed 28 项通过，包含 Blaze 和 VChart 本地启动关闭；全 Feed 目录收集因安装的 bt_api_ctp 缺 calendar_snapshot 失败，未验收网络服务）。
-- [ ] **R71-137** `[P1]` `feeds/chainer.py:97-99` — 把 `None`（live feed 暂无数据）当 exhaustion 永久丢弃当前 feed，而 `DataBase.next()` 只在 EOF 返回 `False` → 区分 `ret is False`（前进链）与 `ret is None`（返回 None 稍后重试）。CONFIRMED(source)。
+- [x] **R71-137** `[P1]` `feeds/chainer.py:97-99` — 把 `None`（live feed 暂无数据）当 exhaustion 永久丢弃当前 feed，而 `DataBase.next()` 只在 EOF 返回 `False` → 区分 `ret is False`（前进链）与 `ret is None`（返回 None 稍后重试）。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE**（修前 not-ready 误切源；修后同源重试、EOF 切源及数据投影与相关 Feed 回归 5 项通过）。
 - [ ] **R71-138** `[P1]` `feeds/rollover.py:194-197` — 同步循环在 subordinate 返回 `None` 时 `continue` 且不推进 `dt`，live 暂无数据时无限自旋占满 CPU → `None` 视为 not ready，返回 `None` 让引擎下次重试。CONFIRMED(source)。
 - [ ] **R71-139** `[P1]` `stores/btapistore.py:1907-1914`；`_live_bar_queue.py:84-113` — `_reset_sdk_stream_generation()` 不重置 `_live_bar_queue`（`:977` 创建一次），clean stop/start 后旧 completed bars 仍在 FIFO，`_stale_reasons` latched 也让新会话 `is_stream_ready()` 为 false → 增加 `StoreLiveBarQueue.reset()`（清队列/overflow/stale reasons）并在 reset/start 调用。CONFIRMED(source)。
 
