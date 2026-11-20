@@ -104,12 +104,10 @@ def _neutral_decimal(value: Any) -> Optional[Decimal]:
 
 
 def _aware_utc(value: Any) -> bool:
-    return (
-        type(value) is datetime
-        and value.tzinfo is not None
-        and value.utcoffset() is not None
-        and value.utcoffset().total_seconds() == 0
-    )
+    if type(value) is not datetime or value.tzinfo is None:
+        return False
+    offset = value.utcoffset()
+    return offset is not None and offset.total_seconds() == 0
 
 
 def _contract_kind(record: Any, sdk: Any) -> Optional[str]:

@@ -32,11 +32,11 @@
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
 | 7 | 性能专项（P1/P2） | 19 | 6 |
-| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 2 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 5 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **105** |
+| | **合计** | **207** | **108** |
 
 ---
 
@@ -208,12 +208,12 @@
 - [ ] **N72-16** `[P2]` 全仓 Ruff 45 处 — 45 处中 26 处可 `--fix` 自动修复（另 4 处需 `--unsafe-fixes`）；迭代 72 清单未区分机械项与人工项 → 先跑 `--fix` 并复核 diff，再处理人工项。CONFIRMED(`ruff --statistics`)。
 - [x] **R72-BUG-05 ≡ N72-B023-a** `[P1]` `stores/_account_position_projection.py:164,170` — `for read in batch.routes` 内定义 `feed_name_for(...)` 捕获 `route`/`read`（B023）→ 函数提升至循环外，把 `route`/`read` 作为形参显式传入。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（按每轮 route/read 绑定闭包；延迟执行跨 route 回归 1 项通过，目标 Ruff 与独立静态复审通过）。
 - [ ] **R72-BUG-06 ≡ N72-B023-b** `[P1]` `brokers/_btapi_direct_mode.py:3773-3774` — `for symbol` 内定义 `_side(...)` 捕获 `split`（B023）→ 提取为独立辅助函数显式传 `split`。CONFIRMED(ruff)。
-- [ ] **R72-BUG-07** `[P1]` `futures/calendar.py:503,563-567,584` — 同一函数内 `windows` 先赋 tuple（`:503`）后赋 `[]` 并 `.append()`（`:563`），`:584` 再 `tuple(windows)`，类型变异引发 Mypy 报错 → 拆分为 `raw_windows` / `session_windows`。CONFIRMED(source)。
-- [ ] **R72-BUG-08** `[P1]` `futures/ranking_projection.py:110-111` — `_aware_utc` 连续两次 `value.utcoffset()`，第二次直接 `.total_seconds()`，静态类型无法保证非空 → 提前解构 `offset = value.utcoffset()` 并单一判定。CONFIRMED(source)。
+- [x] **R72-BUG-07** `[P1]` `futures/calendar.py:503,563-567,584` — 同一函数内 `windows` 先赋 tuple（`:503`）后赋 `[]` 并 `.append()`（`:563`），`:584` 再 `tuple(windows)`，类型变异引发 Mypy 报错 → 拆分为 `raw_windows` / `session_windows`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（预检 tuple 使用独立名称，保留 session 窗口解析行为；相关 31 项回归与独立静态复审通过。全仓 mypy 仍有既存错误及内部错误，未声称通过）。
+- [x] **R72-BUG-08** `[P1]` `futures/ranking_projection.py:110-111` — `_aware_utc` 连续两次 `value.utcoffset()`，第二次直接 `.total_seconds()`，静态类型无法保证非空 → 提前解构 `offset = value.utcoffset()` 并单一判定。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（时区 offset 仅读取一次，覆盖有状态 tzinfo 与非 UTC/naive 输入；相关 31 项回归与独立静态复审通过。全仓 mypy 仍有既存错误及内部错误，未声称通过）。
 - [x] **N72-11** `[P2]` `brokers/_btapi_strategy_events.py:195-203` — **E402 ×9**（module level import not at top），占 45 处的 1/5，迭代 72 完全未登记 → 导入移到顶部或 `# noqa: E402` 显式声明延迟导入（需先确认是否有循环导入约束）。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+集成**（仅移动九个标准库导入，BT/SDK 局部延迟导入保持；目标 Ruff 通过，31 项策略事件回归及独立静态复审通过）。
 - [ ] **N72-12** `[P2]` `brokers/btapibroker.py:336,339,346,2821,2840`；`linebuffer.py:2902`；`stores/btapistore.py:1581` — RET502 ×6 / RET501 ×1，迭代 72 遗漏 → 统一返回样式（`--fix` 可处理）。CONFIRMED(ruff)。
 - [ ] **N72-13** `[P2]` `brokers/btapibroker.py:14,29,33` — `List`、`OrderExecutionBit`、`infer_position_side` 三个 F401 未使用导入 → 清理（自动修复）。CONFIRMED(ruff)。
-- [ ] **N72-14** `[P2]` `futures/__init__.py:18` — `CHINA_TIME` 导入未用且 `__all__` 未列出（F401），属公共符号导出遗漏 → 补 `__all__` 或删除导入；**先确认下游是否依赖 `bt.futures.CHINA_TIME`**。CONFIRMED(ruff)。
+- [x] **N72-14** `[P2]` `futures/__init__.py:18` — `CHINA_TIME` 导入未用且 `__all__` 未列出（F401），属公共符号导出遗漏 → 补 `__all__` 或删除导入；**先确认下游是否依赖 `bt.futures.CHINA_TIME`**。CONFIRMED(ruff)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（将已有 CHINA_TIME 公共属性补入 __all__，保留显式导入并覆盖星号导出；相关 31 项回归与独立静态复审通过。全仓 mypy 仍有既存错误及内部错误，未声称通过）。
 - [ ] **N72-15** `[P2]` `live_state/identity.py:102`；`live_state/snapshot.py:151`；`live_state/pending.py:460` — SIM300 ×2（Yoda 条件）、SIM109 ×1 → 自动修复。CONFIRMED(ruff)。
 - [ ] **R72-OPT-01 ≡ N72-02 关联** `[P2]` `service/gateway_config.py:78-81` — `_db_handle_from_fd` 全仓无调用（OCR Dead Code）；其 `import msvcrt` 在 POSIX 不可用 → 删除，或按 N72-02 在 reservation handle stamp 复检中实际调用。**与 N72-02 一起决策**。CONFIRMED(source)。
 - [ ] **R72-OPT-02 + N72-19** `[P2]` `examples/live/007_ctp/gateway_local_resources.py:13-14` — 【状态变化】两个导入仍全文件未被引用，但本轮给它们加了 `as` 冗余别名使 ruff 对该文件显示 `All checks passed!`，属**掩盖告警而非清理** → 删除两行导入；**不要以 ruff 通过当作此条已完成**。CONFIRMED(source+ruff)。

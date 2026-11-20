@@ -119,6 +119,7 @@ __all__ = [
     'load_selection_bundle',
     'selection_bundle_to_dict',
     'EXPECTED_RULE_EVIDENCE_MODE',
+    'CHINA_TIME',
     'ExpectedCalendarBuild',
     'ExpectedCalendarError',
     'build_expected_daytime_calendars',

@@ -500,12 +500,12 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
     for value in row_values:
         if not isinstance(value, Mapping):
             raise SessionCalendarError("PRODUCT_DAY_MUST_BE_OBJECT")
-        windows = _bounded_sequence(
+        raw_windows = _bounded_sequence(
             value.get("windows", ()),
             "product-day windows",
             _MAX_WINDOWS_PER_PRODUCT_DAY,
         )
-        total_windows += len(windows)
+        total_windows += len(raw_windows)
         if total_windows > _MAX_WINDOWS_PER_CALENDAR:
             raise SessionCalendarError("INPUT_LIMIT_EXCEEDED", "calendar session windows")
 
