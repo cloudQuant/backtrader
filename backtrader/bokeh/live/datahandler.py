@@ -149,21 +149,25 @@ class LiveDataHandler:
 
         # Keep data length within lookback range
         if self._datastore is not None:
-            self._datastore = self._datastore.tail(self._get_data_stream_length())
+            self._datastore = self._datastore.tail(self._get_data_stream_length_locked())
 
     def _cb_push_adds(self):
         """Push new data to ColumnDataSources."""
-        if self._datastore is None or "index" not in self._datastore.columns:
-            return
+        # The worker may append or patch rows while this IOLoop callback runs.
+        # Select the pending rows and advance the high-water mark together;
+        # boolean selection copies only the rows being pushed, so the lock is
+        # released before any Bokeh model or user callback is invoked.
+        with self._lock:
+            datastore = self._datastore
+            if datastore is None or "index" not in datastore.columns:
+                return
 
-        # Get data not yet pushed
-        update_df = self._datastore[self._datastore["index"] > self._last_idx]
+            update_df = datastore[datastore["index"] > self._last_idx]
+            if update_df.shape[0] == 0:
+                return
 
-        if update_df.shape[0] == 0:
-            return
-
-        # Update last pushed index
-        self._last_idx = update_df["index"].iloc[-1]
+            self._last_idx = update_df["index"].iloc[-1]
+            stream_length = self._get_data_stream_length_locked()
 
         fp = self._figurepage
         if fp is None:
@@ -174,7 +178,7 @@ class LiveDataHandler:
             data = fp.get_cds_streamdata_from_df(update_df)
             if data:
                 _logger.debug(f"Streaming data to figurepage: {len(data)} columns")
-                fp.cds.stream(data, self._get_data_stream_length())
+                fp.cds.stream(data, stream_length)
 
         # Push to each figure
         if hasattr(fp, "figures"):
@@ -182,7 +186,7 @@ class LiveDataHandler:
                 if hasattr(f, "get_cds_streamdata_from_df") and hasattr(f, "cds"):
                     data = f.get_cds_streamdata_from_df(update_df)
                     if data:
-                        f.cds.stream(data, self._get_data_stream_length())
+                        f.cds.stream(data, stream_length)
 
     def _cb_push_patches(self):
         """Push patch data to ColumnDataSources."""
@@ -502,15 +506,20 @@ class LiveDataHandler:
 
             time.sleep(self._timeout)
 
+    def _get_data_stream_length_locked(self):
+        """Get data stream length when the handler lock is already held."""
+        if self._datastore is None:
+            return self._lookback
+        return min(self._lookback, self._datastore.shape[0])
+
     def _get_data_stream_length(self):
-        """Get data stream length.
+        """Get the current data stream length under the handler lock.
 
         Returns:
             int: Data stream length
         """
-        if self._datastore is None:
-            return self._lookback
-        return min(self._lookback, self._datastore.shape[0])
+        with self._lock:
+            return self._get_data_stream_length_locked()
 
     def get_last_idx(self):
         """Get last data index.
@@ -518,10 +527,11 @@ class LiveDataHandler:
         Returns:
             int: Last index, returns -1 if no data
         """
-        if self._datastore is not None and self._datastore.shape[0] > 0:
-            if "index" in self._datastore.columns:
-                return self._datastore["index"].iloc[-1]
-        return -1
+        with self._lock:
+            if self._datastore is not None and self._datastore.shape[0] > 0:
+                if "index" in self._datastore.columns:
+                    return self._datastore["index"].iloc[-1]
+            return -1
 
     def set(self, df):
         """Set new DataFrame and push.

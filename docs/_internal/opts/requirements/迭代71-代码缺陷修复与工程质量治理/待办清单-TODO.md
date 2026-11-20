@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
-| 9 | P2 其余正确性 / 清理 | 36 | 16 |
+| 9 | P2 其余正确性 / 清理 | 36 | 17 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **138** |
+| | **合计** | **207** | **139** |
 
 ---
 
@@ -253,7 +253,7 @@
 - [x] **R71-049** `[P2]` `channels/funding.py:132` — gzip CSV 分支未传 `newline=""`，带引号字段含换行时可能解析错行 → 与明文分支一致传 `newline=""`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（gzip CSV 读取使用 newline=""，与 plain CSV 一致保留引号内 LF/CRLF/CR；28 项渠道解析回归和独立静态复审通过，anomaly 合同未改）。
 - [x] **R71-050** `[P2]` `filters/bsplitter.py:111` — `ohlbar[OpenInterest]=0` 后又被 `=oi` 覆盖；`closebar` 在清零前复制，两个 tick 都保留原 OI，清零语句无效 → 明确第一 tick OI=0 时改 `closebar`，或删除无效清零。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（开盘 OHLX tick 的 OI 为 0，收盘 CCCC tick 保留源 OI，避免提前暴露收盘值；真实回放及既有测试 2 项和独立静态复审通过。兼容变化及字段语义见中英文指南）。
 - [x] **R71-051** `[P2]` `indicators/basicops.py:554` — `next()` 用 `math.fsum`，`once()` 用内置 `sum`，长周期/量级差异时 runonce 与 next 浮点结果分叉 → `once()` 改用 `math.fsum`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（Average.once 经 data.get 保留线读取投影并用 fsum 与 next 对齐；13 项相关回归及独立静态复审通过。兼容变化：有限值求和溢出时批量模式也抛 OverflowError；QBuffer 走既有 next，strict Average 未单独测试）。
-- [ ] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。
+- [x] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+并发屏障**（add 回调在锁内获取待推数据快照与游标，外部 Bokeh 调用留在锁外；25 项相关回归和独立静态复审通过。stream 失败或多目标部分成功的既有不重试语义、其他状态并发不在本轮范围）。
 - [x] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（NaN 和 ±inf 时间戳统一明确 ValueError，秒/毫秒既有阈值不变；56 项相关回归和独立静态复审通过。布尔、超大/越界值与负毫秒仍沿用原合同）。
 - [ ] **R71-059** `[P2]` `utils/autodict.py:207` — `__iadd__` 同类型分支 `return self + other`，但 `AutoOrderedDict` 未定义 `__add__`，`aod1 += aod2` 抛 `TypeError`；`__isub__/__imul__` 同类问题 → 实现 `__add__/__sub__/__mul__` 或改同类型分支语义。
 - [x] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（明确并保留既有合同：字符串只接受有限整数值；非字符串使用 int 转换，有限小数向零截断，指定转换异常返回默认值。32 项相关回归及独立静态复审通过；未改变运行行为）。
