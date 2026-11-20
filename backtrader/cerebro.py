@@ -949,12 +949,17 @@ class Cerebro(
                     data.preload()
             # Start process pool
             pool = multiprocessing.Pool(self.p.maxcpus or None)
-            for r in pool.imap(self, iterstrats):
-                self.runstrats.append(r)
-                for cb in self.optcbs:
-                    cb(r)  # callback receives finished strategy
-            # Close process pool
-            pool.close()
+            try:
+                for r in pool.imap(self, iterstrats):
+                    self.runstrats.append(r)
+                    for cb in self.optcbs:
+                        cb(r)  # callback receives finished strategy
+                pool.close()
+            except BaseException:
+                pool.terminate()
+                raise
+            finally:
+                pool.join()
             # If optdatas is True, and _dopreload, and _dorunonce, iterate data and stop data
             if self.p.optdatas and self._dopreload and self._dorunonce:
                 for data in self.datas:
