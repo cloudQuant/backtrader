@@ -37,5 +37,6 @@ class RsiomaV2(Indicator):
         base = EMA(self.data.close, period=max(int(self.p.rsioma_period), 1))
         if int(self.p.mom_period) > 1:
             base = Momentum(base, period=int(self.p.mom_period))
-        self.l.rsioma = RSI(base, period=max(int(self.p.rsioma_period), 1), safediv=True)
-        self.l.signal = EMA(self.l.rsioma, period=max(int(self.p.ma_rsioma_period), 1))
+        rsioma = RSI(base, period=max(int(self.p.rsioma_period), 1), safediv=True)
+        self.l.rsioma = rsioma
+        self.l.signal = EMA(rsioma, period=max(int(self.p.ma_rsioma_period), 1))
