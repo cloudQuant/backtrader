@@ -9,7 +9,7 @@ Classes:
 
 Example:
     >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> data.addfilter(bt.filters.BarReplayerOpen())
+    >>> data.addfilter(bt.filters.BarReplayerOpen)
     >>> cerebro.adddata(data)
 """
 
