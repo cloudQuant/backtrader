@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
-| 7 | 性能专项（P1/P2） | 19 | 2 |
+| 7 | 性能专项（P1/P2） | 19 | 4 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **99** |
+| | **合计** | **207** | **101** |
 
 ---
 
@@ -190,10 +190,10 @@
 - [ ] **R71-100** `[P2]` `linebuffer.py:67-85` — 每次表达式读取新建 `set()` 并遍历 owner 链查 factor-strict context，普通非因子回测也付 2.8× 成本（0.36µs vs 0.13µs/read）→ 先查 `_ACTIVE_FACTOR_CONTEXT is None` 快速短路，缓存 per-object 标志。CONFIRMED(runtime)。
 - [ ] **R71-104** `[P2]` `lineiterator.py:1805` — `_clk_update` 每 bar 每 iterator 调 `_line_like_source_clock(self.datas[0])`（3–5 次 `object.__getattribute__`/isinstance），1.15M calls/50k bars，约 15µs/bar → 按 iterator 缓存 source clock，`datas[0]` 变化时失效。CONFIRMED(runtime)。
 - [ ] **R71-105** `[P2]` `observers/trade_logger.py:2931` — `log_indicators=True`（默认）时 `_collect_indicators` 每 bar 对 `_owner` 做 `dir()` + 每个公开属性 `getattr`；5k bar/16 indicator profile 中 **1.90s/4.81s（39%）**；JSON 模式还每 bar 构造未用 `text_line` → 启动时构建候选属性列表/只遍历 `_lineiterators[IndType]`，JSON 模式跳过 text_line。CONFIRMED(runtime)。
-- [ ] **R71-106** `[P2]` `Makefile:22,26,29,32`；`scripts/refresh_strategy_durations.py:62,66` — 本地全量目标硬编码 `-n 8` 且无 `--timeout`（仓库文档已记录 xdist 0% CPU 挂起），refresh 的 `subprocess.run` 无 timeout 可能永久挂起 → 默认 serial/较低 worker + watchdog，`--timeout=300`，子进程加 `timeout=`。CONFIRMED(source)。
+- [x] **R71-106** `[P2]` `Makefile:22,26,29,32`；`scripts/refresh_strategy_durations.py:62,66` — 本地全量目标硬编码 `-n 8` 且无 `--timeout`（仓库文档已记录 xdist 0% CPU 挂起），refresh 的 `subprocess.run` 无 timeout 可能永久挂起 → 默认 serial/较低 worker + watchdog，`--timeout=300`，子进程加 `timeout=`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控子进程**（默认 4 workers，可设 0 串行；单测 watchdog 300 秒，刷新子进程总时限 2 小时。22 项专项通过；本机缺 pytest-timeout，未运行实际 Make 测试目标）。
 - [x] **R71-107** `[P2]` `.github/workflows/test.yml:140-237` — 18 组合 `test` job 无 `timeout-minutes`（只有 pytest per-test `--timeout=300`），xdist controller 死锁不是 test timeout，可能耗尽 GitHub 360 分钟默认值 → 给 `test`/`coverage`/`wheel-consumer` 加 `timeout-minutes: 60`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 配置回归**（test、coverage 和 wheel-consumer 均设置 60 分钟 job 上限；专项 1 项通过，独立静态复审通过。未验证 GitHub Actions 实际耗时，矩阵调整另项处理）。
 - [ ] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。
-- [ ] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。
+- [x] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控子进程**（刷新默认 p35 并与 Make worker profile 对齐；拒绝非有限分位、失败或不完整日志，原子替换保护旧文件。from-log 只能依据日志文本，不能证明原进程退出码）。
 - [ ] **R71-111** `[P2]` `research/operators.py:1871-1885` — 相关系数/协方差未做 near-zero snap，ULP 噪声（±1e-16）成为不同 rank 值，`rank(correlation(...))` 破坏平局；alpha15 实测 0.4/0.6 而非 0.5 → 把 ±1 已用的 `8*eps` snap 同样应用到 0 附近。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（相关系数仅对精确 binary64 协方差为零的微小残差归零，真实微小非零保留；专项 6 项和相邻 6 项通过。6 feed × 300 bar 实测候选约 1.17%，整条运行耗时变化处于噪声范围；密集候选核算开销约增加 88%–115%。协方差路径未改，本条保持未完成）。
 - [ ] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。
 - [ ] **R71-114** `[P2]` `strategies/factor_strategy.py:364→767` — `_collect_grid_point()` 每 bar 重新 freeze/Counter 比较所有 factor graph，`_validate_research_ownership` 302 calls、`_freeze_factor_graph` 6,060 calls、2.39s/22.0s（11%）→ `start()` 时验证一次，仅显式 topology 变化时重验。CONFIRMED(runtime)。

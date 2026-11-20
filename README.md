@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # 🚀 Backtrader
 
@@ -726,18 +726,32 @@ files are edited — the split is applied dynamically from a committed durations
 file in `conftest.py`).
 
 ```bash
-# Fast dev loop (~3.5 min): all non-strategy tests + the fastest ~35% of
-# strategy tests. Best for "did my change break anything" iteration.
-make test-fast            # == pytest tests -m "not slow" -n 8 -q
+# Fast dev loop: all non-strategy tests + the fastest ~35% of strategy tests.
+# Best for "did my change break anything" iteration.
+make test-fast            # pytest tests -m "not slow and not performance" --timeout=300 -n 4 -q
 
-# Slow tier (~7 min): only the slowest ~65% of strategy tests that test-fast skips
-make test-slow            # == pytest tests -m slow -n 8 -q
+# Slow tier: only the slowest ~65% of strategy tests that test-fast skips.
+make test-slow            # pytest tests -m slow --timeout=300 -n 4 -q
 
-# Strategy regression only (all 1,271 strategy tests, ~4 min on `dev`)
-make test-strategies      # == pytest tests/functional/strategies -n 8 -q
+# Strategy regression only (all 1,271 strategy tests).
+make test-strategies      # pytest tests/functional/strategies --timeout=300 -n 4 -q
 
-# Full suite — everything in parallel (~10 min)
-make test-all             # == pytest tests -n 8 -q
+# Full suite — functional tests followed by the serial performance gate.
+make test-all             # pytest tests -m "not performance" --timeout=300 -n 4 -q
+```
+
+After the functional run, `test-fast` also runs the serial `test-performance` gate (`-n 0`).
+
+These Makefile lanes default to four xdist workers and a 300-second per-test
+watchdog. Set `BT_TEST_WORKERS=0` for serial execution or choose another worker
+count; set `BT_TEST_TIMEOUT` to change the per-test limit. The duration refresh
+script uses the same worker and timeout settings, plus a two-hour process
+limit. The timeout option is provided by the `pytest-timeout` development
+dependency.
+
+```bash
+BT_TEST_WORKERS=0 make test-strategies
+BT_TEST_WORKERS=8 BT_TEST_TIMEOUT=600 make test-fast
 ```
 
 Tune how many strategy tests stay in the fast loop with `BT_SLOW_PERCENTILE`
@@ -756,6 +770,9 @@ Refresh the duration data after adding/removing strategy tests:
 ```bash
 python scripts/refresh_strategy_durations.py
 ```
+
+`--from-log` accepts a complete successful pytest console log with strategy
+duration rows. Failed or truncated logs leave the existing duration file intact.
 
 ### Run All Tests Directly
 
@@ -1391,18 +1408,30 @@ Backtrader (BtApiFeed / BtApiStore / BtApiBroker)
 ——拆分由 `conftest.py` 读取已提交的耗时数据动态完成）。
 
 ```bash
-# 快速开发回路（约 3.5 分钟）：全部非策略测试 + 最快 ~35% 的策略测试。
+# 快速开发回路：全部非策略测试 + 最快 ~35% 的策略测试。
 # 最适合「改完代码看有没有引入 bug」的日常迭代。
-make test-fast            # 等价于 pytest tests -m "not slow" -n 8 -q
+make test-fast            # pytest tests -m "not slow and not performance" --timeout=300 -n 4 -q
 
-# 慢速档（约 7 分钟）：test-fast 跳过的那最慢 ~65% 策略测试
-make test-slow            # 等价于 pytest tests -m slow -n 8 -q
+# 慢速档：test-fast 跳过的那最慢 ~65% 策略测试。
+make test-slow            # pytest tests -m slow --timeout=300 -n 4 -q
 
-# 只跑策略回归（全部 1,271 个策略测试，`dev` 约 4 分钟）
-make test-strategies      # 等价于 pytest tests/functional/strategies -n 8 -q
+# 只跑策略回归（全部 1,271 个策略测试）。
+make test-strategies      # pytest tests/functional/strategies --timeout=300 -n 4 -q
 
-# 全量 —— 所有测试并行（约 10 分钟）
-make test-all             # 等价于 pytest tests -n 8 -q
+# 全量 —— 功能测试后串行运行性能门禁。
+make test-all             # pytest tests -m "not performance" --timeout=300 -n 4 -q
+```
+
+`test-fast` 完成功能测试后，还会串行运行 `test-performance`（`-n 0`）性能门禁。
+
+这些 Makefile 目标默认使用四个 xdist worker，并给每个测试设置 300 秒 watchdog。
+设置 `BT_TEST_WORKERS=0` 可串行运行，也可设置其他 worker 数；`BT_TEST_TIMEOUT`
+可调整单测时限。耗时刷新脚本沿用相同 worker 和单测时限，并额外限制总进程为
+两小时。timeout 参数由开发依赖 `pytest-timeout` 提供。
+
+```bash
+BT_TEST_WORKERS=0 make test-strategies
+BT_TEST_WORKERS=8 BT_TEST_TIMEOUT=600 make test-fast
 ```
 
 用环境变量 `BT_SLOW_PERCENTILE` 调节快速档里保留多少策略测试（默认 `35`，即保留
@@ -1421,6 +1450,9 @@ BT_SLOW_PERCENTILE=50 make test-fast
 ```bash
 python scripts/refresh_strategy_durations.py
 ```
+
+`--from-log` 仅接受包含策略耗时行且带成功汇总的完整 pytest 控制台日志；失败或截断日志
+不会覆盖现有耗时文件。
 
 ### 直接运行全部测试
 

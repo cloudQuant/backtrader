@@ -3,6 +3,9 @@
 DOCS_BUILD_DIR := docs/_build/html
 DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
 BT_CONDA_PYTHON ?= /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python
+BT_TEST_WORKERS ?= 4
+BT_TEST_TIMEOUT ?= 300
+export BT_TEST_WORKERS BT_TEST_TIMEOUT
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -19,21 +22,21 @@ test:  ## Run all tests
 	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ -v --tb=short
 
 test-fast:  ## Fast dev loop: parallel functional tests + serial wall-clock microbenchmarks
-	$(BT_CONDA_PYTHON) -m pytest tests -m "not slow and not performance" -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m "not slow and not performance" --timeout=$(BT_TEST_TIMEOUT) -n $(BT_TEST_WORKERS) -q
 	$(MAKE) test-performance
 
 test-strategies:  ## Run only the heavy strategy regression suite (~9 min)
-	$(BT_CONDA_PYTHON) -m pytest tests/functional/strategies -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests/functional/strategies --timeout=$(BT_TEST_TIMEOUT) -n $(BT_TEST_WORKERS) -q
 
 test-slow:  ## Run only the slowest ~65% of strategy tests (the ones test-fast skips)
-	$(BT_CONDA_PYTHON) -m pytest tests -m slow -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m slow --timeout=$(BT_TEST_TIMEOUT) -n $(BT_TEST_WORKERS) -q
 
 test-all:  ## Run parallel functional tests plus the serial performance gate
-	$(BT_CONDA_PYTHON) -m pytest tests -m "not performance" -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m "not performance" --timeout=$(BT_TEST_TIMEOUT) -n $(BT_TEST_WORKERS) -q
 	$(MAKE) test-performance
 
 test-performance:  ## Run wall-clock microbenchmarks without xdist
-	$(BT_CONDA_PYTHON) -m pytest tests -m performance -n 0 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m performance --timeout=$(BT_TEST_TIMEOUT) -n 0 -q
 
 test-original:  ## Run only original tests (excluding crypto tests)
 	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ -v --tb=short --html=tests/report.html
