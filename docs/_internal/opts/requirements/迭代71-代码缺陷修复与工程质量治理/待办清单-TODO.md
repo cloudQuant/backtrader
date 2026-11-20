@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 28 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 3 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 5 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **78** |
+| | **合计** | **207** | **80** |
 
 ---
 
@@ -154,7 +154,7 @@
 > 统一验证：`pytest tests/unit/analyzers/ tests/unit/reports/ -q`；正负样本、零方差、空交易；HTML/PNG/PDF 生成；无 bokeh 环境；并发/长会话。
 
 - [x] **R71-022** `[P1]` `reports/charts.py:166` — `"YE"` 别名仅 pandas>=2.2 支持，项目声明 `pandas>=1.3.0`，1.3–2.1 上 `resample("YE")` 抛 `ValueError` 且被吞，年度收益图静默缺失 → 用 `"A"`/`pd.offsets.YearEnd()` 或按版本分支。CONFIRMED(source)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（年度重采样使用 YearEnd 偏移，避免依赖版本特定别名。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
-- [ ] **R71-023** `[P1]` `bokeh/analyzers/recorder.py:90` — `__init__` 用 `getattr(data,"_name",None) or f"data{i}"` 建 key，`_record_datas` 用 `getattr(data,"_name",f"data{i}")`；feed `_name` 初始为 `""` 得空串，`name in self._data` 恒假，OHLCV 静默丢弃 → 两处统一 `or f"data{i}"`。CONFIRMED(source)。
+- [x] **R71-023** `[P1]` `bokeh/analyzers/recorder.py:90` — `__init__` 用 `getattr(data,"_name",None) or f"data{i}"` 建 key，`_record_datas` 用 `getattr(data,"_name",f"data{i}")`；feed `_name` 初始为 `""` 得空串，`name in self._data` 恒假，OHLCV 静默丢弃 → 两处统一 `or f"data{i}"`。CONFIRMED(source)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+合成回测**（当前源码初始化与采集均对空名称使用相同 data 索引回退；真实 Cerebro 两模式测试验证 OHLCV 完整。本轮仅补回归，未重复修改已有实现；专项 2 项通过，独立源码复核通过。同名非空 feed 的键冲突仍开放）。
 - [ ] **R71-025** `[P1]` `bokeh/plot_adapter.py:196` — `value = len + value` 先执行，`if is_end and value < 0` 对 `end=-1` 不可达，比 matplotlib `len+1+end` 少一根 bar → 先处理 `is_end` 再统一归一化。CONFIRMED(source)。
 - [ ] **R71-026** `[P1]` `bokeh/live/client.py:232` — `self.doc.hold()` 后无 `try/finally`，任一更新步骤抛错 `unhold()` 不执行，文档保持 hold、后续更新冻结 → `try/finally: self.doc.unhold()`。CONFIRMED(source)。
 - [ ] **R71-027** `[P1]` `bokeh/analyzers/plot.py:173` — `stop()` 只停 clients 不调 `self._webapp.stop()`，`_t_server` 的 loop 线程和 HTTP socket 泄漏到进程结束 → stop 中停 server/loop。CONFIRMED(source)。
@@ -175,7 +175,7 @@
 - [x] **R71-052** `[P2]` `reports/charts.py:311` — `(end-start).days` 截断到整天，日内跨度 <1 天恒为 0 落到 "Per Minute"，数小时的小时线被按分钟重采样 → 用 `total_seconds()` 或按数据频率选择。（与 R71-170 同文件，改时可一并处理。） **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（短周期使用秒级跨度与实际采样间隔；纽约夏令时跨越日线及小时线均有回归。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
 - [ ] **R71-053** `[P2]` `reports/reporter.py:367,399` — `generate_html`/`generate_pdf` 的 `charts.close_all()` 只在成功路径执行，模板/磁盘/字体异常时 matplotlib figure 泄漏 → `try/finally` 释放。
 - [ ] **R71-054** `[P2]` `reports/performance.py:449` — `sqn_to_rating` 只防 NaN 不防 `±inf`，零方差收益序列产生 inf 时比较全 False 落到最高评级 → `math.isfinite` 检查，inf 走不可用/中性分支。PLAUSIBLE（需构造零方差样本）。
-- [ ] **R71-055** `[P2]` `bokeh/analyzers/recorder.py:117` — 指标/观察器按 `obj.__class__.__name__` 建 key，两个同类实例（如两个 SMA）写入同一 list，序列长度翻倍且与 bar 索引错位 → 用实例唯一 id/索引或 `_name`+序号。（与 R71-023、R71-118 同文件，建议合并修。）
+- [x] **R71-055** `[P2]` `bokeh/analyzers/recorder.py:117` — 指标/观察器按 `obj.__class__.__name__` 建 key，两个同类实例（如两个 SMA）写入同一 list，序列长度翻倍且与 bar 索引错位 → 用实例唯一 id/索引或 `_name`+序号。（与 R71-023、R71-118 同文件，建议合并修。） **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+合成回测**（当前源码以类名与实例 ID 分键；真实 Cerebro 两个同类 SMA 的序列独立且长度正确。本轮仅补回归，未重复修改已有实现；专项 2 项通过，独立源码复核通过。同名非空 feed 的键冲突仍开放）。
 
 ## 批次 7 · 性能专项（P1/P2，必须给 before/after）
 
