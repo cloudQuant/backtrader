@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 28 |
+| 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 7 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **82** |
+| | **合计** | **207** | **83** |
 
 ---
 
@@ -146,7 +146,7 @@
 - [x] **R71-158** `[P2]` `indicators/zlema.py:61` — minperiod 重复计 period（`MovingAverageBase` 已加 period，再 `addminperiod(lag+period)` 得 `2*period+lag-1`，period 30 → 73 而非 44）→ `updateminperiod(lag+period)` 或直接设 `_minperiod`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（最小周期只叠加 lag，批量计算以输入周期定位种子并限制分段写入；真实 Cerebro 两模式、上游 SMA、短历史、缺失和既有回归共 15 项通过，独立源码复核无阻断）。
 - [x] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（预热只保存内部种子，公开趋势和方向保持 NaN；HLC 或 ATR 缺失时不发布方向。真实 Cerebro 两模式、策略 prenext 与缺失场景 22 项及既有策略回归 4 项通过，独立源码复核无阻断）。
 - [x] **R71-162** `[P2]` `indicators/directionalmove.py:377,503` — 嵌套 alias tuple 使 `bt.indicators.PlusDI`/`MinusDI` 缺失（alias 解析只展开一层）→ 扁平化 alias tuple。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（扁平化 PlusDI/MinusDI 的类别名，恢复短名与符号别名；公开导入、类身份、两模式数值及既有 DM 回归共 5 项通过，独立源码复核无阻断）。
-- [ ] **R71-163** `[P2]` `indicators/ols.py:226` — 使用已从现代 pandas 移除的 `pd.ols`，OLS 指标在新 pandas 不可用 → 改 `numpy.linalg.lstsq`/`statsmodels`。CONFIRMED(source)。
+- [x] **R71-163** `[P2]` `indicators/ols.py:226` — 使用已从现代 pandas 移除的 `pd.ols`，OLS 指标在新 pandas 不可用 → 改 `numpy.linalg.lstsq`/`statsmodels`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（NumPy 最小二乘保留截距，读取前逐窗核对两路严格递增时钟，支持常规及 exactbars 缓冲；真实 Cerebro 两模式、异步拒绝、缺失/秩亏、上游 SMA 与 reset 共 44 项通过，独立源码复核无阻断。兼容变化：仅接受可证明逐时点对齐的两输入；含非有限值或秩亏窗口返回 NaN，而旧 pandas 会丢缺失行或求伪逆。批量预计算后 reset 不自动重算；源时钟重置后不可证明历史时明确拒绝）。
 - [x] **R71-164** `[P2]` `indicators/priceops_ext.py:91-105` — `PercentReturnsPeriod` minperiod off-by-one，首个 `close[-period]` 越界，依赖 R71-095 的负索引回绕时可能读到未来 bar → minperiod 加 1，**并与 R71-095 一起修**。CONFIRMED(source) → **2026-11-20 / 与 R71-095 同一 Backtrader dev 提交 / UNIT+本地回测**（修前首个有效 bar 提前及不足历史 runonce 出错；修后预加载/逐根/批量、短历史与策略回归通过；策略正确等待一根 bar，历史快照已按两种模式一致结果更新）。
 
 ## 批次 6 · 分析器 / 报告 / Bokeh / 通知（P1/P2）
