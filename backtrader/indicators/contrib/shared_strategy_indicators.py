@@ -809,12 +809,72 @@ class AIAcceleratorOscillator(Indicator):
         self.lines.ac = ao.ao - ao_sma
 
 
+class _AdaptivePriceRange:
+    """Maintain one bounded high/low range in amortized constant time."""
+
+    def __init__(self, period):
+        self.period = period
+        self._values = deque()
+        self._maxima = deque()
+        self._minima = deque()
+        self._nan_indexes = deque()
+
+    def append(self, index, high, low):
+        """Add a newer sample and expire entries outside the window."""
+        first_index = index - self.period + 1
+        while self._values and self._values[0][0] < first_index:
+            self._values.popleft()
+        while self._maxima and self._maxima[0][0] < first_index:
+            self._maxima.popleft()
+        while self._minima and self._minima[0][0] < first_index:
+            self._minima.popleft()
+        while self._nan_indexes and self._nan_indexes[0] < first_index:
+            self._nan_indexes.popleft()
+
+        self._values.append((index, high, low))
+        if math.isnan(high) or math.isnan(low):
+            self._nan_indexes.append(index)
+
+        # Equal extrema replace older samples because the legacy range visits
+        # bars newest first and Python max/min retain the first equal value.
+        if not math.isnan(high):
+            while self._maxima and self._maxima[-1][1] <= high:
+                self._maxima.pop()
+            self._maxima.append((index, high))
+        if not math.isnan(low):
+            while self._minima and self._minima[-1][1] >= low:
+                self._minima.pop()
+            self._minima.append((index, low))
+
+    def value(self):
+        """Return the exact legacy range, including order-sensitive NaNs."""
+        if self._nan_indexes:
+            # The legacy max/min scan is newest-to-oldest. NaN comparisons are
+            # order-sensitive, so keep that behavior with a bounded slow path.
+            values = reversed(self._values)
+            _, high, low = next(values)
+            high_max = high
+            low_min = low
+            for _, high, low in values:
+                if high > high_max:
+                    high_max = high
+                if low < low_min:
+                    low_min = low
+            return high_max - low_min
+
+        return self._maxima[0][1] - self._minima[0][1]
+
+
 class AdaptiveMarketLevel(Indicator):
     """Adaptive Market Level indicator using fractal dimension and adaptive smoothing.
 
     The AML line adapts its smoothing alpha based on the measured fractal
     dimension of the price range, providing faster response in trending markets
     and slower response in mean-reverting regimes.
+
+    ``fractal`` and ``lag`` are construction-time parameters because they set
+    the minimum period and bounded state. Changing either during a run raises
+    ``RuntimeError``; ``point`` remains a per-bar threshold parameter.
     """
 
     lines = ("aml",)
@@ -826,31 +886,118 @@ class AdaptiveMarketLevel(Indicator):
     )
 
     def __init__(self):
-        """Initialize history deques and minimum period for the indicator."""
-        self._smooth_history = []
-        self._aml_history = []
-        self._min_period = max(int(self.p.fractal) * 2 + int(self.p.lag), 1)
+        """Initialize bounded histories and windows for configured parameters."""
+        lag = int(self.p.lag)
+        fractal = int(self.p.fractal)
+        self._configured_lag = lag
+        self._configured_fractal = fractal
+        self._smooth_count = 0
+        self._smooth_history = deque(maxlen=max(lag + 1, 1))
+        self._smooth_prefix = []
+        self._aml_history = deque(maxlen=1)
+        self._range_windows = self._new_range_windows(fractal)
+        self._range_index = None
+        self._min_period = max(fractal * 2 + lag, 1)
         self.addminperiod(self._min_period)
 
+    @staticmethod
+    def _new_range_windows(fractal):
+        if fractal <= 0:
+            return None
+        return (
+            _AdaptivePriceRange(fractal),
+            _AdaptivePriceRange(fractal),
+            _AdaptivePriceRange(fractal * 2),
+        )
+
+    def _range_at(self, index, sample_index):
+        ago = index - sample_index
+        ago = -ago if ago else 0
+        return (
+            float(self.data.high[ago]),
+            float(self.data.low[ago]),
+        )
+
+    def _initialize_range_windows(self, index, fractal):
+        """Seed windows once, then update them one bar at a time."""
+        # Repeated, skipped, or rewound data positions cannot be appended to
+        # the previous rolling state: start from fresh bounded windows.
+        self._range_windows = self._new_range_windows(fractal)
+        recent_start = index - fractal + 1
+        prior_start = index - fractal * 2 + 1
+        windows = self._range_windows
+        for window, start, end in (
+            (windows[0], recent_start, index),
+            (windows[1], prior_start, index - fractal),
+            (windows[2], prior_start, index),
+        ):
+            for sample_index in range(start, end + 1):
+                high, low = self._range_at(index, sample_index)
+                window.append(sample_index, high, low)
+        self._range_index = index
+
+    def _adaptive_ranges(self, fractal):
+        """Get the three fractal ranges with bounded sliding state."""
+        index = len(self.data) - 1
+        if fractal <= 0 or index + 1 < fractal * 2:
+            # Preserve legacy behavior for unsupported/nonpositive parameter
+            # combinations and before a full two-fractal window is available.
+            return (
+                self._range(fractal, 0) / fractal,
+                self._range(fractal, fractal) / fractal,
+                self._range(fractal * 2, 0) / (fractal * 2),
+            )
+
+        if self._range_index != index - 1:
+            self._initialize_range_windows(index, fractal)
+        else:
+            high = float(self.data.high[0])
+            low = float(self.data.low[0])
+            self._range_windows[0].append(index, high, low)
+            self._range_windows[2].append(index, high, low)
+
+            delayed_high = float(self.data.high[-fractal])
+            delayed_low = float(self.data.low[-fractal])
+            self._range_windows[1].append(index - fractal, delayed_high, delayed_low)
+            self._range_index = index
+
+        return tuple(window.value() / window.period for window in self._range_windows)
+
     def _range(self, count, start):
-        highs = []
-        lows = []
+        first = True
         for idx in range(start, start + count):
             ago = -idx if idx else 0
-            highs.append(float(self.data.high[ago]))
-            lows.append(float(self.data.low[ago]))
-        return max(highs) - min(lows)
+            high = float(self.data.high[ago])
+            low = float(self.data.low[ago])
+            if first:
+                high_max = high
+                low_min = low
+                first = False
+            else:
+                if high > high_max:
+                    high_max = high
+                if low < low_min:
+                    low_min = low
+        if first:
+            return max(()) - min(())
+        return high_max - low_min
 
     def next(self):
         """Compute AML value using fractal-range adaptive smoothing."""
         fractal = int(self.p.fractal)
         lag = int(self.p.lag)
+        if (
+            fractal != self._configured_fractal
+            or lag != self._configured_lag
+        ):
+            raise RuntimeError(
+                "AdaptiveMarketLevel fractal and lag are construction-time "
+                "parameters; create a new indicator to change them"
+            )
         if len(self.data) < self._min_period:
             self.lines.aml[0] = float(self.data.close[0])
             return
-        r1 = self._range(fractal, 0) / fractal
-        r2 = self._range(fractal, fractal) / fractal
-        r3 = self._range(fractal * 2, 0) / (fractal * 2)
+        r1, r2, r3 = self._adaptive_ranges(fractal)
         dim = 0.0
         if r1 + r2 > 0 and r3 > 0:
             dim = (math.log(r1 + r2) - math.log(r3)) * 1.44269504088896
@@ -864,12 +1011,24 @@ class AdaptiveMarketLevel(Indicator):
         ) / 6.0
         prev_smooth = self._smooth_history[-1] if self._smooth_history else 0.0
         smooth = alpha * price + (1.0 - alpha) * prev_smooth
-        lagged_smooth = self._smooth_history[-lag] if len(self._smooth_history) >= lag else 0.0
+        if lag > 0:
+            lagged_smooth = (
+                self._smooth_history[-lag]
+                if self._smooth_count >= lag
+                else 0.0
+            )
+        else:
+            # Match the original list indexing for zero and negative lags using
+            # only the finite prefix those indexes can address.
+            lagged_smooth = self._smooth_prefix[-lag]
         prev_aml = self._aml_history[-1] if self._aml_history else smooth
         threshold = lag * lag * float(self.p.point)
         aml = smooth if abs(smooth - lagged_smooth) >= threshold else prev_aml
+        if self._configured_lag <= 0 and len(self._smooth_prefix) <= -self._configured_lag:
+            self._smooth_prefix.append(smooth)
         self._smooth_history.append(smooth)
         self._aml_history.append(aml)
+        self._smooth_count += 1
         self.lines.aml[0] = aml
 
 
