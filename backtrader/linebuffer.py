@@ -3618,7 +3618,10 @@ class LineOwnOperation(LineActions):
         try:
             for i in range(start, end):
                 a_val = srca[i] if i < len(srca) else 0.0
-                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                if a_val is None or self._is_nan(a_val):
+                    dst[i] = float("nan")
+                    continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
                     a_val = 0.0
                 result = op(a_val)
                 if result is None or (isinstance(result, float) and not math.isfinite(result)):
@@ -3636,8 +3639,13 @@ class LineOwnOperation(LineActions):
                 # CRITICAL FIX: Bounds checking for source array
                 a_val = srca[i] if i < len(srca) else 0.0
 
-                # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                # Preserve missing source values, matching __getitem__ and
+                # LineOperation's batch path.  Keep the established policy
+                # that infinities are normalized to zero.
+                if a_val is None or self._is_nan(a_val):
+                    dst[i] = float("nan")
+                    continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
                     a_val = 0.0
 
                 result = op(a_val)
