@@ -32,5 +32,6 @@ class ZeroLagMacd(Indicator):
         ema_slow = ExponentialMovingAverage(self.data, period=self.p.slow)
         ema_slow2 = ExponentialMovingAverage(ema_slow, period=self.p.slow)
         zlema_slow = 2.0 * ema_slow - ema_slow2
-        self.lines.macd = zlema_fast - zlema_slow
-        self.lines.signal = ExponentialMovingAverage(self.lines.macd, period=9)
+        macd = zlema_fast - zlema_slow
+        self.lines.macd = macd
+        self.lines.signal = ExponentialMovingAverage(macd, period=9)
