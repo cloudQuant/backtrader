@@ -117,6 +117,7 @@ from ..execution.reconciliation_projection import (
 )
 from ._live_bar_queue import StoreLiveBarQueue
 from ._bar_history_cache import StoreBarHistoryCache, history_timeframe
+from ._latest_tick_cache import StoreLatestTickCache
 from ._market_delivery_state import StoreMarketDeliveryState
 from ._tick_stream_resync import TickStreamResyncPolicy
 
@@ -1022,8 +1023,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         )
         self._data_feeds: list = []
         self._tick_consumers: Dict[str, Any] = {}
-        self._latest_ticks: Dict[str, Any] = {}
-        self._latest_tick_lock = threading.Lock()
+        self._latest_tick_cache = StoreLatestTickCache(
+            snapshot_tick=_snapshot_tick,
+            aliases_for=_contract_metadata_aliases,
+        )
         self._broker = None
         # The Store owns Backtrader's bounded completed-bar handoff. SDK
         # subscriptions and their tick/orderbook queues remain SDK-owned.
@@ -3480,8 +3483,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 if tick is not None:
                     self._mark_feed_inflight(tick)
                 if tick is not None:
-                    with self._latest_tick_lock:
-                        self._latest_ticks[dataname] = _snapshot_tick(tick)
+                    self._latest_tick_cache.store(dataname, tick)
                 return tick
 
         with self._sdk_api_activity() as admitted:
@@ -3495,21 +3497,17 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             else:
                 tick = None
             if tick is not None:
-                with self._latest_tick_lock:
-                    self._latest_ticks[dataname] = _snapshot_tick(tick)
+                self._latest_tick_cache.store(dataname, tick)
             return tick
 
     def get_latest_tick_snapshot(self, dataname: str):
         """Return the last consumed tick without issuing market-data I/O."""
         from bt_api_py.instrument_metadata_aliases import find_alias_match
 
-        aliases = _contract_metadata_aliases(dataname)
-        with self._latest_tick_lock:
-            found, tick = find_alias_match(
-                self._latest_ticks, aliases,
-                alias_fn=_contract_metadata_aliases, require_truthy=False,
-            )
-            return _snapshot_tick(tick) if found else None
+        return self._latest_tick_cache.snapshot(
+            dataname,
+            find_alias_match=find_alias_match,
+        )
 
     def poll_orderbook(self, dataname: str, *, depth: Optional[int] = None):
         """Poll a single live orderbook snapshot from the API."""

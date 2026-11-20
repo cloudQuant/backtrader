@@ -128,8 +128,7 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
                 store._shutdown_state = "INCOMPLETE"
                 raise
         store._venue_balance_cache = {}
-        with store._latest_tick_lock:
-            store._latest_ticks.clear()
+        store._latest_tick_cache.clear()
         if funding_worker_stopped and store._sdk_stop_pending_broker_updates:
             store._sdk_stop_pending_broker_updates = False
             store._shutdown_state = "PASS"
@@ -223,8 +222,7 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
             raise
 
     store._venue_balance_cache = {}
-    with store._latest_tick_lock:
-        store._latest_ticks.clear()
+    store._latest_tick_cache.clear()
 
     market_stream_subscriptions_closed = True
     api_close_completed = store._api is None
@@ -376,8 +374,7 @@ def stop_synchronous_store_sdk(store, timeout: Optional[float] = None):
         except BaseException:
             store._shutdown_state = "INCOMPLETE"
             raise
-    with store._latest_tick_lock:
-        store._latest_ticks.clear()
+    store._latest_tick_cache.clear()
     managed_borrowed_api = store._managed_runtime_borrowed_api
     if managed_borrowed_api is not None:
         store._managed_runtime_stopped = True
@@ -522,8 +519,7 @@ def start_store(store, data=None, broker=None, *, error_type, gateway_entrypoint
                     "Cannot restart while the previous Store command worker is still running"
                 )
             store._command_runtime.reset_after_recovery()
-        with store._latest_tick_lock:
-            store._latest_ticks.clear()
+        store._latest_tick_cache.clear()
         if store._sdk_mode:
             store._reset_sdk_stream_generation()
         store._ensure_api_ready()
