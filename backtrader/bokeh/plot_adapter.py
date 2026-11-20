@@ -108,8 +108,6 @@ class BokehPlot:
         if kwargs:
             logger.warning("Unsupported plot() kwargs ignored: %s", ", ".join(sorted(kwargs)))
 
-        _ = iplot  # keep signature compatibility; actual display is deferred to show()
-
         if strategy is None:
             return []
 
