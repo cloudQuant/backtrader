@@ -13,6 +13,37 @@ from backtrader.utils.log_message import get_logger, throttled_warning
 
 logger = get_logger(__name__)
 
+_LOG_IDENTIFIER_MAX_LENGTH = 64
+
+
+def _safe_log_identifier(value, fallback):
+    """Bound and sanitize an identifier without user-defined formatting."""
+    if not issubclass(type(value), str):
+        return fallback
+
+    # Base str descriptors bypass a str subclass's conversion and slicing hooks.
+    value_length = str.__len__(value)
+    prefix = str.__getitem__(value, slice(0, _LOG_IDENTIFIER_MAX_LENGTH))
+    safe = "".join(char if char.isprintable() else "?" for char in prefix)
+    if value_length > _LOG_IDENTIFIER_MAX_LENGTH:
+        safe += "…"
+    return safe or fallback
+
+
+def _line_iterator_class_name(obj):
+    """Get a stable key label while avoiding custom name formatting hooks."""
+    try:
+        name = obj.__class__.__name__
+    except Exception:
+        name = None
+
+    if not issubclass(type(name), str):
+        name = type.__dict__["__name__"].__get__(type(obj))
+
+    # A name may legally be a str subclass; normalize it before formatting
+    # the existing per-instance key so its custom __format__ cannot run.
+    return str.__str__(name) if issubclass(type(name), str) else "object"
+
 
 class RecorderAnalyzer(bt.Analyzer):
     """
@@ -137,7 +168,9 @@ class RecorderAnalyzer(bt.Analyzer):
         given type (0=indicators, 2=observers) into ``store`` keyed by a
         per-instance name. Shared by the indicator and observer recording paths."""
         for obj in self._iter_lineiterators(ltype):
-            obj_name = "{0}#{1}".format(obj.__class__.__name__, id(obj))
+            obj_type_name = _line_iterator_class_name(obj)
+            obj_id = id(obj)
+            obj_name = "{0}#{1}".format(obj_type_name, obj_id)
             line_aliases = obj.lines.getlinealiases()
 
             if obj_name not in store:
@@ -147,13 +180,22 @@ class RecorderAnalyzer(bt.Analyzer):
                     store[obj_name][line_name] = []
 
             # Record value for each line
-            for line_name in line_aliases:
+            for line_index, line_name in enumerate(line_aliases):
                 try:
                     line = getattr(obj.lines, line_name)
                     value = line[0] if len(line) > 0 else None
                     store[obj_name][line_name].append(value)
                 except Exception:
-                    logger.warning("recorder:124 fallback on Exception")
+                    # Keep diagnostics to stable identifiers: user data and
+                    # exception messages may contain sensitive values.
+                    logger.warning(
+                        "Failed to record object '%s' line[%d] '%s'; storing None",
+                        "{0}#{1}".format(
+                            _safe_log_identifier(obj_type_name, "object"), obj_id
+                        ),
+                        line_index,
+                        _safe_log_identifier(line_name, "non-string"),
+                    )
                     store[obj_name][line_name].append(None)
 
     def stop(self):
