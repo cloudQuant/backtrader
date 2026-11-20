@@ -26,8 +26,13 @@ Example:
 """
 
 import importlib
+import importlib.util
 import os
 import sys
+
+from backtrader.utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 _BOKEH_PACKAGE_ROOT = os.path.realpath(os.path.dirname(__file__))
 _BOKEH_PACKAGE_PARENT = os.path.dirname(_BOKEH_PACKAGE_ROOT)
@@ -69,9 +74,27 @@ def _ensure_external_bokeh():
             if name == "bokeh" or name.startswith("bokeh."):
                 if module is not None and _is_local_bokeh_module(module):
                     sys.modules.pop(name, None)
-        return importlib.import_module("bokeh")
-    except ImportError:
-        return None
+
+        try:
+            bokeh_spec = importlib.util.find_spec("bokeh")
+        except ImportError:
+            logger.warning("Failed to locate third-party Bokeh: import finder failed")
+            raise
+
+        if bokeh_spec is None:
+            logger.debug("Optional third-party Bokeh package is not installed")
+            return None
+
+        try:
+            return importlib.import_module("bokeh")
+        except ModuleNotFoundError:
+            logger.warning(
+                "Failed to import third-party Bokeh: an internal dependency is missing"
+            )
+            raise
+        except ImportError:
+            logger.warning("Failed to import third-party Bokeh: import failed")
+            raise
     finally:
         sys.path[:] = original_path
 
