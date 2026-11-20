@@ -120,6 +120,7 @@ _BAR_CONSTRUCTION_TICK_FLAGS = frozenset(
 _UNHEALTHY_CONTINUITY = frozenset(
     {"gap", "stale", "disconnected", "checksum_failed", "out_of_order", "invalid"}
 )
+_BAR_HEALTH_MISSING = object()
 
 # Iteration 62 decision 2: the only flags of a bar that is volume-incomplete
 # rather than invalid (its prices come from healthy ticks).
@@ -563,8 +564,18 @@ def _normalize_bar_with_finality(bar):
     """Project a bar without discarding an explicitly supplied completion state."""
     source = dict(bar) if isinstance(bar, Mapping) else bar
     normalized = _normalize_bar(source)
-    if isinstance(source, dict) and "bar_final" in source:
-        normalized["bar_final"] = source["bar_final"]
+    if isinstance(source, dict):
+        for name in (
+            "bar_final",
+            "stale",
+            "stale_reason",
+            "continuity_status",
+            "continuity",
+            "event_id",
+            "symbol",
+        ):
+            if name in source:
+                normalized[name] = source[name]
     return normalized
 
 
@@ -2174,7 +2185,140 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         except Exception:
             _LOGGING_HEALTH["logging_errors"] += 1
 
-    def _publish_bar(self, bar) -> bool:
+    @staticmethod
+    def _bar_health_failure(bar):
+        """Return a finite reason when a bar carries invalid continuity evidence."""
+        getter = bar.get if isinstance(bar, Mapping) else lambda name, default=None: getattr(
+            bar, name, default
+        )
+        try:
+            stale = getter("stale", _BAR_HEALTH_MISSING)
+        except Exception:
+            return "invalid_bar_health_marker"
+        if stale is not _BAR_HEALTH_MISSING:
+            if type(stale) is not bool:
+                return "invalid_bar_health_marker"
+            if stale:
+                return "stale_source_bar"
+
+        try:
+            continuity = getter("continuity_status", _BAR_HEALTH_MISSING)
+            if continuity is _BAR_HEALTH_MISSING:
+                continuity = getter("continuity", _BAR_HEALTH_MISSING)
+        except Exception:
+            return "invalid_bar_health_marker"
+        if continuity is _BAR_HEALTH_MISSING or continuity is None:
+            return None
+        if type(continuity) is not str:
+            return "invalid_bar_health_marker"
+        if continuity.strip().lower() in _UNHEALTHY_CONTINUITY:
+            return "noncontinuous_source_bar"
+        return None
+
+    def _live_store_health_failure(self):
+        """Read optional Store readiness without breaking legacy Store adapters."""
+        store = self.store or getattr(self, "_store", None)
+        if store is None:
+            return None
+
+        readiness = getattr(store, "is_stream_ready", None)
+        if callable(readiness):
+            try:
+                ready = readiness(self._dataname)
+            except Exception:
+                return "store_stream_health_unavailable"
+            if type(ready) is not bool:
+                return "store_stream_health_invalid"
+            return None if ready else "store_stream_not_ready"
+
+        health_reader = getattr(store, "get_stream_health", None)
+        if not callable(health_reader):
+            # Older and simple Store implementations expose no health API;
+            # explicit per-bar markers are still checked by _publish_bar.
+            return None
+        try:
+            health = health_reader(self._dataname)
+        except Exception:
+            return "store_stream_health_unavailable"
+        if not isinstance(health, Mapping):
+            return "store_stream_health_invalid"
+
+        stale = health.get("stale", _BAR_HEALTH_MISSING)
+        continuity = health.get(
+            "continuity_status", health.get("continuity", _BAR_HEALTH_MISSING)
+        )
+        if stale is not _BAR_HEALTH_MISSING and type(stale) is not bool:
+            return "store_stream_health_invalid"
+        if continuity is not _BAR_HEALTH_MISSING and continuity is not None:
+            if type(continuity) is not str:
+                return "store_stream_health_invalid"
+            if continuity.strip().lower() in _UNHEALTHY_CONTINUITY:
+                return "store_stream_not_ready"
+        if stale is True:
+            return "store_stream_not_ready"
+        if stale is _BAR_HEALTH_MISSING and continuity not in _ATTESTED_CONTINUITY:
+            return "store_stream_health_invalid"
+        return None
+
+    def _mark_stream_unhealthy(self, reason):
+        """Project a finite Store/bar failure through the existing status path."""
+        self._handle_event_health(
+            SimpleNamespace(
+                stale=True,
+                stale_reason=reason,
+                continuity_status="gap",
+                event_id="",
+            )
+        )
+
+    def _recover_live_bar_continuity(self, bar):
+        """Restore a delayed Feed only after an accepted bar attests recovery."""
+        if not self._continuity_degraded:
+            return
+        getter = bar.get if isinstance(bar, Mapping) else lambda name, default=None: getattr(
+            bar, name, default
+        )
+        continuity = getter("continuity_status", _BAR_HEALTH_MISSING)
+        if continuity is _BAR_HEALTH_MISSING:
+            continuity = getter("continuity", _BAR_HEALTH_MISSING)
+        if (
+            type(continuity) is str
+            and continuity.strip().lower() in _ATTESTED_CONTINUITY
+        ):
+            self._continuity_degraded = False
+            _safe_log("info", "btapifeed: %s LIVE again", self._dataname)
+
+    def _mark_live_bar_dropped(self, bar, reason):
+        """Optionally close Store accounting for one refused live bar."""
+        store = self.store or getattr(self, "_store", None)
+        marker = getattr(store, "mark_feed_dropped", None) if store is not None else None
+        if not callable(marker):
+            return
+        event = bar
+        if isinstance(bar, Mapping):
+            event = SimpleNamespace(
+                symbol=bar.get("symbol") or self._dataname,
+                event_id=bar.get("event_id", ""),
+                event_type="bar",
+                key=bar.get("key"),
+            )
+        marker(event, reason)
+
+    def _publish_bar(self, bar, *, live_source=False) -> bool:
+        if live_source:
+            store_failure = self._live_store_health_failure()
+            if store_failure is not None:
+                self._mark_stream_unhealthy(store_failure)
+                self._mark_live_bar_dropped(bar, store_failure)
+                return False
+
+        health_failure = self._bar_health_failure(bar)
+        if health_failure is not None:
+            self._mark_stream_unhealthy(health_failure)
+            if live_source:
+                self._mark_live_bar_dropped(bar, health_failure)
+            return False
+
         final = bar.get("bar_final") if isinstance(bar, Mapping) else getattr(bar, "bar_final", None)
         if final is False:
             # D60-15: a provider bar still forming is never published.
@@ -2193,7 +2337,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             # A tick's mark time is its own event time, not a bucket end.
             self._valuation_bar = (date2num(when), normalized["close"], when, source)
             self._record_line_bar_quality(bar, date2num(when), source)
-            return self._load_bar(normalized)
+            loaded = self._load_bar(normalized)
+            if loaded and live_source:
+                self._recover_live_bar_continuity(bar)
+            return loaded
         normalized = _normalize_bar(bar)
         when = normalized["datetime"]
         values = tuple(
@@ -2211,7 +2358,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             date2num(when), normalized["close"], self._get_bucket_end(when), source
         )
         self._record_line_bar_quality(bar, date2num(when), source)
-        return self._load_bar(normalized)
+        loaded = self._load_bar(normalized)
+        if loaded and live_source:
+            self._recover_live_bar_continuity(bar)
+        return loaded
 
     def _record_line_bar_quality(self, bar, line_time, source):
         """Remember the quality of the bar about to be written to the lines."""
@@ -2364,8 +2514,8 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         # matching data-line advance.  Do not consume newer ticks while an
         # already completed bar is waiting for Strategy.next().
         while self._live:
-            self._mark_live()
-            if self._publish_bar(self._live.popleft()):
+            if self._publish_bar(self._live.popleft(), live_source=True):
+                self._mark_live()
                 return True
 
         if self.p.orderbook_as_ticks and not self._uses_sdk_market_streams():
@@ -2392,6 +2542,9 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if bar is None:
             if source_exhausted and not self._bar_builders:
                 return False
+            store_failure = self._live_store_health_failure()
+            if store_failure is not None:
+                self._mark_stream_unhealthy(store_failure)
             if drained_ticks or drained_orderbooks:
                 self._mark_live()
             if self._qcheck > 0:
@@ -2406,9 +2559,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 _time.sleep(_GATEWAY_IDLE_POLL_SECONDS)
             return None
 
-        self._mark_live()
-
-        return True if self._publish_bar(bar) else None
+        if self._publish_bar(bar, live_source=True):
+            self._mark_live()
+            return True
+        return None
 
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""

@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
-| 9 | P2 其余正确性 / 清理 | 36 | 20 |
+| 9 | P2 其余正确性 / 清理 | 36 | 21 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 3 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **146** |
+| | **合计** | **207** | **147** |
 
 ---
 
@@ -237,7 +237,7 @@
 - [x] **R71-099** `[P2]` `lineseries.py:2408-2564` — 导入时 `_patch_strategy_clk_update()` 用忽略 `_single_clock_data`、返回 `len(self)` 的简化版替换 `Strategy._clk_update`；当前因 `strategy` 尚未导入未生效，属潜伏 monkey-patch → 删除导入时 patch，保留 `strategy.py:1455` 真实实现。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+子进程**（移除 lineseries 模块尾自动时钟 patch，保留显式 helper；default/light 新进程及相关时钟回归 42 项、独立静态复审通过；其他模块 patch 未改）。
 - [x] **R71-112** `[P2]` `strategies/factor_strategy.py:422-436`；`factor_indicator.py:433` — `prenext` 在声明 `lookback_h` 之前发布部分公式值，`_window_is_complete` 只查尾部 presence；alpha7 预热 47 根输出 -1.0、alpha1 第 21-23 行 0.5（oracle 为 NaN）→ 按 `cursor < spec.lookback_h` 掩码/跳过或 `prenext` 写 NaN。PLAUSIBLE(panel values verified; downstream not run)。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（不足 lookback 时保留每个网格和 sink 回调但输出 NaN；零 lookback 首行仍可有效，旧正 lookback 首行有限行为改变。14 项专项及 Alpha101、公式和代表性回归通过，独立静态复审通过；原始未对齐或无字段掩码输入的历史字段检查仍为既有 fallback）。
 - [x] **R71-140** `[P2]` `feeds/btapifeed.py:3999-4015` — `compression=2` 日线仍每天一个 bucket，`_get_bucket_end()` 加两天产生重叠/重复 bars；Weeks/Months 落到 minute-style bucketing 且 end 加 `compression` 分钟，周线实际发分钟 bars → 按 compression epoch 对齐 day start，实现或显式拒绝 Weeks/Months/Years。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成 tick**（本地 tick 的秒/分/日桶按 UTC epoch 对齐，支持任意正整数压缩；tick 聚合的周/月/年等在订阅前明确拒绝，原生 bar 路径保留。58 项相关回归及独立静态复审通过；日桶为固定 UTC 日，非交易所本地交易日，原生周期 bar 的既有估值截止语义未改）。
-- [ ] **R71-141** `[P2]` `stores/_live_bar_queue.py:93-98`；`feeds/btapifeed.py:2168-2205` — 队列 overflow 时 retained bar 被标 `stale=True`/`gap`，但 `_publish_bar()` 只检查 `bar_final` 就写入 data lines，有损流 bar 对指标/策略表现为正常数据 → 拒绝或标记 stale bar，或把 Store 队列健康投影到 Feed continuity。PLAUSIBLE。
+- [x] **R71-141** `[P2]` `stores/_live_bar_queue.py:93-98`；`feeds/btapifeed.py:2168-2205` — 队列 overflow 时 retained bar 被标 `stale=True`/`gap`，但 `_publish_bar()` 只检查 `bar_final` 就写入 data lines，有损流 bar 对指标/策略表现为正常数据 → 拒绝或标记 stale bar，或把 Store 队列健康投影到 Feed continuity。PLAUSIBLE。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（发布前检查 stale/gap 和可用的 Store 健康状态，异常关闭失败；拒绝不推进数据线，健康 bar 接受后才恢复 LIVE。115 项相关回归及独立静态复审通过；真实 Store 的粘性 stale 需代际重置后恢复，不代表账户验收）。
 - [x] **R71-142** `[P2]` `feeds/__init__.py:93-124` — `__dir__`/`__getattr__` 暴露 `_MARKET_FACTOR_SOURCE_EXPORTS` 但 `__all__` 未含该集合，`from backtrader.feeds import *` 少 5 个公开符号；`blaze` 从未 import，`bt.feeds.BlazeData` 抛 `AttributeError` → 补 `__all__`，显式 import `BlazeData` 或文档说明移除。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+子进程**（补五个因子源星号导出和 BlazeData 显式懒入口；保留原有 cohort 星号导出与无 SDK 时的既有行为。6 项双导入模式回归及独立静态复审通过；Blaze 显式访问仍发弃用警告）。
 - [ ] **R71-143** `[P2]` `service/gateway_market_adapter.py:43-44,111-114,346-351` — `close()` 设 `_claims[name]=None` 而非删除，stop/close 或失败 start 后新 adapter 永久 `GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED` → close 时删除 claim。PLAUSIBLE。
 - [ ] **R71-144** `[P2]` `service/service_execution_adapter.py:150-155,404-407,462-465` — `_returned_intents`/`_projected_revisions`/`_known_record_intents` 每 managed intent 增一项且不清理 → 有界/LRU 或 terminal ack 后清理。
