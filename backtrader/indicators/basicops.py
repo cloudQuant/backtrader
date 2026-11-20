@@ -538,7 +538,14 @@ class Average(PeriodN):
 
     def once(self, start, end):
         """Calculate Average (SMA) in runonce mode"""
-        src = self.data.array
+        src_start = max(0, start - self.p.period + 1)
+        src_end = end
+        # Match next()'s line projection and strict infinity checks while
+        # reading only the source segment needed by this runonce chunk.
+        src = self.data.get(
+            ago=src_end - 1 - self.data._idx,
+            size=src_end - src_start,
+        )
         dst = self.lines[0].array
         period = self.p.period
 
@@ -550,8 +557,10 @@ class Average(PeriodN):
             if i >= period - 1:
                 start_idx = i - period + 1
                 end_idx = i + 1
-                if end_idx <= len(src):
-                    dst[i] = sum(src[start_idx:end_idx]) / period
+                local_start = start_idx - src_start
+                local_end = end_idx - src_start
+                if local_end <= len(src):
+                    dst[i] = math.fsum(src[local_start:local_end]) / period
                 else:
                     dst[i] = float("nan")
             else:
