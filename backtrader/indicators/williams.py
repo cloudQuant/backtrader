@@ -172,7 +172,14 @@ class WilliamsAD(Indicator):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        accum = 0.0
+        # The first valid value is calculated by ``oncestart`` and has no
+        # previous WilliamsAD output to continue from. Later ``once`` ranges
+        # must carry that cumulative value forward.
+        accum = (
+            0.0
+            if start == self._minperiod - 1
+            else larray[start - 1]
+        )
         for i in range(start, min(end, len(upday_array), len(downday_array), len(c_array))):
             upday_val = upday_array[i] if i < len(upday_array) else 0.0
             downday_val = downday_array[i] if i < len(downday_array) else 0.0

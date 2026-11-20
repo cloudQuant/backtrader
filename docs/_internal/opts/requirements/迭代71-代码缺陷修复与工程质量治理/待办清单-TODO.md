@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 6 |
+| 5 | 指标正确性（P1/P2） | 29 | 7 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **54** |
+| | **合计** | **207** | **55** |
 
 ---
 
@@ -125,7 +125,7 @@
 - [x] **R71-017** `[P1]` `indicators/accdecoscillator.py:50,61` — `movav` 未用；AC 只继承 AO 的 minperiod，未加 `period-1`，声明有效区间内 `ao[-1..-4]` 仍 NaN → 使用配置均线并通过依赖图传播 AO 周期加平滑窗口。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前平滑参数被忽略且预热不足；修后依赖图传播周期，SMA/EMA/WMA 全序列及跨周期逐根/批量一致性 6 项通过）。
 - [x] **R71-149** `[P1]` `indicators/aroon.py:121-133,176-188,260-286` — **所有 Aroon 变体 runonce 全 NaN**：从 `self.up`/`self.down` line-operation arrays 复制，但这些数组在 `once` 中从未调度 → `__init__` 绑定 `self.lines.aroonup = self.up` 或在 `once` 直接由 high/low 计算。CONFIRMED(runtime) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前各变体批量结果缺失；修后可见线及测试补齐的复合线与独立参考逐根一致，8 项通过；生产复合类线名由 R71-150 补齐）。
 - [x] **R71-150** `[P1]` `aroon.py:191,289`；`envelope.py:394,473`；`directionalmove.py:1003,1038` — **多基类指标丢线**：`AroonUpDown` 只有 `aroonup`、Envelope 只有 `src/sma`、DMI 1 条而非 3 条、DM 2 条而非 4 条；根因 `LineSeries.__init_subclass__` 只取第一个基类 lines（`otherbases=()`）→ 在 `LinesManager.create_lines_class` 聚合所有基类 `_lines`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（聚合多基类线、保留首基类顺序并处理菱形继承和覆盖声明；歧义线名显式报错。Envelope 同步恢复参数与两侧输出；Aroon、DMI/DM、Envelope 及线容器定向回归 117 项通过，另指标目录和核心线测试在并行候选工作树上 386 项通过；独立源码复核通过。第三方存在歧义的别名组合会报错；未涉及账户验收）。
-- [ ] **R71-151** `[P1]` `indicators/williams.py:175-194` — WilliamsAD runonce 丢第一根贡献：`once()` 每次 `accum=0.0`，`oncestart(1,2)` 后再 `once(2,end)` 从 0 重启，后续每根固定偏移 0.4365 → 从 `dst[start-1]` 继续（像 `Accum.once`）。CONFIRMED(runtime)。
+- [x] **R71-151** `[P1]` `indicators/williams.py:175-194` — WilliamsAD runonce 丢第一根贡献：`once()` 每次 `accum=0.0`，`oncestart(1,2)` 后再 `once(2,end)` 从 0 重启，后续每根固定偏移 0.4365 → 从 `dst[start-1]` 继续（像 `Accum.once`）。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（批量后续区间从前一输出继续累计；实际 Cerebro 两模式完整序列及 Williams 现有回归共 5 项通过，独立源码复核无阻断）。
 - [ ] **R71-152** `[P1]` `indicators/kama.py:139-149` — KAMA runonce seed 晚一根：`seed_idx=period`、`darray[0:period]` 播种，next 首个有效 len 30、once 31，后续最大差 0.0066 → `seed_idx = period-1`。CONFIRMED(runtime)。
 - [ ] **R71-153** `[P1]` `indicators/tsi.py:81-95,138-155` — TSI 首值恒 100.0 且 runonce 不一致：`nextstart` 用当前 price change 播种四个平滑值，`100*sm12/sm22` 恒 100；once 从 0 递归，首有效 11.85 → 两级 EMA 都用前 `period1` 个 price change 的 SMA 播种。CONFIRMED(runtime)。
 - [ ] **R71-154** `[P1]` `indicators/priceoscillator.py:200-232` — PPO signal runonce seed 不同（once 从 `prev_signal=0.0` 写 `ppo*alpha`，nextstart 写 `signal=ppo`），115 根不同 → 用首个有效 PPO 初始化 `prev_signal`。CONFIRMED(runtime)。
