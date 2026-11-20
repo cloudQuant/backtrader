@@ -341,6 +341,27 @@ def parse_json(response):
     return data if isinstance(data, dict) else {}
 
 
+def parse_json_object(response):
+    """Parse a response body only when it is a JSON object.
+
+    Unlike :func:`parse_json`, this helper preserves the distinction between a
+    real object (including an empty one) and malformed, empty, or non-object
+    response bodies. Callers that use response fields as delivery evidence
+    must not interpret a parse failure as an empty success payload.
+
+    Args:
+        response: The HTTP response.
+
+    Returns:
+        dict or None: Parsed object, or ``None`` when the body is not one.
+    """
+    try:
+        data = json.loads(response.text())
+    except (TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def retry_after_from_header(response):
     """Read a ``Retry-After`` header as seconds.
 
@@ -469,9 +490,13 @@ def _ok_dingtalk(response):
     attempt = status_attempt(response)
     if attempt is not None:
         return attempt
-    data = parse_json(response)
-    code = data.get("errcode", 0)
-    if code == 0:
+    data = parse_json_object(response)
+    if data is None:
+        return Attempt(False, "bad_request", "response body is not a JSON object")
+    if "errcode" not in data:
+        return Attempt(False, "bad_request", "response missing errcode")
+    code = data["errcode"]
+    if type(code) is int and code == 0:
         return Attempt(True)
     return code_attempt(
         code,
@@ -519,9 +544,13 @@ def _ok_wecom(response):
     attempt = status_attempt(response)
     if attempt is not None:
         return attempt
-    data = parse_json(response)
-    code = data.get("errcode", 0)
-    if code == 0:
+    data = parse_json_object(response)
+    if data is None:
+        return Attempt(False, "bad_request", "response body is not a JSON object")
+    if "errcode" not in data:
+        return Attempt(False, "bad_request", "response missing errcode")
+    code = data["errcode"]
+    if type(code) is int and code == 0:
         return Attempt(True)
     return code_attempt(code, data.get("errmsg", ""), auth=(93000, 40001), rate=(45009,))
 
@@ -562,12 +591,23 @@ def _ok_feishu(response):
     attempt = status_attempt(response, retry_after=retry_after_from_header(response))
     if attempt is not None:
         return attempt
-    data = parse_json(response)
-    code = data.get("code", data.get("StatusCode", 0))
-    if code in (0, None):
+    data = parse_json_object(response)
+    if data is None:
+        return Attempt(False, "bad_request", "response body is not a JSON object")
+    if "code" in data:
+        code = data["code"]
+        message = data.get("msg", data.get("StatusMessage", ""))
+    elif "StatusCode" in data:
+        # Feishu documents these as redundant compatibility fields for older
+        # consumers; keep that response form when the canonical code is absent.
+        code = data["StatusCode"]
+        message = data.get("StatusMessage", data.get("msg", ""))
+    else:
+        return Attempt(False, "bad_request", "response missing code")
+    if type(code) is int and code == 0:
         return Attempt(True)
     return code_attempt(
-        code, data.get("msg", data.get("StatusMessage", "")), auth=(19001, 19021), rate=(11232,)
+        code, message, auth=(19001, 19021), rate=(11232,)
     )
 
 
@@ -739,9 +779,13 @@ def _ok_bark(response):
     attempt = status_attempt(response)
     if attempt is not None:
         return attempt
-    data = parse_json(response)
-    code = data.get("code")
-    if code in (200, None):
+    data = parse_json_object(response)
+    if data is None:
+        return Attempt(False, "bad_request", "response body is not a JSON object")
+    if "code" not in data:
+        return Attempt(False, "bad_request", "response missing code")
+    code = data["code"]
+    if type(code) is int and code == 200:
         return Attempt(True)
     return code_attempt(code, data.get("message", ""))
 

@@ -289,15 +289,16 @@ def test_bind_clawbot_rejects_a_qr_response_without_target():
 def _qq(transport=None, **config):
     """Configure a QQ bot channel and return its transport.
 
-    A default transport answers the token endpoint and accepts every message, so
-    individual tests only need a handler when they exercise a failure path.
+    A default transport answers the token endpoint and returns QQ's documented
+    message id/timestamp success fields, so individual tests only need a handler
+    when they exercise a failure path.
     """
     if transport is None:
 
         def handler(request):
             if "getAppAccessToken" in request.url:
                 return json_response({"access_token": "tok-1", "expires_in": 7200})
-            return json_response({"code": 0})
+            return json_response({"id": "message-1", "timestamp": 1})
 
         transport = FakeTransport(handler=handler)
     entry = {"channel": "qq_bot", "appid": "app-1", "appsecret": "sec-1"}
@@ -356,7 +357,7 @@ def test_qq_expired_token_is_refreshed_once():
         state["sends"] += 1
         if state["sends"] == 1:
             return json_response({"code": 11241, "message": "token expired"})
-        return json_response({"code": 0})
+        return json_response({"id": "message-2", "timestamp": 2})
 
     _qq(transport=FakeTransport(handler=handler), user_openid="openid-1")
     outcome = bt.send_message("x", wait=True).outcomes[0]

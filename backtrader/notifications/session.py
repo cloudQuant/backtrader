@@ -44,6 +44,7 @@ from .channels import (
     ChannelSpec,
     compose_text,
     parse_json,
+    parse_json_object,
     status_attempt,
 )
 from .security import mask_text
@@ -617,16 +618,42 @@ class QqBotDriver:
         attempt = status_attempt(response)
         if attempt is not None:
             return attempt
-        data = parse_json(response)
-        code = data.get("code", 0)
-        if code in (0, None):
+        data = parse_json_object(response)
+        if data is None:
+            return Attempt(
+                False,
+                "bad_request",
+                "response body is not a JSON object",
+                truncated=truncated,
+            )
+
+        code_key = "code" if "code" in data else "err_code" if "err_code" in data else None
+        if code_key is not None:
+            code = data[code_key]
+            if type(code) is not int or code != 0:
+                if code is None:
+                    return Attempt(
+                        False, "bad_request", "response has an invalid error code", truncated=truncated
+                    )
+                classified = self._classify(data)
+                return Attempt(
+                    classified.ok,
+                    classified.category,
+                    classified.error,
+                    classified.retry_after,
+                    truncated=truncated,
+                )
+
+        # QQ's documented message-send success body has an id and integer
+        # timestamp. It does not use the code=0 envelope found in other APIs.
+        message_id = data.get("id")
+        timestamp = data.get("timestamp")
+        if isinstance(message_id, str) and message_id and type(timestamp) is int:
             return Attempt(True, truncated=truncated)
-        classified = self._classify(data)
         return Attempt(
-            classified.ok,
-            classified.category,
-            classified.error,
-            classified.retry_after,
+            False,
+            "bad_request",
+            "response missing QQ message id or timestamp",
             truncated=truncated,
         )
 

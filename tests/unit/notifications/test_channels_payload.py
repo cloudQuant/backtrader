@@ -12,6 +12,7 @@ from .conftest import FakeTransport, json_response, text_response
 # Responses differ per channel: Slack answers with the literal body ``ok`` and
 # Bark answers with a JSON ``code``, so the shared default is not enough.
 CHANNEL_RESPONSES = {
+    "feishu_bot": lambda: json_response({"code": 0, "msg": "success", "data": {}}),
     "slack": lambda: text_response("ok"),
     "bark": lambda: json_response({"code": 200, "message": "success"}),
 }
