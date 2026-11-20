@@ -18,7 +18,7 @@ import sys
 
 from . import metabase
 from .dataseries import DataSeries
-from .linebuffer import NAN, LineActions, LineNum
+from .linebuffer import NAN, LineActions, LineNum, _initialize_replay_default_fields
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
@@ -1343,6 +1343,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     "LineIterator line flag refresh failed; retaining existing flags",
                     exc_info=False,
                 )
+
+        _initialize_replay_default_fields(instance)
 
         return instance
 

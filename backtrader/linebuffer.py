@@ -57,6 +57,40 @@ NEG_INF = float("-inf")
 # Avoids repeated datetime object creation in hot path
 _DEFAULT_DATETIME = datetime.datetime(2000, 1, 1, 0, 0, 0)
 
+
+def _initialize_replay_default_fields(instance):
+    """Install replay defaults without hiding user-defined line aliases.
+
+    The replay loop reads these fields for every scheduled item.  Populate the
+    instance dictionary once for the common case, but preserve the existing
+    LineSeries/LineActions delegation when a line with the same name exists.
+    Class attributes would take precedence over that dynamic alias lookup.
+    """
+    try:
+        state = object.__getattribute__(instance, "__dict__")
+    except AttributeError:
+        return
+
+    lines = state.get("lines")
+    for name, default in (
+        ("_resolved_secondary_clock", None),
+        ("_once_called", False),
+    ):
+        if name in state or any(name in base.__dict__ for base in type(instance).__mro__):
+            continue
+
+        if lines is not None:
+            try:
+                getattr(lines, name)
+            except AttributeError:
+                pass
+            else:
+                # A Lines descriptor or custom Lines __getattr__ owns this
+                # spelling. Leave it visible through the normal delegation.
+                continue
+
+        state[name] = default
+
 # Research factor computation installs a context only for the duration of a
 # strict callback. ContextVar keeps that policy local to the current execution
 # context and avoids mutating shared Feed objects.
@@ -1737,6 +1771,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 exc_info=False,
             )
             instance.dnames = {}
+
+        _initialize_replay_default_fields(instance)
 
         return instance
 
