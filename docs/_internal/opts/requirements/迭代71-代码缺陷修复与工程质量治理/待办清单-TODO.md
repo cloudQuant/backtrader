@@ -34,9 +34,9 @@
 | 7 | 性能专项（P1/P2） | 19 | 10 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 21 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 7 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 8 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **151** |
+| | **合计** | **207** | **152** |
 
 ---
 
@@ -283,7 +283,7 @@
 - [x] **R71-076** `[P3]` `feeds/btcsv.py:182` — 日志硬编码 `btcsv:181`，行号漂移且描述"ignored"与实际 fallback 重试不符 → 删除硬编码行号，描述真实行为。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（日志描述真实 LineBuffer fallback，去除固定行号；触发 IndexError 并验证七条线写入的回归及相邻 CSV 测试共 3 项通过）。
 - [ ] **R71-077** `[P3]` `filters/heikinashi.py:30` — 构造器要求 `data` 位置参数但未使用，模块示例 `HeikinAshi()` 会 `TypeError` → `data` 可选或修正示例。
 - [x] **R71-078** `[P3]` `filters/daysteps.py:12` — 示例 `BarReplayerOpen()` 与 `__init__(self, data)` 不符，`addfilter` 应传类而非实例 → 修正示例。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（示例向 addfilter 传过滤器类，由 Feed 注入 data；专项回归和示例注册检查通过）。
-- [ ] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。
+- [x] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（修正填充日期、价格和数据线的文档以匹配实际实现；7 项相关过滤器测试通过。）。
 - [x] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 文档核对**（修正 adddata 与 Keeping 拼写，已核对 Cerebro 实际方法名；仅文档更改）。
 - [x] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / UNIT**（删除写入 marker 后无后续读取的两个局部赋值，保留均价计算所需读取；4 项回归通过）。
 - [ ] **R71-082** `[P3]` `_cerebro/runonce.py:30` — 循环变量 `i` 未使用 → 改为 `_`。

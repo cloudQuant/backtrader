@@ -78,9 +78,16 @@ class CalendarDays(ParameterizedBase):
 
     def _fillbars(self, data, dt, lastdt):
         """
-        Fills one by one bars as needed from time_start to time_end
+        Queue synthetic bars for the dates after ``lastdt`` through ``dt``.
 
-        Invalidates the control dtime_prev if requested
+        ``dt`` is the current feed bar's date and ``lastdt`` is the previously
+        observed date. Each synthetic bar uses the time from
+        ``data.datetime.time(0)``. A positive ``fill_price`` supplies its
+        price; ``-1`` uses the previous bar's ``data.high[-1]`` and
+        ``data.low[-1]`` midpoint; other values use ``data.close[-1]``.
+        Volume and open interest come from ``fill_vol`` and ``fill_oi``; extra
+        data lines are copied from the current bar. The current bar is queued
+        after the synthetic bars.
         """
         tm = data.datetime.time(0)  # get time part
 
