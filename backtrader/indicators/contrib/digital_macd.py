@@ -6,11 +6,9 @@ helper functions and constants without cross-test name collisions.
 """
 
 from collections import deque
+import math
 
-from .. import (
-    Indicator,
-    SimpleMovingAverage,
-)
+from .. import Indicator
 
 __all__ = [
     "DigitalMacd",
@@ -173,28 +171,43 @@ class DigitalMacd(Indicator):
         self._slow_coeffs = tuple(float(v) for v in self.SLOW_COEFFS)
         self._max_lookback = max(len(self._fast_coeffs), len(self._slow_coeffs))
         self._closes = deque(maxlen=self._max_lookback)
-        self.addminperiod(self._max_lookback + max(int(self.p.signal_period), 1))
+        self._signal_period = max(int(self.p.signal_period), 1)
+        self._signal_history = deque(maxlen=self._signal_period)
+        self.addminperiod(self._max_lookback + self._signal_period - 1)
         self._point = float(self.p.point) if float(self.p.point) else 1.0
-        self.l.signal = SimpleMovingAverage(self.l.macd, period=max(int(self.p.signal_period), 1))
+
+    def prenext(self):
+        """Build FIR and signal history while the full output is warming up."""
+        self.next()
 
     def next(self):
-        """Convolve the rolling close window with the FIR banks to set ``macd``.
+        """Convolve closes and calculate the signal from actual MACD history.
 
         Emits NaN until the buffer is full, then writes the point-scaled
         difference of the fast and slow digital filter outputs to ``macd``.
+        The signal is the simple average of the latest finite MACD window.
         """
         self._closes.append(float(self.data.close[0]))
         if len(self._closes) < self._max_lookback:
-            self.l.macd[0] = float("nan")
+            macd = float("nan")
+        else:
+            closes = tuple(self._closes)
+            fast_dma = 0.0
+            for idx, coeff in enumerate(self._fast_coeffs):
+                fast_dma += coeff * closes[-(idx + 1)]
+
+            slow_dma = 0.0
+            for idx, coeff in enumerate(self._slow_coeffs):
+                slow_dma += coeff * closes[-(idx + 1)]
+
+            macd = (fast_dma - slow_dma) / self._point
+
+        self.l.macd[0] = macd
+        self._signal_history.append(macd)
+        if len(self._signal_history) < self._signal_period or not all(
+            math.isfinite(value) for value in self._signal_history
+        ):
+            self.l.signal[0] = float("nan")
             return
 
-        closes = tuple(self._closes)
-        fast_dma = 0.0
-        for idx, coeff in enumerate(self._fast_coeffs):
-            fast_dma += coeff * closes[-(idx + 1)]
-
-        slow_dma = 0.0
-        for idx, coeff in enumerate(self._slow_coeffs):
-            slow_dma += coeff * closes[-(idx + 1)]
-
-        self.l.macd[0] = (fast_dma - slow_dma) / self._point
+        self.l.signal[0] = sum(self._signal_history) / self._signal_period
