@@ -46,7 +46,9 @@ from tests.integration.iter64_bt_quarantine_gateway_support import (
 from tests.unit.brokers.test_iter63_gateway_notification_delivery import framework
 
 
-SDK_ROOT = Path(__file__).resolve().parents[3] / "bt_api_py"
+import bt_api_py
+
+SDK_ROOT = Path(bt_api_py.__file__).resolve().parent.parent
 GATEWAY_HELPER = Path(__file__).with_name("iter64_bt_quarantine_gateway_support.py")
 ACCOUNT, DOMAIN, RUN = "account-a", "paper:demo", "strategy-run"
 GATEWAY = WireIdentity(WireRole.SERVICE, "gateway-principal", "gateway-service")
@@ -598,6 +600,10 @@ def _run_synthetic_test(tmp_path, monkeypatch):
         shutil.rmtree(tmp_path)
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="POSIX-only quarantine harness (requires 0o600 mode checks, umask and SIGTERM)",
+)
 def test_bt_local_gate_with_real_gateway_and_risk_sessions(monkeypatch):
     tmp_path = Path(tempfile.mkdtemp(prefix="iter64-bt-quarantine-"))
     try:

@@ -16,6 +16,7 @@ refuses any non-loopback connect/send. No account, CTP front or network.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
@@ -119,15 +120,31 @@ _PROBE = textwrap.dedent(
 
 
 def _probe(mode: str) -> dict:
+    if os.name == "nt":
+        env = {
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PATH": os.environ.get("PATH", os.defpath),
+            "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+            "USERPROFILE": os.environ.get("USERPROFILE", ""),
+            "TEMP": os.environ.get("TEMP", ""),
+            "TMP": os.environ.get("TMP", ""),
+        }
+    else:
+        env = {"PYTHONDONTWRITEBYTECODE": "1", "PATH": "/usr/bin:/bin"}
+    if os.environ.get("PYTHONPATH"):
+        env["PYTHONPATH"] = os.environ["PYTHONPATH"]
     completed = subprocess.run(
         [sys.executable, "-c", _PROBE, mode, json.dumps(_FORBIDDEN_ROOTS)],
         cwd=_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=120,
-        env={"PYTHONDONTWRITEBYTECODE": "1", "PATH": "/usr/bin:/bin"},
+        env=env,
     )
-    assert completed.returncode == 0, completed.stderr[-2000:]
+    diag = (completed.stderr or completed.stdout or "")[-2000:]
+    assert completed.returncode == 0, diag
     return json.loads(completed.stdout.strip().splitlines()[-1])
 
 

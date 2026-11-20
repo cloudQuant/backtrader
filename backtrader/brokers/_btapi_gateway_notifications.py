@@ -414,6 +414,7 @@ class GatewayNotificationsBrokerMixin:
         strategy = binding.strategy
         orders, trades, positions = {}, {}, {}
         order_ids, trade_ids, position_ids = {}, {}, {}
+        order_queue = []
         feeds = {id(data): ref for ref, data in binding.feeds.items()}
         seq = binding.armed.sequence
 
@@ -426,6 +427,7 @@ class GatewayNotificationsBrokerMixin:
                 key = "order/%d/%s/%d/%s" % (seq, role, index, _hash(request))
                 order_ids[ident] = key
                 orders[key] = order
+                order_queue.append(order)
             return order_ids[ident]
 
         def add_trade(trade, role, index):
@@ -490,8 +492,8 @@ class GatewayNotificationsBrokerMixin:
                 for item in value:
                     add_info_orders(item, depth + 1)
 
-        while index < len(orders):
-            order = list(orders.values())[index]
+        while index < len(order_queue):
+            order = order_queue[index]
             add_order(order.parent, "parent", len(orders))
             add_order(order.oco, "oco", len(orders))
             add_info_orders(order.info)
@@ -578,11 +580,11 @@ class GatewayNotificationsBrokerMixin:
         if binding.armed is None:
             _error("NOT_ARMED")
         _reject_metadata_notification(binding.armed)
-        binding.fault = "restart_required"
         if not orders:
             _error("EVENT_SCOPE")
         if any(self._gateway_request(binding, o) != binding.armed.request_key for o in orders):
             _error("EVENT_SCOPE")
+        binding.fault = "restart_required"
         # Build once to resolve stable object keys, then attach notification identities
         # and recapture the actual objects including those attributes.
         graph = self._gateway_graph(binding, orders, trades)
@@ -712,11 +714,11 @@ class GatewayNotificationsBrokerMixin:
         """Reject a new framework notification before it changes Strategy state."""
         binding = self._gateway_binding(strategy)
         if binding is None:
-            return None
+            return
         # A local observation-only rejection has no remote order binding: it
         # was never sent, so its framework notification must stay local.
         if order is not None and order.info.get("error_code") == "market_data_only":
-            return None
+            return
         if binding.active is not None or binding.replaying:
             _error("BUSY")
         if binding.fault is not None:
@@ -732,9 +734,8 @@ class GatewayNotificationsBrokerMixin:
                     or order.status not in (order.Submitted, order.Canceled, order.Rejected)
                     or order.executed.size != 0):
                 _error("NOT_ARMED")
-            return None
+            return
         _reject_metadata_notification(binding.armed)
-        return None
 
     def _gateway_validate_fee_notifications(self, strategy, order, corrections, done):
         binding = self.__dict__.get("_gateway_notification_bindings", {}).get(id(strategy))
@@ -1176,12 +1177,19 @@ class GatewayNotificationsBrokerMixin:
                 if not _metadata_maps_match(originals[events[0].request_key].info,
                                             key, date, time, metadata["version"]):
                     _error("RESTORE_INVALID")
-            notices = [] if is_metadata else batch["notifications"]
+            notices = (
+                []
+                if is_metadata
+                else (batch.get("notifications") if type(batch) is dict else None)
+            )
+            if type(notices) is not list or (not is_metadata and not notices):
+                _error("RESTORE_INVALID")
             expected = []
             if metadata["fee"] is not None:
                 fee = metadata["fee"]
                 if (
                     type(fee) is not dict
+                    or not notices
                     or fee != notices[0]
                     or fee["kind"] != "fee"
                     or fee["object_key"] not in restored.orders

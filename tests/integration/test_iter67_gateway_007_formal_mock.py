@@ -189,10 +189,28 @@ finally:
 '''
     installed = os.environ.get("BT_API_TEST_INSTALLED_ROOT")
     paths = ([installed] if installed else []) + [str(sdk), str(bt)]
-    env = {"PATH": os.defpath, "PYTHONPATH": os.pathsep.join(paths),
-           "CASE_ROOT": str(tmp_path), "BT_ROOT": str(bt), "PYTHONDONTWRITEBYTECODE": "1"}
+    if os.environ.get("PYTHONPATH"):
+        paths.append(os.environ["PYTHONPATH"])
+    # On Windows the child interpreter needs SystemRoot (and the real PATH for
+    # the asyncio proactor/_overlapped extension). A fully stripped env breaks
+    # import of _overlapped with WinError 10106, so carry the essential system
+    # variables while keeping the test's isolated PYTHONPATH and offline flags.
+    if os.name == "nt":
+        env = {
+            "PATH": os.environ.get("PATH", os.defpath),
+            "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+            "USERPROFILE": os.environ.get("USERPROFILE", ""),
+            "TEMP": os.environ.get("TEMP", ""),
+            "TMP": os.environ.get("TMP", ""),
+        }
+    else:
+        env = {"PATH": os.defpath}
+    env.update({"PYTHONPATH": os.pathsep.join(paths),
+                "CASE_ROOT": str(tmp_path), "BT_ROOT": str(bt),
+                "PYTHONDONTWRITEBYTECODE": "1"})
     if installed:
         env["BT_API_TEST_INSTALLED_ROOT"] = installed
     result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path, env=env,
-                            capture_output=True, text=True, timeout=240)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=240)
     assert result.returncode == 0, result.stdout + result.stderr

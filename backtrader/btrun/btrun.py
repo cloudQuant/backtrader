@@ -40,7 +40,6 @@ from ..feeds.sierrachart import SierraChartCSVData
 from ..feeds.vchartcsv import VChartCSVData
 from ..feeds.vchartfile import VChartFile
 from ..feeds.yahoo import YahooFinanceCSVData, YahooFinanceData
-from ..feeds.yahoounreversed import YahooFinanceCSVData as YahooFinanceCSVDataUnreversed
 from ..indicator import Indicator
 from ..observer import Observer
 from ..strategy import Strategy
@@ -62,7 +61,7 @@ DATAFORMATS = {
     "sierracsv": SierraChartCSVData,
     "mt4csv": MT4CSVData,
     "yahoocsv": YahooFinanceCSVData,
-    "yahoocsv_unreversed": YahooFinanceCSVDataUnreversed,
+    "yahoocsv_unreversed": YahooFinanceCSVData,
     "yahoo": YahooFinanceData,
 }
 
@@ -431,7 +430,7 @@ def getdatas(args):
 
     # Prepare some args
     dfkwargs = {}
-    if args.format == "yahoo_unreversed":
+    if args.format == "yahoocsv_unreversed":
         dfkwargs["reverse"] = True
 
     fmtstr = "%Y-%m-%d"

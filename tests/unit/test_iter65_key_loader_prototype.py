@@ -76,11 +76,25 @@ def test_private_loader_rejects_linked_files(loader, synthetic_key, link_type):
         loader._open_key(link, private=True)
 
 
-def test_non_posix_guard_is_fail_closed_with_module_local_stub(loader, monkeypatch, tmp_path):
-    # Replace only this module's os reference; never mutate shared os.name.
+def test_windows_branch_is_fail_closed_for_missing_key(loader, monkeypatch, tmp_path):
+    # Windows now uses the hardened read_bounded_windows parity path.  A
+    # missing/unprotected key must still fail closed (never a platform error,
+    # never a fabricated value). Stub only this module's os reference.
     monkeypatch.setattr(loader, "os", SimpleNamespace(name="nt"))
-    with pytest.raises(RuntimeError, match="^KEY_PLATFORM_UNSUPPORTED$"):
+    with pytest.raises(RuntimeError, match="^KEY_FILE_UNAVAILABLE$"):
         loader._open_key(tmp_path / "unopened", private=True)
+
+
+def test_windows_reader_rejects_unprotected_key(tmp_path):
+    """Windows parity refuses a group/world-readable key (owner-only required)."""
+    if os.name != "nt":
+        pytest.skip("Windows key-reader vector")
+    from bt_api_py._win32_security import Win32SecurityUnavailable, read_bounded_windows
+
+    key = tmp_path / "loose-key"
+    key.write_bytes(b"0" * 40)
+    with pytest.raises(Win32SecurityUnavailable):
+        read_bounded_windows(key, 64, protected=True)
 
 
 def test_existing_profile_validation_expands_tilde_with_synthetic_home(loader, monkeypatch, tmp_path):
@@ -99,3 +113,97 @@ def test_existing_profile_validation_expands_tilde_with_synthetic_home(loader, m
     }}
     paths = loader.validate_security_file_config(config, raw, tmp_path / "strategy")
     assert paths == {"synthetic": [home / "server", home / "client", home / "secret"]}
+
+
+def _win_set_dacl(path: Path, *extra_grants: str) -> None:
+    """Apply an explicit protected DACL (owner Full + optional extra icacls grants)."""
+    import subprocess
+    from bt_api_py._win32_security import current_user_sid
+
+    sid = current_user_sid()
+    cmd = ["icacls", str(path), "/inheritance:r", "/grant:r", f"*{sid}:(F)"]
+    for grant in extra_grants:
+        cmd.extend(["/grant:r", grant])
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows real-DACL key loader vector")
+def test_windows_owner_only_and_privileged_dacl_accepted_for_private_and_public(loader, tmp_path):
+    key = tmp_path.resolve() / "owner-only.key"
+    key.write_bytes(b"0" * 40 + b"\n")
+    _win_set_dacl(key)
+    assert loader._open_key(key, private=True) == b"0" * 40
+    assert loader._open_key(key, private=False) == b"0" * 40
+
+    # Owner + SYSTEM + Built-in Administrators (Windows equivalent of root) must remain accepted.
+    _win_set_dacl(key, "*S-1-5-18:(F)", "*S-1-5-32-544:(F)")
+    assert loader._open_key(key, private=True) == b"0" * 40
+    assert loader._open_key(key, private=False) == b"0" * 40
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows real-DACL private vs public parity vector")
+def test_windows_private_key_rejects_other_read_while_public_key_allows_it(loader, tmp_path):
+    key = tmp_path.resolve() / "auth-users-read.key"
+    key.write_bytes(b"0" * 40)
+    # Authenticated Users (S-1-5-11) has read-only access (no write): POSIX 0o644 parity.
+    _win_set_dacl(key, "*S-1-5-11:(R)")
+    assert loader._open_key(key, private=False) == b"0" * 40
+    with pytest.raises(RuntimeError, match="^KEY_FILE_UNTRUSTED$"):
+        loader._open_key(key, private=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows real-DACL write-rejection vector")
+@pytest.mark.parametrize("private", [True, False])
+def test_windows_key_rejects_other_write_for_both_private_and_public(loader, tmp_path, private):
+    key = tmp_path.resolve() / f"other-write-{private}.key"
+    key.write_bytes(b"0" * 40)
+    _win_set_dacl(key, "*S-1-5-11:(M)")
+    with pytest.raises(RuntimeError, match="^KEY_FILE_UNTRUSTED$"):
+        loader._open_key(key, private=private)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows Z85 validation vector")
+@pytest.mark.parametrize("payload", [b"0" * 10, b" " * 40, b"\x00" * 40])
+def test_windows_invalid_z85_raises_uniform_format_error(loader, tmp_path, payload):
+    key = tmp_path.resolve() / "bad-z85.key"
+    key.write_bytes(payload)
+    _win_set_dacl(key)
+    with pytest.raises(RuntimeError, match="^KEY_FORMAT_INVALID$"):
+        loader._open_key(key, private=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows narrow-exception vector")
+def test_windows_open_key_does_not_swallow_programming_error(loader, monkeypatch, tmp_path):
+    import bt_api_py._win32_security as win32_sec
+
+    key = tmp_path.resolve() / "prog-err.key"
+    key.write_bytes(b"0" * 40)
+    _win_set_dacl(key)
+    monkeypatch.setattr(
+        win32_sec,
+        "read_bounded_windows",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AttributeError("synthetic_bug")),
+    )
+    with pytest.raises(AttributeError, match="synthetic_bug"):
+        loader._open_key(key, private=False)
+
+
+def test_z85_decode_helper_unifies_error_codes_and_missing_zmq(loader, monkeypatch):
+    import builtins
+
+    assert loader._decode_z85_key(b"0" * 40 + b"\r\n") == b"0" * 40
+    with pytest.raises(RuntimeError, match="^KEY_FORMAT_INVALID$"):
+        loader._decode_z85_key(b" " * 40)
+    with pytest.raises(RuntimeError, match="^KEY_FORMAT_INVALID$"):
+        loader._decode_z85_key(b"0" * 39)
+
+    real_import = builtins.__import__
+
+    def block_zmq(name, *args, **kwargs):
+        if name == "zmq.utils" or name.startswith("zmq"):
+            raise ImportError("no zmq")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", block_zmq)
+    with pytest.raises(RuntimeError, match="^KEY_PLATFORM_UNSUPPORTED$"):
+        loader._decode_z85_key(b"0" * 40)

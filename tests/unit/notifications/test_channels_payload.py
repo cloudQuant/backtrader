@@ -209,27 +209,29 @@ def test_webhook_without_template_sends_plain_text(notifier_env):
 
 
 def test_truncation_is_byte_safe_for_wecom(notifier_env):
-    """WeCom truncates on a UTF-8 boundary and never splits a character."""
+    """WeCom truncates on a UTF-8 boundary and never exceeds 2048 UTF-8 bytes."""
     _, transport, _ = notifier_env([{"channel": "wecom_bot", "key": "k-1"}])
     result = bt.send_message("中" * 2000, wait=True)
     content = _payload(transport.requests[-1])["markdown"]["content"]
     assert "已截断" in content
-    assert len(content.encode("utf-8")) < 2048 * 2
+    assert len(content.encode("utf-8")) <= 2048
     content.encode("utf-8").decode("utf-8")  # must round-trip
     assert bt.notification_stats()["wecom_bot"]["truncated"] == 1
     assert result.outcomes[0].ok is True
 
 
 def test_truncation_by_character_for_discord(notifier_env):
-    """Discord truncates at 2000 characters and reports how much was dropped."""
+    """Discord truncates at 2000 characters and reports the exact dropped count."""
     _, transport, _ = notifier_env(
         [{"channel": "discord", "webhook_url": "https://discord.com/api/webhooks/1/abc"}]
     )
     bt.send_message("x" * 2500, wait=True)
     content = _payload(transport.requests[-1])["content"]
-    removed = len("[INFO]\n" + "x" * 2500) - 2000
-    assert "已截断 {0} 字符".format(removed) in content
-    assert len(content) < 2100
+    assert len(content) <= 2000
+    full_len = len("[INFO]\n" + "x" * 2500)
+    head, marker_body = content.rsplit("\n…（已截断 ", 1)
+    reported = int(marker_body.split(" ", 1)[0])
+    assert reported == full_len - len(head)
 
 
 def test_markdown_is_downgraded_for_plain_channels(notifier_env):

@@ -24,8 +24,14 @@ SENSITIVE_KEYS = frozenset(
         "api_key",
         "api_secret",
         "access_token",
+        "app_secret",
+        "appsecret",
         "auth_code",
         "authorization",
+        "bot_token",
+        "context_token",
+        "corp_secret",
+        "corpsecret",
         "credential",
         "credentials",
         "listen_key",
@@ -35,6 +41,7 @@ SENSITIVE_KEYS = frozenset(
         "password",
         "private_key",
         "public_key",
+        "refresh_token",
         "secret",
         "secret_key",
         "session_token",
@@ -45,15 +52,17 @@ SENSITIVE_KEYS = frozenset(
 _SENSITIVE_KEY_COMPACT = frozenset(key.replace("_", "") for key in SENSITIVE_KEYS)
 
 _SENSITIVE_TEXT_RE = re.compile(
-    r"(?i)\b(api[_-]?key|api[_-]?secret|auth[_-]?code|credential(?:s)?|"
-    r"authorization|listen[_-]?key|passphrase|passwd|password|private[_-]?key|"
-    r"secret(?:[_-]?key)?|signature|(?:access|session)[_-]?token|token)\b"
-    r"(\s*[\"']?\s*[:=]\s*[\"']?)([^,;\s\"'}]+)"
+    r"(?i)\b(api[_-]?key|api[_-]?secret|app[_-]?secret|corp[_-]?secret|"
+    r"auth[_-]?code|credential(?:s)?|authorization|listen[_-]?key|"
+    r"passphrase|passwd|password|private[_-]?key|secret(?:[_-]?key)?|signature|"
+    r"(?:access|refresh|session|context|bot)[_-]?token|token)\b"
+    r"(\s*[\"']?\s*[:=]\s*)(?:\"[^\"]*\"|'[^']*'|[^,;&\#\s\"'}\])]+)"
 )
 _AUTHORIZATION_TEXT_RE = re.compile(r"(?i)\b(bearer|basic)\s+[^,;\s]+")
 _SENSITIVE_QUERY_RE = re.compile(
-    r"(?i)([?&](?:api[_-]?key|authorization|listen[_-]?key|signature|"
-    r"(?:access|session)[_-]?token|token)=)[^&#\s]*"
+    r"(?i)([?&](?:api[_-]?key|api[_-]?secret|app[_-]?secret|corp[_-]?secret|authorization|"
+    r"listen[_-]?key|signature|(?:access|refresh|session|context|bot)[_-]?token|token)=)"
+    r"[^&#\s'\"<>)\]},;]*"
 )
 
 
@@ -67,9 +76,9 @@ def is_sensitive_key(key: Any) -> bool:
 
 
 def _redact_text(value: str) -> str:
+    value = _SENSITIVE_QUERY_RE.sub(r"\1***", value)
     value = _AUTHORIZATION_TEXT_RE.sub(r"\1 ***", value)
-    value = _SENSITIVE_TEXT_RE.sub(r"\1\2***", value)
-    return _SENSITIVE_QUERY_RE.sub(r"\1***", value)
+    return _SENSITIVE_TEXT_RE.sub(r"\1\2***", value)
 
 
 def masked_copy(value: Any, _active: Optional[set[int]] = None) -> Any:

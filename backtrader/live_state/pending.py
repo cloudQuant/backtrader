@@ -87,6 +87,7 @@ _log = get_logger(__name__)
 PENDING_VERSION = 1
 HISTORY_LIMIT = 500
 _TRANSITIONS_LIMIT = 32
+_GATEWAY_FINAL_UNSENT_STATES = frozenset({"NOT_SENT", "RELEASED", "EXPIRED"})
 
 STATUS_PREPARED = "PREPARED"
 STATUS_DISPATCHED = "DISPATCHED"
@@ -560,6 +561,72 @@ class PendingCommandStore:
             _VALIDATED_DIGESTS[key] = digest
         return state
 
+    def _trim_v2_history(self, state: dict) -> None:
+        """Trim non-gateway history and finalized gateway history to ``history_limit``.
+
+        Active markers live in ``state["active"]`` and are never touched here.
+        For Gateway markers in ``state["history"]`` (already ``TERMINAL``), only
+        markers whose Gateway record reached a finalized unsent state
+        (``NOT_SENT`` / ``RELEASED`` / ``EXPIRED``) with no active or sent
+        cancel attempts and no unacknowledged ``not_found_at_venue`` notice may
+        be evicted; their ``intents[request_key]["marker_id"]`` link is cleared
+        atomically so ``validate_gateway_state`` and ``_unresolved`` invariants
+        remain strictly preserved.
+        """
+        old = [m for m in state["history"] if "gateway_ref" not in m]
+        remove = {id(m) for m in old[:-self.history_limit]}
+
+        gateway = state.get("gateway")
+        intents = gateway.get("intents", {}) if isinstance(gateway, dict) else {}
+        cancel_attempts = (
+            gateway.get("cancel_attempts", {}) if isinstance(gateway, dict) else {}
+        )
+        pinned_cancel_keys = set()
+        if isinstance(cancel_attempts, dict):
+            for attempt in cancel_attempts.values():
+                if not isinstance(attempt, dict):
+                    continue
+                plan = attempt.get("plan")
+                req_key = plan.get("request_key") if isinstance(plan, dict) else None
+                if not isinstance(req_key, str):
+                    continue
+                rec = attempt.get("record")
+                if rec is None or (
+                    isinstance(rec, dict)
+                    and rec.get("state") in {"REQUESTED", "DISPATCHING", "UNKNOWN", "SENT"}
+                ):
+                    pinned_cancel_keys.add(req_key)
+
+        trimmable_gw = []
+        for marker in state["history"]:
+            if "gateway_ref" not in marker or marker.get("status") != STATUS_TERMINAL:
+                continue
+            ref = marker.get("gateway_ref")
+            req_key = ref.get("request_key") if isinstance(ref, dict) else None
+            if not isinstance(req_key, str) or req_key in pinned_cancel_keys:
+                continue
+            entry = intents.get(req_key)
+            if not isinstance(entry, dict) or entry.get("marker_id") != marker["marker_id"]:
+                continue
+            record = entry.get("record")
+            if not isinstance(record, dict) or record.get("state") not in _GATEWAY_FINAL_UNSENT_STATES:
+                continue
+            facts = marker.get("facts") or {}
+            if (
+                marker.get("operation") == "place"
+                and facts.get("final_status") == "not_found_at_venue"
+                and not facts.get("taken_over_at_utc")
+            ):
+                continue
+            trimmable_gw.append((marker, entry))
+
+        for marker, entry in trimmable_gw[:-self.history_limit]:
+            remove.add(id(marker))
+            entry["marker_id"] = None
+
+        if remove:
+            state["history"][:] = [m for m in state["history"] if id(m) not in remove]
+
     def _store(self, state: dict, *, trim_history: bool = True) -> None:
         if not trim_history:
             pass
@@ -568,9 +635,7 @@ class PendingCommandStore:
             if overflow > 0:
                 del state["history"][:overflow]
         else:
-            old = [m for m in state["history"] if "gateway_ref" not in m]
-            remove = {id(m) for m in old[:-self.history_limit]}
-            state["history"][:] = [m for m in state["history"] if id(m) not in remove]
+            self._trim_v2_history(state)
         if state["version"] in (2, 3, 4, 5, 6, 7, 8):
             # All writers, including the legacy mutation API, share the same
             # cross-reference contract before the atomic replacement.

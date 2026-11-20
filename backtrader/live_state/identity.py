@@ -266,6 +266,28 @@ def _audit_best_effort(root: str, record: Mapping[str, Any]) -> None:
         _log.warning("live_state audit append failed: %s", getattr(exc, "code", type(exc).__name__))
 
 
+def _create_state_dir(path: str, *, exist_ok: bool) -> bool:
+    """Create ``state/`` with an owner-only protected DACL on Windows when available."""
+    if os.path.isdir(path):
+        if not exist_ok:
+            raise FileExistsError(path)
+        return False
+    if os.name == "nt":
+        try:
+            from .gateway_initialization import _mkdir_owner_only_windows
+
+            _mkdir_owner_only_windows(path)
+            return True
+        except FileExistsError:
+            if not exist_ok:
+                raise
+            return False
+        except (ImportError, RuntimeError):
+            pass
+    os.makedirs(path, exist_ok=exist_ok)
+    return True
+
+
 def initialize_identity(strategy_dir: Any, *, account_binding: Any = None) -> StrategyIdentity:
     """Explicit first initialization of a strategy directory.
 
@@ -279,8 +301,7 @@ def initialize_identity(strategy_dir: Any, *, account_binding: Any = None) -> St
         raise LiveStateError("strategy_dir_missing")
     binding = normalize_account_binding(account_binding)
     paths = StatePaths(root)
-    created_state_dir = not os.path.isdir(paths.state_dir)
-    os.makedirs(paths.state_dir, exist_ok=True)
+    created_state_dir = _create_state_dir(paths.state_dir, exist_ok=True)
     if created_state_dir:
         fsync_directory(root)
     from .coordination import coordinated
@@ -431,7 +452,7 @@ def _rebind_coordinated(paths, root, mode, operator, reason):
             run_lock.release()
         os.rename(paths.state_dir, archive_path)
         fsync_directory(root)
-        os.makedirs(paths.state_dir)
+        _create_state_dir(paths.state_dir, exist_ok=False)
         with FileLock(paths.identity_lock):
             fresh = _initialize_locked(paths, None)
         _audit_best_effort(

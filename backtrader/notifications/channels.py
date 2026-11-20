@@ -193,11 +193,27 @@ def escape_markdown_v2(text):
     return "".join("\\" + ch if ch in _ESCAPE_MDV2 else ch for ch in text)
 
 
+_TRUNCATION_MARKER = "\n…（已截断 {0} 字符）"
+
+
+def _utf8_prefix(encoded, max_bytes):
+    """Return the longest valid UTF-8 prefix of ``encoded`` within ``max_bytes``."""
+    keep = min(len(encoded), max_bytes)
+    while keep > 0:
+        try:
+            return encoded[:keep].decode("utf-8")
+        except UnicodeDecodeError:
+            keep -= 1
+    return ""
+
+
 def truncate(text, limit, byte_limited=False):
     """Truncate ``text`` to ``limit`` and mark the result.
 
     Byte-limited channels are cut on a UTF-8 boundary so multi-byte characters
-    are never split. The marker states how much was dropped.
+    are never split. The truncation marker's space is reserved via fixed-point
+    iteration so the returned payload never exceeds ``limit`` (characters or
+    UTF-8 bytes) and the reported dropped character count is exact.
 
     Args:
         text: Text to truncate.
@@ -213,22 +229,36 @@ def truncate(text, limit, byte_limited=False):
         encoded = text.encode("utf-8")
         if len(encoded) <= limit:
             return text, False
-        removed = 0
-        keep = limit
-        while keep > 0:
-            try:
-                head = encoded[:keep].decode("utf-8")
-                break
-            except UnicodeDecodeError:
-                keep -= 1
-        else:  # pragma: no cover - only reachable with limit <= 0
-            head = ""
-        removed = len(text) - len(head)
-        return head + "\n…（已截断 {0} 字符）".format(removed), True
+        if limit <= 0:
+            return "", True
+        raw_head = _utf8_prefix(encoded, limit)
+        head = raw_head
+        while True:
+            removed = len(text) - len(head)
+            marker = _TRUNCATION_MARKER.format(removed)
+            budget = limit - len(marker.encode("utf-8"))
+            if budget <= 0:
+                return raw_head, True
+            new_head = _utf8_prefix(encoded, budget)
+            if not new_head:
+                return raw_head, True
+            if len(new_head) == len(head):
+                return new_head + marker, True
+            head = new_head
     if len(text) <= limit:
         return text, False
-    removed = len(text) - limit
-    return text[:limit] + "\n…（已截断 {0} 字符）".format(removed), True
+    if limit <= 0:
+        return "", True
+    head_len = limit
+    while True:
+        removed = len(text) - head_len
+        marker = _TRUNCATION_MARKER.format(removed)
+        new_head_len = limit - len(marker)
+        if new_head_len <= 0:
+            return text[:limit], True
+        if new_head_len == head_len:
+            return text[:head_len] + marker, True
+        head_len = new_head_len
 
 
 def context_line(notification):

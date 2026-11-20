@@ -51,16 +51,18 @@ class TransportError(Exception):
 
         Args:
             kind: Failure kind string.
-            url: Masked URL for diagnostics.
-            reason: Masked description of the original exception. Kept so an
-                operator can tell a refused connection from a DNS or TLS
-                problem without reproducing it.
+            url: URL for diagnostics (masked defensively even if pre-masked).
+            reason: Description of the original exception (masked defensively).
+                Kept so an operator can tell a refused connection from a DNS or
+                TLS problem without reproducing it.
         """
-        detail = " ({0})".format(reason) if reason else ""
-        super().__init__("{0} error for {1}{2}".format(kind, url, detail))
+        masked_url = _mask(url) if url else ""
+        masked_reason = _mask_detail(reason) if reason is not None else None
+        detail = " ({0})".format(masked_reason) if masked_reason else ""
+        super().__init__("{0} error for {1}{2}".format(kind, masked_url, detail))
         self.kind = kind
-        self.url = url
-        self.reason = reason
+        self.url = masked_url
+        self.reason = masked_reason
 
 
 class SmtpError(Exception):
@@ -75,11 +77,12 @@ class SmtpError(Exception):
 
         Args:
             kind: Failure kind string.
-            detail: Extra diagnostic text, already masked.
+            detail: Extra diagnostic text (masked defensively).
         """
-        super().__init__("{0} error{1}".format(kind, ": " + detail if detail else ""))
+        masked_detail = _mask_detail(detail) if detail else ""
+        super().__init__("{0} error{1}".format(kind, ": " + masked_detail if masked_detail else ""))
         self.kind = kind
-        self.detail = detail
+        self.detail = masked_detail
 
 
 @dataclass(frozen=True)
@@ -223,6 +226,13 @@ def _mask(url):
     return mask_url(url)
 
 
+def _mask_detail(text):
+    """Mask arbitrary diagnostic text including embedded URLs."""
+    from .security import mask_text, mask_url
+
+    return mask_url(mask_text(str(text)))
+
+
 @dataclass(frozen=True)
 class SmtpEnvelope:
     """A fully resolved email message.
@@ -309,6 +319,4 @@ def _describe(exc):
     Returns:
         str: Masked ``type: message`` text.
     """
-    from .security import mask_text
-
-    return mask_text("{0}: {1}".format(type(exc).__name__, exc))
+    return _mask_detail("{0}: {1}".format(type(exc).__name__, exc))

@@ -49,6 +49,11 @@ OFFSETS = ("open", "close", "close_today", "close_yesterday")
 _CLOSE_OFFSETS = frozenset(("close", "close_today", "close_yesterday"))
 # Venues whose "close" never closes today's position (explicit today/yesterday).
 _SPLIT_VENUES = frozenset(("SHFE", "INE"))
+# Bounded per-day applied trade keys stored in snapshot.json; if a single day
+# exceeds this cap, a reserved sentinel (without "|") is persisted so restart
+# reconciliation fails closed instead of replaying evicted trades.
+_DIRECT_APPLIED_TRADES_CAP = 5000
+_DIRECT_APPLIED_TRADES_TRUNCATED_SENTINEL = "__APPLIED_TRADES_TRUNCATED__"
 _DIRECT_PARAMS = (
     ("strategy_dir", None),
     ("first_init", False),
@@ -585,6 +590,8 @@ class BtApiDirectModeMixin:
         self._direct_symbol_venue: Dict[str, str] = {}
         self._direct_data_symbol: Dict[int, str] = {}
         self._direct_applied: Dict[str, List[str]] = {}
+        self._direct_applied_truncated: set[str] = set()
+        self._direct_applied_trades_cap: int = _DIRECT_APPLIED_TRADES_CAP
         self._direct_blocked: Dict[str, str] = {}
         self._direct_global_block: Optional[str] = None
         self._direct_foreign_orders: List[Any] = []
@@ -965,9 +972,16 @@ class BtApiDirectModeMixin:
         )
         snapshot = snapshot or {}
         local_positions = dict(snapshot.get("positions") or {})
-        self._direct_applied = {
-            day: list(keys) for day, keys in (snapshot.get("applied_trades") or {}).items()
-        }
+        self._direct_applied = {}
+        self._direct_applied_truncated = set()
+        for day, keys in (snapshot.get("applied_trades") or {}).items():
+            cleaned: List[str] = []
+            for key in keys:
+                if key == _DIRECT_APPLIED_TRADES_TRUNCATED_SENTINEL:
+                    self._direct_applied_truncated.add(day)
+                else:
+                    cleaned.append(key)
+            self._direct_applied[day] = cleaned
         prices = dict(snapshot.get("position_prices") or {})
         snapshot_day = snapshot.get("trading_day")
         self._direct_seed_configured_venues()
@@ -1085,19 +1099,50 @@ class BtApiDirectModeMixin:
                 self._direct_note_not_found(report, marker, "startup_complete_order_query")
                 continue
             listed: Dict[str, float] = {}  # the order's fills the complete trade list proves
+            unverified_truncated = False
             if order_event.exchange_order_id:
                 sys_key = (
                     "o",
                     str(order_event.symbol),
                     str(order_event.exchange_order_id).strip(),
                 )
+                day_truncated = self._direct_is_applied_truncated(facts.trading_day)
                 for trade in trades_by_order.get(sys_key, ()):
                     trade_key = self._direct_trade_key(trade)
                     if trade_key not in self._direct_applied_set():
+                        if day_truncated:
+                            # Fail-closed (R71-135): applied_trades for this day was
+                            # truncated, so absence from the bounded tail cannot prove
+                            # the fill was not already booked into local positions.
+                            unverified_truncated = True
+                            continue
                         self._direct_apply_trade_to_legs(trade)
                         self._direct_remember_trade(trade)
                         report["applied_missing_trades"] += 1
                     listed[trade_key] = abs(_num(trade.trade_qty))
+            if unverified_truncated:
+                self._direct_blocked[symbol] = "applied_trades_truncated"
+                report.setdefault("applied_trades_truncated_markers", []).append(
+                    marker["marker_id"]
+                )
+                if marker["marker_id"] not in report["unknown_markers"]:
+                    report["unknown_markers"].append(marker["marker_id"])
+                if not unknown:
+                    state.pending.mark(
+                        marker["marker_id"],
+                        "UNKNOWN",
+                        reason="applied_trades_truncated",
+                    )
+                if live_event is not None:
+                    claimed.update(k for k in keys if k in working)
+                    if self._direct_require_offset:
+                        applied = _qty_sum(*listed.values())
+                        self._direct_restore_base[marker["marker_id"]] = applied
+                        if _num(live_event.filled_qty) > applied + 1e-9:
+                            self._direct_open_restart_fill_gap(marker, live_event, applied)
+                    if self._direct_restore_order(marker, live_event):
+                        report["restored_orders"] += 1
+                continue
             if live_event is not None:
                 claimed.update(k for k in keys if k in working)
                 if self._direct_require_offset:
@@ -3656,14 +3701,28 @@ class BtApiDirectModeMixin:
     def _direct_applied_set(self) -> set:
         return set(self._direct_applied.get(self._direct_trading_day or "", ()))
 
+    def _direct_is_applied_truncated(self, day: Optional[str] = None) -> bool:
+        target = self._direct_trading_day if day is None else day
+        return bool(target) and target in getattr(self, "_direct_applied_truncated", ())
+
     def _direct_remember_trade(self, event: Any) -> None:
         day = self._direct_trading_day or ""
         for other in [key for key in self._direct_applied if key != day]:
             self._direct_applied.pop(other, None)
+        truncated = getattr(self, "_direct_applied_truncated", None)
+        if truncated is None:
+            truncated = set()
+            self._direct_applied_truncated = truncated
+        truncated.intersection_update({day} if day else set())
         keys = self._direct_applied.setdefault(day, [])
-        keys.append(self._direct_trade_key(event))
-        if len(keys) > 5000:
-            del keys[: len(keys) - 5000]
+        trade_key = self._direct_trade_key(event)
+        if trade_key not in keys:
+            keys.append(trade_key)
+        cap = max(int(getattr(self, "_direct_applied_trades_cap", _DIRECT_APPLIED_TRADES_CAP)), 1)
+        if len(keys) > cap:
+            del keys[: len(keys) - cap]
+            if day:
+                truncated.add(day)
 
     def _direct_apply_trade_to_legs(self, event: Any):
         """Apply one venue trade to the long/short legs; return BT execution facts."""
@@ -3791,6 +3850,13 @@ class BtApiDirectModeMixin:
                 "long": float(self.long_positions[symbol].price or 0.0),
                 "short": float(self.short_positions[symbol].price or 0.0),
             }
+        applied_trades_payload: Dict[str, List[str]] = {}
+        truncated = getattr(self, "_direct_applied_truncated", ())
+        for day, keys in self._direct_applied.items():
+            entries = [key for key in keys if key != _DIRECT_APPLIED_TRADES_TRUNCATED_SENTINEL]
+            if day in truncated:
+                entries = [_DIRECT_APPLIED_TRADES_TRUNCATED_SENTINEL, *entries]
+            applied_trades_payload[day] = entries
         state.snapshot.write(
             {
                 "version": 2,
@@ -3801,7 +3867,7 @@ class BtApiDirectModeMixin:
                 "trading_day": self._direct_trading_day,
                 "positions": positions,
                 "local_seq_high": int(state.sequence.local_seq),
-                "applied_trades": {day: list(keys) for day, keys in self._direct_applied.items()},
+                "applied_trades": applied_trades_payload,
                 "position_prices": prices,
             }
         )
@@ -4799,6 +4865,11 @@ class BtApiDirectModeMixin:
             key = self._direct_trade_key(trade)
             if key in applied or key in meta["trade_keys"]:
                 continue  # applied before (live return, startup, or an earlier read)
+            if self._direct_is_applied_truncated(facts.trading_day):
+                # Fail-closed (R71-135): applied_trades for this day was truncated;
+                # cannot prove this trade was not already applied prior to restart.
+                self._direct_blocked[meta["symbol"]] = "applied_trades_truncated"
+                continue
             self._direct_process_matched(order, trade)
             if key in meta["trade_keys"]:
                 applied.add(key)
@@ -5894,6 +5965,12 @@ class BtApiDirectModeMixin:
             key = self._direct_trade_key(trade)
             if key in applied and key not in carried:
                 carried.append(key)
+        cap = max(int(getattr(self, "_direct_applied_trades_cap", _DIRECT_APPLIED_TRADES_CAP)), 1)
+        self._direct_applied_truncated = set()
+        if len(carried) > cap:
+            del carried[: len(carried) - cap]
+            if to_day:
+                self._direct_applied_truncated.add(to_day)
         self._direct_applied = {to_day: carried}
 
     # ------------------------------------------------------------------

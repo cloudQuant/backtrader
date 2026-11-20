@@ -109,7 +109,15 @@ def order_update_row(observation, *, data_name, local_ref=None):
     """The neutral Broker update row for one ``AccountExecutionOrderObservation``."""
 
     record = observation.order
-    status, terminal = _STATUS[record.status]
+    # An undeclared provider status is not projected: mark the order's
+    # execution unknown (fail-closed) instead of raising a bare ``KeyError``
+    # that would escape ``_poll_gateway_execution_events``'s never-raises
+    # contract without disabling trading via ``_fail_gateway_binding``.
+    status, terminal = (
+        _STATUS.get(record.status, ("unknown", False))
+        if isinstance(record.status, str)
+        else ("unknown", False)
+    )
     if status == "accepted" and Decimal(record.filled_quantity) > 0:
         status = "partial"
     row = {
@@ -167,11 +175,12 @@ class GatewayExecutionProjectionStore:
 
     def __init__(self, path, binding):
         self._binding = json.dumps(binding, sort_keys=True, separators=(",", ":"))
+        db = None
         try:
-            self._db = sqlite3.connect(str(path), isolation_level=None)
-            self._db.execute("PRAGMA journal_mode=WAL")
-            self._db.execute("PRAGMA synchronous=FULL")
-            self._db.executescript("""
+            db = sqlite3.connect(str(path), isolation_level=None)
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA synchronous=FULL")
+            db.executescript("""
                 CREATE TABLE IF NOT EXISTS meta (
                     id INTEGER PRIMARY KEY CHECK (id = 1), schema TEXT NOT NULL,
                     binding TEXT NOT NULL);
@@ -190,19 +199,31 @@ class GatewayExecutionProjectionStore:
                     record TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS order_fills_client ON order_fills(client_order_id);
                 """)
-            self._db.execute("BEGIN IMMEDIATE")
-            row = self._db.execute("SELECT schema, binding FROM meta WHERE id=1").fetchone()
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT schema, binding FROM meta WHERE id=1").fetchone()
             if row is None:
-                self._db.execute(
+                db.execute(
                     "INSERT INTO meta VALUES (1, ?, ?)", (_STORE_SCHEMA, self._binding)
                 )
             elif row != (_STORE_SCHEMA, self._binding):
-                self._db.execute("ROLLBACK")
-                self._db.close()
                 raise GatewayExecutionEventsError("PROJECTION_STORE_BINDING_MISMATCH")
-            self._db.execute("COMMIT")
-        except sqlite3.Error:
-            raise GatewayExecutionEventsError("PROJECTION_STORE_UNAVAILABLE") from None
+            db.execute("COMMIT")
+            self._db = db
+        except BaseException as exc:
+            if db is not None:
+                try:
+                    if getattr(db, "in_transaction", False):
+                        db.execute("ROLLBACK")
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
+            if isinstance(exc, sqlite3.Error):
+                raise GatewayExecutionEventsError("PROJECTION_STORE_UNAVAILABLE") from None
+            raise
 
     def _write(self, statements):
         try:
@@ -212,7 +233,10 @@ class GatewayExecutionProjectionStore:
             self._db.execute("COMMIT")
         except sqlite3.Error:
             if self._db.in_transaction:
-                self._db.execute("ROLLBACK")
+                try:
+                    self._db.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
             raise GatewayExecutionEventsError("PROJECTION_STORE_FAILED") from None
 
     @staticmethod
@@ -381,6 +405,8 @@ class _GatewayExecutionBinding:
         self.data_names = data_names
         self.acknowledge = acknowledge
         self.live = {}
+        self._persisted_orders_store = store
+        self._persisted_orders = set()
         self.state = "ACTIVE"
         self.counters = {"applied": 0, "skipped": 0, "orphaned": 0, "deferred": 0, "fenced": 0}
 
@@ -507,6 +533,14 @@ class GatewayExecutionEventsBrokerMixin:
             self.poll_gateway_execution_events()
         except GatewayExecutionEventsError as error:
             _logger.error("gateway execution events failed (%s); will retry", error.code)
+        except Exception as error:
+            for binding in (self._gateway_execution_bindings or {}).values():
+                if binding.state == "ACTIVE":
+                    self._fail_gateway_binding(binding, "GATEWAY_EXECUTION_POLL_FAILED")
+            _logger.error(
+                "gateway execution events failed unexpectedly (%s); trading disabled",
+                type(error).__name__,
+            )
 
     def _gateway_targets(self, strategy):
         bindings = self._gateway_execution_bindings or {}
@@ -541,6 +575,14 @@ class GatewayExecutionEventsBrokerMixin:
         except GatewayExecutionEventsError as error:
             self._fail_gateway_binding(binding, error.code)
             raise
+        except Exception as error:
+            code = (
+                "PROJECTION_STORE_FAILED"
+                if isinstance(error, sqlite3.Error)
+                else "GATEWAY_EXECUTION_EVENT_FAILED"
+            )
+            self._fail_gateway_binding(binding, code)
+            raise GatewayExecutionEventsError(code) from None
 
     def _fail_gateway_binding(self, binding, code):
         binding.state = "FAILED"
@@ -563,17 +605,21 @@ class GatewayExecutionEventsBrokerMixin:
         if client_order_id in (None, ""):
             return
         client_order_id = str(client_order_id)
+        if binding._persisted_orders_store is not binding.store:
+            binding._persisted_orders_store = binding.store
+            binding._persisted_orders = set()
         known = binding.live.get(client_order_id)
-        if known is order and binding.store.has_order(client_order_id):
+        if known is order and client_order_id in binding._persisted_orders:
             return
         if known is not None and known is not order:
             raise GatewayExecutionEventsError("CLIENT_ORDER_ID_REUSED")
-        binding.live[client_order_id] = order
         if not binding.store.has_order(client_order_id):
             binding.store.put_order(
                 client_order_id,
                 _order_record(self, order, binding.strategy_ref, client_order_id),
             )
+        binding.live[client_order_id] = order
+        binding._persisted_orders.add(client_order_id)
 
     def _apply_gateway_event(self, binding, event):
         from bt_api_base.execution_row_observation_protocol import EXECUTION_ORDER_EVENT_KIND
@@ -746,6 +792,7 @@ class GatewayExecutionEventsBrokerMixin:
             if external:
                 self._orders_by_external_id[str(external)] = order
             binding.live[client_order_id] = order
+            binding._persisted_orders.add(client_order_id)
             self._restore_gateway_fills(binding, client_order_id, order)
             rebuilt += 1
         return rebuilt

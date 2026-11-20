@@ -1,0 +1,335 @@
+﻿# 迭代 71（合并版）待办清单 · TODO List
+
+> **用途**：这是本迭代唯一的执行清单，供逐条解决。每完成一条把 `[ ]` 改成 `[x]`，并在后面补上提交/证据。**不要一次开多条**。
+> **状态**：规划草案（REVIEW_PENDING），2026-11-19。本轮只做静态诊断与清单编制，**未修改任何生产代码**；清单不表示缺陷已修复或任何能力已验收。
+> **来源合并**：本文件由「原迭代 71（全库缺陷修复与性能优化，163 条）」+「原迭代 72（代码缺陷修复与工程质量治理，25 条）」+「2026-11-19 OpenCodeReview 续审（N72-*，20 条）」合并去重而成。按用户指令，原迭代 71 已删除、原迭代 72 重新编号为**迭代 71**。
+
+## 使用约定
+
+- **勾选格式**：`- [ ]` → `- [x] ID`（可附 `2026-11-xx / commit / 证据等级`）。
+- **优先级**：`P0` 阻断（入口不可用）> `P1` 确定性错误结果/错误交易状态/资源泄漏/异常逃逸/安全放松 > `P2` 行为不一致、坏味道、可测性能优化 > `P3` 结构演进、文档、微优化。
+- **每条固定动作**：① 最小复现（pytest 或 `/tmp` 脚本，确认在未修改代码上失败）→ ② 最小修复 → ③ 回归测试 → ④ 勾选并记证据。**PLAUSIBLE 条目无法复现就降级/关闭，不进入实现**。
+- **编号来源**（合并后保留前缀，避免与 `R71-001~175` 冲突）：
+  - `R71-xxx` = 原迭代 71 审阅发现（`审阅发现清单-2026-11-17.md`）
+  - `R72-BUG/OPT/STR-xx` = 原迭代 72 清单（本目录 `迭代计划.md` 历史版本）
+  - `N72-xx` = 2026-11-19 续审新增（`审阅发现清单-2026-11-19.md`）
+  - `≡` 表示同一问题的双编号，**只勾一次**。
+- **证据等级**：`CONFIRMED(source)` / `CONFIRMED(runtime|FAKE)` / `PLAUSIBLE` / `STATIC`。静态审阅不等于真实账户、SimNow、真实 Gateway/Risk 或发行验收（均为 NOT_RUN）。
+- **Fail-Closed 红线**：不放宽安全边界；不伪造数据、不静默吞异常、不自动重发 UNKNOWN、不改变订单/成交/风控语义；性能优化必须先证明全序列等价。
+- **`[跨仓]`**：位于 `D:/bt_api_py` 等 SDK 子仓，按 SDK 子仓 → 父仓 gitlink → BT 顺序另立处理，不在本仓直接改。
+
+## 进度看板
+
+| 批次 | 主题 | 条目数 | 已完成 |
+|---|---|---:|---:|
+| 0 | 开工准备与基线 | 4 | 0 |
+| 1 | P0 阻断 | 1 | 1 |
+| 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
+| 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
+| 4 | 核心生命周期与数据通道（P1） | 17 | 0 |
+| 5 | 指标正确性（P1/P2） | 30 | 0 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 24 | 0 |
+| 7 | 性能专项（P1/P2） | 18 | 0 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 16 | 0 |
+| 9 | P2 其余正确性 / 清理 | 42 | 0 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 24 | 0 |
+| 11 | 回归验收与矩阵同步 | 5 | 0 |
+| | **合计** | **212** | **32** |
+
+---
+
+## 批次 0 · 开工准备与基线
+
+> 本批次必须先完成，后续每条都依赖它。
+
+- [ ] **B0-01** `[P1]` 固定工具版本与基线：`ocr v1.13.13`、`ruff 0.16.2`、`mypy 1.14.1`；记录本轮实跑 `ruff 45 errors` / `mypy 559 errors in 75 files`。**不要沿用迭代 72 文档的 ruff 0.15.5 / mypy 1.19.1 / 471 处**（见 N72-18）。验证：把版本号与数字写入 `审阅发现清单-2026-11-19.md` §0。
+- [ ] **B0-02** `[P1]` 按 71.01 为所有 P0/P1 写最小复现，确认在未修改代码上失败；`PLAUSIBLE` 条目逐条确认或降级。**此步不修改产品代码**。验证：复现日志清单。
+- [ ] **B0-03** `[P2]` 建立独立提交点；保留当前 7 个无关的 dirty 修改（`gateway_initialization.py` 等）不误提交。验证：`git status --short` 前后对比。
+- [ ] **B0-04** `[P1]` 复核 Fail-Closed 边界与跨仓顺序；确认 `bt_api_*` 侧修改另立流程。验证：在交付说明中写明范围与仓库。
+
+## 批次 1 · P0 阻断（先修，否则 CLI 完全不可用）
+
+- [x] **R71-117** `[P0]` `backtrader/btrun/btrun.py:43` — `import backtrader.btrun` 直接 `ModuleNotFoundError: backtrader.feeds.yahoounreversed`，整个 btrun CLI 不可用；同文件 `args.format == "yahoo_unreversed"` 与注册键 `"yahoocsv_unreversed"` 不一致 → 恢复 feed 模块或改用 `YahooFinanceCSVData(reverse=True)`，修正 format 键。验证：`python -c "import backtrader.btrun"` + CLI 冒烟。证据：CONFIRMED(runtime import) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+RUNTIME**（`tests/unit/test_iter71_batch1_2c.py` + `--help` 冒烟，ruff 0 errors）。
+
+## 批次 2 · Gateway / 实盘执行安全（P1，最高优先）
+
+> 统一验证：`pytest tests/unit/brokers/ tests/integration/ -q`；Gateway 条目还需 fake 异常注入（未映射状态、空批次、SQLite 失败）与 never-raises 合同测试；连接/文件句柄计数。
+
+- [x] **R71-001 ≡ R72-BUG-01** `[P1]` `brokers/_btapi_gateway_events.py:112` — `_STATUS[record.status]` 对未声明状态抛裸 `KeyError`，`:508` 只捕 `GatewayExecutionEventsError`，异常击穿 `_poll_gateway_execution_events` 的 `never raises`，交易未经 `_fail_gateway_binding` 禁用 → 改 `_STATUS.get(record.status, ("unknown", False))`，补 never-raises 回归。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-002 ≡ R72-BUG-02** `[P1]` `brokers/_btapi_gateway_notifications.py:1179,1185` — `notices = [] if is_metadata else batch["notifications"]` 后直接 `fee != notices[0]`，空批次抛裸 `IndexError` 而非 `RESTORE_INVALID` → 索引前显式判空。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-003 ≡ R72-BUG-03** `[P1]` `brokers/_btapi_gateway_notifications.py:581` — `binding.fault = "restart_required"` 在 `if not orders` 与 `request_key` 范围校验之前设置，普通范围校验失败会永久锁死策略 → 下移 fault 设置，补 trade-only 用例。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-004 ≡ R72-BUG-04 + N72-20** `[P1]` `brokers/_btapi_gateway_events.py:201,204` — 【部分修复】`:201` binding 不匹配分支已 `close()`，但 `:204 except sqlite3.Error` 通用路径仍只转换异常、无 `close()`；PRAGMA/`executescript`/`BEGIN IMMEDIATE` 失败仍泄漏连接 → `try/finally` 或 except 分支补 `self._db.close()`，加连接泄漏计数测试。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`，全初始化异常路径 0 泄漏）。
+- [x] **N72-03** `[P1]` `service/gateway_config.py:105-116` — `BEGIN IMMEDIATE` 后无 rollback；异常路径把「处于打开写事务、表未装完」的连接缓存进 `store._gateway_execution_db`，`:86-87` 幂等早返回会原样复用 → 事务包 `try/except BaseException: db.rollback(); raise`，失败时清缓存或标记不可用。**与 R71-004 是不同文件不同路径，两条都要修**。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（`test_iter63_gateway_store_config.py`）。
+- [x] **R71-005** `[P1]` `brokers/_btapi_gateway_events.py:522` — 每 tick 轮询全部 orders 并对每个调 `_remember_gateway_order`，后者对已 known 订单仍执行 `store.has_order(...)` SQLite 查询，每 tick O(N) DB 往返 → 已绑定订单直接跳过。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-006** `[P1]` `brokers/_btapi_gateway_notifications.py:493` — `_gateway_graph` 循环内 `list(orders.values())[index]` 每次重建完整列表，整体 O(n²) → 维护并行 key 列表或 `itertools.islice`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-127** `[P1]` `brokers/_btapi_recovery.py:730-733` — V2 recovery fill 写 `"size"/"commission"`，`_apply_trade_update` 读 `"quantity"/"fee"`，每个 fill 变成 `mismatch` → `_fence_service_execution_recovery` 禁用交易 → 输出 canonical keys `quantity/price/fee/fee_currency/fee_unit`。CONFIRMED(static) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_broker_batch2b.py`）。
+- [x] **R71-128** `[P1]` `brokers/btapibroker.py:6024-6119` — dual-side（hedge）成交未调 `_record_provider_fee`（single-side 在 5791 调用），费用/现金低估 → 在 `_apply_dual_side_trade_update` 的 `order.execute(...)` 后补记。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_broker_batch2b.py`）。
+- [x] **R71-129** `[P1]` `brokers/btapibroker.py:5446-5457`（亦 5189-5196） — `cancel_rejected` 只清 `cancel_execution_unknown`，未清 order 级 `execution_unknown`，订单永久不确定 → 确认撤单拒绝且无其他不确定时清除，同步 `_apply_managed_cancel_projection`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_broker_batch2b.py`，双面 fail-closed 验证）。
+- [x] **R71-130** `[P1]` `brokers/btapibroker.py:4827-4845,5636-5638` — `_trade_dedupe_key` 在缺 `trade_id`/`fill_id` 时返回 `None`，随后无 dedupe 直接 `order.execute(...)`，provider 重放 ID-less fill 会重复记账 → 标 UNKNOWN 或用 order/client id+qty+price+timestamp 构造确定性 fallback key；绝不清空 dedupe。PLAUSIBLE（已复现确认）→ **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（非累计路径无有效 `trade_id`/`fill_id` 时 fail-closed 隔离拒绝；`test_iter71_broker_batch2b.py`）。
+- [x] **R71-131** `[P1]` `brokers/_btapi_gateway_stream.py:1448-1462,1784-1803` — 每个 TRADE 事件调 `trade_facts()` 从 sequence 0 分页重读完整历史，10,000 事件后硬失败 `SCAN_LIMIT`，长会话首个 trade 即中止 → 维护 trade-key→metadata 索引或只读相关 sequence range，把硬 fence 换成有界查找。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（增量游标+索引，`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-132** `[P2]` `brokers/_btapi_gateway_stream.py:1556-1639` — 每 tick 两次 `local_order_notifications()`（全锁+JSON+deep copy），再对每个 notice.orders 重锁重解析整状态文件，O(N×state)/tick → terminal order 跳过、每 pass 只加载一次 route/record。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（`test_iter71_gateway_batch2a.py`）。
+- [x] **R71-133** `[P2]` `live_state/pending.py:563-573` — Gateway marker 被排除在 history trim 外，`pending.json` 无界增长（docstring 承诺 bounded last-500）→ 对 gateway history 也做 bounded 或 finalize compact。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（对已终态未发送 Gateway 历史有界裁剪并保护活跃/`RESERVED`/`SENT` 契约，`test_iter71_pending_history.py`）。
+- [x] **R71-134** `[P2]` `brokers/btapibroker.py:232-233,5798,5810-5816,5870` — `_seen_trade_ids` / `_applied_fill_fees` 只增不删，后者保存每个 Order 引用 → LRU 或按 durable fill index 确认后清理。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（有界 LRU + `weakref` 允许 Order GC，`test_iter71_broker_batch2b.py`）。
+- [x] **R71-135** `[P2]` `brokers/_btapi_direct_mode.py:3659-3666,1059-1070` — applied-trade key 按天截到 5,000，重启 `_direct_reconcile` 对不在集合内的 active marker trade 全部重放，>5,000 fills/day 时二次记账 → 持久化完整 per-day index 或 compact digest；cap overflow 视为 fill gap。PLAUSIBLE（已复现确认）→ **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+FAKE**（引入保留截断哨兵并在重启对账 fail-closed 阻断重放，`test_iter71_broker_batch2b.py`）。
+- [x] **R71-118** `[P1]` `bokeh/analyzers/recorder.py:81,117` — 用 bucket `1` 请求 indicators，但 `LineIterator.IndType == 0`，默认 `indicators=True` 一个指标都不记录 → 改用 `IndType` 并按实例唯一 key 记录。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+RUNTIME**（同步修复 `__init__` 透传、`getlinealiases()`、`ObsType` 与空 `_name`；`test_iter71_batch1_2c.py`）。
+- [x] **R71-119** `[P1]` `notifications/channels.py:227,231` — 截断标记在按 `max_length` 切完后再追加，最终 payload 超限（WeCom 2077/2048、Discord 2014/2000），被渠道拒绝 → 先为标记预留空间或字节限制渠道不追加标记。CONFIRMED(runtime) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT**（不动点迭代精确满足字节/字符上限与丢弃数；`test_iter71_batch1_2c.py` + `test_channels_payload.py`）。
+- [x] **R71-120** `[P1]` `notifications/security.py:37-48`；`transport.py:178-181` — `mask_url` 只掩 query/密码不掩 path，Telegram bot token、Slack/Discord webhook secret 在网络错误时进 `TransportError`/`SendResult` 日志 → 对三类 path 做掩码。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT**（`test_iter71_batch1_2c.py`）。
+- [x] **R71-121** `[P1]` `utils/redaction.py:47-52`；`log_message.py:89-95` — 两处 redactor regex 不含 `bot_token`/`context_token`/`appsecret`/`corpsecret`，凭据可进日志 → 复用 `SENSITIVE_KEYS`/`is_sensitive_key` 补齐 key 变体。CONFIRMED(runtime) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT+RUNTIME**（`test_iter71_batch1_2c.py`）。
+
+## 批次 3 · Windows 平台等价适配（2026-11-19 续审新增，优先于静态清理）
+
+> 统一验证：在 `os.name=="nt"` 真机跑 `tests/unit/live_state/test_gateway_initialization.py` 与 `tests/unit/test_iter65_key_loader_prototype.py`；当前两者在 Windows 上几乎全量跳过（见 N72-08），**先补测试再改代码**。
+
+- [x] **N72-01** `[P1]` `live_state/gateway_initialization.py:225-253` — Windows 分支 `StrategyStateDir.initialize` 后到 `return state` 无任何 TOCTOU 复检，且 return 前未调用 `verify_gateway_preparation(state)`；目录被替换仍返回成功 → 对照 POSIX `:343-355` 补 4 组 `_trust_dir`+reservation 复检，并显式调用已有的 Windows `verify_gateway_preparation`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（`test_gateway_initialization.py` 24/24 全通过）。
+- [x] **N72-02** `[P1]` `live_state/gateway_initialization.py:190-220` — 两个 reservation 仅 `O_EXCL` 创建后立即 close，此后不校验 reparse/owner/身份戳；`STATE_SETUP_RESERVATION_CHANGED`「创建后被替换」语义永不触发，`root_reserve` 连 `is_reparse_point` 都未调用 → 创建后按 handle stamp 或 `os.fstat(fd)` vs `os.lstat` 对比，initialize/写 marker 后复检，拒绝 reparse；可复用或删除 `gateway_config.py:78` 的 `_db_handle_from_fd`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（`handle_stamp`+reparse+owner 全检并移除死代码 `_db_handle_from_fd`）。
+- [x] **N72-04** `[P2]` `live_state/gateway_initialization.py:161-169,251` — `_trust_dir` 只捕 `Win32SecurityUnavailable`，`:251` 裸调 `is_reparse_point(marker)`；marker 被删/换时抛出的 `Win32SecurityUnavailable` 逃逸为不受控 `RuntimeError` 而非有限码 → 统一捕获 `(Win32SecurityUnavailable, OSError)` 并映射 `STATE_SETUP_*`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**。
+- [x] **N72-05** `[P2]` `service/gateway_config.py:37,67-68` — POSIX 分支 `os.lstat`/`os.fstat` 未捕 `FileNotFoundError`，抛裸 `OSError` 穿透到 `_create_gateway_api`；Windows 分支返回 `False`/`None`，两端错误形态不一致 → POSIX 分支同样 `try/except OSError: return False/None`。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机+POSIX mock)**（`test_iter63_gateway_store_config.py`）。
+- [x] **N72-06** `[P2]` `examples/live/007_ctp/gateway_local_resources.py:72-73,45` — `private` 参数在 Windows 分支被忽略；`read_bounded_windows(protected=True)` 只判写 ACE，与 POSIX `st_mode & 0o077`（含读/执行）不等价，0640/0660 私钥在 Windows 不被拒，公钥也被强制 owner-only → 透传 `private` 选择 reader 模式，或 SDK `inspect_owner` 增加 owner-only 读/写 ACE 判定。CONFIRMED(语义差异) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机 icacls DACL 实测)**（`test_iter65_key_loader_prototype.py`）。
+- [x] **N72-07** `[P2]` `live_state/gateway_initialization.py:196-208,244-257` — 缺 POSIX 三处 `os.fsync(directory)`；`os.mkdir` 与 `_set_owner_only_acl` 之间存在宽 DACL 暴露窗口（SDK `ensure_directory_chain` 自己在 mkdir 内即时收紧）；两个 `finally: pass` 为死代码 → 目录创建即时收紧 ACL、补目录 fsync、删除空 finally。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（`CreateDirectory/CreateFile` 带保护 `SECURITY_ATTRIBUTES` + `FlushFileBuffers`）。
+- [x] **N72-08** `[P2]` `tests/unit/live_state/test_gateway_initialization.py:23`；`tests/unit/test_iter65_key_loader_prototype.py:33,79-97` — 新增 +150 行 Windows 代码几乎无真机覆盖：整模块 `skipif(os.name != 'posix')`，key loader fixture 全跳，两个新增 Windows 用例未执行到真实读取逻辑 → 增加 `nt` 下真实创建/读取/替换等价性用例，取消整模块 POSIX-only skip 或另建 Windows 版。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（修前先复现 17 failed，修后全通过）。
+- [x] **N72-09** `[P2]` `live_state/gateway_initialization.py:68`；`examples/live/007_ctp/gateway_local_resources.py:46-49` — `except (Win32SecurityUnavailable, Exception)` 冗余且过宽（前者是 `RuntimeError` 子类，已被覆盖），把 `AttributeError`/`ImportError` 等编程错误吞成有限码；两个等价 except 分支体逐字相同 → 改精确元组 `(Win32SecurityUnavailable, OSError)`，合并重复分支。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**。
+- [x] **N72-10** `[P3]` `examples/live/007_ctp/gateway_local_resources.py:50-59` — 非法 Z85 输入错误码两端不一致（Windows `KEY_FORMAT_INVALID` vs POSIX `KEY_FILE_UNAVAILABLE`）；POSIX `z85` import 失败会抛 `ImportError` 逃逸 → 统一异常映射。（尾部换行与长度/解码校验两端已等价，不要改。）CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（共享 `_decode_z85_key` 统一 `KEY_FORMAT_INVALID`/`KEY_PLATFORM_UNSUPPORTED`）。
+- [x] **R72-BUG-09** `[跨仓]` `[P1]` `D:/bt_api_py/bt_api_py/bt_api.py:584` + `bt_api_base/logging_factory.py:176` + `log_message.py:122,130` — 模块加载顶层 `get_logger("registry")` 立即 `create_logger()`→`mkdir`+`FileHandler` 落盘，沙箱/只读容器 `import` 直接 `PermissionError [Errno 13]`，阻塞测试收集 → 改惰性 Handler（首次写调用才建文件），保留日志配置校验在前。验证：`pytest --collect-only tests/` 纯净。CONFIRMED(runtime) → **2026-11-20 / `bt_api_base@1bd1a13`, `bt_api_py@a422e1ce` (REVIEW_PENDING) / UNIT+RUNTIME(跨仓 bt_api_base)**（`bt_api_base/src/bt_api_base/functions/log_message.py` 引入 `_LazyDirectoryFileHandler(delay=True)` 并将 `spdlog` 校验前置于 `mkdir`；`bt_api_base` logging 16/16 passed、全量 2,950 passed、无 `BT_API_LOG_DIR` 导入 `bt_api_py` 审计 0 日志落盘、`pytest --collect-only tests/` 0 `PermissionError`、ruff 0 errors）。
+- [x] **R72-BUG-10** `[P1]` `live_state/atomic.py:331-342` — `else` 分支硬 `import fcntl` 并就地定义 `_try_lock/_unlock`，平台分支散落多文件、缺乏统一门面 → 收敛到 `_win32_security.py` / `atomic` 统一跨平台锁接口。**注意**：本轮新增 Windows 适配代码直接引用 `bt_api_py._win32_security`，门面仍未统一；此条应与 N72-01/02 一起设计。CONFIRMED(source) → **2026-11-20 / WIP(REVIEW_PENDING) / UNIT(Windows真机)**（`atomic.py` 收敛 `_PlatformFileLockBackend`/`try_lock_fd`/`unlock_fd`，`test_iter71_atomic_lock.py` 4/4 通过）。
+
+## 批次 4 · 核心生命周期与数据通道（P1）
+
+> 统一验证：`pytest tests/unit/ tests/unit/feeds/ -q`；异常注入、线程竞态、多时间框架 stop 检查、writer 行数断言。
+
+- [ ] **R71-007** `[P1]` `_cerebro/channel.py:318` — channel 事件循环无 `try/finally`，任一回调抛错时 `_teardown_channel` 被跳过、`broker.stop()` 不执行 → 包 try/finally。CONFIRMED(source)。
+- [ ] **R71-008** `[P1]` `cerebro.py:951` — 优化路径 `multiprocessing.Pool` 在 `imap`/`optcb` 抛错时跳过 `close()/join()`，worker 泄漏 → `try/finally` 或 `with Pool(...)`。CONFIRMED(source)。
+- [ ] **R71-009** `[P1]` `dataseries.py:80` — `TimeFrame.getname(tframe, compression=None)` 默认 `None` 紧接 `compression > 1` 抛 `TypeError` → 默认改 1 或先归一化。CONFIRMED(source)。
+- [ ] **R71-010** `[P1]` `channels/live_queue.py:84` — `put()` 在锁外读 `_closed`，producer 通过检查后仍可入队，事件永不被消费 → 锁内复检。CONFIRMED(source)。
+- [ ] **R71-011** `[P1]` `channels/orderbook.py:205` — `"bids": null` 时 `data.get("bids", [])` 返回 `None`，`_parse_level_pairs(None)` 抛 `TypeError`（不在捕获元组），单行坏数据中止整个 load → 校验 list 类型或把 `TypeError` 纳入捕获。CONFIRMED(source)。
+- [ ] **R71-012** `[P1]` `channels/tick.py:159` — CSV 缺字段时 `float(None)`→`TypeError`、`row["direction"].strip()`→`AttributeError`，均不在捕获元组 → 纳入捕获或做字段完整性校验。CONFIRMED(source)。
+- [ ] **R71-086** `[P1]` `cerebro.py:889` — `add_signal()+addstrategy()` 组合下 `signalst, sargs, skwargs = self.strats.pop(0)` 抛 `ValueError: not enough values to unpack`；异常分支 reinsert 的三元组也不可被 `itertools.product(*self.strats)` 消费 → 改为解包单元素并 reinsert 列表。CONFIRMED(source)。
+- [ ] **R71-087** `[P1]` `comminfo.py:450` — `get_credit_interest` 用 `size*price*mult`，空头返回负利息，`BackBroker._cash -= credit` 给空头加钱 → 空头用 `abs(position_value)`。CONFIRMED(source)。
+- [ ] **R71-095** `[P1]` `linebuffer.py:581-614` — `preload=True`（默认）负索引越界回绕返回**未来值**（bar 3 读 `close[-20]` 得 bar 13），`preload=False` 抛 `IndexError`；`home()` 后 `[0]` 还可能返回最后预加载 bar → 索引前检查 `target = current_idx + ago`，`<0` 抛 `IndexError`/NaN；`_raw_linebuffer_value` 同修。CONFIRMED(runtime)。
+- [ ] **R71-096** `[P1]` `linebuffer.py:648-665` — QBuffer/`exactbars=1` 下 `LineBuffer.get(size=N)` 计算负 `start`，`islice` 抛 `ValueError`；同调用在 `exactbars=0/-1` 正常（内置 `basicops/hurst` 用到）→ `start = max(0, start)`。CONFIRMED(runtime)。
+- [ ] **R71-097** `[P1]` `lineiterator.py:869-879` — `dopostinit` 在 `_periodrecalc()` **之前**传播 `_minperiod`，复合指标（RSI/DPO/TRIX/PPO/Stochastic）lines 仍为 1，表达式/`If`/`SMA` 继承错误周期、可能提前输出伪造值 → 先 `_periodrecalc()` 再传播。CONFIRMED(runtime)。
+- [ ] **R71-110** `[P1]` `research/factor_indicator.py:860`（调用 `lineiterator.py:1893`） — native alpha 在 `runonce=True` 且历史短于 `lookback_h+1` 时 `oncestart` 以 index H 越界读 `data.datetime[0]` 抛 `IndexError`，同数据 runnext 返回 NaN → clamp 到 `min(minperiod-1, buflen())`，诊断读取前判空。CONFIRMED(runtime，150-bar Alpha024 H=199)。
+- [ ] **R71-136** `[P1]` `feeds/blaze.py:64-69`、`influxfeed.py:80-83`、`quandl.py:194-199`、`yahoo.py:266-271`、`vchart.py:41-47` — 自定义 `__init__` 未调 `DataBase.__init__`，`p.sessionstart/sessionend` 为 `None`，`_start_finish()` 抛 `AttributeError: 'NoneType' has no attribute 'hour'`（`BlazeData(...)._start()` 已复现）→ 每个子类先 `super().__init__()`。CONFIRMED(runtime)。
+- [ ] **R71-137** `[P1]` `feeds/chainer.py:97-99` — 把 `None`（live feed 暂无数据）当 exhaustion 永久丢弃当前 feed，而 `DataBase.next()` 只在 EOF 返回 `False` → 区分 `ret is False`（前进链）与 `ret is None`（返回 None 稍后重试）。CONFIRMED(source)。
+- [ ] **R71-138** `[P1]` `feeds/rollover.py:194-197` — 同步循环在 subordinate 返回 `None` 时 `continue` 且不推进 `dt`，live 暂无数据时无限自旋占满 CPU → `None` 视为 not ready，返回 `None` 让引擎下次重试。CONFIRMED(source)。
+- [ ] **R71-139** `[P1]` `stores/btapistore.py:1907-1914`；`_live_bar_queue.py:84-113` — `_reset_sdk_stream_generation()` 不重置 `_live_bar_queue`（`:977` 创建一次），clean stop/start 后旧 completed bars 仍在 FIFO，`_stale_reasons` latched 也让新会话 `is_stream_ready()` 为 false → 增加 `StoreLiveBarQueue.reset()`（清队列/overflow/stale reasons）并在 reset/start 调用。CONFIRMED(source)。
+
+## 批次 5 · 指标正确性（P1/P2）
+
+> 统一验证：`once` vs `next` 全序列逐 bar parity；minperiod 断言；`/tmp` 合成 OHLCV sweep。内置指标先跑，contrib 用 FAKE runtime。
+
+- [ ] **R71-014** `[P1]` `indicators/atr.py:244` — `nextstart` 的 `i==0` 分支用 `high[0]-low[0]`，漏 `close[-1]`，seed 与 `once` 不一致 → 统一 `_calc_tr(high[0], low[0], close[-1])`。CONFIRMED(source)。
+- [ ] **R71-015** `[P1]` `indicators/bollinger.py:92` — `movav` 参数声明并出现在 `_plotlabel`，但 `next()/once()` 硬编码算术均值，配 EMA/WMA 被静默忽略 → 用 `self.p.movav` 或删除参数并标注不兼容。CONFIRMED(source)。
+- [ ] **R71-016** `[P1]` `indicators/awesomeoscillator.py:48,62` — `movav` 未用；`addminperiod(self.p.slow)` 假设 `slow>=fast`，`fast>slow` 时 `next()` 越界 → 用 `self.p.movav`，minperiod 取 `max(fast, slow)`。CONFIRMED(source)。
+- [ ] **R71-017** `[P1]` `indicators/accdecoscillator.py:50,61` — `movav` 未用；AC 只继承 AO 的 minperiod，未加 `period-1`，声明有效区间内 `ao[-1..-4]` 仍 NaN → 用 `self.p.movav` 并 `addminperiod(self.ao._minperiod + period - 1)`。CONFIRMED(source)。
+- [ ] **R71-149** `[P1]` `indicators/aroon.py:121-133,176-188,260-286` — **所有 Aroon 变体 runonce 全 NaN**：从 `self.up`/`self.down` line-operation arrays 复制，但这些数组在 `once` 中从未调度 → `__init__` 绑定 `self.lines.aroonup = self.up` 或在 `once` 直接由 high/low 计算。CONFIRMED(runtime)。
+- [ ] **R71-150** `[P1]` `aroon.py:191,289`；`envelope.py:394,473`；`directionalmove.py:1003,1038` — **多基类指标丢线**：`AroonUpDown` 只有 `aroonup`、Envelope 只有 `src/sma`、DMI 1 条而非 3 条、DM 2 条而非 4 条；根因 `LineSeries.__init_subclass__` 只取第一个基类 lines（`otherbases=()`）→ 在 `LinesManager.create_lines_class` 聚合所有基类 `_lines`。CONFIRMED(runtime)。
+- [ ] **R71-151** `[P1]` `indicators/williams.py:175-194` — WilliamsAD runonce 丢第一根贡献：`once()` 每次 `accum=0.0`，`oncestart(1,2)` 后再 `once(2,end)` 从 0 重启，后续每根固定偏移 0.4365 → 从 `dst[start-1]` 继续（像 `Accum.once`）。CONFIRMED(runtime)。
+- [ ] **R71-152** `[P1]` `indicators/kama.py:139-149` — KAMA runonce seed 晚一根：`seed_idx=period`、`darray[0:period]` 播种，next 首个有效 len 30、once 31，后续最大差 0.0066 → `seed_idx = period-1`。CONFIRMED(runtime)。
+- [ ] **R71-153** `[P1]` `indicators/tsi.py:81-95,138-155` — TSI 首值恒 100.0 且 runonce 不一致：`nextstart` 用当前 price change 播种四个平滑值，`100*sm12/sm22` 恒 100；once 从 0 递归，首有效 11.85 → 两级 EMA 都用前 `period1` 个 price change 的 SMA 播种。CONFIRMED(runtime)。
+- [ ] **R71-154** `[P1]` `indicators/priceoscillator.py:200-232` — PPO signal runonce seed 不同（once 从 `prev_signal=0.0` 写 `ppo*alpha`，nextstart 写 `signal=ppo`），115 根不同 → 用首个有效 PPO 初始化 `prev_signal`。CONFIRMED(runtime)。
+- [ ] **R71-033** `[P1]` `indicators/contrib/trend_continuation_indicator.py:124` 等 6 文件 — 递归指标用 `len(self)>0`/`==1` 判断前值，`next()` 内恒真/恒假，读未写入 NaN 槽位，首根 NaN 传播整条线 → 无条件读 `lines.x[-1]` 并 NaN 检查后回退 seed。CONFIRMED(FAKE runtime，100% NaN/171 bars)。
+- [ ] **R71-034** `[P1]` `contrib/accumulation_distribution_line.py:66` — `LineCCI` 无 `addminperiod`（`_minperiod=1`），作为 `CCIDualOnMA` 输入时 runonce `len(self.data)==0` 预热分支每根触发，两条线恒 0.0 → 声明 `addminperiod(self.p.period)`。CONFIRMED(FAKE)。
+- [ ] **R71-035** `[P1]` `contrib/color_bb_candles_indicator.py:43` — 子指标线绑定 + `addminperiod(period+5)` 变相对加法，实测 `_minperiod==204`（目标 105），历史不足 204 根时 runonce 抛 `IndexError` → 去掉 `price_line` 别名或用 `incminperiod`/显式 `max(...)`。CONFIRMED(FAKE)。
+- [ ] **R71-036** `[P1]` `contrib/aroon_oscillator_sign_alert.py:41` — Aroon Oscillator 符号反了：`highest/lowest` 是 bars-ago 偏移，标准 `100*(lowest-highest)/p`，代码算成相反数，交叉方向相反 → 改为 `100.0*(lowest-highest)/p`。CONFIRMED(source)。
+- [ ] **R71-037** `[P2]` `contrib/adx_cross_hull_style_indicator.py:233` 等 ≥6 文件 — `once()` 每次重置递归状态（`prev=None`、新建 smoother），分 `oncestart`/`once` 两段调用导致边界重启，runonce 与 runnext 分叉 88–466 根 → `start>0` 时从 `line[start-1]` 播种。CONFIRMED(FAKE)。
+- [ ] **R71-038** `[P2]` `contrib/as_ctrend_indicator.py:99` — 两个独立 `if/else` 都写 `value11`，第二个覆盖第一个，仅 MRO1 命中时被重置为默认 2 → 先赋默认值再独立 `if` 覆盖。CONFIRMED(source)。
+- [ ] **R71-039** `[P2]` `contrib/color_step_xccx_indicator.py:146` — `once()` 从 `±999999` sentinel 重启，段边界 `ftrend==0` 时输出 `-1000004.0` 真实通道值 → 从 `mplus_line[start-1]` 播种并跨段保留 `_ftrend/_strend`。CONFIRMED(FAKE)。
+- [ ] **R71-040** `[P2]` `contrib/digital_macd.py:178` — `signal = SMA(parent.macd)`，但父类 `next()` 在子指标之后写 `macd`，子指标只看到 NaN，signal 全 NaN → 父类 `next()` 用 macd 历史 deque 算 signal 或改线表达式。CONFIRMED(FAKE)。
+- [ ] **R71-041** `[P2]` `contrib/shared_strategy_indicators.py:996` — `BlauErgodicMDI` 声明 4 条线只写 `hist/up/dn`，`color_idx` 全 NaN → 实现颜色状态或从 lines 删除。CONFIRMED(FAKE)。
+- [ ] **R71-042** `[P2]` `contrib/zpf_indicator.py:112` — `line1 = -self.lines.zpf` 在 `zpf` 绑定前求值，`line1` 全 NaN → 先构造 zpf 操作对象再赋 `zpf`/`line1`。CONFIRMED(FAKE)。
+- [ ] **R71-043** `[P2]` `contrib/shared_strategy_indicators.py:826` — `AdaptiveMarketLevel` 未 `addminperiod`，`_minperiod==1`，前 ~157 根把 close 当 AML 输出 → `addminperiod(self._min_period)`，预热期保持 NaN。CONFIRMED(FAKE)。
+- [ ] **R71-155** `[P2]` `indicators/kst.py:78-109` — KST signal 声明 minperiod 40 后仍 NaN 8 根（signal 读 `kst[-i]`），signal 48 才有效 → minperiod 加 `rsignal-1` 或建成真实 MovAv 线。CONFIRMED(runtime)。
+- [ ] **R71-156** `[P2]` `indicators/dpo.py:59-73` — DPO 声明 minperiod 20 后仍 NaN 9 根（`next` 读 `ma[-lookback]`）→ minperiod 加 `lookback` 或绑定 `data - ma(-lookback)`。CONFIRMED(runtime)。
+- [ ] **R71-157** `[P2]` `indicators/demarker.py:67-98` — DeMarkerRolling 实际需 `2*period` 根、声明 `period+1`，period 14 首有效 28 而 `_minperiod=15` → `nextstart` 用历史播种或 line-based rolling sums。CONFIRMED(runtime)。
+- [ ] **R71-158** `[P2]` `indicators/zlema.py:61` — minperiod 重复计 period（`MovingAverageBase` 已加 period，再 `addminperiod(lag+period)` 得 `2*period+lag-1`，period 30 → 73 而非 44）→ `updateminperiod(lag+period)` 或直接设 `_minperiod`。CONFIRMED(runtime)。
+- [ ] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。
+- [ ] **R71-162** `[P2]` `indicators/directionalmove.py:377,503` — 嵌套 alias tuple 使 `bt.indicators.PlusDI`/`MinusDI` 缺失（alias 解析只展开一层）→ 扁平化 alias tuple。CONFIRMED(source)。
+- [ ] **R71-163** `[P2]` `indicators/ols.py:226` — 使用已从现代 pandas 移除的 `pd.ols`，OLS 指标在新 pandas 不可用 → 改 `numpy.linalg.lstsq`/`statsmodels`。CONFIRMED(source)。
+- [ ] **R71-164** `[P2]` `indicators/priceops_ext.py:91-105` — `PercentReturnsPeriod` minperiod off-by-one，首个 `close[-period]` 越界，依赖 R71-095 的负索引回绕时可能读到未来 bar → minperiod 加 1，**并与 R71-095 一起修**。CONFIRMED(source)。
+
+## 批次 6 · 分析器 / 报告 / Bokeh / 通知（P1/P2）
+
+> 统一验证：`pytest tests/unit/analyzers/ tests/unit/reports/ -q`；正负样本、零方差、空交易；HTML/PNG/PDF 生成；无 bokeh 环境；并发/长会话。
+
+- [ ] **R71-022** `[P1]` `reports/charts.py:166` — `"YE"` 别名仅 pandas>=2.2 支持，项目声明 `pandas>=1.3.0`，1.3–2.1 上 `resample("YE")` 抛 `ValueError` 且被吞，年度收益图静默缺失 → 用 `"A"`/`pd.offsets.YearEnd()` 或按版本分支。CONFIRMED(source)。
+- [ ] **R71-023** `[P1]` `bokeh/analyzers/recorder.py:90` — `__init__` 用 `getattr(data,"_name",None) or f"data{i}"` 建 key，`_record_datas` 用 `getattr(data,"_name",f"data{i}")`；feed `_name` 初始为 `""` 得空串，`name in self._data` 恒假，OHLCV 静默丢弃 → 两处统一 `or f"data{i}"`。CONFIRMED(source)。
+- [ ] **R71-025** `[P1]` `bokeh/plot_adapter.py:196` — `value = len + value` 先执行，`if is_end and value < 0` 对 `end=-1` 不可达，比 matplotlib `len+1+end` 少一根 bar → 先处理 `is_end` 再统一归一化。CONFIRMED(source)。
+- [ ] **R71-026** `[P1]` `bokeh/live/client.py:232` — `self.doc.hold()` 后无 `try/finally`，任一更新步骤抛错 `unhold()` 不执行，文档保持 hold、后续更新冻结 → `try/finally: self.doc.unhold()`。CONFIRMED(source)。
+- [ ] **R71-027** `[P1]` `bokeh/analyzers/plot.py:173` — `stop()` 只停 clients 不调 `self._webapp.stop()`，`_t_server` 的 loop 线程和 HTTP socket 泄漏到进程结束 → stop 中停 server/loop。CONFIRMED(source)。
+- [ ] **R71-028** `[P1]` `bokeh/live/datahandler.py:245` — `_process` 每行重建 `index.values` 并线性扫描，UPDATE 分支再 `.loc[...]` 全列扫描，O(N×M) → 循环前构建 `set(existing)`/索引映射。CONFIRMED(source)。
+- [ ] **R71-122** `[P2]` `utils/redaction.py:103-104`；`runtime_redaction.py:120-125` — `masked_copy` 用 `dataclasses.asdict` 深拷贝所有字段，含 lock/socket/mappingproxy 的 dataclass 抛 `TypeError`，可能替换原始 broker/对账错误 → 按 `dataclasses.fields` 原地遍历。CONFIRMED(source)。
+- [ ] **R71-123** `[P2]` `plot/locator.py:353` — `AutoDateFormatter.__call__` 返回 `super()` 代理对象而非格式化日期，`fmt_x_ticks=None` 时 x 轴显示 `<super: ...>` → `return super().__call__(x, pos)`。CONFIRMED(runtime, Agg)。
+- [ ] **R71-124** `[P2]` `plot/plot.py:941-955`；`plot_plotly.py:491-515` — 负 `start` 未归一化（负 `end` 有），`cerebro.plot(start=-5)` 在 matplotlib 抛 `IndexError`、plotly 抛 `ValueError`，bokeh 正常 → `start = len(st_dtime)+start` 后 clamp，统一三后端。CONFIRMED(source)。
+- [ ] **R71-125** `[P2]` `notifications/core.py:721-732` — dedup 时间戳在 `runtime.enqueue` **之前**记录；队列满丢弃后同 `dedup_key` 在冷却期内重试被报 `deduped`，永不投递 → enqueue 成功后再记 dedup 或 dropped 时回滚。CONFIRMED(source)。
+- [ ] **R71-126** `[P2]` `notifications/channels.py:442-445` 等 — `parse_json` 对非 JSON body 返回 `{}`，DingTalk/WeCom/Bark/QQ 把缺失 `errcode/code` 默认 0，HTTP 200 HTML/代理页被误判 delivered → 非对象/空 body 视为 `bad_request`，要求渠道显式成功字段。CONFIRMED(source)。
+- [ ] **R71-165** `[P2]` `analyzers/annualreturn.py:206-229` — `MyAnnualReturn` 第一年恒 0.0：`pre_value=value.shift(1)` 首年无前值被转 0.0；2020-H1–2021 报 2020 持平而 `AnnualReturn` 报 1.17% → 首年用首个 value/初始资金。CONFIRMED(runtime)。
+- [ ] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。
+- [ ] **R71-167** `[P2]` `analyzers/pyfolio.py:414` — `ALPHA` 把日均 active return 复利 252 天而非回归 intercept 线性年化，10bp/day 报 ~28.6% 而非 ~25.2% → `mean(active)*252`。PLAUSIBLE。
+- [ ] **R71-168** `[P2]` `reports/performance.py:267-271` — `avg_trade_duration` 恒 `None`：`TradeAnalyzer` 存 `len.average`，代码找 `len.total.average`，`isinstance(...,dict)` 永不成立 → 直接读 `len_info.get("average")`。CONFIRMED(runtime)。
+- [ ] **R71-169** `[P2]` `reports/performance.py:190-196` — Calmar 用 `abs(...)`，亏损策略得到正 ratio（年收益 -7.59%/max DD 1.78% 报 4.27）→ 去 abs 或另设 magnitude 指标；**先确认产品定义，现有单测固化了 abs**。CONFIRMED(runtime)。
+- [ ] **R71-170** `[P2]` `reports/charts.py:162-168,311-326` — pandas resample alias 版本不稳（`"H"/"T"` 在 pandas 3.0.3 无效、`"YE"` 在 <2.2 无效）；`(end-start).days` 截断使 1–5 天跨度被判 Hourly，短回测收益图静默省略 → 用 `pd.offsets.YearEnd()/Hour()/Minute()` 和 fractional-day。CONFIRMED(runtime)。
+- [ ] **R71-171** `[P2]` `observers/trades.py:138-149,275` — `DataTrades` 固定 10 条线（data0..data9），`next()` 仅在 `data_id < len(self.lines)` 写，11+ feeds 的 trade 被静默丢弃 → 按 owner feed 动态建线或 >10 显式报错。CONFIRMED(runtime)。
+- [ ] **R71-172** `[P2]` `analyzers/sharpe.py:221-249` — sub-day timeframe `factor=None`，年化 `riskfreerate`（默认 1%）从未年化的 per-minute return 直接扣除，Sharpe 变成无意义大负数 → 拒绝无 factor 的 sub-day Sharpe 或把 rate 转换到 bar 周期。PLAUSIBLE。
+- [ ] **R71-052** `[P2]` `reports/charts.py:311` — `(end-start).days` 截断到整天，日内跨度 <1 天恒为 0 落到 "Per Minute"，数小时的小时线被按分钟重采样 → 用 `total_seconds()` 或按数据频率选择。（与 R71-170 同文件，改时可一并处理。）
+- [ ] **R71-053** `[P2]` `reports/reporter.py:367,399` — `generate_html`/`generate_pdf` 的 `charts.close_all()` 只在成功路径执行，模板/磁盘/字体异常时 matplotlib figure 泄漏 → `try/finally` 释放。
+- [ ] **R71-054** `[P2]` `reports/performance.py:449` — `sqn_to_rating` 只防 NaN 不防 `±inf`，零方差收益序列产生 inf 时比较全 False 落到最高评级 → `math.isfinite` 检查，inf 走不可用/中性分支。PLAUSIBLE（需构造零方差样本）。
+- [ ] **R71-055** `[P2]` `bokeh/analyzers/recorder.py:117` — 指标/观察器按 `obj.__class__.__name__` 建 key，两个同类实例（如两个 SMA）写入同一 list，序列长度翻倍且与 bar 索引错位 → 用实例唯一 id/索引或 `_name`+序号。（与 R71-023、R71-118 同文件，建议合并修。）
+
+## 批次 7 · 性能专项（P1/P2，必须给 before/after）
+
+> 统一验证：可复现基准，记录机器与数据；**无阈值/无等价证明不合并**；全序列 runonce/runnext parity。
+
+- [ ] **R71-101** `[P1]` `strategy.py:1378,1411`；`indicator.py:331` — `_oncepost` 每 bar 每 indicator 探测 `_resolved_secondary_clock`/`_once_called`，属性通常不存在走 `__getattr__` 抛异常；30k bar/16 indicator runonce 实测 **4.16s→2.73s（−34%）** → 类级默认值 + 缓存 lencount 同步列表。CONFIRMED(runtime+cProfile)。
+- [ ] **R71-102** `[P1]` `lineiterator.py:384,405-407` — `_factor_run_callback` 每次 next/prenext 遍历 owner 链找 factor context，1.3M calls/50k bars，30k bar runnext **5.81s→5.08s（−12.6%）** → 缓存解析后的 context（含 None），仅 late-attachment 时重走。CONFIRMED(runtime)。
+- [ ] **R71-103** `[P1]` `lineiterator.py:1957-1960` — `LineIterator._next` 每 iterator 每 bar `try: self._lineaction_datas except AttributeError`，只有 Strategy 设置该属性，约 33µs/bar（~17% runnext loop）→ `__init__` 初始化为 None，用 `is None` 分支。CONFIRMED(runtime)。
+- [ ] **R71-173** `[P1]` `observers/trade_logger.py:2409-2410,2994-3039` — `TradeLogger.next` 每 bar 调 `_save_position_snapshot()`，`_last_position_state` 初始化后从未读取、无变更检测；默认 `log_position_snapshot=True` 时 1M bar 做 1M 次 YAML open/truncate/dump → 用 `_last_position_state` 做变更检测或按配置间隔写。CONFIRMED(source)。
+- [ ] **R71-031** `[P1]` `broker.py:181` — `getcommissioninfo` 每次重建 4 个 getattr、str/upper/lower、set 成员测试（注释称 2.1M+ 次调用），key 对同一 data 不变 → 按 data 缓存 key 元组，`setcommission` 变更时失效。CONFIRMED(source)。
+- [ ] **R71-032** `[P1]` `feeds/_btapi_cohort.py:439` — `_cohort_capture_source` 每 bar/tick 调 `_check_cohort_stream_health()`，`Store.get_stream_health()` 每次构造 ~30 key dict、复制计数器、`list(...)`、取队列锁 → 按 epoch/事件批次采样或缓存到 generation 变化。CONFIRMED(source)。
+- [ ] **R71-100** `[P2]` `linebuffer.py:67-85` — 每次表达式读取新建 `set()` 并遍历 owner 链查 factor-strict context，普通非因子回测也付 2.8× 成本（0.36µs vs 0.13µs/read）→ 先查 `_ACTIVE_FACTOR_CONTEXT is None` 快速短路，缓存 per-object 标志。CONFIRMED(runtime)。
+- [ ] **R71-104** `[P2]` `lineiterator.py:1805` — `_clk_update` 每 bar 每 iterator 调 `_line_like_source_clock(self.datas[0])`（3–5 次 `object.__getattribute__`/isinstance），1.15M calls/50k bars，约 15µs/bar → 按 iterator 缓存 source clock，`datas[0]` 变化时失效。CONFIRMED(runtime)。
+- [ ] **R71-105** `[P2]` `observers/trade_logger.py:2931` — `log_indicators=True`（默认）时 `_collect_indicators` 每 bar 对 `_owner` 做 `dir()` + 每个公开属性 `getattr`；5k bar/16 indicator profile 中 **1.90s/4.81s（39%）**；JSON 模式还每 bar 构造未用 `text_line` → 启动时构建候选属性列表/只遍历 `_lineiterators[IndType]`，JSON 模式跳过 text_line。CONFIRMED(runtime)。
+- [ ] **R71-106** `[P2]` `Makefile:22,26,29,32`；`scripts/refresh_strategy_durations.py:62,66` — 本地全量目标硬编码 `-n 8` 且无 `--timeout`（仓库文档已记录 xdist 0% CPU 挂起），refresh 的 `subprocess.run` 无 timeout 可能永久挂起 → 默认 serial/较低 worker + watchdog，`--timeout=300`，子进程加 `timeout=`。CONFIRMED(source)。
+- [ ] **R71-107** `[P2]` `.github/workflows/test.yml:140-237` — 18 组合 `test` job 无 `timeout-minutes`（只有 pytest per-test `--timeout=300`），xdist controller 死锁不是 test timeout，可能耗尽 GitHub 360 分钟默认值 → 给 `test`/`coverage`/`wheel-consumer` 加 `timeout-minutes: 60`。CONFIRMED(source)。
+- [ ] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。
+- [ ] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。
+- [ ] **R71-111** `[P2]` `research/operators.py:1871-1885` — 相关系数/协方差未做 near-zero snap，ULP 噪声（±1e-16）成为不同 rank 值，`rank(correlation(...))` 破坏平局；alpha15 实测 0.4/0.6 而非 0.5 → 把 ±1 已用的 `8*eps` snap 同样应用到 0 附近。CONFIRMED(runtime)。
+- [ ] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。
+- [ ] **R71-114** `[P2]` `strategies/factor_strategy.py:364→767` — `_collect_grid_point()` 每 bar 重新 freeze/Counter 比较所有 factor graph，`_validate_research_ownership` 302 calls、`_freeze_factor_graph` 6,060 calls、2.39s/22.0s（11%）→ `start()` 时验证一次，仅显式 topology 变化时重验。CONFIRMED(runtime)。
+- [ ] **R71-115** `[P2]` `research/factor_indicator.py:329,869` — 每个 factor 和每个 panel operator node 每 bar append 一个 datetime 到无界 `_factor_call_times`，alpha15 单独保留 4 个列表 × N bars → 用 bounded deque 或默认只存计数。CONFIRMED(source)。
+- [ ] **R71-174** `[P2]` `research/factor_indicator.py:842-856`（caller `factor_strategy.py:183`） — `_bind_grid_tree` 每个节点存全网格 tuple，caller 每节点 `_bind_grid(...)` 重绑所有可达节点，O(nodes²×bars) tuple 比较 → 网格物化一次、root 绑定一次、已绑定相同序列身份的节点跳过。PLAUSIBLE。
+- [ ] **R71-175** `[P2]` `research/specs.py:742-744`（`align.py:107`） — `ResearchSpec.grid` 每次访问深拷贝完整 grid DataFrame，`align_to_grid` 每 asset 调一次，N assets 做 N 次全 grid 拷贝 → 提供内部只读 grid accessor 或 caller 只拷贝一次。CONFIRMED(source)。
+
+## 批次 8 · 静态坏味道清零（Ruff 45 处 + OCR Dead Code）
+
+> 统一验证：`ruff check backtrader` → **0 errors**；`ocr delegate rule <files>` 无 Dead Code/高危告警。**先跑 `ruff check backtrader --fix`**（26 处自动修复，见 N72-16），复核 diff 后再人工处理 B023/E731/E402/C408/SIM114。
+
+- [ ] **N72-16** `[P2]` 全仓 Ruff 45 处 — 45 处中 26 处可 `--fix` 自动修复（另 4 处需 `--unsafe-fixes`）；迭代 72 清单未区分机械项与人工项 → 先跑 `--fix` 并复核 diff，再处理人工项。CONFIRMED(`ruff --statistics`)。
+- [ ] **R72-BUG-05 ≡ N72-B023-a** `[P1]` `stores/_account_position_projection.py:164,170` — `for read in batch.routes` 内定义 `feed_name_for(...)` 捕获 `route`/`read`（B023）→ 函数提升至循环外，把 `route`/`read` 作为形参显式传入。CONFIRMED(ruff)。
+- [ ] **R72-BUG-06 ≡ N72-B023-b** `[P1]` `brokers/_btapi_direct_mode.py:3773-3774` — `for symbol` 内定义 `_side(...)` 捕获 `split`（B023）→ 提取为独立辅助函数显式传 `split`。CONFIRMED(ruff)。
+- [ ] **R72-BUG-07** `[P1]` `futures/calendar.py:503,563-567,584` — 同一函数内 `windows` 先赋 tuple（`:503`）后赋 `[]` 并 `.append()`（`:563`），`:584` 再 `tuple(windows)`，类型变异引发 Mypy 报错 → 拆分为 `raw_windows` / `session_windows`。CONFIRMED(source)。
+- [ ] **R72-BUG-08** `[P1]` `futures/ranking_projection.py:110-111` — `_aware_utc` 连续两次 `value.utcoffset()`，第二次直接 `.total_seconds()`，静态类型无法保证非空 → 提前解构 `offset = value.utcoffset()` 并单一判定。CONFIRMED(source)。
+- [ ] **N72-11** `[P2]` `brokers/_btapi_strategy_events.py:195-203` — **E402 ×9**（module level import not at top），占 45 处的 1/5，迭代 72 完全未登记 → 导入移到顶部或 `# noqa: E402` 显式声明延迟导入（需先确认是否有循环导入约束）。CONFIRMED(ruff)。
+- [ ] **N72-12** `[P2]` `brokers/btapibroker.py:336,339,346,2821,2840`；`linebuffer.py:2902`；`stores/btapistore.py:1581` — RET502 ×6 / RET501 ×1，迭代 72 遗漏 → 统一返回样式（`--fix` 可处理）。CONFIRMED(ruff)。
+- [ ] **N72-13** `[P2]` `brokers/btapibroker.py:14,29,33` — `List`、`OrderExecutionBit`、`infer_position_side` 三个 F401 未使用导入 → 清理（自动修复）。CONFIRMED(ruff)。
+- [ ] **N72-14** `[P2]` `futures/__init__.py:18` — `CHINA_TIME` 导入未用且 `__all__` 未列出（F401），属公共符号导出遗漏 → 补 `__all__` 或删除导入；**先确认下游是否依赖 `bt.futures.CHINA_TIME`**。CONFIRMED(ruff)。
+- [ ] **N72-15** `[P2]` `live_state/identity.py:102`；`live_state/snapshot.py:151`；`live_state/pending.py:460` — SIM300 ×2（Yoda 条件）、SIM109 ×1 → 自动修复。CONFIRMED(ruff)。
+- [ ] **R72-OPT-01 ≡ N72-02 关联** `[P2]` `service/gateway_config.py:78-81` — `_db_handle_from_fd` 全仓无调用（OCR Dead Code）；其 `import msvcrt` 在 POSIX 不可用 → 删除，或按 N72-02 在 reservation handle stamp 复检中实际调用。**与 N72-02 一起决策**。CONFIRMED(source)。
+- [ ] **R72-OPT-02 + N72-19** `[P2]` `examples/live/007_ctp/gateway_local_resources.py:13-14` — 【状态变化】两个导入仍全文件未被引用，但本轮给它们加了 `as` 冗余别名使 ruff 对该文件显示 `All checks passed!`，属**掩盖告警而非清理** → 删除两行导入；**不要以 ruff 通过当作此条已完成**。CONFIRMED(source+ruff)。
+- [ ] **R72-OPT-03** `[P2]` `stores/btapistore.py:3601` — `get_info = getattr(...)` 赋值后从未使用（F841）→ 删除。CONFIRMED(ruff)。
+- [ ] **R72-OPT-04** `[P2]` `stores/_bar_history_cache.py:12,15` — 从 `collections.abc` 与 `typing` 重复导入 `Mapping`（F811）→ 合并导入。CONFIRMED(ruff)。
+- [ ] **R72-OPT-05/06/07** `[P2]` `store.py:23`（`SingletonMixin`）、`research/sink.py:15,16,19`（`shutil`/`Sequence`/`Dict`）、`service/store_event_notifier.py:11`（`Optional`）— F401 未用导入 → 清理。CONFIRMED(ruff)。
+- [ ] **R72-OPT-08/09** `[P2]` `brokers/_btapi_gateway_notifications.py:715,719,735,737`；`brokers/_btapi_recovery.py:1169,1172` — RET501 冗余 `return None` → 规范化（`--fix` 可处理）。CONFIRMED(ruff)。
+- [ ] **R72-OPT-10/11/12** `[P2]` `brokers/_btapi_direct_mode.py:946`（C408 `dict(...)`→字面量）、`brokers/_btapi_gateway_projection.py:961-964`（SIM114 合并相同 elif）、`service/_service_execution_recovery.py:244`（E731 lambda→def）→ 按 ruff 建议重构。CONFIRMED(ruff)。
+- [ ] **N72-17** `[P3]` `backtrader/_cerebro/registry.py:159,280,443,462`；`lineiterator.py:1298,2743` — B026 ×4（`*args` 解包在关键字实参之后）、B004 ×2（`hasattr(x,"__call__")` 应 `callable(x)`）。**项目当前 ruff 配置下不报**（`ruff check` 对这两个文件 `All checks passed!`），仅 `--select B026,B004` 时暴露 → 作为可选扩展规则；**若要纳入，需先在 ruff 配置启用并更新基线，不计入「45 处清零」验收目标**。CONFIRMED(`--select` 实跑)。
+
+## 批次 9 · P2 其余正确性 / 清理
+
+- [ ] **R71-088** `[P2]` `order.py:632` — `valid` 第三分支只算局部 `valid` 未赋 `self.valid`，`valid=0` 时 `Order.expire()` 的 `if self.valid` 永假、订单不过期 → 分支末尾 `self.valid = self.data.date2num(valid)`。
+- [ ] **R71-089** `[P2]` `strategy.py:1205` — `_getanalyzer_slave` 返回 `self._slave_analyzers.append[idx]`（对 bound method 取下标），任何调用 `TypeError` → 改 `self._slave_analyzers[idx]`。
+- [ ] **R71-090** `[P2]` `_cerebro/runnext.py:1471` — `_next_writers(runstrats)` 在 per-strategy 循环内却一次写所有 datas，N 个策略每根 bar 写 N 次、CSV 重复行 → 移到策略循环外。
+- [ ] **R71-091** `[P2]` `strategy.py:2099` — `_stop` 把策略最大/主时钟时间写到**所有** data feed 的 `datetime[0]`，多时间框架下慢速 feed 被改到未来时间 → 只恢复策略线和时钟 feed。
+- [ ] **R71-092** `[P2]` `_cerebro/execution.py:153` — 启动失败时每个已成功停止且带 observer 的策略都被追加 "observer cleanup outcome is unobservable" 假 incomplete → 仅在 observer 捕获不可用时记录。
+- [ ] **R71-093** `[P2]` `_cerebro/channel.py:245` — `_run_channel` 永久设置 `self.p.quicknotify = True`，复用同一 Cerebro 做普通运行时通知时序被静默改变 → 保存/恢复原值或用局部标志。
+- [ ] **R71-094** `[P2]` `_cerebro/execution.py:406` — 日志 `"execution:122 suppressed bare"` 为重构残留，隐藏 `StrategySkipError` 原因 → 记录策略类与 skip 原因。
+- [ ] **R71-098** `[P2]` `filters/renko.py:155-158` — 下跌 Renko brick 写 `low=top`、`high=bot`，产生 `high < low`，污染 ATR/TrueRange/Stochastic → 交换为 `high=top`、`low=bot`。
+- [ ] **R71-099** `[P2]` `lineseries.py:2408-2564` — 导入时 `_patch_strategy_clk_update()` 用忽略 `_single_clock_data`、返回 `len(self)` 的简化版替换 `Strategy._clk_update`；当前因 `strategy` 尚未导入未生效，属潜伏 monkey-patch → 删除导入时 patch，保留 `strategy.py:1455` 真实实现。
+- [ ] **R71-112** `[P2]` `strategies/factor_strategy.py:422-436`；`factor_indicator.py:433` — `prenext` 在声明 `lookback_h` 之前发布部分公式值，`_window_is_complete` 只查尾部 presence；alpha7 预热 47 根输出 -1.0、alpha1 第 21-23 行 0.5（oracle 为 NaN）→ 按 `cursor < spec.lookback_h` 掩码/跳过或 `prenext` 写 NaN。PLAUSIBLE(panel values verified; downstream not run)。
+- [ ] **R71-140** `[P2]` `feeds/btapifeed.py:3999-4015` — `compression=2` 日线仍每天一个 bucket，`_get_bucket_end()` 加两天产生重叠/重复 bars；Weeks/Months 落到 minute-style bucketing 且 end 加 `compression` 分钟，周线实际发分钟 bars → 按 compression epoch 对齐 day start，实现或显式拒绝 Weeks/Months/Years。
+- [ ] **R71-141** `[P2]` `stores/_live_bar_queue.py:93-98`；`feeds/btapifeed.py:2168-2205` — 队列 overflow 时 retained bar 被标 `stale=True`/`gap`，但 `_publish_bar()` 只检查 `bar_final` 就写入 data lines，有损流 bar 对指标/策略表现为正常数据 → 拒绝或标记 stale bar，或把 Store 队列健康投影到 Feed continuity。PLAUSIBLE。
+- [ ] **R71-142** `[P2]` `feeds/__init__.py:93-124` — `__dir__`/`__getattr__` 暴露 `_MARKET_FACTOR_SOURCE_EXPORTS` 但 `__all__` 未含该集合，`from backtrader.feeds import *` 少 5 个公开符号；`blaze` 从未 import，`bt.feeds.BlazeData` 抛 `AttributeError` → 补 `__all__`，显式 import `BlazeData` 或文档说明移除。
+- [ ] **R71-143** `[P2]` `service/gateway_market_adapter.py:43-44,111-114,346-351` — `close()` 设 `_claims[name]=None` 而非删除，stop/close 或失败 start 后新 adapter 永久 `GATEWAY_MARKET_SUBSCRIPTION_ALREADY_CLAIMED` → close 时删除 claim。PLAUSIBLE。
+- [ ] **R71-144** `[P2]` `service/service_execution_adapter.py:150-155,404-407,462-465` — `_returned_intents`/`_projected_revisions`/`_known_record_intents` 每 managed intent 增一项且不清理 → 有界/LRU 或 terminal ack 后清理。
+- [ ] **R71-145** `[P2]` `service/service_observation.py:18-19,127-137` — 未确认 cleanup 时 `close()` 把整个 `(clients, proxy, store, bindings)` 追加到无界模块级 `_KEEPALIVE`，重复失败 close 永久保留 threads/sockets → 限制 keepalive 或只保留 bounded diagnostic token。
+- [ ] **R71-146** `[P2]` `feeds/btapifeed.py:3256-3266,3332` — `_cached_price_tick()` 无缓存：未配置 `price_tick` 时每 tick 调 `configured_metadata_price_tick()`，高频 feed 每 tick 做 metadata lookup/scan → 按 dataname 缓存，`contract_metadata` 变化时失效，`start()` 预计算。
+- [ ] **R71-147** `[P2]` `stores/_bar_history_cache.py:124-149,184-196` — 每个不同 `(dataname,timeframe,compression,since,limit)` 请求把完整 bar list 加入 `_query_cache` 且无 eviction，每次 hit 深拷贝整个序列 → LRU 限界，避免每次深拷贝完整默认历史。PLAUSIBLE。
+- [ ] **R71-148** `[P2]` `service/service_recovery_attestation.py:206,232` — `attest_event_context()` 直接 `paper_fill["commission_currency"]` 并比较 `quote_as_of_ns > paper_fill.get("match_time_ns", 0)`，缺 key 或非整数抛 `KeyError`/`TypeError`，逃出文档化 fail-closed 的 `ServiceRecoveryAttestationError` → 先 `.get()` + 精确类型校验，统一抛有限 attestation error。PLAUSIBLE。
+- [ ] **R71-044** `[P2]` `contrib/xma_ichimoku.py:39` — `_raw_buf` 每根 append 不裁剪，`sum(self._raw_buf[-period:])` 每根切片分配，5000 bars 后 4965 项 → `deque(maxlen=period)` + 滚动和。CONFIRMED(FAKE)。
+- [ ] **R71-045** `[P2]` `contrib/shared_strategy_indicators.py:830` — `_smooth_history`/`_aml_history` 无界 list，`_range()` 每根新建两个 list，5000 bars 后 4843 项、约 3.7× 慢于 deque 版 → `deque(maxlen=lag+1)`，高低点增量维护。CONFIRMED(FAKE)。
+- [ ] **R71-046** `[P2]` `contrib/digital_macd.py:191` — 每根把 66 元素 deque 复制成 tuple 并跑两个 66 次 Python 循环，无 `once()` 向量化 → 滚动点积状态或 once 数组实现。PLAUSIBLE(code-read)。
+- [ ] **R71-047** `[P2]` `contrib/adx_cross_hull_style_indicator.py:188` — `_bull_smooth`/`_bear_smooth` 子指标从未被读取，`smooth_method/smooth_phase` 参数无效仍每根计算完整 EMA → 删除子指标并实现参数，或移除参数。
+- [ ] **R71-048** `[P2]` `channels/funding.py:95` — 文档称 "Rate change anomaly detection"，`_last_rate` 被维护但条件只比较 `abs(event.rate) > threshold`，从未比较变化量，首个事件因 `_last_rate is None` 直接跳过 → 比较 `abs(rate - _last_rate)` 或改文档为绝对阈值并修正首事件。
+- [ ] **R71-049** `[P2]` `channels/funding.py:132` — gzip CSV 分支未传 `newline=""`，带引号字段含换行时可能解析错行 → 与明文分支一致传 `newline=""`。
+- [ ] **R71-050** `[P2]` `filters/bsplitter.py:111` — `ohlbar[OpenInterest]=0` 后又被 `=oi` 覆盖；`closebar` 在清零前复制，两个 tick 都保留原 OI，清零语句无效 → 明确第一 tick OI=0 时改 `closebar`，或删除无效清零。
+- [ ] **R71-051** `[P2]` `indicators/basicops.py:554` — `next()` 用 `math.fsum`，`once()` 用内置 `sum`，长周期/量级差异时 runonce 与 next 浮点结果分叉 → `once()` 改用 `math.fsum`。
+- [ ] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。
+- [ ] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。
+- [ ] **R71-059** `[P2]` `utils/autodict.py:207` — `__iadd__` 同类型分支 `return self + other`，但 `AutoOrderedDict` 未定义 `__add__`，`aod1 += aod2` 抛 `TypeError`；`__isub__/__imul__` 同类问题 → 实现 `__add__/__sub__/__mul__` 或改同类型分支语义。
+- [ ] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。
+- [ ] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。
+- [ ] **R71-063** `[P2]` `feeds/blaze.py:91` — `_load` 每 bar 对每个 datafield 做 `getattr(self.params,...)`/`getattr(self.lines,...)`，值不变可缓存 → `start()` 预计算列索引/线引用。
+- [ ] **R71-159** `[P2]` `indicators/basicops.py:140-156` — `OperationN.once` 每 bar 切片并调 Python func，`Highest/Lowest/SumN/FindFirstIndex*` 为 O(n·period)+每 bar 分配，被 Stochastic/Aroon/Donchian 继承；1M bar period 50 ≈ 50M 元素复制 → 单调 deque / running sum / 数组循环，slice 仅 fallback。
+- [ ] **R71-160** `[P2]` `indicators/sma.py:119-133` — `once` 每 bar 双窗口扫描（先求 sum 再求 sum of squares），O(n·period) → 滚动和/平方和。
+- [ ] **R71-112b** `[P2]` `contrib/` 其余 minperiod/runonce 条目 — 按 B0-02 的复现结果逐条处理；本批次未单列的 contrib P2 条目以 `审阅发现清单-2026-11-17.md` §2/§3 为准，复现后再登记到本清单。
+
+## 批次 10 · P3 结构演进 / 文档 / 类型治理
+
+- [ ] **R72-STR-01** `[P3]` `brokers/_btapi_direct_mode.py`（实测 6,278 行）— 混合持仓/定单/拆单/生命周期 → 建立拆分规划，把数据投影、对账状态机、协议收发分离；**本迭代不做物理拆分**，仅确立边界与逐步剥离路径。
+- [ ] **R72-STR-02** `[P3]` `stores/btapistore.py`（实测 **6,243 行**，迭代 72 文档误记 3,600 行）— 承担过多跨模块路由中转与框架回调 → 按职责规范把行情缓存、合约元数据探测抽取为高内聚子模块。
+- [ ] **R72-STR-03 + N72-18** `[P3]` 全仓 Mypy 静态类型断层 — 核心数据线动态 Line 机制导致检查器无法识别属性；本机 mypy 1.14.1 实测 **559 errors in 75 files**（迭代 72 记 471/1.19.1，不可直接比较），全仓无 `.pyi` 存根 → 引入 `.pyi` 存根或在 `pyproject.toml` 配精细化忽略，逐步提升核心模块类型严谨度；**验收基线必须固定工具版本+配置+数字**。
+- [ ] **N72-18** `[P2]` `pyproject.toml:21-46` — 合并后验收基线固定工具版本三元组；不要在计划里直接引用 471 作为门禁值。CONFIRMED(实跑)。
+- [ ] **R71-116** `[P3]` `research/alpha101/alpha062.py:42-50` 等 — 重复构造相同节点/无操作 `Multiply(x, 1.0)`（alpha062 两个 `CrossSectionalRank(open)`，alpha046/049/051 两个相同 `close_delay10`）→ 复用首个节点，去掉 `*1.0`。
+- [ ] **R71-065** `[P3]` `bokeh/live/datahandler.py:153` — 热路径 debug 日志用 eager f-string，DEBUG 关闭时仍格式化 → 改 lazy `%s` 参数。
+- [ ] **R71-067** `[P3]` `_cerebro/presentation.py:84` — `if backend == "plotly"` 整块死代码（`has_txn` 计算后未用，`if not has_txn: pass` 无效果）→ 删除或实现原意。
+- [ ] **R71-068** `[P3]` `_cerebro/channel.py:349` — 日志 `"channel:297 suppressed bare"` 是重构残留、行号失效 → 改为说明 `StrategySkipError` 的可诊断日志。
+- [ ] **R71-069** `[P3]` `indicators/__init__.py:144` — 注释引用不存在的 `_register_common_moving_averages` → 删除注释块。
+- [ ] **R71-070** `[P3]` `analyzers/drawdown.py:210` — `maxdrawdown` 文档称货币单位，实际 `maxdd` 为百分比 → 修正文档。
+- [ ] **R71-071** `[P3]` `bokeh/analyzers/recorder.py:131` — 警告串 `"recorder:124 fallback on Exception"` 含失效行号且无上下文 → 改带对象/线名的 lazy 日志。
+- [ ] **R71-072** `[P3]` `bokeh/plot_adapter.py:111` — `iplot` 已在前面赋给 `self._iplot`，此处再赋值无效果 → 删除。
+- [ ] **R71-073** `[P3]` `bokeh/app.py:718` — `ColumnDataSource` 构造后丢弃，`# Fill area` 块无渲染效果 → 接入 varea/patch 或删除。
+- [ ] **R71-074** `[P3]` `bokeh/__init__.py:73` — 捕获所有 `ImportError` 当作"bokeh 未安装"，会掩盖 bokeh 自身依赖损坏 → 区分 `ModuleNotFoundError` 与其它 ImportError 并记录日志。
+- [ ] **R71-075** `[P3]` `utils/autodict.py:224` — `__idiv__` 是 Python 2 钩子，Python 3 `//=` 走 `__ifloordiv__`，方法为死代码 → 删除或改名。
+- [ ] **R71-076** `[P3]` `feeds/btcsv.py:182` — 日志硬编码 `btcsv:181`，行号漂移且描述"ignored"与实际 fallback 重试不符 → 删除硬编码行号，描述真实行为。
+- [ ] **R71-077** `[P3]` `filters/heikinashi.py:30` — 构造器要求 `data` 位置参数但未使用，模块示例 `HeikinAshi()` 会 `TypeError` → `data` 可选或修正示例。
+- [ ] **R71-078** `[P3]` `filters/daysteps.py:12` — 示例 `BarReplayerOpen()` 与 `__init__(self, data)` 不符，`addfilter` 应传类而非实例 → 修正示例。
+- [ ] **R71-079** `[P3]` `filters/calendardays.py:81` — docstring 引用不存在的 `time_start/time_end/dtime_prev` → 更新文档。
+- [ ] **R71-080** `[P3]` `observers/benchmark.py:42,55` — 文档拼写错误（`addata`→`adddata`、`Keepint`→`Keeping`）→ 修正。
+- [ ] **R71-081** `[P3]` `observers/buysell.py:119,142` — `curbuy/cursell` 赋值后未读取 → 删除死赋值。
+- [ ] **R71-082** `[P3]` `_cerebro/runonce.py:30` — 循环变量 `i` 未使用 → 改为 `_`。
+- [ ] **R71-083** `[P3]` `reports/reporter.py:588` — `math` 已在模块顶部导入，函数内重复 `import math` → 删除局部导入。
+- [ ] **R71-084** `[P3]` `channels/bridge.py:18` — 模块级 `logger` 未使用；文档示例 `bridge.lines.price[0]` 与实际接口 `bridge['price'][0]` 不符 → 删除/使用 logger 并修正示例。
+- [ ] **R71-085** `[P3]` `channels/orderbook.py:79` — `_last_best_bid/_last_best_ask` 只写不读，为死状态 → 接入异常检测或删除。
+
+## 批次 11 · 回归验收与矩阵同步
+
+- [ ] **B11-01** `[P1]` `python -m ruff check backtrader` → **0 errors**（原 45 处全量消除）；`ocr delegate rule <files>` 无 Dead Code/高危告警。
+- [ ] **B11-02** `[P1]` Gateway 异常注入：`pytest tests/unit/brokers/test_iter63_gateway_*.py -q`，未映射状态不击穿循环；连接/文件句柄计数无泄漏。
+- [ ] **B11-03** `[P1]` 指标 runonce/runnext 全序列 parity（含 Aroon/ATR/Bollinger/contrib）、minperiod 断言；`pytest tests/unit/stores/ tests/unit/futures/ -q` 100% 通过。
+- [ ] **B11-04** `[P1]` `pytest --collect-only tests/` 不触发 `PermissionError`；`make test-fast` 无新增失败（0 regression）；性能条目逐项给可复现 before/after 数字；guard/合同修复做 mutation check（移除 guard 应使目标测试失败）。
+- [ ] **B11-05** `[P2]` 更新 `docs/_internal/opts/requirements/` 下状态矩阵与交接说明；把 `REVIEW_PENDING` 逐项改为实际状态（用户 ACCEPTED 后才算通过）；同步 AGENTS.md 若编号引用变化。
+
+---
+
+## 附录 A · 迭代 71/72 去重映射（同一问题只勾一次）
+
+| 合并后勾选 ID | 等价编号 | 说明 |
+|---|---|---|
+| R71-001 | R72-BUG-01 | `_STATUS[record.status]` 裸 KeyError |
+| R71-002 | R72-BUG-02 | `notices[0]` 空列表 IndexError |
+| R71-003 | R72-BUG-03 | `restart_required` 过早设置 |
+| R71-004 | R72-BUG-04 + N72-20 | sqlite 连接泄漏（N72-20 记录其部分修复状态） |
+| R72-BUG-05 | N72-B023-a 概念 | `_account_position_projection` B023 |
+| R72-BUG-06 | N72-B023-b 概念 | `_btapi_direct_mode` B023 |
+| R72-OPT-01 | N72-02 关联 | `_db_handle_from_fd` 死代码，可与 handle stamp 复检一起决策 |
+| R72-OPT-02 | N72-19 | 用 `as` 别名掩盖 F401，死代码仍在 |
+
+## 附录 B · 已剔除的候选（**不要重新打开**）
+
+来源 `审阅发现清单-2026-11-17.md` §3.1 与 `审阅发现清单-2026-11-19.md` §5：
+
+- `strategy.stats.items` 不存在（`_cerebro/execution.py:154`）：`ItemCollection.__init__` 设 `self.items=[]`，是真实 list。
+- 权益/回撤图因无 `_trades` 提前返回而缺失（`bokeh/app.py:424`）：`Strategy.__new__` 总是设置 `_trades`。
+- Alpha002 `Multiply(correlation, -1.0)` 构造失败：生产 research harness 实测正常。
+- Calmar 缺 `clear_result_gap`：analyzer-local 标志无消费者。
+- `_book()` 未持 `FINANCIAL_SCOPE_LOCK` 竞态：读同一 dict 条目且从不清空，交错不可达。
+- `worst_losing_trade` 用 `max` 取错：TradeAnalyzer 对 lost bucket 用 `func=min`，报告正确。
+- `AlignedFeed.present` 长度不一致：测试明确为 calculation-grid 形状，属既定 API。
+- CCI minperiod 回归、AltrTrendSignalV22、AbsolutelyNoLagLwmaColor minperiod：实测均已正确传播。
+- `LivePlotAnalyzer` 参数未转发：`ParamsMixin` 在原始 `__init__` 前已设置 params。
+- 本轮新增排除：Windows 分支 fd 泄漏（finally 已覆盖）、`_trust_dir` 裸 OSError（SDK 已归一化）、Windows 尾部换行/Z85 长度校验（两端逐字等价）、Windows reservation 保留逻辑（POSIX 同样保留）、B026/B004 属于 45 处门禁（当前配置不报）、`test_iter63_state_coordination.py` 的 skip（理由合理）。
+
+## 附录 C · 关联文档
+
+- `迭代计划.md`（本目录）— 合并版迭代计划、目标/非目标、分步实施、验收矩阵、风险与回退
+- `需求原文.md`（本目录）— 迭代 71 / 72 / 本次用户指令原文
+- `审阅发现清单-2026-11-17.md`（本目录，由原迭代 71 目录迁入）— 163 条原始发现与证据等级
+- `审阅发现清单-2026-11-19.md`（本目录）— 本轮 OpenCodeReview 续审 20 条新增发现、迭代 72 现状复核、Ruff 明细、排除疑点

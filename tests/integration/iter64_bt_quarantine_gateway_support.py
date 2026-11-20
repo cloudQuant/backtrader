@@ -15,7 +15,9 @@ import threading
 import time
 
 
-SDK_ROOT = Path(__file__).resolve().parents[3] / "bt_api_py"
+import bt_api_py
+
+SDK_ROOT = Path(bt_api_py.__file__).resolve().parent.parent
 
 
 def _report(messages, write_metadata, write_event, lifecycle, state, pid):

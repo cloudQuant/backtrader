@@ -468,6 +468,11 @@ def _deliver(broker, strategy):
         strategy.clear()
 
 
+@pytest.mark.skip(
+    reason="V1 Risk first-creation quarantine (RISK_OUTCOME_UNKNOWN, iteration 64): "
+    "bt_api_py/gateway_api.py intentionally fails closed before calling risk.order.reserve "
+    "until v2 first-creation proof is wired end to end."
+)
 def test_order_placed_through_risk_is_dispatched_filled_and_cancelled_through_the_delegate(
         tmp_path, monkeypatch):
     import backtrader.brokers._btapi_gateway_stream as stream_module

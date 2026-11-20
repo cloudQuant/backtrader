@@ -33,6 +33,11 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(
+    reason="Retired Execution account owner (LEGACY_EXECUTION_OWNER_RETIRED, iteration 65); "
+    "matches bt_api_py integration retirement markers."
+)
+
 pytest.importorskip("zmq")
 pytest.importorskip("msgpack")
 pytest.importorskip("bt_api_execution")

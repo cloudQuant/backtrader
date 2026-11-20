@@ -106,7 +106,9 @@ RISK_OPS = ["risk.order.reserve", "risk.order.dispatch", "risk.order.release",
 
 
 def _raw(endpoint, exec_endpoint, risk_endpoint, journal):
-    example = Path(__file__).resolve().parents[3] / "bt_api_py/examples/services/gateway-strategy-client.example.yaml"
+    import bt_api_py
+
+    example = Path(bt_api_py.__file__).resolve().parent.parent / "examples/services/gateway-strategy-client.example.yaml"
     raw = yaml.safe_load(example.read_text(encoding="utf-8"))
     raw["exchange_name"] = gateway.ROUTE
     raw["binding"] = dict(journal_id=journal, account_scope=gateway.ACCOUNT,

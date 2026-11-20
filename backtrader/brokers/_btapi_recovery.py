@@ -727,12 +727,18 @@ class ServiceRecoveryBrokerMixin:
             "position_effect": "OPEN",
             "position_mode": self.get_param("position_mode"),
             "offset": "open",
-            "size": float(quantity),
+            "quantity": float(quantity),
             "price": float(price),
-            "commission": float(commission),
-            "commission_normalized": True,
+            "fee": float(commission),
+            "fee_currency": fill["commission_currency"],
+            "fee_unit": "currency",
             "timestamp": match_dt,
         }
+        quantity_unit = (self._order_execution_contracts.get(order.ref) or {}).get(
+            "quantity_unit"
+        ) or self._order_info_get(order, "quantity_unit")
+        if quantity_unit not in (None, ""):
+            update["quantity_unit"] = quantity_unit
         self._service_execution_recovery_suppress_notifications = True
         try:
             result = self._apply_trade_update(

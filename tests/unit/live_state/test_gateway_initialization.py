@@ -20,11 +20,27 @@ from backtrader.live_state.state_dir import StrategyStateDir
 
 ROOT = Path(__file__).resolve().parents[3]
 RUNNER_DIR = ROOT / 'examples/live/007_ctp'
-pytestmark = pytest.mark.skipif(os.name != 'posix', reason='local setup requires POSIX')
+
+
+def _mkdir_owner_only(path: Path) -> None:
+    """Create an owner-only directory on POSIX (0o700) or Windows (owner-only DACL)."""
+    path.mkdir(mode=0o700)
+    if os.name == 'nt':
+        from bt_api_py._win32_security import _set_owner_only_acl
+        _set_owner_only_acl(path)
+
+
+def _assert_marker_owner_only(marker: Path) -> None:
+    if os.name == 'posix':
+        assert marker.stat().st_mode & 0o777 == 0o600
+    else:
+        from bt_api_py._win32_security import inspect_owner
+        info = inspect_owner(marker)
+        assert info.is_current_user and not info.others_writable
 
 
 def snapshot(directory):
-    return {str(path.relative_to(directory)): path.read_bytes()
+    return {path.relative_to(directory).as_posix(): path.read_bytes()
             for path in directory.rglob('*') if path.is_file()}
 
 
@@ -33,7 +49,7 @@ def test_prepare_and_verify_then_refuse_repeat_without_overwriting(tmp_path):
     assert str(uuid.UUID(state.strategy_uuid, version=4)) == state.strategy_uuid
     marker = tmp_path / 'state/gateway_example_init.json'
     assert json.loads(marker.read_text()) == {'version': 1, 'strategy_uuid': state.strategy_uuid}
-    assert marker.stat().st_mode & 0o777 == 0o600
+    _assert_marker_owner_only(marker)
     assert (tmp_path / 'state/gateway_example_init.reserve').is_file()
     assert (tmp_path / '.gateway_example_init.reserve').is_file()
     verify_gateway_preparation(state)
@@ -46,7 +62,7 @@ def test_prepare_and_verify_then_refuse_repeat_without_overwriting(tmp_path):
 @pytest.mark.parametrize('content', [b'{bad', b'{}', b'{"version":1,"strategy_uuid":"x"}'])
 def test_nonempty_or_corrupt_state_is_never_touched(tmp_path, content):
     folder = tmp_path / 'state'
-    folder.mkdir(mode=0o700)
+    _mkdir_owner_only(folder)
     (folder / 'identity.json').write_bytes(content)
     before = snapshot(tmp_path)
     with pytest.raises(RuntimeError, match='STATE_SETUP_NOT_EMPTY'):
@@ -56,7 +72,7 @@ def test_nonempty_or_corrupt_state_is_never_touched(tmp_path, content):
 
 def test_pristine_companion_without_identity_is_not_replaced(tmp_path):
     folder = tmp_path / 'state'
-    folder.mkdir(mode=0o700)
+    _mkdir_owner_only(folder)
     (folder / 'sequence.json').write_text('{}')
     before = snapshot(tmp_path)
     with pytest.raises(RuntimeError, match='STATE_SETUP_NOT_EMPTY'):
@@ -96,9 +112,21 @@ def test_symlink_state_directory_is_not_followed(tmp_path):
     outside.mkdir()
     strategy = tmp_path / 'strategy'
     strategy.mkdir()
-    (strategy / 'state').symlink_to(outside, target_is_directory=True)
-    with pytest.raises(OSError):
-        prepare_gateway_state(strategy)
+    link = strategy / 'state'
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        if os.name != 'nt':
+            raise
+        # Non-elevated Windows supports NTFS directory junctions (reparse points).
+        subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(outside)],
+                       check=True, capture_output=True)
+    if os.name == 'posix':
+        with pytest.raises(OSError):
+            prepare_gateway_state(strategy)
+    else:
+        with pytest.raises(RuntimeError, match='STATE_SETUP_DIRECTORY_UNTRUSTED'):
+            prepare_gateway_state(strategy)
     assert list(outside.iterdir()) == []
 
 
@@ -164,7 +192,11 @@ import builtins, importlib.abc, importlib.util, os, runpy, socket, sys
 attempts = []
 class Block(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.startswith(("bt_api_", "backtrader.strategies")):
+        blocked = ("bt_api_", "backtrader.strategies") if os.name == "posix" else (
+            "backtrader.strategies", "bt_api_ctp", "bt_api_okx", "bt_api_binance",
+            "bt_api_gateway", "bt_api_risk", "bt_api_execution", "bt_api_monitor",
+        )
+        if fullname.startswith(blocked):
             attempts.append(fullname)
             raise AssertionError("forbidden import")
 sys.meta_path.insert(0, Block())
@@ -218,7 +250,7 @@ def test_directory_replacement_is_detected_and_original_evidence_retained(tmp_pa
     import backtrader.live_state.gateway_initialization as init
     def swap():
         (tmp_path / 'state').rename(tmp_path / 'detached')
-        (tmp_path / 'state').mkdir(mode=0o700)
+        _mkdir_owner_only(tmp_path / 'state')
     if point == 'before_marker':
         original = init.StrategyStateDir.initialize
         def initialize(*args):
@@ -272,7 +304,10 @@ def test_failure_before_state_creation_preserves_root_reservation(tmp_path, monk
     import backtrader.live_state.gateway_initialization as init
     def fail_mkdir(*args, **kwargs):
         raise OSError('synthetic failure')
-    monkeypatch.setattr(init.os, 'mkdir', fail_mkdir)
+    if os.name == 'nt' and hasattr(init, '_mkdir_owner_only_windows'):
+        monkeypatch.setattr(init, '_mkdir_owner_only_windows', fail_mkdir)
+    else:
+        monkeypatch.setattr(init.os, 'mkdir', fail_mkdir)
     with pytest.raises(OSError, match='synthetic failure'):
         prepare_gateway_state(tmp_path)
     assert (tmp_path / '.gateway_example_init.reserve').is_file()
@@ -282,3 +317,68 @@ def test_failure_before_state_creation_preserves_root_reservation(tmp_path, monk
     with pytest.raises(RuntimeError, match='STATE_SETUP_ALREADY_ATTEMPTED'):
         prepare_gateway_state(tmp_path)
     assert not (tmp_path / 'state').exists() and snapshot(tmp_path) == before
+
+
+def test_prepare_calls_verify_gateway_preparation_before_returning(tmp_path, monkeypatch):
+    import backtrader.live_state.gateway_initialization as init
+    called = []
+
+    def failing_verify(state):
+        called.append(state.strategy_uuid)
+        raise RuntimeError('STATE_SETUP_MARKER_INVALID')
+
+    monkeypatch.setattr(init, 'verify_gateway_preparation', failing_verify)
+    with pytest.raises(RuntimeError, match='STATE_SETUP_MARKER_INVALID'):
+        prepare_gateway_state(tmp_path)
+    assert len(called) == 1
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Win32 security verification vector')
+def test_windows_verify_does_not_swallow_programming_error(tmp_path, monkeypatch):
+    import bt_api_py._win32_security as win32_sec
+
+    state = prepare_gateway_state(tmp_path)
+    monkeypatch.setattr(
+        win32_sec,
+        'read_bounded_windows',
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AttributeError('synthetic_bug')),
+    )
+    with pytest.raises(AttributeError, match='synthetic_bug'):
+        verify_gateway_preparation(state)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Win32 marker disappearance vector')
+def test_windows_missing_marker_raises_finite_error(tmp_path):
+    state = prepare_gateway_state(tmp_path)
+    marker = tmp_path / 'state/gateway_example_init.json'
+    marker.unlink()
+    with pytest.raises(RuntimeError, match='STATE_SETUP_MARKER_INVALID'):
+        verify_gateway_preparation(state)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Win32 reservation mutation vector')
+def test_windows_modified_reservation_size_is_rejected(tmp_path, monkeypatch):
+    import backtrader.live_state.gateway_initialization as init
+
+    original = init.StrategyStateDir.initialize
+
+    def mutate_reservation(*args):
+        state = original(*args)
+        (tmp_path / 'state/gateway_example_init.reserve').write_bytes(b'x')
+        return state
+
+    monkeypatch.setattr(init.StrategyStateDir, 'initialize', mutate_reservation)
+    with pytest.raises(RuntimeError, match='STATE_SETUP_RESERVATION_CHANGED'):
+        prepare_gateway_state(tmp_path)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Win32 owner-only state_dir vector')
+def test_windows_state_dir_created_owner_only(tmp_path):
+    from bt_api_py._win32_security import inspect_owner
+
+    prepare_gateway_state(tmp_path)
+    info = inspect_owner(tmp_path / 'state', others_may_write_check=True)
+    assert info.is_current_user and not info.others_writable
+    for reserve in (tmp_path / '.gateway_example_init.reserve', tmp_path / 'state/gateway_example_init.reserve'):
+        rinfo = inspect_owner(reserve, others_may_write_check=True)
+        assert rinfo.is_current_user and not rinfo.others_writable

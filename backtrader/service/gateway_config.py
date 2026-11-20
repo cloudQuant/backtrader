@@ -21,6 +21,67 @@ _RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 10.0, 30.0)
 _EXECUTION_DB_FILENAME = "gateway_execution_routing.sqlite"
 
 
+def _gateway_state_dir_trusted(directory):
+    """Owner-only, no-follow state directory check (POSIX / Windows parity)."""
+    if os.name != "posix":
+        from bt_api_py._win32_security import (
+            Win32SecurityUnavailable, inspect_owner, is_reparse_point,
+        )
+        try:
+            if is_reparse_point(directory) or not os.path.isdir(directory):
+                return False
+            owner = inspect_owner(directory)
+            return bool(owner.is_current_user and not owner.others_writable)
+        except (Win32SecurityUnavailable, OSError):
+            return False
+    try:
+        info = os.lstat(directory)
+    except OSError:
+        return False
+    owner = getattr(os, "getuid", lambda: info.st_uid)()
+    return (stat.S_ISDIR(info.st_mode) and info.st_uid == owner
+            and not info.st_mode & 0o022)
+
+
+def _gateway_db_identity(fd, path):
+    """Identity tuple for the open DB handle and the path, or None if untrusted."""
+    if os.name != "posix":
+        from bt_api_py._win32_security import (
+            Win32SecurityUnavailable, inspect_owner, is_reparse_point,
+        )
+        try:
+            if is_reparse_point(path):
+                return None
+            owner = inspect_owner(path)
+            if not owner.is_current_user or owner.others_writable:
+                return None
+            # On Windows lstat().st_dev/st_ino are the volume serial and file
+            # id, matching fstat() on the already-open handle.  Comparing them
+            # detects a path swap without reopening (which the native share
+            # mode of this handle would refuse).
+            info = os.fstat(fd)
+            named = os.lstat(path)
+            if (not stat.S_ISREG(info.st_mode) or not stat.S_ISREG(named.st_mode)
+                    or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)
+                    or info.st_nlink != 1):
+                return None
+            return (info.st_dev, info.st_ino)
+        except (Win32SecurityUnavailable, OSError):
+            return None
+    try:
+        info = os.fstat(fd)
+        named = os.lstat(path)
+    except OSError:
+        return None
+    if (not stat.S_ISREG(info.st_mode) or not stat.S_ISREG(named.st_mode)
+            or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)):
+        return None
+    owner = getattr(os, "getuid", lambda: info.st_uid)()
+    if info.st_uid != owner or info.st_nlink != 1:
+        return None
+    return (info.st_dev, info.st_ino)
+
+
 def _open_gateway_execution_db(store):
     """Open the strategy-owned routing journal only while its run lock is held."""
     if store._gateway_execution_db is not None:
@@ -31,9 +92,7 @@ def _open_gateway_execution_db(store):
     from bt_api_py.execution_routing import install_execution_routing_tables
 
     directory = store._gateway_state.paths.state_dir
-    info = os.lstat(directory)
-    owner = getattr(os, "getuid", lambda: info.st_uid)()
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid != owner or info.st_mode & 0o022:
+    if not _gateway_state_dir_trusted(directory):
         raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
     path = os.path.join(directory, _EXECUTION_DB_FILENAME)
     parents = _gateway_execution_parent_routes(store)
@@ -42,23 +101,32 @@ def _open_gateway_execution_db(store):
         flags |= os.O_CREAT
     fd = os.open(path, flags, 0o600)
     try:
-        info = os.fstat(fd)
-        named = os.lstat(path)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != owner
-                or info.st_nlink != 1 or not stat.S_ISREG(named.st_mode)
-                or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)):
+        if _gateway_db_identity(fd, path) is None:
             raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
         db = sqlite3.connect(path, isolation_level=None)
-        # Retain the connection immediately, including when initialization or
-        # close fails, so the lock cannot be released ahead of this resource.
+        try:
+            if _gateway_db_identity(fd, path) is None:
+                raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                install_execution_routing_tables(db)
+                db.commit()
+            except BaseException:
+                if db.in_transaction:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+                raise
+        except BaseException:
+            if store._gateway_execution_db is db:
+                store._gateway_execution_db = None
+            try:
+                db.close()
+            except Exception:
+                pass
+            raise
         store._gateway_execution_db = db
-        named = os.lstat(path)
-        if (not stat.S_ISREG(named.st_mode)
-                or (info.st_dev, info.st_ino) != (named.st_dev, named.st_ino)):
-            raise ValueError("GATEWAY_EXECUTION_STATE_PATH_INVALID")
-        db.execute("BEGIN IMMEDIATE")
-        install_execution_routing_tables(db)
-        db.commit()
         return db
     finally:
         os.close(fd)

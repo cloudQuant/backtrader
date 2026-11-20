@@ -28,6 +28,17 @@ class GatewayExecutionStreamError(RuntimeError):
 
 
 @dataclass
+class _TradeFactEntry:
+    min_non_metadata_seq: int | None = None
+    date: str | None = None
+    date_digest: str | None = None
+    date_conflict: bool = False
+    time: str | None = None
+    time_digest: str | None = None
+    time_conflict: bool = False
+
+
+@dataclass
 class _StreamBinding:
     strategy: object
     api: object
@@ -59,6 +70,16 @@ class _StreamBinding:
     # Earliest monotonic time of the next step after one that found nothing to
     # do (see _IDLE_READ_INTERVAL_SECONDS); a local submit or cancel clears it.
     next_idle_read: float = 0.0
+    # Incremental trade-fact cursor and index bound to (host, epoch) so long
+    # sessions do not rescan from sequence 0 on every TRADE event.
+    trade_fact_host: object = None
+    trade_fact_epoch: object = None
+    trade_fact_last_sequence: int = 0
+    trade_fact_index: dict = field(default_factory=dict)
+
+
+_STREAM_EVENT_PAGE_SIZE = 256
+_STREAM_EVENT_SCAN_LIMIT = 10000
 
 
 # A stream step that found nothing to do (no Gateway event, no local work) is
@@ -1329,6 +1350,7 @@ class GatewayExecutionStreamBrokerMixin:
         binding.api, binding.stream = api, stream
         binding.dispatched.clear()
         binding.reserve_unknown.clear()  # requests of the old connection cannot arrive any more
+        self._reset_gateway_trade_facts(binding)
 
     def _gateway_stream_check(self, binding, *, connected_required=True):
         if binding.pid != os.getpid() or binding.thread is not threading.current_thread():
@@ -1445,21 +1467,160 @@ class GatewayExecutionStreamBrokerMixin:
             _fail("TIME_POLICY_CONFLICT")
         return intent, (record if record is not None else delegated), request
 
-    def _gateway_stream_events(self, host, after=0):
-        # Bound total scanning to avoid unbounded per-tick CPU/memory use.
+    def _gateway_stream_events(self, host, after=0, *, page_size=None, max_events=None):
+        # Bound each incremental scan to avoid unbounded per-tick CPU/memory use
+        # and guard against non-advancing page sources.
+        page_limit = _STREAM_EVENT_PAGE_SIZE if page_size is None else page_size
+        scan_limit = _STREAM_EVENT_SCAN_LIMIT if max_events is None else max_events
         count = 0
         while True:
-            page = host.read_execution_events(after_sequence=after, limit=256)
+            page = host.read_execution_events(after_sequence=after, limit=page_limit)
             if not page:
                 return
+            last_seq = after
             for event in page:
+                if event.sequence <= last_seq:
+                    _fail("SCAN_LIMIT")
+                last_seq = event.sequence
                 count += 1
-                if count > 10000:
+                if count > scan_limit:
                     _fail("SCAN_LIMIT")
                 yield event
-            after = page[-1].sequence
-            if len(page) < 256:
+            after = last_seq
+            if len(page) < page_limit:
                 return
+
+    @staticmethod
+    def _ensure_gateway_trade_facts(binding):
+        if not hasattr(binding, "trade_fact_index"):
+            binding.trade_fact_host = None
+            binding.trade_fact_epoch = None
+            binding.trade_fact_last_sequence = 0
+            binding.trade_fact_index = {}
+
+    @staticmethod
+    def _reset_gateway_trade_facts(binding):
+        binding.trade_fact_host = None
+        binding.trade_fact_epoch = None
+        binding.trade_fact_last_sequence = 0
+        index = getattr(binding, "trade_fact_index", None)
+        if index is None:
+            binding.trade_fact_index = {}
+        else:
+            index.clear()
+
+    @staticmethod
+    def _index_gateway_trade_fact(binding, candidate):
+        other = candidate.observation
+        key = (candidate.request_key, other.trade_key_digest)
+        entry = binding.trade_fact_index.get(key)
+        if entry is None:
+            entry = _TradeFactEntry()
+            binding.trade_fact_index[key] = entry
+        if not other.trade_metadata_only and (
+            entry.min_non_metadata_seq is None
+            or candidate.sequence < entry.min_non_metadata_seq
+        ):
+            entry.min_non_metadata_seq = candidate.sequence
+        if other.trade_date is not None:
+            if entry.date is None:
+                entry.date = other.trade_date
+                entry.date_digest = candidate.fact_digest
+            elif entry.date != other.trade_date:
+                entry.date_conflict = True
+        if other.trade_time is not None:
+            if entry.time is None:
+                entry.time = other.trade_time
+                entry.time_digest = candidate.fact_digest
+            elif entry.time != other.trade_time:
+                entry.time_conflict = True
+
+    def _refresh_gateway_trade_facts(self, binding, checkpoint, *, target_sequence=0):
+        self._ensure_gateway_trade_facts(binding)
+        if (
+            binding.trade_fact_host is not binding.host
+            or binding.trade_fact_epoch != checkpoint.epoch
+            or checkpoint.stored_sequence < binding.trade_fact_last_sequence
+        ):
+            self._reset_gateway_trade_facts(binding)
+            binding.trade_fact_host = binding.host
+            binding.trade_fact_epoch = checkpoint.epoch
+        ceiling = max(checkpoint.stored_sequence, target_sequence)
+        if binding.trade_fact_last_sequence >= ceiling:
+            return
+        for candidate in self._gateway_stream_events(
+            binding.host, after=binding.trade_fact_last_sequence
+        ):
+            self._index_gateway_trade_fact(binding, candidate)
+            binding.trade_fact_last_sequence = candidate.sequence
+
+    @staticmethod
+    def _gateway_host_pass_snapshot(host):
+        """Read durable pending state once for one ``_gateway_stream_next`` pass.
+
+        Falls back to individual host methods if any of them was overridden on
+        the instance or class (for example by test doubles).
+        """
+        from ..live_state.gateway_execution_route import GatewayExecutionRoute
+        from ..live_state.gateway_pending import GatewayPendingHost
+
+        if type(host) is not GatewayPendingHost:
+            return None
+        inst_dict = vars(host)
+        for name in (
+            "local_order_notifications",
+            "load_execution_route",
+            "load_record",
+            "load_context",
+        ):
+            if name in inst_dict:
+                return None
+            func = GatewayPendingHost.__dict__.get(name)
+            if func is None or getattr(func, "__module__", None) != GatewayPendingHost.__module__:
+                return None
+
+        with host._store._lock():
+            state = host._store._load()
+            entries = host._check_state(state)
+            version = state["version"]
+            gateway = state["gateway"]
+            local_notices = (
+                gateway["local_notifications"] if version in (6, 7, 8) else {}
+            )
+            routes = gateway["execution_routes"] if version == 8 else {}
+            has_pending_local = any(
+                item["status"] == "pending" for item in local_notices.values()
+            )
+            notice_keys = frozenset(local_notices)
+            execution_routes = {
+                key: GatewayExecutionRoute(**value) for key, value in routes.items()
+            }
+            return {
+                "has_pending_local": has_pending_local,
+                "notice_keys": notice_keys,
+                "execution_routes": execution_routes,
+                "entries": entries,
+            }
+
+    @staticmethod
+    def _gateway_snapshot_record(host, pass_snapshot, key):
+        from ..live_state.gateway_pending import _record
+
+        entry = pass_snapshot["entries"].get(key)
+        return (
+            None
+            if entry is None or entry["record"] is None
+            else _record(entry["record"], host._binding)
+        )
+
+    @staticmethod
+    def _gateway_snapshot_context(pass_snapshot, key):
+        from ..live_state.gateway_pending import GatewayPendingContext
+
+        entry = pass_snapshot["entries"].get(key)
+        if entry is None:
+            return None
+        return GatewayPendingContext(entry["marker_id"], entry["local_seq"], entry["bt_ref"])
 
     def _gateway_stream_event_binding(self, binding, event, order):
         from bt_api_base.direct_write_protocol import DirectExecutionEventKind
@@ -1553,19 +1714,42 @@ class GatewayExecutionStreamBrokerMixin:
         if binding.local_deferred:
             self.notifs.extend(binding.local_deferred)
             binding.local_deferred.clear()
-        if any(item["status"] == "pending" for item in binding.host.local_order_notifications().values()):
-            binding.state = "WAITING_NOTIFICATIONS"
-            return
-        local_notices = binding.host.local_order_notifications()
+        pass_snapshot = self._gateway_host_pass_snapshot(binding.host)
+        if pass_snapshot is not None:
+            if pass_snapshot["has_pending_local"]:
+                binding.state = "WAITING_NOTIFICATIONS"
+                return
+            local_notice_keys = pass_snapshot["notice_keys"]
+        else:
+            local_notices = binding.host.local_order_notifications()
+            if any(item["status"] == "pending" for item in local_notices.values()):
+                binding.state = "WAITING_NOTIFICATIONS"
+                return
+            local_notice_keys = local_notices
+        snapshot_dirty = False
         risk_recovery_state = None
-        for key in notice.orders:
-            if self._is_market_data_only() and notice.orders[key].alive():
+        for key, order in notice.orders.items():
+            if snapshot_dirty:
+                if pass_snapshot is not None:
+                    pass_snapshot = self._gateway_host_pass_snapshot(binding.host)
+                    local_notice_keys = (
+                        pass_snapshot["notice_keys"]
+                        if pass_snapshot is not None
+                        else binding.host.local_order_notifications()
+                    )
+                else:
+                    local_notice_keys = binding.host.local_order_notifications()
+                snapshot_dirty = False
+            if self._is_market_data_only() and order.alive():
                 # Keep restored work untouched. Stream observations can still
                 # be consumed, but recovery must not release or infer a local
                 # terminal result from a missing reservation.
                 risk_recovery_state = "OBSERVATION_ONLY_RECOVERY_PENDING"
                 continue
-            execution_route = binding.host.load_execution_route(key)
+            if pass_snapshot is not None:
+                execution_route = pass_snapshot["execution_routes"].get(key)
+            else:
+                execution_route = binding.host.load_execution_route(key)
             if execution_route is not None and execution_route.kind in ("PENDING", "EXECUTION_PARENT"):
                 # Query the original intent only. Missing records and NOT_FOUND
                 # never establish that a parent was not sent.
@@ -1586,14 +1770,17 @@ class GatewayExecutionStreamBrokerMixin:
                     pass
                 risk_recovery_state = "EXECUTION_RECOVERY_PENDING"
                 continue
-            if "reject:" + key in local_notices or _bt_terminal(notice.orders[key]):
+            is_risk = (
+                (execution_route is not None and execution_route.kind == "RISK")
+                or (execution_route is None and order.info.get("gateway_risk_routed") is True)
+            )
+            if "reject:" + key in local_notice_keys or _bt_terminal(order):
                 # Historical Risk terminal state lacks a cross-host proof.
                 # Keep processing the stream, but do not label it healthy.
-                if ((execution_route is not None and execution_route.kind == "RISK")
-                        or (execution_route is None and notice.orders[key].info.get("gateway_risk_routed") is True)):
+                if is_risk:
                     risk_recovery_state = risk_recovery_state or "RISK_RECOVERY_PENDING"
                 continue
-            if (execution_route is not None and execution_route.kind == "RISK") or (execution_route is None and notice.orders[key].info.get("gateway_risk_routed") is True):
+            if is_risk:
                 # Placed through Risk: driven by its delegated command record,
                 # never by the own-command paths below.
                 # Re-evaluate stale state for this order; retain the most
@@ -1602,22 +1789,27 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "ACTIVE"
                 if self._gateway_risk_step(binding, notice, key):
                     return
+                snapshot_dirty = True
                 if binding.state == "RISK_BINDING_CONFLICT":
                     risk_recovery_state = "RISK_BINDING_CONFLICT"
                 elif (binding.state == "RISK_RECOVERY_PENDING"
                       and risk_recovery_state is None):
                     risk_recovery_state = "RISK_RECOVERY_PENDING"
                 continue
-            record = binding.host.load_record(key)
-            if "cancel:" + key in local_notices:
+            if "cancel:" + key in local_notice_keys:
                 continue
+            if pass_snapshot is not None:
+                record = self._gateway_snapshot_record(binding.host, pass_snapshot, key)
+            else:
+                record = binding.host.load_record(key)
             if record is not None and record.state in ("RELEASED", "EXPIRED"):
-                self._gateway_finalize_release(binding, notice.orders[key], key)
+                self._gateway_finalize_release(binding, order, key)
                 binding.state = "WAITING_NOTIFICATIONS"
                 return
             if record is None or record.state == "UNKNOWN":
                 result = binding.api.command_status(binding.policy.route, key,
                                                     timeout_seconds=binding.timeout)
+                snapshot_dirty = True
                 if (record is None and result.outcome == "REQUEST_DENIED"
                         and result.code == "NOT_FOUND"
                         and self._gateway_reservation_absent(binding, key)):
@@ -1626,7 +1818,6 @@ class GatewayExecutionStreamBrokerMixin:
                     # can have been sent. The order ends Rejected and is never
                     # re-sent; without this it blocked the strategy for good
                     # (SimNow 2026-11-10, after a Gateway that died mid-reserve).
-                    order = notice.orders[key]
                     if order.status == order.Submitted and order.executed.size == 0:
                         self._gateway_finalize_rejection(binding, order, key, "RESERVATION_NOT_FOUND")
                         binding.reserve_unknown.pop(key, None)
@@ -1636,66 +1827,69 @@ class GatewayExecutionStreamBrokerMixin:
                     binding.state = "RECOVERY_PENDING"
                     return
                 record = result.record
-            context = binding.host.load_context(key)
-            if record.state == "RESERVED" and (context.marker_id is None
-                                               or key not in binding.dispatched):
-                # No marker: BT never asked to dispatch. Not dispatched by this
-                # process: an earlier process left it; its outcome is settled at
-                # the Gateway by version (a dispatch that already won makes the
-                # release fail and the order proceeds normally).
-                result = binding.api.command_status(binding.policy.route, key,
-                                                    timeout_seconds=binding.timeout)
-                if result.outcome != "OBSERVED" or result.record is None:
-                    binding.state = "RECOVERY_PENDING"
-                    return
-                if result.record.state == "EXPIRED":
-                    self._gateway_finalize_release(binding, notice.orders[key], key)
-                    binding.state = "WAITING_NOTIFICATIONS"
-                    return
-                if result.record.state == "RESERVED":
-                    # Never sent (still RESERVED at the Gateway): withdraw it.
-                    order = notice.orders[key]
-                    if (order.status == order.Submitted and order.executed.size == 0
-                            and self._gateway_release_unsent(binding, order, key)):
-                        binding.state = "WAITING_NOTIFICATIONS"
-                        return
-                    binding.state = "RESERVATION_RECOVERY_PENDING"
-                    return
-            elif record.state == "RESERVED":
-                # Dispatched by this process and acknowledged as queued, yet still
-                # RESERVED. Once the Gateway says the reservation can no longer be
-                # dispatched (its time is over, or it belongs to an older owner
-                # generation) it is withdrawn like any unsent one. A dispatch that
-                # won meanwhile makes the release fail and the order proceeds.
-                now = time.monotonic()
-                due = binding.dispatch_recheck.get(key)
-                if due is None:
-                    binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
-                elif now >= due:
-                    binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+            if record.state == "RESERVED":
+                if pass_snapshot is not None and not snapshot_dirty:
+                    context = self._gateway_snapshot_context(pass_snapshot, key)
+                else:
+                    context = binding.host.load_context(key)
+                if context.marker_id is None or key not in binding.dispatched:
+                    # No marker: BT never asked to dispatch. Not dispatched by this
+                    # process: an earlier process left it; its outcome is settled at
+                    # the Gateway by version (a dispatch that already won makes the
+                    # release fail and the order proceeds normally).
                     result = binding.api.command_status(binding.policy.route, key,
                                                         timeout_seconds=binding.timeout)
+                    snapshot_dirty = True
                     if result.outcome != "OBSERVED" or result.record is None:
                         binding.state = "RECOVERY_PENDING"
                         return
-                    current = result.record
-                    if current.state == "EXPIRED":
-                        binding.dispatch_recheck.pop(key, None)
-                        self._gateway_finalize_release(binding, notice.orders[key], key)
+                    if result.record.state == "EXPIRED":
+                        self._gateway_finalize_release(binding, order, key)
                         binding.state = "WAITING_NOTIFICATIONS"
                         return
-                    # expiry_pending also covers a reservation of an older owner
-                    # generation: the record carries no remaining time for one.
-                    if current.state == "RESERVED" and current.expiry_pending:
-                        order = notice.orders[key]
+                    if result.record.state == "RESERVED":
+                        # Never sent (still RESERVED at the Gateway): withdraw it.
                         if (order.status == order.Submitted and order.executed.size == 0
                                 and self._gateway_release_unsent(binding, order, key)):
-                            binding.dispatch_recheck.pop(key, None)
-                            binding.dispatched.discard(key)
                             binding.state = "WAITING_NOTIFICATIONS"
                             return
                         binding.state = "RESERVATION_RECOVERY_PENDING"
                         return
+                else:
+                    # Dispatched by this process and acknowledged as queued, yet still
+                    # RESERVED. Once the Gateway says the reservation can no longer be
+                    # dispatched (its time is over, or it belongs to an older owner
+                    # generation) it is withdrawn like any unsent one. A dispatch that
+                    # won meanwhile makes the release fail and the order proceeds.
+                    now = time.monotonic()
+                    due = binding.dispatch_recheck.get(key)
+                    if due is None:
+                        binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+                    elif now >= due:
+                        binding.dispatch_recheck[key] = now + _DISPATCH_RECHECK_SECONDS
+                        result = binding.api.command_status(binding.policy.route, key,
+                                                            timeout_seconds=binding.timeout)
+                        snapshot_dirty = True
+                        if result.outcome != "OBSERVED" or result.record is None:
+                            binding.state = "RECOVERY_PENDING"
+                            return
+                        current = result.record
+                        if current.state == "EXPIRED":
+                            binding.dispatch_recheck.pop(key, None)
+                            self._gateway_finalize_release(binding, order, key)
+                            binding.state = "WAITING_NOTIFICATIONS"
+                            return
+                        # expiry_pending also covers a reservation of an older owner
+                        # generation: the record carries no remaining time for one.
+                        if current.state == "RESERVED" and current.expiry_pending:
+                            if (order.status == order.Submitted and order.executed.size == 0
+                                    and self._gateway_release_unsent(binding, order, key)):
+                                binding.dispatch_recheck.pop(key, None)
+                                binding.dispatched.discard(key)
+                                binding.state = "WAITING_NOTIFICATIONS"
+                                return
+                            binding.state = "RESERVATION_RECOVERY_PENDING"
+                            return
         did_read = False
 
         def read_once():
@@ -1747,6 +1941,12 @@ class GatewayExecutionStreamBrokerMixin:
                             binding.state = "RECOVERY_PENDING"
                             return False
             checkpoint = binding.host.ingest_execution_result(result, expected_revision=checkpoint.revision)
+            self._ensure_gateway_trade_facts(binding)
+            if (
+                checkpoint.stored_sequence - binding.trade_fact_last_sequence
+                >= max(1, _STREAM_EVENT_SCAN_LIMIT // 2)
+            ):
+                self._refresh_gateway_trade_facts(binding, checkpoint)
             return True
 
         events = binding.host.read_execution_events(limit=1)
@@ -1783,22 +1983,25 @@ class GatewayExecutionStreamBrokerMixin:
         obs = event.observation
         if obs.kind is DirectExecutionEventKind.TRADE:
             def trade_facts():
-                prior, dates, times = [], [], []
-                for candidate in self._gateway_stream_events(binding.host):
-                    other = candidate.observation
-                    if (candidate.request_key == event.request_key
-                            and other.trade_key_digest == obs.trade_key_digest):
-                        if candidate.sequence < event.sequence and not other.trade_metadata_only:
-                            prior.append(candidate)
-                        if other.trade_date is not None:
-                            dates.append((other.trade_date, candidate.fact_digest))
-                        if other.trade_time is not None:
-                            times.append((other.trade_time, candidate.fact_digest))
-                if len({value for value, _ in dates}) > 1:
+                self._refresh_gateway_trade_facts(
+                    binding, checkpoint, target_sequence=event.sequence
+                )
+                entry = binding.trade_fact_index.get(
+                    (event.request_key, obs.trade_key_digest)
+                )
+                if entry is None:
+                    return False, [], []
+                if entry.date_conflict:
                     _fail("TRADE_DATE_CONFLICT")
-                if len({value for value, _ in times}) > 1:
+                if entry.time_conflict:
                     _fail("TRADE_TIME_CONFLICT")
-                return prior, dates, times
+                has_prior = (
+                    entry.min_non_metadata_seq is not None
+                    and entry.min_non_metadata_seq < event.sequence
+                )
+                dates = [] if entry.date is None else [(entry.date, entry.date_digest)]
+                times = [] if entry.time is None else [(entry.time, entry.time_digest)]
+                return has_prior, dates, times
 
             prior, dates, times = trade_facts()
             if (not obs.trade_metadata_only

@@ -8,6 +8,7 @@ Records data during strategy execution for subsequent plotting or analysis.
 from collections import OrderedDict
 
 import backtrader as bt
+from backtrader.lineiterator import LineIterator
 from backtrader.utils.log_message import get_logger, throttled_warning
 
 logger = get_logger(__name__)
@@ -37,13 +38,13 @@ class RecorderAnalyzer(bt.Analyzer):
         ("observers", False),  # Whether to record observers
     )
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """Initialize recorder analyzer.
 
         Sets up storage for data sources, indicators, and observers based
         on parameter configuration.
         """
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
         # Data storage
         self._data: dict = OrderedDict()
@@ -76,18 +77,20 @@ class RecorderAnalyzer(bt.Analyzer):
         # Record data sources
         self._record_datas()
 
-        # Record indicators (IndType = 1)
+        # Record indicators (IndType = 0)
         if self.p.indicators and hasattr(self.strategy, "_lineiterators"):
-            self._record_lineiterators(self._indicators, 1)
+            self._record_lineiterators(self._indicators, LineIterator.IndType)
 
         # Record observers (ObsType = 2)
-        if self.p.observers and hasattr(self.strategy, "_lineiterators"):
-            self._record_lineiterators(self._observers, 2)
+        if self.p.observers and (
+            hasattr(self.strategy, "_lineiterators") or hasattr(self.strategy, "observers")
+        ):
+            self._record_lineiterators(self._observers, LineIterator.ObsType)
 
     def _record_datas(self):
         """Append the current OHLCV bar for each data feed into self._data."""
         for i, data in enumerate(self.strategy.datas):
-            name = getattr(data, "_name", f"data{i}")
+            name = getattr(data, "_name", None) or f"data{i}"
 
             if name in self._data:
                 try:
@@ -109,21 +112,42 @@ class RecorderAnalyzer(bt.Analyzer):
                         exc_info=False,
                     )
 
+    def _iter_lineiterators(self, ltype):
+        """Yield unique line-iterator instances for ``ltype``."""
+        seen = set()
+        lineiterators = getattr(self.strategy, "_lineiterators", None)
+        if lineiterators is not None:
+            for obj in lineiterators.get(ltype, []):
+                obj_id = id(obj)
+                if obj_id not in seen:
+                    seen.add(obj_id)
+                    yield obj
+        if ltype == LineIterator.ObsType:
+            for item in getattr(self.strategy, "observers", ()):
+                subitems = item if isinstance(item, (list, tuple)) else (item,)
+                for obj in subitems:
+                    if hasattr(obj, "lines"):
+                        obj_id = id(obj)
+                        if obj_id not in seen:
+                            seen.add(obj_id)
+                            yield obj
+
     def _record_lineiterators(self, store, ltype):
         """Append the current value of every line of each line-iterator of the
-        given type (1=indicators, 2=observers) into ``store`` keyed by class
-        name. Shared by the indicator and observer recording paths."""
-        for obj in self.strategy._lineiterators.get(ltype, []):
-            obj_name = obj.__class__.__name__
+        given type (0=indicators, 2=observers) into ``store`` keyed by a
+        per-instance name. Shared by the indicator and observer recording paths."""
+        for obj in self._iter_lineiterators(ltype):
+            obj_name = "{0}#{1}".format(obj.__class__.__name__, id(obj))
+            line_aliases = obj.lines.getlinealiases()
 
             if obj_name not in store:
                 store[obj_name] = OrderedDict()
                 # Initialize line storage
-                for line_name in obj.lines._getlinealiases():
+                for line_name in line_aliases:
                     store[obj_name][line_name] = []
 
             # Record value for each line
-            for line_name in obj.lines._getlinealiases():
+            for line_name in line_aliases:
                 try:
                     line = getattr(obj.lines, line_name)
                     value = line[0] if len(line) > 0 else None

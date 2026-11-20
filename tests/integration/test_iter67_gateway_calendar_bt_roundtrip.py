@@ -13,6 +13,30 @@ import zmq
 pytestmark = pytest.mark.skipif(not zmq.has("curve"), reason="CURVE unavailable")
 
 
+def _child_env(sdk_root: Path, bt_root: Path, tmp_path: Path) -> dict[str, str]:
+    if os.name == "nt":
+        env = {
+            "PATH": os.environ.get("PATH", os.defpath),
+            "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
+            "USERPROFILE": os.environ.get("USERPROFILE", ""),
+            "TEMP": os.environ.get("TEMP", ""),
+            "TMP": os.environ.get("TMP", ""),
+        }
+    else:
+        env = {"PATH": os.defpath}
+    pythonpath_parts = [str(sdk_root), str(bt_root)]
+    if os.environ.get("PYTHONPATH"):
+        pythonpath_parts.append(os.environ["PYTHONPATH"])
+    env.update(
+        {
+            "PYTHONPATH": os.pathsep.join(pythonpath_parts),
+            "CALENDAR_BT_TEST_DIR": str(tmp_path),
+            "PYTHONDONTWRITEBYTECODE": "1",
+        }
+    )
+    return env
+
+
 def test_gateway_store_two_feeds_on_host_curve(tmp_path):
     sdk_root = Path(bt_api_py.__file__).resolve().parent.parent
     bt_root = Path(__file__).resolve().parents[2]
@@ -79,15 +103,11 @@ assert {version for _, version in seen} == {"v1", "v2"}
 assert len({registration for registration, _ in seen}) >= 2
 assert any(version == "v1" and count >= 2 for (_, version), count in seen.items())
 '''
-    environment = {
-        "PATH": os.defpath,
-        "PYTHONPATH": os.pathsep.join((str(sdk_root), str(bt_root))),
-        "CALENDAR_BT_TEST_DIR": str(tmp_path),
-        "PYTHONDONTWRITEBYTECODE": "1",
-    }
-    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root, env=environment,
-                            capture_output=True, text=True, timeout=90)
-    assert result.returncode == 0, result.stderr
+    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root,
+                            env=_child_env(sdk_root, bt_root, tmp_path),
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=90)
+    assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")
 
 
 def test_gateway_range_two_feeds_on_host_curve(tmp_path):
@@ -186,15 +206,11 @@ assert {item[-1] for item in seen} == {"v1", "v2"}
 assert {item[0] for item in seen} >= {"SIM", "SIM2"}
 assert concurrent_result == [True]
 '''
-    environment = {
-        "PATH": os.defpath,
-        "PYTHONPATH": os.pathsep.join((str(sdk_root), str(bt_root))),
-        "CALENDAR_BT_TEST_DIR": str(tmp_path),
-        "PYTHONDONTWRITEBYTECODE": "1",
-    }
-    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root, env=environment,
-                            capture_output=True, text=True, timeout=90)
-    assert result.returncode == 0, result.stderr
+    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root,
+                            env=_child_env(sdk_root, bt_root, tmp_path),
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=90)
+    assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")
 
 
 def test_gateway_range_long_holiday_on_host_curve(tmp_path):
@@ -307,8 +323,8 @@ finally:
     stop.set(); thread.join(15)
     assert not thread.is_alive()
 '''
-    environment = {"PATH": os.defpath, "PYTHONPATH": os.pathsep.join((str(sdk_root), str(bt_root))),
-                   "CALENDAR_BT_TEST_DIR": str(tmp_path), "PYTHONDONTWRITEBYTECODE": "1"}
-    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root, env=environment,
-                            capture_output=True, text=True, timeout=90)
-    assert result.returncode == 0, result.stderr
+    result = subprocess.run([sys.executable, "-c", script], cwd=sdk_root,
+                            env=_child_env(sdk_root, bt_root, tmp_path),
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=90)
+    assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")

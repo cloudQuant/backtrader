@@ -8,7 +8,8 @@ import datetime as _dt
 import math
 import threading
 import time
-from collections.abc import Mapping
+import weakref
+from collections.abc import Mapping, MutableMapping, MutableSet
 from copy import copy, deepcopy
 from decimal import Decimal
 from typing import Any, DefaultDict, Dict, List, Optional
@@ -66,6 +67,114 @@ _DATA_NAME_KEYS = (
     "data_name",
 )
 _CONFIRMED_TERMINAL_STATUSES = frozenset({"completed", "canceled", "rejected", "expired"})
+_MAX_SEEN_TRADE_IDS = 100_000
+_MAX_APPLIED_FILL_FEES = 100_000
+
+
+class _BoundedTradeKeySet(MutableSet):
+    """Bounded LRU set for fill dedupe/quarantine keys with ``set``-compatible API."""
+
+    __slots__ = ("_entries", "maxsize")
+
+    def __init__(self, iterable=(), *, maxsize: int = _MAX_SEEN_TRADE_IDS) -> None:
+        if isinstance(maxsize, bool) or not isinstance(maxsize, int) or maxsize < 1:
+            raise ValueError("maxsize must be a positive int")
+        self.maxsize = maxsize
+        self._entries: "collections.OrderedDict[Any, None]" = collections.OrderedDict()
+        for item in iterable:
+            self.add(item)
+
+    def __contains__(self, value: Any) -> bool:
+        return value in self._entries
+
+    def __iter__(self):
+        return iter(self._entries)
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def add(self, value: Any) -> None:
+        if value in self._entries:
+            self._entries.move_to_end(value)
+            return
+        self._entries[value] = None
+        while len(self._entries) > self.maxsize:
+            self._entries.popitem(last=False)
+
+    def discard(self, value: Any) -> None:
+        self._entries.pop(value, None)
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+    def update(self, iterable) -> None:
+        for item in iterable:
+            self.add(item)
+
+
+class _BoundedAppliedFillFees(MutableMapping):
+    """Bounded LRU map of applied fill fees without holding strong refs to Orders.
+
+    Values follow the 5-tuple ``(order, quantity, price, booked, currency)``
+    contract. Weak-referenceable ``order`` objects are stored via
+    ``weakref.ref`` so completed/discarded ``Order`` instances can be garbage
+    collected while preserving exact lookup semantics for live orders.
+    """
+
+    __slots__ = ("_entries", "maxsize")
+
+    def __init__(self, *, maxsize: int = _MAX_APPLIED_FILL_FEES) -> None:
+        if isinstance(maxsize, bool) or not isinstance(maxsize, int) or maxsize < 1:
+            raise ValueError("maxsize must be a positive int")
+        self.maxsize = maxsize
+        self._entries: "collections.OrderedDict[Any, tuple]" = collections.OrderedDict()
+
+    def _prune_dead(self) -> None:
+        dead = [
+            key
+            for key, (order_ref, is_weak, _qty, _price, _booked, _currency) in self._entries.items()
+            if is_weak and order_ref() is None
+        ]
+        for key in dead:
+            self._entries.pop(key, None)
+
+    def __getitem__(self, key: Any):
+        entry = self._entries[key]
+        order_ref, is_weak, quantity, price, booked, currency = entry
+        order = order_ref() if is_weak else order_ref
+        if is_weak and order is None:
+            self._entries.pop(key, None)
+            raise KeyError(key)
+        return (order, quantity, price, booked, currency)
+
+    def __setitem__(self, key: Any, value) -> None:
+        order, quantity, price, booked, currency = value
+        try:
+            order_ref = weakref.ref(order)
+            is_weak = True
+        except TypeError:
+            order_ref = order
+            is_weak = False
+        self._entries[key] = (order_ref, is_weak, quantity, price, booked, currency)
+        self._entries.move_to_end(key)
+        if len(self._entries) > self.maxsize:
+            self._prune_dead()
+            while len(self._entries) > self.maxsize:
+                self._entries.popitem(last=False)
+
+    def __delitem__(self, key: Any) -> None:
+        del self._entries[key]
+
+    def __iter__(self):
+        self._prune_dead()
+        return iter(list(self._entries))
+
+    def __len__(self) -> int:
+        self._prune_dead()
+        return len(self._entries)
+
+    def clear(self) -> None:
+        self._entries.clear()
 
 
 class BtApiBroker(
@@ -229,8 +338,9 @@ class BtApiBroker(
         self._verified_risk_reducing_orders = set()
         self._position_quantity_units = {}
         self._remote_open_orders_snapshot = []
-        self._seen_trade_ids = set()
-        self._quarantined_trade_ids = set()
+        self._seen_trade_ids = _BoundedTradeKeySet(maxsize=_MAX_SEEN_TRADE_IDS)
+        self._quarantined_trade_ids = _BoundedTradeKeySet(maxsize=_MAX_SEEN_TRADE_IDS)
+        self._applied_fill_fees = _BoundedAppliedFillFees(maxsize=_MAX_APPLIED_FILL_FEES)
         self._order_execution_contracts = {}
         self._pending_trade_updates: collections.deque[Any] = collections.deque()
         self._position_mode_frozen = False
@@ -2497,6 +2607,7 @@ class BtApiBroker(
             self._abort_recovery_dispatch(order, "execution_recovery_cancel_requires_refresh")
             order.addinfo(
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
                 recovery_refresh_required=True,
                 cancel_requested_remote=False,
             )
@@ -2518,6 +2629,7 @@ class BtApiBroker(
                     cancel_retry_exhausted=True,
                     cancel_intent_active=True,
                     execution_unknown=True,
+                    execution_unknown_from_cancel_only=False,
                 )
                 self.notify(order)
                 return order
@@ -2568,15 +2680,15 @@ class BtApiBroker(
                             exc, "remote_cancel_rejected"
                         ),
                         cancel_error_msg="The SDK rejected cancellation before dispatch.",
+                        **self._cancel_rejection_unknown_clear_fields(order),
                     )
                     self.notify(order)
                     return order
                 raise
-            order.addinfo(
+            self._mark_cancel_execution_unknown(
+                order,
                 cancel_requested_remote=True,
-                cancel_execution_unknown=True,
                 cancel_intent_active=True,
-                execution_unknown=True,
                 cancel_error_code=self._safe_exception_code(
                     exc, "cancel_execution_unknown"
                 ),
@@ -2611,11 +2723,10 @@ class BtApiBroker(
         if not local_cancelled_before_send and not queued_receipt:
             correlation = self._order_correlations.get(order.ref)
             if not self._verify_cancel_response(correlation, response):
-                order.addinfo(
+                self._mark_cancel_execution_unknown(
+                    order,
                     cancel_requested_remote=True,
-                    cancel_execution_unknown=True,
                     cancel_intent_active=True,
-                    execution_unknown=True,
                     cancel_error_code="sdk_cancel_response_unverified",
                 )
                 self.orders[order.ref] = order
@@ -2694,6 +2805,7 @@ class BtApiBroker(
         self._abort_recovery_dispatch(order, "execution_recovery_dispatch_unknown")
         order.addinfo(
             execution_unknown=True,
+            execution_unknown_from_cancel_only=False,
             error_code=error_code,
             error_msg="Remote submission outcome is unknown; reconcile the original client id",
         )
@@ -2935,9 +3047,8 @@ class BtApiBroker(
                 continue
             if bool(self._order_info_get(order, "cancel_deadline_unknown_marked", False)):
                 continue
-            order.addinfo(
-                execution_unknown=True,
-                cancel_execution_unknown=True,
+            self._mark_cancel_execution_unknown(
+                order,
                 cancel_intent_active=True,
                 cancel_deadline_unknown_marked=True,
                 cancel_error_code="cancel_confirmation_timeout",
@@ -4359,6 +4470,7 @@ class BtApiBroker(
             # evidence that can safely transition an Order in this facade.
             order.addinfo(
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
                 reconcile_requested=False,
                 error_code="typed_order_observation_unavailable",
             )
@@ -4428,15 +4540,15 @@ class BtApiBroker(
             if command == "submit":
                 order.addinfo(
                     execution_unknown=True,
+                    execution_unknown_from_cancel_only=False,
                     error_code="sdk_order_ack_unverified",
                     error_msg="SDK acknowledgement is unverified; reconcile the original order",
                 )
             else:
-                order.addinfo(
+                self._mark_cancel_execution_unknown(
+                    order,
                     cancel_requested_remote=True,
-                    cancel_execution_unknown=True,
                     cancel_intent_active=True,
-                    execution_unknown=True,
                     cancel_error_code="sdk_cancel_ack_unverified",
                 )
             self._begin_execution_reconciliation("sdk_ack_unverified")
@@ -4460,6 +4572,7 @@ class BtApiBroker(
                     cancel_deadline_unknown_marked=False,
                     cancel_error_code=error_code,
                     cancel_error_msg=error_msg,
+                    **self._cancel_rejection_unknown_clear_fields(order),
                 )
             self.notify(order)
             return
@@ -4469,6 +4582,7 @@ class BtApiBroker(
                 order.accept(self)
             order.addinfo(
                 execution_unknown=False,
+                execution_unknown_from_cancel_only=False,
                 submit_command_completed=True,
                 submit_receipt_id=update.get("receipt_id"),
             )
@@ -4512,6 +4626,7 @@ class BtApiBroker(
         def fail(reason):
             order.addinfo(
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
                 reconcile_requested=False,
                 reconcile_receipt_id=None,
                 reconcile_last_reason=reason,
@@ -4742,6 +4857,7 @@ class BtApiBroker(
                 reconcile_last_reason=str(reason),
                 reconcile_next_monotonic_ns=None,
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
             )
             return
         order.addinfo(
@@ -4761,6 +4877,7 @@ class BtApiBroker(
                 cancel_retry_due_monotonic_ns=None,
                 cancel_intent_active=True,
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
             )
             return
         delay_ns = 0 if immediate else self._retry_delay_ns(attempts)
@@ -4792,6 +4909,7 @@ class BtApiBroker(
                 reconcile_exhausted=True,
                 reconcile_next_monotonic_ns=None,
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
             )
             return
         method = getattr(self.store, "enqueue_order_reconciliation", None)
@@ -4827,7 +4945,10 @@ class BtApiBroker(
     def _trade_dedupe_key(self, update, order=None):
         """Build a stable dedupe key from a normalized SDK fill id."""
         trade_id = self._extract_update_value(update, "trade_id", "fill_id")
-        if trade_id in (None, ""):
+        if trade_id in (None, "") or isinstance(trade_id, bool):
+            return None
+        trade_id_text = str(trade_id).strip()
+        if not trade_id_text:
             return None
 
         order_key = (
@@ -4844,7 +4965,7 @@ class BtApiBroker(
         if data_name in (None, "") and order is not None:
             data_name = self._position_key(order.data)
 
-        return (str(order_key), str(data_name or ""), str(trade_id))
+        return (str(order_key), str(data_name or ""), trade_id_text)
 
     def _trade_update_details(self, update, order=None, **extra):
         """Return a compact runtime-event payload from normalized SDK fields."""
@@ -4923,6 +5044,50 @@ class BtApiBroker(
             or self._order_info_get(order, "cancel_execution_unknown", False)
         )
 
+    def _has_non_cancel_uncertainty_flag(self, order):
+        """Return whether ``order`` carries any order-level uncertainty independent of cancel."""
+        return any(
+            bool(self._order_info_get(order, flag, False))
+            for flag in (
+                "ledger_mismatch",
+                "recovery_refresh_required",
+                "service_read_unavailable",
+                "reconcile_exhausted",
+                "cancel_retry_exhausted",
+            )
+        )
+
+    def _mark_cancel_execution_unknown(self, order, **extra_info):
+        """Mark cancel uncertainty while recording whether order-level unknown is cancel-only."""
+        was_unknown = bool(self._order_info_get(order, "execution_unknown", False))
+        was_cancel_only = bool(
+            self._order_info_get(order, "execution_unknown_from_cancel_only", False)
+        )
+        cancel_only = (
+            ((not was_unknown) or was_cancel_only)
+            and not self._has_non_cancel_uncertainty_flag(order)
+        )
+        order.addinfo(
+            cancel_execution_unknown=True,
+            execution_unknown=True,
+            execution_unknown_from_cancel_only=cancel_only,
+            **extra_info,
+        )
+
+    def _cancel_rejection_unknown_clear_fields(self, order):
+        """Return fields clearing order-level ``execution_unknown`` only when cancel-only."""
+        if (
+            bool(self._order_info_get(order, "execution_unknown", False))
+            and bool(self._order_info_get(order, "cancel_execution_unknown", False))
+            and bool(self._order_info_get(order, "execution_unknown_from_cancel_only", False))
+            and not self._has_non_cancel_uncertainty_flag(order)
+        ):
+            return {
+                "execution_unknown": False,
+                "execution_unknown_from_cancel_only": False,
+            }
+        return {}
+
     def _apply_managed_submit_projection(self, order, response):
         """Project a managed route's submit result (iteration 60 restoration).
 
@@ -4937,6 +5102,7 @@ class BtApiBroker(
         if not isinstance(response, Mapping):
             order.addinfo(
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
                 error_code="invalid_managed_execution_projection",
                 error_msg="Managed execution projection is invalid; reconcile the original intent",
             )
@@ -4969,6 +5135,7 @@ class BtApiBroker(
         if unknown:
             order.addinfo(
                 execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
                 error_code=str(response.get("error_code") or "managed_submit_unknown"),
                 error_msg=str(
                     response.get("error_msg")
@@ -5079,6 +5246,7 @@ class BtApiBroker(
                 error.applied_refs = tuple(applied)
                 order.addinfo(
                     execution_unknown=True,
+                    execution_unknown_from_cancel_only=False,
                     service_refresh_error_code=error.code,
                     service_read_unavailable=True,
                 )
@@ -5112,7 +5280,10 @@ class BtApiBroker(
                     and projection.get("execution_unknown") is not True
                 )
                 if has_known_non_unknown_state:
-                    order.addinfo(execution_unknown=False)
+                    order.addinfo(
+                        execution_unknown=False,
+                        execution_unknown_from_cancel_only=False,
+                    )
             if projection.get("managed_execution_replayed") is True:
                 continue
             # A repeat projection of the same durable revision must not be
@@ -5193,15 +5364,15 @@ class BtApiBroker(
                 cancel_intent_active=False,
                 cancel_error_code=str(response.get("error_code") or "managed_cancel_rejected"),
                 cancel_error_msg="The managed route rejected the cancellation.",
+                **self._cancel_rejection_unknown_clear_fields(order),
             )
             self.notify(order)
             return order
         if unknown:
-            order.addinfo(
+            self._mark_cancel_execution_unknown(
+                order,
                 cancel_requested_remote=True,
-                cancel_execution_unknown=True,
                 cancel_intent_active=True,
-                execution_unknown=True,
                 cancel_error_code=str(response.get("error_code") or "cancel_execution_unknown"),
                 cancel_error_msg="Remote cancellation outcome is unknown",
             )
@@ -5291,6 +5462,7 @@ class BtApiBroker(
             return False
         order.addinfo(
             execution_unknown=False,
+            execution_unknown_from_cancel_only=False,
             cancel_execution_unknown=False,
             confirmation_source=str(source or "provider_terminal_observation"),
             confirmed_terminal_status=status,
@@ -5370,10 +5542,12 @@ class BtApiBroker(
         status = self._normalize_remote_order_status(update.get("status"))
         was_unknown = bool(self._order_info_get(order, "execution_unknown", False))
         if update.get("execution_unknown") is True or status == "unknown":
-            if order.alive() and not was_unknown:
-                order.addinfo(execution_unknown=True)
-                self.notify(order)
-                self._request_order_reconcile(order)
+            if order.alive():
+                order.addinfo(execution_unknown_from_cancel_only=False)
+                if not was_unknown:
+                    order.addinfo(execution_unknown=True)
+                    self.notify(order)
+                    self._request_order_reconcile(order)
             return None
 
         status_msg = str(self._redact_runtime_value(update.get("status_msg") or ""))
@@ -5396,6 +5570,7 @@ class BtApiBroker(
         if status in {"accepted", "partial", "completed", "canceled", "rejected", "expired"}:
             order.addinfo(
                 execution_unknown=False,
+                execution_unknown_from_cancel_only=False,
                 reconcile_requested=False,
                 reconcile_exhausted=False,
                 reconcile_next_monotonic_ns=None,
@@ -5449,11 +5624,14 @@ class BtApiBroker(
                     cancel_requested_remote=False,
                     cancel_execution_unknown=False,
                     cancel_intent_active=False,
+                    cancel_deadline_monotonic_ns=None,
+                    cancel_deadline_unknown_marked=False,
                     reconcile_requested=False,
                     cancel_reject_msg=status_msg,
                     cancel_reject_code=str(
                         self._redact_runtime_value(update.get("error_code") or "")
                     ),
+                    **self._cancel_rejection_unknown_clear_fields(order),
                 )
                 self.notify(order)
         return None
@@ -5473,14 +5651,22 @@ class BtApiBroker(
             or (status == "completed" and abs(expected - total) > Decimal("0.000000000001"))
             or expected < executed - Decimal("0.000000000001")
         ):
-            order.addinfo(execution_unknown=True, error_code="terminal_order_observation_unproven")
+            order.addinfo(
+                execution_unknown=True,
+                execution_unknown_from_cancel_only=False,
+                error_code="terminal_order_observation_unproven",
+            )
             self.notify(order)
             self._request_order_reconcile(order)
             return "unknown"
 
         if status == "rejected":
             if expected != 0 or executed != 0:
-                order.addinfo(execution_unknown=True, error_code="rejected_order_has_fills")
+                order.addinfo(
+                    execution_unknown=True,
+                    execution_unknown_from_cancel_only=False,
+                    error_code="rejected_order_has_fills",
+                )
                 self.notify(order)
                 self._request_order_reconcile(order)
                 return "unknown"
@@ -5655,6 +5841,13 @@ class BtApiBroker(
 
         if trade_key is None and not from_cumulative_status:
             trade_key = self._trade_dedupe_key(update, order=order)
+        if not from_cumulative_status and trade_key is None:
+            return self._block_trade_identity_mismatch(
+                order,
+                update,
+                "trade_id_unavailable",
+                "SDK fill omitted its unique trade_id/fill_id; refusing un-deduplicable fill",
+            )
         if trade_key and trade_key in self._seen_trade_ids:
             return self._apply_repeated_fill_fee(trade_key, update)
 
@@ -5807,7 +6000,9 @@ class BtApiBroker(
         with the order's next journaled notification, so a correction that
         reaches a restarted process is still recognised.
         """
-        fills = self.__dict__.setdefault("_applied_fill_fees", {})
+        fills = self.__dict__.setdefault(
+            "_applied_fill_fees", _BoundedAppliedFillFees(maxsize=_MAX_APPLIED_FILL_FEES)
+        )
         amount, _error = self._normalized_commission(update)
         currency = self._extract_update_value(update, "fee_currency")
         booked = None if amount is None else Decimal(str(amount))
@@ -5833,7 +6028,8 @@ class BtApiBroker(
             return "ignored"
         record = (self.__dict__.get("_applied_fill_fees") or {}).get(trade_key)
         if record is None:
-            return "ignored"
+            durable = self._apply_durable_fill_fee(trade_key, update)
+            return durable if durable is not None else "ignored"
         order, quantity, price, booked, booked_currency = record
         amount, error = self._normalized_commission(update)
         if amount is None:
@@ -5892,6 +6088,7 @@ class BtApiBroker(
         """Reject a fill whose explicit remote identity conflicts with its local intent."""
         order.addinfo(
             execution_unknown=True,
+            execution_unknown_from_cancel_only=False,
             ledger_mismatch=True,
             error_code=error_code,
             error_msg=error_msg,
@@ -6109,6 +6306,8 @@ class BtApiBroker(
             psize=psize,
             pprice=pprice,
         )
+        if actual_commission is not None:
+            self._record_provider_fee(order, update, actual_commission)
 
         order.addinfo(position_side=position_side)
         if offset is not None:

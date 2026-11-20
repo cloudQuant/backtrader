@@ -16,10 +16,20 @@ from bt_api_py.service_runtime import ClientCurveKeys
 from tests.unit.live_state.conftest import state as state, strategy_dir as strategy_dir
 
 
+def _sdk_service_example(name):
+    """Locate the SDK example; the sibling checkout layout is platform-neutral."""
+    root = Path(__file__).resolve().parents[4]
+    candidates = (root / "bt_api_py/examples/services" / name,
+                  root.parent / "bt_api_py/examples/services" / name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
 @pytest.fixture
 def setup_gateway(state):
-    path = (Path(__file__).resolve().parents[4] / "bt_api_py/examples/services"
-            / "gateway-strategy-client.example.yaml")
+    path = _sdk_service_example("gateway-strategy-client.example.yaml")
     config = yaml.safe_load(path.read_text(encoding="utf-8"))
     binding = GatewayCommandBinding(**config["binding"])
     GatewayPendingHost.upgrade_for_gateway(state.strategy_dir, state.strategy_uuid, binding)
@@ -843,3 +853,89 @@ def test_stopped_store_never_registers_again(setup_gateway, monkeypatch):
     for method in (plain.gateway_reconnect, plain.gateway_session_recoverable):
         with pytest.raises(RuntimeError, match="GATEWAY_MODE_REQUIRED"):
             method()
+
+
+def test_open_gateway_execution_db_rolls_back_and_clears_cache_on_install_error(
+    setup_gateway, state, monkeypatch
+):
+    import os
+    import sqlite3
+    import bt_api_py.execution_routing as exec_routing
+    from backtrader.service import gateway_config
+
+    if os.name == "nt":
+        from bt_api_py._win32_security import _set_owner_only_acl
+        _set_owner_only_acl(Path(state.paths.state_dir))
+
+    store = make_store(setup_gateway)
+    lock = state.acquire_run_lock()
+    store._gateway_run_lock = lock
+    store._gateway_owns_run_lock = True
+    try:
+        original_install = exec_routing.install_execution_routing_tables
+        calls = []
+
+        def failing_install(db):
+            calls.append(db)
+            assert db.in_transaction
+            db.execute("CREATE TABLE IF NOT EXISTS _partial_tx_probe (id INTEGER)")
+            raise RuntimeError("synthetic_install_failure")
+
+        monkeypatch.setattr(exec_routing, "install_execution_routing_tables", failing_install)
+        with pytest.raises(RuntimeError, match="synthetic_install_failure"):
+            gateway_config._open_gateway_execution_db(store)
+
+        assert len(calls) == 1
+        assert store._gateway_execution_db is None
+        # Confirm transaction rolled back and write lock was released on disk.
+        db_path = Path(state.paths.state_dir) / gateway_config._EXECUTION_DB_FILENAME
+        probe = sqlite3.connect(str(db_path), isolation_level=None, timeout=0.1)
+        try:
+            probe.execute("BEGIN IMMEDIATE")
+            rows = probe.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='_partial_tx_probe'"
+            ).fetchall()
+            probe.rollback()
+            assert rows == []
+        finally:
+            probe.close()
+
+        # Subsequent open must create a fresh valid connection instead of reusing a broken one.
+        monkeypatch.setattr(exec_routing, "install_execution_routing_tables", original_install)
+        db = gateway_config._open_gateway_execution_db(store)
+        assert db is not calls[0]
+        assert store._gateway_execution_db is db
+        assert not db.in_transaction
+        gateway_config._close_gateway_execution_db(store)
+    finally:
+        lock.release()
+
+
+def test_gateway_state_dir_trusted_and_db_identity_handle_missing_paths_uniformly(
+    tmp_path, monkeypatch
+):
+    import os
+    from backtrader.service import gateway_config
+
+    missing_dir = tmp_path / "does-not-exist-dir"
+    missing_file = tmp_path / "does-not-exist.sqlite"
+    existing_file = tmp_path / "present.sqlite"
+    existing_file.write_bytes(b"")
+
+    # Real host path (Windows on win32, POSIX on posix)
+    assert gateway_config._gateway_state_dir_trusted(str(missing_dir)) is False
+    fd = os.open(str(existing_file), os.O_RDWR)
+    try:
+        assert gateway_config._gateway_db_identity(fd, str(missing_file)) is None
+    finally:
+        os.close(fd)
+
+    # Explicitly exercise POSIX branch error handling on any platform (N72-05).
+    fake_os = SimpleNamespace(
+        name="posix",
+        lstat=lambda _p: (_ for _ in ()).throw(FileNotFoundError("missing")),
+        fstat=lambda _fd: (_ for _ in ()).throw(OSError("bad fd")),
+    )
+    monkeypatch.setattr(gateway_config, "os", fake_os)
+    assert gateway_config._gateway_state_dir_trusted(str(missing_dir)) is False
+    assert gateway_config._gateway_db_identity(999999, str(missing_file)) is None

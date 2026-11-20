@@ -87,9 +87,10 @@ def _warn_once(key, message):
 
 
 _SECRET_VALUE = re.compile(
-    r"(?i)(\b(?:password|passwd|passphrase|api[_-]?key|api[_-]?secret|secret|"
-    r"access[_-]?token|refresh[_-]?token|authorization)\b[\"']?\s*[:=]\s*)"
-    r"(?:\"[^\"]*\"|'[^']*'|[^\s,;}\]]+)"
+    r"(?i)(\b(?:password|passwd|passphrase|api[_-]?key|api[_-]?secret|"
+    r"app[_-]?secret|corp[_-]?secret|secret|access[_-]?token|refresh[_-]?token|"
+    r"context[_-]?token|bot[_-]?token|authorization)\b[\"']?\s*[:=]\s*)"
+    r"(?:\"[^\"]*\"|'[^']*'|[^\s,;}\])&#]+)"
 )
 _BEARER_VALUE = re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")
 _URL_PASSWORD = re.compile(r"(://[^\s/:@]+:)[^\s/@]+(@)")

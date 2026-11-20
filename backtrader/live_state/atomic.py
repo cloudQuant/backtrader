@@ -18,6 +18,7 @@ necessarily a power loss.
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import tempfile
@@ -36,8 +37,11 @@ __all__ = (
     "atomic_write_json",
     "atomic_write_text",
     "fsync_directory",
+    "get_platform_file_lock_backend",
     "read_json",
     "read_json_bytes",
+    "try_lock_fd",
+    "unlock_fd",
 )
 
 #: The finite set of ``LiveStateError.code`` values.  Any other code passed to
@@ -313,33 +317,117 @@ def _parse_json_bytes(raw: bytes, target: str) -> Any:
 
 # --- inter-process lock -------------------------------------------------------
 
-if os.name == "nt":  # pragma: no cover - Windows only
-    import msvcrt
+_CONTENTION_ERRNOS = frozenset(
+    {
+        errno.EACCES,
+        errno.EAGAIN,
+        getattr(errno, "EWOULDBLOCK", errno.EAGAIN),
+        getattr(errno, "EDEADLK", errno.EACCES),
+    }
+)
 
-    def _try_lock(fd: int) -> bool:
+
+def _is_lock_contention(exc: OSError) -> bool:
+    """Return True only when ``exc`` indicates another holder owns the lock."""
+    return isinstance(exc, (BlockingIOError, PermissionError)) or exc.errno in _CONTENTION_ERRNOS
+
+
+class _PlatformFileLockBackend:
+    """Cross-platform non-blocking exclusive file-descriptor lock facade."""
+
+    name: str = "unsupported"
+
+    def try_lock(self, fd: int) -> bool:
+        raise RuntimeError("FILE_LOCK_PLATFORM_UNSUPPORTED")
+
+    def unlock(self, fd: int) -> None:
+        raise RuntimeError("FILE_LOCK_PLATFORM_UNSUPPORTED")
+
+
+class _Win32FileLockBackend(_PlatformFileLockBackend):
+    """Windows exclusive byte-0 lock via ``msvcrt.locking``."""
+
+    name = "msvcrt"
+
+    def __init__(self, msvcrt_module: Any) -> None:
+        self._msvcrt = msvcrt_module
+
+    def try_lock(self, fd: int) -> bool:
         os.lseek(fd, 0, os.SEEK_SET)
         try:
-            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            self._msvcrt.locking(fd, self._msvcrt.LK_NBLCK, 1)
             return True
-        except OSError:
-            return False
+        except OSError as exc:
+            if _is_lock_contention(exc):
+                return False
+            raise
 
-    def _unlock(fd: int) -> None:
+    def unlock(self, fd: int) -> None:
         os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        self._msvcrt.locking(fd, self._msvcrt.LK_UNLCK, 1)
 
-else:
-    import fcntl
 
-    def _try_lock(fd: int) -> bool:
+class _PosixFileLockBackend(_PlatformFileLockBackend):
+    """POSIX exclusive advisory lock via ``fcntl.flock``."""
+
+    name = "fcntl"
+
+    def __init__(self, fcntl_module: Any) -> None:
+        self._fcntl = fcntl_module
+
+    def try_lock(self, fd: int) -> bool:
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._fcntl.flock(fd, self._fcntl.LOCK_EX | self._fcntl.LOCK_NB)
             return True
-        except (BlockingIOError, PermissionError):
-            return False
+        except OSError as exc:
+            if _is_lock_contention(exc):
+                return False
+            raise
 
-    def _unlock(fd: int) -> None:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+    def unlock(self, fd: int) -> None:
+        self._fcntl.flock(fd, self._fcntl.LOCK_UN)
+
+
+def _select_platform_lock_backend() -> _PlatformFileLockBackend:
+    if os.name == "nt":
+        try:
+            import msvcrt
+
+            return _Win32FileLockBackend(msvcrt)
+        except ImportError:
+            return _PlatformFileLockBackend()
+    try:
+        import fcntl
+
+        return _PosixFileLockBackend(fcntl)
+    except ImportError:
+        return _PlatformFileLockBackend()
+
+
+_PLATFORM_LOCK_BACKEND: _PlatformFileLockBackend = _select_platform_lock_backend()
+
+
+def get_platform_file_lock_backend() -> _PlatformFileLockBackend:
+    """Return the active platform file-lock backend facade."""
+    return _PLATFORM_LOCK_BACKEND
+
+
+def try_lock_fd(fd: int) -> bool:
+    """Acquire an exclusive non-blocking lock on ``fd`` via the platform facade."""
+    return _PLATFORM_LOCK_BACKEND.try_lock(fd)
+
+
+def unlock_fd(fd: int) -> None:
+    """Release an exclusive lock on ``fd`` via the platform facade."""
+    _PLATFORM_LOCK_BACKEND.unlock(fd)
+
+
+def _try_lock(fd: int) -> bool:
+    return try_lock_fd(fd)
+
+
+def _unlock(fd: int) -> None:
+    unlock_fd(fd)
 
 
 class FileLock:
