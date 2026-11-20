@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     EMA,
     SMA,
@@ -56,6 +58,74 @@ def resolve_price_line(data, mode):
     return data.close
 
 
+def _advance_channels(
+    xccx,
+    fmin1,
+    fmax1,
+    smin1,
+    smax1,
+    ftrend,
+    strend,
+    fast_step,
+    slow_step,
+):
+    """Advance channel state using one finite oscillator value.
+
+    The first real value seeds the channel bounds, but cannot establish a
+    direction because there is no prior channel to cross.  ``None`` denotes
+    unseeded state; output lines remain NaN until a later value crosses a
+    seeded bound.
+    """
+    fmax0 = xccx + 2.0 * fast_step
+    fmin0 = xccx - 2.0 * fast_step
+    smax0 = xccx + 2.0 * slow_step
+    smin0 = xccx - 2.0 * slow_step
+
+    if fmin1 is None:
+        return (
+            fmin0,
+            fmax0,
+            smin0,
+            smax0,
+            ftrend,
+            strend,
+            float("nan"),
+            float("nan"),
+        )
+
+    if xccx > fmax1:
+        ftrend = 1
+    if xccx < fmin1:
+        ftrend = -1
+    if ftrend > 0 and fmin0 < fmin1:
+        fmin0 = fmin1
+    if ftrend < 0 and fmax0 > fmax1:
+        fmax0 = fmax1
+
+    if xccx > smax1:
+        strend = 1
+    if xccx < smin1:
+        strend = -1
+    if strend > 0 and smin0 < smin1:
+        smin0 = smin1
+    if strend < 0 and smax0 > smax1:
+        smax0 = smax1
+
+    mplus = float("nan")
+    if ftrend > 0:
+        mplus = fmin0 + fast_step
+    elif ftrend < 0:
+        mplus = fmax0 - fast_step
+
+    mminus = float("nan")
+    if strend > 0:
+        mminus = smin0 + slow_step
+    elif strend < 0:
+        mminus = smax0 - slow_step
+
+    return fmin0, fmax0, smin0, smax0, ftrend, strend, mplus, mminus
+
+
 class ColorStepXCCXIndicator(Indicator):
     """Compute fast/slow XCCX channel lines for directional step signals."""
 
@@ -85,53 +155,68 @@ class ColorStepXCCXIndicator(Indicator):
         self._dn = resolve_ma_class(self.p.msmooth_method)(
             abs(price_line - self._base), period=self.p.mperiod
         )
-        self._fmin1 = 999999.0
-        self._fmax1 = -999999.0
-        self._smin1 = 999999.0
-        self._smax1 = -999999.0
+        self._fmin1 = None
+        self._fmax1 = None
+        self._smin1 = None
+        self._smax1 = None
         self._ftrend = 0
         self._strend = 0
+        self._once_next = None
         self.addminperiod(self.p.dperiod + self.p.mperiod + 5)
 
     def next(self):
         """Update fast and slow channel lines on the next bar."""
-        xupccx = float(self._up[0])
-        xdnccx = float(self._dn[0])
-        xccx = 100.0 * xupccx / xdnccx if xupccx != 0.0 and xdnccx != 0.0 else 0.0
-        fmax0 = xccx + 2 * float(self.p.step_size_fast)
-        fmin0 = xccx - 2 * float(self.p.step_size_fast)
-        if xccx > self._fmax1:
-            self._ftrend = 1
-        if xccx < self._fmin1:
-            self._ftrend = -1
-        if self._ftrend > 0 and fmin0 < self._fmin1:
-            fmin0 = self._fmin1
-        if self._ftrend < 0 and fmax0 > self._fmax1:
-            fmax0 = self._fmax1
-        smax0 = xccx + 2 * float(self.p.step_size_slow)
-        smin0 = xccx - 2 * float(self.p.step_size_slow)
-        if xccx > self._smax1:
-            self._strend = 1
-        if xccx < self._smin1:
-            self._strend = -1
-        if self._strend > 0 and smin0 < self._smin1:
-            smin0 = self._smin1
-        if self._strend < 0 and smax0 > self._smax1:
-            smax0 = self._smax1
-        self.lines.mplus[0] = (
-            fmin0 + float(self.p.step_size_fast)
-            if self._ftrend > 0
-            else fmax0 - float(self.p.step_size_fast)
+        self.lines.mplus[0], self.lines.mminus[0] = self._advance_oscillator(
+            float(self._up[0]), float(self._dn[0])
         )
-        self.lines.mminus[0] = (
-            smin0 + float(self.p.step_size_slow)
-            if self._strend > 0
-            else smax0 - float(self.p.step_size_slow)
+
+    def prenext(self):
+        """Seed/update state from valid warm-up values without publishing it."""
+        self._advance_oscillator(float(self._up[0]), float(self._dn[0]))
+
+    def preonce(self, start, end):
+        """Advance warm-up state while leaving output buffers unavailable."""
+        up_array = self._up.array
+        dn_array = self._dn.array
+        actual_end = min(end, len(up_array), len(dn_array))
+        for index in range(start, actual_end):
+            self._advance_oscillator(float(up_array[index]), float(dn_array[index]))
+        self._once_next = end
+
+    def _advance_oscillator(self, xupccx, xdnccx):
+        """Advance state for one valid oscillator sample or preserve it."""
+        if (
+            not math.isfinite(xupccx)
+            or not math.isfinite(xdnccx)
+            or xdnccx <= 0.0
+        ):
+            return float("nan"), float("nan")
+
+        xccx = 100.0 * xupccx / xdnccx
+        if not math.isfinite(xccx):
+            return float("nan"), float("nan")
+
+        (
+            self._fmin1,
+            self._fmax1,
+            self._smin1,
+            self._smax1,
+            self._ftrend,
+            self._strend,
+            mplus,
+            mminus,
+        ) = _advance_channels(
+            xccx,
+            self._fmin1,
+            self._fmax1,
+            self._smin1,
+            self._smax1,
+            self._ftrend,
+            self._strend,
+            float(self.p.step_size_fast),
+            float(self.p.step_size_slow),
         )
-        self._fmin1 = fmin0
-        self._fmax1 = fmax0
-        self._smin1 = smin0
-        self._smax1 = smax0
+        return mplus, mminus
 
     def once(self, start, end):
         """Compute channel lines for vectorized/cached bars from `start` to `end`."""
@@ -143,51 +228,57 @@ class ColorStepXCCXIndicator(Indicator):
             while len(line) < end:
                 line.append(float("nan"))
 
-        fmin1 = 999999.0
-        fmax1 = -999999.0
-        smin1 = 999999.0
-        smax1 = -999999.0
-        ftrend = 0
-        strend = 0
+        if start == 0:
+            self._fmin1 = None
+            self._fmax1 = None
+            self._smin1 = None
+            self._smax1 = None
+            self._ftrend = 0
+            self._strend = 0
+            self._once_next = 0
+        elif self._once_next is not None and start != self._once_next:
+            raise ValueError("ColorStepXCCX once() ranges must be contiguous")
+
         fast_step = float(self.p.step_size_fast)
         slow_step = float(self.p.step_size_slow)
         actual_end = min(end, len(up_array), len(dn_array))
         for i in range(start, actual_end):
             xupccx = float(up_array[i])
             xdnccx = float(dn_array[i])
-            xccx = 100.0 * xupccx / xdnccx if xupccx != 0.0 and xdnccx != 0.0 else 0.0
-            fmax0 = xccx + 2.0 * fast_step
-            fmin0 = xccx - 2.0 * fast_step
-            if xccx > fmax1:
-                ftrend = 1
-            if xccx < fmin1:
-                ftrend = -1
-            if ftrend > 0 and fmin0 < fmin1:
-                fmin0 = fmin1
-            if ftrend < 0 and fmax0 > fmax1:
-                fmax0 = fmax1
+            if (
+                not math.isfinite(xupccx)
+                or not math.isfinite(xdnccx)
+                or xdnccx <= 0.0
+            ):
+                mplus_line[i] = float("nan")
+                mminus_line[i] = float("nan")
+                continue
 
-            smax0 = xccx + 2.0 * slow_step
-            smin0 = xccx - 2.0 * slow_step
-            if xccx > smax1:
-                strend = 1
-            if xccx < smin1:
-                strend = -1
-            if strend > 0 and smin0 < smin1:
-                smin0 = smin1
-            if strend < 0 and smax0 > smax1:
-                smax0 = smax1
+            xccx = 100.0 * xupccx / xdnccx
+            if not math.isfinite(xccx):
+                mplus_line[i] = float("nan")
+                mminus_line[i] = float("nan")
+                continue
 
-            mplus_line[i] = fmin0 + fast_step if ftrend > 0 else fmax0 - fast_step
-            mminus_line[i] = smin0 + slow_step if strend > 0 else smax0 - slow_step
-            fmin1 = fmin0
-            fmax1 = fmax0
-            smin1 = smin0
-            smax1 = smax0
+            (
+                self._fmin1,
+                self._fmax1,
+                self._smin1,
+                self._smax1,
+                self._ftrend,
+                self._strend,
+                mplus_line[i],
+                mminus_line[i],
+            ) = _advance_channels(
+                xccx,
+                self._fmin1,
+                self._fmax1,
+                self._smin1,
+                self._smax1,
+                self._ftrend,
+                self._strend,
+                fast_step,
+                slow_step,
+            )
 
-        self._fmin1 = fmin1
-        self._fmax1 = fmax1
-        self._smin1 = smin1
-        self._smax1 = smax1
-        self._ftrend = ftrend
-        self._strend = strend
+        self._once_next = end

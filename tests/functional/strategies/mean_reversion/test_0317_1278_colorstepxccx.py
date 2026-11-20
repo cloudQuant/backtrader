@@ -478,26 +478,30 @@ def test_318_0317_1278_colorstepxccx() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
+    # R71-039 now keeps direction-unknown channels unavailable instead of
+    # publishing the startup sentinel. The old slow-line sentinel produced a
+    # buy at 2025-12-03 19:00 and a 101.50 profit on exit; the remaining event
+    # sequence is identical after removing that startup-only trade.
     assert metrics.get('bar_num') == 6088, f"bar_num: expected=6088, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 198, f"buy_count: expected=198, got={metrics.get('buy_count')!r}"
+    assert metrics.get('buy_count') == 197, f"buy_count: expected=197, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 198, f"sell_count: expected=198, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 205, f"win_count: expected=205, got={metrics.get('win_count')!r}"
+    assert metrics.get('win_count') == 204, f"win_count: expected=204, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 191, f"loss_count: expected=191, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 396, f"total_trades: expected=396, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 396, f"trade_count: expected=396, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 205, f"won: expected=205, got={metrics.get('won')!r}"
+    assert metrics.get('total_trades') == 395, f"total_trades: expected=395, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 395, f"trade_count: expected=395, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 204, f"won: expected=204, got={metrics.get('won')!r}"
     assert metrics.get('lost') == 191, f"lost: expected=191, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1000326.4, tol=1.000326e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 326.4000000000233, tol=3.264000e-04, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.032640000000006, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 51.76767676767676, tol=5.176768e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.0257141506609795, tol=1.025714e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.19641460026507146, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 1.0165984545373232, tol=1.016598e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 1.950990591895273, tol=1.950991e-06, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.13071107713955096, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1000224.9, tol=1.000225e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 224.90000000002328, tol=2.249000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.022490000000008337, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 51.64556962025316, tol=5.164557e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.017717869128845, tol=1.017718e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.19643449729906914, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 0.7039804653690241, tol=7.039805e-07, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 1.3403196285344678, tol=1.340320e-06, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.09013756954012377, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
