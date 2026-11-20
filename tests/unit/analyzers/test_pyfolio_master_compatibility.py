@@ -178,15 +178,15 @@ def test_daily_metrics_match_independent_four_day_reference():
 
 
 def test_daily_alpha_preserves_empyrical_055_compounding_contract():
-    """A nonzero OLS alpha with beta != 1 uses Empyrical 0.5.5 annualization."""
+    """A nonzero OLS intercept with beta != 1 uses Empyrical 0.5.5 annualization."""
     _, analyzer, _ = _run_report_strategy(trade=False)
     dates = pd.date_range("2026-02-01", periods=5, tz="UTC")
     factor_returns = pd.Series([-0.02, -0.01, 0.0, 0.01, 0.02], index=dates)
-    residual_variation = [0.001, -0.002, 0.002, -0.002, 0.001]
+    ols_residuals_input = [0.001, -0.002, 0.002, -0.002, 0.001]
     strategy_returns = pd.Series(
         [
             0.001 + 2.0 * factor + residual
-            for factor, residual in zip(factor_returns, residual_variation)
+            for factor, residual in zip(factor_returns, ols_residuals_input)
         ],
         index=dates,
     )
@@ -195,7 +195,7 @@ def test_daily_alpha_preserves_empyrical_055_compounding_contract():
         [], strategy_returns, factor_returns, "alice"
     )
 
-    # Independent OLS slope and net factor return reference.
+    # Independent OLS slope, alpha series, and strict residual reference.
     centered_factor = factor_returns - factor_returns.mean()
     beta = (
         ((strategy_returns - strategy_returns.mean()) * centered_factor).sum()
@@ -203,12 +203,16 @@ def test_daily_alpha_preserves_empyrical_055_compounding_contract():
     )
     alpha_series = strategy_returns - beta * factor_returns
     daily_alpha = alpha_series.mean()
+    ols_residuals = alpha_series - daily_alpha
     compounded_055 = (1.0 + daily_alpha) ** 252 - 1.0
     linear_050 = daily_alpha * 252
 
     assert beta == pytest.approx(2.0)
     assert beta != pytest.approx(1.0)
     assert alpha_series.std(ddof=1) > 0.0
+    assert ols_residuals.std(ddof=1) > 0.0
+    assert ols_residuals.mean() == pytest.approx(0.0)
+    assert ols_residuals.to_numpy() == pytest.approx(ols_residuals_input)
     assert daily_alpha == pytest.approx(0.001)
     assert metrics["Beta"] == pytest.approx(round(beta, 4))
     assert metrics["ALPHA"] == pytest.approx(round(compounded_055, 4))
