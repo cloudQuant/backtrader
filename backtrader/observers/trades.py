@@ -121,8 +121,14 @@ class Trades(Observer):
 # DataTrades class - refactored to not use metaclass and dynamic class creation
 class DataTrades(Observer):
     """
-    DataTrades observer that has been refactored to remove metaclass usage
-    and dynamic class creation. Uses fixed line definitions for common cases.
+    Track closed-trade PnL in a dedicated line for each data feed.
+
+    This implementation declares ten fixed data lines. A strategy with more
+    than ten feeds is rejected during observer construction instead of
+    silently omitting trades for feeds without a corresponding line. Use the
+    custom observer with enough declared lines when more than ten feeds are
+    required. Disabling Cerebro's standard observers also avoids constructing
+    this fixed-capacity observer.
     """
 
     _stclock = True
@@ -162,6 +168,21 @@ class DataTrades(Observer):
         if owner_datas is not None:
             self.datas = list(owner_datas)
             self.ddatas = dict.fromkeys(self.datas)
+
+        max_datas = len(self.lines)
+        if len(getattr(self, "datas", ())) > max_datas:
+            raise ValueError(
+                "DataTrades supports at most {} data feeds; got {}".format(
+                    max_datas, len(self.datas)
+                )
+            )
+
+        # Feed ids are assigned by each Cerebro instance and are not the
+        # observer's line contract. Bind each exact feed object to its local
+        # strategy-data slot instead of assuming ``data._id - 1``.
+        self._data_line_indices = {
+            id(data): index for index, data in enumerate(getattr(self, "datas", ()))
+        }
 
         # Setup plotlines configuration after parent initialization
         self._setup_plotlines_simple()
@@ -270,7 +291,16 @@ class DataTrades(Observer):
             if not trade.isclosed:
                 continue
 
-            # Set pnl using standard line system
-            data_id = trade.data._id - 1
-            if data_id >= 0 and data_id < len(self.lines):
+            # Set pnl by this observer's local feed-to-line binding. The
+            # strategy feed id is only an implementation detail of Cerebro.
+            data_line_indices = self.__dict__.get("_data_line_indices")
+            if data_line_indices is None:
+                # Keep direct, manually constructed observer instances usable
+                # by deriving the same identity map from their configured data.
+                datas = self.__dict__.get("datas", self.__dict__.get("ddatas", ()))
+                data_line_indices = {id(data): index for index, data in enumerate(datas)}
+                self._data_line_indices = data_line_indices
+
+            data_id = data_line_indices.get(id(trade.data))
+            if data_id is not None:
                 self.lines[data_id][0] = trade.pnl
