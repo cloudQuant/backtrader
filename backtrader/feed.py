@@ -840,7 +840,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         for ff, fargs, fkwargs in self._filters:
             if not hasattr(ff, "check"):
                 continue
-            ff.check(self, _forcedata=forcedata, *fargs, **fkwargs)
+            ff.check(self, *fargs, _forcedata=forcedata, **fkwargs)
 
     # Load data
     def load(self):

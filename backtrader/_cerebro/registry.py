@@ -440,7 +440,7 @@ class RegistryMixin:
         dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
-        d = feeds.Chainer(dataname=dname, *args)
+        d = feeds.Chainer(*args, dataname=dname)
         self.adddata(d, name=dname)
 
         return d
@@ -459,7 +459,7 @@ class RegistryMixin:
         dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
-        d = feeds.RollOver(dataname=dname, *args, **kwargs)
+        d = feeds.RollOver(*args, dataname=dname, **kwargs)
         self.adddata(d, name=dname)
 
         return d
