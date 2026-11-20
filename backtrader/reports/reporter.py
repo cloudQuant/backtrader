@@ -597,8 +597,6 @@ class ReportGenerator:
         Returns:
             Serializable object
         """
-        import math
-
         if isinstance(obj, dict):
             return {k: self._make_json_serializable(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple)):
