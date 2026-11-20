@@ -104,8 +104,8 @@ def test_run(main=False):
             assert abs(analysis[2006] - 0.0284) < 0.01
 
 
-def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
-    """Test MyAnnualReturn first year NaN pre-value degrades to zero."""
+def test_myannualreturn_first_year_uses_first_observed_value():
+    """The first partial year's return starts at the first observed equity."""
     class DataStub:
         """Stub data for testing."""
 
@@ -129,7 +129,9 @@ def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
     ):
         analyzer.stop()
 
-    assert analyzer.ret[2020] == 0.0
+    # There is no prior observation before the first row, so use 100.0 as the
+    # opening equity rather than degrading the valid 100.0 -> 110.0 return.
+    assert abs(analyzer.ret[2020] - 0.1) < 1e-12
 
 
 def test_myannualreturn_invalid_year_value_degrades_to_zero():

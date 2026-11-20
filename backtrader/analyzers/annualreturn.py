@@ -207,8 +207,12 @@ class MyAnnualReturn(Analyzer):
         # Calculate simple returns for each year
         df["year"] = [i.year for i in df["datetime"]]
         for year, data in df.groupby("year"):
-            begin_value = list(data["pre_value"])[0]
-            end_value = list(data["value"])[-1]
+            begin_value = data["pre_value"].iloc[0]
+            if data.index[0] == df.index[0]:
+                # AnnualReturn uses its first observed equity as the opening
+                # value when the data begins partway through a calendar year.
+                begin_value = data["value"].iloc[0]
+            end_value = data["value"].iloc[-1]
             if scoped_missing_input(getattr(self, "strategy", None), begin_value, end_value):
                 record_result_gap(self)
                 self.ret[year] = float("nan")
