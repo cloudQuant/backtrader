@@ -1,12 +1,17 @@
 """Offline tests for Store initialization of the completed-bar queue."""
 
 import threading
+import time
 
 import pytest
 
 pytest.importorskip("bt_api_py", reason="needs the bt_api_py SDK")  # SDK-free envs skip
 
-from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+from backtrader.stores.btapistore import (
+    BtApiMissingDependencyError,
+    BtApiStore,
+    BtApiStoreError,
+)
 
 
 def _store(**kwargs):
@@ -604,33 +609,16 @@ def test_new_sdk_stream_generation_discards_previous_bar_queue_state():
     assert store.is_stream_ready("SA") is True
 
 
-def test_new_sdk_stream_generation_waits_for_inflight_old_event_drain(monkeypatch):
+def test_new_sdk_stream_generation_fails_fast_during_inflight_event_drain(monkeypatch):
     store = _store()
     _start_without_external_io(monkeypatch, store)
     drain_entered = threading.Event()
-    allow_drain_to_enqueue = threading.Event()
     reset_started = threading.Event()
     reset_finished = threading.Event()
+    reset_errors = []
     thread_errors = []
-
-    class ObservedDrainLock:
-        def __init__(self):
-            self._lock = threading.Lock()
-            self._entries_lock = threading.Lock()
-            self._entries = 0
-            self.second_entry = threading.Event()
-
-        def __enter__(self):
-            with self._entries_lock:
-                self._entries += 1
-                if self._entries == 2:
-                    self.second_entry.set()
-            self._lock.acquire()
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            self._lock.release()
-            return False
+    allow_drain_to_enqueue = threading.Event()
+    generation = store._stream_generation
 
     def blocked_old_event_drain():
         drain_entered.set()
@@ -639,8 +627,6 @@ def test_new_sdk_stream_generation_waits_for_inflight_old_event_drain(monkeypatc
         store._enqueue_live_bar("SA", {"close": 10})
 
     monkeypatch.setattr(store, "_drain_sdk_events_locked", blocked_old_event_drain)
-    observed_drain_lock = ObservedDrainLock()
-    store._sdk_event_drain_lock = observed_drain_lock
 
     def drain_old_generation():
         try:
@@ -653,7 +639,7 @@ def test_new_sdk_stream_generation_waits_for_inflight_old_event_drain(monkeypatc
             reset_started.set()
             store._reset_sdk_stream_generation()
         except BaseException as exc:  # preserve thread failures for the test thread
-            thread_errors.append(exc)
+            reset_errors.append(exc)
         finally:
             reset_finished.set()
 
@@ -664,8 +650,7 @@ def test_new_sdk_stream_generation_waits_for_inflight_old_event_drain(monkeypatc
         assert drain_entered.wait(1)
         reset_thread.start()
         assert reset_started.wait(1)
-        reset_waited_for_drain = observed_drain_lock.second_entry.wait(1)
-        reset_finished_before_release = reset_finished.wait(0.05)
+        reset_finished_before_release = reset_finished.wait(0.2)
     finally:
         allow_drain_to_enqueue.set()
         drain_thread.join(2)
@@ -675,7 +660,401 @@ def test_new_sdk_stream_generation_waits_for_inflight_old_event_drain(monkeypatc
     assert not drain_thread.is_alive()
     assert not reset_thread.is_alive()
     assert not thread_errors
-    assert reset_waited_for_drain is True
-    assert reset_finished_before_release is False
-    assert store._live_bar_queue.snapshot("SA") == (0, 0, "")
+    assert reset_finished_before_release is True
+    assert len(reset_errors) == 1
+    assert isinstance(reset_errors[0], BtApiStoreError)
+    assert str(reset_errors[0]) == "store_sdk_event_drain_in_progress"
+    assert store._stream_generation == generation
+    assert store._live_bar_queue.snapshot("SA")[0] == 1
     assert store.is_stream_ready("SA") is True
+
+    store._reset_sdk_stream_generation()
+    assert store._stream_generation == generation + 1
+    assert store._live_bar_queue.snapshot("SA") == (0, 0, "")
+
+
+def test_stop_does_not_close_sdk_api_during_poll_and_keeps_returned_event_order(
+    monkeypatch,
+):
+    import backtrader.stores.btapistore as btapistore_module
+
+    store = _store()
+    _start_without_external_io(monkeypatch, store)
+    poll_entered = threading.Event()
+    release_poll = threading.Event()
+    poll_finished = threading.Event()
+    api_closed = threading.Event()
+    stop_finished = threading.Event()
+    handoff = []
+    poll_errors = []
+    stop_errors = []
+    stop_results = []
+    stop_timeouts = []
+    generation = store._stream_generation
+    shutdown_state = store._shutdown_state
+    original_stop_store = btapistore_module._stop_store
+
+    def capture_stop_timeout(*args, **kwargs):
+        stop_timeouts.append(args[1])
+        return original_stop_store(*args, **kwargs)
+
+    monkeypatch.setattr(btapistore_module, "_stop_store", capture_stop_timeout)
+
+    class BlockingPollApi:
+        def poll_events(self, venue, **kwargs):
+            poll_entered.set()
+            if not release_poll.wait(2):
+                raise AssertionError("timed out waiting to release SDK poll_events")
+            return [
+                {"kind": "order", "symbol": "SA", "sequence": 1},
+                {"kind": "account", "symbol": "SA", "sequence": 2},
+            ]
+
+        def get_execution_summary(self):
+            return {}
+
+        def close(self):
+            api_closed.set()
+
+    api = BlockingPollApi()
+    store._api = api
+    monkeypatch.setattr(
+        store,
+        "_sdk_broker_event",
+        lambda venue, event: {"kind": event["kind"], "sequence": event["sequence"]},
+    )
+    monkeypatch.setattr(
+        store,
+        "_append_sdk_update",
+        lambda update: handoff.append((update["kind"], update["sequence"])),
+    )
+    monkeypatch.setattr(
+        store,
+        "_apply_sdk_account_push",
+        lambda venue, event: handoff.append((event["kind"], event["sequence"])),
+    )
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    def drain():
+        try:
+            store._drain_sdk_events()
+        except BaseException as exc:  # preserve worker failures for the test thread
+            poll_errors.append(exc)
+        finally:
+            poll_finished.set()
+
+    def stop():
+        try:
+            stop_results.append(store.stop(timeout=1.0))
+        except BaseException as exc:  # preserve worker failures for the test thread
+            stop_errors.append(exc)
+        finally:
+            stop_finished.set()
+
+    drain_thread = threading.Thread(target=drain, daemon=True)
+    stop_thread = threading.Thread(target=stop, daemon=True)
+    drain_thread.start()
+    try:
+        assert poll_entered.wait(1)
+        event_lock_available_during_poll = store._sdk_event_drain_lock.acquire(timeout=0.2)
+        if event_lock_available_during_poll:
+            store._sdk_event_drain_lock.release()
+        with pytest.raises(BtApiStoreError, match="store_sdk_event_drain_in_progress"):
+            store.start()
+        with pytest.raises(BtApiStoreError, match="store_sdk_event_drain_wait_timeout"):
+            store.stop(timeout=0)
+        assert api_closed.is_set() is False
+        assert store._started is True
+        assert store._stream_generation == generation
+        assert store._shutdown_state == shutdown_state
+        stop_thread.start()
+        stop_returned_before_poll = stop_finished.wait(0.2)
+        closed_before_poll_release = api_closed.is_set() and not poll_finished.is_set()
+        started_before_poll_release = store._started
+        connected_before_poll_release = store._connected
+        generation_before_poll_release = store._stream_generation
+        shutdown_before_poll_release = store._shutdown_state
+    finally:
+        release_poll.set()
+        drain_thread.join(2)
+        if stop_thread.ident is not None:
+            stop_thread.join(2)
+
+    assert not drain_thread.is_alive()
+    assert not stop_thread.is_alive()
+    assert not poll_errors
+    assert stop_returned_before_poll is False
+    assert event_lock_available_during_poll is True
+    assert handoff == [("order", 1), ("account", 2)]
+    assert not stop_errors
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert len(stop_timeouts) == 1 and 0 < stop_timeouts[0] < 1.0
+    assert closed_before_poll_release is False
+    assert started_before_poll_release is True
+    assert connected_before_poll_release is False
+    assert generation_before_poll_release == generation
+    assert shutdown_before_poll_release == shutdown_state
+    assert store._stream_generation == generation
+
+    assert api_closed.is_set()
+
+
+def test_stop_drain_wait_timeout_is_bounded_and_preserves_resources(monkeypatch):
+    import backtrader.stores.btapistore as btapistore_module
+
+    store = _store()
+    _start_without_external_io(monkeypatch, store)
+    store._command_shutdown_timeout = 0.03
+    poll_entered = threading.Event()
+    release_poll = threading.Event()
+    api_closed = threading.Event()
+    poll_errors = []
+    stop_timeouts = []
+    original_stop_store = btapistore_module._stop_store
+
+    def capture_stop_timeout(*args, **kwargs):
+        stop_timeouts.append(args[1])
+        return original_stop_store(*args, **kwargs)
+
+    monkeypatch.setattr(btapistore_module, "_stop_store", capture_stop_timeout)
+
+    class BlockingPollApi:
+        def poll_events(self, venue, **kwargs):
+            poll_entered.set()
+            if not release_poll.wait(2):
+                raise AssertionError("timed out waiting to release SDK poll_events")
+            return []
+
+        def get_execution_summary(self):
+            return {}
+
+        def close(self):
+            api_closed.set()
+
+    store._api = BlockingPollApi()
+    generation = store._stream_generation
+    shutdown_state = store._shutdown_state
+
+    def drain():
+        try:
+            store._drain_sdk_events()
+        except BaseException as exc:
+            poll_errors.append(exc)
+
+    drain_thread = threading.Thread(target=drain, daemon=True)
+    drain_thread.start()
+    try:
+        assert poll_entered.wait(1)
+        started = time.monotonic()
+        with pytest.raises(BtApiStoreError, match="store_sdk_event_drain_wait_timeout"):
+            store.stop()
+        elapsed = time.monotonic() - started
+        assert elapsed < 0.5
+        assert api_closed.is_set() is False
+        assert store._started is True
+        assert store._stream_generation == generation
+        assert store._shutdown_state == shutdown_state
+        assert store._sdk_stop_in_progress is False
+        assert store._sdk_event_drain_in_progress is True
+        assert stop_timeouts == []
+    finally:
+        release_poll.set()
+        drain_thread.join(2)
+
+    assert not drain_thread.is_alive()
+    assert not poll_errors
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert api_closed.is_set()
+    assert len(stop_timeouts) == 1
+
+
+@pytest.mark.parametrize("caller", ["cerebro", "broker"])
+def test_framework_stop_callers_report_drain_timeout_without_retry(monkeypatch, caller):
+    store = _store()
+    _start_without_external_io(monkeypatch, store)
+    store._command_shutdown_timeout = 0.0
+    shutdown_state = store._shutdown_state
+    poll_entered = threading.Event()
+    release_poll = threading.Event()
+    api_closed = threading.Event()
+    drain_errors = []
+
+    class BlockingPollApi:
+        def poll_events(self, venue, **kwargs):
+            poll_entered.set()
+            if not release_poll.wait(2):
+                raise AssertionError("timed out waiting to release SDK poll_events")
+            return []
+
+        def get_execution_summary(self):
+            return {}
+
+        def close(self):
+            api_closed.set()
+
+    store._api = BlockingPollApi()
+    store._connected = True
+
+    def drain():
+        try:
+            store._drain_sdk_events()
+        except BaseException as exc:
+            drain_errors.append(exc)
+
+    drain_thread = threading.Thread(target=drain, daemon=True)
+    drain_thread.start()
+    try:
+        assert poll_entered.wait(1)
+        if caller == "cerebro":
+            from backtrader.cerebro import Cerebro
+
+            cerebro = Cerebro()
+            primary = RuntimeError("synthetic_startup_failure")
+            attempts = {
+                "stores": [store],
+                "brokers": [],
+                "feeds": [],
+                "datas": [],
+                "strategy_attempts": [],
+                "started_strategies": [],
+                "writers": [],
+                "timers": [],
+            }
+            cerebro._cleanup_startup_attempts(attempts, primary, predata=False)
+            incomplete = primary._backtrader_startup_cleanup_incomplete
+            assert any(
+                phase == "store[0].stop" and reason == "stop raised; state is unknown"
+                for phase, _component, reason in incomplete
+            )
+        else:
+            from backtrader.brokers.btapibroker import BtApiBroker
+
+            broker = BtApiBroker(store=store)
+            with pytest.raises(BtApiStoreError, match="store_sdk_event_drain_wait_timeout"):
+                broker.stop()
+            assert broker._shutdown_summary["status"] == "FAIL"
+            assert broker._shutdown_summary["store_shutdown_state"] == "UNPROVEN"
+
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == shutdown_state
+        assert store._sdk_event_drain_in_progress is True
+        assert store._sdk_stop_in_progress is False
+        assert api_closed.is_set() is False
+    finally:
+        release_poll.set()
+        drain_thread.join(2)
+
+    assert not drain_thread.is_alive()
+    assert not drain_errors
+    assert api_closed.is_set() is False
+
+
+def test_stop_slot_prevents_a_new_sdk_event_poll(monkeypatch):
+    import backtrader.stores.btapistore as btapistore_module
+
+    store = _store()
+    _start_without_external_io(monkeypatch, store)
+    stop_entered = threading.Event()
+    release_stop = threading.Event()
+    stop_finished = threading.Event()
+    stop_errors = []
+    poll_calls = []
+
+    class PollCountingApi:
+        def poll_events(self, venue, **kwargs):
+            poll_calls.append(venue)
+            return []
+
+    store._api = PollCountingApi()
+
+    def blocked_stop_store(*args, **kwargs):
+        stop_entered.set()
+        if not release_stop.wait(2):
+            raise AssertionError("timed out waiting to release Store stop")
+        return {"shutdown_state": "PASS"}
+
+    monkeypatch.setattr(btapistore_module, "_stop_store", blocked_stop_store)
+
+    def stop():
+        try:
+            store.stop(timeout=0.2)
+        except BaseException as exc:  # preserve worker failures for the test thread
+            stop_errors.append(exc)
+        finally:
+            stop_finished.set()
+
+    stop_thread = threading.Thread(target=stop, daemon=True)
+    stop_thread.start()
+    try:
+        assert stop_entered.wait(1)
+        store._drain_sdk_events()
+        assert poll_calls == []
+        assert store._sdk_event_drain_in_progress is False
+    finally:
+        release_stop.set()
+        stop_thread.join(2)
+
+    assert not stop_thread.is_alive()
+    assert stop_finished.is_set()
+    assert not stop_errors
+    assert poll_calls == []
+
+
+def test_sdk_event_drain_lease_is_released_after_poll_exception():
+    store = _store()
+    poll_calls = []
+
+    class FailOncePollApi:
+        def poll_events(self, venue, **kwargs):
+            poll_calls.append(venue)
+            if len(poll_calls) == 1:
+                raise RuntimeError("synthetic_poll_failure")
+            return []
+
+    store._api = FailOncePollApi()
+
+    with pytest.raises(RuntimeError, match="synthetic_poll_failure"):
+        store._drain_sdk_events()
+
+    assert store._sdk_event_drain_in_progress is False
+    assert poll_calls == ["CTP___FUTURE"]
+
+    store._drain_sdk_events()
+    assert store._sdk_event_drain_in_progress is False
+    assert poll_calls == ["CTP___FUTURE", "CTP___FUTURE"]
+
+
+@pytest.mark.parametrize("contract_state", ["missing", "non_callable"])
+def test_sdk_event_contract_is_preflighted_before_poll(monkeypatch, contract_state):
+    import builtins
+
+    import bt_api_py.market_stream_contracts as market_contracts
+
+    store = _store()
+    poll_calls = []
+
+    class PollCountingApi:
+        def poll_events(self, venue, **kwargs):
+            poll_calls.append(venue)
+            return [{"kind": "bar", "symbol": "SA"}]
+
+    store._api = PollCountingApi()
+    original_import = builtins.__import__
+    if contract_state == "missing":
+
+        def fail_market_contract_import(name, *args, **kwargs):
+            if name == "bt_api_py.market_stream_contracts":
+                raise ImportError("synthetic_missing_market_contract")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fail_market_contract_import)
+    else:
+        monkeypatch.setattr(market_contracts, "decode_market_event_continuity", None)
+
+    with pytest.raises(BtApiMissingDependencyError, match="market event continuity contract"):
+        store._drain_sdk_events()
+
+    assert poll_calls == []
+    assert store._sdk_event_drain_in_progress is False

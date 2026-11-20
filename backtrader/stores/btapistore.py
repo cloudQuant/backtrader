@@ -82,7 +82,11 @@ from ..execution.unverified_order_projection import (
     project_store_unverified_order_event as _project_store_unverified_order_event,
     record_store_unverified_execution_event as _record_store_unverified_execution_event,
 )
-from ..service.store_event_dispatch import drain_store_sdk_events_locked as _drain_store_sdk_events_locked
+from ..service.store_event_dispatch import (
+    dispatch_store_sdk_events_locked as _dispatch_store_sdk_events_locked,
+    poll_store_sdk_events as _poll_store_sdk_events,
+    require_store_event_dispatch_contracts as _require_store_event_dispatch_contracts,
+)
 from ..execution.account_risk_state import (
     read_store_account_risk_snapshot as _read_store_account_risk_snapshot,
 )
@@ -911,9 +915,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._tick_stream_recovery: Dict[str, str] = {}
         self._stream_generation = 0
         self._has_successful_sdk_stream_generation = False
-        self._sdk_start_state_lock = threading.Lock()
+        self._sdk_start_state_lock = threading.Condition(threading.Lock())
         self._sdk_start_in_progress = False
+        self._sdk_start_owner_thread_id = None
         self._sdk_stop_in_progress = False
+        self._sdk_event_drain_in_progress = False
         self._sdk_partial_start_failed_generation = None
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
@@ -1822,7 +1828,10 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     raise BtApiStoreError("store_sdk_stop_already_in_progress")
                 if self._sdk_start_in_progress:
                     raise BtApiStoreError("store_sdk_start_already_in_progress")
+                if self._sdk_event_drain_in_progress:
+                    raise BtApiStoreError("store_sdk_event_drain_in_progress")
                 self._sdk_start_in_progress = True
+                self._sdk_start_owner_thread_id = threading.get_ident()
                 owns_start_slot = True
         previous_stream_generation = self._stream_generation
         started = False
@@ -1879,6 +1888,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if owns_start_slot:
                 with self._sdk_start_state_lock:
                     self._sdk_start_in_progress = False
+                    self._sdk_start_owner_thread_id = None
             if transition_generation is not None:
                 with self._calendar_status_lock:
                     self._calendar_status_transitions -= 1
@@ -1989,22 +1999,41 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def _reset_sdk_stream_generation(self) -> None:
         """Reset Store-owned event projections before starting an SDK generation."""
-        # Wait for an already-running Store poll/drain, then clear the prior
-        # completed-bar handoff after the first successfully started generation.
-        # This Store barrier does not inspect or purge SDK-owned poll_events queues.
-        with self._sdk_event_drain_lock:
-            has_prior_generation = self._has_successful_sdk_stream_generation
-            self._stream_generation += 1
-            self._account_risk_state.reset_generation()
-            self._sdk_execution_identity_fence.clear_session()
-            self._market_delivery_state.reset_generation()
-            # Constructor-supplied live_bars belong to the first generation.
-            # Only a restart has a prior Store generation whose queued bars
-            # and sticky loss state must be discarded.
-            if has_prior_generation:
-                self._live_bar_queue.reset()
-            self._tick_stream_resync.reset()
-            self._tick_stream_recovery.clear()
+        reset_thread_id = threading.get_ident()
+        owns_start_slot = False
+        with self._sdk_start_state_lock:
+            if self._sdk_event_drain_in_progress:
+                raise BtApiStoreError("store_sdk_event_drain_in_progress")
+            if self._sdk_stop_in_progress:
+                raise BtApiStoreError("store_sdk_stop_already_in_progress")
+            if self._sdk_start_in_progress:
+                if self._sdk_start_owner_thread_id != reset_thread_id:
+                    raise BtApiStoreError("store_sdk_start_already_in_progress")
+            else:
+                # Private callers still use the same short transition slot so
+                # a new Store poll cannot begin between the check and reset.
+                self._sdk_start_in_progress = True
+                self._sdk_start_owner_thread_id = reset_thread_id
+                owns_start_slot = True
+        try:
+            with self._sdk_event_drain_lock:
+                has_prior_generation = self._has_successful_sdk_stream_generation
+                self._stream_generation += 1
+                self._account_risk_state.reset_generation()
+                self._sdk_execution_identity_fence.clear_session()
+                self._market_delivery_state.reset_generation()
+                # Constructor-supplied live_bars belong to the first generation.
+                # Only a restart has a prior Store generation whose queued bars
+                # and sticky loss state must be discarded.
+                if has_prior_generation:
+                    self._live_bar_queue.reset()
+                self._tick_stream_resync.reset()
+                self._tick_stream_recovery.clear()
+        finally:
+            if owns_start_slot:
+                with self._sdk_start_state_lock:
+                    self._sdk_start_in_progress = False
+                    self._sdk_start_owner_thread_id = None
 
     def _prepare_sdk_start(self) -> None:
         """Check Store-local restart fences through its lifecycle bridge."""
@@ -2252,16 +2281,42 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def stop(self, timeout: Optional[float] = None):
         """Coordinate shutdown through the Backtrader lifecycle bridge."""
         owns_stop_slot = False
-        if self._sdk_mode:
-            with self._sdk_start_state_lock:
-                if self._sdk_start_in_progress:
-                    raise BtApiStoreError("store_sdk_start_already_in_progress")
-                if self._sdk_stop_in_progress:
-                    raise BtApiStoreError("store_sdk_stop_already_in_progress")
-                self._sdk_stop_in_progress = True
-                owns_stop_slot = True
         transition_generation = None
+        stop_deadline = None
         try:
+            if self._sdk_mode:
+                try:
+                    stop_timeout = (
+                        self._command_shutdown_timeout
+                        if timeout is None
+                        else max(float(timeout), 0.0)
+                    )
+                except (TypeError, ValueError, OverflowError):
+                    raise BtApiStoreError("store_shutdown_timeout_invalid") from None
+                if not math.isfinite(stop_timeout):
+                    raise BtApiStoreError("store_shutdown_timeout_must_be_finite")
+                stop_deadline = time.monotonic() + stop_timeout
+                with self._sdk_start_state_lock:
+                    if self._sdk_start_in_progress:
+                        raise BtApiStoreError("store_sdk_start_already_in_progress")
+                    if self._sdk_stop_in_progress:
+                        raise BtApiStoreError("store_sdk_stop_already_in_progress")
+                    # Take the stop slot before waiting so no new SDK drain or
+                    # start can enter while the in-flight batch is handed off.
+                    self._sdk_stop_in_progress = True
+                    owns_stop_slot = True
+                    while self._sdk_event_drain_in_progress:
+                        remaining = stop_deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise BtApiStoreError(
+                                "store_sdk_event_drain_wait_timeout"
+                            )
+                        # Condition.wait releases the shared state lock. SDK
+                        # polling/provider I/O never runs under this lock.
+                        self._sdk_start_state_lock.wait(remaining)
+            lifecycle_timeout = timeout
+            if stop_deadline is not None:
+                lifecycle_timeout = max(stop_deadline - time.monotonic(), 0.0)
             with self._calendar_status_lock:
                 self._calendar_status_generation += 1
                 transition_generation = self._calendar_status_generation
@@ -2270,7 +2325,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             resync = getattr(self, "_tick_stream_resync", None)
             if resync is not None:
                 resync.fence()  # no automatic tick-stream resync once stop began
-            result = _stop_store(self, timeout, safe_log=_safe_log)
+            result = _stop_store(self, lifecycle_timeout, safe_log=_safe_log)
             shutdown_state = (
                 result.get("shutdown_state")
                 if isinstance(result, Mapping)
@@ -2294,6 +2349,7 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if owns_stop_slot:
                 with self._sdk_start_state_lock:
                     self._sdk_stop_in_progress = False
+                    self._sdk_start_state_lock.notify_all()
             if transition_generation is not None:
                 with self._calendar_status_lock:
                     self._calendar_status_transitions -= 1
@@ -6270,15 +6326,44 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             self._market_delivery_state.mark_disconnected(name)
 
     def _drain_sdk_events(self):
-        with self._sdk_event_drain_lock:
+        if not self._sdk_mode:
+            return
+        with self._sdk_start_state_lock:
+            if (
+                self._sdk_start_in_progress
+                or self._sdk_stop_in_progress
+                or self._sdk_event_drain_in_progress
+            ):
+                return
+            self._sdk_event_drain_in_progress = True
+        try:
             self._drain_sdk_events_locked()
+        finally:
+            with self._sdk_start_state_lock:
+                self._sdk_event_drain_in_progress = False
+                self._sdk_start_state_lock.notify_all()
 
     def _drain_sdk_events_locked(self):
-        """Dispatch SDK events while the Store's drain lock is held."""
-        return _drain_store_sdk_events_locked(
-            self, error_type=BtApiStoreError,
+        """Poll unlocked, then dispatch each ordered venue batch under lock."""
+        # Resolve the complete event projection contract before poll_events can
+        # consume a batch that this Store cannot dispatch.
+        event_header = _require_store_event_dispatch_contracts(
             missing_dependency_error_type=BtApiMissingDependencyError,
         )
+        for venue in self._sdk_exchanges:
+            # poll_events() also advances execution-session reconciliation and
+            # may perform synchronous provider I/O. The lifecycle lease keeps
+            # start/stop out while this call runs; no Store lock spans it.
+            events = _poll_store_sdk_events(self, venue)
+            with self._sdk_event_drain_lock:
+                _dispatch_store_sdk_events_locked(
+                    self,
+                    venue,
+                    events,
+                    error_type=BtApiStoreError,
+                    missing_dependency_error_type=BtApiMissingDependencyError,
+                    event_header=event_header,
+                )
 
     def _copy_or_normalize_bar(self, bar):
         """Preserve raw values only for callers that explicitly opt in."""
