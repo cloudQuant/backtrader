@@ -883,18 +883,18 @@ class Cerebro(
         # If signals is not None, handle signalstrategy related issues
         if self.signals:  # allow processing of signals
             signalst, sargs, skwargs = self._signal_strat
+            signal_index = None
             if signalst is None:
-                # Try to see if the 1st regular strategy is a signal strategy
-                try:
-                    signalst, sargs, skwargs = self.strats.pop(0)
-                except IndexError:
-                    logger.debug("cerebro:715 ignored IndexError")
-                    # Nothing there
-                else:
-                    if not isinstance(signalst, SignalStrategy):
-                        # no signal ... reinsert at the beginning
-                        self.strats.insert(0, (signalst, sargs, skwargs))
-                        signalst = None  # flag as not present
+                # addstrategy stores one triple inside a list; optimization
+                # groups are iterators and must not be consumed while probing.
+                for index, group in enumerate(self.strats):
+                    if not isinstance(group, list) or len(group) != 1:
+                        continue
+                    candidate, candidate_args, candidate_kwargs = group[0]
+                    if isinstance(candidate, type) and issubclass(candidate, SignalStrategy):
+                        signalst, sargs, skwargs = candidate, candidate_args, candidate_kwargs
+                        signal_index = index
+                        break
 
             if signalst is None:  # recheck
                 # Still None, create a default one
@@ -903,17 +903,18 @@ class Cerebro(
             # sargs/skwargs always come from a (args, kwargs) pair or the
             # tuple()/dict() defaults above; normalize for safe unpacking.
             sargs = sargs or ()
-            skwargs = skwargs or {}
-
-            # Add the signal strategy
-            self.addstrategy(
-                signalst,
-                *sargs,
+            skwargs = dict(skwargs or {})
+            skwargs.update(
                 _accumulate=self._signal_accumulate,
                 _concurrent=self._signal_concurrent,
                 signals=self.signals,
-                **skwargs,
             )
+
+            # Preserve a registered strategy's position (and sizer index).
+            if signal_index is None:
+                self.addstrategy(signalst, *sargs, **skwargs)
+            else:
+                self.strats[signal_index] = [(signalst, sargs, skwargs)]
         # If strategy list is empty, add strategy
         if not self.strats:  # Datas are present, add a strategy
             self.addstrategy(Strategy)
