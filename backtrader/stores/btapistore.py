@@ -3240,15 +3240,30 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 self._last_open_orders_refresh = time.monotonic()
                 return deepcopy(self._open_orders_cache)
         if self._sdk_mode:
-            snapshot = self.reconciliation_snapshot()
-            if snapshot.get("complete") is not True or snapshot.get("safe_to_resume") is not True:
-                raise BtApiStoreError("SDK open-order snapshot is incomplete or unverified")
-            orders = snapshot.get("open_orders")
-            if type(orders) is not list or any(not isinstance(item, Mapping) for item in orders):
-                raise BtApiStoreError("SDK open-order projection is incomplete")
-            self._open_orders_cache = [dict(order) for order in orders]
-            self._last_open_orders_refresh = time.monotonic()
-            return deepcopy(self._open_orders_cache)
+            try:
+                with self._sdk_api_activity() as admitted:
+                    if not admitted:
+                        raise BtApiStoreError(
+                            "SDK open-order snapshot is incomplete or unverified"
+                        )
+                    snapshot = self.reconciliation_snapshot()
+                    if snapshot.get("complete") is not True or snapshot.get("safe_to_resume") is not True:
+                        raise BtApiStoreError("SDK open-order snapshot is incomplete or unverified")
+                    orders = snapshot.get("open_orders")
+                    if type(orders) is not list or any(not isinstance(item, Mapping) for item in orders):
+                        raise BtApiStoreError("SDK open-order projection is incomplete")
+                    self._open_orders_cache = [dict(order) for order in orders]
+                    self._last_open_orders_refresh = time.monotonic()
+                    return deepcopy(self._open_orders_cache)
+            except BtApiStoreError:
+                # Before the activity fence, a stopped borrowed facade reached
+                # reconciliation_snapshot(), which projected this lifecycle
+                # failure as an incomplete snapshot and the same public error.
+                if self._sdk_borrowed_event_lifecycle_error() is not None:
+                    raise BtApiStoreError(
+                        "SDK open-order snapshot is incomplete or unverified"
+                    ) from None
+                raise
         raise BtApiStoreError("open-order reads require the unified SDK or read-only service facade")
 
     def get_open_orders(self) -> List[Dict[str, Any]]:
@@ -6270,33 +6285,38 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def get_venue_balances(self, force: bool = False):
         """Return verified balances and valuation separately for each route."""
         if self._sdk_mode:
-            api = self._ensure_api_ready()
-            routes = tuple(self._sdk_exchanges)
-            try:
-                live_names = self._facade_exchange_names(api)
-                snapshots = self._sdk_account_read_adapter.snapshots_for_live_routes(
-                    api,
-                    routes,
-                    live_names,
-                    force=force,
-                    cache_ttl=self._account_cache_ttl,
-                )
-                balances = {
-                    route: self._project_sdk_venue_balance_snapshot(
-                        route, snapshots[route]
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    raise BtApiStoreError(
+                        "store_sdk_lifecycle_transition_in_progress"
                     )
-                    for route in routes
-                }
-            except BtApiStoreError:
-                raise
-            except Exception as exc:
-                self.sanitize_exception(exc)
-                error = BtApiStoreError(
-                    "SDK per-route account balance snapshots are unavailable"
-                )
-                error.code = "account_balance_snapshot_unavailable"
-                raise error from None
-            return deepcopy(balances)
+                api = self._ensure_api_ready()
+                routes = tuple(self._sdk_exchanges)
+                try:
+                    live_names = self._facade_exchange_names(api)
+                    snapshots = self._sdk_account_read_adapter.snapshots_for_live_routes(
+                        api,
+                        routes,
+                        live_names,
+                        force=force,
+                        cache_ttl=self._account_cache_ttl,
+                    )
+                    balances = {
+                        route: self._project_sdk_venue_balance_snapshot(
+                            route, snapshots[route]
+                        )
+                        for route in routes
+                    }
+                except BtApiStoreError:
+                    raise
+                except Exception as exc:
+                    self.sanitize_exception(exc)
+                    error = BtApiStoreError(
+                        "SDK per-route account balance snapshots are unavailable"
+                    )
+                    error.code = "account_balance_snapshot_unavailable"
+                    raise error from None
+                return deepcopy(balances)
 
         raise BtApiStoreError("Per-venue balances require the unified SDK snapshot interface")
 
@@ -6307,17 +6327,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         valuation remain scoped to that route and are never cross-aggregated.
         """
         if self._sdk_mode:
-            api = self._ensure_api_ready()
-            venue = self._sdk_exchange(dataname)
-            route = self._resolve_sdk_route_name(api, venue)
-            snapshot = self._sdk_balance_snapshot_for_route(
-                api,
-                route,
-                force=force,
-            )
-            return deepcopy(
-                self._project_sdk_venue_balance_snapshot(route, snapshot)
-            )
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    raise BtApiStoreError(
+                        "store_sdk_lifecycle_transition_in_progress"
+                    )
+                api = self._ensure_api_ready()
+                venue = self._sdk_exchange(dataname)
+                route = self._resolve_sdk_route_name(api, venue)
+                snapshot = self._sdk_balance_snapshot_for_route(
+                    api,
+                    route,
+                    force=force,
+                )
+                return deepcopy(
+                    self._project_sdk_venue_balance_snapshot(route, snapshot)
+                )
 
         raise BtApiStoreError("Per-venue balances require the unified SDK snapshot interface")
 

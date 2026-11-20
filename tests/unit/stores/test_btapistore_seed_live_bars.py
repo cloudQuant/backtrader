@@ -3069,3 +3069,333 @@ def test_history_cache_miss_activity_allows_store_start_owner(monkeypatch):
     with store._sdk_start_state_lock:
         store._sdk_start_in_progress = False
         store._sdk_start_owner_thread_id = None
+
+
+@pytest.mark.parametrize("operation", ["venue_balances", "venue_balance"])
+def test_venue_balance_reads_hold_activity_through_sdk_read_and_projection(
+    monkeypatch, operation
+):
+    api = _FakeUnifiedApiFacade()
+    close_observations = []
+    projection_done = threading.Event()
+    store = _owned_active_store_for_read_activity(
+        monkeypatch,
+        api,
+        on_close=lambda: close_observations.append(projection_done.is_set()),
+    )
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "_facade_exchange_names", lambda _api: [api.route])
+    monkeypatch.setattr(store, "_resolve_sdk_route_name", lambda _api, route: route)
+
+    read_entered, release_read = threading.Event(), threading.Event()
+    projection_entered, release_projection = threading.Event(), threading.Event()
+    snapshot = object()
+
+    def blocked_read(*_args, **_kwargs):
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("timed out waiting to release venue-balance read")
+        return (
+            {api.route: snapshot}
+            if operation == "venue_balances"
+            else snapshot
+        )
+
+    if operation == "venue_balances":
+        monkeypatch.setattr(
+            store._sdk_account_read_adapter,
+            "snapshots_for_live_routes",
+            blocked_read,
+        )
+    else:
+        monkeypatch.setattr(store, "_sdk_balance_snapshot_for_route", blocked_read)
+
+    def blocked_projection(route, _snapshot):
+        projection_entered.set()
+        if not release_projection.wait(2):
+            raise AssertionError("timed out waiting to release venue-balance projection")
+        projection_done.set()
+        return {"route": route, "cash": 17.0}
+
+    monkeypatch.setattr(store, "_project_sdk_venue_balance_snapshot", blocked_projection)
+    results, errors = [], []
+
+    def read_balance():
+        try:
+            result = (
+                store.get_venue_balances()
+                if operation == "venue_balances"
+                else store.get_venue_balance("SA")
+            )
+            results.append(result)
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=read_balance, daemon=True)
+    reader.start()
+    stopper = None
+    try:
+        assert read_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == "RUNNING"
+        assert store._sdk_stop_in_progress is False
+        assert store._api is api
+        assert api.close_calls == 0
+
+        release_read.set()
+        assert projection_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_projection.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_read.set()
+        release_projection.set()
+        reader.join(2)
+        if stopper is not None:
+            stopper.join(2)
+
+    assert not reader.is_alive()
+    assert stopper is not None and not stopper.is_alive()
+    assert not errors
+    expected = {"route": api.route, "cash": 17.0}
+    assert results == (
+        [{api.route: expected}]
+        if operation == "venue_balances"
+        else [expected]
+    )
+    assert len(stop_results) == 1
+    assert not stop_errors
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert close_observations == [True]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def _patch_reconciliation_snapshot_reads(monkeypatch, store, api, *, read, project):
+    facade, handle = object(), object()
+    monkeypatch.setattr(store, "_select_reconciliation_route", lambda _api: api.route)
+    monkeypatch.setattr(store, "_reconciliation_facade", lambda _api, _route: facade)
+    monkeypatch.setattr(store, "_prepare_reconciliation_handle", lambda _facade: handle)
+    monkeypatch.setattr(store._sdk_reconciliation_adapter, "snapshot", read)
+    monkeypatch.setattr(store, "_project_reconciliation_result", project)
+
+
+def test_reconciliation_snapshot_holds_activity_through_sdk_projection(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    projection_done = threading.Event()
+    close_observations = []
+    store = _owned_active_store_for_read_activity(
+        monkeypatch,
+        api,
+        on_close=lambda: close_observations.append(projection_done.is_set()),
+    )
+    read_entered, release_read = threading.Event(), threading.Event()
+    projection_entered, release_projection = threading.Event(), threading.Event()
+    expected = {
+        "complete": True,
+        "safe_to_resume": True,
+        "open_orders": [{"order_id": "order-1"}],
+    }
+
+    def blocked_read(_facade, _handle, *, timeout):
+        assert timeout == 2.0
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("timed out waiting to release reconciliation SDK read")
+        return object()
+
+    def blocked_project(*_args):
+        projection_entered.set()
+        if not release_projection.wait(2):
+            raise AssertionError("timed out waiting to release reconciliation projection")
+        projection_done.set()
+        return expected
+
+    _patch_reconciliation_snapshot_reads(
+        monkeypatch, store, api, read=blocked_read, project=blocked_project
+    )
+    results, errors = [], []
+
+    def read_snapshot():
+        try:
+            results.append(store.reconciliation_snapshot(timeout=2.0))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=read_snapshot, daemon=True)
+    reader.start()
+    stopper = None
+    try:
+        assert read_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == "RUNNING"
+        assert store._sdk_stop_in_progress is False
+        assert store._api is api
+        assert api.close_calls == 0
+
+        release_read.set()
+        assert projection_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_projection.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_read.set()
+        release_projection.set()
+        reader.join(2)
+        if stopper is not None:
+            stopper.join(2)
+
+    assert not reader.is_alive()
+    assert stopper is not None and not stopper.is_alive()
+    assert not errors
+    assert results == [expected]
+    assert len(stop_results) == 1
+    assert not stop_errors
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert close_observations == [True]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_fetch_open_orders_holds_activity_through_cache_commit(monkeypatch):
+    order = {"order_id": "order-2", "status": "open"}
+    cache_at_close = []
+    store = None
+    api = _FakeUnifiedApiFacade()
+
+    def observe_close():
+        cache_at_close.append(
+            (list(store._open_orders_cache), store._last_open_orders_refresh)
+        )
+
+    store = _owned_active_store_for_read_activity(
+        monkeypatch, api, on_close=observe_close
+    )
+    snapshot_entered, release_snapshot = threading.Event(), threading.Event()
+
+    class _BlockingOpenOrdersSnapshot(dict):
+        def get(self, key, default=None):
+            if key == "open_orders":
+                snapshot_entered.set()
+                if not release_snapshot.wait(2):
+                    raise AssertionError(
+                        "timed out waiting to release open-order cache projection"
+                    )
+            return super().get(key, default)
+
+    snapshot = _BlockingOpenOrdersSnapshot(
+        complete=True,
+        safe_to_resume=True,
+        open_orders=[order],
+    )
+    _patch_reconciliation_snapshot_reads(
+        monkeypatch,
+        store,
+        api,
+        read=lambda *_args, **_kwargs: object(),
+        project=lambda *_args: snapshot,
+    )
+    results, errors = [], []
+    old_refresh = store._last_open_orders_refresh
+
+    def fetch_orders():
+        try:
+            results.append(store.fetch_open_orders())
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=fetch_orders, daemon=True)
+    reader.start()
+    stopper = None
+    try:
+        assert snapshot_entered.wait(1)
+        # The nested reconciliation lease has ended, while fetch_open_orders'
+        # outer lease still protects validation and the Store cache commit.
+        assert store._sdk_api_activity_count == 1
+        assert store._open_orders_cache == []
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == "RUNNING"
+        assert store._sdk_stop_in_progress is False
+        assert store._api is api
+        assert api.close_calls == 0
+        assert store._last_open_orders_refresh == old_refresh
+
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        release_snapshot.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_snapshot.set()
+        reader.join(2)
+        if stopper is not None:
+            stopper.join(2)
+
+    assert not reader.is_alive()
+    assert stopper is not None and not stopper.is_alive()
+    assert not errors
+    assert results == [[order]]
+    assert results[0][0] is not order
+    assert store._open_orders_cache == [order]
+    assert store._open_orders_cache[0] is not order
+    assert store._last_open_orders_refresh > old_refresh
+    assert len(stop_results) == 1
+    assert not stop_errors
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert cache_at_close == [([order], store._last_open_orders_refresh)]
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_stopped_borrowed_open_orders_keep_incomplete_snapshot_error():
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    store._started = False
+    store._connected = False
+    store._shutdown_state = "PASS"
+    store._has_successful_sdk_stream_generation = True
+
+    with pytest.raises(
+        BtApiStoreError,
+        match="SDK open-order snapshot is incomplete or unverified",
+    ):
+        store.fetch_open_orders()
+
+    assert store._sdk_api_activity_count == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == ()
+    assert api.close_calls == 0

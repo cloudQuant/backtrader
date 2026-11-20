@@ -292,22 +292,27 @@ class StoreReconciliationBridgeMixin:
         """Read and adapt one exact SDK-verified account reconciliation result."""
         try:
             timeout = self._reconciliation_timeout(timeout)
-            api = self._active_sdk_reconciliation_api()
-            route = self._select_reconciliation_route(api)
-            facade = self._reconciliation_facade(api, route)
-            handle = self._prepare_reconciliation_handle(facade)
-            result = self._sdk_reconciliation_adapter.snapshot(
-                facade,
-                handle,
-                timeout=timeout,
-            )
-            return self._project_reconciliation_result(
-                api,
-                route,
-                facade,
-                handle,
-                result,
-            )
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    return self._incomplete_reconciliation_snapshot(
+                        "store_sdk_lifecycle_transition_in_progress"
+                    )
+                api = self._active_sdk_reconciliation_api()
+                route = self._select_reconciliation_route(api)
+                facade = self._reconciliation_facade(api, route)
+                handle = self._prepare_reconciliation_handle(facade)
+                result = self._sdk_reconciliation_adapter.snapshot(
+                    facade,
+                    handle,
+                    timeout=timeout,
+                )
+                return self._project_reconciliation_result(
+                    api,
+                    route,
+                    facade,
+                    handle,
+                    result,
+                )
         except Exception as exc:
             self.sanitize_exception(exc)
             return self._incomplete_reconciliation_snapshot(
