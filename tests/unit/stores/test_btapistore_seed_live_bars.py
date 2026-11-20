@@ -29,6 +29,66 @@ def _start_without_external_io(monkeypatch, store):
     store.start()
 
 
+class _FakeUnifiedApiFacade:
+    def __init__(self, route="CTP___FUTURE"):
+        self.route = route
+        self.close_calls = 0
+        self.poll_calls = []
+        self.event_wakers = {}
+
+    def list_exchanges(self):
+        return [self.route]
+
+    async def async_make_order(self, exchange_name, request, *, normalized=True, budget_capability=None):
+        return {}
+
+    async def async_cancel_order(self, exchange_name, request, *, normalized=True, budget_capability=None):
+        return {}
+
+    async def async_query_order(self, exchange_name, request, *, normalized=True):
+        return {}
+
+    def poll_events(self, exchange_name, **kwargs):
+        self.poll_calls.append(exchange_name)
+        return []
+
+    def register_event_waker(self, callback):
+        token = object()
+        self.event_wakers[token] = callback
+        return token
+
+    def unregister_event_waker(self, token):
+        return self.event_wakers.pop(token, None) is not None
+
+    def notify_event_wakers(self):
+        for callback in tuple(self.event_wakers.values()):
+            callback()
+
+    def get_execution_summary(self):
+        return {}
+
+    def close(self):
+        self.close_calls += 1
+
+
+def _borrowed_api_store(api, *, config=None):
+    return BtApiStore(
+        api=api,
+        config=config or {"exchange_kwargs": {api.route: {}}},
+        autostart=False,
+        preserve_raw_bars=True,
+    )
+
+
+def _bind_store_owned_api(store, api):
+    store._api_cls = lambda **kwargs: api
+    assembly = store._ensure_sdk_direct_api_assembly()
+    assert assembly.owns_api is True
+    store._api = assembly.ensure_api()
+    assert store._api is api
+    return assembly
+
+
 @pytest.mark.parametrize("live_bars", [None, {}, {"SA": []}])
 def test_construct_without_live_bars_leaves_queue_empty(live_bars):
     store = _store(live_bars=live_bars)
@@ -700,7 +760,7 @@ def test_stop_does_not_close_sdk_api_during_poll_and_keeps_returned_event_order(
 
     monkeypatch.setattr(btapistore_module, "_stop_store", capture_stop_timeout)
 
-    class BlockingPollApi:
+    class BlockingPollApi(_FakeUnifiedApiFacade):
         def poll_events(self, venue, **kwargs):
             poll_entered.set()
             if not release_poll.wait(2):
@@ -714,10 +774,11 @@ def test_stop_does_not_close_sdk_api_during_poll_and_keeps_returned_event_order(
             return {}
 
         def close(self):
+            self.close_calls += 1
             api_closed.set()
 
     api = BlockingPollApi()
-    store._api = api
+    _bind_store_owned_api(store, api)
     monkeypatch.setattr(
         store,
         "_sdk_broker_event",
@@ -819,7 +880,7 @@ def test_stop_drain_wait_timeout_is_bounded_and_preserves_resources(monkeypatch)
 
     monkeypatch.setattr(btapistore_module, "_stop_store", capture_stop_timeout)
 
-    class BlockingPollApi:
+    class BlockingPollApi(_FakeUnifiedApiFacade):
         def poll_events(self, venue, **kwargs):
             poll_entered.set()
             if not release_poll.wait(2):
@@ -830,9 +891,10 @@ def test_stop_drain_wait_timeout_is_bounded_and_preserves_resources(monkeypatch)
             return {}
 
         def close(self):
+            self.close_calls += 1
             api_closed.set()
 
-    store._api = BlockingPollApi()
+    _bind_store_owned_api(store, BlockingPollApi())
     generation = store._stream_generation
     shutdown_state = store._shutdown_state
 
@@ -1058,3 +1120,214 @@ def test_sdk_event_contract_is_preflighted_before_poll(monkeypatch, contract_sta
 
     assert poll_calls == []
     assert store._sdk_event_drain_in_progress is False
+
+
+def test_normal_stop_keeps_injected_shared_api_borrowed(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    first = _borrowed_api_store(api)
+    second = _borrowed_api_store(api)
+
+    for store in (first, second):
+        assembly = store._ensure_sdk_direct_api_assembly()
+        assert assembly.api is api
+        assert assembly.owns_api is False
+        store._started = True
+        store._connected = True
+        store._sdk_configured = True
+        monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+        monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    first_wakes = []
+    second_wakes = []
+    first._register_live_bar_event_waker(lambda: first_wakes.append("wake"))
+    second._register_live_bar_event_waker(lambda: second_wakes.append("wake"))
+    assert len(api.event_wakers) == 2
+
+    first_result = first.stop(timeout=0.2)
+    assert first_result["shutdown_state"] == "PASS"
+    assert first_result["sdk_api_ownership"] == "CALLER_BORROWED"
+    assert first_result["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+    assert api.close_calls == 0
+    assert len(api.event_wakers) == 1
+    assert second._started is True
+    assert second._api is api
+    first_wakes_after_stop = len(first_wakes)
+    second_wakes_before_sdk_event = len(second_wakes)
+    api.notify_event_wakers()
+    assert len(first_wakes) == first_wakes_after_stop
+    assert len(second_wakes) == second_wakes_before_sdk_event + 1
+
+    second_result = second.stop(timeout=0.2)
+    assert second_result["shutdown_state"] == "PASS"
+    assert second_result["sdk_api_ownership"] == "CALLER_BORROWED"
+    assert second_result["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.event_wakers == {}
+    assert first._api is api and second._api is api
+
+
+def test_injected_api_readiness_failure_does_not_close_borrowed_facade(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    survivor = _borrowed_api_store(api)
+    failed_store_wakes = []
+    survivor_wakes = []
+    store._register_live_bar_event_waker(lambda: failed_store_wakes.append("wake"))
+    survivor._register_live_bar_event_waker(lambda: survivor_wakes.append("wake"))
+    assert len(api.event_wakers) == 2
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **kwargs: None)
+    monkeypatch.setattr(store, "_recover_sdk_startup_journal", lambda: None)
+
+    def fail_readiness():
+        raise RuntimeError("synthetic_account_readiness_failure")
+
+    monkeypatch.setattr(store, "get_balance", fail_readiness)
+
+    with pytest.raises(RuntimeError, match="synthetic_account_readiness_failure"):
+        store.start()
+
+    assert store._sdk_direct_api_assembly is not None
+    assert store._sdk_direct_api_assembly.api is api
+    assert store._sdk_direct_api_assembly.owns_api is False
+    assert store._sdk_owned_api is False
+    assert api.close_calls == 0
+    assert store._api is api
+    assert store._connected is False
+    assert store._started is False
+    assert api.event_wakers
+    assert len(api.event_wakers) == 1
+    failed_store_wakes_after_failure = len(failed_store_wakes)
+    survivor_wakes_before_sdk_event = len(survivor_wakes)
+    api.notify_event_wakers()
+    assert len(failed_store_wakes) == failed_store_wakes_after_failure
+    assert len(survivor_wakes) == survivor_wakes_before_sdk_event + 1
+    assert api.close_calls == 0
+    health = store.get_command_health()
+    assert health["sdk_api_ownership"] == "CALLER_BORROWED"
+    assert health["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+
+
+def test_synchronous_sdk_stop_does_not_close_injected_api(monkeypatch):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    survivor = _borrowed_api_store(api)
+    assembly = store._ensure_sdk_direct_api_assembly()
+    assert assembly.api is api and assembly.owns_api is False
+    stopped_store_wakes = []
+    survivor_wakes = []
+    store._register_live_bar_event_waker(lambda: stopped_store_wakes.append("wake"))
+    survivor._register_live_bar_event_waker(lambda: survivor_wakes.append("wake"))
+    assert len(api.event_wakers) == 2
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    result = store.stop(timeout=0.2)
+
+    assert result["shutdown_state"] == "PASS"
+    assert result["sdk_api_ownership"] == "CALLER_BORROWED"
+    assert result["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+    assert api.close_calls == 0
+    assert len(api.event_wakers) == 1
+    assert store._api is api
+    stopped_store_wakes_after_stop = len(stopped_store_wakes)
+    survivor_wakes_before_sdk_event = len(survivor_wakes)
+    api.notify_event_wakers()
+    assert len(stopped_store_wakes) == stopped_store_wakes_after_stop
+    assert len(survivor_wakes) == survivor_wakes_before_sdk_event + 1
+
+
+def test_stop_without_assembly_keeps_injected_api_borrowed(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    assert store._sdk_direct_api_assembly is None
+    store._started = True
+    store._connected = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    result = store.stop(timeout=0.2)
+
+    assert result["shutdown_state"] == "PASS"
+    assert result["sdk_api_ownership"] == "CALLER_BORROWED"
+    assert result["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert store._api is api
+
+
+def test_owned_factory_api_is_closed_by_direct_api_assembly(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = BtApiStore(
+        api_cls=lambda **kwargs: api,
+        config={"exchange_kwargs": {api.route: {}}},
+        autostart=False,
+    )
+    assembly = store._ensure_sdk_direct_api_assembly()
+    assert assembly.owns_api is True
+    store._api = assembly.ensure_api()
+    assert store._api is api
+    assert assembly.owns_api is True
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    result = store.stop(timeout=0.2)
+
+    assert result["shutdown_state"] == "PASS"
+    assert result["sdk_api_ownership"] == "STORE_OWNED"
+    assert result["sdk_api_close_state"] == "CLOSED_BY_STORE"
+    assert api.close_calls == 1
+    assert store._api is None
+
+
+@pytest.mark.parametrize("mismatch", ["ownership", "api_identity"])
+def test_api_close_fails_closed_when_assembly_ownership_disagrees(monkeypatch, mismatch):
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    assembly = store._ensure_sdk_direct_api_assembly()
+    assert assembly.owns_api is False
+    mismatched_api = None
+    if mismatch == "ownership":
+        store._sdk_owned_api = True
+    else:
+        mismatched_api = _FakeUnifiedApiFacade()
+        store._api = mismatched_api
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    result = store.stop(timeout=0.2)
+
+    assert result["shutdown_state"] == "INCOMPLETE"
+    assert result["sdk_api_ownership"] == "UNPROVEN"
+    assert result["sdk_api_close_state"] == "OWNERSHIP_MISMATCH"
+    assert store._api is (api if mismatched_api is None else mismatched_api)
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    if mismatched_api is not None:
+        assert mismatched_api.close_calls == 0
+        assert mismatched_api.poll_calls == []
+
+
+def test_managed_runtime_health_fails_closed_on_api_identity_mismatch():
+    api = _FakeUnifiedApiFacade()
+    store = _borrowed_api_store(api)
+    store._bind_managed_runtime_api(api)
+
+    matching_health = store.get_command_health()
+    assert matching_health["sdk_api_ownership"] == "MANAGED_RUNTIME_BORROWED"
+    assert matching_health["sdk_api_close_state"] == "NOT_CLOSED_BY_STORE"
+
+    store._api = _FakeUnifiedApiFacade()
+    mismatch_health = store.get_command_health()
+
+    assert mismatch_health["sdk_api_ownership"] == "UNPROVEN"
+    assert mismatch_health["sdk_api_close_state"] == "OWNERSHIP_MISMATCH"

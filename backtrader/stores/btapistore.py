@@ -2260,16 +2260,43 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         _safe_log("warning", "btapistore:bounded_sdk_close_failed")
 
     def _bounded_sdk_close(self, api: Any, timeout: float) -> Tuple[bool, Optional[BaseException]]:
-        """Bind Store ownership and health to the SDK-owned close lifecycle."""
+        """Finish only a Store-owned API close; a borrowed facade stays caller-owned."""
         if self._managed_runtime_borrowed_api is not None:
             self._shutdown_state = "INCOMPLETE"
             return False, BtApiStoreError("managed runtime owns SDK API close")
 
+        assembly = self._sdk_direct_api_assembly
+        if assembly is None:
+            if not self._sdk_owned_api:
+                # No assembly is needed to prove that an API passed through
+                # ``api=`` is borrowed.  The local Store shutdown is complete;
+                # the caller remains responsible for this facade's lifetime.
+                return True, None
+            self._shutdown_state = "INCOMPLETE"
+            return False, BtApiStoreError("store_sdk_api_ownership_unproven")
+        try:
+            assembly_api = assembly.api
+            assembly_owns_api = assembly.owns_api
+            assembly_close_api = assembly.close_api
+        except Exception:
+            self._shutdown_state = "INCOMPLETE"
+            return False, BtApiStoreError("store_sdk_api_ownership_unproven")
+        if (
+            assembly_api is not api
+            or type(assembly_owns_api) is not bool
+            or assembly_owns_api is not self._sdk_owned_api
+            or not callable(assembly_close_api)
+        ):
+            self._shutdown_state = "INCOMPLETE"
+            return False, BtApiStoreError("store_sdk_api_ownership_mismatch")
+        if not assembly_owns_api:
+            # DirectApiAssembly.close_api() explicitly no-ops for borrowed
+            # facades.  Keep the public Store health projection explicit that
+            # PASS covers this Store's resources, not the caller's API close.
+            return True, None
+
         def select_close():
-            assembly = self._sdk_direct_api_assembly
-            if assembly is not None and assembly.api is api and assembly.owns_api:
-                return assembly.close_api
-            return getattr(api, "close", None)
+            return assembly_close_api
 
         return self._get_sdk_close_controller().close(
             api,
@@ -4058,6 +4085,63 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         read_only_metadata_probe_active = self._metadata_probe_service.is_active()
         runtime_health = self._command_runtime.health()
         execution_health = self._execution_coordinator.health()
+        assembly = self._sdk_direct_api_assembly
+        if self._managed_runtime_borrowed_api is not None:
+            if self._api is self._managed_runtime_borrowed_api:
+                api_ownership = "MANAGED_RUNTIME_BORROWED"
+                api_close_state = "NOT_CLOSED_BY_STORE"
+            else:
+                api_ownership = "UNPROVEN"
+                api_close_state = "OWNERSHIP_MISMATCH"
+        elif assembly is not None:
+            try:
+                assembly_api = assembly.api
+                assembly_owns_api = assembly.owns_api
+                closed_owned_assembly = (
+                    self._api is None
+                    and self._sdk_owned_api
+                    and assembly_api is self._last_successfully_closed_api
+                    and type(assembly_owns_api) is bool
+                    and assembly_owns_api is self._sdk_owned_api
+                )
+                assembly_matches = (
+                    type(assembly_owns_api) is bool
+                    and assembly_owns_api is self._sdk_owned_api
+                    and (assembly_api is self._api or closed_owned_assembly)
+                )
+            except Exception:
+                closed_owned_assembly = False
+                assembly_matches = False
+            if not assembly_matches:
+                api_ownership = "UNPROVEN"
+                api_close_state = "OWNERSHIP_MISMATCH"
+            elif closed_owned_assembly:
+                api_ownership = "STORE_OWNED"
+                api_close_state = "CLOSED_BY_STORE"
+            elif self._sdk_owned_api:
+                api_ownership = "STORE_OWNED"
+                if self._api is not None:
+                    api_close_state = (
+                        "CLOSE_OUTCOME_UNCERTAIN"
+                        if self._sdk_api_close_state is not None
+                        else "API_BOUND"
+                    )
+                elif self._last_successfully_closed_api is not None:
+                    api_close_state = "CLOSED_BY_STORE"
+                else:
+                    api_close_state = "API_NOT_CREATED"
+            else:
+                api_ownership = "CALLER_BORROWED"
+                api_close_state = "NOT_CLOSED_BY_STORE"
+        elif not self._sdk_owned_api:
+            api_ownership = "CALLER_BORROWED"
+            api_close_state = "NOT_CLOSED_BY_STORE"
+        elif self._api is None:
+            api_ownership = "STORE_OWNED"
+            api_close_state = "CLOSED_BY_STORE" if self._last_successfully_closed_api is not None else "API_NOT_CREATED"
+        else:
+            api_ownership = "UNPROVEN"
+            api_close_state = "OWNERSHIP_UNPROVEN"
         result = {
             **runtime_health,
             **dict(self._command_health),
@@ -4073,6 +4157,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 runtime_health.get("rejected_market_data_only", 0)
             ),
             "shutdown_state": self._shutdown_state,
+            "sdk_api_ownership": api_ownership,
+            "sdk_api_close_state": api_close_state,
             "close_thread_alive": bool(
                 self._sdk_close_thread and self._sdk_close_thread.is_alive()
             ),

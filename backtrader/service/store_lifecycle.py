@@ -22,6 +22,15 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         if store._api is not managed_borrowed_api:
             store._shutdown_state = "INCOMPLETE"
     store._signal_live_bar_event()
+    if store._sdk_mode and managed_borrowed_api is None:
+        # An ordinary injected facade remains caller-owned, but this Store's
+        # SDK wake token is not. Drop only the token retained by this Store
+        # before any early return or API close path.
+        try:
+            store._unbind_live_bar_event_notifier()
+        except BaseException:
+            store._shutdown_state = "INCOMPLETE"
+            raise
     deadline = time.monotonic() + (
         store._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
     )
@@ -675,18 +684,18 @@ def ensure_store_api_ready(store, *, error_type, gateway_entrypoint, gateway_err
             api = store._api
             api_close_completed = api is None
             managed_borrowed_api = store._managed_runtime_borrowed_api
+            try:
+                store._unbind_live_bar_event_notifier()
+            except BaseException as cleanup_error:
+                store.sanitize_exception(cleanup_error)
+                store._shutdown_state = "INCOMPLETE"
+                raise error_type(
+                    "SDK event notifier startup cleanup is unproven"
+                ) from cleanup_error
             if managed_borrowed_api is not None:
                 store._managed_runtime_stopped = True
                 store._shutdown_state = "INCOMPLETE"
                 store._sdk_configured = False
-                if api is managed_borrowed_api:
-                    try:
-                        store._unbind_live_bar_event_notifier()
-                    except BaseException as cleanup_error:
-                        store.sanitize_exception(cleanup_error)
-                        raise error_type(
-                            "managed runtime startup cleanup is unproven"
-                        ) from cleanup_error
             else:
                 try:
                     get_execution_summary = getattr(api, "get_execution_summary", None)
