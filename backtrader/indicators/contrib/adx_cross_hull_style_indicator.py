@@ -182,16 +182,13 @@ class UltraXMAIndicator(Indicator):
     )
 
     def __init__(self):
-        """Build the fan of moving averages and breadth smoothing, set min period."""
+        """Build the fan of moving averages and set the minimum period."""
         price_line = resolve_price_line(self.data, self.p.ipc)
         ma_cls = resolve_ma_class(self.p.w_method)
-        smooth_cls = resolve_ma_class(self.p.smooth_method)
         self._periods = [
             int(self.p.start_length + i * self.p.step) for i in range(int(self.p.steps_total) + 1)
         ]
         self._ma_lines = [ma_cls(price_line, period=max(1, p)) for p in self._periods]
-        self._bull_smooth = smooth_cls(self.lines.bulls, period=max(1, int(self.p.smooth_length)))
-        self._bear_smooth = smooth_cls(self.lines.bears, period=max(1, int(self.p.smooth_length)))
         self.addminperiod(max(self._periods) + int(self.p.smooth_length) + 5)
 
     def next(self):
