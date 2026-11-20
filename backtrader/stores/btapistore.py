@@ -3088,12 +3088,30 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             history_compression = compression
         else:
             raise BtApiStoreError("history compression must be a positive integer")
-        return self._history_cache.fetch(
+        cache = self._history_cache
+        hit, _key, _default_request, cached = cache.lookup(
             dataname, timeframe, history_compression, since, limit,
-            lambda default_request: self._fetch_sdk_history(
-                dataname, timeframe, history_compression, since, limit, default_request,
-            ),
         )
+        if hit:
+            # A local cache hit does not use the SDK and remains readable after
+            # Store stop, even when the borrowed API generation is retired.
+            return cached
+
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError(
+                    "store_sdk_lifecycle_transition_in_progress"
+                )
+            # Keep the lease through SDK collection, Backtrader projection,
+            # and cache publication so stop cannot close the API between a
+            # successful fetch and its local history commit.
+            return cache.fetch(
+                dataname, timeframe, history_compression, since, limit,
+                lambda default_request: self._fetch_sdk_history(
+                    dataname, timeframe, history_compression, since, limit,
+                    default_request,
+                ),
+            )
 
     def _fetch_service_history(self, dataname, timeframe, compression, since, limit):
         api = self._ensure_api_ready()

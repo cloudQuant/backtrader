@@ -3,6 +3,8 @@
 import queue
 import threading
 import time
+from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -2182,3 +2184,173 @@ def test_stop_preserves_existing_account_risk_cache_without_refresh(
     assert store._api is None
     assert store._account_risk_state.cached_snapshot(store._stream_generation) == cached
     assert store.get_account_risk_snapshot() == cached
+
+
+def _patch_market_history_shape(monkeypatch):
+    import bt_api_py.facade_protocol as facade_protocol
+    import bt_api_py.market_history_composition as history_composition
+
+    monkeypatch.setattr(facade_protocol, "is_market_history_facade", lambda _api: True)
+    monkeypatch.setattr(
+        history_composition, "market_history_collection_invalid", lambda _bars: False
+    )
+
+
+def _fake_market_bar(close):
+    opened = datetime(2026, 11, 20, 9, 0, tzinfo=timezone.utc)
+    return SimpleNamespace(
+        open_time_utc=opened,
+        close_time_utc=opened,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=1.0,
+        open_interest=0.0,
+    )
+
+
+def test_history_cache_miss_activity_covers_sdk_read_and_cache_commit(monkeypatch):
+    _patch_market_history_shape(monkeypatch)
+    read_entered = threading.Event()
+    release_read = threading.Event()
+    api = _FakeUnifiedApiFacade()
+    bar = _fake_market_bar(23.0)
+    store = BtApiStore(
+        config={"exchange_kwargs": {api.route: {}}},
+        autostart=False,
+        preserve_raw_bars=False,
+    )
+    close_observations = []
+    original_close = api.close
+
+    def observed_close():
+        hit, _key, _default, cached = store._history_cache.lookup(
+            "SA", None, 1, None, None
+        )
+        close_observations.append((hit, cached))
+        original_close()
+
+    api.close = observed_close
+    _bind_store_owned_api(store, api)
+    store._started = True
+    store._connected = True
+    store._sdk_configured = True
+    store._shutdown_state = "RUNNING"
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "get_market_instrument_key", lambda _symbol: object())
+
+    def blocking_fetch(*args, **kwargs):
+        read_entered.set()
+        if not release_read.wait(2):
+            raise AssertionError("timed out waiting to release SDK history read")
+        return (bar,)
+
+    api.fetch_market_history = blocking_fetch
+    results = []
+    errors = []
+
+    def fetch_history():
+        try:
+            results.append(store.fetch_history("SA"))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=fetch_history, daemon=True)
+    reader.start()
+    try:
+        assert read_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state == "RUNNING"
+        assert store._sdk_stop_in_progress is False
+        assert store._api is api
+        assert api.close_calls == 0
+        assert store._history_cache.lookup("SA", None, 1, None, None)[0] is False
+
+        stopper, stop_results, stop_errors = _start_stop_thread_waiting_for_api_activity(
+            store
+        )
+        assert api.close_calls == 0
+        assert store._api is api
+        release_read.set()
+        reader.join(2)
+        stopper.join(2)
+    finally:
+        release_read.set()
+        reader.join(2)
+
+    assert not reader.is_alive()
+    assert not stopper.is_alive()
+    assert not errors
+    assert not stop_errors
+    assert len(results) == 1
+    assert results[0][0]["close"] == 23.0
+    assert len(stop_results) == 1
+    assert stop_results[0]["shutdown_state"] == "PASS"
+    assert len(close_observations) == 1
+    assert close_observations[0][0] is True
+    assert close_observations[0][1][0]["close"] == 23.0
+    assert api.close_calls == 1
+    assert store._api is None
+    assert store._sdk_api_activity_count == 0
+
+
+def test_stopped_history_cache_hit_does_not_enter_sdk_activity(monkeypatch):
+    api = _QueueBacklogApi()
+    pending_order_event = {"kind": "order", "sequence": 1}
+    api.event_queue.put(pending_order_event)
+    store = _borrowed_api_store(api)
+    source = {"close": 17.0}
+    store._history_cache.set_history("SA", [source])
+    store._started = False
+    store._connected = False
+    store._shutdown_state = "PASS"
+    store._has_successful_sdk_stream_generation = True
+    monkeypatch.setattr(
+        store,
+        "_ensure_api_ready",
+        lambda: pytest.fail("a local history cache hit must not ensure the SDK"),
+    )
+
+    rows = store.fetch_history("SA")
+
+    assert rows == [source]
+    assert rows[0] is not source
+    assert store._sdk_api_activity_count == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == (pending_order_event,)
+    assert api.close_calls == 0
+
+
+def test_history_cache_miss_activity_allows_store_start_owner(monkeypatch):
+    _patch_market_history_shape(monkeypatch)
+    api = _FakeUnifiedApiFacade()
+    bar = _fake_market_bar(29.0)
+    store = BtApiStore(
+        api=api,
+        config={"exchange_kwargs": {api.route: {}}},
+        autostart=False,
+        preserve_raw_bars=False,
+    )
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "get_market_instrument_key", lambda _symbol: object())
+    api.fetch_market_history = lambda *args, **kwargs: (bar,)
+    store._sdk_start_in_progress = True
+    store._sdk_start_owner_thread_id = threading.get_ident()
+
+    rows = store.fetch_history("SA")
+
+    assert rows[0]["close"] == 29.0
+    assert store._history_cache.lookup("SA", None, 1, None, None)[0] is True
+    assert store._sdk_api_activity_count == 0
+    with store._sdk_start_state_lock:
+        store._sdk_start_in_progress = False
+        store._sdk_start_owner_thread_id = None
