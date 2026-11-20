@@ -129,6 +129,7 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
     if store._sdk_mode:
         store.freeze_openings("store_stop")
     if command_activity:
+        prior_worker_stop_unproven = store._sdk_stop_command_worker_unproven
         drained = store.wait_for_commands(
             max(deadline - time.monotonic(), 0.0), stop_on_timeout=True
         )
@@ -151,9 +152,13 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
             )
             return store.get_command_health()
         store._sdk_stop_command_worker_unproven = False
+        if prior_worker_stop_unproven and drained:
+            store._shutdown_state = "RUNNING"
     else:
         # The command runtime snapshot proves there is no live producer to
         # wait for on this retry.
+        if store._sdk_stop_command_worker_unproven:
+            store._shutdown_state = "RUNNING"
         store._sdk_stop_command_worker_unproven = False
 
     # Metadata I/O has its own lane, so a slow funding endpoint cannot

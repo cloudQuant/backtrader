@@ -1659,7 +1659,7 @@ def test_managed_borrowed_stop_can_drain_late_local_update_without_sdk_poll(
 
     runtime = store._command_runtime
     original_snapshot = runtime.snapshot
-    stop_results = [False, True]
+    original_stop_worker = store._stop_command_worker
     from dataclasses import replace
 
     monkeypatch.setattr(
@@ -1729,17 +1729,11 @@ def test_failed_command_worker_stop_retains_api_and_late_update_for_retry(
     runtime = store._command_runtime
     original_snapshot = runtime.snapshot
     original_stop_worker = store._stop_command_worker
-    from dataclasses import replace
-
-    monkeypatch.setattr(
-        runtime,
-        "snapshot",
-        lambda: replace(original_snapshot(), worker_alive=True),
-    )
+    assert original_snapshot().worker_alive is True
     monkeypatch.setattr(
         store,
         "_stop_command_worker",
-        lambda *_args, **_kwargs: stop_results.pop(0),
+        lambda *_args, **_kwargs: False,
     )
 
     failed_health = store.stop(timeout=0.2)
@@ -1753,6 +1747,7 @@ def test_failed_command_worker_stop_retains_api_and_late_update_for_retry(
     assert store._api is api
     assert store._sdk_configured is True
     assert api.close_calls == 0
+    assert original_snapshot().worker_alive is True
     assert len(api.event_wakers) == 1
     with pytest.raises(
         BtApiStoreError, match="store_sdk_command_worker_shutdown_unproven"
@@ -1768,6 +1763,7 @@ def test_failed_command_worker_stop_retains_api_and_late_update_for_retry(
     assert store.poll_broker_update() == late_update
     assert api.close_calls == 0
 
+    monkeypatch.setattr(store, "_stop_command_worker", original_stop_worker)
     final_health = store.stop(timeout=0.5)
     assert final_health["shutdown_state"] == "PASS"
     assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
@@ -1775,6 +1771,7 @@ def test_failed_command_worker_stop_retains_api_and_late_update_for_retry(
     assert store._sdk_stop_command_worker_unproven is False
     assert store._started is False
     assert store._api is None
+    assert original_snapshot().worker_alive is False
     assert api.close_calls == 1
     assert api.event_wakers == {}
     store._unregister_live_bar_event_waker(token)
