@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
-| 9 | P2 其余正确性 / 清理 | 36 | 14 |
+| 9 | P2 其余正确性 / 清理 | 36 | 15 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **136** |
+| | **合计** | **207** | **137** |
 
 ---
 
@@ -256,7 +256,7 @@
 - [ ] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。
 - [x] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（NaN 和 ±inf 时间戳统一明确 ValueError，秒/毫秒既有阈值不变；56 项相关回归和独立静态复审通过。布尔、超大/越界值与负毫秒仍沿用原合同）。
 - [ ] **R71-059** `[P2]` `utils/autodict.py:207` — `__iadd__` 同类型分支 `return self + other`，但 `AutoOrderedDict` 未定义 `__add__`，`aod1 += aod2` 抛 `TypeError`；`__isub__/__imul__` 同类问题 → 实现 `__add__/__sub__/__mul__` 或改同类型分支语义。
-- [ ] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。
+- [x] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（明确并保留既有合同：字符串只接受有限整数值；非字符串使用 int 转换，有限小数向零截断，指定转换异常返回默认值。32 项相关回归及独立静态复审通过；未改变运行行为）。
 - [x] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（仅用于成员检查的 resample 索引改为 set，混合 resample/replay 时钟回归保留；专项 21 项、相邻回归 8 项通过，独立静态复审通过）。
 - [ ] **R71-063** `[P2]` `feeds/blaze.py:91` — `_load` 每 bar 对每个 datafield 做 `getattr(self.params,...)`/`getattr(self.lines,...)`，值不变可缓存 → `start()` 预计算列索引/线引用。
 - [ ] **R71-159** `[P2]` `indicators/basicops.py:140-156` — `OperationN.once` 每 bar 切片并调 Python func，`Highest/Lowest/SumN/FindFirstIndex*` 为 O(n·period)+每 bar 分配，被 Stochastic/Aroon/Donchian 继承；1M bar period 50 ≈ 50M 元素复制 → 单调 deque / running sum / 数组循环，slice 仅 fallback。

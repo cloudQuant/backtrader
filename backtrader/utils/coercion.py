@@ -1,7 +1,6 @@
-"""Stable, lossless coercion helpers shared by live data adapters.
+"""Shared value-coercion helpers used by live data adapters.
 
-These helpers never raise for untrusted vendor payloads: they return a typed
-fallback instead. They deliberately contain no provider, Store, or SDK logic.
+These helpers contain no provider, Store, or SDK-specific logic.
 """
 
 from __future__ import annotations
@@ -40,8 +39,12 @@ def coerce_float(value: Any, default: Optional[float] = 0.0) -> Optional[float]:
 def coerce_int(value: Any, default: int = 0) -> int:
     """Convert a value to int with a stable fallback.
 
-    Decimal strings must be integral; fractional or non-finite text falls back
-    instead of truncating a vendor quantity.
+    String values are parsed as Decimal and accepted only when finite and
+    integral. Other non-None values use Python's ``int`` conversion, which
+    truncates finite fractional numbers toward zero. ``None``, invalid or
+    fractional text, non-finite text, and TypeError/ValueError/OverflowError
+    from conversion return ``default``. Other exceptions from a custom
+    ``__int__`` implementation propagate.
     """
     if value is None:
         return default
