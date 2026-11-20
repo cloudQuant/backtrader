@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 19 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 20 |
 | 7 | 性能专项（P1/P2） | 19 | 1 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **96** |
+| | **合计** | **207** | **97** |
 
 ---
 
@@ -174,7 +174,7 @@
 - [x] **R71-172** `[P2]` `analyzers/sharpe.py:221-249` — sub-day timeframe `factor=None`，年化 `riskfreerate`（默认 1%）从未年化的 per-minute return 直接扣除，Sharpe 变成无意义大负数 → 拒绝无 factor 的 sub-day Sharpe 或把 rate 转换到 bar 周期。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（子日周期需要年化或非零年无风险利率而未指定 factor 时返回 None；保留零利率非年化周期值及显式 factor。22 项回归与独立源码复审通过。兼容变化：两处 DOGE 分钟示例未指定 factor，年化结果变为 None，需按实际交易日历显式配置）。
 - [x] **R71-052** `[P2]` `reports/charts.py:311` — `(end-start).days` 截断到整天，日内跨度 <1 天恒为 0 落到 "Per Minute"，数小时的小时线被按分钟重采样 → 用 `total_seconds()` 或按数据频率选择。（与 R71-170 同文件，改时可一并处理。） **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（短周期使用秒级跨度与实际采样间隔；纽约夏令时跨越日线及小时线均有回归。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
 - [x] **R71-053** `[P2]` `reports/reporter.py:367,399` — `generate_html`/`generate_pdf` 的 `charts.close_all()` 只在成功路径执行，模板/磁盘/字体异常时 matplotlib figure 泄漏 → `try/finally` 释放。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控资源**（HTML/PDF 成功和失败均清理图表；清理失败不覆盖原生成异常。9 项受控图表/模拟 writer 回归通过，独立源码复核无阻断；未验收真实 PDF 渲染）。
-- [ ] **R71-054** `[P2]` `reports/performance.py:449` — `sqn_to_rating` 只防 NaN 不防 `±inf`，零方差收益序列产生 inf 时比较全 False 落到最高评级 → `math.isfinite` 检查，inf 走不可用/中性分支。PLAUSIBLE（需构造零方差样本）。
+- [x] **R71-054** `[P2]` `reports/performance.py:449` — `sqn_to_rating` 只防 NaN 不防 `±inf`，零方差收益序列产生 inf 时比较全 False 落到最高评级 → `math.isfinite` 检查，inf 走不可用/中性分支。PLAUSIBLE（需构造零方差样本）。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（非有限 SQN 评级为 N/A，自定义 analyzer 报告路径及大整数边界覆盖；93 项报告回归通过。内置 analyzer 零方差实际返回 None，原待办所述产生无穷的原因不成立。兼容变化：外部 ±inf 评级不再返回 Holy Grail/Poor）。
 - [x] **R71-055** `[P2]` `bokeh/analyzers/recorder.py:117` — 指标/观察器按 `obj.__class__.__name__` 建 key，两个同类实例（如两个 SMA）写入同一 list，序列长度翻倍且与 bar 索引错位 → 用实例唯一 id/索引或 `_name`+序号。（与 R71-023、R71-118 同文件，建议合并修。） **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+合成回测**（当前源码以类名与实例 ID 分键；真实 Cerebro 两个同类 SMA 的序列独立且长度正确。本轮仅补回归，未重复修改已有实现；专项 2 项通过，独立源码复核通过。同名非空 feed 的键冲突仍开放）。
 
 ## 批次 7 · 性能专项（P1/P2，必须给 before/after）

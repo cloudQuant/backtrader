@@ -321,13 +321,18 @@ class TestSqnRatingBoundaries:
         """Test that NaN returns N/A."""
         assert PerformanceCalculator.sqn_to_rating(float("nan")) == "N/A"
 
-    def test_inf_returns_holy_grail(self):
-        """Test that positive infinity returns Holy Grail rating."""
-        assert PerformanceCalculator.sqn_to_rating(float("inf")) == "Holy Grail"
+    def test_inf_returns_na(self):
+        """Test that positive infinity returns no rating."""
+        assert PerformanceCalculator.sqn_to_rating(float("inf")) == "N/A"
 
-    def test_negative_inf_returns_poor(self):
-        """Test that negative infinity returns Poor rating."""
-        assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "Poor"
+    def test_negative_inf_returns_na(self):
+        """Test that negative infinity returns no rating."""
+        assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "N/A"
+
+    def test_very_large_integer_remains_a_finite_score(self):
+        """Large Python integers remain valid scores without float conversion."""
+        assert PerformanceCalculator.sqn_to_rating(10 ** 1000) == "Holy Grail"
+        assert PerformanceCalculator.sqn_to_rating(-(10 ** 1000)) == "Poor"
 
 
 # ===========================================================================

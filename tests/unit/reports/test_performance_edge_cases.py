@@ -282,12 +282,12 @@ class TestSqnToRating:
         assert PerformanceCalculator.sqn_to_rating(0.0) == "Poor"
 
     def test_infinity(self):
-        """Test that positive infinity returns 'Holy Grail' rating."""
-        assert PerformanceCalculator.sqn_to_rating(float("inf")) == "Holy Grail"
+        """Test that positive infinity is not assigned a SQN rating."""
+        assert PerformanceCalculator.sqn_to_rating(float("inf")) == "N/A"
 
     def test_negative_infinity(self):
-        """Test that negative infinity returns 'Poor' rating."""
-        assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "Poor"
+        """Test that negative infinity is not assigned a SQN rating."""
+        assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "N/A"
 
     def test_nan_returns_na(self):
         """Test that NaN returns 'N/A' rating."""
@@ -310,6 +310,20 @@ class TestNoAnalyzersScenario:
         assert metrics["sharpe_ratio"] is None
         assert metrics["sqn_score"] is None
         assert metrics["total_number_trades"] == 0
+
+
+@pytest.mark.parametrize("score", [float("inf"), float("-inf")])
+def test_custom_sqn_analyzer_nonfinite_score_is_unrated_in_report(score):
+    """Custom analyzer infinities should not become a positive or negative rating."""
+    analyzer = FakeAnalyzer(
+        "CustomSQNAnalyzer", {"sqn": score, "trades": 5}, custom_name="sqn"
+    )
+    report = ReportGenerator(_make_strategy(analyzers=[analyzer]))
+
+    metrics = report.get_metrics()
+
+    assert metrics["sqn_score"] == score
+    assert metrics["sqn_human"] == "N/A"
 
 
 # ===========================================================================

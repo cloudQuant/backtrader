@@ -444,7 +444,9 @@ class PerformanceCalculator:
         if sqn_score is None or not isinstance(sqn_score, (int, float)):
             return "N/A"
 
-        if math.isnan(sqn_score):
+        # Python integers are always finite, and very large ones may overflow
+        # when converted by math.isfinite. Only floats need the non-finite guard.
+        if isinstance(sqn_score, float) and not math.isfinite(sqn_score):
             return "N/A"
 
         if sqn_score < 1.6:
