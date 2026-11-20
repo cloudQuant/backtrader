@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 2 |
+| 9 | P2 其余正确性 / 清理 | 36 | 3 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **122** |
+| | **合计** | **207** | **123** |
 
 ---
 
@@ -250,7 +250,7 @@
 - [ ] **R71-046** `[P2]` `contrib/digital_macd.py:191` — 每根把 66 元素 deque 复制成 tuple 并跑两个 66 次 Python 循环，无 `once()` 向量化 → 滚动点积状态或 once 数组实现。PLAUSIBLE(code-read)。
 - [ ] **R71-047** `[P2]` `contrib/adx_cross_hull_style_indicator.py:188` — `_bull_smooth`/`_bear_smooth` 子指标从未被读取，`smooth_method/smooth_phase` 参数无效仍每根计算完整 EMA → 删除子指标并实现参数，或移除参数。
 - [ ] **R71-048** `[P2]` `channels/funding.py:95` — 文档称 "Rate change anomaly detection"，`_last_rate` 被维护但条件只比较 `abs(event.rate) > threshold`，从未比较变化量，首个事件因 `_last_rate is None` 直接跳过 → 比较 `abs(rate - _last_rate)` 或改文档为绝对阈值并修正首事件。
-- [ ] **R71-049** `[P2]` `channels/funding.py:132` — gzip CSV 分支未传 `newline=""`，带引号字段含换行时可能解析错行 → 与明文分支一致传 `newline=""`。
+- [x] **R71-049** `[P2]` `channels/funding.py:132` — gzip CSV 分支未传 `newline=""`，带引号字段含换行时可能解析错行 → 与明文分支一致传 `newline=""`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（gzip CSV 读取使用 newline=""，与 plain CSV 一致保留引号内 LF/CRLF/CR；28 项渠道解析回归和独立静态复审通过，anomaly 合同未改）。
 - [ ] **R71-050** `[P2]` `filters/bsplitter.py:111` — `ohlbar[OpenInterest]=0` 后又被 `=oi` 覆盖；`closebar` 在清零前复制，两个 tick 都保留原 OI，清零语句无效 → 明确第一 tick OI=0 时改 `closebar`，或删除无效清零。
 - [ ] **R71-051** `[P2]` `indicators/basicops.py:554` — `next()` 用 `math.fsum`，`once()` 用内置 `sum`，长周期/量级差异时 runonce 与 next 浮点结果分叉 → `once()` 改用 `math.fsum`。
 - [ ] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。

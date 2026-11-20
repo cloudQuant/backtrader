@@ -130,7 +130,7 @@ class FundingRateChannel(DataChannel):
             raise ValueError("FundingChannel requires a 'dataname' (CSV path) to load from")
         open_func = gzip.open if self._dataname.endswith(".gz") else open
         open_kwargs = (
-            {"mode": "rt", "encoding": "utf-8"}
+            {"mode": "rt", "encoding": "utf-8", "newline": ""}
             if self._dataname.endswith(".gz")
             else {"mode": "r", "encoding": "utf-8", "newline": ""}
         )
