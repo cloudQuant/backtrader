@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 13 |
+| 9 | P2 其余正确性 / 清理 | 36 | 14 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **133** |
+| | **合计** | **207** | **134** |
 
 ---
 
@@ -244,7 +244,7 @@
 - [ ] **R71-145** `[P2]` `service/service_observation.py:18-19,127-137` — 未确认 cleanup 时 `close()` 把整个 `(clients, proxy, store, bindings)` 追加到无界模块级 `_KEEPALIVE`，重复失败 close 永久保留 threads/sockets → 限制 keepalive 或只保留 bounded diagnostic token。
 - [ ] **R71-146** `[P2]` `feeds/btapifeed.py:3256-3266,3332` — `_cached_price_tick()` 无缓存：未配置 `price_tick` 时每 tick 调 `configured_metadata_price_tick()`，高频 feed 每 tick 做 metadata lookup/scan → 按 dataname 缓存，`contract_metadata` 变化时失效，`start()` 预计算。
 - [ ] **R71-147** `[P2]` `stores/_bar_history_cache.py:124-149,184-196` — 每个不同 `(dataname,timeframe,compression,since,limit)` 请求把完整 bar list 加入 `_query_cache` 且无 eviction，每次 hit 深拷贝整个序列 → LRU 限界，避免每次深拷贝完整默认历史。PLAUSIBLE。
-- [ ] **R71-148** `[P2]` `service/service_recovery_attestation.py:206,232` — `attest_event_context()` 直接 `paper_fill["commission_currency"]` 并比较 `quote_as_of_ns > paper_fill.get("match_time_ns", 0)`，缺 key 或非整数抛 `KeyError`/`TypeError`，逃出文档化 fail-closed 的 `ServiceRecoveryAttestationError` → 先 `.get()` + 精确类型校验，统一抛有限 attestation error。PLAUSIBLE。
+- [x] **R71-148** `[P2]` `service/service_recovery_attestation.py:206,232` — `attest_event_context()` 直接 `paper_fill["commission_currency"]` 并比较 `quote_as_of_ns > paper_fill.get("match_time_ns", 0)`，缺 key 或非整数抛 `KeyError`/`TypeError`，逃出文档化 fail-closed 的 `ServiceRecoveryAttestationError` → 先 `.get()` + 精确类型校验，统一抛有限 attestation error。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成输入**（currency 和成交时间缺失或无效时统一有限拒绝，并校验 quote 绑定时间的精确正整数类型；26 项相关回归和独立静态复审通过。仅验证 attestor，未验证 Broker 集成或真实账户）。
 - [ ] **R71-044** `[P2]` `contrib/xma_ichimoku.py:39` — `_raw_buf` 每根 append 不裁剪，`sum(self._raw_buf[-period:])` 每根切片分配，5000 bars 后 4965 项 → `deque(maxlen=period)` + 滚动和。CONFIRMED(FAKE)。
 - [ ] **R71-045** `[P2]` `contrib/shared_strategy_indicators.py:830` — `_smooth_history`/`_aml_history` 无界 list，`_range()` 每根新建两个 list，5000 bars 后 4843 项、约 3.7× 慢于 deque 版 → `deque(maxlen=lag+1)`，高低点增量维护。CONFIRMED(FAKE)。
 - [ ] **R71-046** `[P2]` `contrib/digital_macd.py:191` — 每根把 66 元素 deque 复制成 tuple 并跑两个 66 次 Python 循环，无 `once()` 向量化 → 滚动点积状态或 once 数组实现。PLAUSIBLE(code-read)。

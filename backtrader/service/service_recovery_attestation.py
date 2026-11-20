@@ -183,6 +183,14 @@ class BacktraderServiceRecoveryAttestor:
             raise ServiceRecoveryAttestationError("INVALID_RECOVERY_EVENT_CONTEXT")
         if not all(isinstance(value, Mapping) for value in (manifest, execution_context, paper_fill)):
             raise ServiceRecoveryAttestationError("RECOVERY_EVENT_CONTEXT_MISMATCH")
+        fill_currency = paper_fill.get("commission_currency")
+        match_time_ns = paper_fill.get("match_time_ns")
+        if (
+            not _identifier(fill_currency)
+            or type(match_time_ns) is not int
+            or match_time_ns <= 0
+        ):
+            raise ServiceRecoveryAttestationError("RECOVERY_EVENT_CONTEXT_MISMATCH")
         context = _json_mapping(raw, invalid_code="INVALID_RECOVERY_EVENT_CONTEXT")
         submit = manifest.get("submit_payload")
         binding = manifest.get("recovery_binding")
@@ -190,6 +198,9 @@ class BacktraderServiceRecoveryAttestor:
         decision = execution_context.get("decision")
         comminfo = execution_context.get("comminfo")
         quote_binding = execution_context.get("quote_binding")
+        quote_binding_as_of_ns = (
+            quote_binding.get("as_of_ns") if isinstance(quote_binding, Mapping) else None
+        )
         if (
             not isinstance(submit, Mapping)
             or not isinstance(binding, Mapping)
@@ -197,13 +208,15 @@ class BacktraderServiceRecoveryAttestor:
             or not isinstance(decision, Mapping)
             or not isinstance(comminfo, Mapping)
             or not isinstance(quote_binding, Mapping)
+            or type(quote_binding_as_of_ns) is not int
+            or quote_binding_as_of_ns <= 0
             or not _identifier(context["data_name"])
             or not _identifier(context["instrument"])
             or type(context["bar_index"]) is not int
             or context["bar_index"] < 1
             or not _hex_float(context["datetime_hex"])
             or not isinstance(context["comminfo"], Mapping)
-            or context["commission_currency"] != paper_fill["commission_currency"]
+            or context["commission_currency"] != fill_currency
             or not _identifier(context["commission_currency"])
             or not _identifier(context["quote_source_ref"])
             or not _identifier(context["quote_generation"])
@@ -228,8 +241,8 @@ class BacktraderServiceRecoveryAttestor:
             or context["quote_generation"] != quote_binding.get("generation")
             or context["quote_cursor"] != quote_binding.get("cursor")
             or context["quote_instrument"] != quote_binding.get("instrument")
-            or context["quote_as_of_ns"] != quote_binding.get("as_of_ns")
-            or context["quote_as_of_ns"] > paper_fill.get("match_time_ns", 0)
+            or context["quote_as_of_ns"] != quote_binding_as_of_ns
+            or context["quote_as_of_ns"] > match_time_ns
             or quote_binding.get("data_name") != context["data_name"]
             or quote_binding.get("bar_index") != context["bar_index"]
             or quote_binding.get("datetime_hex") != context["datetime_hex"]
