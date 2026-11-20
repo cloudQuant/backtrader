@@ -45,6 +45,7 @@ from tests.unit.feeds.test_iter63_gateway_market_feed import (
     PEER,
     _gateway_store,
     frame,
+    payload as market_payload,
 )
 from tests.unit.feeds.test_market_tick_adapter_baseline import SOURCE, SUBSCRIPTION
 
@@ -428,6 +429,28 @@ def _close(environment, api):
         environment["registry"].close()
 
 
+def _assert_feed_tick_loaded(feed, expected_price, *, expected_sequence, expected_epoch):
+    assert feed.load() is True
+    event = feed._gateway_last_data_event
+    assert event.cursor.sequence == expected_sequence
+    assert event.cursor.epoch == expected_epoch
+    assert event.data.last_price == expected_price
+    assert feed.lines.open[0] == expected_price
+    assert feed.lines.high[0] == expected_price
+    assert feed.lines.low[0] == expected_price
+    assert feed.lines.close[0] == expected_price
+    assert feed.lines.volume[0] == 3.0
+    assert feed.lines.datetime[0] > 0
+
+
+def _assert_trade_unavailable_without_receipt(feed):
+    adapter = feed._gateway_market_adapter
+    assert adapter._last_receipt is None
+    verdict = feed.trade_qualification()
+    assert verdict.ok is False
+    assert verdict.reasons == ("GATEWAY_REALTIME_UNAVAILABLE",)
+
+
 def test_real_sdk_lease_and_feed_same_generation_stop_reacquire(tmp_path, monkeypatch):
     env = _environment(tmp_path, name="same-generation")
     _patch_transport_leaves(monkeypatch, [env])
@@ -445,7 +468,13 @@ def test_real_sdk_lease_and_feed_same_generation_stop_reacquire(tmp_path, monkey
         assert first_owner_client is first_lease
 
         env["market"].publish(frame(1, source=SOURCE))
-        feed.load()
+        _assert_feed_tick_loaded(
+            feed, 1500.0, expected_sequence=1, expected_epoch="epoch-1"
+        )
+        # The fake subscriber deliberately supplies no receive receipt. The
+        # payload also has unknown source/receive clocks, so data-line delivery
+        # cannot establish the Gateway's receipt/clock qualification contract.
+        _assert_trade_unavailable_without_receipt(feed)
         assert first_adapter._projector._client is first_lease
         first_subscriber = env["market"].subscribers[-1]
         first_generation = store._gateway_session_generation
@@ -467,8 +496,26 @@ def test_real_sdk_lease_and_feed_same_generation_stop_reacquire(tmp_path, monkey
         assert env["market"].subscribers[-1] is not first_subscriber
         assert first_subscriber.closed
 
-        env["market"].publish(frame(1, source=SOURCE))
-        feed.load()
+        env["market"].publish(
+            frame(
+                2,
+                value=market_payload(
+                    last_price=1501.0,
+                    bid_price=1500.0,
+                    ask_price=1502.0,
+                ),
+                source=SOURCE,
+            )
+        )
+        # The new SDK cursor first exposes the latest snapshot from before
+        # restart, then the post-restart event on its next Feed load.
+        _assert_feed_tick_loaded(
+            feed, 1500.0, expected_sequence=1, expected_epoch="epoch-1"
+        )
+        _assert_feed_tick_loaded(
+            feed, 1501.0, expected_sequence=2, expected_epoch="epoch-1"
+        )
+        _assert_trade_unavailable_without_receipt(feed)
         assert second_adapter._projector._client is second_lease
         assert second_lease._lease_state == "active"
     finally:
@@ -550,17 +597,26 @@ def test_real_sdk_feed_unknown_release_retries_same_handle_then_reconnects(tmp_p
         with pytest.raises(ThreadedRuntimeError, match="MARKET_LEASE_RELEASED"):
             old_lease.poll()
 
-        assert adapter.poll() is None  # Adopts the replacement API with a fresh cursor.
+        new_event = frame(
+            1,
+            value=market_payload(
+                last_price=1502.0,
+                bid_price=1501.0,
+                ask_price=1503.0,
+            ),
+            source=replace(SOURCE, epoch="epoch-2"),
+        )
+        new_env["market"].publish(new_event)
+        _assert_feed_tick_loaded(
+            feed, 1502.0, expected_sequence=1, expected_epoch="epoch-2"
+        )
         new_lease = adapter._lease_client
         assert new_lease is not None and new_lease is not old_lease
         assert new_lease is new_api._market._leases["main"]
         assert adapter._projector._client is new_lease
         assert new_env["market"].subscribers
-        new_event = frame(1, source=replace(SOURCE, epoch="epoch-2"))
-        new_env["market"].publish(new_event)
-        adapter.poll()
-        assert adapter._projector._client is new_lease
         assert new_lease._lease_state == "active"
+        _assert_trade_unavailable_without_receipt(feed)
     finally:
         allow_release.set()
         feed.stop()
