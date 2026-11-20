@@ -20,21 +20,23 @@
 
 ## 进度看板
 
+> 2026-11-20 按正文复选项重新计数，合并编号只计一条。
+
 | 批次 | 主题 | 条目数 | 已完成 |
 |---|---|---:|---:|
 | 0 | 开工准备与基线 | 4 | 0 |
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 17 | 0 |
-| 5 | 指标正确性（P1/P2） | 30 | 0 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 24 | 0 |
-| 7 | 性能专项（P1/P2） | 18 | 0 |
-| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 16 | 0 |
-| 9 | P2 其余正确性 / 清理 | 42 | 0 |
-| 10 | P3 结构演进 / 文档 / 类型治理 | 24 | 0 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 1 |
+| 5 | 指标正确性（P1/P2） | 29 | 0 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
+| 7 | 性能专项（P1/P2） | 19 | 0 |
+| 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
+| 9 | P2 其余正确性 / 清理 | 36 | 0 |
+| 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **212** | **32** |
+| | **合计** | **207** | **33** |
 
 ---
 
@@ -96,7 +98,7 @@
 
 > 统一验证：`pytest tests/unit/ tests/unit/feeds/ -q`；异常注入、线程竞态、多时间框架 stop 检查、writer 行数断言。
 
-- [ ] **R71-007** `[P1]` `_cerebro/channel.py:318` — channel 事件循环无 `try/finally`，任一回调抛错时 `_teardown_channel` 被跳过、`broker.stop()` 不执行 → 包 try/finally。CONFIRMED(source)。
+- [x] **R71-007** `[P1]` `_cerebro/channel.py:318` — channel 事件循环无 `try/finally`，任一回调抛错时 `_teardown_channel` 被跳过、`broker.stop()` 不执行 → 包 try/finally。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+RUNTIME**（修前回调异常复现失败；修后 channel 生命周期、线程停止及回调异常共 27 项通过；启动期异常与多策略 stop 异常的完整清理未覆盖，清理异常可能替代原回调异常；不代表实盘验收）。
 - [ ] **R71-008** `[P1]` `cerebro.py:951` — 优化路径 `multiprocessing.Pool` 在 `imap`/`optcb` 抛错时跳过 `close()/join()`，worker 泄漏 → `try/finally` 或 `with Pool(...)`。CONFIRMED(source)。
 - [ ] **R71-009** `[P1]` `dataseries.py:80` — `TimeFrame.getname(tframe, compression=None)` 默认 `None` 紧接 `compression > 1` 抛 `TypeError` → 默认改 1 或先归一化。CONFIRMED(source)。
 - [ ] **R71-010** `[P1]` `channels/live_queue.py:84` — `put()` 在锁外读 `_closed`，producer 通过检查后仍可入队，事件永不被消费 → 锁内复检。CONFIRMED(source)。

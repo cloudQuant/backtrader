@@ -278,53 +278,55 @@ class ChannelMixin:
             return runstrats
 
         # --- channel event loop ---
-        for event in channel:
-            if self._event_stop:
-                break
-
-            for strat in runstrats:
-                self._advance_channel_strategy_clock(strat, event)
-
-            # 1. Let the broker process the raw event data
-            ch = event.channel_type
-            evdata = event.data
-            if ch == "tick" and hasattr(self._broker, "process_tick"):
-                self._broker.process_tick(evdata)
-            elif ch == "orderbook" and hasattr(self._broker, "process_orderbook"):
-                self._broker.process_orderbook(evdata)
-            elif ch == "bar" and hasattr(self._broker, "process_bar"):
-                self._broker.process_bar(evdata)
-
-            # 2. Deliver broker order-fill notifications to strategies
-            while True:
-                order = self._broker.get_notification()
-                if order is None:
+        try:
+            for event in channel:
+                if self._event_stop:
                     break
-                owner = getattr(order, "owner", None)
-                if owner is None:
-                    owner = getattr(getattr(order, "p", None), "owner", None)
-                if owner is None and runstrats:
-                    owner = runstrats[0]
-                if owner is not None:
-                    owner._addnotification(order, quicknotify=True)
 
-            # 3. Dispatch channel event to strategies
-            self.dispatch_channel_event(event)
+                for strat in runstrats:
+                    self._advance_channel_strategy_clock(strat, event)
 
-            # 4. Advance analyzers/observers that rely on next()-style hooks
-            for strat in runstrats:
-                self._step_channel_strategy(strat)
+                # 1. Let the broker process the raw event data
+                ch = event.channel_type
+                evdata = event.data
+                if ch == "tick" and hasattr(self._broker, "process_tick"):
+                    self._broker.process_tick(evdata)
+                elif ch == "orderbook" and hasattr(self._broker, "process_orderbook"):
+                    self._broker.process_orderbook(evdata)
+                elif ch == "bar" and hasattr(self._broker, "process_bar"):
+                    self._broker.process_bar(evdata)
 
-        # --- teardown ---
-        self._teardown_channel(runstrats)
+                # 2. Deliver broker order-fill notifications to strategies
+                while True:
+                    order = self._broker.get_notification()
+                    if order is None:
+                        break
+                    owner = getattr(order, "owner", None)
+                    if owner is None:
+                        owner = getattr(getattr(order, "p", None), "owner", None)
+                    if owner is None and runstrats:
+                        owner = runstrats[0]
+                    if owner is not None:
+                        owner._addnotification(order, quicknotify=True)
+
+                # 3. Dispatch channel event to strategies
+                self.dispatch_channel_event(event)
+
+                # 4. Advance analyzers/observers that rely on next()-style hooks
+                for strat in runstrats:
+                    self._step_channel_strategy(strat)
+
+        finally:
+            self._teardown_channel(runstrats)
         return runstrats
 
     def _teardown_channel(self, runstrats):
         """Stop a channel session after its event loop or owner has finished."""
-        for strat in runstrats:
-            self._stop_channel_strategy(strat)
-
-        self._broker.stop()
+        try:
+            for strat in runstrats:
+                self._stop_channel_strategy(strat)
+        finally:
+            self._broker.stop()
         self.runstrats = [runstrats]
 
     def _instantiate_channel_strategies(self, runstrats):
