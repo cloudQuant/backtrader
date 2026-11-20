@@ -86,6 +86,20 @@ class KnowSureThing(Indicator):
         self.rcma3 = self.p._rmovav(ROC100(self.data, period=self.p.rp3), period=self.p.rma3)
         self.rcma4 = self.p._rmovav(ROC100(self.data, period=self.p.rp4), period=self.p.rma4)
 
+        # KST becomes available with its slowest smoothed ROC, but its signal
+        # also needs ``rsignal - 1`` earlier KST values. Keep that distinction
+        # for runonce, while exposing the complete KST/signal warmup downstream.
+        self._kst_minperiod = self._minperiod
+        self._minperiod += self.p.rsignal - 1
+
+    def prenext(self):
+        """Build KST history while the longer signal window is warming up."""
+        self.next()
+
+    def preonce(self, start, end):
+        """Build the KST history needed before the signal's runonce start."""
+        self._once_kst(start, end)
+
     def next(self):
         """Calculate KST and signal for the current bar.
 
@@ -110,32 +124,15 @@ class KnowSureThing(Indicator):
 
     def once(self, start, end):
         """Calculate KST and signal in runonce mode."""
-        rcma1_array = self.rcma1.lines[0].array
-        rcma2_array = self.rcma2.lines[0].array
-        rcma3_array = self.rcma3.lines[0].array
-        rcma4_array = self.rcma4.lines[0].array
         kst_array = self.lines.kst.array
         signal_array = self.lines.signal.array
-        rf = self.p.rfactors
         rsignal = self.p.rsignal
 
         for arr in [kst_array, signal_array]:
             while len(arr) < end:
                 arr.append(float("nan"))
 
-        # Calculate KST
-        for i in range(
-            start, min(end, len(rcma1_array), len(rcma2_array), len(rcma3_array), len(rcma4_array))
-        ):
-            v1 = rcma1_array[i] if i < len(rcma1_array) else 0.0
-            v2 = rcma2_array[i] if i < len(rcma2_array) else 0.0
-            v3 = rcma3_array[i] if i < len(rcma3_array) else 0.0
-            v4 = rcma4_array[i] if i < len(rcma4_array) else 0.0
-
-            if any(isinstance(v, float) and math.isnan(v) for v in [v1, v2, v3, v4]):
-                kst_array[i] = float("nan")
-            else:
-                kst_array[i] = rf[0] * v1 + rf[1] * v2 + rf[2] * v3 + rf[3] * v4
+        self._once_kst(start, end)
 
         # Calculate signal (SMA of KST)
         for i in range(start, min(end, len(kst_array))):
@@ -157,3 +154,30 @@ class KnowSureThing(Indicator):
                     signal_array[i] = kst_sum / rsignal
                 else:
                     signal_array[i] = float("nan")
+
+    def _once_kst(self, start, end):
+        """Calculate KST values, including history before the signal start."""
+        rcma1_array = self.rcma1.lines[0].array
+        rcma2_array = self.rcma2.lines[0].array
+        rcma3_array = self.rcma3.lines[0].array
+        rcma4_array = self.rcma4.lines[0].array
+        kst_array = self.lines.kst.array
+        rf = self.p.rfactors
+
+        while len(kst_array) < end:
+            kst_array.append(float("nan"))
+
+        kst_start = max(start, self._kst_minperiod - 1)
+        for i in range(
+            kst_start,
+            min(end, len(rcma1_array), len(rcma2_array), len(rcma3_array), len(rcma4_array)),
+        ):
+            v1 = rcma1_array[i] if i < len(rcma1_array) else 0.0
+            v2 = rcma2_array[i] if i < len(rcma2_array) else 0.0
+            v3 = rcma3_array[i] if i < len(rcma3_array) else 0.0
+            v4 = rcma4_array[i] if i < len(rcma4_array) else 0.0
+
+            if any(isinstance(v, float) and math.isnan(v) for v in [v1, v2, v3, v4]):
+                kst_array[i] = float("nan")
+            else:
+                kst_array[i] = rf[0] * v1 + rf[1] * v2 + rf[2] * v3 + rf[3] * v4
