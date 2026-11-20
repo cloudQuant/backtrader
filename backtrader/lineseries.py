@@ -2757,7 +2757,3 @@ def _patch_strategy_clk_update():
             exc_info=False,
         )
         return False
-
-
-# Apply the patch when this module is loaded
-_patch_strategy_clk_update()
