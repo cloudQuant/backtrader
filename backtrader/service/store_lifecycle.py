@@ -22,15 +22,6 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         if store._api is not managed_borrowed_api:
             store._shutdown_state = "INCOMPLETE"
     store._signal_live_bar_event()
-    if store._sdk_mode and managed_borrowed_api is None:
-        # An ordinary injected facade remains caller-owned, but this Store's
-        # SDK wake token is not. Drop only the token retained by this Store
-        # before any early return or API close path.
-        try:
-            store._unbind_live_bar_event_notifier()
-        except BaseException:
-            store._shutdown_state = "INCOMPLETE"
-            raise
     deadline = time.monotonic() + (
         store._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
     )
@@ -97,11 +88,8 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         store._shutdown_state = "PASS"
         store.emit_runtime_event("store_disconnected", status="disconnected")
         return store.get_command_health()
-    with store._latest_tick_lock:
-        store._latest_ticks.clear()
     if store._sdk_mode and not store.uses_async_commands:
         return store._stop_synchronous_sdk(max(deadline - time.monotonic(), 0.0))
-    store._venue_balance_cache = {}
     partial_owned_sdk = store._sdk_mode and store._sdk_owned_api and store._api is not None
     partial_borrowed_sdk = managed_borrowed_api is not None
     command_state = store._command_runtime.snapshot()
@@ -120,6 +108,21 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         if not funding_worker_stopped:
             store._shutdown_state = "INCOMPLETE"
             store._command_health["funding_shutdown_blocked"] += 1
+        elif store._sdk_mode and managed_borrowed_api is None:
+            # Even an otherwise idle Store releases its own wake token on a
+            # verified stop. Queue-bearing stops take the active path below
+            # and keep the notifier bound so the Broker can resume draining.
+            try:
+                store._unbind_live_bar_event_notifier()
+            except BaseException:
+                store._shutdown_state = "INCOMPLETE"
+                raise
+        store._venue_balance_cache = {}
+        with store._latest_tick_lock:
+            store._latest_ticks.clear()
+        if funding_worker_stopped and store._sdk_stop_pending_broker_updates:
+            store._sdk_stop_pending_broker_updates = False
+            store._shutdown_state = "PASS"
         return store.get_command_health()
 
     worker_stopped = True
@@ -135,6 +138,23 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
         )
         if not drained or not worker_stopped:
             store._shutdown_state = "INCOMPLETE"
+        if not worker_stopped:
+            # A failed join is not proof that the command thread stopped
+            # publishing. Keep the Store/API/notifier intact and make the
+            # unresolved handoff visible to start() and Broker polling.
+            store._sdk_stop_command_worker_unproven = True
+            store._command_health["stop_blocked_by_live_command_worker"] += 1
+            store.emit_runtime_event(
+                "store_disconnect_incomplete",
+                status="incomplete",
+                details={"reason": "command_worker_still_running"},
+            )
+            return store.get_command_health()
+        store._sdk_stop_command_worker_unproven = False
+    else:
+        # The command runtime snapshot proves there is no live producer to
+        # wait for on this retry.
+        store._sdk_stop_command_worker_unproven = False
 
     # Metadata I/O has its own lane, so a slow funding endpoint cannot
     # delay cancellation/close processing above. It must nevertheless
@@ -144,6 +164,52 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
     )
     if not funding_worker_stopped:
         store._shutdown_state = "INCOMPLETE"
+
+    if store._sdk_mode:
+        # The command worker is now quiescent and the Store stop slot prevented
+        # new event drains.  This second snapshot catches completions that were
+        # published while the worker drained, closing the TOCTOU window in the
+        # public stop preflight before any subscription/API teardown.
+        try:
+            pending_updates = store._sdk_pending_broker_update_count()
+        except Exception:
+            store._sdk_stop_pending_broker_updates = True
+            store._shutdown_state = "INCOMPLETE"
+            store._command_health["stop_update_queue_unavailable"] += 1
+            raise
+        if pending_updates:
+            store._sdk_stop_pending_broker_updates = True
+            store._shutdown_state = "INCOMPLETE"
+            store._command_health["stop_blocked_by_pending_broker_updates"] += 1
+            store.emit_runtime_event(
+                "store_disconnect_incomplete",
+                status="incomplete",
+                details={
+                    "reason": "broker_updates_pending",
+                    "count": pending_updates,
+                },
+            )
+            return store.get_command_health()
+
+    if store._sdk_stop_pending_broker_updates:
+        # A prior stop was refused without releasing resources.  Once the
+        # Broker has drained the retained inbox, resume the ordinary shutdown
+        # projection so this retry can reach PASS if all closes succeed.
+        store._shutdown_state = "RUNNING"
+
+    if store._sdk_mode and managed_borrowed_api is None:
+        # An ordinary injected facade remains caller-owned, but this Store's
+        # SDK wake token is not. Unbind only once the update handoff is clear;
+        # an incomplete handoff retains the wake path for a later drain.
+        try:
+            store._unbind_live_bar_event_notifier()
+        except BaseException:
+            store._shutdown_state = "INCOMPLETE"
+            raise
+
+    store._venue_balance_cache = {}
+    with store._latest_tick_lock:
+        store._latest_ticks.clear()
 
     market_stream_subscriptions_closed = True
     api_close_completed = store._api is None
@@ -268,11 +334,35 @@ def stop_store(store, timeout: Optional[float] = None, *, safe_log):
             store._tick_consumers.clear()
         if not store._connected:
             store.emit_runtime_event("store_disconnected", status="disconnected")
+        if store._shutdown_state == "PASS":
+            store._sdk_stop_pending_broker_updates = False
     return store.get_command_health()
 
 
 def stop_synchronous_store_sdk(store, timeout: Optional[float] = None):
     """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
+    try:
+        pending_updates = store._sdk_pending_broker_update_count()
+    except Exception:
+        store._sdk_stop_pending_broker_updates = True
+        store._shutdown_state = "INCOMPLETE"
+        store._command_health["stop_update_queue_unavailable"] += 1
+        raise
+    if pending_updates:
+        store._sdk_stop_pending_broker_updates = True
+        store._shutdown_state = "INCOMPLETE"
+        store._command_health["stop_blocked_by_pending_broker_updates"] += 1
+        return store.get_command_health()
+    if store._sdk_stop_pending_broker_updates:
+        store._shutdown_state = "RUNNING"
+    if store._managed_runtime_borrowed_api is None:
+        try:
+            store._unbind_live_bar_event_notifier()
+        except BaseException:
+            store._shutdown_state = "INCOMPLETE"
+            raise
+    with store._latest_tick_lock:
+        store._latest_ticks.clear()
     managed_borrowed_api = store._managed_runtime_borrowed_api
     if managed_borrowed_api is not None:
         store._managed_runtime_stopped = True
@@ -297,6 +387,9 @@ def stop_synchronous_store_sdk(store, timeout: Optional[float] = None):
         and not partial_borrowed_sdk
         and not store._market_stream_adapter.has_subscriptions
     ):
+        if funding_worker_stopped and store._sdk_stop_pending_broker_updates:
+            store._sdk_stop_pending_broker_updates = False
+            store._shutdown_state = "PASS"
         return store.get_command_health()
     market_stream_subscriptions_closed = True
     api_close_completed = store._api is None

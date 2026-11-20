@@ -1483,6 +1483,340 @@ def test_stopped_borrowed_api_fails_closed_without_consuming_order_account_backl
     assert store._live_bar_queue.snapshot("SA")[0] == 1
 
 
+def test_stop_keeps_unconsumed_broker_updates_and_allows_broker_drain_retry(
+    monkeypatch,
+):
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    token = store._register_live_bar_event_waker(lambda: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    runtime_events = []
+    monkeypatch.setattr(store, "_emit_broker_runtime_event", runtime_events.append)
+
+    pending = (
+        {"kind": "order", "symbol": "SA", "sequence": 1, "status": "accepted"},
+        {"kind": "trade", "symbol": "SA", "sequence": 2, "status": "filled"},
+    )
+    for update in pending:
+        store._append_sdk_update(update)
+
+    health = store.stop(timeout=0.2)
+
+    assert health["shutdown_state"] == "INCOMPLETE"
+    assert health["shutdown_blocked_by_broker_update_handoff"] is True
+    assert health["broker_update_queue_depth"] == 2
+    assert store._started is True
+    assert store._connected is True
+    assert store._api is api
+    assert api.close_calls == 0
+    assert api.poll_calls == []  # stop refused before touching SDK resources
+    assert len(api.event_wakers) == 1
+
+    with pytest.raises(
+        BtApiStoreError, match="store_sdk_broker_update_handoff_blocked"
+    ):
+        store.start()
+
+    delivered = [store.poll_broker_update(), store.poll_broker_update()]
+    assert delivered == list(pending)
+    assert runtime_events == list(pending)
+    assert store._command_runtime.snapshot().completion_depth == 0
+    assert api.close_calls == 0
+
+    final_health = store.stop(timeout=0.2)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert store._started is False
+    assert store._api is api
+    assert api.close_calls == 0  # caller-owned facade stays open
+    assert api.event_wakers == {}
+    store._unregister_live_bar_event_waker(token)
+
+
+def test_disconnected_store_can_drain_retained_update_without_reconnecting(monkeypatch):
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    runtime_events = []
+    monkeypatch.setattr(store, "_emit_broker_runtime_event", runtime_events.append)
+    pending = {"kind": "order", "symbol": "SA", "sequence": 2}
+    store._append_sdk_update(pending)
+
+    health = store.stop(timeout=0.2)
+    assert health["shutdown_state"] == "INCOMPLETE"
+    assert health["broker_update_queue_depth"] == 1
+    assert store._connected is False
+    assert store._started is False
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+
+    assert store.poll_broker_update() == pending
+    assert runtime_events == [pending]
+    assert api.poll_calls == []  # local inbox drain never reconnects or polls
+
+    final_health = store.stop(timeout=0.2)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert store._api is api
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+
+
+def test_stop_worker_barrier_preserves_late_update_and_owned_api_for_retry(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        BtApiStore, "uses_async_commands", property(lambda _self: True)
+    )
+    api = _FakeUnifiedApiFacade()
+    store = _store(api_cls=lambda **_kwargs: api)
+    _bind_store_owned_api(store, api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    token = store._register_live_bar_event_waker(lambda: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_emit_broker_runtime_event", lambda _update: None)
+
+    original_stop_worker = store._stop_command_worker
+    original_snapshot = store._command_runtime.snapshot
+    publish_once = [True]
+
+    from dataclasses import replace
+
+    monkeypatch.setattr(
+        store._command_runtime,
+        "snapshot",
+        lambda: replace(original_snapshot(), worker_alive=True),
+    )
+
+    def publish_during_worker_stop(timeout, *, discard_pending=False):
+        if publish_once[0]:
+            publish_once[0] = False
+            store._append_sdk_update(
+                {
+                    "kind": "order",
+                    "symbol": "SA",
+                    "sequence": 7,
+                    "status": "accepted",
+                }
+            )
+        return original_stop_worker(timeout, discard_pending=discard_pending)
+
+    monkeypatch.setattr(store, "_stop_command_worker", publish_during_worker_stop)
+
+    health = store.stop(timeout=0.5)
+
+    assert health["shutdown_state"] == "INCOMPLETE"
+    assert health["shutdown_blocked_by_broker_update_handoff"] is True
+    assert health["broker_update_queue_depth"] == 1
+    assert store._started is True
+    assert store._connected is True
+    assert store._api is api
+    assert api.close_calls == 0
+    assert len(api.event_wakers) == 1
+
+    with pytest.raises(
+        BtApiStoreError, match="store_sdk_broker_update_handoff_blocked"
+    ):
+        store.start()
+
+    delivered = store.poll_broker_update()
+    assert delivered["sequence"] == 7
+    assert store._command_runtime.snapshot().completion_depth == 0
+
+    final_health = store.stop(timeout=0.5)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert store._started is False
+    assert store._api is None
+    assert api.close_calls == 1  # Store-owned facade closes only after handoff
+    assert api.event_wakers == {}
+    store._unregister_live_bar_event_waker(token)
+
+
+def test_managed_borrowed_stop_can_drain_late_local_update_without_sdk_poll(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        BtApiStore, "uses_async_commands", property(lambda _self: True)
+    )
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    store._bind_managed_runtime_api(api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    token = store._register_live_bar_event_waker(lambda: None)
+    raw_sdk_event = {"kind": "account", "sequence": 18}
+    api.event_queue.put(raw_sdk_event)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_emit_broker_runtime_event", lambda _update: None)
+
+    runtime = store._command_runtime
+    original_snapshot = runtime.snapshot
+    stop_results = [False, True]
+    from dataclasses import replace
+
+    monkeypatch.setattr(
+        runtime,
+        "snapshot",
+        lambda: replace(original_snapshot(), worker_alive=True),
+    )
+
+    def publish_during_stop(timeout, *, discard_pending=False):
+        store._append_sdk_update(
+            {"kind": "order", "symbol": "SA", "sequence": 19}
+        )
+        return original_stop_worker(timeout, discard_pending=discard_pending)
+
+    monkeypatch.setattr(store, "_stop_command_worker", publish_during_stop)
+
+    health = store.stop(timeout=0.5)
+    assert health["shutdown_state"] == "INCOMPLETE"
+    assert health["shutdown_blocked_by_broker_update_handoff"] is True
+    assert store._managed_runtime_stopped is True
+    assert store._started is True
+    assert store._connected is True
+    assert store._api is api
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert len(api.event_wakers) == 1
+
+    # A stopped managed Store drains only its own handoff queue. The managed
+    # facade's readiness and SDK poll paths are never re-entered.
+    update = store.poll_broker_update()
+    assert update == {"kind": "order", "symbol": "SA", "sequence": 19}
+    assert api.poll_calls == []
+    assert api.queued_events() == (raw_sdk_event,)
+    assert api.close_calls == 0
+
+    monkeypatch.setattr(runtime, "snapshot", original_snapshot)
+    final_health = store.stop(timeout=0.5)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert store._started is False
+    assert store._connected is False
+    assert store._api is api
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.event_wakers == {}
+    store._unregister_live_bar_event_waker(token)
+
+
+def test_failed_command_worker_stop_retains_api_and_late_update_for_retry(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        BtApiStore, "uses_async_commands", property(lambda _self: True)
+    )
+    api = _FakeUnifiedApiFacade()
+    store = _store(api_cls=lambda **_kwargs: api)
+    _bind_store_owned_api(store, api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    store._sdk_configured = True
+    token = store._register_live_bar_event_waker(lambda: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_emit_broker_runtime_event", lambda _update: None)
+    monkeypatch.setattr(store, "wait_for_commands", lambda *_args, **_kwargs: True)
+
+    runtime = store._command_runtime
+    original_snapshot = runtime.snapshot
+    original_stop_worker = store._stop_command_worker
+    from dataclasses import replace
+
+    monkeypatch.setattr(
+        runtime,
+        "snapshot",
+        lambda: replace(original_snapshot(), worker_alive=True),
+    )
+    monkeypatch.setattr(
+        store,
+        "_stop_command_worker",
+        lambda *_args, **_kwargs: stop_results.pop(0),
+    )
+
+    failed_health = store.stop(timeout=0.2)
+    assert failed_health["shutdown_state"] == "INCOMPLETE"
+    assert failed_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert failed_health["shutdown_blocked_by_command_worker"] is True
+    assert failed_health["broker_update_queue_depth"] == 0
+    assert store._sdk_stop_command_worker_unproven is True
+    assert store._started is True
+    assert store._connected is True
+    assert store._api is api
+    assert store._sdk_configured is True
+    assert api.close_calls == 0
+    assert len(api.event_wakers) == 1
+    with pytest.raises(
+        BtApiStoreError, match="store_sdk_command_worker_shutdown_unproven"
+    ):
+        store.start()
+
+    # Model a completion published after the failed stop returned. It remains
+    # consumable, and retry can close only after the worker stop is proven.
+    late_update = {"kind": "order", "symbol": "SA", "sequence": 23}
+    store._append_sdk_update(late_update)
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "_drain_sdk_events", lambda: None)
+    assert store.poll_broker_update() == late_update
+    assert api.close_calls == 0
+
+    final_health = store.stop(timeout=0.5)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert final_health["shutdown_blocked_by_command_worker"] is False
+    assert store._sdk_stop_command_worker_unproven is False
+    assert store._started is False
+    assert store._api is None
+    assert api.close_calls == 1
+    assert api.event_wakers == {}
+    store._unregister_live_bar_event_waker(token)
+
+
+def test_stop_fails_closed_when_broker_update_queue_state_is_unavailable(monkeypatch):
+    api = _FakeUnifiedApiFacade()
+    store = _store(api_cls=lambda **_kwargs: api)
+    _bind_store_owned_api(store, api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda _timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    runtime = store._command_runtime
+    original_snapshot = runtime.snapshot
+
+    def unavailable_snapshot():
+        raise RuntimeError("snapshot unavailable")
+
+    monkeypatch.setattr(runtime, "snapshot", unavailable_snapshot)
+
+    with pytest.raises(
+        BtApiStoreError, match="store_sdk_broker_update_queue_unavailable"
+    ):
+        store.stop(timeout=0.2)
+
+    assert store._sdk_stop_pending_broker_updates is True
+    assert store._shutdown_state == "INCOMPLETE"
+    assert store._started is True
+    assert store._connected is True
+    assert store._api is api
+    assert api.close_calls == 0
+
+    monkeypatch.setattr(runtime, "snapshot", original_snapshot)
+    final_health = store.stop(timeout=0.5)
+    assert final_health["shutdown_state"] == "PASS"
+    assert final_health["shutdown_blocked_by_broker_update_handoff"] is False
+    assert store._api is None
+    assert api.close_calls == 1
+
+
 def test_stopped_borrowed_readiness_cannot_rebind_notifier_or_read_account(
     monkeypatch,
 ):

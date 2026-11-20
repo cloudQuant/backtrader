@@ -921,6 +921,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._sdk_start_in_progress = False
         self._sdk_start_owner_thread_id = None
         self._sdk_stop_in_progress = False
+        self._sdk_stop_pending_broker_updates = False
+        self._sdk_stop_command_worker_unproven = False
         self._sdk_event_drain_in_progress = False
         self._sdk_event_drain_owner_thread_id = None
         self._sdk_api_activity_count = 0
@@ -1839,6 +1841,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         if self._sdk_mode
                         else "store_service_stop_already_in_progress"
                     )
+                if self._sdk_mode and self._sdk_stop_command_worker_unproven:
+                    raise BtApiStoreError(
+                        "store_sdk_command_worker_shutdown_unproven"
+                    )
+                if self._sdk_mode and self._sdk_stop_pending_broker_updates:
+                    raise BtApiStoreError(
+                        "store_sdk_broker_update_handoff_blocked"
+                    )
                 if self._sdk_start_in_progress:
                     raise BtApiStoreError(
                         "store_sdk_start_already_in_progress"
@@ -2407,6 +2417,27 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         # Condition.wait releases the shared state lock. API
                         # calls and provider I/O never run under this lock.
                         self._sdk_start_state_lock.wait(remaining)
+                if self._sdk_mode:
+                    # Refuse before lifecycle teardown if updates already
+                    # handed to the Store have not reached the Broker.  The
+                    # worker-stop barrier below repeats this check to cover
+                    # completions published while the command worker drains.
+                    try:
+                        pending_updates = self._sdk_pending_broker_update_count()
+                    except Exception:
+                        self._sdk_stop_pending_broker_updates = True
+                        self._shutdown_state = "INCOMPLETE"
+                        self._command_health["stop_update_queue_unavailable"] += 1
+                        raise BtApiStoreError(
+                            "store_sdk_broker_update_queue_unavailable"
+                        ) from None
+                    if pending_updates:
+                        self._sdk_stop_pending_broker_updates = True
+                        self._shutdown_state = "INCOMPLETE"
+                        self._command_health[
+                            "stop_blocked_by_pending_broker_updates"
+                        ] += 1
+                        return self.get_command_health()
             lifecycle_timeout = timeout
             if stop_deadline is not None:
                 lifecycle_timeout = max(stop_deadline - time.monotonic(), 0.0)
@@ -2425,6 +2456,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 else getattr(self, "_shutdown_state", None)
             )
             if shutdown_state == "PASS":
+                self._sdk_stop_pending_broker_updates = False
+                self._sdk_stop_command_worker_unproven = False
                 # Iteration 65: the router file is closed only with a verified
                 # shutdown; an incomplete one keeps it for the pending close.
                 self._close_execution_routing()
@@ -3707,9 +3740,77 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if self._sdk_mode or self._service_read_only:
                 self._finish_sdk_api_activity()
 
+    @contextmanager
+    def _sdk_pending_broker_update_activity(self):
+        """Lease only the Store-local inbox while a managed facade is retired.
+
+        A managed runtime may still own a late completion after Store stop has
+        fenced SDK access.  Draining that already-published local item is safe,
+        but it must remain coordinated with a concurrent stop and must never
+        run readiness or poll the borrowed facade again.
+        """
+        admitted = False
+        thread_id = threading.get_ident()
+        with self._sdk_start_state_lock:
+            depth = self._sdk_api_activity_threads.get(thread_id, 0)
+            if (
+                self._sdk_mode
+                and self._managed_runtime_borrowed_api is not None
+                and (
+                    self._sdk_stop_pending_broker_updates
+                    or self._sdk_stop_command_worker_unproven
+                )
+                and not self._sdk_stop_in_progress
+                and not self._sdk_start_in_progress
+            ):
+                self._sdk_api_activity_threads[thread_id] = depth + 1
+                self._sdk_api_activity_count += 1
+                admitted = True
+        try:
+            yield admitted
+        finally:
+            if admitted:
+                self._finish_sdk_api_activity()
+
     def poll_broker_update(self):
         """Poll a normalized broker-side order/trade/error update from the API."""
+        if (
+            self._sdk_mode
+            and self._managed_runtime_borrowed_api is not None
+            and (
+                self._sdk_stop_pending_broker_updates
+                or self._sdk_stop_command_worker_unproven
+            )
+        ):
+            # A stopped managed-runtime facade is no longer a Store API
+            # resource.  Only consume updates already handed to this Store;
+            # in particular do not re-enter readiness, an outbox reader, or
+            # SDK poll_events while completing the retained handoff.
+            with self._sdk_pending_broker_update_activity() as admitted:
+                if not admitted:
+                    return None
+                update = self._command_runtime.pop_update()
+                if update is None:
+                    return None
+                update = self.redact_runtime_value(update)
+                self._emit_broker_runtime_event(update)
+                return update
+
         if not self._connected:
+            if self._sdk_mode and self._sdk_stop_pending_broker_updates:
+                # A stop refused teardown because the Broker inbox was not
+                # handed off.  Even when the API is disconnected, allow the
+                # caller to consume that retained local update without
+                # reconnecting or polling the SDK.
+                with self._sdk_api_activity() as admitted:
+                    if not admitted:
+                        return None
+                    update = self._command_runtime.pop_update()
+                    if update is None:
+                        return None
+                    update = self.redact_runtime_value(update)
+                    self._emit_broker_runtime_event(update)
+                    return update
             return None
 
         replay_reader = getattr(
@@ -3755,6 +3856,14 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def _append_sdk_update(self, update: Dict[str, Any]) -> None:
         """Publish a broker update through the single-owner runtime inbox."""
         self._command_runtime.publish_update(update)
+
+    def _sdk_pending_broker_update_count(self) -> int:
+        """Return the exact queued Broker-update count or fail closed."""
+        snapshot = self._command_runtime.snapshot()
+        count = getattr(snapshot, "completion_depth", None)
+        if type(count) is not int or count < 0:
+            raise BtApiStoreError("store_sdk_broker_update_queue_unproven")
+        return count
 
     def _clear_sdk_updates(self, reason: str) -> int:
         """Drop queued broker updates through the runtime-owned inbox."""
@@ -4482,6 +4591,12 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 runtime_health.get("rejected_market_data_only", 0)
             ),
             "shutdown_state": self._shutdown_state,
+            "shutdown_blocked_by_broker_update_handoff": bool(
+                self._sdk_stop_pending_broker_updates
+            ),
+            "shutdown_blocked_by_command_worker": bool(
+                self._sdk_stop_command_worker_unproven
+            ),
             "sdk_api_ownership": api_ownership,
             "sdk_api_close_state": api_close_state,
             "close_thread_alive": bool(
