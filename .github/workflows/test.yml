@@ -16,7 +16,8 @@ on:
       - development
       - master
   schedule:
-    # Nightly full-suite run (02:30 UTC) — PRs only run the fast gate.
+    # Nightly runs the full 18-cell suite. PRs use one fast matrix cell while
+    # SDK, performance, wheel, and applicable branch-specific gates still run.
     - cron: '30 2 * * *'
   workflow_dispatch:  # Allow manual trigger
 
@@ -138,48 +139,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Ubuntu - test all Python versions (3.8 to 3.13)
-          - os: ubuntu-latest
-            python-version: '3.8'
-          - os: ubuntu-latest
-            python-version: '3.9'
-          - os: ubuntu-latest
-            python-version: '3.10'
-          - os: ubuntu-latest
-            python-version: '3.11'
-          - os: ubuntu-latest
-            python-version: '3.12'
-          - os: ubuntu-latest
-            python-version: '3.13'
-
-          # macOS - test all Python versions (3.8 to 3.13)
-          - os: macos-latest
-            python-version: '3.8'
-          - os: macos-latest
-            python-version: '3.9'
-          - os: macos-latest
-            python-version: '3.10'
-          - os: macos-latest
-            python-version: '3.11'
-          - os: macos-latest
-            python-version: '3.12'
-          - os: macos-latest
-            python-version: '3.13'
-
-          # Windows - test all Python versions (3.8 to 3.13)
-          - os: windows-latest
-            python-version: '3.8'
-          - os: windows-latest
-            python-version: '3.9'
-          - os: windows-latest
-            python-version: '3.10'
-          - os: windows-latest
-            python-version: '3.11'
-          - os: windows-latest
-            python-version: '3.12'
-          - os: windows-latest
-            python-version: '3.13'
+        # Keep one quick PR cell; retain the full Cartesian matrix for pushes,
+        # the nightly schedule, and manual runs.
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'pull_request' && '["3.11"]' || '["3.8","3.9","3.10","3.11","3.12","3.13"]') }}
 
     steps:
       - name: Checkout
@@ -213,7 +176,7 @@ jobs:
         shell: bash
         env:
           PYTEST_ADDOPTS: ""
-          # PR 门禁跑快速分层（-m "not slow"，~3.5min），push/nightly/手动跑全量。
+          # PR runs the quick tier; push/nightly/manual run the full non-performance suite.
           EVENT_NAME: ${{ github.event_name }}
         run: |
           # Verify backtrader import
@@ -221,9 +184,9 @@ jobs:
           # Show pytest and plugin versions
           echo "=== Pytest info ==="
           pip show pytest pytest-xdist pytest-timeout | grep -E "Name|Version"
-          # Choose tier by event: pull_request => fast gate; everything else => full suite.
+          # The event selects both the matrix size above and this test tier.
           if [ "${EVENT_NAME}" = "pull_request" ]; then
-            echo "=== PR fast gate: pytest -m 'not slow' ==="
+            echo "=== PR fast gate: pytest -m 'not slow and not performance' ==="
             pytest tests/ -m "not slow and not performance" -n auto --tb=short --timeout=300 -q
           else
             echo "=== Full suite: pytest tests/ ==="
@@ -347,6 +310,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: lint
+    # This non-blocking report is useful on the nightly and on-demand runs,
+    # but it does not need to repeat the suite on every PR and push.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -370,7 +336,7 @@ jobs:
           # R2-S5: baseline 60% on the non-strategy subset (see docs/COVERAGE_BASELINE.md).
           # Floor set to 55% (5% margin for parallel/sampling jitter). Non-blocking for
           # now (continue-on-error); promote to blocking once stable.
-          pytest tests --ignore=tests/functional/strategies \
+          pytest tests -m "not performance" --ignore=tests/functional/strategies \
             --cov=backtrader --cov-report=term-missing:skip-covered \
             --cov-fail-under=55 -n auto --timeout=300 -q
 
@@ -453,6 +419,8 @@ jobs:
 
       - name: Run development R2/R3 strategy regression gate
         if: github.base_ref == 'development'
+        env:
+          PYTEST_ADDOPTS: "-m not performance"
         shell: bash
         run: make test-strategies BT_CONDA_PYTHON=python
 
@@ -462,7 +430,7 @@ jobs:
         env:
           PYTEST_ADDOPTS: ''
         run: |
-          pytest tests/ -n auto --tb=short --timeout=300 -q
+          pytest tests/ -m "not performance" -n auto --tb=short --timeout=300 -q
 
   tiered-validation-summary:
     name: Tiered Validation

@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
-| 7 | 性能专项（P1/P2） | 19 | 10 |
+| 7 | 性能专项（P1/P2） | 19 | 11 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 14 |
 | 9 | P2 其余正确性 / 清理 | 36 | 23 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 21 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **168** |
+| | **合计** | **207** | **169** |
 
 ---
 
@@ -192,7 +192,7 @@
 - [ ] **R71-105** `[P2]` `observers/trade_logger.py:2931` — `log_indicators=True`（默认）时 `_collect_indicators` 每 bar 对 `_owner` 做 `dir()` + 每个公开属性 `getattr`；5k bar/16 indicator profile 中 **1.90s/4.81s（39%）**；JSON 模式还每 bar 构造未用 `text_line` → 启动时构建候选属性列表/只遍历 `_lineiterators[IndType]`，JSON 模式跳过 text_line。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（单条记录快照输出格式，JSON 不再构造不用的专用文本，文本格式和记录间热切换保留；同时兼容 start/next 的旧式参数对象缺 snapshot_interval。112 项相关回归及独立静态复审通过。指标属性 dir/getattr 主热点未改，本项保持未完成）。
 - [x] **R71-106** `[P2]` `Makefile:22,26,29,32`；`scripts/refresh_strategy_durations.py:62,66` — 本地全量目标硬编码 `-n 8` 且无 `--timeout`（仓库文档已记录 xdist 0% CPU 挂起），refresh 的 `subprocess.run` 无 timeout 可能永久挂起 → 默认 serial/较低 worker + watchdog，`--timeout=300`，子进程加 `timeout=`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控子进程**（默认 4 workers，可设 0 串行；单测 watchdog 300 秒，刷新子进程总时限 2 小时。22 项专项通过；本机缺 pytest-timeout，未运行实际 Make 测试目标）。
 - [x] **R71-107** `[P2]` `.github/workflows/test.yml:140-237` — 18 组合 `test` job 无 `timeout-minutes`（只有 pytest per-test `--timeout=300`），xdist controller 死锁不是 test timeout，可能耗尽 GitHub 360 分钟默认值 → 给 `test`/`coverage`/`wheel-consumer` 加 `timeout-minutes: 60`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 配置回归**（test、coverage 和 wheel-consumer 均设置 60 分钟 job 上限；专项 1 项通过，独立静态复审通过。未验证 GitHub Actions 实际耗时，矩阵调整另项处理）。
-- [ ] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / CI 守卫局部修复**（精确排除三条已跟踪的迭代 51 历史证据，保留其他嵌套 build/dist/egg-info 拒绝；本地实际 guard 与 5 项专项通过、独立复审通过。远端近期 CI 误报证据见 #447/#449，本地提交尚无远端 CI 验收；PR 矩阵缩减仍待确认安全门禁，本项保持未完成）。
+- [x] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / CI 守卫局部修复**（精确排除三条已跟踪的迭代 51 历史证据，保留其他嵌套 build/dist/egg-info 拒绝；本地实际 guard 与 5 项专项通过、独立复审通过。远端近期 CI 误报证据见 #447/#449，本地提交尚无远端 CI 验收；PR 矩阵缩减仍待确认安全门禁，本项保持未完成）。 **2026-11-21 / 本条目所在 Backtrader dev 提交 / 配置+UNIT**（PR 主测试矩阵为 Ubuntu/Python 3.11 快测，push/nightly/manual 保留 18 格；SDK、performance、wheel 和适用分支门禁保留，coverage 改 nightly/manual。15 项相关结构回归及独立静态复审通过。完整跨平台矩阵移至合并后；远端 ruleset、必需检查和 CI 实际运行尚未验证）。
 - [x] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控子进程**（刷新默认 p35 并与 Make worker profile 对齐；拒绝非有限分位、失败或不完整日志，原子替换保护旧文件。from-log 只能依据日志文本，不能证明原进程退出码）。
 - [ ] **R71-111** `[P2]` `research/operators.py:1871-1885` — 相关系数/协方差未做 near-zero snap，ULP 噪声（±1e-16）成为不同 rank 值，`rank(correlation(...))` 破坏平局；alpha15 实测 0.4/0.6 而非 0.5 → 把 ±1 已用的 `8*eps` snap 同样应用到 0 附近。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 局部 UNIT+Cerebro**（相关系数仅对精确 binary64 协方差为零的微小残差归零，真实微小非零保留；专项 6 项和相邻 6 项通过。6 feed × 300 bar 实测候选约 1.17%，整条运行耗时变化处于噪声范围；密集候选核算开销约增加 88%–115%。协方差路径未改，本条保持未完成）。
 - [x] **R71-113** `[P2]` `research/operators.py:745,770` — 每个 panel 输入每 bar 每 asset 重走完整 provenance/clock 图，`values`/`right_values` 无缓存 relation plan；20 alpha × 300 bar × 6 asset runnext 中 `_line_target_relation` 427,143 calls、4.07s/22.0s（18.5%）→ bind 时缓存 `(source,target)` relation。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro+本地基准**（缓存关系证明而非数据；拓扑、MRO 或描述符变化时回退原解析器。85 项相关回归及独立复审通过，含跨 Feed、动态 MRO、QBuffer 滚动窗口；20 alpha × 6 feed × 320 bar 单对基准 25.54→20.43 秒、输出 hash 相同，极端主动更改描述符类型未覆盖）。
