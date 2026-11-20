@@ -101,7 +101,9 @@ class ChannelMixin:
         for observer in strat._get_all_observers():
             observer._start()
 
+        quicknotify = self.p.quicknotify
         strat.start()
+        strat._quicknotify = quicknotify
 
     def _advance_channel_strategy_clock(self, strat, event):
         """Advance no-data channel strategies so observers can run per event."""
@@ -241,9 +243,17 @@ class ChannelMixin:
                 setattr(self.params, key, val)
 
         # Channel-mode brokers emit simulated order notifications; force the
-        # quick-notify path so strategy/observer callbacks receive them.
+        # quick-notify path only for this call.  Keep run(channel=True)'s
+        # external session from changing the setting used by later runs.
+        previous_quicknotify = self.p.quicknotify
         self.p.quicknotify = True
+        try:
+            return self._run_channel_quicknotify(channel)
+        finally:
+            self.p.quicknotify = previous_quicknotify
 
+    def _run_channel_quicknotify(self, channel):
+        """Run channel setup/events while the temporary quicknotify is on."""
         # --- strategy instantiation (simplified, no bar-data required) ---
         self._init_stcount()
         runstrats: list = []
