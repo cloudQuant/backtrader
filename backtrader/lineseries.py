@@ -609,6 +609,48 @@ class LinesManager:
     """Manager for lines operations without metaclass"""
 
     @staticmethod
+    def _otherbase_lines(otherbase):
+        """Return line declarations and extra-line count for another base.
+
+        ``otherbases`` historically accepted a ``Lines`` class or a tuple of
+        line declarations.  Indicator bases expose their ``Lines`` class on
+        ``.lines``, while plain mixins may expose only a tuple/list there.
+        Accept all three forms so a multiple-inheritance class can contribute
+        its declared output lines without depending on a particular base type.
+        """
+        if isinstance(otherbase, tuple):
+            return otherbase, 0, None, None
+
+        if isinstance(otherbase, list):
+            return tuple(otherbase), 0, None, None
+
+        line_container = otherbase
+        if not hasattr(line_container, "_getlines"):
+            line_container = getattr(otherbase, "lines", ())
+
+        if hasattr(line_container, "_getlines"):
+            lines = line_container._getlines() or ()
+            return tuple(lines), 0, line_container, None
+        elif isinstance(line_container, (tuple, list)):
+            lines = tuple(line_container)
+            extralines = getattr(otherbase, "extralines", 0)
+            return lines, extralines, None, otherbase
+        else:
+            lines = getattr(otherbase, "_lines", ())
+            extralines = getattr(otherbase, "_extralines", 0)
+
+        return tuple(lines), extralines, None, None
+
+    @staticmethod
+    def _line_name(line):
+        """Return the primary name used to identify a declared line."""
+        if isinstance(line, string_types):
+            return line
+        if isinstance(line, (tuple, list)) and line:
+            return line[0]
+        return line
+
+    @staticmethod
     def create_lines_class(
         base_class, name, lines=(), extralines=0, otherbases=(), linesoverride=False, lalias=None
     ):
@@ -626,29 +668,110 @@ class LinesManager:
         Returns:
             type: The dynamically created lines class.
         """
-        # Get lines from other bases
+        # Get lines from other bases.  The base class usually already carries
+        # the first parent's full line list, so secondary bases can repeat
+        # common ancestors.  Keep the first declaration for each primary name:
+        # this preserves the first parent's numeric indexes and prevents a
+        # later duplicate alias descriptor from shadowing the original index.
         obaseslines = ()
         obasesextralines = 0
+        line_class_ancestry = set()
+        plain_base_ancestry = set()
+        if not linesoverride:
+            line_class_ancestry.update(getattr(base_class, "__mro__", ()))
 
         for otherbase in otherbases:
-            if isinstance(otherbase, tuple):
-                obaseslines += otherbase
+            otherlines, otherextralines, otherlineclass, plainbase = (
+                LinesManager._otherbase_lines(otherbase)
+            )
+            obaseslines += otherlines
+            if otherlineclass is not None:
+                for lineclass in reversed(otherlineclass.__mro__):
+                    if lineclass in line_class_ancestry:
+                        continue
+                    line_class_ancestry.add(lineclass)
+                    own_extralines = max(
+                        0,
+                        getattr(lineclass, "_extralines", 0)
+                        - getattr(lineclass, "_extralines_base", 0),
+                    )
+                    obasesextralines += own_extralines
+            elif plainbase is not None:
+                for base in reversed(plainbase.__mro__):
+                    if base in plain_base_ancestry:
+                        continue
+                    plain_base_ancestry.add(base)
+                    obasesextralines += vars(base).get("extralines", 0)
             else:
-                obaseslines += getattr(otherbase, "_lines", ())
-                obasesextralines += getattr(otherbase, "_extralines", 0)
+                obasesextralines += otherextralines
 
-        # Determine base lines
+        # ``linesoverride`` defines a fresh line hierarchy.  Its contract
+        # discards lines and extra lines from every inherited base, including
+        # the secondary bases.
+        if linesoverride:
+            obaseslines = ()
+            obasesextralines = 0
+
+        # Keep the primary base as the stable prefix.  Secondary base lines
+        # are also inherited lines, so include them in ``_lines_base`` after
+        # removing aliases already provided by an earlier base.
         if not linesoverride:
-            baselines = getattr(base_class, "_lines", ()) + obaseslines
+            primarylines = getattr(base_class, "_lines", ())
             baseextralines = getattr(base_class, "_extralines", 0) + obasesextralines
         else:
-            baselines = ()
+            primarylines = ()
             baseextralines = 0
 
-        # Final lines
-        clslines = baselines + lines
+        # Append only line names that have not already been contributed by an
+        # earlier base or by this class.  A line spec may be a tuple whose
+        # first item is its public alias, just as in the legacy declaration.
+        seen = set()
+        for linealias in primarylines:
+            seen.add(LinesManager._line_name(linealias))
+
+        secondarylines = []
+        for linealias in obaseslines:
+            line_name = LinesManager._line_name(linealias)
+            try:
+                duplicate = line_name in seen
+            except TypeError:
+                duplicate = False
+
+            if duplicate:
+                continue
+
+            secondarylines.append(linealias)
+            try:
+                seen.add(line_name)
+            except TypeError:
+                # Invalid/unhashable aliases cannot be deduplicated, but keep
+                # the historical declaration and let descriptor creation
+                # report any actual invalid name.
+                pass
+
+        baselines = primarylines + tuple(secondarylines)
+
+        lines2add = list(secondarylines)
+        ownlines = []
+        for linealias in lines:
+            line_name = LinesManager._line_name(linealias)
+            try:
+                duplicate = line_name in seen
+            except TypeError:
+                duplicate = False
+
+            if duplicate:
+                continue
+
+            ownlines.append(linealias)
+            lines2add.append(linealias)
+            try:
+                seen.add(line_name)
+            except TypeError:
+                pass
+
+        clslines = baselines + tuple(ownlines)
         clsextralines = baseextralines + extralines
-        lines2add = obaseslines + lines
 
         # Create new class
         clsmodule = sys.modules[base_class.__module__]
@@ -660,9 +783,10 @@ class LinesManager:
             newclsname += str(namecounter)
             namecounter += 1
 
+        line_parent = Lines if linesoverride else base_class
         newcls = type(
             newclsname,
-            (base_class,),
+            (line_parent,),
             {
                 "_lines": clslines,
                 "_extralines": clsextralines,
@@ -679,14 +803,64 @@ class LinesManager:
         setattr(clsmodule, newclsname, newcls)
 
         # Set line aliases
-        l2start = len(getattr(base_class, "_lines", ())) if not linesoverride else 0
+        l2start = len(primarylines)
 
         for line, linealias in enumerate(lines2add, start=l2start):
             if not isinstance(linealias, string_types):
                 linealias = linealias[0]
 
+            # A primary base's LineAlias has normal MRO precedence over a
+            # canonical name contributed by a secondary base.  In
+            # particular, an alternate primary alias may share its spelling
+            # with a secondary line's canonical name.
+            if not linesoverride and any(
+                isinstance(vars(parent).get(linealias), LineAlias)
+                for parent in line_parent.__mro__
+            ):
+                raise ValueError(
+                    "ambiguous line alias {!r}: a primary LineAlias conflicts "
+                    "with an added canonical line".format(linealias)
+                )
+
             desc = LineAlias(line)
             setattr(newcls, linealias, desc)
+
+        # Preserve aliases declared on secondary Lines classes.  Their line
+        # indexes are remapped by the primary line name in the merged output;
+        # the first base still wins when an alias name conflicts.
+        if not linesoverride:
+            line_indexes = {}
+            for index, linealias in enumerate(clslines):
+                line_name = LinesManager._line_name(linealias)
+                try:
+                    line_indexes.setdefault(line_name, index)
+                except TypeError:
+                    continue
+
+            for otherbase in otherbases:
+                _, _, otherlineclass, _ = LinesManager._otherbase_lines(otherbase)
+                if otherlineclass is None:
+                    continue
+
+                seen_aliases = set()
+                for lineclass in otherlineclass.__mro__:
+                    for alias, descriptor in vars(lineclass).items():
+                        if alias in seen_aliases:
+                            continue
+                        seen_aliases.add(alias)
+                        if not isinstance(descriptor, LineAlias):
+                            continue
+                        if any(alias in vars(base) for base in newcls.__mro__):
+                            continue
+                        source_lines = lineclass._getlines()
+                        if descriptor.line < 0 or descriptor.line >= len(source_lines):
+                            continue
+                        source_name = LinesManager._line_name(
+                            source_lines[descriptor.line]
+                        )
+                        target_index = line_indexes.get(source_name)
+                        if target_index is not None:
+                            setattr(newcls, alias, LineAlias(target_index))
 
         # Create extra aliases if provided
         if lalias is not None:
@@ -1484,20 +1658,46 @@ class LineSeriesMixin:
             lines = tuple(lines)  # Ensure it's a tuple
 
         # Create lines class using the proper Lines infrastructure
-        if lines or extralines:
-            # Find base Lines class from inheritance
-            base_lines_cls = None
-            for base in cls.__mro__:
-                if hasattr(base, "lines") and hasattr(base.lines, "_derive"):
-                    base_lines_cls = base.lines
-                    break
+        # Find the first inherited Lines class.  It remains the primary base
+        # so its existing numeric indexes stay a stable prefix.
+        base_lines_cls = None
+        primary_base = None
+        for base in cls.__mro__[1:]:
+            base_lines = getattr(base, "lines", None)
+            if hasattr(base_lines, "_derive"):
+                base_lines_cls = base_lines
+                primary_base = base
+                break
 
-            if base_lines_cls is None:
-                # Use the default Lines class
-                base_lines_cls = Lines
+        if base_lines_cls is None:
+            # Use the default Lines class
+            base_lines_cls = Lines
 
-            # Create derived lines class
-            cls.lines = base_lines_cls._derive("lines", lines, extralines, ())
+        # Include each secondary direct base's declarations.  Generated
+        # indicator bases contribute their Lines class; plain mixins can
+        # contribute a tuple/list of line names.  The manager de-duplicates
+        # shared ancestors while preserving this left-to-right order.
+        otherbases = []
+        for base in cls.__bases__:
+            if base is primary_base:
+                continue
+
+            base_lines = getattr(base, "lines", ())
+            if hasattr(base_lines, "_getlines"):
+                if base_lines._getlines() or base_lines._getlinesextra():
+                    otherbases.append(base_lines)
+            elif isinstance(base_lines, (tuple, list)) and (
+                base_lines or getattr(base, "extralines", 0)
+            ):
+                otherbases.append(base)
+
+        if "lines" in cls.__dict__ or lines or extralines or otherbases:
+            # Create a derived Lines class even if the child has no local
+            # declaration: secondary bases may add public output lines, and
+            # an explicit empty declaration must still retain inherited lines.
+            cls.lines = base_lines_cls._derive(
+                "lines", lines, extralines, otherbases
+            )
 
     @classmethod
     def _create_lines_class(cls, lines, extralines):

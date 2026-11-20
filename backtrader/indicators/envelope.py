@@ -210,55 +210,64 @@ class EnvelopeMixIn:
 
         Calculates percentage value for band width.
         """
-        # CRITICAL FIX: Call super().__init__() first to ensure params and lines are initialized
         super().__init__()
+        self._envelope_factor()
 
-        # Now we can safely use self.p.perc and self.lines[0]
-        # Check if perc parameter exists, use default if not
-        perc_value = getattr(self.p, "perc", 2.5)
-        if perc_value is None:
-            perc_value = 2.5
-        self._perc = perc_value / 100.0
+    def _envelope_factor(self):
+        """Return the configured percentage as a multiplicative factor."""
+        perc = getattr(self.p, "perc", 2.5)
+        if perc is None:
+            perc = 2.5
+
+        self._perc = perc / 100.0
+        return self._perc
+
+    def _envelope_next(self, baseline):
+        """Update the two bands from the current value of ``baseline``."""
+        factor = self._envelope_factor()
+        value = baseline[0]
+        self.lines.top[0] = value * (1.0 + factor)
+        self.lines.bot[0] = value * (1.0 - factor)
+
+    def _envelope_once(self, baseline, start, end):
+        """Update the band arrays for one runonce segment."""
+        if start >= end:
+            return
+
+        top = self.lines.top.array
+        bot = self.lines.bot.array
+        values = baseline.array if hasattr(baseline, "array") else baseline
+        factor = self._envelope_factor()
+
+        while len(top) < end:
+            top.append(float("nan"))
+        while len(bot) < end:
+            bot.append(float("nan"))
+
+        for i in range(max(0, start), max(0, end)):
+            value = values[i] if i < len(values) else float("nan")
+            top[i] = value * (1.0 + factor)
+            bot[i] = value * (1.0 - factor)
 
     def next(self):
-        """Calculate envelope bands for the current bar.
-
-        top = base * (1 + perc)
-        bot = base * (1 - perc)
-        """
-        base_val = self.lines[0][0]
-        self.lines.top[0] = base_val * (1.0 + self._perc)
-        self.lines.bot[0] = base_val * (1.0 - self._perc)
+        """Cooperatively update the base indicator and its two bands."""
+        super().next()
+        self._envelope_next(self.lines[0])
 
     def once(self, start, end):
-        """Calculate envelope bands in runonce mode.
-
-        Computes top and bot bands as percentage of base value.
-        """
-        import math
-
-        base_array = self.lines[0].array
-        top_array = self.lines.top.array
-        bot_array = self.lines.bot.array
-        perc = self._perc
-
-        for arr in [top_array, bot_array]:
-            while len(arr) < end:
-                arr.append(float("nan"))
-
-        for i in range(start, min(end, len(base_array))):
-            base_val = base_array[i] if i < len(base_array) else 0.0
-            if isinstance(base_val, float) and math.isnan(base_val):
-                top_array[i] = float("nan")
-                bot_array[i] = float("nan")
-            else:
-                top_array[i] = base_val * (1.0 + perc)
-                bot_array[i] = base_val * (1.0 - perc)
+        """Cooperatively calculate the base indicator and its bands."""
+        super().once(start, end)
+        self._envelope_once(self.lines[0], start, end)
 
 
 # Base class
 class _EnvelopeBase(Indicator):
     lines = ("src",)
+    # ``EnvelopeMixIn`` is a secondary base and the parameter manager follows
+    # the primary MRO branch. Declare its parameter here explicitly so
+    # ``perc=`` is consumed as an indicator parameter instead of being passed
+    # to this class's no-argument ``__init__``.
+    params = EnvelopeMixIn.params
 
     # CRITICAL FIX: Add complete plotinfo object with all required attributes
     class PlotInfoObjBase:
@@ -368,27 +377,40 @@ class _EnvelopeBase(Indicator):
     def __init__(self):
         """Initialize the envelope base indicator."""
         super().__init__()
+        EnvelopeMixIn._envelope_factor(self)
+
+    def prenext(self):
+        """Keep the source and bands aligned while a nested input warms up."""
+        self.next()
 
     def next(self):
-        """Pass data through to src line.
-
-        Copies data value to src line.
-        """
+        """Copy the source value and calculate the corresponding bands."""
         self.lines.src[0] = self.data[0]
+        EnvelopeMixIn._envelope_next(self, self.lines.src)
+
+    def preonce(self, start, end):
+        """Populate source and bands before a nested input reaches its period."""
+        self._copy_source_once(start, end)
+        EnvelopeMixIn._envelope_once(self, self.lines.src, start, end)
 
     def once(self, start, end):
-        """Pass data through in runonce mode.
+        """Copy source values and calculate bands in runonce mode."""
+        self._copy_source_once(start, end)
+        EnvelopeMixIn._envelope_once(self, self.lines.src, start, end)
 
-        Copies data values to src line across all bars.
-        """
+    def _copy_source_once(self, start, end):
+        """Copy one source segment, preserving missing values as NaN."""
+        if start >= end:
+            return
+
         darray = self.data.array
         larray = self.lines.src.array
 
         while len(larray) < end:
             larray.append(float("nan"))
 
-        for i in range(start, min(end, len(darray))):
-            larray[i] = darray[i] if i < len(darray) else 0.0
+        for i in range(max(0, start), max(0, end)):
+            larray[i] = darray[i] if i < len(darray) else float("nan")
 
 
 class Envelope(_EnvelopeBase, EnvelopeMixIn):
@@ -404,6 +426,38 @@ class Envelope(_EnvelopeBase, EnvelopeMixIn):
     See also:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
     """
+
+
+def _make_moving_average_envelope_methods(movav):
+    """Build callbacks which preserve a moving average's lifecycle methods."""
+
+    def prenext(self):
+        movav.prenext(self)
+        EnvelopeMixIn._envelope_next(self, self.lines[0])
+
+    def nextstart(self):
+        movav.nextstart(self)
+        EnvelopeMixIn._envelope_next(self, self.lines[0])
+
+    def next(self):
+        movav.next(self)
+        EnvelopeMixIn._envelope_next(self, self.lines[0])
+
+    def preonce(self, start, end):
+        movav.preonce(self, start, end)
+        EnvelopeMixIn._envelope_once(self, self.lines[0], start, end)
+
+    def once(self, start, end):
+        movav.once(self, start, end)
+        EnvelopeMixIn._envelope_once(self, self.lines[0], start, end)
+
+    return {
+        "prenext": prenext,
+        "nextstart": nextstart,
+        "next": next,
+        "preonce": preonce,
+        "once": once,
+    }
 
 
 # Automatic creation of Moving Average Envelope classes
@@ -469,7 +523,11 @@ for movav in MovingAverage._movavs[0:]:
         "__module__": EnvelopeMixIn.__module__,
         "_notregister": True,
         "alias": newaliases,
+        # A secondary mixin's params are not found by the refactored
+        # parameter manager unless the generated class declares them.
+        "params": EnvelopeMixIn.params,
     }
+    newclsdct.update(_make_moving_average_envelope_methods(movav))
     newcls = type(str(newclsname), (movav, EnvelopeMixIn), newclsdct)
     module = sys.modules[EnvelopeMixIn.__module__]
     setattr(module, newclsname, newcls)

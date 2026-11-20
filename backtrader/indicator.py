@@ -175,22 +175,25 @@ class Indicator(IndicatorBase):
             owner_context_init._bt_owner_context_wrapped = True
             cls.__init__ = owner_context_init
 
-        # CRITICAL FIX: Handle lines creation for indicators like LineSeries does
-        # This ensures that lines tuples are converted to Lines instances
+        # LineSeriesMixin has already materialized this class's own and
+        # inherited line declarations after the superclass hook.  Re-deriving
+        # that Lines class from the bare Lines root would flatten its base
+        # metadata and lose inherited extra lines in multiple inheritance.
         lines = cls.__dict__.get("lines", ())
         extralines = cls.__dict__.get("extralines", 0)
 
-        # Ensure lines is a tuple (it might be a class type)
-        if not isinstance(lines, (tuple, list)):
-            if hasattr(lines, "_getlines"):
-                lines = lines._getlines() or ()
-            else:
-                lines = ()
+        # Keep the generated Lines class intact.  The fallback remains for an
+        # unusual Indicator subclass whose cooperative base hook left a raw
+        # tuple/list in the class namespace.
+        if hasattr(lines, "_getlines") and hasattr(lines, "_derive"):
+            lines = None
+        elif not isinstance(lines, (tuple, list)):
+            lines = ()
         else:
-            lines = tuple(lines)  # Ensure it's a tuple
+            lines = tuple(lines)
 
         # Create lines class using the proper Lines infrastructure
-        if lines or extralines:
+        if lines is not None and (lines or extralines):
             # Use the LineSeries mechanism to create the lines class
             from .lineseries import Lines
 
