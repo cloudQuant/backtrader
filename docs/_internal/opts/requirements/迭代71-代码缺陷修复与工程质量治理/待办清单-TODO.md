@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 20 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 21 |
 | 7 | 性能专项（P1/P2） | 19 | 2 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **98** |
+| | **合计** | **207** | **99** |
 
 ---
 
@@ -168,7 +168,7 @@
 - [x] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（有效独立试验数向上取整并限制在有效范围，零列输入明确拒绝；专项和既有分析器回归 98 项通过，独立源码复核无阻断）。
 - [ ] **R71-167** `[P2]` `analyzers/pyfolio.py:414` — `ALPHA` 把日均 active return 复利 252 天而非回归 intercept 线性年化，10bp/day 报 ~28.6% 而非 ~25.2% → `mean(active)*252`。PLAUSIBLE。
 - [x] **R71-168** `[P2]` `reports/performance.py:267-271` — `avg_trade_duration` 恒 `None`：`TradeAnalyzer` 存 `len.average`，代码找 `len.total.average`，`isinstance(...,dict)` 永不成立 → 直接读 `len_info.get("average")`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（读取 TradeAnalyzer 的 len.average；真实 Cerebro 两模式闭合交易及既有报告回归共 92 项通过，独立源码复核无阻断）。
-- [ ] **R71-169** `[P2]` `reports/performance.py:190-196` — Calmar 用 `abs(...)`，亏损策略得到正 ratio（年收益 -7.59%/max DD 1.78% 报 4.27）→ 去 abs 或另设 magnitude 指标；**先确认产品定义，现有单测固化了 abs**。CONFIRMED(runtime)。
+- [x] **R71-169** `[P2]` `reports/performance.py:190-196` — Calmar 用 `abs(...)`，亏损策略得到正 ratio（年收益 -7.59%/max DD 1.78% 报 4.27）→ 去 abs 或另设 magnitude 指标；**先确认产品定义，现有单测固化了 abs**。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（报告 Calmar 保留年收益符号，与框架 analyzer 语义一致；101 项报告及 analyzer 回归通过、独立复审通过。兼容变化：亏损策略的 JSON Calmar 由正幅值变为负值）。
 - [x] **R71-170** `[P2]` `reports/charts.py:162-168,311-326` — pandas resample alias 版本不稳（`"H"/"T"` 在 pandas 3.0.3 无效、`"YE"` 在 <2.2 无效）；`(end-start).days` 截断使 1–5 天跨度被判 Hourly，短回测收益图静默省略 → 用 `pd.offsets.YearEnd()/Hour()/Minute()` 和 fractional-day。CONFIRMED(runtime)。 **2026-11-20 / 本轮 Backtrader dev 提交 / UNIT+本地 pandas**（频率使用日期偏移并按真实时间跨度与采样间隔分类，空桶不再生成零收益。同文件专项及既有报告回归 63 项通过，独立源码复核无阻断；仅实测 pandas 2.2.3，混合时区输入未验收）。
 - [x] **R71-171** `[P2]` `observers/trades.py:138-149,275` — `DataTrades` 固定 10 条线（data0..data9），`next()` 仅在 `data_id < len(self.lines)` 写，11+ feeds 的 trade 被静默丢弃 → 按 owner feed 动态建线或 >10 显式报错。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（按 feed 对象映射本地线槽，超过 10 条时显式失败，避免静默丢失；11 项回归通过。兼容变化：默认标准 observer 超过 10 条 feed 时不能启动；可关闭标准 observer 并自行提供足够容量的 observer。既有 usenames 图例名称未生效问题不属于本项修复）。
 - [x] **R71-172** `[P2]` `analyzers/sharpe.py:221-249` — sub-day timeframe `factor=None`，年化 `riskfreerate`（默认 1%）从未年化的 per-minute return 直接扣除，Sharpe 变成无意义大负数 → 拒绝无 factor 的 sub-day Sharpe 或把 rate 转换到 bar 周期。PLAUSIBLE。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（子日周期需要年化或非零年无风险利率而未指定 factor 时返回 None；保留零利率非年化周期值及显式 factor。22 项回归与独立源码复审通过。兼容变化：两处 DOGE 分钟示例未指定 factor，年化结果变为 None，需按实际交易日历显式配置）。

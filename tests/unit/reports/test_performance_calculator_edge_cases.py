@@ -14,12 +14,16 @@ Tests cover:
 - get_buynhold_curve with zero first_price
 """
 
+import json
 import math
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
+import backtrader as bt
+import pandas as pd
 import pytest
 
 from backtrader.reports.performance import PerformanceCalculator
+from backtrader.reports.reporter import ReportGenerator
 
 
 # ===========================================================================
@@ -162,7 +166,7 @@ class TestRiskMetrics:
         assert metrics["calmar_ratio"] is None  # Division by zero guard
 
     def test_calmar_ratio_computed(self):
-        """Calmar ratio = abs(annual_return / max_pct_drawdown)."""
+        """Calmar ratio = signed annual_return / positive max_pct_drawdown."""
         dd_analyzer = _make_analyzer("DrawDown", {"max": {"moneydown": 5000.0, "drawdown": 10.0}})
         strategy = _make_strategy(analyzers=[dd_analyzer])
         calc = PerformanceCalculator(strategy)
@@ -179,6 +183,76 @@ class TestRiskMetrics:
         assert metrics["max_money_drawdown"] is None
         assert metrics["max_pct_drawdown"] is None
         assert metrics["calmar_ratio"] is None
+
+
+class _BuyOneShare(bt.Strategy):
+    """Buy once so the report test exercises real Cerebro broker values."""
+
+    def next(self):
+        if len(self) == 1:
+            self.buy(size=1)
+
+
+def _generate_synthetic_report_json(tmp_path, prices, runonce):
+    dates = pd.to_datetime(
+        ["2020-01-01", "2020-04-01", "2020-08-01", "2021-01-01"]
+    )
+    frame = pd.DataFrame(
+        {
+            "open": prices,
+            "high": prices,
+            "low": prices,
+            "close": prices,
+            "volume": [0] * len(prices),
+            "openinterest": [0] * len(prices),
+        },
+        index=dates,
+    )
+    cerebro = bt.Cerebro(stdstats=False)
+    cerebro.broker.setcash(1000.0)
+    cerebro.adddata(bt.feeds.PandasData(dataname=frame), name="Synthetic")
+    cerebro.addstrategy(_BuyOneShare)
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.Calmar, _name="calmar", period=3)
+    strategy = cerebro.run(runonce=runonce)[0]
+
+    output = tmp_path / f"calmar-{runonce}.json"
+    ReportGenerator(strategy).generate_json(output)
+    return json.loads(output.read_text(encoding="utf-8")), strategy
+
+
+@pytest.mark.parametrize("runonce", [True, False])
+@pytest.mark.parametrize(
+    ("prices", "expected_sign"),
+    [
+        ([100.0, 100.0, 120.0, 90.0], -1),
+        ([100.0, 100.0, 90.0, 120.0], 1),
+        ([100.0, 100.0, 100.0, 100.0], 0),
+    ],
+)
+def test_json_report_calmar_preserves_return_sign_and_zero_drawdown(
+    tmp_path, runonce, prices, expected_sign
+):
+    """Losing JSON Calmar values change from positive magnitudes to signed negatives."""
+    report, strategy = _generate_synthetic_report_json(tmp_path, prices, runonce)
+    annual_return = report["metrics"]["pnl"]["annual_return"]
+    risk = report["metrics"]["risk"]
+    analyzer_calmar = list(strategy.analyzers.calmar.get_analysis().values())[-1]
+
+    if expected_sign == 0:
+        assert annual_return == pytest.approx(0.0)
+        assert risk["max_drawdown_pct"] == pytest.approx(0.0)
+        assert risk["calmar_ratio"] is None
+        assert analyzer_calmar == pytest.approx(0.0)
+        return
+
+    assert annual_return * expected_sign > 0
+    assert risk["max_drawdown_pct"] > 0
+    assert risk["calmar_ratio"] * expected_sign > 0
+    assert risk["calmar_ratio"] == pytest.approx(
+        annual_return / risk["max_drawdown_pct"]
+    )
+    assert analyzer_calmar * expected_sign > 0
 
 
 # ===========================================================================

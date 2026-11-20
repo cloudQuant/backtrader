@@ -193,7 +193,8 @@ class PerformanceCalculator:
                 and math.isfinite(max_pct_drawdown)
                 and max_pct_drawdown > 0
             ):
-                metrics["calmar_ratio"] = abs(annual_return / max_pct_drawdown)
+                # DrawDown supplies a non-negative magnitude; keep the return sign.
+                metrics["calmar_ratio"] = annual_return / max_pct_drawdown
             else:
                 logger.debug(
                     "Skipping calmar_ratio calculation for invalid inputs: annual_return=%s, max_pct_drawdown=%s",
