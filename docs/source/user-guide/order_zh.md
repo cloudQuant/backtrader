@@ -1,4 +1,4 @@
-- --
+﻿- --
 
 title: Order API
 description: Order 类完整 API 参考
@@ -437,13 +437,18 @@ order.setposition(current_position)
 
 |------|------|-------------|
 
-| 当日有效 | `Order.DAY` 或 `datetime.timedelta()` | 当前交易日有效 |
+| 当日有效 | `Order.DAY`、`datetime.timedelta()` 或非 bool 的 `numbers.Real` 零值（如 `0`、`0.0`） | 按 Feed 本地日期的日终到期；`Decimal('0')` 不自动作为日单 |
 
-| 日期有效 | `datetime.date` | 指定日期前有效 |
+| 绝对日期/时间 | `datetime.date` 或 `datetime.datetime` | 指定日期或时刻到期；`date` 按 Feed 时区当地午夜转换；naive `datetime` 按 Feed 本地时区解释 |
 
-| 时间差 | `datetime.timedelta` | 当前时间 + 时间差 |
+| 相对时间 | `datetime.timedelta` | 当前 Feed 时间 + 时间差 |
 
-| 数值 | `float` | 时间偏移量 |
+| 数值时间 | 非零 `float` | Matplotlib 日期序号表示的绝对到期时刻，不是秒数或相对偏移 |
+
+配置 pytz 时区的 Feed 当前要求传入 naive `datetime.datetime`。aware `datetime`
+会再次走 Feed 时区本地化路径，该路径不接受已带时区的值；请先转换为 Feed 本地时间并移除时区信息。
+
+**兼容差异：**修复前，`valid=0` 和 `valid=0.0` 保持为零，`Order.expire()` 将其视为不失效；现在二者会规范化为当日有效。`False` 是布尔值，不是日单标记；使用 `None` 表示 GTC。
 
 ```python
 
@@ -461,9 +466,11 @@ order = self.buy(valid=date(2024, 12, 31))
 from datetime import timedelta
 order = self.buy(valid=timedelta(days=7))
 
-# 时间偏移 (秒)
+# 绝对数值时间：当前 Matplotlib 日期序号之后一天
+order = self.buy(valid=self.data.datetime[0] + 1.0)
 
-order = self.buy(valid=3600)  # 1 小时后过期
+# 相对时间：使用 timedelta，而不是传入秒数
+order = self.buy(valid=timedelta(hours=1))
 
 ```bash
 

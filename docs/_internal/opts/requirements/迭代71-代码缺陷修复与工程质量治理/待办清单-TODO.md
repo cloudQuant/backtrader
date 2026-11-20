@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 8 |
+| 9 | P2 其余正确性 / 清理 | 36 | 9 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **128** |
+| | **合计** | **207** | **129** |
 
 ---
 
@@ -226,7 +226,7 @@
 
 ## 批次 9 · P2 其余正确性 / 清理
 
-- [ ] **R71-088** `[P2]` `order.py:632` — `valid` 第三分支只算局部 `valid` 未赋 `self.valid`，`valid=0` 时 `Order.expire()` 的 `if self.valid` 永假、订单不过期 → 分支末尾 `self.valid = self.data.date2num(valid)`。
+- [x] **R71-088** `[P2]` `order.py:632` — `valid` 第三分支只算局部 `valid` 未赋 `self.valid`，`valid=0` 时 `Order.expire()` 的 `if self.valid` 永假、订单不过期 → 分支末尾 `self.valid = self.data.date2num(valid)`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（非 bool 实数零规范化为 Feed 当地日终，date-only 在 Feed 时区按当地午夜转换；27 项相关回归及独立复审通过。兼容变化：0/0.0 从旧实际 GTC 变为 DAY；非零数值仍为绝对日期序号，aware datetime 等限制见指南）。
 - [x] **R71-089** `[P2]` `strategy.py:1205` — `_getanalyzer_slave` 返回 `self._slave_analyzers.append[idx]`（对 bound method 取下标），任何调用 `TypeError` → 改 `self._slave_analyzers[idx]`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（按列表索引获取 slave analyzer，覆盖双策略隔离和生命周期、runonce/runnext；41 项相关回归及独立静态复审通过）。
 - [x] **R71-090** `[P2]` `_cerebro/runnext.py:1471` — `_next_writers(runstrats)` 在 per-strategy 循环内却一次写所有 datas，N 个策略每根 bar 写 N 次、CSV 重复行 → 移到策略循环外。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（四种新旧同步/运行模式在所有策略完成后每 bar 写一次；stop 触发轮不写，覆盖单策略及最后策略 stop；专项 21 项、相邻回归 8 项通过，独立静态复审通过）。
 - [x] **R71-091** `[P2]` `strategy.py:2099` — `_stop` 把策略最大/主时钟时间写到**所有** data feed 的 `datetime[0]`，多时间框架下慢速 feed 被改到未来时间 → 只恢复策略线和时钟 feed。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（stop 保留策略聚合时间但不改写各 Feed 时间，快慢 Feed 顺序及 runonce/runnext 真实回归覆盖；17 项相关测试及独立静态复审通过）。

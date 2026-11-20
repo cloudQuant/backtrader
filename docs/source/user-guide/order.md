@@ -726,6 +726,24 @@ class MyStrategy(bt.Strategy):
 
 Order that expires after certain time.
 
+The `valid` argument accepts `None` for good-till-canceled orders, a
+`datetime.date` or `datetime.datetime` for an absolute expiry, and a
+`datetime.timedelta` for an offset from the current feed time. `Order.DAY`, an
+empty `timedelta`, and real-number `0` or `0.0` (excluding booleans) mean the
+end of the current feed-local day. `Decimal("0")` is not a day-order marker.
+A `datetime.date` is interpreted as midnight in the feed timezone, when one is
+configured. A naive `datetime.datetime` uses the feed-local timezone; a
+timezone-aware `datetime.datetime` is unsupported when the feed uses a pytz
+timezone because that localization path expects a naive datetime.
+
+This is a compatibility change for numeric zero: before normalization, `0`
+and `0.0` remained stored as zero and `Order.expire()` treated them as
+non-expiring. They now become day orders. Use `None` for good-till-canceled.
+A non-zero numeric value is an absolute Matplotlib date number; it is not a
+seconds value or a relative offset. Use a `timedelta` for relative durations.
+For example, `self.data.datetime[0] + 1.0` is an absolute date number one day
+after the current bar.
+
 ```python
 from datetime import datetime, timedelta
 
@@ -737,6 +755,9 @@ class MyStrategy(bt.Strategy):
 
 # Good for 3 days
         order = self.buy(valid=timedelta(days=3))
+
+# Good for one hour
+        order = self.buy(valid=timedelta(hours=1))
 
 # Good until specific date
         order = self.buy(valid=datetime(2024, 12, 31))

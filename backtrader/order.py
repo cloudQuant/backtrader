@@ -19,9 +19,10 @@ import collections
 import datetime
 import itertools
 from copy import copy
+from numbers import Real
 from typing import Optional
 
-from .utils import AutoOrderedDict
+from .utils import AutoOrderedDict, TIME_MAX
 from .utils.py3 import iteritems, range
 
 
@@ -614,8 +615,11 @@ class OrderBase:
         # If validity parameter is a date format
         if isinstance(self.valid, datetime.date):
             # comparison will later be done against the raw datetime[0] value
-            # Convert date format to number
-            self.valid = self.data.date2num(self.valid)
+            # Interpret date-only values as midnight in the feed timezone.
+            valid = self.valid
+            if not isinstance(valid, datetime.datetime):
+                valid = datetime.datetime.combine(valid, datetime.time.min)
+            self.valid = self.data.date2num(valid)
         # If validity parameter is a time delta format, if time delta is 0, valid for the day, otherwise current time plus time delta
         # Then convert obtained validity to number
         elif isinstance(self.valid, datetime.timedelta):
@@ -623,20 +627,28 @@ class OrderBase:
             # when reading with date2num ... it will be automatically localized
             if self.valid == self.DAY:
                 valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
+                    self.data.datetime.date(), TIME_MAX
                 )
             else:
                 valid = self.data.datetime.datetime() + self.valid
 
             self.valid = self.data.date2num(valid)
-        # If validity is not None, if not 0, valid for the day, if 0, currently valid
+        # Numeric validity values are matplotlib date numbers.  Zero is the
+        # special case for a day order and must be converted to that day's end.
         elif self.valid is not None:
-            if not self.valid:  # avoid comparing None and 0
+            # Do not use truthiness here: False and other falsy non-numbers are
+            # not the numeric zero day-order sentinel.
+            if (
+                isinstance(self.valid, Real)
+                and not isinstance(self.valid, bool)
+                and self.valid == 0
+            ):
                 valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
+                    self.data.datetime.date(), TIME_MAX
                 )
-            else:  # assume float
-                valid = self.data.datetime[0] + self.valid
+                self.valid = self.data.date2num(valid)
+            # A non-zero numeric value is already an absolute matplotlib date
+            # number, so keep it unchanged.
         # If not simulated, get dteos, if simulated, dteos is 0
         # dteos: provisional end-of-session datetime, used by broker for order expiry checks
         if not self.p.simulated:
