@@ -664,8 +664,8 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         # Whether to use islice, use following syntax if true
-        start = self._idx + ago - size + 1
-        end = self._idx + ago + 1
+        start = max(0, self._idx + ago - size + 1)
+        end = max(0, self._idx + ago + 1)
         if self.useislice:
             values = list(islice(self.array, start, end))
         else:
