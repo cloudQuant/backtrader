@@ -2965,7 +2965,7 @@ class LinesOperation(LineActions):
 
             if self._is_missing(a_val) or self._is_missing(b_val):
                 self[0] = float("nan")
-                return
+                return None
 
             # CRITICAL FIX: Actually perform the operation and store the result
             # Handle both normal and reverse operations
