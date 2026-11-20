@@ -166,6 +166,10 @@ class BinaryWaveIndicator(Indicator):
 
         alpha = 2.0 / (self.p.smooth_period + 1.0)
         prev_wave = None
+        if start > 0 and start - 1 < len(wave_line):
+            prev_wave = float(wave_line[start - 1])
+            if prev_wave != prev_wave:
+                prev_wave = None
         actual_end = min(
             end,
             len(close_array),
@@ -228,6 +232,9 @@ class BinaryWaveIndicator(Indicator):
                     score -= self.p.weight_adx
 
             raw_line[i] = score
-            wave = score if prev_wave is None else prev_wave + alpha * (score - prev_wave)
+            if prev_wave is None or prev_wave != prev_wave:
+                wave = score
+            else:
+                wave = prev_wave + alpha * (score - prev_wave)
             wave_line[i] = wave
             prev_wave = wave
