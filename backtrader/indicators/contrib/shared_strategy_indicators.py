@@ -830,6 +830,7 @@ class AdaptiveMarketLevel(Indicator):
         self._smooth_history = []
         self._aml_history = []
         self._min_period = max(int(self.p.fractal) * 2 + int(self.p.lag), 1)
+        self.addminperiod(self._min_period)
 
     def _range(self, count, start):
         highs = []
