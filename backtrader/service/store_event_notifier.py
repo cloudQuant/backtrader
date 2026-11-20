@@ -8,7 +8,7 @@ the host Store supplies the active API and retains transport lifecycle.
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 
 class StoreEventNotifier:

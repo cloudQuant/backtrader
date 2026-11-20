@@ -458,7 +458,7 @@ def _identity_view(marker: Mapping[str, Any]) -> dict:
 def _transition_allowed(current: str, new: str) -> bool:
     if current == STATUS_UNKNOWN:
         return new == STATUS_UNKNOWN
-    if new == STATUS_UNKNOWN or new == current:
+    if new in (STATUS_UNKNOWN, current):
         return current in ACTIVE_STATUSES
     return _RANK[new] > _RANK[current]
 

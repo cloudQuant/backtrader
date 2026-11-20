@@ -9,7 +9,6 @@ by Backtrader feeds.
 from __future__ import annotations
 
 import collections
-from collections.abc import Mapping
 from copy import deepcopy
 from types import MappingProxyType
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple

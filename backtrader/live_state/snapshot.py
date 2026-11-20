@@ -148,7 +148,7 @@ def _normalize(raw: Any, *, writing: bool) -> dict:
     if type(data["version"]) is not int or data["version"] != SNAPSHOT_VERSION:
         raise ValueError("version_unsupported")
     extra_keys = set(data) - _TOP_KEYS
-    if not extra_keys <= _OPTIONAL_TOP_KEYS or not _TOP_KEYS <= set(data):
+    if not extra_keys <= _OPTIONAL_TOP_KEYS or not set(data) >= _TOP_KEYS:
         raise ValueError("unexpected_keys")
     applied = data.get("applied_trades", {})
     if not isinstance(applied, Mapping) or any(

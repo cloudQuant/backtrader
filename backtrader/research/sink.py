@@ -12,11 +12,10 @@ an output convenience, not a low-memory streaming promise.
 from __future__ import annotations
 
 from array import array
-import shutil
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from ..errors import DatasetError, ResearchConfigError
 from .panel import FactorPanel

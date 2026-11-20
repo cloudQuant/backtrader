@@ -99,7 +99,7 @@ def normalize_account_binding(binding: Any) -> Optional[Dict[str, str]]:
     keys = set(binding)
     if not keys <= _BINDING_KEYS:
         raise LiveStateError("account_binding_invalid", "unexpected_key")
-    if not _BINDING_REQUIRED <= keys:
+    if not keys >= _BINDING_REQUIRED:
         raise LiveStateError("account_binding_invalid", "missing_key")
     out = {}
     for key in sorted(keys):
