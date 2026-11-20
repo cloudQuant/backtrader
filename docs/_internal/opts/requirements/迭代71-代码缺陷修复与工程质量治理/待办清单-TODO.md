@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 7 | 性能专项（P1/P2） | 19 | 9 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 3 |
+| 9 | P2 其余正确性 / 清理 | 36 | 4 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **123** |
+| | **合计** | **207** | **124** |
 
 ---
 
@@ -227,7 +227,7 @@
 ## 批次 9 · P2 其余正确性 / 清理
 
 - [ ] **R71-088** `[P2]` `order.py:632` — `valid` 第三分支只算局部 `valid` 未赋 `self.valid`，`valid=0` 时 `Order.expire()` 的 `if self.valid` 永假、订单不过期 → 分支末尾 `self.valid = self.data.date2num(valid)`。
-- [ ] **R71-089** `[P2]` `strategy.py:1205` — `_getanalyzer_slave` 返回 `self._slave_analyzers.append[idx]`（对 bound method 取下标），任何调用 `TypeError` → 改 `self._slave_analyzers[idx]`。
+- [x] **R71-089** `[P2]` `strategy.py:1205` — `_getanalyzer_slave` 返回 `self._slave_analyzers.append[idx]`（对 bound method 取下标），任何调用 `TypeError` → 改 `self._slave_analyzers[idx]`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+Cerebro**（按列表索引获取 slave analyzer，覆盖双策略隔离和生命周期、runonce/runnext；41 项相关回归及独立静态复审通过）。
 - [ ] **R71-090** `[P2]` `_cerebro/runnext.py:1471` — `_next_writers(runstrats)` 在 per-strategy 循环内却一次写所有 datas，N 个策略每根 bar 写 N 次、CSV 重复行 → 移到策略循环外。
 - [ ] **R71-091** `[P2]` `strategy.py:2099` — `_stop` 把策略最大/主时钟时间写到**所有** data feed 的 `datetime[0]`，多时间框架下慢速 feed 被改到未来时间 → 只恢复策略线和时钟 feed。
 - [ ] **R71-092** `[P2]` `_cerebro/execution.py:153` — 启动失败时每个已成功停止且带 observer 的策略都被追加 "observer cleanup outcome is unobservable" 假 incomplete → 仅在 observer 捕获不可用时记录。

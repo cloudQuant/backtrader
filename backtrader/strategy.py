@@ -1205,9 +1205,8 @@ class Strategy(StrategyBase):
     def _getanalyzer_slave(self, idx):
         """Get a slave analyzer by index.
 
-        Note: This appears to have a syntax bug - should use [] not append()
         """
-        return self._slave_analyzers.append[idx]
+        return self._slave_analyzers[idx]
 
     def _addanalyzer(self, ancls, *anargs, **ankwargs):
         """Add an analyzer to the strategy.
