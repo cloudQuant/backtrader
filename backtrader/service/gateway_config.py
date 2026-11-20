@@ -19,6 +19,7 @@ _LOG = get_logger(__name__)
 # Seconds between attempts to register a new session after one was lost.
 _RECONNECT_BACKOFF = (0.0, 1.0, 2.0, 5.0, 10.0, 30.0)
 _EXECUTION_DB_FILENAME = "gateway_execution_routing.sqlite"
+_MARKET_SESSION_DRAIN_CANCELLED = object()
 
 
 def _gateway_state_dir_trusted(directory):
@@ -506,9 +507,27 @@ def reconnect_gateway_store(store, *, timeout=None):
     """
     if not gateway_session_recoverable(store):
         return False
+    if timeout is None:
+        timeout = store._command_shutdown_timeout
+    deadline = time.monotonic() + float(timeout)
     state = store.gateway_session_state()
     if state == "CONNECTED":
-        return True
+        from .gateway_market_adapter import (
+            begin_gateway_market_session_drain,
+            end_gateway_market_session_drain,
+            resume_gateway_market_session_drain,
+        )
+        pending_drain = begin_gateway_market_session_drain(
+            store, store._api, pending_only=True, deadline=deadline
+        )
+        if pending_drain is None:
+            return False
+        complete = pending_drain[5]
+        end_gateway_market_session_drain(pending_drain)
+        if complete is not True:
+            resume_gateway_market_session_drain(pending_drain, deadline=deadline)
+            return False
+        return resume_gateway_market_session_drain(pending_drain, deadline=deadline)
     if state != "LOST":
         return False
     now = time.monotonic()
@@ -517,9 +536,6 @@ def reconnect_gateway_store(store, *, timeout=None):
     attempt = store._gateway_reconnect_attempt
     store._gateway_reconnect_next = now + _RECONNECT_BACKOFF[min(attempt, len(_RECONNECT_BACKOFF) - 1)]
     store._gateway_reconnect_attempt = attempt + 1
-    if timeout is None:
-        timeout = store._command_shutdown_timeout
-
     def waiting(reason, error=None):
         # Name why the strategy is still waiting, once per distinct cause.
         code = getattr(error, "code", None)
@@ -532,14 +548,69 @@ def reconnect_gateway_store(store, *, timeout=None):
 
     api = store._api
     run_lock = store._gateway_run_lock
+    composition_remaining = max(0.0, deadline - time.monotonic())
     if (store._gateway_composition_uncertain
-            and not _retry_gateway_composition_cleanup(store, timeout)):
+            and not _retry_gateway_composition_cleanup(store, composition_remaining)):
         return waiting("COMPOSITION_CLEANUP_UNCONFIRMED")
     if (store._api is not api or store._gateway_run_lock is not run_lock
             or not gateway_session_recoverable(store)):
         return waiting("OLD_SESSION_BINDING_CHANGED")
+    from .gateway_market_adapter import (
+        begin_gateway_market_session_drain,
+        end_gateway_market_session_drain,
+        resume_gateway_market_session_drain,
+    )
     try:
-        closed = _close_with_cleanup_retry(api, timeout)
+        drain = begin_gateway_market_session_drain(
+            store, api, deadline=deadline
+        )
+    except Exception as error:
+        return waiting("MARKET_LEASE_DRAIN_FAILED", error)
+    if drain is None:
+        return waiting("MARKET_LEASE_DRAIN_UNCONFIRMED")
+    if drain[5] is not True:
+        end_gateway_market_session_drain(drain)
+        if (store.gateway_session_state() == "CONNECTED"
+                and store._api is api and store._gateway_run_lock is run_lock
+                and gateway_session_recoverable(store)):
+            resume_gateway_market_session_drain(drain, deadline=deadline)
+        return waiting("MARKET_LEASE_DRAIN_UNCONFIRMED")
+    try:
+        result = _reconnect_gateway_store_after_drain(
+            store, api, run_lock, timeout, deadline, attempt, waiting
+        )
+    finally:
+        end_gateway_market_session_drain(drain)
+    if result is _MARKET_SESSION_DRAIN_CANCELLED:
+        if store.gateway_session_state() != "CONNECTED":
+            return waiting("OLD_SESSION_STATE_CHANGED")
+        resumed = resume_gateway_market_session_drain(drain, deadline=deadline)
+        if not resumed:
+            return waiting("MARKET_LEASE_RESUME_UNCONFIRMED")
+        if store.gateway_session_state() == "CONNECTED":
+            return True
+        return waiting("OLD_SESSION_STATE_CHANGED")
+    if (store._api is api
+            and store._gateway_run_lock is run_lock
+            and gateway_session_recoverable(store)
+            and store.gateway_session_state() == "CONNECTED"):
+        resume_gateway_market_session_drain(drain, deadline=deadline)
+    return result
+
+
+def _reconnect_gateway_store_after_drain(
+        store, api, run_lock, timeout, deadline, attempt, waiting):
+    """Close and replace a Store API after all exact BT leases were drained."""
+    if (store._api is not api or store._gateway_run_lock is not run_lock
+            or not gateway_session_recoverable(store)):
+        return waiting("OLD_SESSION_BINDING_CHANGED")
+    if store.gateway_session_state() != "LOST":
+        return _MARKET_SESSION_DRAIN_CANCELLED
+    remaining = max(0.0, deadline - time.monotonic())
+    if remaining <= 0:
+        return waiting("MARKET_LEASE_DRAIN_TIMEOUT")
+    try:
+        closed = _close_with_cleanup_retry(api, remaining)
     except Exception as error:
         return waiting("OLD_SESSION_CLOSE_FAILED", error)
     # The SDK close returns only after the runtime closed every transport and
@@ -567,7 +638,10 @@ def reconnect_gateway_store(store, *, timeout=None):
     store._api = api
     try:
         _verify_gateway_execution_parents(store, api)
-        started = api.start(timeout_seconds=timeout)
+        remaining = max(0.0, deadline - time.monotonic())
+        if remaining <= 0:
+            return waiting("REGISTRATION_TIMEOUT")
+        started = api.start(timeout_seconds=remaining)
     except Exception as error:
         return waiting("REGISTRATION_FAILED", error)
     if (started.state != "running" or started.healthy is not True
@@ -610,13 +684,15 @@ def stop_gateway_store(store, *, timeout):
         timeout = store._command_shutdown_timeout
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout < 0:
         raise ValueError("invalid Gateway stop timeout")
+    deadline = time.monotonic() + float(timeout)
     api = store._api
     run_lock = store._gateway_run_lock
     if store._gateway_composition_uncertain:
         store._connected = False
         store._started = False
         store._shutdown_state = "INCOMPLETE"
-        if not _retry_gateway_composition_cleanup(store, timeout):
+        remaining = max(0.0, deadline - time.monotonic())
+        if not _retry_gateway_composition_cleanup(store, remaining):
             return store.get_command_health()
     if api is None:
         store._connected = False
@@ -634,12 +710,48 @@ def stop_gateway_store(store, *, timeout):
     # Fence Store use immediately, including zero-timeout and uncertain close.
     store._connected = False
     store._started = False
+    from .gateway_market_adapter import (
+        begin_gateway_market_session_drain,
+        end_gateway_market_session_drain,
+    )
+    try:
+        drain = begin_gateway_market_session_drain(
+            store, api, deadline=deadline
+        )
+    except BaseException:
+        store._shutdown_state = "INCOMPLETE"
+        raise
+    if drain is None:
+        store._shutdown_state = "INCOMPLETE"
+        return store.get_command_health()
+    if drain[5] is not True:
+        end_gateway_market_session_drain(drain)
+        store._shutdown_state = "INCOMPLETE"
+        return store.get_command_health()
+    try:
+        return _stop_gateway_store_after_market_drain(
+            store, api, run_lock, deadline, zero_timeout=(timeout == 0)
+        )
+    finally:
+        end_gateway_market_session_drain(drain)
+
+
+def _stop_gateway_store_after_market_drain(
+        store, api, run_lock, deadline, *, zero_timeout=False):
+    """Close a stopped Store API only after every local market lease drained."""
+    remaining = max(0.0, deadline - time.monotonic())
+    if remaining <= 0 and not zero_timeout:
+        store._shutdown_state = "INCOMPLETE"
+        return store.get_command_health()
     try:
         # Even a non-waiting stop must first fence previously handed-out API
-        # references. The SDK sets its facade to closing before waiting.
-        snapshot = _close_with_cleanup_retry(api, timeout)
+        # references. The SDK sets its facade to closing before waiting. Keep
+        # the established zero-timeout contract: make one 1 ns close request
+        # after a complete (possibly empty) lease drain, but never wait for an
+        # unresolved lease or exceed a positive shared deadline.
+        snapshot = _close_with_cleanup_retry(api, remaining)
     except Exception as exc:
-        if timeout == 0 and getattr(exc, "code", None) == "CLOSE_TIMEOUT_WORKER_ALIVE":
+        if remaining <= 0.01 and getattr(exc, "code", None) == "CLOSE_TIMEOUT_WORKER_ALIVE":
             store._shutdown_state = "INCOMPLETE"
             return store.get_command_health()
         store._shutdown_state = "INCOMPLETE"
