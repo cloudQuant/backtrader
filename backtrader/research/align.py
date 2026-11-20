@@ -104,8 +104,7 @@ def align_to_grid(
     ):
         raise ResearchConfigError("data_version must be None or a non-empty string")
 
-    grid = research.grid
-    grid_index = grid.index
+    grid_index = research._copy_grid_index_for_alignment()
     source_index = _utc_index(frame.index, research.source_timezone, pd, "bar input index")
     if not source_index.is_monotonic_increasing:
         raise DatasetError("bar input timestamps must be strictly increasing")

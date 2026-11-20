@@ -743,6 +743,22 @@ class ResearchSpec:
     def grid(self) -> Any:
         return _copy_frame_with_owned_index(self._grid)
 
+    def _copy_grid_index_for_alignment(self) -> Any:
+        """Return an isolated close-time index for the internal aligner.
+
+        ``grid`` is a public defensive-copy API and intentionally returns the
+        complete frame.  ``align_to_grid`` only needs its index, so copying
+        that index avoids duplicating unused grid columns once per asset.  A
+        deep index copy is still required: pandas reindexing can share the
+        target index storage with the returned frame consumed by a feed.
+
+        Preserve a subclass override of the public ``grid`` property rather
+        than silently bypassing it.
+        """
+        if getattr(type(self), "grid", None) is not ResearchSpec.grid:
+            return self.grid.index.copy(deep=True)
+        return self._grid.index.copy(deep=True)
+
     @property
     def groups(self) -> Mapping[str, str]:
         return self._groups
