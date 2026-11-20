@@ -30,13 +30,13 @@
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
-| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 9 |
+| 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 10 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **85** |
+| | **合计** | **207** | **86** |
 
 ---
 
@@ -162,7 +162,7 @@
 - [x] **R71-122** `[P2]` `utils/redaction.py:103-104`；`runtime_redaction.py:120-125` — `masked_copy` 用 `dataclasses.asdict` 深拷贝所有字段，含 lock/socket/mappingproxy 的 dataclass 抛 `TypeError`，可能替换原始 broker/对账错误 → 按 `dataclasses.fields` 原地遍历。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成对象**（按字段递归遮罩，避免深拷贝锁、socket 和 mappingproxy；相关 12 项通过，独立源码复核无明确泄密阻断。masked_copy 和 runtime 路径处理循环；独立 redact_diagnostic 对普通循环容器仍可能递归失败，需另行处理）。
 - [x] **R71-123** `[P2]` `plot/locator.py:353` — `AutoDateFormatter.__call__` 返回 `super()` 代理对象而非格式化日期，`fmt_x_ticks=None` 时 x 轴显示 `<super: ...>` → `return super().__call__(x, pos)`。CONFIRMED(runtime, Agg)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+公开数据绘图**（索引先映射到实际 BT 日期再调用 Matplotlib 父格式器，支持字符串时区；Agg 和真实 Cerebro 数据、越界、空输入及 DST 共 6 项通过，独立源码复核无阻断）。
 - [ ] **R71-124** `[P2]` `plot/plot.py:941-955`；`plot_plotly.py:491-515` — 负 `start` 未归一化（负 `end` 有），`cerebro.plot(start=-5)` 在 matplotlib 抛 `IndexError`、plotly 抛 `ValueError`，bokeh 正常 → `start = len(st_dtime)+start` 后 clamp，统一三后端。CONFIRMED(source)。
-- [ ] **R71-125** `[P2]` `notifications/core.py:721-732` — dedup 时间戳在 `runtime.enqueue` **之前**记录；队列满丢弃后同 `dedup_key` 在冷却期内重试被报 `deduped`，永不投递 → enqueue 成功后再记 dedup 或 dropped 时回滚。CONFIRMED(source)。
+- [x] **R71-125** `[P2]` `notifications/core.py:721-732` — dedup 时间戳在 `runtime.enqueue` **之前**记录；队列满丢弃后同 `dedup_key` 在冷却期内重试被报 `deduped`，永不投递 → enqueue 成功后再记 dedup 或 dropped 时回滚。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+受控队列**（只在消息准入成功后提交去重键，告警/统计在锁外执行；队列满、并发重试、重入及入队后辅助失败等相关回归 27 项通过，独立源码复核无阻断；未发送外部通知）。
 - [ ] **R71-126** `[P2]` `notifications/channels.py:442-445` 等 — `parse_json` 对非 JSON body 返回 `{}`，DingTalk/WeCom/Bark/QQ 把缺失 `errcode/code` 默认 0，HTTP 200 HTML/代理页被误判 delivered → 非对象/空 body 视为 `bad_request`，要求渠道显式成功字段。CONFIRMED(source)。
 - [ ] **R71-165** `[P2]` `analyzers/annualreturn.py:206-229` — `MyAnnualReturn` 第一年恒 0.0：`pre_value=value.shift(1)` 首年无前值被转 0.0；2020-H1–2021 报 2020 持平而 `AnnualReturn` 报 1.17% → 首年用首个 value/初始资金。CONFIRMED(runtime)。
 - [ ] **R71-166** `[P2]` `analyzers/sharpe_ratio_stats.py:396-400` — `num_independent_trials = int(n)+1` 多算一次（`m=1,p=0` 返回 2），单列 trial frame 的 `expected_maximum_sr` 抛 `ValueError` → `math.ceil(n)` 并 clamp 到 `[1,m]`。CONFIRMED(runtime)。

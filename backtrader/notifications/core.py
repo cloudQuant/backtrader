@@ -18,7 +18,12 @@ import time
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-from ..utils.log_message import get_logger, throttled_warning
+from ..utils.log_message import (
+    _is_output_enabled_for,
+    _warn_once,
+    get_logger,
+    throttled_warning,
+)
 from .channels import Attempt
 from .security import mask_text
 
@@ -55,6 +60,36 @@ _SENTINEL = object()
 
 # Polling granularity for ``flush``.
 _FLUSH_POLL_SECONDS = 0.01
+
+
+def _report_auxiliary_failure(operation, channel, error):
+    """Report a bookkeeping failure without changing queue admission.
+
+    Args:
+        operation: Fixed internal operation name.
+        channel: Channel runtime name.
+        error: Exception raised by the auxiliary operation.
+    """
+    error_type = type(error).__name__
+    message = "notification bookkeeping failed channel={0} operation={1} "
+    message = message.format(channel, operation) + "error_type={0}".format(error_type)
+    try:
+        if not _is_output_enabled_for("ERROR", logger=logger):
+            _warn_once("notification-core-" + operation, message)
+            return
+        logger.error(
+            "notification bookkeeping failed channel=%s operation=%s error_type=%s",
+            channel,
+            operation,
+            error_type,
+        )
+    except Exception:
+        # The failing host handler may also reject this diagnostic. Use the
+        # logging module's one-shot stderr fallback, which never raises.
+        try:
+            _warn_once("notification-core-" + operation, message)
+        except Exception:  # pragma: no cover - _warn_once is itself guarded
+            pass
 
 
 @dataclass(frozen=True)
@@ -453,15 +488,18 @@ class _ChannelRuntime:
         """Record one deduplicated (suppressed) send."""
         self.count("deduped")
 
-    def enqueue(self, notification):
+    def enqueue(self, notification, deferred=None):
         """Queue a notification without blocking.
 
         Under ``drop_oldest`` the oldest queued message is evicted to make room;
         the evicted message is counted as dropped while the *new* message is
-        reported as accepted, because it is the one that will be delivered.
+        reported as accepted, because it is the one that will be delivered. A
+        caller may pass ``deferred`` to postpone overflow statistics/logging
+        until after it releases an enclosing admission lock.
 
         Args:
             notification: Message to queue.
+            deferred: Optional list that receives post-queue side-effect records.
 
         Returns:
             ChannelOutcome: ``ok=True`` when enqueued, ``dropped`` when the
@@ -485,15 +523,27 @@ class _ChannelRuntime:
                         pass
                     else:
                         # The evicted message is the one that was dropped.
-                        self.count("dropped")
-                        self.note_dropped()
+                        self._record_dropped(deferred=deferred)
                         return ChannelOutcome(channel=self.name, ok=True)
-            self.count("dropped")
-            self.note_dropped()
+            self._record_dropped(deferred=deferred)
             return ChannelOutcome(
                 channel=self.name, ok=False, error_category="dropped", error="queue full"
             )
         return ChannelOutcome(channel=self.name, ok=True)
+
+    def _record_dropped(self, deferred=None):
+        """Update overflow accounting and warn without undoing queue results."""
+        if deferred is not None:
+            deferred.append(("drop",))
+            return
+        try:
+            self.count("dropped")
+        except Exception as exc:
+            _report_auxiliary_failure("dropped_count", self.name, exc)
+        try:
+            self.note_dropped()
+        except Exception as exc:
+            _report_auxiliary_failure("dropped_warning", self.name, exc)
 
     def note_dropped(self):
         """Emit one throttled warning about a queue overflow."""
@@ -681,12 +731,14 @@ class Notifier:
                 matched.append(runtime)
         return tuple(matched), tuple(missing)
 
-    def _is_deduped(self, runtime, notification):
+    def _is_deduped(self, runtime, notification, record=True, now=None):
         """Report whether the dedup window suppresses this notification.
 
         Args:
             runtime: Target channel runtime.
             notification: Message being sent.
+            record: Whether to reserve a non-duplicate key immediately.
+            now: Optional monotonic timestamp supplied by an atomic caller.
 
         Returns:
             bool: ``True`` when the message must not be delivered.
@@ -695,13 +747,15 @@ class Notifier:
         cooldown = self._options["dedup_cooldown"]
         if not key or cooldown <= 0:
             return False
-        now = time.monotonic()
+        if now is None:
+            now = time.monotonic()
         with self._lock:
             stamp = self._dedup.get((runtime.name, key))
             if stamp is not None and (now - stamp) < cooldown:
                 runtime.note_deduped()
                 return True
-            self._dedup[(runtime.name, key)] = now
+            if record:
+                self._dedup[(runtime.name, key)] = now
         return False
 
     def enqueue(self, notification, names=None):
@@ -719,14 +773,51 @@ class Notifier:
         accepted = False
         dropped = False
         for runtime in runtimes:
-            if self._is_deduped(runtime, notification):
-                outcomes.append(
-                    ChannelOutcome(
-                        channel=runtime.name, ok=False, error_category="deduped", error="deduped"
-                    )
-                )
-                continue
-            outcome = runtime.enqueue(notification)
+            key = notification.dedup_key
+            cooldown = self._options["dedup_cooldown"]
+            if key and cooldown > 0:
+                dedup_slot = (runtime.name, key)
+                deferred = []
+                # Keep duplicate check, queue admission, and timestamp commit
+                # atomic with respect to concurrent producers. A full queue
+                # must not reserve a key for a message it did not accept.
+                with self._lock:
+                    checked_at = time.monotonic()
+                    if self._is_deduped(
+                        runtime, notification, record=False, now=checked_at
+                    ):
+                        outcome = ChannelOutcome(
+                            channel=runtime.name,
+                            ok=False,
+                            error_category="deduped",
+                            error="deduped",
+                        )
+                    else:
+                        outcome = runtime.enqueue(notification, deferred=deferred)
+                        if outcome.ok:
+                            try:
+                                committed_at = time.monotonic()
+                            except Exception as exc:
+                                # The message is already in the queue. Reuse
+                                # the successful pre-admission clock sample so
+                                # a clock failure cannot reopen the key.
+                                committed_at = checked_at
+                                deferred.append(
+                                    (
+                                        "error",
+                                        "dedup_timestamp_commit",
+                                        runtime.name,
+                                        exc,
+                                    )
+                                )
+                            self._dedup[dedup_slot] = committed_at
+                for deferred_operation in deferred:
+                    if deferred_operation[0] == "drop":
+                        runtime._record_dropped()
+                    else:
+                        _report_auxiliary_failure(*deferred_operation[1:])
+            else:
+                outcome = runtime.enqueue(notification)
             outcomes.append(outcome)
             accepted = accepted or outcome.ok
             dropped = dropped or outcome.error_category == "dropped"
