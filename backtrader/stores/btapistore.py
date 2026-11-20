@@ -19,6 +19,7 @@ import re
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
@@ -915,11 +916,15 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         self._tick_stream_recovery: Dict[str, str] = {}
         self._stream_generation = 0
         self._has_successful_sdk_stream_generation = False
+        self._sdk_borrowed_event_source_retired = False
         self._sdk_start_state_lock = threading.Condition(threading.Lock())
         self._sdk_start_in_progress = False
         self._sdk_start_owner_thread_id = None
         self._sdk_stop_in_progress = False
         self._sdk_event_drain_in_progress = False
+        self._sdk_event_drain_owner_thread_id = None
+        self._sdk_api_activity_count = 0
+        self._sdk_api_activity_threads: Dict[int, int] = {}
         self._sdk_partial_start_failed_generation = None
         self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
         configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
@@ -1830,6 +1835,11 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                     raise BtApiStoreError("store_sdk_start_already_in_progress")
                 if self._sdk_event_drain_in_progress:
                     raise BtApiStoreError("store_sdk_event_drain_in_progress")
+                if self._sdk_api_activity_count:
+                    raise BtApiStoreError("store_sdk_api_activity_in_progress")
+                borrowed_event_error = self._sdk_borrowed_event_lifecycle_error()
+                if borrowed_event_error is not None:
+                    raise BtApiStoreError(borrowed_event_error)
                 self._sdk_start_in_progress = True
                 self._sdk_start_owner_thread_id = threading.get_ident()
                 owns_start_slot = True
@@ -1871,6 +1881,16 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                 if self._sdk_partial_start_requires_verified_stop():
                     with self._sdk_start_state_lock:
                         self._sdk_partial_start_failed_generation = failed_generation
+                        if (
+                            not self._sdk_owned_api
+                            and self._managed_runtime_borrowed_api is None
+                            and not self._service_read_only
+                        ):
+                            # A partial attempt that reached Store-owned
+                            # resources may have crossed an SDK source boundary.
+                            # A verified Store stop cannot prove or clear the
+                            # caller-owned facade's queued event generation.
+                            self._sdk_borrowed_event_source_retired = True
                 for symbol, bar in removed:
                     self._record_market_drop(
                         bar,
@@ -2004,6 +2024,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         with self._sdk_start_state_lock:
             if self._sdk_event_drain_in_progress:
                 raise BtApiStoreError("store_sdk_event_drain_in_progress")
+            if self._sdk_api_activity_count:
+                raise BtApiStoreError("store_sdk_api_activity_in_progress")
             if self._sdk_stop_in_progress:
                 raise BtApiStoreError("store_sdk_stop_already_in_progress")
             if self._sdk_start_in_progress:
@@ -2328,18 +2350,29 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
                         raise BtApiStoreError("store_sdk_start_already_in_progress")
                     if self._sdk_stop_in_progress:
                         raise BtApiStoreError("store_sdk_stop_already_in_progress")
-                    # Take the stop slot before waiting so no new SDK drain or
-                    # start can enter while the in-flight batch is handed off.
+                    current_thread_id = threading.get_ident()
+                    if self._sdk_api_activity_threads.get(current_thread_id, 0):
+                        raise BtApiStoreError(
+                            "store_sdk_stop_from_active_api_activity"
+                        )
+                    if self._sdk_event_drain_owner_thread_id == current_thread_id:
+                        raise BtApiStoreError("store_sdk_stop_from_event_drain")
+                    # Take the stop slot before waiting so no new SDK API
+                    # activity, event drain, or start can enter while the
+                    # in-flight operation finishes its handoff.
                     self._sdk_stop_in_progress = True
                     owns_stop_slot = True
-                    while self._sdk_event_drain_in_progress:
+                    while (
+                        self._sdk_event_drain_in_progress
+                        or self._sdk_api_activity_count
+                    ):
                         remaining = stop_deadline - time.monotonic()
                         if remaining <= 0:
                             raise BtApiStoreError(
                                 "store_sdk_event_drain_wait_timeout"
                             )
                         # Condition.wait releases the shared state lock. SDK
-                        # polling/provider I/O never runs under this lock.
+                        # calls and provider I/O never run under this lock.
                         self._sdk_start_state_lock.wait(remaining)
             lifecycle_timeout = timeout
             if stop_deadline is not None:
@@ -2972,57 +3005,60 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         """Subscribe selected market channels without inferring book depth."""
         if self._gateway_mode:
             raise BtApiStoreError("GATEWAY_MARKET_FEED_UNAVAILABLE")
-        api = self._ensure_api_ready()
-        dataname = str(dataname)
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError("store_sdk_lifecycle_transition_in_progress")
+            api = self._ensure_api_ready()
+            dataname = str(dataname)
 
-        if self._service_read_only:
-            if dataname in self._subscribed_datanames:
+            if self._service_read_only:
+                if dataname in self._subscribed_datanames:
+                    return
+                api.subscribe(dataname)
+                self._subscribed_datanames.add(dataname)
+                self.emit_runtime_event(
+                    "market_data_subscribe_request",
+                    details={"data_name": dataname},
+                    status="submitted",
+                )
                 return
-            api.subscribe(dataname)
+
+            selected_channels = self._normalize_market_channels(
+                self._market_channels if channels is None else channels
+            )
+            selected_depth = self._normalize_orderbook_depth(
+                self._configured_orderbook_depth
+                if orderbook_depth is None
+                else orderbook_depth
+            )
+            channel_status = {}
+            for channel in selected_channels:
+                if channel == "orderbook" and selected_depth is None:
+                    self._mark_market_stream_unavailable(
+                        dataname, channel, "MARKET_STREAM_DEPTH_UNCONFIGURED"
+                    )
+                    channel_status[channel] = "unavailable"
+                    continue
+                subscribed = self._start_sdk_market_stream_subscription(
+                    dataname,
+                    channel=channel,
+                    depth=selected_depth if channel == "orderbook" else None,
+                    api=api,
+                )
+                channel_status[channel] = "subscribed" if subscribed else "unavailable"
             self._subscribed_datanames.add(dataname)
             self.emit_runtime_event(
                 "market_data_subscribe_request",
-                details={"data_name": dataname},
+                details={
+                    "data_name": dataname,
+                    "channels": selected_channels,
+                    "channel_status": channel_status,
+                    "orderbook_depth": (
+                        selected_depth if "orderbook" in selected_channels else None
+                    ),
+                },
                 status="submitted",
             )
-            return
-
-        selected_channels = self._normalize_market_channels(
-            self._market_channels if channels is None else channels
-        )
-        selected_depth = self._normalize_orderbook_depth(
-            self._configured_orderbook_depth
-            if orderbook_depth is None
-            else orderbook_depth
-        )
-        channel_status = {}
-        for channel in selected_channels:
-            if channel == "orderbook" and selected_depth is None:
-                self._mark_market_stream_unavailable(
-                    dataname, channel, "MARKET_STREAM_DEPTH_UNCONFIGURED"
-                )
-                channel_status[channel] = "unavailable"
-                continue
-            subscribed = self._start_sdk_market_stream_subscription(
-                dataname,
-                channel=channel,
-                depth=selected_depth if channel == "orderbook" else None,
-                api=api,
-            )
-            channel_status[channel] = "subscribed" if subscribed else "unavailable"
-        self._subscribed_datanames.add(dataname)
-        self.emit_runtime_event(
-            "market_data_subscribe_request",
-            details={
-                "data_name": dataname,
-                "channels": selected_channels,
-                "channel_status": channel_status,
-                "orderbook_depth": (
-                    selected_depth if "orderbook" in selected_channels else None
-                ),
-            },
-            status="submitted",
-        )
 
     def fetch_history(
         self,
@@ -3167,16 +3203,58 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
     def poll_live(self, dataname: str) -> Optional[Any]:
         """Poll a live bar, preserving source fields when explicitly requested."""
         if self._service_read_only:
-            api = self._ensure_api_ready()
-            bar = api.poll_bar(dataname)
-            return None if bar is None else self._copy_or_normalize_bar(bar)
-        has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
-        if has_queued_bar:
-            return cast(Optional[Dict[str, Any]], bar)
-
-        self._ensure_api_ready()
-        self._drain_sdk_events()
-        _has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    return None
+                api = self._ensure_api_ready()
+                bar = api.poll_bar(dataname)
+                return None if bar is None else self._copy_or_normalize_bar(bar)
+        if self._sdk_mode:
+            with self._sdk_api_activity() as admitted:
+                if not admitted:
+                    # Preserve the existing local-only handoff during the
+                    # first Store start.  Start owns the transition slot (so
+                    # stop cannot finish concurrently), and no earlier
+                    # successful generation exists whose bars could be stale.
+                    # No API readiness or event polling is allowed.
+                    with self._sdk_start_state_lock:
+                        start_in_progress = (
+                            self._sdk_start_in_progress
+                            and not self._sdk_stop_in_progress
+                            and not self._has_successful_sdk_stream_generation
+                        )
+                    if not start_in_progress:
+                        return None
+                    has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
+                    if not has_queued_bar:
+                        return None
+                    return cast(Optional[Dict[str, Any]], bar)
+                # Admission and the local FIFO handoff form one Store activity:
+                # stop cannot finish between the generation check and pop.
+                with self._sdk_start_state_lock:
+                    if (
+                        self._has_successful_sdk_stream_generation
+                        and not self._started
+                    ):
+                        borrowed_event_error = (
+                            self._sdk_borrowed_event_lifecycle_error()
+                        )
+                        if borrowed_event_error is not None:
+                            raise BtApiStoreError(borrowed_event_error)
+                        return None
+                has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
+                if has_queued_bar:
+                    return cast(Optional[Dict[str, Any]], bar)
+                self._ensure_api_ready()
+                self._drain_sdk_events()
+                _has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
+        else:
+            has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
+            if has_queued_bar:
+                return cast(Optional[Dict[str, Any]], bar)
+            self._ensure_api_ready()
+            self._drain_sdk_events()
+            _has_queued_bar, bar = self._pop_live_bar_for_generation(dataname)
 
         if bar is None:
             return None
@@ -3192,12 +3270,21 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._connected:
             return None
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            tick = self._poll_sdk_market_stream(dataname, api)
-            if tick is not None:
-                self._mark_feed_inflight(tick)
-        elif hasattr(api, "poll_tick"):
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return None
+                api = self._ensure_api_ready()
+                tick = self._poll_sdk_market_stream(dataname, api)
+                if tick is not None:
+                    self._mark_feed_inflight(tick)
+                if tick is not None:
+                    with self._latest_tick_lock:
+                        self._latest_ticks[dataname] = _snapshot_tick(tick)
+                return tick
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "poll_tick"):
             tick = api.poll_tick(dataname)
         elif hasattr(api, "get_next_tick"):
             tick = api.get_next_tick(dataname)
@@ -3225,17 +3312,22 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._connected:
             return None
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            book = self._poll_sdk_market_stream(
-                dataname,
-                api,
-                channel="orderbook",
-                depth=depth,
-            )
-            if book is not None:
-                self._mark_feed_inflight(book)
-            return book
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return None
+                api = self._ensure_api_ready()
+                book = self._poll_sdk_market_stream(
+                    dataname,
+                    api,
+                    channel="orderbook",
+                    depth=depth,
+                )
+                if book is not None:
+                    self._mark_feed_inflight(book)
+                return book
+
+        api = self._ensure_api_ready()
         if hasattr(api, "poll_orderbook"):
             return api.poll_orderbook(dataname)
         if hasattr(api, "get_next_orderbook"):
@@ -3247,14 +3339,19 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._connected:
             return False
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            self._poll_sdk_market_stream(dataname, api, pump_only=True)
-            if not self._market_stream_adapter.has_binding(str(dataname), "tick"):
-                return False
-            depth = self._sdk_market_stream_queue_depth(dataname, "tick")
-            self._market_delivery_state.set_state(str(dataname), "tick_queue_depth", depth)
-            return depth > 0
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return False
+                api = self._ensure_api_ready()
+                self._poll_sdk_market_stream(dataname, api, pump_only=True)
+                if not self._market_stream_adapter.has_binding(str(dataname), "tick"):
+                    return False
+                depth = self._sdk_market_stream_queue_depth(dataname, "tick")
+                self._market_delivery_state.set_state(str(dataname), "tick_queue_depth", depth)
+                return depth > 0
+
+        api = self._ensure_api_ready()
         if hasattr(api, "has_pending_tick"):
             return bool(api.has_pending_tick(dataname))
 
@@ -3275,32 +3372,43 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
         if not self._connected:
             return False
-        api = self._ensure_api_ready()
-        method = getattr(api, "is_source_exhausted", None)
-        return bool(method(dataname)) if callable(method) else False
+        with self._sdk_api_activity() as admitted:
+            if not admitted or not self._connected:
+                return False
+            api = self._ensure_api_ready()
+            method = getattr(api, "is_source_exhausted", None)
+            return bool(method(dataname)) if callable(method) else False
 
     def get_source_event_time_watermark(self, dataname: str):
         """Return a finite source's final event-time watermark, if declared."""
 
         if not self._connected:
             return None
-        api = self._ensure_api_ready()
-        method = getattr(api, "get_source_event_time_watermark", None)
-        return method(dataname) if callable(method) else None
+        with self._sdk_api_activity() as admitted:
+            if not admitted or not self._connected:
+                return None
+            api = self._ensure_api_ready()
+            method = getattr(api, "get_source_event_time_watermark", None)
+            return method(dataname) if callable(method) else None
 
     def has_pending_orderbook(self, dataname: str) -> bool:
         """Return whether the API has queued live orderbooks for a symbol."""
         if not self._connected:
             return False
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            self._poll_sdk_market_stream(
-                dataname, api, channel="orderbook", pump_only=True
-            )
-            if not self._market_stream_adapter.has_binding(dataname, "orderbook"):
-                return False
-            return self._sdk_market_stream_queue_depth(dataname, "orderbook") > 0
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return False
+                api = self._ensure_api_ready()
+                self._poll_sdk_market_stream(
+                    dataname, api, channel="orderbook", pump_only=True
+                )
+                if not self._market_stream_adapter.has_binding(dataname, "orderbook"):
+                    return False
+                return self._sdk_market_stream_queue_depth(dataname, "orderbook") > 0
+
+        api = self._ensure_api_ready()
         if hasattr(api, "has_pending_orderbook"):
             return bool(api.has_pending_orderbook(dataname))
 
@@ -3315,11 +3423,16 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._connected:
             return False
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            return self._market_stream_adapter.supports_channel(
-                str(dataname), api, channel="tick", depth=None
-            )
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return False
+                api = self._ensure_api_ready()
+                return self._market_stream_adapter.supports_channel(
+                    str(dataname), api, channel="tick", depth=None
+                )
+
+        api = self._ensure_api_ready()
         if hasattr(api, "supports_live_ticks"):
             return bool(api.supports_live_ticks(dataname))
 
@@ -3334,11 +3447,16 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._connected:
             return False
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            return self._market_stream_adapter.supports_channel(
-                str(dataname), api, channel="orderbook", depth=None
-            )
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return False
+                api = self._ensure_api_ready()
+                return self._market_stream_adapter.supports_channel(
+                    str(dataname), api, channel="orderbook", depth=None
+                )
+
+        api = self._ensure_api_ready()
         if hasattr(api, "supports_live_orderbook"):
             return bool(api.supports_live_orderbook(dataname))
 
@@ -3371,18 +3489,21 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         depth = self._normalize_orderbook_depth(depth)
         if channel == "tick" and depth is not None:
             raise ValueError("tick market streams cannot request depth")
-        api = self._ensure_api_ready()
-        result, previous_dropped = self._market_stream_adapter.accept_resync(
-            dataname,
-            api,
-            channel=channel,
-            depth=depth,
-            acknowledge_data_loss=True,
-        )
-        self._record_market_stream_queue_state(
-            str(dataname), channel, result, previous_dropped
-        )
-        return result
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError("store_sdk_lifecycle_transition_in_progress")
+            api = self._ensure_api_ready()
+            result, previous_dropped = self._market_stream_adapter.accept_resync(
+                dataname,
+                api,
+                channel=channel,
+                depth=depth,
+                acknowledge_data_loss=True,
+            )
+            self._record_market_stream_queue_state(
+                str(dataname), channel, result, previous_dropped
+            )
+            return result
 
     def poll_execution_maintenance(self):
         """Drain the Store's one SDK event queue into Broker updates.
@@ -3394,6 +3515,77 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         if not self._sdk_mode or self._api is None:
             return
         self._drain_sdk_events()
+
+    def _sdk_borrowed_event_lifecycle_error(self) -> Optional[str]:
+        """Return why a stopped borrowed SDK event source cannot be reused.
+
+        The SDK owns its poll FIFO.  A successful Store generation cannot
+        prove that a caller-owned facade's next batch belongs to a later Store
+        generation, so stop retires that Store/facade pairing until the caller
+        constructs a fresh Store around a fresh facade.  Managed-runtime
+        facades already have a stronger one-session contract; surface that
+        existing reason before any event poll as well.
+        """
+        if not self._sdk_mode or self._service_read_only or self._sdk_owned_api:
+            return None
+        if self._managed_runtime_borrowed_api is not None:
+            if self._managed_runtime_stopped:
+                return "managed_runtime_store_session_already_stopped"
+            return None
+        if self._sdk_borrowed_event_source_retired or (
+            self._has_successful_sdk_stream_generation and not self._started
+        ):
+            return "store_borrowed_sdk_api_restart_requires_fresh_facade"
+        return None
+
+    def _begin_sdk_api_activity(self) -> bool:
+        """Admit one Store operation that may touch the SDK facade."""
+        if not self._sdk_mode:
+            return True
+        thread_id = threading.get_ident()
+        with self._sdk_start_state_lock:
+            depth = self._sdk_api_activity_threads.get(thread_id, 0)
+            if depth == 0:
+                if self._sdk_stop_in_progress:
+                    return False
+                if (
+                    self._sdk_start_in_progress
+                    and self._sdk_start_owner_thread_id != thread_id
+                ):
+                    return False
+                borrowed_event_error = self._sdk_borrowed_event_lifecycle_error()
+                if borrowed_event_error is not None:
+                    raise BtApiStoreError(borrowed_event_error)
+            self._sdk_api_activity_threads[thread_id] = depth + 1
+            self._sdk_api_activity_count += 1
+        return True
+
+    def _finish_sdk_api_activity(self) -> None:
+        """Release one SDK operation lease and wake bounded stop waiters."""
+        thread_id = threading.get_ident()
+        with self._sdk_start_state_lock:
+            depth = self._sdk_api_activity_threads.get(thread_id, 0)
+            if depth <= 0 or self._sdk_api_activity_count <= 0:
+                raise BtApiStoreError("store_sdk_api_activity_lease_owner_mismatch")
+            if depth == 1:
+                del self._sdk_api_activity_threads[thread_id]
+            else:
+                self._sdk_api_activity_threads[thread_id] = depth - 1
+            self._sdk_api_activity_count -= 1
+            self._sdk_start_state_lock.notify_all()
+
+    @contextmanager
+    def _sdk_api_activity(self):
+        """Coordinate a complete SDK call with Store stop without holding locks."""
+        admitted = self._begin_sdk_api_activity()
+        if not admitted:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            if self._sdk_mode:
+                self._finish_sdk_api_activity()
 
     def poll_broker_update(self):
         """Poll a normalized broker-side order/trade/error update from the API."""
@@ -3412,14 +3604,24 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             if isinstance(replay_update, Mapping):
                 return dict(replay_update)
 
-        api = self._ensure_api_ready()
         if self._sdk_mode:
-            self._drain_sdk_events()
-            update = self._command_runtime.pop_update()
-        elif hasattr(api, "poll_broker_update"):
-            update = api.poll_broker_update()
+            with self._sdk_api_activity() as admitted:
+                if not admitted or not self._connected:
+                    return None
+                self._ensure_api_ready()
+                self._drain_sdk_events()
+                update = self._command_runtime.pop_update()
+                if update is None:
+                    return None
+                update = self.redact_runtime_value(update)
+                self._emit_broker_runtime_event(update)
+                return update
         else:
-            return None
+            api = self._ensure_api_ready()
+            if hasattr(api, "poll_broker_update"):
+                update = api.poll_broker_update()
+            else:
+                return None
         if update is None:
             return None
 
@@ -6411,23 +6613,46 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         for name in symbols:
             self._market_delivery_state.mark_disconnected(name)
 
-    def _drain_sdk_events(self):
+    def _begin_sdk_event_drain(self) -> bool:
+        """Reserve the Store's bounded SDK-poll lease without holding it on I/O."""
         if not self._sdk_mode:
-            return
+            return False
         with self._sdk_start_state_lock:
             if (
                 self._sdk_start_in_progress
                 or self._sdk_stop_in_progress
                 or self._sdk_event_drain_in_progress
             ):
-                return
+                return False
+            borrowed_event_error = self._sdk_borrowed_event_lifecycle_error()
+            if borrowed_event_error is not None:
+                raise BtApiStoreError(borrowed_event_error)
             self._sdk_event_drain_in_progress = True
+            self._sdk_event_drain_owner_thread_id = threading.get_ident()
+        return True
+
+    def _finish_sdk_event_drain(self) -> None:
+        """Release the poll lease and wake bounded Store stop waiters."""
+        owner_thread_id = threading.get_ident()
+        with self._sdk_start_state_lock:
+            if (
+                not self._sdk_event_drain_in_progress
+                or self._sdk_event_drain_owner_thread_id != owner_thread_id
+            ):
+                raise BtApiStoreError("store_sdk_event_drain_lease_owner_mismatch")
+            self._sdk_event_drain_in_progress = False
+            self._sdk_event_drain_owner_thread_id = None
+            self._sdk_start_state_lock.notify_all()
+
+    def _drain_sdk_events(self):
+        if not self._sdk_mode:
+            return
+        if not self._begin_sdk_event_drain():
+            return
         try:
             self._drain_sdk_events_locked()
         finally:
-            with self._sdk_start_state_lock:
-                self._sdk_event_drain_in_progress = False
-                self._sdk_start_state_lock.notify_all()
+            self._finish_sdk_event_drain()
 
     def _drain_sdk_events_locked(self):
         """Poll unlocked, then dispatch each ordered venue batch under lock."""
@@ -6553,6 +6778,18 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
 
     def _ensure_api_ready(self):
         """Ensure the Store-bound SDK is ready through its lifecycle bridge."""
+        # Centralize the readiness boundary so direct account/history/session
+        # callers cannot rebind this Store's notifier after a successful
+        # borrowed generation has stopped.  This lease covers readiness only;
+        # callers that perform follow-up API I/O coordinate that full operation
+        # separately where their lifecycle contract requires it.
+        with self._sdk_api_activity() as admitted:
+            if not admitted:
+                raise BtApiStoreError("store_sdk_lifecycle_transition_in_progress")
+            return self._ensure_api_ready_under_activity()
+
+    def _ensure_api_ready_under_activity(self):
+        """Perform API readiness while the caller owns a Store activity lease."""
         if self._gateway_mode:
             if not self._started or not self.is_connected:
                 raise BtApiStoreError("GATEWAY_SESSION_UNAVAILABLE")

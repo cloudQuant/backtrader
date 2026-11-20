@@ -1,5 +1,6 @@
 """Offline tests for Store initialization of the completed-bar queue."""
 
+import queue
 import threading
 import time
 
@@ -71,10 +72,32 @@ class _FakeUnifiedApiFacade:
         self.close_calls += 1
 
 
-def _borrowed_api_store(api, *, config=None):
+class _QueueBacklogApi(_FakeUnifiedApiFacade):
+    """Exercise the Store boundary with a real FIFO and explicit ownership."""
+
+    def __init__(self, route="CTP___FUTURE"):
+        super().__init__(route=route)
+        self.event_queue = queue.Queue()
+
+    def poll_events(self, exchange_name, **kwargs):
+        self.poll_calls.append(exchange_name)
+        events = []
+        while True:
+            try:
+                events.append(self.event_queue.get_nowait())
+            except queue.Empty:
+                return events
+
+    def queued_events(self):
+        with self.event_queue.mutex:
+            return tuple(self.event_queue.queue)
+
+
+def _borrowed_api_store(api, *, config=None, live_bars=None):
     return BtApiStore(
         api=api,
         config=config or {"exchange_kwargs": {api.route: {}}},
+        live_bars=live_bars,
         autostart=False,
         preserve_raw_bars=True,
     )
@@ -463,90 +486,52 @@ def test_live_bar_poll_pop_waits_for_successful_restart_generation_reset(
     assert store._live_bar_queue.get("SA") is None
 
 
-def test_live_poll_drops_old_bar_when_restart_wins_after_queue_pop(monkeypatch):
+def test_live_poll_activity_prevents_start_from_resetting_its_queue_generation(
+    monkeypatch,
+):
     store = _store()
     _start_without_external_io(monkeypatch, store)
     store._enqueue_live_bar("SA", {"close": 1})
-    reset_completed = threading.Event()
-    poll_release_waiting_for_reset = threading.Event()
-    poll_thread_id = None
-
-    class PollReleaseBarrier:
-        def __init__(self):
-            self._lock = threading.Lock()
-            self._poll_release_waited = False
-
-        def __enter__(self):
-            self._lock.acquire()
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            wait_for_reset = (
-                threading.get_ident() == poll_thread_id
-                and not self._poll_release_waited
-            )
-            if wait_for_reset:
-                self._poll_release_waited = True
-            self._lock.release()
-            if wait_for_reset:
-                poll_release_waiting_for_reset.set()
-                if not reset_completed.wait(2):
-                    raise AssertionError("timed out waiting for the next Store generation")
-            return False
-
-    store._sdk_event_drain_lock = PollReleaseBarrier()
-    original_reset = store._reset_sdk_stream_generation
-    poll_started = threading.Event()
-
-    def reset_and_signal():
-        original_reset()
-        reset_completed.set()
-
-    monkeypatch.setattr(store, "_reset_sdk_stream_generation", reset_and_signal)
-    monkeypatch.setattr(store, "_drain_sdk_events", lambda: None)
+    pop_entered = threading.Event()
+    release_pop = threading.Event()
     poll_results = []
     thread_errors = []
+    original_pop = store._pop_live_bar_for_generation
+
+    def blocked_pop(dataname):
+        pop_entered.set()
+        if not release_pop.wait(2):
+            raise AssertionError("timed out waiting to release live-bar FIFO pop")
+        return original_pop(dataname)
+
+    monkeypatch.setattr(store, "_pop_live_bar_for_generation", blocked_pop)
 
     def poll_old_bar():
-        nonlocal poll_thread_id
-        poll_thread_id = threading.get_ident()
-        poll_started.set()
         try:
             poll_results.append(store.poll_live("SA"))
         except BaseException as exc:
             thread_errors.append(exc)
-
-    def restart_store():
-        try:
-            store.stop()
-            store.start()
-        except BaseException as exc:
-            thread_errors.append(exc)
-
     poll_thread = threading.Thread(target=poll_old_bar, daemon=True)
-    restart_thread = threading.Thread(target=restart_store, daemon=True)
     poll_thread.start()
     try:
-        assert poll_started.wait(1)
-        assert poll_thread_id is not None
-        assert poll_release_waiting_for_reset.wait(1)
-        restart_thread.start()
-        assert reset_completed.wait(1)
+        assert pop_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_api_activity_in_progress"
+        ):
+            store.start()
+        assert store._stream_generation == 1
+        assert store._live_bar_queue.snapshot("SA")[0] == 1
     finally:
+        release_pop.set()
         poll_thread.join(2)
-        if restart_thread.ident is not None:
-            restart_thread.join(2)
 
     assert not poll_thread.is_alive()
-    assert not restart_thread.is_alive()
     assert not thread_errors
-    assert poll_results == [None]
-    assert store._stream_generation == 2
-    assert store._live_bar_queue.get("SA") == ()
-    assert (
-        store._live_bar_queue.stale_reason("SA")
-        == "store_live_bar_generation_changed_during_poll"
-    )
+    assert len(poll_results) == 1
+    assert poll_results[0]["close"] == 1
+    assert store._stream_generation == 1
+    assert store._live_bar_queue.snapshot("SA")[0] == 0
 
 
 def test_concurrent_start_is_rejected_without_waiting_or_advancing_generation(
@@ -1284,6 +1269,455 @@ def test_owned_factory_api_is_closed_by_direct_api_assembly(monkeypatch):
     assert result["sdk_api_close_state"] == "CLOSED_BY_STORE"
     assert api.close_calls == 1
     assert store._api is None
+
+
+def test_stopped_borrowed_api_fails_closed_without_consuming_order_account_backlog(
+    monkeypatch,
+):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api, live_bars={"SA": [{"close": 9}]})
+    ensure_calls = []
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: ensure_calls.append(api) or api)
+    monkeypatch.setattr(BtApiStore, "_begin_funding_refresh_generation", lambda self: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    store.start()
+    assert store._has_successful_sdk_stream_generation is True
+    generation = store._stream_generation
+
+    pending = (
+        {"kind": "order", "symbol": "SA", "sequence": 1},
+        {"kind": "account", "symbol": "SA", "sequence": 2},
+    )
+    for event in pending:
+        api.event_queue.put(event)
+
+    health = store.stop()
+    assert health["shutdown_state"] == "PASS"
+    assert store._started is False
+    assert store._api is api
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == pending
+    assert store._live_bar_queue.snapshot("SA")[0] == 1
+
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_borrowed_sdk_api_restart_requires_fresh_facade",
+    ):
+        store.start()
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_borrowed_sdk_api_restart_requires_fresh_facade",
+    ):
+        store.poll_execution_maintenance()
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_borrowed_sdk_api_restart_requires_fresh_facade",
+    ):
+        store.poll_live("SA")
+
+    assert store._stream_generation == generation
+    assert store._started is False
+    assert store._api is api
+    assert len(ensure_calls) == 1  # restart/live refusal preceded API readiness
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == pending
+    assert store._live_bar_queue.snapshot("SA")[0] == 1
+
+
+def test_stopped_borrowed_readiness_cannot_rebind_notifier_or_read_account(
+    monkeypatch,
+):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    pending = {"kind": "account", "symbol": "SA", "sequence": 1}
+    api.event_queue.put(pending)
+
+    # Establish a completed Store generation using the existing lifecycle
+    # fixture, then bind the notifier as a live Store would before shutdown.
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_ensure_api_ready", lambda: api)
+        patch.setattr(BtApiStore, "_begin_funding_refresh_generation", lambda self: None)
+        patch.setattr(store, "get_balance", lambda **kwargs: {"cash": 0.0, "value": 0.0})
+        store.start()
+    store._connected = True
+    store._bind_live_bar_event_notifier(api, store._signal_live_bar_event)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert store._started is False
+    assert api.event_wakers == {}
+    assert store._event_notifier.has_sdk_binding is False
+
+    readiness_calls = []
+    monkeypatch.setattr(
+        store,
+        "_ensure_api_ready_under_activity",
+        lambda: readiness_calls.append(True) or api,
+    )
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_borrowed_sdk_api_restart_requires_fresh_facade",
+    ):
+        store.get_balance()
+
+    assert readiness_calls == []
+    assert store._event_notifier.has_sdk_binding is False
+    assert api.event_wakers == {}
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == (pending,)
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "live",
+        "broker",
+        "tick",
+        "orderbook",
+        "pending_tick",
+        "pending_orderbook",
+        "supports_tick",
+        "supports_orderbook",
+        "source_exhausted",
+        "watermark",
+        "resync",
+        "subscribe",
+    ],
+)
+def test_stop_waits_for_sdk_activity_before_api_readiness(monkeypatch, operation):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    _start_without_external_io(monkeypatch, store)
+    store._unbind_live_bar_event_notifier()
+    store._connected = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    if operation in {"tick", "orderbook", "pending_tick", "pending_orderbook"}:
+        monkeypatch.setattr(store, "_poll_sdk_market_stream", lambda *args, **kwargs: None)
+    if operation in {"supports_tick", "supports_orderbook"}:
+        monkeypatch.setattr(
+            store._market_stream_adapter,
+            "supports_channel",
+            lambda *args, **kwargs: False,
+        )
+    if operation == "resync":
+        monkeypatch.setattr(
+            store._market_stream_adapter,
+            "accept_resync",
+            lambda *args, **kwargs: (None, 0),
+        )
+        monkeypatch.setattr(store, "_record_market_stream_queue_state", lambda *args: None)
+    if operation == "subscribe":
+        store._market_channels = ("tick",)
+        monkeypatch.setattr(
+            store, "_start_sdk_market_stream_subscription", lambda *args, **kwargs: True
+        )
+
+    ensure_entered = threading.Event()
+    release_ensure = threading.Event()
+    operation_results = []
+    operation_errors = []
+    prior_generation = store._stream_generation
+    prior_shutdown_state = store._shutdown_state
+
+    def blocked_api_readiness():
+        ensure_entered.set()
+        if not release_ensure.wait(2):
+            raise AssertionError("timed out waiting to release API readiness")
+        store._bind_live_bar_event_notifier(api, store._signal_live_bar_event)
+        return api
+
+    monkeypatch.setattr(store, "_ensure_api_ready", blocked_api_readiness)
+
+    def invoke_operation():
+        try:
+            if operation == "live":
+                result = store.poll_live("SA")
+            elif operation == "broker":
+                result = store.poll_broker_update()
+            elif operation == "tick":
+                result = store.poll_tick("SA")
+            elif operation == "orderbook":
+                result = store.poll_orderbook("SA", depth=1)
+            elif operation == "pending_tick":
+                result = store.has_pending_tick("SA")
+            elif operation == "pending_orderbook":
+                result = store.has_pending_orderbook("SA")
+            elif operation == "supports_tick":
+                result = store.supports_live_ticks("SA")
+            elif operation == "supports_orderbook":
+                result = store.supports_live_orderbook("SA")
+            elif operation == "source_exhausted":
+                result = store.is_source_exhausted("SA")
+            elif operation == "watermark":
+                result = store.get_source_event_time_watermark("SA")
+            elif operation == "resync":
+                result = store.accept_market_stream_resync(
+                    "SA", "tick", acknowledge_data_loss=True
+                )
+            else:
+                result = store.subscribe("SA", channels=("tick",))
+            operation_results.append(result)
+        except BaseException as exc:
+            operation_errors.append(exc)
+
+    operation_thread = threading.Thread(target=invoke_operation, daemon=True)
+    operation_thread.start()
+    try:
+        assert ensure_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        lock_available_during_readiness = store._sdk_start_state_lock.acquire(
+            timeout=0.2
+        )
+        if lock_available_during_readiness:
+            store._sdk_start_state_lock.release()
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_api_activity_in_progress"
+        ):
+            store.start()
+        assert store._stream_generation == prior_generation
+
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._stream_generation == prior_generation
+        assert store._shutdown_state == prior_shutdown_state
+        assert store._sdk_stop_in_progress is False
+        assert api.close_calls == 0
+        assert api.event_wakers == {}
+    finally:
+        release_ensure.set()
+        operation_thread.join(2)
+
+    assert not operation_thread.is_alive()
+    assert not operation_errors
+    assert len(operation_results) == 1
+    assert lock_available_during_readiness is True
+    assert store._sdk_api_activity_count == 0
+    assert len(api.event_wakers) == 1
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert store._started is False
+    assert api.event_wakers == {}
+    assert api.close_calls == 0
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+def test_poll_live_fast_fifo_handoff_is_part_of_stop_activity(monkeypatch):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    seeded_bar = {"close": 12.5}
+    store = BtApiStore(
+        api=api,
+        config={"exchange_kwargs": {api.route: {}}, "live_bar_queue_size": 2},
+        live_bars={"SA": [seeded_bar]},
+        autostart=False,
+        preserve_raw_bars=True,
+    )
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    waker_token = store._register_live_bar_event_waker(lambda: None)
+    store._bind_live_bar_event_notifier(api, store._signal_live_bar_event)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    pop_entered = threading.Event()
+    release_pop = threading.Event()
+    polled_bars = []
+    poll_errors = []
+    original_pop = store._pop_live_bar_for_generation
+
+    def blocked_pop(dataname):
+        pop_entered.set()
+        if not release_pop.wait(2):
+            raise AssertionError("timed out waiting to release live-bar FIFO pop")
+        return original_pop(dataname)
+
+    monkeypatch.setattr(store, "_pop_live_bar_for_generation", blocked_pop)
+
+    def poll_seeded_bar():
+        try:
+            polled_bars.append(store.poll_live("SA"))
+        except BaseException as exc:
+            poll_errors.append(exc)
+
+    poll_thread = threading.Thread(target=poll_seeded_bar, daemon=True)
+    poll_thread.start()
+    try:
+        assert pop_entered.wait(1)
+        assert store._sdk_api_activity_count == 1
+        assert store._live_bar_queue.snapshot("SA")[0] == 1
+
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_event_drain_wait_timeout"
+        ):
+            store.stop(timeout=0.03)
+        assert store._started is True
+        assert store._connected is True
+        assert store._shutdown_state != "PASS"
+        assert store._sdk_stop_in_progress is False
+        assert store._live_bar_queue.snapshot("SA")[0] == 1
+        assert store._event_notifier.has_sdk_binding is True
+        assert len(api.event_wakers) == 1
+        assert api.close_calls == 0
+    finally:
+        release_pop.set()
+        poll_thread.join(2)
+
+    assert not poll_thread.is_alive()
+    assert not poll_errors
+    assert len(polled_bars) == 1
+    assert polled_bars[0]["close"] == seeded_bar["close"]
+    assert store._sdk_api_activity_count == 0
+    assert store._live_bar_queue.snapshot("SA")[0] == 0
+
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert store._started is False
+    assert store._event_notifier.has_sdk_binding is False
+    assert api.event_wakers == {}
+    assert api.close_calls == 0
+    store._unregister_live_bar_event_waker(waker_token)
+
+
+def test_stop_reentry_from_sdk_activity_fails_without_deadlock(monkeypatch):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    store = _borrowed_api_store(api)
+    _start_without_external_io(monkeypatch, store)
+    store._connected = True
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    def readiness_with_reentrant_stop():
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_stop_from_active_api_activity"
+        ):
+            store.stop(timeout=0)
+        return api
+
+    monkeypatch.setattr(store, "_ensure_api_ready", readiness_with_reentrant_stop)
+    assert store.poll_live("SA") is None
+    assert store._started is True
+    assert store._connected is True
+    assert store._sdk_api_activity_count == 0
+    assert store._sdk_stop_in_progress is False
+
+    assert store._begin_sdk_event_drain() is True
+    try:
+        with pytest.raises(
+            BtApiStoreError, match="store_sdk_stop_from_event_drain"
+        ):
+            store.stop(timeout=0)
+    finally:
+        store._finish_sdk_event_drain()
+
+    assert store._sdk_stop_in_progress is False
+    assert store.stop(timeout=0.2)["shutdown_state"] == "PASS"
+    assert api.close_calls == 0
+
+
+def test_partial_borrowed_api_start_does_not_reuse_source_after_verified_stop(
+    monkeypatch,
+):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    api = _QueueBacklogApi()
+    pending = {"kind": "account", "symbol": "SA", "sequence": 1}
+    api.event_queue.put(pending)
+    store = _borrowed_api_store(api)
+    monkeypatch.setattr(store, "_ensure_api_ready", lambda: api)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+
+    def fail_after_store_start():
+        raise RuntimeError("funding_generation_failed")
+
+    monkeypatch.setattr(
+        store, "_begin_funding_refresh_generation", fail_after_store_start
+    )
+    with pytest.raises(RuntimeError, match="funding_generation_failed"):
+        store.start()
+
+    assert store._started is True
+    assert store._has_successful_sdk_stream_generation is False
+    assert store._sdk_partial_start_failed_generation == store._stream_generation
+    assert store._sdk_borrowed_event_source_retired is True
+    assert api.poll_calls == []
+    assert api.queued_events() == (pending,)
+
+    health = store.stop()
+    assert health["shutdown_state"] == "PASS"
+    assert store._started is False
+    # PASS covers Store-owned work only; the borrowed facade still has an
+    # unproven source lifecycle, so the partial-start restart fence remains.
+    assert store._sdk_partial_start_failed_generation == store._stream_generation
+    assert store._sdk_borrowed_event_source_retired is True
+
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_partial_sdk_start_requires_verified_stop",
+    ):
+        store.start()
+    with pytest.raises(
+        BtApiStoreError,
+        match="store_borrowed_sdk_api_restart_requires_fresh_facade",
+    ):
+        store.poll_execution_maintenance()
+    assert api.close_calls == 0
+    assert api.poll_calls == []
+    assert api.queued_events() == (pending,)
+
+
+def test_owned_factory_restart_uses_a_fresh_sdk_facade(monkeypatch):
+    monkeypatch.setattr(BtApiStore, "uses_async_commands", property(lambda _self: False))
+    first = _FakeUnifiedApiFacade()
+    second = _FakeUnifiedApiFacade()
+    created = []
+
+    def api_factory(**kwargs):
+        api = (first, second)[len(created)]
+        created.append(api)
+        return api
+
+    store = BtApiStore(
+        api_cls=api_factory,
+        config={"exchange_kwargs": {first.route: {}}},
+        autostart=False,
+    )
+    monkeypatch.setattr(store, "_assert_write_route_identity", lambda **kwargs: None)
+    monkeypatch.setattr(store, "_recover_sdk_startup_journal", lambda: None)
+    monkeypatch.setattr(store, "get_balance", lambda: {})
+    monkeypatch.setattr(store, "_begin_funding_refresh_generation", lambda: None)
+    monkeypatch.setattr(store, "_stop_funding_refresh_worker", lambda timeout: True)
+    monkeypatch.setattr(store, "_cache_account_risk_snapshot_before_shutdown", lambda: None)
+    monkeypatch.setattr(store, "_configure_owned_facade_calendar", lambda api: None)
+    monkeypatch.setattr(store, "_attach_configured_instrument_status_ports", lambda api: None)
+
+    store.start()
+    assert store._api is first
+    assert store._sdk_owned_api is True
+    assert store.stop()["shutdown_state"] == "PASS"
+    assert first.close_calls == 1
+    assert store._api is None
+
+    store.start()
+    assert store._api is second
+    assert second is not first
+    assert created == [first, second]
+    assert second.close_calls == 0
+    assert store.stop()["shutdown_state"] == "PASS"
+    assert second.close_calls == 1
 
 
 @pytest.mark.parametrize("mismatch", ["ownership", "api_identity"])
