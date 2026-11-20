@@ -971,6 +971,12 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
 
     def start(self):
         """Start the feed, register it, and backfill if configured."""
+        if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
+            raise ValueError("orderbook_as_ticks requires timeframe=TimeFrame.Ticks")
+        if self._tick_aggregation_configured():
+            # Reject an unsupported tick aggregation before starting a Store
+            # or installing any external market-data subscription.
+            self._validate_tick_bucket_config()
         new_session = not self._session_active
         if new_session:
             self._live_notified = False
@@ -984,8 +990,6 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             super().start()
             if self.p.cohort_source_mode and self._live_bar_cohort is None:
                 raise ValueError("cohort_source_mode requires Cerebro live cohort activation")
-            if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
-                raise ValueError("orderbook_as_ticks requires timeframe=TimeFrame.Ticks")
 
             if self._replay_tick_adapter is not None:
                 if self.store is not None or getattr(self, "_store", None) is not None:
@@ -2494,6 +2498,33 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         """Read the Store's explicit stream-mode contract without API probing."""
         return getattr(self.store, "uses_sdk_market_streams", False) is True
 
+    def _tick_aggregation_configured(self) -> bool:
+        """Whether this feed configuration can deliver ticks for bar building."""
+        if self._timeframe == TimeFrame.Ticks:
+            return False
+        if self._replay_tick_adapter is not None:
+            return True
+        store = self.store or getattr(self, "_store", None)
+        if store is None:
+            return False
+        if getattr(store, "_gateway_strategy_config", None) is not None:
+            return True
+        if getattr(store, "_service_read_only", False):
+            return True
+        channels = self.p.market_channels
+        if channels is None:
+            channels = getattr(store, "_market_channels", None)
+        if channels is None:
+            # A Store without an explicit channel contract may deliver ticks;
+            # fail closed before its start/subscribe methods are called.
+            return True
+        if isinstance(channels, str):
+            channels = (channels,)
+        try:
+            return "tick" in channels
+        except TypeError:
+            return True
+
     def _load_bar(self, bar) -> bool:
         """Write a normalized bar into line buffers."""
         bar = _normalize_bar(bar)
@@ -2908,7 +2939,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
                 # bucket; do not re-difference cumulative volume in Backtrader.
                 cohort = self._live_bar_cohort
                 if cohort is not None:
-                    bucket_end = self._get_bucket_end(bucket_start)
+                    bucket_end = self._get_tick_bucket_end(bucket_start)
                     if isinstance(bucket_end, _dt.datetime):
                         cohort.note_cold_start_skipped_slot(
                             bucket_end.replace(tzinfo=_UTC)
@@ -3015,7 +3046,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         replay = replay_mode in {"replay", "synthetic"}
         builder = {
             "bucket_start": bucket_start,
-            "bucket_end": self._get_bucket_end(bucket_start),
+            "bucket_end": self._get_tick_bucket_end(bucket_start),
             "open": price,
             "high": price,
             "low": price,
@@ -3282,10 +3313,10 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         return math.isfinite(scaled) and abs(scaled - round(scaled)) <= 1e-8
 
     def _add_bar_quality_override(self, bucket_start, *flags):
-        """Retain blocking evidence only while its minute can still be built."""
+        """Retain blocking evidence only while its bucket can still be built."""
         if bucket_start is None:
             return
-        bucket_end = self._get_bucket_end(bucket_start)
+        bucket_end = self._get_tick_bucket_end(bucket_start)
         if self._last_closed_bucket_end is not None and bucket_end <= self._last_closed_bucket_end:
             return
         self._bar_quality_overrides[bucket_start].update(flag for flag in flags if flag)
@@ -3299,7 +3330,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         for bucket_start in list(self._bar_quality_overrides):
             if bucket_start in self._bar_builders:
                 continue
-            bucket_end = self._get_bucket_end(bucket_start)
+            bucket_end = self._get_tick_bucket_end(bucket_start)
             already_closed = (
                 self._last_closed_bucket_end is not None
                 and bucket_end <= self._last_closed_bucket_end
@@ -3383,7 +3414,7 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         bucket_start = (
             self._get_bucket_start(event_dt.replace(tzinfo=None)) if event_dt is not None else None
         )
-        bucket_end = self._get_bucket_end(bucket_start) if bucket_start is not None else None
+        bucket_end = self._get_tick_bucket_end(bucket_start) if bucket_start is not None else None
         bucket_end_ts = (
             bucket_end.replace(tzinfo=_UTC).timestamp() if bucket_end is not None else None
         )
@@ -3993,23 +4024,64 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
             self.put_notification(self.LIVE)
             self._live_notified = True
 
+    def _validate_tick_bucket_config(self):
+        """Reject tick aggregation periods without a defined bucket model."""
+        if self._timeframe == TimeFrame.Ticks:
+            return
+
+        if self._timeframe not in (
+            TimeFrame.Seconds,
+            TimeFrame.Minutes,
+            TimeFrame.Days,
+        ):
+            raise ValueError("BTAPI_FEED_TIMEFRAME_UNSUPPORTED_FOR_TICK_AGGREGATION")
+
+        compression = self._compression
+        if type(compression) is not int or compression <= 0:
+            raise ValueError("BTAPI_FEED_COMPRESSION_UNSUPPORTED_FOR_TICK_AGGREGATION")
+
+    @staticmethod
+    def _floor_tick_bucket_boundary(dt_value, interval_seconds):
+        """Floor a timestamp to an interval anchored at the Unix epoch."""
+        aware = dt_value.utcoffset() is not None
+        epoch = _dt.datetime(1970, 1, 1, tzinfo=_UTC if aware else None)
+        value = dt_value.astimezone(_UTC) if aware else dt_value
+        delta = value - epoch
+        elapsed_microseconds = (
+            (delta.days * 86400 + delta.seconds) * 1_000_000
+            + delta.microseconds
+        )
+        interval_microseconds = interval_seconds * 1_000_000
+        bucket_microseconds = (
+            elapsed_microseconds // interval_microseconds * interval_microseconds
+        )
+        try:
+            bucket_start = epoch + _dt.timedelta(microseconds=bucket_microseconds)
+            return bucket_start.astimezone(dt_value.tzinfo) if aware else bucket_start
+        except OverflowError as exc:
+            raise ValueError("BTAPI_FEED_BUCKET_OUT_OF_RANGE") from exc
+
     def _get_bucket_start(self, dt_value):
-        """Round a tick timestamp down to the current feed timeframe bucket."""
-        dt_value = dt_value.replace(microsecond=0)
+        """Floor a tick timestamp to its UTC-epoch aggregation interval.
 
-        if self._timeframe == TimeFrame.Seconds:
-            second = (dt_value.second // self._compression) * self._compression
-            return dt_value.replace(second=second)
+        Daily compression represents fixed 24-hour UTC intervals anchored at
+        the Unix epoch. It does not represent an exchange trading-session day.
+        Naive timestamps are interpreted as UTC. Provider-supplied bars use
+        their own timestamps and are not bucketed through this method.
+        """
+        self._validate_tick_bucket_config()
+        if self._timeframe == TimeFrame.Ticks:
+            return dt_value
 
-        if self._timeframe == TimeFrame.Minutes:
-            minute = (dt_value.minute // self._compression) * self._compression
-            return dt_value.replace(minute=minute, second=0)
+        if self._timeframe in (TimeFrame.Seconds, TimeFrame.Minutes):
+            interval_seconds = self._compression
+            if self._timeframe == TimeFrame.Minutes:
+                interval_seconds *= 60
+            return self._floor_tick_bucket_boundary(dt_value, interval_seconds)
 
-        if self._timeframe == TimeFrame.Days:
-            return dt_value.replace(hour=0, minute=0, second=0)
-
-        # Fall back to minute-style bucketing for other sub-day frames.
-        return dt_value.replace(second=0)
+        # Multi-day buckets start on fixed Unix-epoch day boundaries so the
+        # bucket width and the exclusive end remain consistent.
+        return self._floor_tick_bucket_boundary(dt_value, self._compression * 86400)
 
     def _get_bucket_end(self, bucket_start):
         """Return the exclusive right edge for a feed bucket."""
@@ -4022,3 +4094,22 @@ class BtApiFeed(LiveBarCohortFeedMixin, LiveFeedBase):
         if self._timeframe == TimeFrame.Days:
             return bucket_start + _dt.timedelta(days=self._compression)
         return bucket_start + _dt.timedelta(minutes=self._compression)
+
+    def _get_tick_bucket_end(self, bucket_start):
+        """Return the UTC elapsed-time edge for a supported tick bucket."""
+        self._validate_tick_bucket_config()
+        if self._timeframe == TimeFrame.Ticks:
+            return bucket_start
+        if self._timeframe == TimeFrame.Seconds:
+            interval_seconds = self._compression
+        elif self._timeframe == TimeFrame.Minutes:
+            interval_seconds = self._compression * 60
+        else:
+            interval_seconds = self._compression * 86400
+        try:
+            interval = _dt.timedelta(seconds=interval_seconds)
+            if bucket_start.tzinfo is None:
+                return bucket_start + interval
+            return (bucket_start.astimezone(_UTC) + interval).astimezone(bucket_start.tzinfo)
+        except OverflowError as exc:
+            raise ValueError("BTAPI_FEED_BUCKET_OUT_OF_RANGE") from exc
