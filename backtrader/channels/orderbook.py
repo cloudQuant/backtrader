@@ -76,8 +76,6 @@ class OrderBookChannel(DataChannel):
         )
         self._dataname = dataname
         self._depth = depth
-        self._last_best_bid = None
-        self._last_best_ask = None
 
     @property
     def depth(self):
@@ -87,9 +85,8 @@ class OrderBookChannel(DataChannel):
     def _validate_event(self, event) -> DataValidationResult:
         """Validate order book specific fields beyond base validation.
 
-        Additional checks:
-            - Spread consistency with previous snapshots
-            - Depth within configured limits
+        Additional handling:
+            - Truncate depth to the configured maximum
         """
         result = super()._validate_event(event)
         if not result.valid:
@@ -100,11 +97,6 @@ class OrderBookChannel(DataChannel):
             event.bids = event.bids[: self._depth]
         if len(event.asks) > self._depth:
             event.asks = event.asks[: self._depth]
-
-        # Track best bid/ask for anomaly detection
-        if event.bids and event.asks:
-            self._last_best_bid = event.bids[0][0]
-            self._last_best_ask = event.asks[0][0]
 
         return result
 
