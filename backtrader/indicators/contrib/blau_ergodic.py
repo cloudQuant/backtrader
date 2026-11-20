@@ -48,6 +48,8 @@ class BlauErgodic(Indicator):
         xxabsmom = EMA(xabsmom, period=int(self.p.xlength2))
         xxxabsmom = EMA(xxabsmom, period=int(self.p.xlength3))
 
-        self.l.main = btfunc.DivByZero(100.0 * xxxmom, xxxabsmom, zero=0.0)
-        self.l.signal = EMA(self.l.main, period=int(self.p.xlength4))
-        self.l.spread = self.l.main - self.l.signal
+        main = btfunc.DivByZero(100.0 * xxxmom, xxxabsmom, zero=0.0)
+        self.l.main = main
+        signal = EMA(main, period=int(self.p.xlength4))
+        self.l.signal = signal
+        self.l.spread = main - signal
