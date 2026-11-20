@@ -44,10 +44,14 @@ class ColorBBCandlesIndicator(Indicator):
         """Prepare price line selector and required indicator buffers."""
         ma_cls = EMA if str(self.p.ma_method).lower() == "ema" else SMA
         self.price = self._price_line()
-        self.lines.price_line = self.price
         self.lines.mid = ma_cls(self.price, period=self.p.period)
         self.stddev = StandardDeviation(self.price, period=self.p.period)
-        self.addminperiod(self.p.period + 5)
+        # Child indicators already establish the source-window minimum. Keep
+        # the additional five-bar guard absolute instead of adding the whole
+        # period a second time through bound output lines.
+        self.updateminperiod(self.p.period + 5)
+        for line in self.lines:
+            line.updateminperiod(self._minperiod)
 
     def _price_line(self):
         mode = str(self.p.applied_price).lower()
@@ -72,6 +76,7 @@ class ColorBBCandlesIndicator(Indicator):
     def next(self):
         """Evaluate the current bar and emit the normalized volatility state."""
         price = float(self.price[0])
+        self.lines.price_line[0] = price
         mid = float(self.lines.mid[0])
         stdev = float(self.stddev[0])
         up1 = mid + stdev * self.p.deviation1
@@ -106,3 +111,7 @@ class ColorBBCandlesIndicator(Indicator):
         elif price < dn1:
             state = 4.0
         self.lines.state[0] = state
+
+    def prenext(self):
+        """Keep the raw applied-price output available before warmup ends."""
+        self.lines.price_line[0] = float(self.price[0])

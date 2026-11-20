@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 12 |
+| 5 | 指标正确性（P1/P2） | 29 | 13 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **60** |
+| | **合计** | **207** | **61** |
 
 ---
 
@@ -131,7 +131,7 @@
 - [x] **R71-154** `[P1]` `indicators/priceoscillator.py:200-232` — PPO signal runonce seed 不同（once 从 `prev_signal=0.0` 写 `ppo*alpha`，nextstart 写 `signal=ppo`），115 根不同 → 用首个有效 PPO 初始化 `prev_signal`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（signal 批量播种与逐根一致，首点缺失时柱线保持 NaN；EMA 批量路径按输入预热和逐根递推传播缺失，并限制分段写入。真实 Cerebro 上游 SMA、缺失及原有 EMA/PPO 派生回归共 25 项通过，独立源码复核无阻断）。
 - [x] **R71-033** `[P1]` `indicators/contrib/trend_continuation_indicator.py:124` 等 6 文件 — 递归指标用 `len(self)>0`/`==1` 判断前值，`next()` 内恒真/恒假，读未写入 NaN 槽位，首根 NaN 传播整条线 → 无条件读 `lines.x[-1]` 并 NaN 检查后回退 seed。CONFIRMED(FAKE runtime，100% NaN/171 bars)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（六类指标的初始递归值与缺失处理分别覆盖实际 Cerebro 两模式、完整序列及预热边界；联合 80 项通过，独立源码复核无新增初始化阻断。历史 100% NaN 不适用于所有 AML 价格尺度。TrendContinuation 的 xmethod 和 VininITrendLRMA 的 ma_method2 既有输出未使用问题仍开放，不属于本轮初始化修复）。
 - [x] **R71-034** `[P1]` `contrib/accumulation_distribution_line.py:66` — `LineCCI` 无 `addminperiod`（`_minperiod=1`），作为 `CCIDualOnMA` 输入时 runonce `len(self.data)==0` 预热分支每根触发，两条线恒 0.0 → 声明 `addminperiod(self.p.period)`。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（CCI 继承输入线预热，组合类绑定实际均线并避免批量路径重复推进；真实 Cerebro 两模式、短历史及独立计算参考共 6 项通过，独立源码复核无阻断）。
-- [ ] **R71-035** `[P1]` `contrib/color_bb_candles_indicator.py:43` — 子指标线绑定 + `addminperiod(period+5)` 变相对加法，实测 `_minperiod==204`（目标 105），历史不足 204 根时 runonce 抛 `IndexError` → 去掉 `price_line` 别名或用 `incminperiod`/显式 `max(...)`。CONFIRMED(FAKE)。
+- [x] **R71-035** `[P1]` `contrib/color_bb_candles_indicator.py:43` — 子指标线绑定 + `addminperiod(period+5)` 变相对加法，实测 `_minperiod==204`（目标 105），历史不足 204 根时 runonce 抛 `IndexError` → 去掉 `price_line` 别名或用 `incminperiod`/显式 `max(...)`。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（周期上限非累加，period=100 的最小周期由 204 修为 105，价格线在预热中输出实际价格；实际 Cerebro 两模式及短历史共 8 项通过，独立源码复核无阻断。旧 fake 的短历史 IndexError 本次未复现）。
 - [ ] **R71-036** `[P1]` `contrib/aroon_oscillator_sign_alert.py:41` — Aroon Oscillator 符号反了：`highest/lowest` 是 bars-ago 偏移，标准 `100*(lowest-highest)/p`，代码算成相反数，交叉方向相反 → 改为 `100.0*(lowest-highest)/p`。CONFIRMED(source)。
 - [ ] **R71-037** `[P2]` `contrib/adx_cross_hull_style_indicator.py:233` 等 ≥6 文件 — `once()` 每次重置递归状态（`prev=None`、新建 smoother），分 `oncestart`/`once` 两段调用导致边界重启，runonce 与 runnext 分叉 88–466 根 → `start>0` 时从 `line[start-1]` 播种。CONFIRMED(FAKE)。
 - [ ] **R71-038** `[P2]` `contrib/as_ctrend_indicator.py:99` — 两个独立 `if/else` 都写 `value11`，第二个覆盖第一个，仅 MRO1 命中时被重置为默认 2 → 先赋默认值再独立 `if` 覆盖。CONFIRMED(source)。
