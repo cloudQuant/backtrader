@@ -88,6 +88,8 @@ class LiveEventQueue:
             timestamp = getattr(event_data, "timestamp", time.time())
 
         with self._lock:
+            if self._closed:
+                return False
             event = Event(
                 timestamp=timestamp,
                 priority=priority,

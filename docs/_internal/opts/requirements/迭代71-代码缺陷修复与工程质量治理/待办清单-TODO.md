@@ -28,7 +28,7 @@
 | 1 | P0 阻断 | 1 | 1 |
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
-| 4 | 核心生命周期与数据通道（P1） | 16 | 3 |
+| 4 | 核心生命周期与数据通道（P1） | 16 | 4 |
 | 5 | 指标正确性（P1/P2） | 29 | 0 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
@@ -36,7 +36,7 @@
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **35** |
+| | **合计** | **207** | **36** |
 
 ---
 
@@ -101,7 +101,7 @@
 - [x] **R71-007** `[P1]` `_cerebro/channel.py:318` — channel 事件循环无 `try/finally`，任一回调抛错时 `_teardown_channel` 被跳过、`broker.stop()` 不执行 → 包 try/finally。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+RUNTIME**（修前回调异常复现失败；修后 channel 生命周期、线程停止及回调异常共 27 项通过；启动期异常与多策略 stop 异常的完整清理未覆盖，清理异常可能替代原回调异常；不代表实盘验收）。
 - [x] **R71-008** `[P1]` `cerebro.py:951` — 优化路径 `multiprocessing.Pool` 在 `imap`/`optcb` 抛错时跳过 `close()/join()`，worker 泄漏 → 正常关闭并等待，异常终止并等待。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+FAKE + 本地 spawn**（修前异常和正常回收复现失败；修后定向及多进程兼容测试 19 项通过；数据预加载的独立异常清理不在本项证据范围）。
 - [x] **R71-009** `[P1]` `dataseries.py:80` — `TimeFrame.getname(tframe, compression=None)` 默认 `None` 紧接 `compression > 1` 抛 `TypeError` → 默认改 1 或先归一化。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+RUNTIME**（修前默认参数复现 TypeError；修后默认、显式 None、复数和已有数据序列测试 5 项通过）。
-- [ ] **R71-010** `[P1]` `channels/live_queue.py:84` — `put()` 在锁外读 `_closed`，producer 通过检查后仍可入队，事件永不被消费 → 锁内复检。CONFIRMED(source)。
+- [x] **R71-010** `[P1]` `channels/live_queue.py:84` — `put()` 在锁外读 `_closed`，producer 通过检查后仍可入队，事件永不被消费 → 锁内复检。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+线程竞态**（修前同步竞态稳定复现；修后关闭竞态与关闭前已接收事件排空 2 项通过）。
 - [ ] **R71-011** `[P1]` `channels/orderbook.py:205` — `"bids": null` 时 `data.get("bids", [])` 返回 `None`，`_parse_level_pairs(None)` 抛 `TypeError`（不在捕获元组），单行坏数据中止整个 load → 校验 list 类型或把 `TypeError` 纳入捕获。CONFIRMED(source)。
 - [ ] **R71-012** `[P1]` `channels/tick.py:159` — CSV 缺字段时 `float(None)`→`TypeError`、`row["direction"].strip()`→`AttributeError`，均不在捕获元组 → 纳入捕获或做字段完整性校验。CONFIRMED(source)。
 - [ ] **R71-086** `[P1]` `cerebro.py:889` — `add_signal()+addstrategy()` 组合下 `signalst, sargs, skwargs = self.strats.pop(0)` 抛 `ValueError: not enough values to unpack`；异常分支 reinsert 的三元组也不可被 `itertools.product(*self.strats)` 消费 → 改为解包单元素并 reinsert 列表。CONFIRMED(source)。
