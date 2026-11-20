@@ -1634,7 +1634,6 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
         ):
             raise BtApiStoreError("managed_runtime_store_work_already_active")
         self._managed_runtime_borrowed_api = api
-        return None
 
     @property
     def requires_account_risk(self) -> bool:
@@ -4360,7 +4359,8 @@ class BtApiStore(StoreManagedExecutionBridgeMixin, StoreReconciliationBridgeMixi
             )
         correlation = correlation_entry.get("correlation")
         order_info = getattr(order, "info", {})
-        get_info = getattr(order_info, "get", lambda *_args: None)
+        # Preserve the dynamic getter probe; order.info may expose it via descriptor.
+        _ = getattr(order_info, "get", lambda *_args: None)
         request = self._sdk_order_request(
             venue,
             payload,
