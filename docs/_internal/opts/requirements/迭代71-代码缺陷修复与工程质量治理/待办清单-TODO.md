@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 3 |
+| 5 | 指标正确性（P1/P2） | 29 | 4 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **51** |
+| | **合计** | **207** | **52** |
 
 ---
 
@@ -122,7 +122,7 @@
 - [x] **R71-014** `[P1]` `indicators/atr.py:244` — `nextstart` 的 `i==0` 分支用 `high[0]-low[0]`，漏 `close[-1]`，seed 与 `once` 不一致 → 统一 `_calc_tr(high[0], low[0], close[-1])`。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前跳空时 seed 两模式不一致；修后不同方向、周期和短历史全序列与独立参考一致，12 项通过；once 局部分段写入边界另待修复）。
 - [x] **R71-015** `[P1]` `indicators/bollinger.py:92` — `movav` 参数声明并出现在 `_plotlabel`，但 `next()/once()` 硬编码算术均值，配 EMA/WMA 被静默忽略 → 用 `self.p.movav` 或删除参数并标注不兼容。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前 EMA/WMA 被忽略；修后 SMA、EMA、WMA 两种运行模式全序列与独立参考匹配，5 项通过；带宽维持既有总体标准差合同）。
 - [x] **R71-016** `[P1]` `indicators/awesomeoscillator.py:48,62` — `movav` 未用；`addminperiod(self.p.slow)` 假设 `slow>=fast`，`fast>slow` 时 `next()` 越界 → 用 `self.p.movav`，minperiod 取 `max(fast, slow)`。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前 fast 大于 slow 会越界且忽略 EMA；修后均线参数、周期、全序列以及跨周期输入的逐根/批量一致性 5 项通过）。
-- [ ] **R71-017** `[P1]` `indicators/accdecoscillator.py:50,61` — `movav` 未用；AC 只继承 AO 的 minperiod，未加 `period-1`，声明有效区间内 `ao[-1..-4]` 仍 NaN → 用 `self.p.movav` 并 `addminperiod(self.ao._minperiod + period - 1)`。CONFIRMED(source)。
+- [x] **R71-017** `[P1]` `indicators/accdecoscillator.py:50,61` — `movav` 未用；AC 只继承 AO 的 minperiod，未加 `period-1`，声明有效区间内 `ao[-1..-4]` 仍 NaN → 使用配置均线并通过依赖图传播 AO 周期加平滑窗口。CONFIRMED(source) → **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（修前平滑参数被忽略且预热不足；修后依赖图传播周期，SMA/EMA/WMA 全序列及跨周期逐根/批量一致性 6 项通过）。
 - [ ] **R71-149** `[P1]` `indicators/aroon.py:121-133,176-188,260-286` — **所有 Aroon 变体 runonce 全 NaN**：从 `self.up`/`self.down` line-operation arrays 复制，但这些数组在 `once` 中从未调度 → `__init__` 绑定 `self.lines.aroonup = self.up` 或在 `once` 直接由 high/low 计算。CONFIRMED(runtime)。
 - [ ] **R71-150** `[P1]` `aroon.py:191,289`；`envelope.py:394,473`；`directionalmove.py:1003,1038` — **多基类指标丢线**：`AroonUpDown` 只有 `aroonup`、Envelope 只有 `src/sma`、DMI 1 条而非 3 条、DM 2 条而非 4 条；根因 `LineSeries.__init_subclass__` 只取第一个基类 lines（`otherbases=()`）→ 在 `LinesManager.create_lines_class` 聚合所有基类 `_lines`。CONFIRMED(runtime)。
 - [ ] **R71-151** `[P1]` `indicators/williams.py:175-194` — WilliamsAD runonce 丢第一根贡献：`once()` 每次 `accum=0.0`，`oncestart(1,2)` 后再 `once(2,end)` 从 0 重启，后续每根固定偏移 0.4365 → 从 `dst[start-1]` 继续（像 `Accum.once`）。CONFIRMED(runtime)。
