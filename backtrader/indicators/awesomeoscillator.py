@@ -17,8 +17,7 @@ Example:
                 self.buy()
 """
 
-from . import Indicator
-from .sma import SMA
+from . import Indicator, MovAv
 
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
 
@@ -32,7 +31,7 @@ class AwesomeOscillator(Indicator):
 
     Formula:
      - median price = (high + low) / 2
-     - AO = SMA (median price, 5)- SMA (median price, 34)
+     - AO = MA (median price, fast) - MA (median price, slow)
 
     See:
       - https://www.metatrader5.com/en/terminal/help/indicators/bw_indicators/awesome
@@ -48,75 +47,20 @@ class AwesomeOscillator(Indicator):
     params = (
         ("fast", 5),
         ("slow", 34),
-        ("movav", SMA),
+        ("movav", MovAv.Simple),
     )
     # Plot parameters
     plotlines = {"ao": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     # Create indicators during initialization
     def __init__(self):
-        """Initialize the Awesome Oscillator.
-
-        Sets minimum period to the slow period.
-        """
+        """Build the fast and slow moving averages of the median price."""
         super().__init__()
-        self.addminperiod(self.p.slow)
 
-    def next(self):
-        """Calculate AO for the current bar.
-
-        Formula: AO = SMA(median_price, fast) - SMA(median_price, slow)
-        """
-        fast = self.p.fast
-        slow = self.p.slow
-
-        # Calculate median price SMA for fast period
-        fast_sum = 0.0
-        for i in range(fast):
-            fast_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
-        sma_fast = fast_sum / fast
-
-        # Calculate median price SMA for slow period
-        slow_sum = 0.0
-        for i in range(slow):
-            slow_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
-        sma_slow = slow_sum / slow
-
-        self.lines.ao[0] = sma_fast - sma_slow
-
-    def once(self, start, end):
-        """Calculate AO in runonce mode."""
-        high_array = self.data.high.array
-        low_array = self.data.low.array
-        larray = self.lines.ao.array
-        fast = self.p.fast
-        slow = self.p.slow
-
-        while len(larray) < end:
-            larray.append(float("nan"))
-
-        for i in range(min(slow - 1, len(high_array))):
-            if i < len(larray):
-                larray[i] = float("nan")
-
-        for i in range(slow - 1, min(end, len(high_array), len(low_array))):
-            # Calculate fast SMA
-            fast_sum = 0.0
-            for j in range(fast):
-                idx = i - j
-                if idx >= 0:
-                    fast_sum += (high_array[idx] + low_array[idx]) / 2.0
-            sma_fast = fast_sum / fast
-
-            # Calculate slow SMA
-            slow_sum = 0.0
-            for j in range(slow):
-                idx = i - j
-                if idx >= 0:
-                    slow_sum += (high_array[idx] + low_array[idx]) / 2.0
-            sma_slow = slow_sum / slow
-
-            larray[i] = sma_fast - sma_slow
+        median = (self.data.high + self.data.low) / 2.0
+        fast = self.p.movav(median, period=self.p.fast)
+        slow = self.p.movav(median, period=self.p.slow)
+        self.lines.ao = fast - slow
 
 
 AwesomeOsc = AO = AwesomeOscillator

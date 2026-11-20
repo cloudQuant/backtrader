@@ -39,7 +39,12 @@ Module Variables:
         Oscillator).
 """
 
+import math
+
 import backtrader as bt
+import backtrader.indicators as btind
+import pandas as pd
+import pytest
 
 import testcommon
 
@@ -87,6 +92,192 @@ def test_run(main=False):
         chkmin=chkmin,
         chkvals=chkvals,
     )
+
+
+def _run_ao_sequence(runonce, fast, slow, movav):
+    """Return AO and moving-average reference arrays for synthetic OHLC data."""
+    count = 48
+    close = [100.0 + i * 0.73 + ((i * 7) % 9) * 0.41 for i in range(count)]
+    frame = pd.DataFrame(
+        {
+            "open": close,
+            "high": [value + 1.0 + i % 4 for i, value in enumerate(close)],
+            "low": [value - 0.5 - i % 3 for i, value in enumerate(close)],
+            "close": close,
+            "volume": [1000.0] * count,
+            "openinterest": [0.0] * count,
+        },
+        index=pd.date_range("2026-01-01", periods=count, freq="D"),
+    )
+
+    class AOProbeStrategy(bt.Strategy):
+        def __init__(self):
+            median = (self.data.high + self.data.low) / 2.0
+            self.ao = btind.AwesomeOscillator(
+                self.data, fast=fast, slow=slow, movav=movav
+            )
+            self.reference_fast = movav(median, period=fast)
+            self.reference_slow = movav(median, period=slow)
+
+    cerebro = bt.Cerebro(runonce=runonce, preload=True, stdstats=False)
+    cerebro.adddata(bt.feeds.PandasData(dataname=frame))
+    cerebro.addstrategy(AOProbeStrategy)
+    strategy = cerebro.run()[0]
+
+    return (
+        strategy.ao._minperiod,
+        list(strategy.ao.lines.ao.array[:count]),
+        list(strategy.reference_fast.lines[0].array),
+        list(strategy.reference_slow.lines[0].array),
+    )
+
+
+def _assert_same_series(actual, expected):
+    assert len(actual) == len(expected)
+    for got, want in zip(actual, expected):
+        if math.isnan(want):
+            assert math.isnan(got)
+        else:
+            assert got == pytest.approx(want, rel=1e-12, abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("fast", "slow", "movav"),
+    [
+        (5, 34, btind.SMA),
+        (3, 7, btind.EMA),
+        (8, 3, btind.SMA),
+    ],
+    ids=("default-sma", "custom-ema", "fast-greater-than-slow"),
+)
+def test_awesome_oscillator_movav_minperiod_and_run_mode_parity(fast, slow, movav):
+    """AO uses its configured MA and waits for both windows in either mode."""
+    expected_minperiod = max(fast, slow)
+    sequences = {
+        runonce: _run_ao_sequence(runonce, fast, slow, movav)
+        for runonce in (False, True)
+    }
+
+    for minperiod, actual, fast_ma, slow_ma in sequences.values():
+        assert minperiod == expected_minperiod
+        reference = [
+            fast_value - slow_value
+            for fast_value, slow_value in zip(fast_ma, slow_ma)
+        ]
+        _assert_same_series(actual, reference)
+
+    _assert_same_series(sequences[False][1], sequences[True][1])
+
+
+def _run_multitimeframe_ao(runonce):
+    """Run AO on a weekly feed while the strategy clock advances daily."""
+    count = 84
+    dates = pd.date_range("2026-01-05", periods=count, freq="D")
+    close = [100.0 + i * 0.53 + ((i * 5) % 11) * 0.37 for i in range(count)]
+    daily = pd.DataFrame(
+        {
+            "open": close,
+            "high": [value + 1.0 + i % 4 for i, value in enumerate(close)],
+            "low": [value - 0.5 - i % 3 for i, value in enumerate(close)],
+            "close": close,
+            "volume": [1000.0] * count,
+            "openinterest": [0.0] * count,
+        },
+        index=dates,
+    )
+    week_ids = pd.Series(range(count), index=dates) // 7
+    weekly = daily.groupby(week_ids).agg(
+        {
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last",
+            "volume": "sum",
+            "openinterest": "last",
+        }
+    )
+    weekly.index = dates[6::7]
+    weekly["median"] = (weekly["high"] + weekly["low"]) / 2.0
+
+    class WeeklyMedianData(bt.feeds.PandasData):
+        lines = ("median",)
+        params = (("median", -1),)
+
+    class MultiTimeframeAOProbe(bt.Strategy):
+        def __init__(self):
+            # The explicit median field gives the reference MAs the same OHLC
+            # midpoint without adding another LineOperation to the slow feed.
+            self.reference_fast = btind.SMA(self.data1.median, period=2)
+            self.reference_slow = btind.SMA(self.data1.median, period=3)
+            self.ao = btind.AwesomeOscillator(self.data1, fast=2, slow=3)
+            self.records = []
+
+        def next(self):
+            self.records.append(
+                (
+                    len(self.data0),
+                    len(self.data1),
+                    len(self.ao),
+                    float(self.data0.datetime[0]),
+                    float(self.data1.datetime[0]),
+                    float(self.ao.data.datetime[0]),
+                    float(self.ao[0]),
+                    float(self.reference_fast[0] - self.reference_slow[0]),
+                )
+            )
+
+    cerebro = bt.Cerebro(runonce=runonce, preload=True, stdstats=False)
+    cerebro.adddata(
+        bt.feeds.PandasData(
+            dataname=daily,
+            timeframe=bt.TimeFrame.Days,
+            compression=1,
+        ),
+        name="daily",
+    )
+    cerebro.adddata(
+        WeeklyMedianData(
+            dataname=weekly,
+            timeframe=bt.TimeFrame.Weeks,
+            compression=1,
+        ),
+        name="weekly",
+    )
+    cerebro.addstrategy(MultiTimeframeAOProbe)
+    strategy = cerebro.run()[0]
+    return strategy.ao._minperiod, strategy.records
+
+
+def test_awesome_oscillator_slow_data_multitimeframe_clock_and_parity():
+    """AO follows the weekly feed clock and matches its reference on each call."""
+    sequences = {
+        runonce: _run_multitimeframe_ao(runonce)
+        for runonce in (False, True)
+    }
+    assert sequences[False][0] == sequences[True][0] == 3
+
+    next_records = sequences[False][1]
+    once_records = sequences[True][1]
+    assert len(next_records) == len(once_records) == 64
+
+    for records in (next_records, once_records):
+        assert records[0][:3] == (21, 3, 3)
+        assert records[-1][:3] == (84, 12, 12)
+        assert all(record[2] == record[1] for record in records)
+        assert all(record[4] == record[5] for record in records)
+        assert all(
+            record[6] == pytest.approx(record[7], rel=1e-12, abs=1e-12)
+            for record in records
+        )
+        assert all(left[3] < right[3] for left, right in zip(records, records[1:]))
+        assert all(left[4] <= right[4] for left, right in zip(records, records[1:]))
+        assert any(left[4] == right[4] for left, right in zip(records, records[1:]))
+
+    for next_record, once_record in zip(next_records, once_records):
+        assert next_record[:6] == once_record[:6]
+        assert next_record[6:] == pytest.approx(
+            once_record[6:], rel=1e-12, abs=1e-12
+        )
 
 
 if __name__ == "__main__":
