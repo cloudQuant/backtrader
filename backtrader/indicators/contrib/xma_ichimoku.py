@@ -6,6 +6,8 @@ helper functions and constants without cross-test name collisions.
 """
 
 import math
+from collections import deque
+from itertools import islice
 
 from .. import Indicator
 
@@ -36,7 +38,8 @@ class XmaIchimoku(Indicator):
         self.addminperiod(
             max(int(self.p.up_period), int(self.p.dn_period)) + int(self.p.x_length) + 5
         )
-        self._raw_buf = []
+        self._raw_buf = deque(maxlen=max(1, int(self.p.x_length)))
+        self._raw_seen_count = 0
         self._smooth_prev = None
 
     def _series_value(self, mode, ago):
@@ -53,9 +56,20 @@ class XmaIchimoku(Indicator):
         method = str(self.p.xma_method).upper()
         if method in ("MODE_SMA_", "SMA"):
             period = max(1, int(self.p.x_length))
+            if period > self._raw_buf.maxlen:
+                raise ValueError(
+                    "x_length=%d exceeds retained SMA window capacity %d"
+                    % (period, self._raw_buf.maxlen)
+                )
             if len(self._raw_buf) < period:
                 return raw_value
-            return sum(self._raw_buf[-period:]) / float(period)
+            start = len(self._raw_buf) - period
+            window = (
+                self._raw_buf
+                if start == 0
+                else islice(self._raw_buf, start, None)
+            )
+            return sum(window) / float(period)
 
         length = max(1, int(self.p.x_length))
         phase = max(-100, min(100, int(self.p.x_phase)))
@@ -82,7 +96,19 @@ class XmaIchimoku(Indicator):
         ish_up = max(highs)
         ish_dn = min(lows)
         raw_value = (ish_up + ish_dn) / 2.0
+        method = str(self.p.xma_method).upper()
+        period = max(1, int(self.p.x_length))
+        if method in ("MODE_SMA_", "SMA") and period > self._raw_buf.maxlen:
+            capacity = self._raw_buf.maxlen
+            if self._raw_seen_count > capacity:
+                raise ValueError(
+                    "x_length=%d exceeds retained SMA window capacity %d after "
+                    "older raw values were discarded"
+                    % (period, capacity)
+                )
+            self._raw_buf = deque(self._raw_buf, maxlen=period)
         self._raw_buf.append(raw_value)
+        self._raw_seen_count += 1
         smooth = self._smooth_value(raw_value) + float(self.p.price_shift)
         self.lines.value[0] = smooth
 
