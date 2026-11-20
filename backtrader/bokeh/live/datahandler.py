@@ -344,3 +344,7 @@ class LiveDataHandler:
         # Wait for thread to finish
         if self._thread.is_alive():
             self._thread.join(timeout=0.5)
+            if self._thread.is_alive():
+                # Keep the handler/thread reachable so a caller can retry
+                # stop; returning here would falsely report a closed client.
+                raise RuntimeError("LiveDataHandler worker did not stop before timeout")
