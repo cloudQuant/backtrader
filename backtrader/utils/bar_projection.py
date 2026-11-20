@@ -7,6 +7,7 @@ Backtrader bar values. They contain no provider field names or SDK imports.
 from __future__ import annotations
 
 import datetime as _dt
+import math
 from typing import Any, Dict
 
 from .coercion import coerce_float
@@ -25,7 +26,11 @@ def datetime_to_utc_naive(value: _dt.datetime) -> _dt.datetime:
 
 
 def normalize_datetime(value: Any) -> _dt.datetime:
-    """Normalize timestamps to naive UTC datetimes."""
+    """Normalize timestamps to naive UTC datetimes.
+
+    Numeric timestamps are Unix seconds, except values above 10 billion,
+    which are interpreted as milliseconds. Numeric timestamps must be finite.
+    """
     if isinstance(value, _dt.datetime):
         return datetime_to_utc_naive(value)
 
@@ -34,6 +39,8 @@ def normalize_datetime(value: Any) -> _dt.datetime:
 
     if isinstance(value, (int, float)):
         timestamp = float(value)
+        if not math.isfinite(timestamp):
+            raise ValueError("Numeric datetime timestamp must be finite")
         if timestamp > 10_000_000_000:
             timestamp /= 1000.0
         return _dt.datetime.fromtimestamp(timestamp, _UTC).replace(tzinfo=None)

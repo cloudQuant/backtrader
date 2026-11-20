@@ -33,10 +33,10 @@
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 23 |
 | 8 | 性能专项（P1/P2） | 19 | 8 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 12 |
-| 9 | P2 其余正确性 / 清理 | 36 | 1 |
+| 9 | P2 其余正确性 / 清理 | 36 | 2 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **120** |
+| | **合计** | **207** | **121** |
 
 ---
 
@@ -254,7 +254,7 @@
 - [ ] **R71-050** `[P2]` `filters/bsplitter.py:111` — `ohlbar[OpenInterest]=0` 后又被 `=oi` 覆盖；`closebar` 在清零前复制，两个 tick 都保留原 OI，清零语句无效 → 明确第一 tick OI=0 时改 `closebar`，或删除无效清零。
 - [ ] **R71-051** `[P2]` `indicators/basicops.py:554` — `next()` 用 `math.fsum`，`once()` 用内置 `sum`，长周期/量级差异时 runonce 与 next 浮点结果分叉 → `once()` 改用 `math.fsum`。
 - [ ] **R71-056** `[P2]` `bokeh/live/datahandler.py:137` — `_datastore` 在 worker 线程 `_set_data` 持锁修改，IOLoop 回调 `_cb_push_adds` 无锁读取 `_datastore/_last_idx`，跨线程竞态 → 快照/加锁，或把数据变更全部投递到 IOLoop 线程。PLAUSIBLE(需并发复现)。
-- [ ] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。
+- [x] **R71-058** `[P2]` `utils/bar_projection.py:36` — 数值时间戳未防非有限值：NaN 落到 `fromtimestamp` 抛不清晰 `ValueError`，inf 通过 `> 1e10` 后抛 `OverflowError`；同文件 `coerce_float` 已用 `math.isfinite` → 先 `math.isfinite` 检查并统一抛文档化 `ValueError`。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT**（NaN 和 ±inf 时间戳统一明确 ValueError，秒/毫秒既有阈值不变；56 项相关回归和独立静态复审通过。布尔、超大/越界值与负毫秒仍沿用原合同）。
 - [ ] **R71-059** `[P2]` `utils/autodict.py:207` — `__iadd__` 同类型分支 `return self + other`，但 `AutoOrderedDict` 未定义 `__add__`，`aod1 += aod2` 抛 `TypeError`；`__isub__/__imul__` 同类问题 → 实现 `__add__/__sub__/__mul__` 或改同类型分支语义。
 - [ ] **R71-060** `[P2]` `utils/coercion.py:59` — 字符串路径拒绝非整数，通用路径 `int(1.9)` 静默截断为 1，同类输入不同来源行为不一致 → 明确 float 允许范围/取整规则或统一拒绝非整数。PLAUSIBLE(需确认调用方语义)。
 - [ ] **R71-061** `[P2]` `_cerebro/runnext.py:614` — `rsonly` 是 list，每根 bar 对每个 data 做 `i not in rsonly` O(len) 成员测试，resample+replay 多 data 时放大 → 改为 `set`（`len`/真值/`in` 语义不变）。
