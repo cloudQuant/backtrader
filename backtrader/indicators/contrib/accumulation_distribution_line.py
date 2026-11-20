@@ -61,6 +61,11 @@ class LineCCI(Indicator):
     lines = ("cci",)
     params = (("period", 14),)
 
+    def __init__(self):
+        """Require a complete input window before producing CCI values."""
+        self.updateminperiod(getattr(self.data, "_minperiod", 1))
+        self.addminperiod(self.p.period)
+
     def next(self):
         """Calculate a bar's CCI value with zero-handling for degenerate windows."""
         if len(self.data) < self.p.period:
@@ -88,5 +93,9 @@ class CCIDualOnMA(Indicator):
     def __init__(self):
         """Initialize smoothed MA and dual CCI lines."""
         self.ma = SimpleMovingAverage(self.data.close, period=self.p.ma_period)
-        self.lines.fast = LineCCI(self.ma, period=self.p.fast_period)
-        self.lines.slow = LineCCI(self.ma, period=self.p.slow_period)
+        self.lines.fast = LineCCI(self.ma.lines[0], period=self.p.fast_period)
+        self.lines.slow = LineCCI(self.ma.lines[0], period=self.p.slow_period)
+
+    def once(self, start, end):
+        """Leave calculation to the child CCIs bound to the output lines."""
+        return
