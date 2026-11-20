@@ -179,7 +179,10 @@ class BacktraderCSVData(feed.CSVDataBase):
                 line_openinterest.array[idx_openinterest] = openinterest_value
                 return True
             except IndexError:
-                logger.debug("btcsv:181 ignored IndexError")
+                logger.debug(
+                    "BacktraderCSVData: direct line write hit IndexError; "
+                    "retrying via LineBuffer fallback"
+                )
 
         # Fallback preserves binding propagation and LineBuffer boundary handling.
         set_current = _set_current_value
