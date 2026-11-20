@@ -177,6 +177,47 @@ def test_daily_metrics_match_independent_four_day_reference():
     assert metrics["BASE_VIX"] == 0.2049
 
 
+def test_daily_alpha_preserves_empyrical_055_compounding_contract():
+    """A nonzero OLS alpha with beta != 1 uses Empyrical 0.5.5 annualization."""
+    _, analyzer, _ = _run_report_strategy(trade=False)
+    dates = pd.date_range("2026-02-01", periods=5, tz="UTC")
+    factor_returns = pd.Series([-0.02, -0.01, 0.0, 0.01, 0.02], index=dates)
+    residual_variation = [0.001, -0.002, 0.002, -0.002, 0.001]
+    strategy_returns = pd.Series(
+        [
+            0.001 + 2.0 * factor + residual
+            for factor, residual in zip(factor_returns, residual_variation)
+        ],
+        index=dates,
+    )
+
+    metrics = analyzer._get_performance_indicators(
+        [], strategy_returns, factor_returns, "alice"
+    )
+
+    # Independent OLS slope and net factor return reference.
+    centered_factor = factor_returns - factor_returns.mean()
+    beta = (
+        ((strategy_returns - strategy_returns.mean()) * centered_factor).sum()
+        / (centered_factor ** 2).sum()
+    )
+    alpha_series = strategy_returns - beta * factor_returns
+    daily_alpha = alpha_series.mean()
+    compounded_055 = (1.0 + daily_alpha) ** 252 - 1.0
+    linear_050 = daily_alpha * 252
+
+    assert beta == pytest.approx(2.0)
+    assert beta != pytest.approx(1.0)
+    assert alpha_series.std(ddof=1) > 0.0
+    assert daily_alpha == pytest.approx(0.001)
+    assert metrics["Beta"] == pytest.approx(round(beta, 4))
+    assert metrics["ALPHA"] == pytest.approx(round(compounded_055, 4))
+    assert metrics["ALPHA"] == pytest.approx(0.2864)
+    # Empyrical 0.5.0 used mean(alpha series) * 252: 0.2520 here.
+    assert linear_050 == pytest.approx(0.252)
+    assert metrics["ALPHA"] != pytest.approx(round(linear_050, 4))
+
+
 def test_trade_helper_rejects_unmatched_closes_instead_of_inventing_profit():
     _, analyzer, _ = _run_report_strategy(trade=False)
     rows = pd.DataFrame({"ORDER_TYPE": ["平多"], "TRADE_AMT": [-100]})
