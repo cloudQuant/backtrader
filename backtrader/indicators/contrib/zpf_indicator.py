@@ -109,7 +109,8 @@ class ZPFIndicator(Indicator):
         self.x1ma = ma_cls(price_line, period=self.p.xlength)
         self.x2ma = ma_cls(price_line, period=max(1, 2 * self.p.xlength))
         self.xvol = ma_cls(volume_line, period=self.p.xlength)
-        self.lines.zpf = self.xvol * (self.x1ma - self.x2ma) / 2.0
-        self.lines.line1 = -self.lines.zpf
-        self.lines.line2 = self.lines.zpf
+        zpf = self.xvol * (self.x1ma - self.x2ma) / 2.0
+        self.lines.zpf = zpf
+        self.lines.line1 = zpf * -1.0
+        self.lines.line2 = zpf
         self.addminperiod(max(2 * self.p.xlength, self.p.xlength) + 2)

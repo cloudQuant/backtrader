@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 19 |
+| 5 | 指标正确性（P1/P2） | 29 | 20 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **67** |
+| | **合计** | **207** | **68** |
 
 ---
 
@@ -138,7 +138,7 @@
 - [x] **R71-039** `[P2]` `contrib/color_step_xccx_indicator.py:146` — `once()` 从 `±999999` sentinel 重启，段边界 `ftrend==0` 时输出 `-1000004.0` 真实通道值 → 从 `mplus_line[start-1]` 播种并跨段保留 `_ftrend/_strend`。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+公开数据回测**（用实际 XCCX 初始化边界、方向未确定时保留 NaN，并跨批次承接完整状态；专项 9 项和策略回归 1 项通过，独立源码复核无阻断。原 MQL5 初始哨兵会制造方向，本轮有意消除该输出；旧策略多出的一笔买入及其平仓已定位为启动伪通道触发，其余 1175 条交易事件一致，快照据此更新）。
 - [x] **R71-040** `[P2]` `contrib/digital_macd.py:178` — `signal = SMA(parent.macd)`，但父类 `next()` 在子指标之后写 `macd`，子指标只看到 NaN，signal 全 NaN → 父类 `next()` 用 macd 历史 deque 算 signal 或改线表达式。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（预热期积累真实 FIR 历史，父指标同步计算 MACD 与 signal；真实 Cerebro 两模式、短历史及 NaN 窗口恢复共 6 项通过，独立源码复核无阻断。非有限 point 参数的既有校验边界仍待处理）。
 - [x] **R71-041** `[P2]` `contrib/shared_strategy_indicators.py:996` — `BlauErgodicMDI` 声明 4 条线只写 `hist/up/dn`，`color_idx` 全 NaN → 实现颜色状态或从 lines 删除。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（依据 MQL5 CodeBase 1958 的柱值正负及变化方向计算五态颜色；当前值或前值缺失时保持 NaN。真实 Cerebro 两模式、五态及注入缺失值等 17 项通过，独立源码复核通过）。
-- [ ] **R71-042** `[P2]` `contrib/zpf_indicator.py:112` — `line1 = -self.lines.zpf` 在 `zpf` 绑定前求值，`line1` 全 NaN → 先构造 zpf 操作对象再赋 `zpf`/`line1`。CONFIRMED(FAKE)。
+- [x] **R71-042** `[P2]` `contrib/zpf_indicator.py:112` — `line1 = -self.lines.zpf` 在 `zpf` 绑定前求值，`line1` 全 NaN → 先构造 zpf 操作对象再赋 `zpf`/`line1`。CONFIRMED(FAKE)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（先建立 ZPF 源操作，再以可调度的二元操作生成相反线；真实 Cerebro 两模式、独立 SMA 参考、短历史和缺失恢复共 4 项通过，独立源码复核无阻断）。
 - [ ] **R71-043** `[P2]` `contrib/shared_strategy_indicators.py:826` — `AdaptiveMarketLevel` 未 `addminperiod`，`_minperiod==1`，前 ~157 根把 close 当 AML 输出 → `addminperiod(self._min_period)`，预热期保持 NaN。CONFIRMED(FAKE)。
 - [ ] **R71-155** `[P2]` `indicators/kst.py:78-109` — KST signal 声明 minperiod 40 后仍 NaN 8 根（signal 读 `kst[-i]`），signal 48 才有效 → minperiod 加 `rsignal-1` 或建成真实 MovAv 线。CONFIRMED(runtime)。
 - [ ] **R71-156** `[P2]` `indicators/dpo.py:59-73` — DPO 声明 minperiod 20 后仍 NaN 9 根（`next` 读 `ma[-lookback]`）→ minperiod 加 `lookback` 或绑定 `data - ma(-lookback)`。CONFIRMED(runtime)。
