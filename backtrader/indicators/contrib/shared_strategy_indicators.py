@@ -1013,6 +1013,31 @@ class BlauErgodicMDI(Indicator):
         self.lines.dn = xxxdif
         self.addminperiod(self.p.xlength + self.p.xlength1 + self.p.xlength2 + self.p.xlength3 + 2)
 
+    @staticmethod
+    def _color_idx_from_hist(current, previous):
+        """Map two finite histogram values to the upstream five color states."""
+        if not math.isfinite(current) or not math.isfinite(previous):
+            return float("nan")
+
+        color = 2.0
+        if current > 0.0:
+            if current > previous:
+                color = 4.0
+            elif current < previous:
+                color = 3.0
+        elif current < 0.0:
+            if current < previous:
+                color = 0.0
+            elif current > previous:
+                color = 1.0
+        return color
+
+    def next(self):
+        """Write the histogram color only when current and prior values exist."""
+        current = float(self.lines.hist[0])
+        previous = float(self.lines.hist[-1]) if len(self) > 1 else float("nan")
+        self.lines.color_idx[0] = self._color_idx_from_hist(current, previous)
+
 
 class BlauErgodicMDIClassic(Indicator):
     """Ergodic MDI indicator with up/down/histogram smoothing channels."""
