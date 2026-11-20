@@ -23,6 +23,9 @@ from .utils.log_message import get_logger
 
 logger = get_logger(__name__)
 
+_COMMISSION_LOOKUP_ATTRIBUTES = ("name", "_name", "_dataname", "symbol")
+_COMMISSION_LOOKUP_CACHE_MAXSIZE = 128
+
 # from . import fillers as fillers
 # from . import fillers as filler
 
@@ -136,6 +139,36 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         raise NotImplementedError
 
     @staticmethod
+    def _commission_lookup_keys_from_values(values):
+        """Build symbol/name candidates from already-read data attributes."""
+        keys = []
+        seen = set()
+        for value in values:
+            if value is None:
+                continue
+            if isinstance(value, str) and value == "":
+                continue
+            try:
+                hash(value)
+            except TypeError:
+                logger.debug("broker:151 ignored TypeError")
+                continue
+            text = str(value)
+            for key in (value, text, text.upper(), text.lower()):
+                try:
+                    marker = ("hashable", key)
+                    if marker in seen:
+                        continue
+                    seen.add(marker)
+                except TypeError:
+                    marker = ("repr", repr(key))
+                    if marker in seen:
+                        continue
+                    seen.add(marker)
+                keys.append(key)
+        return keys
+
+    @staticmethod
     def _commission_lookup_keys(data):
         """Return stable symbol/name candidates for commission lookup."""
         keys = []
@@ -166,6 +199,57 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
                 keys.append(key)
         return keys
 
+    def _cached_commission_lookup_keys(self, data):
+        """Cache normalized keys for ordinary immutable feed identifiers.
+
+        The cache contains only tuples of exact strings and ``None`` values,
+        never the data object or a commission-info result. This means data
+        identifier changes are detected on the next call, commission-table
+        changes remain immediately visible, and discarded data objects are
+        not kept alive by the cache. Unusual hashable or mutable identifier
+        values keep using the uncached legacy normalization path.
+        """
+        values = []
+        for index, attr in enumerate(_COMMISSION_LOOKUP_ATTRIBUTES):
+            value = getattr(data, attr, None)
+            if value is None or type(value) is str:
+                values.append(value)
+                continue
+
+            # Preserve single-read behavior for custom values: the captured
+            # prefix is normalized, then remaining attributes are read and
+            # normalized in their original order.
+            def remaining_values(
+                prefix=tuple(values),
+                current=value,
+                remaining_attributes=_COMMISSION_LOOKUP_ATTRIBUTES[index + 1 :],
+            ):
+                yield from prefix
+                yield current
+                for remaining_attr in remaining_attributes:
+                    yield getattr(data, remaining_attr, None)
+
+            return self._commission_lookup_keys_from_values(remaining_values())
+
+        signature = tuple(values)
+        cache = self.__dict__.get("_commission_lookup_key_cache")
+        if cache is None:
+            cache = self.__dict__.setdefault(
+                "_commission_lookup_key_cache",
+                [None] * _COMMISSION_LOOKUP_CACHE_MAXSIZE,
+            )
+
+        slot = hash(signature) % _COMMISSION_LOOKUP_CACHE_MAXSIZE
+        entry = cache[slot]
+        if entry is not None and entry[0] == signature:
+            return entry[1]
+
+        keys = tuple(self._commission_lookup_keys_from_values(values))
+        # A single slot replacement is enough. Signature equality is checked
+        # on lookup, so concurrent collisions can only evict cached work.
+        cache[slot] = (signature, keys)
+        return keys
+
     # Get commission info, if data name is in commission info dict, get corresponding value, otherwise use default self.p.commission
     def getcommissioninfo(self, data):
         """Get the commission info for a given data.
@@ -179,7 +263,15 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         # PERFORMANCE OPTIMIZATION: Use getattr instead of hasattr+access
         # Called 2.1M+ times, avoid double attribute lookup
         comminfo = self.comminfo
-        for name in self._commission_lookup_keys(data):
+        lookup_keys = self._commission_lookup_keys
+        if lookup_keys is _DEFAULT_COMMISSION_LOOKUP_KEYS:
+            lookup_keys = self._cached_commission_lookup_keys(data)
+        else:
+            # Keep subclass and instance overrides of this private hook
+            # authoritative, as they were before the cache was added.
+            lookup_keys = lookup_keys(data)
+
+        for name in lookup_keys:
             if name in comminfo:
                 return comminfo[name]
 
@@ -488,3 +580,5 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
 
 # __all__ = ['BrokerBase', 'fillers', 'filler']
+
+_DEFAULT_COMMISSION_LOOKUP_KEYS = BrokerBase._commission_lookup_keys
