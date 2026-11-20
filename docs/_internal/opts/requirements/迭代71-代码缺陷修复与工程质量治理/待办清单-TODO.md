@@ -29,14 +29,14 @@
 | 2 | Gateway / 实盘执行安全（P1） | 20 | 20 |
 | 3 | Windows 平台等价适配（本轮新增，正文实有 11 条含 1 跨仓） | 11 | 11 |
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
-| 5 | 指标正确性（P1/P2） | 29 | 25 |
+| 5 | 指标正确性（P1/P2） | 29 | 26 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 0 |
 | 7 | 性能专项（P1/P2） | 19 | 0 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 1 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **73** |
+| | **合计** | **207** | **74** |
 
 ---
 
@@ -144,7 +144,7 @@
 - [x] **R71-156** `[P2]` `indicators/dpo.py:59-73` — DPO 声明 minperiod 20 后仍 NaN 9 根（`next` 读 `ma[-lookback]`）→ minperiod 加 `lookback` 或绑定 `data - ma(-lookback)`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（最小周期包含均线回看与上游周期；period=1 的回看下限为0，避免读取未来均线。真实 Cerebro 两模式、短历史、上游/下游及既有回归共 21 项通过，独立源码复核无阻断）。
 - [x] **R71-157** `[P2]` `indicators/demarker.py:67-98` — DeMarkerRolling 实际需 `2*period` 根、声明 `period+1`，period 14 首有效 28 而 `_minperiod=15` → `nextstart` 用历史播种或 line-based rolling sums。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（首个可计算点从历史播种完整变化窗口，保留 period+1 最小周期；真实 Cerebro 两模式、短历史、上游 SMA 与缺失窗口恢复共 12 项通过，独立源码复核无阻断）。
 - [x] **R71-158** `[P2]` `indicators/zlema.py:61` — minperiod 重复计 period（`MovingAverageBase` 已加 period，再 `addminperiod(lag+period)` 得 `2*period+lag-1`，period 30 → 73 而非 44）→ `updateminperiod(lag+period)` 或直接设 `_minperiod`。CONFIRMED(runtime)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（最小周期只叠加 lag，批量计算以输入周期定位种子并限制分段写入；真实 Cerebro 两模式、上游 SMA、短历史、缺失和既有回归共 15 项通过，独立源码复核无阻断）。
-- [ ] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。
+- [x] **R71-161** `[P2]` `indicators/supertrend.py:40-43` — warmup 分支不可达：ATR minperiod 已是 `period+1`，`next` 首调用时 `len(self.data) >= period+1` → 删除或修正 minperiod。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / UNIT+合成回测**（预热只保存内部种子，公开趋势和方向保持 NaN；HLC 或 ATR 缺失时不发布方向。真实 Cerebro 两模式、策略 prenext 与缺失场景 22 项及既有策略回归 4 项通过，独立源码复核无阻断）。
 - [ ] **R71-162** `[P2]` `indicators/directionalmove.py:377,503` — 嵌套 alias tuple 使 `bt.indicators.PlusDI`/`MinusDI` 缺失（alias 解析只展开一层）→ 扁平化 alias tuple。CONFIRMED(source)。
 - [ ] **R71-163** `[P2]` `indicators/ols.py:226` — 使用已从现代 pandas 移除的 `pd.ols`，OLS 指标在新 pandas 不可用 → 改 `numpy.linalg.lstsq`/`statsmodels`。CONFIRMED(source)。
 - [x] **R71-164** `[P2]` `indicators/priceops_ext.py:91-105` — `PercentReturnsPeriod` minperiod off-by-one，首个 `close[-period]` 越界，依赖 R71-095 的负索引回绕时可能读到未来 bar → minperiod 加 1，**并与 R71-095 一起修**。CONFIRMED(source) → **2026-11-20 / 与 R71-095 同一 Backtrader dev 提交 / UNIT+本地回测**（修前首个有效 bar 提前及不足历史 runonce 出错；修后预加载/逐根/批量、短历史与策略回归通过；策略正确等待一根 bar，历史快照已按两种模式一致结果更新）。

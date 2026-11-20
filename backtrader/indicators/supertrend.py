@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """SuperTrend indicator variants migrated from functional tests."""
 
+import math
+
 from . import Indicator
 from .atr import ATR
 from .ema import EMA
@@ -25,29 +27,75 @@ class SuperTrendIndicator(Indicator):
         """Build the ATR and ``(high + low) / 2`` series used by ``next``."""
         self.atr = ATR(self.data, period=self.p.period)
         self.hl2 = (self.data.high + self.data.low) / 2.0
+        self._warmup_supertrend = None
+        self._warmup_direction = None
+        self._has_valid_state = False
+
+    def _has_complete_bar(self):
+        """Return whether this calculation's high, low and close are finite.
+
+        SuperTrend uses HLC; the open price is not part of its calculation.
+        """
+        return all(
+            math.isfinite(float(line[0]))
+            for line in (self.data.high, self.data.low, self.data.close)
+        )
+
+    def prenext(self):
+        """Retain a private seed while keeping public warmup lines unset.
+
+        ATR raises this indicator's minimum period to ``period + 1``, so
+        ``next`` is not called during the warmup bars. Preserve the
+        documented ``hl2``/uptrend seed privately for the first ATR-ready
+        calculation; strategies must continue to see unset output lines
+        until ATR and the required current prices are available.
+        """
+        if self._has_complete_bar():
+            self._warmup_supertrend = float(self.hl2[0])
+            self._warmup_direction = 1.0
+        else:
+            self._warmup_supertrend = None
+            self._warmup_direction = None
 
     def next(self):
         """Update the SuperTrend value and direction for the current bar.
 
-        Until the lookback window is full the SuperTrend equals
-        ``hl2`` and the direction is ``1`` (up). Afterwards the
-        standard SuperTrend state machine is applied: when previously
-        bullish and the close dips below the prior SuperTrend, the
-        band flips to ``upper_band`` and direction becomes ``-1``;
-        otherwise the SuperTrend tracks the rising lower band. The
-        mirror logic applies when previously bearish.
+        Warmup output lines remain unset while ATR is unavailable; a
+        private ``hl2``/uptrend seed is retained for the first ready
+        calculation. Afterwards the standard SuperTrend state machine
+        is applied: when previously bullish and the close dips below
+        the prior SuperTrend, the band flips to ``upper_band`` and
+        direction becomes ``-1``; otherwise the SuperTrend tracks the
+        rising lower band. The mirror logic applies when previously
+        bearish.
         """
-        if len(self) < self.p.period + 1:
-            self.lines.supertrend[0] = self.hl2[0]
-            self.lines.direction[0] = 1
+        atr = float(self.atr[0])
+        if not self._has_complete_bar() or not math.isfinite(atr):
+            self.lines.supertrend[0] = math.nan
+            self.lines.direction[0] = math.nan
+            self._warmup_supertrend = None
+            self._warmup_direction = None
+            self._has_valid_state = False
             return
 
-        atr = self.atr[0]
-        hl2 = self.hl2[0]
+        hl2 = float(self.hl2[0])
         upper_band = hl2 + self.p.multiplier * atr
         lower_band = hl2 - self.p.multiplier * atr
-        prev_supertrend = self.lines.supertrend[-1]
-        prev_direction = self.lines.direction[-1]
+
+        if self._has_valid_state:
+            prev_supertrend = float(self.lines.supertrend[-1])
+            prev_direction = float(self.lines.direction[-1])
+        elif self._warmup_supertrend is not None:
+            prev_supertrend = self._warmup_supertrend
+            prev_direction = self._warmup_direction
+        else:
+            # There is no complete warmup bar to seed from. Initialize from
+            # the first complete ATR-ready bar instead of exposing a default
+            # or inferring a direction from NaN history.
+            self.lines.supertrend[0] = lower_band
+            self.lines.direction[0] = 1.0
+            self._has_valid_state = True
+            return
 
         if prev_direction == 1:
             if self.data.close[0] < prev_supertrend:
@@ -63,6 +111,10 @@ class SuperTrendIndicator(Indicator):
             else:
                 self.lines.supertrend[0] = min(upper_band, prev_supertrend)
                 self.lines.direction[0] = -1
+
+        self._has_valid_state = True
+        self._warmup_supertrend = None
+        self._warmup_direction = None
 
 
 class SuperTrendBandIndicator(Indicator):
