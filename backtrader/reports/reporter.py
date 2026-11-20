@@ -8,6 +8,7 @@ Generates backtest reports in HTML, PDF, and JSON formats.
 import json
 import math
 import os
+from contextlib import contextmanager
 from datetime import datetime
 
 from .charts import ReportChart
@@ -28,6 +29,21 @@ try:
     WEASYPRINT_AVAILABLE = True
 except ImportError:
     WEASYPRINT_AVAILABLE = False
+
+
+@contextmanager
+def _close_charts_preserving_report_error(charts):
+    """Close chart resources without replacing a report-generation failure."""
+    try:
+        yield
+    except BaseException:
+        try:
+            charts.close_all()
+        except BaseException:
+            pass
+        raise
+    else:
+        charts.close_all()
 
 
 # Default HTML template
@@ -356,23 +372,21 @@ class ReportGenerator:
         Returns:
             str: Output file path
         """
-        if not JINJA2_AVAILABLE:
-            raise ImportError(
-                "jinja2 is required for HTML report generation. Install it with: pip install jinja2"
-            )
+        with _close_charts_preserving_report_error(self.charts):
+            if not JINJA2_AVAILABLE:
+                raise ImportError(
+                    "jinja2 is required for HTML report generation. Install it with: pip install jinja2"
+                )
 
-        # Collect all data
-        context = self._build_context(user=user, memo=memo, **kwargs)
+            # Collect all data
+            context = self._build_context(user=user, memo=memo, **kwargs)
 
-        # Render template
-        html_content = self._render_template(context)
+            # Render template
+            html_content = self._render_template(context)
 
-        # Write to file
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-
-        # Clean up charts
-        self.charts.close_all()
+            # Write to file
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
 
         return output_path
 
@@ -388,22 +402,20 @@ class ReportGenerator:
         Returns:
             str: Output file path
         """
-        if not WEASYPRINT_AVAILABLE:
-            raise ImportError(
-                "weasyprint is required for PDF report generation. Install it with: pip install weasyprint"
-            )
+        with _close_charts_preserving_report_error(self.charts):
+            if not WEASYPRINT_AVAILABLE:
+                raise ImportError(
+                    "weasyprint is required for PDF report generation. Install it with: pip install weasyprint"
+                )
 
-        # Collect all data
-        context = self._build_context(user=user, memo=memo, **kwargs)
+            # Collect all data
+            context = self._build_context(user=user, memo=memo, **kwargs)
 
-        # Render template
-        html_content = self._render_template(context)
+            # Render template
+            html_content = self._render_template(context)
 
-        # Convert to PDF
-        WeasyHTML(string=html_content).write_pdf(output_path)
-
-        # Clean up charts
-        self.charts.close_all()
+            # Convert to PDF
+            WeasyHTML(string=html_content).write_pdf(output_path)
 
         return output_path
 
