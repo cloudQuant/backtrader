@@ -31,12 +31,12 @@
 | 4 | 核心生命周期与数据通道（P1） | 16 | 15 |
 | 5 | 指标正确性（P1/P2） | 29 | 29 |
 | 6 | 分析器 / 报告 / Bokeh / 通知（P1/P2） | 23 | 19 |
-| 7 | 性能专项（P1/P2） | 19 | 0 |
+| 7 | 性能专项（P1/P2） | 19 | 1 |
 | 8 | 静态坏味道清零（Ruff 45 处 + OCR Dead Code） | 18 | 0 |
 | 9 | P2 其余正确性 / 清理 | 36 | 0 |
 | 10 | P3 结构演进 / 文档 / 类型治理 | 25 | 0 |
 | 11 | 回归验收与矩阵同步 | 5 | 0 |
-| | **合计** | **207** | **95** |
+| | **合计** | **207** | **96** |
 
 ---
 
@@ -191,7 +191,7 @@
 - [ ] **R71-104** `[P2]` `lineiterator.py:1805` — `_clk_update` 每 bar 每 iterator 调 `_line_like_source_clock(self.datas[0])`（3–5 次 `object.__getattribute__`/isinstance），1.15M calls/50k bars，约 15µs/bar → 按 iterator 缓存 source clock，`datas[0]` 变化时失效。CONFIRMED(runtime)。
 - [ ] **R71-105** `[P2]` `observers/trade_logger.py:2931` — `log_indicators=True`（默认）时 `_collect_indicators` 每 bar 对 `_owner` 做 `dir()` + 每个公开属性 `getattr`；5k bar/16 indicator profile 中 **1.90s/4.81s（39%）**；JSON 模式还每 bar 构造未用 `text_line` → 启动时构建候选属性列表/只遍历 `_lineiterators[IndType]`，JSON 模式跳过 text_line。CONFIRMED(runtime)。
 - [ ] **R71-106** `[P2]` `Makefile:22,26,29,32`；`scripts/refresh_strategy_durations.py:62,66` — 本地全量目标硬编码 `-n 8` 且无 `--timeout`（仓库文档已记录 xdist 0% CPU 挂起），refresh 的 `subprocess.run` 无 timeout 可能永久挂起 → 默认 serial/较低 worker + watchdog，`--timeout=300`，子进程加 `timeout=`。CONFIRMED(source)。
-- [ ] **R71-107** `[P2]` `.github/workflows/test.yml:140-237` — 18 组合 `test` job 无 `timeout-minutes`（只有 pytest per-test `--timeout=300`），xdist controller 死锁不是 test timeout，可能耗尽 GitHub 360 分钟默认值 → 给 `test`/`coverage`/`wheel-consumer` 加 `timeout-minutes: 60`。CONFIRMED(source)。
+- [x] **R71-107** `[P2]` `.github/workflows/test.yml:140-237` — 18 组合 `test` job 无 `timeout-minutes`（只有 pytest per-test `--timeout=300`），xdist controller 死锁不是 test timeout，可能耗尽 GitHub 360 分钟默认值 → 给 `test`/`coverage`/`wheel-consumer` 加 `timeout-minutes: 60`。CONFIRMED(source)。 **2026-11-20 / 本条目所在 Backtrader dev 提交 / 配置回归**（test、coverage 和 wheel-consumer 均设置 60 分钟 job 上限；专项 1 项通过，独立静态复审通过。未验证 GitHub Actions 实际耗时，矩阵调整另项处理）。
 - [ ] **R71-108** `[P2]` `.github/workflows/test.yml:233,236,295,377,469` — 每次 push 跑 18 次全量（3 OS × 6 Python），sdk 再跑一次、coverage 再跑非策略套件、master PR 再跑全量，约 **19+ 全量等价/push** → PR fast gate 只留一个 OS/Python，全矩阵放 push/nightly。CONFIRMED(source)。
 - [ ] **R71-109** `[P2]` `scripts/refresh_strategy_durations.py:5-7,62` vs `conftest.py:142` — 脚本文档默认 p50，`conftest.py` 实际 p35；durations 在 `-n 8` 下含 xdist 调度噪声，文件会跨 fast/slow 阈值漂移 → 文档改 p35 或显式传 `BT_SLOW_PERCENTILE`，按 `make test-fast` 同 worker profile 测量。CONFIRMED(source)。
 - [ ] **R71-111** `[P2]` `research/operators.py:1871-1885` — 相关系数/协方差未做 near-zero snap，ULP 噪声（±1e-16）成为不同 rank 值，`rank(correlation(...))` 破坏平局；alpha15 实测 0.4/0.6 而非 0.5 → 把 ±1 已用的 `8*eps` snap 同样应用到 0 附近。CONFIRMED(runtime)。

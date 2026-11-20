@@ -140,6 +140,7 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     needs: lint
     strategy:
       fail-fast: false
@@ -315,6 +316,7 @@ jobs:
   wheel-consumer:
     name: Wheel Consumer
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: lint
     steps:
       - uses: actions/checkout@v4
@@ -350,6 +352,7 @@ jobs:
   coverage:
     name: Coverage (non-strategy subset, non-blocking floor)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: lint
     steps:
       - name: Checkout
