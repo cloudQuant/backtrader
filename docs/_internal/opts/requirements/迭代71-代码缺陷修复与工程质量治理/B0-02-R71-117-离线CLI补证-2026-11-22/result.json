@@ -1,0 +1,36 @@
+{
+  "old": {
+    "exit": 1,
+    "missing_yahoo_module": true,
+    "rows": 0,
+    "closes": [],
+    "strategy_lengths": [],
+    "blocked_categories": "PUBLIC_BLOCKED_CATEGORIES ['open_outside_public_roots']",
+    "stdout_sha256": "ac3909d7ceffcca538730c5c7d47e6796d373d68abbd04cbb6e76ae8e53f9e80",
+    "stderr_sha256": "0c41075736a49897b10f7e4cefe70f42cb6f764a9117e55bb9fd9546cdd03b98"
+  },
+  "fixed": {
+    "exit": 0,
+    "missing_yahoo_module": false,
+    "rows": 6,
+    "closes": [
+      10.0,
+      11.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0
+    ],
+    "strategy_lengths": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "blocked_categories": "PUBLIC_BLOCKED_CATEGORIES ['open_outside_public_roots']",
+    "stdout_sha256": "0d1103900143d265fb86b08de102df6fe19806c7d964ae25454b05b03e665dfa",
+    "stderr_sha256": "660326545a07304bbf0f25e777c58b11181775e578a34400d61028ff0ec7f4e9"
+  }
+}

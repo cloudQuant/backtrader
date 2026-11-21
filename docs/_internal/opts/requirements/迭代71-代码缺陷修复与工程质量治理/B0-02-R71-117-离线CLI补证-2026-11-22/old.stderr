@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "D:\temp\b002_cli_7hp2_s_x\bootstrap.py", line 19, in <module>
+    try: runpy.run_module("backtrader.btrun.btrun",run_name="__main__")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 222, in run_module
+  File "<frozen runpy>", line 112, in _get_module_details
+  File "D:\temp\b002_cli_7hp2_s_x\old\backtrader\btrun\__init__.py", line 12, in <module>
+    from .btrun import btrun as btrun
+  File "D:\temp\b002_cli_7hp2_s_x\old\backtrader\btrun\btrun.py", line 43, in <module>
+    from ..feeds.yahoounreversed import YahooFinanceCSVData as YahooFinanceCSVDataUnreversed
+ModuleNotFoundError: No module named 'backtrader.feeds.yahoounreversed'
