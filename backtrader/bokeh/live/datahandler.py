@@ -13,6 +13,7 @@ from collections import deque
 from enum import Enum
 from itertools import chain
 from threading import Lock, Thread
+from typing import Deque
 
 from backtrader.utils.log_message import get_logger
 
@@ -329,7 +330,7 @@ class LiveDataHandler:
             return
 
         index_to_label = {}
-        row_ids = deque()
+        row_ids: Deque[int] = deque()
         for label, value in zip(datastore.index, datastore["index"].array):
             label_key = self._integer_index_key(label)
             value_key = self._integer_index_key(value)
