@@ -18,8 +18,6 @@ Example:
                 self.buy()
 """
 
-import math
-
 from . import Indicator
 from .ema import EMA
 
@@ -70,8 +68,32 @@ class Trix(Indicator):
         self.ema1 = self.p._movav(self.data, period=self.p.period)
         self.ema2 = self.p._movav(self.ema1, period=self.p.period)
         self.ema3 = self.p._movav(self.ema2, period=self.p.period)
-        # minperiod = 3 * period + rocperiod
-        self._minperiod = max(self._minperiod, 3 * self.p.period + self.p._rocperiod - 2)
+        # The rate-of-change needs ``rocperiod`` bars beyond the last EMA's
+        # first value.  Include an upstream source's minperiod as well as the
+        # three EMA stages themselves.
+        self._minperiod = max(
+            self.ema3._minperiod + self.p._rocperiod,
+            3 * self.p.period + self.p._rocperiod - 2,
+        )
+
+    def _value_at(self, index, ema3_array):
+        """Return one TRIX value using the same zero-denominator rule as next."""
+        if index < self._minperiod - 1:
+            return float("nan")
+
+        previous_index = index - self.p._rocperiod
+        if (
+            previous_index < 0
+            or previous_index >= len(ema3_array)
+            or index >= len(ema3_array)
+        ):
+            return float("nan")
+
+        ema3_curr = float(ema3_array[index])
+        ema3_prev = float(ema3_array[previous_index])
+        if ema3_prev != 0:
+            return 100.0 * (ema3_curr / ema3_prev - 1.0)
+        return 0.0
 
     def next(self):
         """Calculate TRIX for the current bar.
@@ -89,39 +111,25 @@ class Trix(Indicator):
     def once(self, start, end):
         """Calculate TRIX in runonce mode.
 
-        Computes triple EMA rate of change percentage across all bars.
+        Computes triple EMA rate of change percentage for ``[start, end)``.
         """
         ema3_array = self.ema3.lines[0].array
         larray = self.lines.trix.array
-        rocperiod = self.p._rocperiod
-        minperiod = 3 * self.p.period + rocperiod - 2
+
+        if start >= end:
+            return
 
         while len(larray) < end:
             larray.append(float("nan"))
 
-        for i in range(min(minperiod, len(ema3_array))):
-            if i < len(larray):
-                larray[i] = float("nan")
+        write_start = max(0, start)
+        write_end = min(end, len(ema3_array))
 
-        for i in range(minperiod, min(end, len(ema3_array))):
-            ema3_curr = ema3_array[i] if i < len(ema3_array) else 0.0
-            ema3_prev = (
-                ema3_array[i - rocperiod]
-                if i >= rocperiod and i - rocperiod < len(ema3_array)
-                else 0.0
-            )
+        for i in range(write_start, write_end):
+            larray[i] = self._value_at(i, ema3_array)
 
-            if (
-                isinstance(ema3_curr, float)
-                and math.isnan(ema3_curr)
-                or isinstance(ema3_prev, float)
-                and math.isnan(ema3_prev)
-            ):
-                larray[i] = float("nan")
-            elif ema3_prev != 0:
-                larray[i] = 100.0 * (ema3_curr / ema3_prev - 1.0)
-            else:
-                larray[i] = 0.0
+        for i in range(max(write_start, write_end), end):
+            larray[i] = float("nan")
 
 
 class TrixSignal(Trix):
@@ -169,10 +177,14 @@ class TrixSignal(Trix):
     def once(self, start, end):
         """Calculate TRIX Signal in runonce mode.
 
-        Computes signal line as EMA of TRIX values across all bars.
+        Computes signal line as EMA of TRIX values for ``[start, end)``.
         """
+        if start >= end:
+            return
+
         super().once(start, end)
         trix_array = self.lines.trix.array
+        ema3_array = self.ema3.lines[0].array
         signal_array = self.lines.signal.array
         signal_alpha = self.signal_alpha
         signal_alpha1 = self.signal_alpha1
@@ -180,23 +192,43 @@ class TrixSignal(Trix):
         while len(signal_array) < end:
             signal_array.append(float("nan"))
 
-        # Find first valid trix value for seed
-        seed_idx = -1
-        for i in range(len(trix_array)):
-            if i < len(trix_array):
-                val = trix_array[i]
-                if not (isinstance(val, float) and math.isnan(val)):
-                    seed_idx = i
-                    break
+        write_end = min(end, len(trix_array))
+        write_start = max(0, start)
+        write_limit = min(end, len(signal_array))
+        seed_idx = self._minperiod - 1
+        if seed_idx >= write_end:
+            for index in range(write_start, write_limit):
+                signal_array[index] = float("nan")
+            return
 
-        if seed_idx >= 0 and seed_idx < len(signal_array):
-            prev_signal = trix_array[seed_idx]
-            signal_array[seed_idx] = prev_signal
+        for index in range(write_start, min(seed_idx, write_end)):
+            signal_array[index] = float("nan")
 
-            for i in range(seed_idx + 1, min(end, len(trix_array))):
-                trix_val = trix_array[i] if i < len(trix_array) else 0.0
-                if isinstance(trix_val, float) and math.isnan(trix_val):
-                    signal_array[i] = float("nan")
-                else:
-                    prev_signal = prev_signal * signal_alpha1 + trix_val * signal_alpha
-                    signal_array[i] = prev_signal
+        write_start = max(write_start, seed_idx)
+        if write_start >= write_end:
+            for index in range(write_start, write_limit):
+                signal_array[index] = float("nan")
+            return
+
+        prev_signal = self._value_at(seed_idx, ema3_array)
+
+        # Reconstruct the recurrence state without touching the prefix.  This
+        # lets runonce call this method for disjoint output ranges.  Use the
+        # first TRIX bar as the seed, even when it is NaN, matching nextstart.
+        for index in range(seed_idx + 1, write_start):
+            trix_value = self._value_at(index, ema3_array)
+            prev_signal = (
+                prev_signal * signal_alpha1
+                + trix_value * signal_alpha
+            )
+
+        for index in range(write_start, write_end):
+            if index == seed_idx:
+                signal_array[index] = prev_signal
+                continue
+
+            prev_signal = (
+                prev_signal * signal_alpha1
+                + float(trix_array[index]) * signal_alpha
+            )
+            signal_array[index] = prev_signal
