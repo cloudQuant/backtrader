@@ -73,6 +73,8 @@ class DerivativeIndicator(Indicator):
             return (open_ + close) / 2.0
         if mode == 9:
             return (open_ + close + high + low) / 4.0
+        if mode in (10, 11) and (open_ != open_ or close != close):
+            return float("nan")
         if mode == 10:
             if close > open_:
                 return high
