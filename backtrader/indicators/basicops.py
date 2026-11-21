@@ -658,6 +658,7 @@ class OperationN(PeriodN):
 
     def once(self, start, end):
         """Optimized batch calculation for runonce mode - same approach as SMA"""
+        projection_failed = False
         try:
             # Get arrays for efficient calculation - use same approach as SMA
             dst = self.lines[0].array
@@ -670,6 +671,17 @@ class OperationN(PeriodN):
                 choose_max = True
             elif type(self) is Lowest and func is min:
                 choose_max = False
+
+            # LineBuffer's window reader projects infinite values according to
+            # its owner and active factor context. Raw batch slices bypass it.
+            # Keep the finite deque fast path and use projected windows only
+            # when this exact built-in extremum sees an infinity.
+            project_extreme_infinity = (
+                choose_max is not None
+                and type(src) is array.array
+                and src.typecode == "d"
+                and (float("inf") in src or float("-inf") in src)
+            )
 
             index_choice = None
             choose_latest = None
@@ -749,6 +761,7 @@ class OperationN(PeriodN):
             # the deque becomes faster at the measured 32-period crossover.
             if (
                 choose_max is not None
+                and not project_extreme_infinity
                 and type(period) is int
                 and period >= _MIN_PERIOD_FOR_MONOTONIC_ONCE
                 and type(start) is int
@@ -824,6 +837,24 @@ class OperationN(PeriodN):
                     if end_idx <= len(src):
                         # Get slice of data
                         slice_data = src[start_idx:end_idx]
+                        if project_extreme_infinity and (
+                            float("inf") in slice_data or float("-inf") in slice_data
+                        ):
+                            source_line = self.data.lines[0]
+                            linebuffer_module = sys.modules[
+                                __package__.rpartition(".")[0] + ".linebuffer"
+                            ]
+                            try:
+                                slice_data = array.array(
+                                    "d",
+                                    (
+                                        linebuffer_module._linebuffer_value(source_line, value)
+                                        for value in slice_data
+                                    ),
+                                )
+                            except Exception:
+                                projection_failed = True
+                                raise
                         # Apply function (min, max, etc.)
                         if len(slice_data) == period:
                             try:
@@ -839,6 +870,8 @@ class OperationN(PeriodN):
                     # Not enough data yet
                     dst[i] = float("nan")
         except Exception:
+            if projection_failed:
+                raise
             logger.debug("OperationN.once() failed, falling back to once_via_next", exc_info=True)
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)
