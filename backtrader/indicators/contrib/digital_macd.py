@@ -14,6 +14,9 @@ __all__ = [
     "DigitalMacd",
 ]
 
+# Long signal windows use a rolling non-finite count instead of rescanning all entries.
+_MIN_SIGNAL_PERIOD_FOR_FINITE_COUNT = 128
+
 
 class DigitalMacd(Indicator):
     """Digital MACD indicator built from fixed FIR fast/slow filter banks."""
@@ -173,6 +176,10 @@ class DigitalMacd(Indicator):
         self._closes = deque(maxlen=self._max_lookback)
         self._signal_period = max(int(self.p.signal_period), 1)
         self._signal_history = deque(maxlen=self._signal_period)
+        self._track_signal_finite_count = (
+            self._signal_period >= _MIN_SIGNAL_PERIOD_FOR_FINITE_COUNT
+        )
+        self._signal_nonfinite_count = 0
         self.addminperiod(self._max_lookback + self._signal_period - 1)
         self._point = float(self.p.point) if float(self.p.point) else 1.0
 
@@ -203,8 +210,27 @@ class DigitalMacd(Indicator):
             macd = (fast_dma - slow_dma) / self._point
 
         self.l.macd[0] = macd
+
+        if self._track_signal_finite_count:
+            # Account for the deque item that append will evict when full.
+            if (
+                len(self._signal_history) == self._signal_period
+                and not math.isfinite(self._signal_history[0])
+            ):
+                self._signal_nonfinite_count -= 1
+
         self._signal_history.append(macd)
-        if len(self._signal_history) < self._signal_period or not all(
+
+        if self._track_signal_finite_count:
+            if not math.isfinite(macd):
+                self._signal_nonfinite_count += 1
+            if (
+                len(self._signal_history) < self._signal_period
+                or self._signal_nonfinite_count
+            ):
+                self.l.signal[0] = float("nan")
+                return
+        elif len(self._signal_history) < self._signal_period or not all(
             math.isfinite(value) for value in self._signal_history
         ):
             self.l.signal[0] = float("nan")
