@@ -162,6 +162,7 @@ def plan_main_contract_rollover(
     changed_ids = {_key_order(item) for item in changed}
     old_mapping = tuple(MainContractBinding(key, instrument) for key, instrument in old_pairs)
     new_mapping = tuple(MainContractBinding(key, instrument) for key, instrument in new_pairs)
+    required: Tuple[str, ...]
     if changed:
         next_epoch = _canonical_json_sha256(
             {
