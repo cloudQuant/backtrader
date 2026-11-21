@@ -6,8 +6,10 @@ helper functions and constants without cross-test name collisions.
 """
 
 import array as array_module
+import builtins
 from collections import deque
 from itertools import islice
+from types import BuiltinFunctionType, ModuleType
 import math
 
 try:
@@ -32,6 +34,17 @@ _MIN_VECTORIZED_ONCE_BARS = 16
 # Python 3.12 and newer may use compensated float summation.  The signal
 # contract uses Python's sum, while the FIR contract uses ordered +=.
 _FLOAT_SUM_COMPENSATED = sum([1.0e16, 1.0, -1.0e16]) != 0.0
+
+# The prefix shortcut is only safe when the functions it skips are the native
+# side-effect-free implementations.  Patched functions keep the original scan.
+_NATIVE_MATH = math
+_NATIVE_BUILTINS = builtins
+_NATIVE_ISFINITE = vars(math).get("isfinite") if type(math) is ModuleType else None
+_NATIVE_SUM = vars(builtins).get("sum") if type(builtins) is ModuleType else None
+_NATIVE_ALL = vars(builtins).get("all") if type(builtins) is ModuleType else None
+_NATIVE_NP = _np
+_NATIVE_NP_ISFINITE = vars(_np).get("isfinite") if type(_np) is ModuleType else None
+_NATIVE_NP_UFUNC_TYPE = vars(_np).get("ufunc") if type(_np) is ModuleType else None
 
 
 def _write_np_slice(line_array, write_start, values):
@@ -510,10 +523,49 @@ class DigitalMacd(Indicator):
                     # Match next(): Python's sum may use compensated float
                     # accumulation, which vectorized += does not reproduce.
                     macd_values = m_vec.tolist()
+                    # Only skip per-element checks for native, side-effect-free
+                    # functions.  A patched sum or isfinite retains the original
+                    # window order and short-circuit behaviour.
+                    use_prefix = (
+                        signal_period >= _MIN_SIGNAL_PERIOD_FOR_FINITE_COUNT
+                        and math is _NATIVE_MATH
+                        and type(math) is ModuleType
+                        and builtins is _NATIVE_BUILTINS
+                        and type(builtins) is ModuleType
+                        and type(_NATIVE_ISFINITE) is BuiltinFunctionType
+                        and _NATIVE_ISFINITE.__module__ == "math"
+                        and _NATIVE_ISFINITE.__name__ == "isfinite"
+                        and vars(math).get("isfinite") is _NATIVE_ISFINITE
+                        and type(_NATIVE_SUM) is BuiltinFunctionType
+                        and _NATIVE_SUM.__module__ == "builtins"
+                        and _NATIVE_SUM.__name__ == "sum"
+                        and vars(builtins).get("sum") is _NATIVE_SUM
+                        and globals().get("sum", _NATIVE_SUM) is _NATIVE_SUM
+                        and type(_NATIVE_ALL) is BuiltinFunctionType
+                        and _NATIVE_ALL.__module__ == "builtins"
+                        and _NATIVE_ALL.__name__ == "all"
+                        and vars(builtins).get("all") is _NATIVE_ALL
+                        and globals().get("all", _NATIVE_ALL) is _NATIVE_ALL
+                        and _np is _NATIVE_NP
+                        and type(_np) is ModuleType
+                        and vars(_np).get("isfinite") is _NATIVE_NP_ISFINITE
+                        and type(_NATIVE_NP_ISFINITE) is _NATIVE_NP_UFUNC_TYPE
+                        and _NATIVE_NP_ISFINITE.__name__ == "isfinite"
+                    )
+                    if use_prefix:
+                        nonfinite_prefix = (~_np.isfinite(m_vec)).cumsum()
                     sig_vec = []
                     for idx in range(sig_count):
-                        window = macd_values[sig_base + idx : sig_base + idx + signal_period]
-                        if all(math.isfinite(value) for value in window):
+                        first = sig_base + idx
+                        last = first + signal_period
+                        window = macd_values[first:last]
+                        if use_prefix:
+                            finite = nonfinite_prefix[last - 1] == (
+                                nonfinite_prefix[first - 1] if first else 0
+                            )
+                        else:
+                            finite = all(math.isfinite(value) for value in window)
+                        if finite:
                             value = sum(window) / signal_period
                             sig_vec.append(value if math.isfinite(value) else nan_val)
                         else:
