@@ -1,0 +1,6 @@
+.gitattributes -text
+README.md -text
+rebuild.py -text
+executed_driver.py -text
+executed_worker.py -text
+result.json -text
