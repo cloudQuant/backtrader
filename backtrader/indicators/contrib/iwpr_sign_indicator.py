@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ATR,
     Indicator,
@@ -16,7 +18,7 @@ __all__ = [
 
 
 class IWPRSignIndicator(Indicator):
-    """Indicator computing WPR buy/sell levels with ATR context."""
+    """WPR buy/sell levels with ATR; incomplete WPR price windows yield NaN."""
 
     lines = ("sell", "buy", "wpr", "atr")
     params = (
@@ -38,6 +40,10 @@ class IWPRSignIndicator(Indicator):
         hh = max(highs)
         ll = min(lows)
         cp = float(self.data.close[0])
+        # Python max/min can ignore NaN after the first element; do not
+        # classify an incomplete window as though its extrema were known.
+        if not math.isfinite(cp) or not all(math.isfinite(v) for v in highs + lows):
+            return float("nan")
         if hh == ll:
             return -50.0
         return -100.0 * (hh - cp) / (hh - ll)
