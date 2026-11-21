@@ -25,6 +25,55 @@ import math
 from . import Indicator, MovAv
 
 
+
+def _population_stddev(values, period):
+    """Compute a finite population spread without subtracting large squares.
+
+    Preserve the existing non-finite fallback; finite extremes use scaled
+    coordinates when subtraction, a sum, or the Euclidean norm overflows.
+    """
+    if not values:
+        return math.sqrt(0.0 / period)
+    if not all(math.isfinite(value) for value in values):
+        total = squares = 0.0
+        for value in values:
+            total += value
+            squares += value * value
+        return math.sqrt(max(0.0, abs(squares / period - (total / period) ** 2)))
+
+    origin = values[0]
+    diffs = [value - origin for value in values]
+    try:
+        if all(math.isfinite(value) for value in diffs):
+            maximum = max(abs(value) for value in diffs)
+            if 0.0 < maximum < float.fromhex('0x1.0p-1022'):
+                exponent = math.frexp(maximum)[1]
+                small = [math.ldexp(value, -exponent) for value in diffs]
+                mean = math.fsum(small) / period
+                norm = math.hypot(*(value - mean for value in small)) / math.sqrt(period)
+                return math.ldexp(norm, exponent)
+            mean = math.fsum(diffs) / period
+            centered = [value - mean for value in diffs]
+            norm = math.hypot(*centered)
+            if math.isfinite(norm):
+                return norm / math.sqrt(period)
+    except OverflowError:
+        pass
+
+    max_value = max(abs(value) for value in values)
+    if max_value == 0.0:
+        return 0.0
+    exponent = math.frexp(max_value)[1]
+    scaled = [math.ldexp(value, -exponent) for value in values]
+    base = scaled[0]
+    offsets = [value - base for value in scaled]
+    mean = math.fsum(offsets) / period
+    normalized = math.hypot(*(value - mean for value in offsets)) / math.sqrt(period)
+    try:
+        return math.ldexp(normalized, exponent)
+    except OverflowError:
+        return float("inf")
+
 class BollingerBands(Indicator):
     """
     Defined by John Bollinger in the 80s. It measures volatility by defining
@@ -84,29 +133,29 @@ class BollingerBands(Indicator):
         devfactor = self.p.devfactor
 
         # Calculate the arithmetic mean used by the population standard deviation.
-        data_sum = 0.0
-        data_sq_sum = 0.0
-        for i in range(period):
-            val = self.data[-i]
-            data_sum += val
-            data_sq_sum += val * val
-
-        mean = data_sum / period
+        values = [self.data[-i] for i in range(period)]
         mid = self.midma[0]
-
-        # Calculate StdDev
-        meansq = data_sq_sum / period
-        sqmean = mean * mean
-        diff = abs(meansq - sqmean)
-        stddev = math.sqrt(max(0, diff))
+        stddev = _population_stddev(values, period)
 
         # Set lines
+        width = devfactor * stddev
+        top = mid + width
+        bot = mid - width
+        context = self._factor_strict_context_for_callback()
+        if context is not None:
+            from ..research.strict import reject_infinity
+
+            phase = getattr(context, "phase", None) or "next"
+            for value in (devfactor, stddev, width, mid, top, bot):
+                reject_infinity(context, value, phase, operation=self)
         self.lines.mid[0] = mid
-        self.lines.top[0] = mid + devfactor * stddev
-        self.lines.bot[0] = mid - devfactor * stddev
+        self.lines.top[0] = top
+        self.lines.bot[0] = bot
 
     def once(self, start, end):
         """Calculate Bollinger Bands in runonce mode."""
+        if start >= end:
+            return
         darray = self.data.array
         mid_array = self.lines.mid.array
         top_array = self.lines.top.array
@@ -124,30 +173,35 @@ class BollingerBands(Indicator):
 
         # PERFORMANCE: Cache constants and functions
         nan_val = float("nan")
-        sqrt = math.sqrt
+        context = self._factor_strict_context_for_callback()
+        if context is not None:
+            from ..research.strict import reject_infinity
+
+            phase = getattr(context, "phase", None) or "once"
 
         # Pre-fill warmup with NaN
-        for i in range(min(period - 1, darray_len)):
+        for i in range(max(0, start), min(period - 1, darray_len, end)):
             mid_array[i] = nan_val
             top_array[i] = nan_val
             bot_array[i] = nan_val
 
-        for i in range(period - 1, actual_end):
-            data_sum = 0.0
-            data_sq_sum = 0.0
+        for i in range(max(start, period - 1), actual_end):
+            if context is not None:
+                reject_infinity(context, devfactor, phase, operation=self)
+            values = []
             has_nan = False
-
-            # PERFORMANCE: Simplified loop with faster NaN check
             for j in range(period):
                 idx = i - j
                 if 0 <= idx < darray_len:
                     val = darray[idx]
-                    # PERFORMANCE: Use val != val for NaN check (faster)
                     if val != val:
                         has_nan = True
-                        break
-                    data_sum += val
-                    data_sq_sum += val * val
+                        if context is None:
+                            break
+                        continue
+                    if context is not None:
+                        reject_infinity(context, val, phase, operation=self)
+                    values.append(val)
 
             if has_nan:
                 mid_array[i] = nan_val
@@ -155,16 +209,18 @@ class BollingerBands(Indicator):
                 bot_array[i] = nan_val
                 continue
 
-            mean = data_sum / period
             mid = midma_array[i]
-            meansq = data_sq_sum / period
-            sqmean = mean * mean
-            diff = abs(meansq - sqmean)
-            stddev = sqrt(max(0, diff))
+            stddev = _population_stddev(values, period)
 
+            width = devfactor * stddev
+            top = mid + width
+            bot = mid - width
+            if context is not None:
+                for value in (devfactor, stddev, width, mid, top, bot):
+                    reject_infinity(context, value, phase, operation=self)
             mid_array[i] = mid
-            top_array[i] = mid + devfactor * stddev
-            bot_array[i] = mid - devfactor * stddev
+            top_array[i] = top
+            bot_array[i] = bot
 
 
 # Bollinger Bands Percentage indicator
@@ -192,18 +248,37 @@ class BollingerBandsPct(BollingerBands):
         top = self.lines.top[0]
         bot = self.lines.bot[0]
         diff = top - bot
+        context = self._factor_strict_context_for_callback()
+        if context is not None:
+            from ..research.strict import reject_infinity
+
+            phase = getattr(context, "phase", None) or "next"
+            reject_infinity(context, diff, phase, operation=self)
         if diff != 0:
-            self.lines.pctb[0] = (self.data[0] - bot) / diff
+            numerator = self.data[0] - bot
+            if context is not None:
+                reject_infinity(context, numerator, phase, operation=self)
+            pct = numerator / diff
         else:
-            self.lines.pctb[0] = 0.0
+            pct = 0.0
+        if context is not None:
+            reject_infinity(context, pct, phase, operation=self)
+        self.lines.pctb[0] = pct
 
     def once(self, start, end):
         """Calculate %B line in runonce mode."""
+        if start >= end:
+            return
         super().once(start, end)
         darray = self.data.array
         top_array = self.lines.top.array
         bot_array = self.lines.bot.array
         pctb_array = self.lines.pctb.array
+        context = self._factor_strict_context_for_callback()
+        if context is not None:
+            from ..research.strict import reject_infinity
+
+            phase = getattr(context, "phase", None) or "once"
 
         while len(pctb_array) < end:
             pctb_array.append(float("nan"))
@@ -222,7 +297,17 @@ class BollingerBandsPct(BollingerBands):
                 pctb_array[i] = float("nan")
             else:
                 diff = top - bot
+                if context is not None:
+                    reject_infinity(context, diff, phase, operation=self)
                 if diff != 0:
-                    pctb_array[i] = (data_val - bot) / diff
+                    if context is not None:
+                        reject_infinity(context, data_val, phase, operation=self)
+                    numerator = data_val - bot
+                    if context is not None:
+                        reject_infinity(context, numerator, phase, operation=self)
+                    pct = numerator / diff
                 else:
-                    pctb_array[i] = 0.0
+                    pct = 0.0
+                if context is not None:
+                    reject_infinity(context, pct, phase, operation=self)
+                pctb_array[i] = pct
