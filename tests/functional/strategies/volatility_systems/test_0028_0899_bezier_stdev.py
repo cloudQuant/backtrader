@@ -164,7 +164,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
 
     def _val(self, line, offset):
         v = float(line[-offset]) if offset else float(line[0])
-        return 0.0 if math.isnan(v) else v
+        return v if math.isfinite(v) else float("nan")
 
     def next(self):
         """Evaluate entry/exit conditions and submit or close orders as needed."""
@@ -187,7 +187,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         # Buy open
         if self.p.buy_open_mode == 0:  # POINT
             bv = self._val(self.indicator.bulls, sig_bar)
-            if bv != 0.0:
+            if math.isfinite(bv) and bv != 0.0:
                 BO = True
         else:  # DIRECT: V-bottom on Bezier line
             if sig_bar + 2 < len(self.signal_data):
@@ -200,7 +200,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         # Sell open
         if self.p.sell_open_mode == 0:  # POINT
             sv = self._val(self.indicator.bears, sig_bar)
-            if sv != 0.0:
+            if math.isfinite(sv) and sv != 0.0:
                 SO = True
         else:  # DIRECT: V-top on Bezier line
             if sig_bar + 2 < len(self.signal_data):
@@ -213,7 +213,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         # Buy close (close short)
         if self.p.buy_close_mode == 0:  # POINT
             bv = self._val(self.indicator.bulls, sig_bar)
-            if bv != 0.0:
+            if math.isfinite(bv) and bv != 0.0:
                 SC = True
         else:  # DIRECT: Bezier rising
             if sig_bar + 1 < len(self.signal_data):
@@ -225,7 +225,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         # Sell close (close long)
         if self.p.sell_close_mode == 0:  # POINT
             sv = self._val(self.indicator.bears, sig_bar)
-            if sv != 0.0:
+            if math.isfinite(sv) and sv != 0.0:
                 BC = True
         else:  # DIRECT: Bezier falling
             if sig_bar + 1 < len(self.signal_data):
