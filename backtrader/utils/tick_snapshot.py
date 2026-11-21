@@ -88,7 +88,12 @@ def _is_immutable(value: Any, depth: int = 0) -> bool:
     )
     if immutable:
         try:
-            ref = weakref.ref(value, lambda _ref, key=key: _verified.pop(key, None))
+            def _remove_verification(
+                _ref: weakref.ReferenceType[Any], cache_key: int = key
+            ):
+                return _verified.pop(cache_key, None)
+
+            ref = weakref.ref(value, _remove_verification)
         except TypeError:  # no weakref support (slots): just don't cache
             return True
         _verified[key] = (ref,)
@@ -119,11 +124,11 @@ def _snapshot_value(value: Any, memo: dict[int, Any]) -> Any:
             memo[identity] = shallow_dict
             return shallow_dict
         result_dict: dict = {}
-        result = MappingProxyType(result_dict) if kind is MappingProxyType else result_dict
-        memo[identity] = result
+        result_mapping = MappingProxyType(result_dict) if kind is MappingProxyType else result_dict
+        memo[identity] = result_mapping
         for key, item in value.items():
             result_dict[_snapshot_value(key, memo)] = _snapshot_value(item, memo)
-        return result
+        return result_mapping
     if kind is set:
         if all(_is_immutable(item) for item in value):
             shallow_set = set(value)

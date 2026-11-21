@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import gc
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
@@ -183,3 +184,23 @@ def test_repeated_snapshots_do_not_share_a_cached_live_proxy():
     source["price"] = 2
     second = snapshot_tick(tick)
     assert first["metadata"]["price"] == 1 and second["metadata"]["price"] == 2
+
+
+def test_verified_contract_cache_entry_is_removed_when_contract_dies():
+    import backtrader.utils.tick_snapshot as snapshot_module
+
+    @dataclass(frozen=True)
+    class Frozen:
+        value: str
+
+    Frozen.__module__ = "bt_api_py._test_frozen_contract_cache"
+    subject = Frozen("immutable")
+    cache_key = id(subject)
+
+    assert snapshot_module._is_immutable(subject) is True
+    assert cache_key in snapshot_module._verified
+
+    del subject
+    gc.collect()
+
+    assert cache_key not in snapshot_module._verified
