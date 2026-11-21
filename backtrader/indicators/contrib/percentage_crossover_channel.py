@@ -32,6 +32,19 @@ class PercentageCrossoverChannel(Indicator):
     def next(self):
         """Update middle, upper, and lower channel lines for the current bar."""
         price = float(self.data.close[0])
+        # ``price`` is a built-in float. Its self-difference is zero only
+        # when finite; for NaN or either infinity it is NaN. This avoids
+        # consulting a replaceable module callback on every bar.
+        invalid = price - price
+        if invalid != 0.0:
+            if price == price:  # noqa: PLR0124 - infinity, not a NaN sentinel
+                from ...linebuffer import _reject_factor_infinity
+
+                _reject_factor_infinity(self.lines.middle, price)
+            self.lines.middle[0] = invalid
+            self.lines.upper[0] = invalid
+            self.lines.lower[0] = invalid
+            return
         if len(self.data) == 1 or self.lines.middle[-1] != self.lines.middle[-1]:
             middle = price
         else:
