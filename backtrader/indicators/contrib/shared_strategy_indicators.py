@@ -711,6 +711,49 @@ class X2MACandleApprox(Indicator):
         self.lines.color_state[0] = color_state
 
 
+def _xperiod_once_indicator_source(indicator, start, end, callback_name):
+    """Run batch callbacks with indicator input and child line cursors aligned."""
+    if end <= start:
+        return
+    inputs = []
+    seen = set()
+    sources = (*indicator.datas, *indicator._lineiterators[0])
+    for source in sources:
+        for line in source.lines:
+            if id(line) not in seen:
+                seen.add(id(line))
+                inputs.append((line, line.idx, line.lencount))
+    outputs = [(line, line.idx, line.lencount) for line in indicator.lines]
+    manual_recompute = any(idx >= start for _line, idx, _count in outputs)
+    try:
+        for index in range(start, end):
+            for source in sources:
+                source.advance()
+            indicator.lines.advance()
+            virtual = [
+                (line, line.idx, line.lencount) for line, _idx, _count in (*inputs, *outputs)
+            ]
+            try:
+                for line, _idx, _count in virtual:
+                    line.idx = index
+                    line.lencount = index + 1
+                if callback_name == "prenext":
+                    indicator.prenext()
+                else:
+                    indicator._factor_run_callback(
+                        getattr(indicator, callback_name), "once_via_next"
+                    )
+            finally:
+                for line, idx, count in virtual:
+                    line.idx = idx
+                    line.lencount = count
+    finally:
+        if manual_recompute:
+            for line, idx, count in (*inputs, *outputs):
+                line.idx = idx
+                line.lencount = count
+
+
 class XPeriodCandleColor(Indicator):
     """Smoothing-based period-candle indicator producing color index."""
 
@@ -753,6 +796,24 @@ class XPeriodCandleColor(Indicator):
         self.lines.xhigh[0] = max(highs)
         self.lines.xlow[0] = min(lows)
         self.lines.color_idx[0] = 0.0 if xopen <= xclose else 2.0
+
+    def preonce(self, start, end):
+        if isinstance(self.data, Indicator):
+            _xperiod_once_indicator_source(self, start, end, "prenext")
+        else:
+            self.preonce_via_prenext(start, end)
+
+    def oncestart(self, start, end):
+        if isinstance(self.data, Indicator):
+            _xperiod_once_indicator_source(self, start, end, "nextstart")
+        else:
+            self.oncestart_via_nextstart(start, end)
+
+    def once(self, start, end):
+        if isinstance(self.data, Indicator):
+            _xperiod_once_indicator_source(self, start, end, "next")
+        else:
+            self.once_via_next(start, end)
 
 
 class XPeriodCandleSystemColor(Indicator):
