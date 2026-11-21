@@ -85,19 +85,26 @@ class WeightedMovingAverage(MovingAverageBase):
         coef = self.coef
         weights = self.weights
 
+        if start >= end:
+            return
+
         while len(larray) < end:
             larray.append(float("nan"))
 
-        # Pre-fill warmup with NaN
-        for i in range(min(period - 1, len(darray))):
-            if i < len(larray):
-                larray[i] = float("nan")
+        # Each invocation owns only its requested output range. A partial
+        # warmup or missing source must not overwrite previous segments.
+        write_start = max(0, start)
+        for i in range(write_start, min(end, period - 1)):
+            larray[i] = float("nan")
 
         darray_len = len(darray)
-        for i in range(period - 1, min(end, darray_len)):
+        for i in range(max(write_start, period - 1), min(end, darray_len)):
             window = darray[i - period + 1 : i + 1]
             # window is oldest-first; weights[0]=1.0 weights the oldest value.
             larray[i] = coef * math.fsum(weights[j] * window[j] for j in range(period))
+
+        for i in range(max(write_start, darray_len), end):
+            larray[i] = float("nan")
 
 
 WMA = WeightedMovingAverage
