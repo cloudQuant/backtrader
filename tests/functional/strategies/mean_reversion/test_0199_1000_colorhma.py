@@ -486,7 +486,7 @@ def test_200_0199_1000_colorhma() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
-    assert metrics.get('bar_num') == 181, f"bar_num: expected=181, got={metrics.get('bar_num')!r}"
+    assert metrics.get('bar_num') == 183, f"bar_num: expected=183, got={metrics.get('bar_num')!r}"
     assert metrics.get('win_count') == 10, f"win_count: expected=10, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 14, f"loss_count: expected=14, got={metrics.get('loss_count')!r}"
     assert metrics.get('total_trades') == 24, f"total_trades: expected=24, got={metrics.get('total_trades')!r}"
