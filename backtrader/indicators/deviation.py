@@ -145,6 +145,13 @@ class StandardDeviation(Indicator):
         if not self._use_external_mean:
             self._mean_prev = mean
 
+        # Keep an unavailable external mean missing in incremental mode, just
+        # as ``once`` does.  Update the smoothed source state first so a later
+        # finite mean resumes from the same price-window history.
+        if self._use_external_mean and mean != mean:
+            self.lines.stddev[0] = float("nan")
+            return
+
         self.lines.stddev[0] = self._finish(meansq, mean)
 
     def once(self, start, end):
