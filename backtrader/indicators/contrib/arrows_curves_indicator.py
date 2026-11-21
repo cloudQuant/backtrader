@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -54,6 +56,11 @@ class ArrowsCurvesIndicator(Indicator):
             float(self.data.low[-shift]) for shift in range(self.p.relay, self.p.relay + self.p.ssp)
         ]
         close0 = float(self.data.close[0])
+        if any(math.isnan(value) for value in (*high_window, *low_window, close0)):
+            for line in self.lines:
+                line[0] = float("nan")
+            return
+
         high_val = max(high_window)
         low_val = min(low_window)
         smax = high_val - (low_val - high_val) * self.p.channel / 100.0
