@@ -4,7 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List as _List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast as _cast,
+)
 from .calendar import (
     ExchangeSessionCalendar,
     ExpectedRuleEvidence,
@@ -517,17 +528,31 @@ def iter_common_minute_windows(
         if any(value is sentinel for value in current):
             return
         while True:
-            target_close = max(value[0] for value in current)
+            target_close = max(
+                _cast(Tuple[datetime, SessionSlotEvidence], value)[0]
+                for value in current
+            )
             for index, stream in enumerate(streams):
-                while current[index] is not sentinel and current[index][0] < target_close:
+                while current[index] is not sentinel and _cast(
+                    Tuple[datetime, SessionSlotEvidence], current[index]
+                )[0] < target_close:
                     current[index] = next(stream, sentinel)
                 if current[index] is sentinel:
                     return
-            latest_close = max(value[0] for value in current)
-            if all(value[0] == latest_close for value in current):
+            latest_close = max(
+                _cast(Tuple[datetime, SessionSlotEvidence], value)[0]
+                for value in current
+            )
+            if all(
+                _cast(Tuple[datetime, SessionSlotEvidence], value)[0] == latest_close
+                for value in current
+            ):
                 yield PlannedCommonMinute(
                     close_time=latest_close,
-                    members=tuple(value[1] for value in current),
+                    members=tuple(
+                        _cast(Tuple[datetime, SessionSlotEvidence], value)[1]
+                        for value in current
+                    ),
                 )
                 for index, stream in enumerate(streams):
                     current[index] = next(stream, sentinel)
@@ -540,7 +565,7 @@ def iter_common_minute_windows(
         emitted = 0
         exhausted = False
         while not exhausted:
-            chunk = []
+            chunk: _List[PlannedCommonMinute] = []
             while len(chunk) < chunk_size:
                 planned = next(common, sentinel)
                 if planned is sentinel:
@@ -551,7 +576,7 @@ def iter_common_minute_windows(
                         "STREAM_COMMON_MINUTE_BUDGET_EXCEEDED",
                         "common closes exceed {}".format(max_common_minutes),
                     )
-                chunk.append(planned)
+                chunk.append(_cast(PlannedCommonMinute, planned))
                 emitted += 1
                 if emitted == max_common_minutes:
                     # Prove the limit is the end of the finite source range
