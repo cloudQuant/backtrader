@@ -548,28 +548,28 @@ class OperationN(PeriodN):
 
             if (
                 type(self) is FindFirstIndexHighest
-                and index_func is FindFirstIndex.func
+                and index_func is _FIND_FIRST_INDEX_FUNC
                 and self.p._evalfunc is max
             ):
                 index_choice = True
                 choose_latest = True
             elif (
                 type(self) is FindFirstIndexLowest
-                and index_func is FindFirstIndex.func
+                and index_func is _FIND_FIRST_INDEX_FUNC
                 and self.p._evalfunc is min
             ):
                 index_choice = False
                 choose_latest = True
             elif (
                 type(self) is FindLastIndexHighest
-                and index_func is FindLastIndex.func
+                and index_func is _FIND_LAST_INDEX_FUNC
                 and self.p._evalfunc is max
             ):
                 index_choice = True
                 choose_latest = False
             elif (
                 type(self) is FindLastIndexLowest
-                and index_func is FindLastIndex.func
+                and index_func is _FIND_LAST_INDEX_FUNC
                 and self.p._evalfunc is min
             ):
                 index_choice = False
@@ -1000,6 +1000,11 @@ class FindLastIndexLowest(FindLastIndex):
     """
 
     params = (("_evalfunc", min),)
+
+
+# Dynamic replacement of either base method must stay on the generic path.
+_FIND_FIRST_INDEX_FUNC = FindFirstIndex.func
+_FIND_LAST_INDEX_FUNC = FindLastIndex.func
 
 
 # Calculate cumulative sum
