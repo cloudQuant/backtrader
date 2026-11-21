@@ -43,8 +43,12 @@ class AroonHornSignIndicator(Indicator):
         for i in range(period):
             h = float(self.data.high[-i])
             low_price = float(self.data.low[-i])
+            if h != h or low_price != low_price:
+                return float("nan")
             if i + 1 < len(self.data):
                 pc = float(self.data.close[-(i + 1)])
+                if pc != pc:
+                    return float("nan")
                 tr = max(h - low_price, abs(h - pc), abs(low_price - pc))
             else:
                 tr = h - low_price
@@ -63,6 +67,10 @@ class AroonHornSignIndicator(Indicator):
         for i in range(ap):
             h = float(self.data.high[-i])
             low_price = float(self.data.low[-i])
+            if h != h or low_price != low_price:
+                self.lines.bears_aroon[0] = float("nan")
+                self.lines.bulls_aroon[0] = float("nan")
+                return
             if h > max_val:
                 max_val = h
                 max_idx = i
@@ -84,10 +92,18 @@ class AroonHornSignIndicator(Indicator):
 
         if self._trend_prev < 0 and trend > 0:
             atr = self._calc_atr()
+            if atr != atr:
+                self.lines.bears_aroon[0] = float("nan")
+                self.lines.bulls_aroon[0] = float("nan")
+                return
             bu = float(self.data.low[0]) - atr * 3.0 / 8.0
 
         if self._trend_prev > 0 and trend < 0:
             atr = self._calc_atr()
+            if atr != atr:
+                self.lines.bears_aroon[0] = float("nan")
+                self.lines.bulls_aroon[0] = float("nan")
+                return
             be = float(self.data.high[0]) + atr * 3.0 / 8.0
 
         self._trend_prev = trend

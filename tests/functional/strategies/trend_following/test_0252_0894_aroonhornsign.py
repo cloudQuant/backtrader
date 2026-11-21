@@ -192,6 +192,8 @@ class ExpAroonHornSignStrategy(bt.Strategy):
 
         bv = float(self.indicator.bulls_aroon[-sig_bar]) if sig_bar else float(self.indicator.bulls_aroon[0])
         sv = float(self.indicator.bears_aroon[-sig_bar]) if sig_bar else float(self.indicator.bears_aroon[0])
+        if math.isnan(bv) and math.isnan(sv):
+            return
         if math.isnan(bv): bv = 0.0
         if math.isnan(sv): sv = 0.0
 
