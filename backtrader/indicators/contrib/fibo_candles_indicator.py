@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -13,6 +15,18 @@ __all__ = [
 
 
 FIBO_LEVELS = {1: 0.236, 2: 0.382, 3: 0.500, 4: 0.618, 5: 0.762}
+
+
+def _reject_infinite_result(line, value):
+    """Reject computed infinity when the callback has a strict factor context."""
+    from ...linebuffer import _factor_context_for_line
+
+    context = _factor_context_for_line(line)
+    if context is not None:
+        from ...research.strict import reject_infinity
+
+        phase = getattr(context, "phase", None) or "next"
+        reject_infinity(context, value, phase, operation=line)
 
 
 class FiboCandlesIndicator(Indicator):
@@ -41,23 +55,35 @@ class FiboCandlesIndicator(Indicator):
 
         # maxHigh / minLow over [bar, bar+period) in MQ5 (as-series)
         # In backtrader forward indexing: last `period` bars including current
-        max_high = max(float(self.data.high[-i]) for i in range(period))
-        min_low = min(float(self.data.low[-i]) for i in range(period))
+        highs = [float(self.data.high[-i]) for i in range(period)]
+        lows = [float(self.data.low[-i]) for i in range(period)]
+        max_high = max(highs)
+        min_low = min(lows)
         rng = max_high - min_low
-
         o = float(self.data.open[0])
         c = float(self.data.close[0])
         float(self.data.high[0])
         float(self.data.low[0])
         trend = self._trend
+        if not all(math.isfinite(value) for value in (*highs, *lows, o, c)):
+            self.lines.color[0] = math.nan
+            return
+        if math.isinf(rng):
+            _reject_infinite_result(self.lines.color, rng)
 
         if o > c:  # bearish candle
-            if not (trend < 0 and rng * level < c - min_low):
+            distance = c - min_low if trend < 0 else None
+            if distance is not None and math.isinf(distance):
+                _reject_infinite_result(self.lines.color, distance)
+            if not (trend < 0 and rng * level < distance):
                 trend = 1
             else:
                 trend = -1
         else:  # bullish candle
-            if not (trend > 0 and rng * level < max_high - c):
+            distance = max_high - c if trend > 0 else None
+            if distance is not None and math.isinf(distance):
+                _reject_infinite_result(self.lines.color, distance)
+            if not (trend > 0 and rng * level < distance):
                 trend = -1
             else:
                 trend = 1
