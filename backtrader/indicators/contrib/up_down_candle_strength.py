@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -52,13 +54,19 @@ class UpDownCandleStrength(Indicator):
 
         If no candles have clear directional movement (all open == close),
         the strength is set to 0.5 (neutral).
+        A non-finite open or close makes the window's strength unavailable.
         """
         up_count = 0
         down_count = 0
         for i in range(self.p.period):
-            if self.data.close[-i] > self.data.open[-i]:
+            close = self.data.close[-i]
+            open_ = self.data.open[-i]
+            if not math.isfinite(close) or not math.isfinite(open_):
+                self.lines.strength[0] = float("nan")
+                return
+            if close > open_:
                 up_count += 1
-            elif self.data.close[-i] < self.data.open[-i]:
+            elif close < open_:
                 down_count += 1
 
         total = up_count + down_count
