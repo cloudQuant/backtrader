@@ -1,0 +1,5 @@
+README.md -text
+bench_serial_r4_driver.py -text
+bench_serial_r4_worker.py -text
+sma_r4_root_gate_311_20261122.json -text
+sma_r4_root_gate_314_20261122.json -text

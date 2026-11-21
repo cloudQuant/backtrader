@@ -1,0 +1,317 @@
+{
+  "worker_sha256": "7c326e9d5f478d48c1474fc2f47a1a08f4d24e46042500814bbb3608989e6ea3",
+  "rows": [
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.5738205000016023,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 0
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.4946570999964024,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 0
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.49570500000118045,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 1
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.5897130000012112,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 1
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.5243314999970607,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 2
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.4976671000040369,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 2
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.4999316999965231,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 3
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512
+      ],
+      "seconds": 0.5283889000056661,
+      "output_sha256": "91e1a4caa6ae731714f039a9bc3e3a0b9b30aeded559ca33f1b85a516cdafc40",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 3
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.8766042999995989,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 0
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.7751567000013893,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 0
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.776331900000514,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 1
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.8740962000010768,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 1
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.8928837999992538,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 2
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.7922646000006353,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 2
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 0.8856926000007661,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "d8db3df6a348b89514f1611481668a0606f1403687a0d61bd233459eb355b830",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "candidate",
+      "pair": 3
+    },
+    {
+      "rows": 30000,
+      "periods": [
+        512,
+        520,
+        528,
+        536,
+        544,
+        552,
+        560,
+        568
+      ],
+      "seconds": 1.0020733999990625,
+      "output_sha256": "aa31439938ab76dca2ee47d0649339f6c4671b4b4c53d7809137f95cd739ccaa",
+      "source_sha256": "c7e8fa855a97a5befb5ae20871f1a2ac90c97ebfa38e9f9e1a87284a18f2b487",
+      "data_sha256": "d364dea806a6ef634277184d1edc71fb90216fadacf673f70ea9706c55a1f51f",
+      "python": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "executable": "C:\\Python314\\python.exe",
+      "runonce": true,
+      "variant": "baseline",
+      "pair": 3
+    }
+  ]
+}
