@@ -17,7 +17,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from typing import Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Type
 
 
 class MarketTickAdapterError(ValueError):
@@ -39,7 +39,14 @@ class MarketTickAdapterError(ValueError):
         super().__init__(self.code)
 
 
-_RESOLVED = []  # [(types tuple, require_qualified, qualification error)] once imported
+_MarketTickTypeBundle = Tuple[type, type, type, str, int]
+_RequireQualifiedMarketTick = Callable[[object], Tuple[object, datetime, datetime]]
+_ResolvedMarketTickApi = Tuple[
+    _MarketTickTypeBundle,
+    _RequireQualifiedMarketTick,
+    Type[Exception],
+]
+_RESOLVED: List[_ResolvedMarketTickApi] = []
 
 
 def _resolved_market_tick_api():
