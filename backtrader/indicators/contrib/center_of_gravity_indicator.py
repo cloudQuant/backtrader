@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     EMA,
     SMA,
@@ -65,6 +67,9 @@ class CenterOfGravityIndicator(Indicator):
 
     def next(self):
         """Compute the state classification for the current bar."""
-        self.lines.state[0] = (
-            2.0 if float(self.lines.center[0]) < float(self.lines.signal[0]) else 1.0
-        )
+        center = float(self.lines.center[0])
+        signal = float(self.lines.signal[0])
+        if not (math.isfinite(center) and math.isfinite(signal)):
+            self.lines.state[0] = math.nan
+        else:
+            self.lines.state[0] = 2.0 if center < signal else 1.0
