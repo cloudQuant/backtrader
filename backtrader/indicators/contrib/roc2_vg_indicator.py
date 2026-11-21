@@ -13,10 +13,10 @@ __all__ = [
 
 
 def _calc_roc(price, prev_price, roc_type):
-    if prev_price == 0:
-        return 0.0
     if roc_type == 1:  # MOM
         return price - prev_price
+    if prev_price == 0:
+        return 0.0
     if roc_type == 2:  # ROC
         return ((price / prev_price) - 1) * 100
     if roc_type == 3:  # ROCP
