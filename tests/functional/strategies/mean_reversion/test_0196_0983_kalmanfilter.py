@@ -572,25 +572,27 @@ def test_197_0196_0983_kalmanfilter() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
+    # R71-112b: the first usable filter bar now seeds the recurrence; the
+    # previous snapshot exercised the strategy's missing-value fallback.
     assert metrics.get('bar_num') == 6110, f"bar_num: expected=6110, got={metrics.get('bar_num')!r}"
-    assert metrics.get('win_count') == 158, f"win_count: expected=158, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 235, f"loss_count: expected=235, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 393, f"total_trades: expected=393, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 393, f"trade_count: expected=393, got={metrics.get('trade_count')!r}"
+    assert metrics.get('win_count') == 128, f"win_count: expected=128, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 154, f"loss_count: expected=154, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 282, f"total_trades: expected=282, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 282, f"trade_count: expected=282, got={metrics.get('trade_count')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('buy_signal_count'), 315.0, tol=3.150000e-04, key='buy_signal_count')
-    _close(metrics.get('sell_signal_count'), 215.0, tol=2.150000e-04, key='sell_signal_count')
-    _close(metrics.get('completed_order_count'), 787.0, tol=7.870000e-04, key='completed_order_count')
+    _close(metrics.get('buy_signal_count'), 175.0, tol=1.750000e-04, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 108.0, tol=1.080000e-04, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 565.0, tol=5.650000e-04, key='completed_order_count')
     _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 997108.300000001, tol=9.971083e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -2891.699999999022, tol=2.891700e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.28958890420283073, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 40.20356234096692, tol=4.020356e-05, key='win_rate')
-    _close(metrics.get('sharpe_ratio'), -2.696612042769706, tol=2.696612e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -15.756354408028894, tol=1.575635e-05, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 0.6316584855196606, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), -0.37982080589879474, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1005126.0000000042, tol=1.005126e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 5126.000000004191, tol=5.126000e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.5112906786817015, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 45.39007092198582, tol=4.539007e-05, key='win_rate')
+    _close(metrics.get('sharpe_ratio'), 4.813783517503833, tol=4.813784e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 35.35355837348616, tol=3.535356e-05, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.6577798261137046, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), 0.6500088612610891, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

@@ -51,6 +51,8 @@ class KalmanFilterIndicator(Indicator):
         """Initialize internal state and precompute coefficients."""
         self.addminperiod(2)
         self._velocity = 0.0
+        self._velocity_before_bar = 0.0
+        self._velocity_bar_length = None
         self._sqrt100 = math.sqrt(float(self.p.k) / 100.0) if float(self.p.k) > 0 else 0.0
         self._k100 = float(self.p.k) / 100.0
         self._price_shift = float(self.p.point) * float(self.p.price_shift)
@@ -101,17 +103,37 @@ class KalmanFilterIndicator(Indicator):
     def next(self):
         """Update the filtered value and direction for each bar."""
         price = self._price(0)
-        if len(self) == 1:
+        if len(self) == 1 or (
+            len(self) == self._minperiod and math.isnan(float(self.lines.value[-1]))
+        ):
+            # The normal first callback is after minperiod=2, so prenext has
+            # not populated the previous value. Re-seed each replay update of
+            # that first bar; never silently re-seed after the warmup bar.
             self.lines.value[0] = price
-            self.lines.color_idx[0] = 0.0
+            self.lines.color_idx[0] = 0.0 if math.isfinite(price) else math.nan
             self._velocity = 0.0
+            self._velocity_before_bar = 0.0
+            self._velocity_bar_length = len(self.data)
             return
+        # Replay and other feeds can update the same bar more than once. Each
+        # revision must start with the last completed bar's velocity.
+        bar_length = len(self.data)
+        if bar_length != self._velocity_bar_length:
+            self._velocity_before_bar = self._velocity
+            self._velocity_bar_length = bar_length
+        else:
+            self._velocity = self._velocity_before_bar
         prev_value = float(self.lines.value[-1])
         distance = price - prev_value
         error = prev_value + distance * self._sqrt100
         self._velocity += distance * self._k100
         value = error + self._velocity + self._price_shift
         self.lines.value[0] = value
+        if not math.isfinite(value):
+            # An unavailable filter value has no direction. In particular,
+            # comparisons with NaN must not manufacture a trend reversal.
+            self.lines.color_idx[0] = math.nan
+            return
         signal_mode = self._mode_value(SIGNAL_MODE_MAP, self.p.signal_mode, 1)
         if signal_mode == 0:
             self.lines.color_idx[0] = 0.0 if prev_value > value else 1.0
