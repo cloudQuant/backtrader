@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import Indicator
 
 __all__ = [
@@ -53,14 +55,22 @@ class TriggerLine(Indicator):
             ) / 4.0
         return float(self.data.close[index])
 
-    def next(self):
-        """Compute main and signal values for current bar."""
+    def _main_at(self, ago):
+        """Calculate main directly from a price window ending ``ago`` bars back."""
         total = 0.0
         rp = int(self.p.rperiod)
         for iii in range(rp, 0, -1):
-            idx = -(rp - iii)
+            idx = -(rp - iii + ago)
             total += (iii - self.lengthvar) * self._price(idx)
-        main = total * self.kr
+        return total * self.kr
+
+    def next(self):
+        """Compute main and signal values for current bar."""
+        main = self._main_at(0)
         prev_main = float(self.lines.main[-1]) if len(self) > 1 else main
+        if len(self) == self._minperiod and math.isnan(prev_main):
+            # Default prenext does not populate main, although the input window
+            # for the preceding bar is already available at the first next.
+            prev_main = self._main_at(1)
         self.lines.main[0] = main
         self.lines.signal[0] = prev_main + (main - prev_main) * self.klsma
