@@ -64,6 +64,9 @@ class T3AlarmIndicator(Indicator):
             start: Inclusive start index of the range to fill.
             end: Exclusive end index of the range to fill.
         """
+        if start >= end:
+            return
+
         ma2 = self.lines.ma2.array
         direction_line = self.lines.direction.array
         buy_line = self.lines.buy_sig.array
@@ -73,7 +76,11 @@ class T3AlarmIndicator(Indicator):
                 line.append(float("nan"))
 
         shift = self._ma_shift
-        prev_direction = 0
+        prev_direction = self._prev_direction if start else 0
+        if 0 < start <= len(direction_line):
+            prior_direction = direction_line[start - 1]
+            if prior_direction in (-1.0, 0.0, 1.0):
+                prev_direction = int(prior_direction)
         actual_end = min(end, len(ma2))
         for i in range(start, actual_end):
             curr_idx = i - shift if shift > 0 else i
