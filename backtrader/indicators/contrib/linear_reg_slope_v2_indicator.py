@@ -94,6 +94,7 @@ class LinearRegSlopeV2Indicator(Indicator):
         price_line = resolve_price_line(self.data, self.p.ipc)
         self.smooth = ma_cls(price_line, period=self.p.sl_length)
         self._window = deque(maxlen=self.p.sl_length)
+        self._window_bar = None
         self._sum_x = self.p.sl_length * (self.p.sl_length - 1) * 0.5
         sum_x_sqr = (
             (self.p.sl_length - 1.0) * self.p.sl_length * (2.0 * self.p.sl_length - 1.0) / 6.0
@@ -111,7 +112,13 @@ class LinearRegSlopeV2Indicator(Indicator):
         """Update one bar of regression slope and trigger calculations."""
         import pandas as pd
 
-        self._window.appendleft(float(self.smooth[0]))
+        value = float(self.smooth[0])
+        if self._window_bar == len(self):
+            # Replay may revise a bar repeatedly; it is still one observation.
+            self._window[0] = value
+        else:
+            self._window.appendleft(value)
+            self._window_bar = len(self)
         if len(self._window) < self.p.sl_length:
             self.lines.reg_slope[0] = float("nan")
             self.lines.trigger[0] = float("nan")
