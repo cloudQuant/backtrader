@@ -47,6 +47,8 @@ class ROC2VGIndicator(Indicator):
         """Initialize ROC periods and required minimum history window."""
         self._p1 = int(self.p.roc_period1)
         self._p2 = int(self.p.roc_period2)
+        if self._p1 < 0 or self._p2 < 0:
+            raise ValueError("ROC periods must not be negative")
         self._t1 = int(self.p.roc_type1)
         self._t2 = int(self.p.roc_type2)
         self.addminperiod(max(self._p1, self._p2) + 2)
