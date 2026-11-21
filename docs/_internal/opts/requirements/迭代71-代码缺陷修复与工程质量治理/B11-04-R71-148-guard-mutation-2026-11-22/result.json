@@ -1,0 +1,50 @@
+{
+  "base": "c5fc2e7e954eae104d4acae5accdd9bf30e9c44d",
+  "source_sha256": "da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094",
+  "test_sha256": "2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490",
+  "runner_sha256": "01252340151afd3f8de30add6b97b6ae1f49e0b12fdeab7221a6ec80e72031c7",
+  "records": [
+    {
+      "case": "currency",
+      "mode": "clean",
+      "returncode": 0,
+      "stdout": "case= currency mode= clean source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 target= test_distinct_valid_commission_currencies_are_a_mismatch synthetic_guard_selfchecks=3\nTARGET_PASS\n",
+      "stderr": ""
+    },
+    {
+      "case": "currency",
+      "mode": "mutant",
+      "returncode": 1,
+      "stdout": "case= currency mode= mutant source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= 1ff4cd9af9a512c832e226a66da276924936107074ced86dfcd58b93e58a3396 target= test_distinct_valid_commission_currencies_are_a_mismatch synthetic_guard_selfchecks=3\n",
+      "stderr": "Traceback (most recent call last):\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\run_mutation.py\", line 81, in <module>\n    getattr(test_module, test_name)()\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\tests\\unit\\test_iter71_service_recovery_attestor_fill_validation.py\", line 100, in test_distinct_valid_commission_currencies_are_a_mismatch\n    _assert_rejected_with_finite_mismatch(args)\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\tests\\unit\\test_iter71_service_recovery_attestor_fill_validation.py\", line 72, in _assert_rejected_with_finite_mismatch\n    with pytest.raises(ServiceRecoveryAttestationError) as caught:\n  File \"C:\\anaconda3\\Lib\\site-packages\\_pytest\\raises.py\", line 712, in __exit__\n    fail(f\"DID NOT RAISE {self.expected_exceptions[0]!r}\")\n  File \"C:\\anaconda3\\Lib\\site-packages\\_pytest\\outcomes.py\", line 177, in fail\n    raise Failed(msg=reason, pytrace=pytrace)\nFailed: DID NOT RAISE <class 'backtrader.service.service_recovery_attestation.ServiceRecoveryAttestationError'>\n"
+    },
+    {
+      "case": "currency",
+      "mode": "clean",
+      "returncode": 0,
+      "stdout": "case= currency mode= clean source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 target= test_distinct_valid_commission_currencies_are_a_mismatch synthetic_guard_selfchecks=3\nTARGET_PASS\n",
+      "stderr": ""
+    },
+    {
+      "case": "time",
+      "mode": "clean",
+      "returncode": 0,
+      "stdout": "case= time mode= clean source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 target= test_quote_must_not_be_newer_than_the_exact_match_time synthetic_guard_selfchecks=3\nTARGET_PASS\n",
+      "stderr": ""
+    },
+    {
+      "case": "time",
+      "mode": "mutant",
+      "returncode": 1,
+      "stdout": "case= time mode= mutant source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= 68443306b5d2afec45c4ad6fe0c66431c54dca959ec63486a4e53cf35b1ffeb8 target= test_quote_must_not_be_newer_than_the_exact_match_time synthetic_guard_selfchecks=3\n",
+      "stderr": "Traceback (most recent call last):\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\run_mutation.py\", line 81, in <module>\n    getattr(test_module, test_name)()\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\tests\\unit\\test_iter71_service_recovery_attestor_fill_validation.py\", line 133, in test_quote_must_not_be_newer_than_the_exact_match_time\n    _assert_rejected_with_finite_mismatch(args)\n  File \"D:\\temp\\i71_r148_guard_mutation_c5fc2e7e\\tests\\unit\\test_iter71_service_recovery_attestor_fill_validation.py\", line 72, in _assert_rejected_with_finite_mismatch\n    with pytest.raises(ServiceRecoveryAttestationError) as caught:\n  File \"C:\\anaconda3\\Lib\\site-packages\\_pytest\\raises.py\", line 712, in __exit__\n    fail(f\"DID NOT RAISE {self.expected_exceptions[0]!r}\")\n  File \"C:\\anaconda3\\Lib\\site-packages\\_pytest\\outcomes.py\", line 177, in fail\n    raise Failed(msg=reason, pytrace=pytrace)\nFailed: DID NOT RAISE <class 'backtrader.service.service_recovery_attestation.ServiceRecoveryAttestationError'>\n"
+    },
+    {
+      "case": "time",
+      "mode": "clean",
+      "returncode": 0,
+      "stdout": "case= time mode= clean source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 test_sha256= 2b29a992db80c5c7ec66c80052c54b26991cd39a01a7b97f2d67f1e9762d4490 executed_source_sha256= da03b539cb4ef04e2113c6ef5079b9b71361d28054a43872983ad19598946094 target= test_quote_must_not_be_newer_than_the_exact_match_time synthetic_guard_selfchecks=3\nTARGET_PASS\n",
+      "stderr": ""
+    }
+  ]
+}
