@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 import hashlib
 import json
@@ -509,7 +509,7 @@ def load_exchange_session_calendar(document: Mapping[str, Any]) -> ExchangeSessi
         if total_windows > _MAX_WINDOWS_PER_CALENDAR:
             raise SessionCalendarError("INPUT_LIMIT_EXCEEDED", "calendar session windows")
 
-    sources = []
+    sources: List[Union[PublicSourceEvidence, ExpectedRuleEvidence]] = []
     for value in source_values:
         if not isinstance(value, Mapping):
             raise SessionCalendarError("SESSION_SOURCE_MUST_BE_OBJECT")
