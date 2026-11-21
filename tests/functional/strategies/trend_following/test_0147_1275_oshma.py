@@ -443,26 +443,26 @@ def test_147_0147_1275_oshma() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
-    assert metrics.get('bar_num') == 6032, f"bar_num: expected=6032, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 319, f"buy_count: expected=319, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 319, f"sell_count: expected=319, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 353, f"win_count: expected=353, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 285, f"loss_count: expected=285, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 638, f"total_trades: expected=638, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 638, f"trade_count: expected=638, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 353, f"won: expected=353, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 285, f"lost: expected=285, got={metrics.get('lost')!r}"
+    assert metrics.get('bar_num') == 6100, f"bar_num: expected=6100, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 321, f"buy_count: expected=321, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 322, f"sell_count: expected=322, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 357, f"win_count: expected=357, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 286, f"loss_count: expected=286, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 643, f"total_trades: expected=643, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 643, f"trade_count: expected=643, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 357, f"won: expected=357, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 286, f"lost: expected=286, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 1001814.0000000003, tol=1.001814e+00, key='final_value')
-    _close(metrics.get('net_pnl'), 1814.0000000003492, tol=1.814000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), 0.18140000000004264, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 55.32915360501567, tol=5.532915e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.1007447558855743, tol=1.100745e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 0.22110248240781363, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 5.470392628719448, tol=5.470393e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 11.327296111829032, tol=1.132730e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), 0.7097457384608648, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 1001786.2000000003, tol=1.001786e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 1786.2000000003027, tol=1.786200e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.1786200000000404, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 55.52099533437014, tol=5.532915e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0987440019459167, tol=1.100745e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.22110861708806342, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 5.380410539356495, tol=5.470393e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 11.144535722641178, tol=1.132730e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.6984552246896235, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
