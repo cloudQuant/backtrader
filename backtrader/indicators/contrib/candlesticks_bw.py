@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     SMA,
     AwesomeOscillator,
@@ -36,6 +38,9 @@ class CandlesticksBW(Indicator):
         ac1 = float(self.ac[-1])
         open_ = float(self.data.open[0])
         close = float(self.data.close[0])
+        if not all(map(math.isfinite, (ao0, ao1, ac0, ac1, open_, close))):
+            self.lines.color[0] = float("nan")
+            return
         if ao0 >= ao1 and ac0 >= ac1:
             color = 0.0 if open_ <= close else 1.0
         elif ao0 <= ao1 and ac0 <= ac1:
