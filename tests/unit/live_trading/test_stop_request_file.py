@@ -114,8 +114,14 @@ def test_the_same_nonce_is_idempotent_and_a_second_nonce_is_refused(tmp_path):
         {"run_id": str(uuid.uuid4())},  # old or another run
         {"schema": "bt_api_stop_request/v2"},
         {"nonce": "not-a-uuid"},
+        {"nonce": 17},
         {"command_id": ""},
+        {"strategy_uuid": None},
+        {"run_id": 17},
         {"requested_at_utc": "not-a-time"},
+        {"requested_at_utc": None},
+        {"requested_at_utc": 17},
+        {"requested_at_utc": ["2026-11-15T12:00:00+00:00"]},
         {"expires_at_utc": "2026-11-15T12:00:00"},  # naive, not UTC
         {"extra": "value"},
     ],

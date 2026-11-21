@@ -151,12 +151,20 @@ class StopRequestFileSource:
         run_id = _canonical_uuid(document.get("run_id"))
         command_id = _canonical_uuid(document.get("command_id"))
         nonce = _canonical_uuid(document.get("nonce"))
-        if None in (strategy_uuid, run_id, command_id, nonce):
+        if (
+            strategy_uuid is None
+            or run_id is None
+            or command_id is None
+            or nonce is None
+        ):
             return None
         if strategy_uuid != self.strategy_uuid or run_id != self.run_id:
             return None
 
-        requested = _utc_moment(document.get("requested_at_utc"))
+        requested_at_utc = document.get("requested_at_utc")
+        if type(requested_at_utc) is not str:
+            return None
+        requested = _utc_moment(requested_at_utc)
         expires = _utc_moment(document.get("expires_at_utc"))
         if requested is None or expires is None or expires <= requested:
             return None
@@ -170,4 +178,4 @@ class StopRequestFileSource:
             return None
         if now >= expires:
             return None
-        return nonce, (STOP_REQUEST_SOURCE, document["requested_at_utc"])
+        return nonce, (STOP_REQUEST_SOURCE, requested_at_utc)
