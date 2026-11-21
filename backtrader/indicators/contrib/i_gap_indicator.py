@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ATR,
     Indicator,
@@ -39,7 +41,15 @@ class IGapIndicator(Indicator):
         self.lines.atr_value[0] = atr_value
         if len(self.data) < 2:
             return
-        if float(self.data.close[-1]) > float(self.data.open[0]) + self.gap_distance:
+        previous_close = float(self.data.close[-1])
+        opening = float(self.data.open[0])
+        if math.isnan(previous_close) or math.isnan(opening):
+            self.lines.buy_signal[0] = float("nan")
+        elif previous_close > opening + self.gap_distance:
             self.lines.buy_signal[0] = float(self.data.low[0]) - atr_value * 3.0 / 8.0
-        if float(self.data.close[-1]) < float(self.data.open[0]) - self.gap_distance:
+        previous_close = float(self.data.close[-1])
+        opening = float(self.data.open[0])
+        if math.isnan(previous_close) or math.isnan(opening):
+            self.lines.sell_signal[0] = float("nan")
+        elif previous_close < opening - self.gap_distance:
             self.lines.sell_signal[0] = float(self.data.high[0]) + atr_value * 3.0 / 8.0
