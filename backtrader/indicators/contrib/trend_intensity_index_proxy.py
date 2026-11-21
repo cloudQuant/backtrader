@@ -5,6 +5,8 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+
 from .. import (
     ExponentialMovingAverage,
     Indicator,
@@ -33,19 +35,37 @@ class TrendIntensityIndexProxy(Indicator):
         self.sma = SimpleMovingAverage(self.data.close, period=self.p.length1)
         self.smooth = ExponentialMovingAverage(self.data.close, period=self.p.length2)
         self.dev = StandardDeviation(self.data.close, period=self.p.length1)
+        self._last_valid_color = None
         self.addminperiod(max(self.p.length1, self.p.length2) + 5)
 
     def next(self):
         """Compute normalized TII value and discretized color state."""
         baseline = float(self.sma[0])
         smoothed = float(self.smooth[0])
-        dev = max(float(self.dev[0]), 1e-8)
+        raw_deviation = float(self.dev[0])
+        if not all(math.isfinite(value) for value in (baseline, smoothed, raw_deviation)):
+            self._set_invalid_value()
+            return
+
+        dev = max(raw_deviation, 1e-8)
         value = 50.0 + (smoothed - baseline) / dev * 10.0
+        if not math.isfinite(value):
+            self._set_invalid_value()
+            return
+
         value = max(0.0, min(100.0, value))
         self.lines.tii[0] = value
         if value <= self.p.low_level:
-            self.lines.color_index[0] = 0.0
+            color = 0.0
         elif value >= self.p.high_level:
-            self.lines.color_index[0] = 4.0
+            color = 4.0
         else:
-            self.lines.color_index[0] = 2.0
+            color = 2.0
+        self._last_valid_color = color
+        self.lines.color_index[0] = color
+
+    def _set_invalid_value(self):
+        """Keep the numeric output unavailable and retain only a valid color."""
+        self.lines.tii[0] = math.nan
+        color = self._last_valid_color
+        self.lines.color_index[0] = math.nan if color is None else color

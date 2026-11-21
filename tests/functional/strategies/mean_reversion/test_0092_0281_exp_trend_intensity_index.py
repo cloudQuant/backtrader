@@ -164,6 +164,25 @@ class ExpTrendIntensityIndexStrategy(bt.Strategy):
         self.last_bar_dt = current
         return True
 
+    def _valid_signal_colors(self):
+        """Return the signal transition colors only when all TII values exist."""
+        shift = int(self.p.signal_bar)
+        try:
+            values = (
+                float(self.tii.tii[0]),
+                float(self.tii.tii[-shift]),
+                float(self.tii.tii[-shift - 1]),
+                float(self.tii.color_index[-shift]),
+                float(self.tii.color_index[-shift - 1]),
+            )
+        except (IndexError, TypeError, ValueError, OverflowError):
+            return None
+
+        if not all(math.isfinite(value) for value in values):
+            return None
+
+        return values[3], values[4]
+
     def _cancel_exit_orders(self):
         if self.stop_order is not None:
             self.cancel(self.stop_order)
@@ -180,6 +199,8 @@ class ExpTrendIntensityIndexStrategy(bt.Strategy):
             reason: Human-readable reason for audit logging.
         """
         if self.position or self.entry_order is not None or self.close_order is not None:
+            return
+        if self._valid_signal_colors() is None:
             return
         size = max(0.01, float(self.p.fixed_lot))
         price = float(self.data0_feed.close[0])
@@ -199,6 +220,8 @@ class ExpTrendIntensityIndexStrategy(bt.Strategy):
     def _submit_close(self, reason, reverse=None):
         if not self.position or self.close_order is not None:
             return
+        if self._valid_signal_colors() is None:
+            return
         self.pending_reverse = reverse
         self._cancel_exit_orders()
         self.close_order = self.close()
@@ -210,6 +233,9 @@ class ExpTrendIntensityIndexStrategy(bt.Strategy):
             return
         if not self._new_bar():
             return
+        signal_colors = self._valid_signal_colors()
+        if signal_colors is None:
+            return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
             side = self.pending_reverse
             self.pending_reverse = None
@@ -217,9 +243,7 @@ class ExpTrendIntensityIndexStrategy(bt.Strategy):
             return
         if self.entry_order is not None or self.close_order is not None:
             return
-        shift = self.p.signal_bar
-        col0 = float(self.tii.color_index[-shift])
-        col1 = float(self.tii.color_index[-shift - 1])
+        col0, col1 = signal_colors
         buy_open = col1 == 0.0 and col0 != 0.0 and self.p.buy_pos_open
         sell_close = col1 == 0.0 and self.p.sell_pos_close
         sell_open = col1 == 4.0 and col0 != 4.0 and self.p.sell_pos_open
