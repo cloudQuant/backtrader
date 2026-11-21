@@ -299,9 +299,9 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
 <div class="section charts-page">
     <h2>Performance Charts</h2>
     <div class="charts">
-        {% if equity_curve_img %}<img src="{{ equity_curve_img|safe }}" alt="Equity Curve">{% endif %}
-        {% if return_bars_img %}<img src="{{ return_bars_img|safe }}" alt="Return Bars">{% endif %}
-        {% if drawdown_img %}<img src="{{ drawdown_img|safe }}" alt="Drawdown">{% endif %}
+        {% if equity_curve_img %}<img src="{{ equity_curve_img }}" alt="Equity Curve">{% endif %}
+        {% if return_bars_img %}<img src="{{ return_bars_img }}" alt="Return Bars">{% endif %}
+        {% if drawdown_img %}<img src="{{ drawdown_img }}" alt="Drawdown">{% endif %}
     </div>
 </div>
 
