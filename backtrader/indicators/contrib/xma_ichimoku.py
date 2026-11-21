@@ -95,7 +95,11 @@ class XmaIchimoku(Indicator):
         lows = [self._series_value(self.p.dn_mode, -i) for i in range(dn_period)]
         ish_up = max(highs)
         ish_dn = min(lows)
-        raw_value = (ish_up + ish_dn) / 2.0
+        raw_value = (
+            float("nan")
+            if any(type(value) is float and value != value for value in highs + lows)
+            else (ish_up + ish_dn) / 2.0
+        )
         method = str(self.p.xma_method).upper()
         period = max(1, int(self.p.x_length))
         if method in ("MODE_SMA_", "SMA") and period > self._raw_buf.maxlen:
@@ -168,12 +172,16 @@ class TwoXmaIchimokuOscillator(Indicator):
         line_value = (float(self.xma1[0]) - float(self.xma2[0])) / point
         self.lines.line[0] = line_value
 
-        if len(self) < 2:
+        current_length = len(self)
+        if current_length < 2:
             self.lines.color[0] = 2.0
             self._prev_color = 2.0
             return
 
         prev_line = float(self.lines.line[-1])
+        if line_value != line_value or (prev_line != prev_line and current_length > self._minperiod):
+            self.lines.color[0] = float("nan")
+            return
         color = self._prev_color
         if line_value >= 0:
             if line_value > prev_line:
