@@ -5,6 +5,10 @@ Generated from a single functional strategy module to preserve file-local
 helper functions and constants without cross-test name collisions.
 """
 
+import math
+import sys
+
+from ...linebuffer import _factor_context_for_line, _reject_factor_infinity
 from .. import (
     ATR,
     SMA,
@@ -48,13 +52,35 @@ class BBSqueezeIndicator(Indicator):
 
     def next(self):
         """Calculate squeeze state and momentum for every new bar."""
+        strict = _factor_context_for_line(self.lines.squeeze) is not None
+
+        def checked(value):
+            if strict:
+                # Parameters may be multiplication-only objects. Inspect known
+                # floating scalars without coercing arbitrary operands.
+                value_type = type(value)
+                if issubclass(value_type, float):
+                    native = float.__float__(value)
+                    if math.isinf(native):
+                        _reject_factor_infinity(self.lines.squeeze, native)
+                else:
+                    numpy = sys.modules.get("numpy")
+                    if (numpy is not None and issubclass(value_type, numpy.floating)
+                            and bool(numpy.isinf(numpy.generic.item(value)))):
+                        _reject_factor_infinity(self.lines.squeeze, math.inf)
+            return value
+
         bb_upper = float(self.bb.top[0])
         bb_lower = float(self.bb.bot[0])
-        bb_width = bb_upper - bb_lower
+        bb_width = checked(bb_upper - bb_lower)
 
-        kc_upper = float(self.sma[0]) + self.p.kc_mult * float(self.atr[0])
-        kc_lower = float(self.sma[0]) - self.p.kc_mult * float(self.atr[0])
-        kc_width = kc_upper - kc_lower
+        kc_upper = checked(float(self.sma[0]) + checked(checked(self.p.kc_mult) * float(self.atr[0])))
+        kc_lower = checked(float(self.sma[0]) - checked(checked(self.p.kc_mult) * float(self.atr[0])))
+        kc_width = checked(kc_upper - kc_lower)
 
-        self.lines.squeeze[0] = 1.0 if bb_width < kc_width else -1.0
+        self.lines.squeeze[0] = (
+            (1.0 if bb_width < kc_width else -1.0)
+            if math.isfinite(bb_width) and math.isfinite(kc_width)
+            else float("nan")
+        )
         self.lines.momentum[0] = float(self.mom[0])
