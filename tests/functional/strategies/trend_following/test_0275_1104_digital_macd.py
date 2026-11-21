@@ -646,27 +646,30 @@ def test_274_0275_1104_digital_macd() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "no metrics captured during run"
 
-    assert metrics.get('bar_num') == 6056, f"bar_num: expected=6056, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 378, f"buy_count: expected=378, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 378, f"sell_count: expected=378, got={metrics.get('sell_count')!r}"
-    assert metrics.get('total_trades') == 756, f"total_trades: expected=756, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 756, f"trade_count: expected=756, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 308, f"won: expected=308, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 448, f"lost: expected=448, got={metrics.get('lost')!r}"
-    _close(metrics.get('bars'), 6056.0, tol=6.056000e-03, key='bars')
-    _close(metrics.get('completed_orders'), 1512.0, tol=1.512000e-03, key='completed_orders')
+    # R71-040 fills the FIR and signal history during warmup; the first
+    # complete signal is available at bar 69 (65 taps plus 5 signal bars).
+    # Metrics below reflect the resulting original input window and orders.
+    assert metrics.get('bar_num') == 6061, f"bar_num: expected=6061, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 384, f"buy_count: expected=384, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 383, f"sell_count: expected=383, got={metrics.get('sell_count')!r}"
+    assert metrics.get('total_trades') == 767, f"total_trades: expected=767, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 767, f"trade_count: expected=767, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 312, f"won: expected=312, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 455, f"lost: expected=455, got={metrics.get('lost')!r}"
+    _close(metrics.get('bars'), 6061, tol=6.056000e-03, key='bars')
+    _close(metrics.get('completed_orders'), 1534, tol=1.512000e-03, key='completed_orders')
     _close(metrics.get('rejected_orders'), 0.0, tol=1.000000e-06, key='rejected_orders')
-    _close(metrics.get('win_rate'), 40.74074074074074, tol=4.074074e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.9467764748269732, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('win_rate'), 40.67796610169492, tol=4.074074e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 0.9416821376714742, tol=1.000000e-06, key='profit_factor')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 997813.7, tol=9.978137e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -2186.3, tol=2.186300e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.21863000000053034, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('annual_return_pct'), -12.154103147975848, tol=1.215410e-05, key='annual_return_pct')
-    _close(metrics.get('max_drawdown_pct'), 0.5616, tol=1.000000e-06, key='max_drawdown_pct')
-    _close(metrics.get('sharpe_ratio'), -4.159336, tol=4.159336e-06, key='sharpe_ratio')
-    _close(metrics.get('sqn'), -0.548723, tol=1.000000e-06, key='sqn')
-    _close(metrics.get('ulcer_index'), 0.1545947555711899, tol=1.000000e-06, key='ulcer_index')
+    _close(metrics.get('final_value'), 997578.1, tol=9.978137e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -2421.9, tol=2.186300e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.24219000000048618, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('annual_return_pct'), -13.373765193103546, tol=1.215410e-05, key='annual_return_pct')
+    _close(metrics.get('max_drawdown_pct'), 0.5617, tol=1.000000e-06, key='max_drawdown_pct')
+    _close(metrics.get('sharpe_ratio'), -4.598322, tol=4.159336e-06, key='sharpe_ratio')
+    _close(metrics.get('sqn'), -0.606779, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('ulcer_index'), 0.1712541913359137, tol=1.000000e-06, key='ulcer_index')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
