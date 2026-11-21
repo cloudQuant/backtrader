@@ -16,7 +16,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Literal as _Literal, Optional, Tuple, Union as _Union
 
 from ..utils.log_message import (
     _is_output_enabled_for,
@@ -777,7 +777,12 @@ class Notifier:
             cooldown = self._options["dedup_cooldown"]
             if key and cooldown > 0:
                 dedup_slot = (runtime.name, key)
-                deferred = []
+                deferred: List[
+                    _Union[
+                        Tuple[_Literal["drop"]],
+                        Tuple[_Literal["error"], str, str, Exception],
+                    ]
+                ] = []
                 # Keep duplicate check, queue admission, and timestamp commit
                 # atomic with respect to concurrent producers. A full queue
                 # must not reserve a key for a message it did not accept.
