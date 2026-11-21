@@ -45,9 +45,17 @@ class XMACDIndicator(Indicator):
         price = self._price_line()
         fast = ma_cls(price, period=self.p.fast_period)
         slow = ma_cls(price, period=self.p.slow_period)
-        self.lines.macd = fast - slow
-        self.lines.signal = signal_cls(self.lines.macd, period=self.p.signal_period)
-        self.addminperiod(max(self.p.fast_period, self.p.slow_period) + self.p.signal_period + 5)
+        macd = fast - slow
+        self.lines.macd = macd
+        self.lines.signal = signal_cls(macd, period=self.p.signal_period)
+        # The moving-average graph already contributes its own minimum period.
+        # Preserve the author's extra five-bar warm-up as a floor, rather than
+        # adding the complete child-graph period to it a second time.
+        self.updateminperiod(
+            max(self.p.fast_period, self.p.slow_period)
+            + self.p.signal_period
+            + 5
+        )
 
     def _price_line(self):
         mode = str(self.p.applied_price).lower()

@@ -471,26 +471,29 @@ def test_323_0324_1298_xmacd() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
-    assert metrics.get('bar_num') == 6057, f"bar_num: expected=6057, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 252, f"buy_count: expected=252, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 251, f"sell_count: expected=251, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 198, f"win_count: expected=198, got={metrics.get('win_count')!r}"
+    # R71-112b keeps the explicit 40-bar XMACD warm-up without double-adding
+    # the child graph. This admits the formula-validated signal reversals at
+    # bars 51 and 67, which the old 73-bar minperiod delayed past.
+    assert metrics.get('bar_num') == 6090, f"bar_num: expected=6090, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 253, f"buy_count: expected=253, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 252, f"sell_count: expected=252, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 200, f"win_count: expected=200, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 304, f"loss_count: expected=304, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 503, f"total_trades: expected=503, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 502, f"trade_count: expected=502, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 198, f"won: expected=198, got={metrics.get('won')!r}"
+    assert metrics.get('total_trades') == 505, f"total_trades: expected=505, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 504, f"trade_count: expected=504, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 200, f"won: expected=200, got={metrics.get('won')!r}"
     assert metrics.get('lost') == 304, f"lost: expected=304, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 996352.0000000019, tol=9.963520e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -3647.9999999981374, tol=3.648000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.3647999999998097, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 39.363817097415506, tol=3.936382e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.9357255638766129, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 1.000230563377643, tol=1.000231e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -3.1397610143360506, tol=3.139761e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -19.45726190038078, tol=1.945726e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), -0.4508956959388507, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('final_value'), 996758.8000000019, tol=9.967588e-01, key='final_value')
+    _close(metrics.get('net_pnl'), -3241.199999998091, tol=3.241200e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -0.3241199999998057, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 39.603960396039604, tol=3.960396e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 0.942902255506452, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.9998253049642624, tol=9.998253e-07, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -2.7835947755554655, tol=2.783595e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -17.486936134317308, tol=1.748694e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), -0.4002732471774687, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
