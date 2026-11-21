@@ -1181,9 +1181,9 @@ class BarEnvelope:
     source_role: str = ""
     connection_generation: Any = None
     feed_sequence: int = 0
-    bucket_start: _datetime.datetime = field(default=None)  # type: ignore[assignment]
-    close_time: _datetime.datetime = field(default=None)  # type: ignore[assignment]
-    available_at: _datetime.datetime = field(default=None)  # type: ignore[assignment]
+    bucket_start: _datetime.datetime = field(default=None)
+    close_time: _datetime.datetime = field(default=None)
+    available_at: _datetime.datetime = field(default=None)
     trading_day: str = ""
     session_segment: str = ""
     timezone_id: str = ""
@@ -1277,10 +1277,10 @@ class LiveDeliveryReceipt:
     member_id: str
     feed_ref: Any = field(compare=False, repr=False)
     source_ref: str = ""
-    envelope: BarEnvelope = field(default=None)  # type: ignore[assignment]
+    envelope: BarEnvelope = field(default=None)
     feed_sequence: int = 0
-    close_time: _datetime.datetime = field(default=None)  # type: ignore[assignment]
-    available_at: _datetime.datetime = field(default=None)  # type: ignore[assignment]
+    close_time: _datetime.datetime = field(default=None)
+    available_at: _datetime.datetime = field(default=None)
     source_role: str = ""
     complete: bool = False
     quality: str = ""

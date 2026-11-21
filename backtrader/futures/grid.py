@@ -288,17 +288,17 @@ def build_common_minute_grid(
                     "TRADING_DAY_NOT_IN_SOURCE_CALENDAR",
                     "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
                 )
-            row = rows_by_day.get(trading_day)
-            if row is None:
+            session_row = rows_by_day.get(trading_day)
+            if session_row is None:
                 raise SessionCalendarError(
                     "PRODUCT_SESSION_ROW_MISSING",
                     "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
                 )
-            selected_rows[trading_day] = row
-            source_ids_needed.add(row.source_id)
-            source_ids_needed.update(window.source_id for window in row.windows)
+            selected_rows[trading_day] = session_row
+            source_ids_needed.add(session_row.source_id)
+            source_ids_needed.update(window.source_id for window in session_row.windows)
             total_expansion += sum(
-                (window.end - window.start) // _ONE_MINUTE for window in row.windows
+                (window.end - window.start) // _ONE_MINUTE for window in session_row.windows
             )
             if total_expansion > _MAX_EXPANDED_PRODUCT_MINUTES:
                 raise SessionCalendarError(
@@ -459,22 +459,22 @@ def iter_common_minute_windows(
                     "TRADING_DAY_NOT_IN_SOURCE_CALENDAR",
                     "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
                 )
-            row = rows_by_product[product].get(trading_day)
-            if row is None:
+            session_row = rows_by_product[product].get(trading_day)
+            if session_row is None:
                 raise SessionCalendarError(
                     "PRODUCT_SESSION_ROW_MISSING",
                     "{}.{} {}".format(product.exchange_id, product.product_id, trading_day),
                 )
-            source_ids_needed.add(row.source_id)
-            requested_window_count += len(row.windows)
+            source_ids_needed.add(session_row.source_id)
+            requested_window_count += len(session_row.windows)
             if requested_window_count > _MAX_STREAM_WINDOWS:
                 raise SessionCalendarError(
                     "STREAM_SESSION_WINDOW_BUDGET_EXCEEDED",
                     "requested product-day windows exceed {}".format(_MAX_STREAM_WINDOWS),
                 )
-            for window in row.windows:
+            for window in session_row.windows:
                 source_ids_needed.add(window.source_id)
-                intervals_by_product[product].append((window, row.trading_day))
+                intervals_by_product[product].append((window, session_row.trading_day))
                 estimated_product_minutes += (window.end - window.start) // _ONE_MINUTE
                 if estimated_product_minutes > _MAX_STREAM_PRODUCT_MINUTES:
                     raise SessionCalendarError(

@@ -728,7 +728,7 @@ class LinesManager:
         for linealias in primarylines:
             seen.add(LinesManager._line_name(linealias))
 
-        secondarylines = []
+        secondarylines: list = []
         for linealias in obaseslines:
             line_name = LinesManager._line_name(linealias)
             try:
