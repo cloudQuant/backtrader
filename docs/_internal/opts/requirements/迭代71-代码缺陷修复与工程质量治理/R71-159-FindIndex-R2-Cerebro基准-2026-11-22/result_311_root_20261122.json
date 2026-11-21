@@ -1,0 +1,1198 @@
+{
+  "baseline_commit": "535eaa80e9aa5b4a8002855f4f3b61da8e585e28",
+  "script_sha256": "c349be27e8fba5a3d3f57f9366015c51506b5e06e109edf8a741f4f444001560",
+  "snapshot_roots": {
+    "baseline": "D:\\temp\\i71-index-baseline-535eaa80",
+    "candidate": "D:\\temp\\i71-index-inline-r2-535eaa80"
+  },
+  "snapshot_pins_before": {
+    "baseline": {
+      "count": 697,
+      "other_files_sha256": "e9cea07e7387150f6d71e0d2d689d8e8ffc8c247fe392f154fb5206ce71e1d5e",
+      "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a"
+    },
+    "candidate": {
+      "count": 697,
+      "other_files_sha256": "e9cea07e7387150f6d71e0d2d689d8e8ffc8c247fe392f154fb5206ce71e1d5e",
+      "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b"
+    }
+  },
+  "snapshot_pins_after": {
+    "baseline": {
+      "count": 697,
+      "other_files_sha256": "e9cea07e7387150f6d71e0d2d689d8e8ffc8c247fe392f154fb5206ce71e1d5e",
+      "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a"
+    },
+    "candidate": {
+      "count": 697,
+      "other_files_sha256": "e9cea07e7387150f6d71e0d2d689d8e8ffc8c247fe392f154fb5206ce71e1d5e",
+      "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b"
+    }
+  },
+  "environment": {
+    "python_executable": "C:\\anaconda3\\python.exe",
+    "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+    "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "numpy_version": "1.26.4",
+    "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+    "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+    "pandas_version": "2.2.3",
+    "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+    "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+    "backtrader_version": "1.4.0"
+  },
+  "bars": 12000,
+  "seed": 710159,
+  "pairs": 3,
+  "pythonhashseed": "0",
+  "version_pins": {
+    "3.11.5": [
+      "1.26.4",
+      "2.2.3"
+    ],
+    "3.14.2": [
+      "2.4.1",
+      "2.3.3"
+    ]
+  },
+  "scenarios": [
+    {
+      "period": 128,
+      "count": 2,
+      "indicators": [
+        "FindFirstIndexHighest",
+        "FindFirstIndexLowest"
+      ],
+      "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 12000,
+          "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+        },
+        "FindFirstIndexLowest": {
+          "length": 12000,
+          "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+        }
+      },
+      "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+      "samples": [
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.3484508999972604,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.30741370000032475,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.3041972999999416,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.3026532000003499,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.3037752000018372,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "f1af341ac990cfd1c120bcca44f6924ebac5d9bcdd7c223a72e29013f2fdead6",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.30544860000372864,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "baseline": 0.3037752000018372,
+        "candidate": 0.30544860000372864
+      },
+      "candidate_over_baseline_median": 1.0055086787923482
+    },
+    {
+      "period": 128,
+      "count": 4,
+      "indicators": [
+        "FindFirstIndexHighest",
+        "FindFirstIndexLowest",
+        "FindLastIndexHighest",
+        "FindLastIndexLowest"
+      ],
+      "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 12000,
+          "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+        },
+        "FindFirstIndexLowest": {
+          "length": 12000,
+          "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+        },
+        "FindLastIndexHighest": {
+          "length": 12000,
+          "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+        },
+        "FindLastIndexLowest": {
+          "length": 12000,
+          "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+        }
+      },
+      "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+      "samples": [
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.35599469999579014,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.36824190000334056,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.36020960000314517,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.35462469999765744,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.3748922000013408,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "b71dea1e7bc2f196a4db23ef93b9519fef5816adfcb967d144054fdebcbbb0d7",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.41179900000133784,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "a12dcbe1338fa0ffcaa95a421328dcdb3d2cdd9e00269fed958477b4a493bdb6"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "b415e23dd75ca12348a049f74f643e63bffd81bcc1b684a14ac218f16dc3449a"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "e49182149eb112e2dc3d9a751b6d67cf9194899ddad019bf184ae4941f4c1c39"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "a84d8c461997db371139848fde48d6a9726298a7df2bad1bb5cdebb1d9139af9"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 128,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "baseline": 0.36824190000334056,
+        "candidate": 0.35599469999579014
+      },
+      "candidate_over_baseline_median": 0.9667414272861418
+    },
+    {
+      "period": 512,
+      "count": 2,
+      "indicators": [
+        "FindFirstIndexHighest",
+        "FindFirstIndexLowest"
+      ],
+      "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 12000,
+          "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+        },
+        "FindFirstIndexLowest": {
+          "length": 12000,
+          "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+        }
+      },
+      "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+      "samples": [
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.30537460000050487,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.3338313000058406,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.3013957000002847,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.30638750000071013,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 2,
+              "elapsed_seconds": 0.3145567999963532,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "917697712640d4fc8f90ed6a0998bf6e848a2fa39d8b64d4440446f4b4c2855d",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 2,
+              "elapsed_seconds": 0.3059646999972756,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "baseline": 0.30638750000071013,
+        "candidate": 0.3059646999972756
+      },
+      "candidate_over_baseline_median": 0.9986200481304441
+    },
+    {
+      "period": 512,
+      "count": 4,
+      "indicators": [
+        "FindFirstIndexHighest",
+        "FindFirstIndexLowest",
+        "FindLastIndexHighest",
+        "FindLastIndexLowest"
+      ],
+      "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 12000,
+          "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+        },
+        "FindFirstIndexLowest": {
+          "length": 12000,
+          "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+        },
+        "FindLastIndexHighest": {
+          "length": 12000,
+          "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+        },
+        "FindLastIndexLowest": {
+          "length": 12000,
+          "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+        }
+      },
+      "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+      "samples": [
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.35801530000026105,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.3910595999986981,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "baseline",
+            "candidate"
+          ],
+          "measurements": {
+            "baseline": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.3657173999963561,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "candidate": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.3529860999988159,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "candidate",
+            "baseline"
+          ],
+          "measurements": {
+            "candidate": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-inline-r2-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "66e7f24598945a2e3cfeeec5362391143c3fcadaed4d0ac08d6c3469fb31ee7b",
+              "count": 4,
+              "elapsed_seconds": 0.40757419999863487,
+              "kind": "candidate",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            },
+            "baseline": {
+              "all_output_bytes_sha256": "838c8bdb4ddc3161bda936d1b2516b4fcbca6ac1989c3f5ce160d9a34d74e09c",
+              "backtrader_version": "1.4.0",
+              "bars": 12000,
+              "basicops_origin": "D:\\temp\\i71-index-baseline-535eaa80\\backtrader\\indicators\\basicops.py",
+              "basicops_sha256": "cc06e9ddbc4d11fbac2dfd92e56ad22b702b9904d9d3028cbb9161e1fb3d568a",
+              "count": 4,
+              "elapsed_seconds": 0.3855009000035352,
+              "kind": "baseline",
+              "numpy_init_sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+              "numpy_origin": "C:\\anaconda3\\Lib\\site-packages\\numpy\\__init__.py",
+              "numpy_version": "1.26.4",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 12000,
+                  "sha256": "2038c931c48be3cb45b8f805b5a3ade3c527573040ba43b194234a46534c95ce"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 12000,
+                  "sha256": "92c233c91eb4ff1d9b7541bd838319b9802e8d48fdb4a6f56ed73c5fa08d2cb5"
+                },
+                "FindLastIndexHighest": {
+                  "length": 12000,
+                  "sha256": "87b3769ff8ba43dbcd42445e6674bb038b0506b65bb16da46ee7f64d6c85dd43"
+                },
+                "FindLastIndexLowest": {
+                  "length": 12000,
+                  "sha256": "12e981f999ff9808aadab5b21594d9bb8a393bf5436b9f9f68190920f3bcb0bd"
+                }
+              },
+              "pandas_init_sha256": "755b7c4dc96dc69da85a32fad32513cdcbe67061b1322de2bd2759db3a6690be",
+              "pandas_origin": "C:\\anaconda3\\Lib\\site-packages\\pandas\\__init__.py",
+              "pandas_version": "2.2.3",
+              "period": 512,
+              "platform": "Windows-10-10.0.26300-SP0",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "python_version": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "seed": 710159,
+              "source_data_sha256": "4f20a3bad6e445076f1c7dbf228b22b247c3c0064fd69697e2b91471917923d6",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "baseline": 0.3855009000035352,
+        "candidate": 0.35801530000026105
+      },
+      "candidate_over_baseline_median": 0.9287015931661324
+    }
+  ],
+  "scope": "synthetic full Cerebro runonce; timing excludes synthetic frame and engine construction"
+}
