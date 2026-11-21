@@ -25,34 +25,29 @@ class LaguerreFilterIndicator(Indicator):
         self._l1 = None
         self._l2 = None
         self._l3 = None
+        self._state_bar = None
+        self._previous_state = None
 
     def _price(self, ago=0):
         return (float(self.data.high[ago]) + float(self.data.low[ago])) / 2.0
 
     def next(self):
         """Compute current Laguerre and FIR values for the current bar."""
+        if self._state_bar != len(self):
+            self._previous_state = self._l0, self._l1, self._l2, self._l3
+            self._state_bar = len(self)
+        l0a, l1a, l2a, l3a = self._previous_state
         price = self._price(0)
-        if self._l0 is None:
-            self._l0 = price
-            self._l1 = price
-            self._l2 = price
-            self._l3 = price
+        if l0a is None:
             self.lines.laguerre[0] = price
             self.lines.fir[0] = price
+            self._l0 = self._l1 = self._l2 = self._l3 = price
             return
-        l0a = self._l0
-        l1a = self._l1
-        l2a = self._l2
-        l3a = self._l3
         gamma = float(self.p.gamma)
         l0 = (1.0 - gamma) * price + gamma * l0a
         l1 = -gamma * l0 + l0a + gamma * l1a
         l2 = -gamma * l1 + l1a + gamma * l2a
         l3 = -gamma * l2 + l2a + gamma * l3a
-        self._l0 = l0
-        self._l1 = l1
-        self._l2 = l2
-        self._l3 = l3
         if len(self) > 4:
             self.lines.laguerre[0] = (l0 + 2.0 * l1 + 2.0 * l2 + l3) / 6.0
             self.lines.fir[0] = (
@@ -64,3 +59,4 @@ class LaguerreFilterIndicator(Indicator):
         else:
             self.lines.laguerre[0] = price
             self.lines.fir[0] = price
+        self._l0, self._l1, self._l2, self._l3 = l0, l1, l2, l3

@@ -540,6 +540,24 @@ def test_97_0097_0977_laguerrefilter() -> None:
     # main() (or run()). This reuses whatever loader / build_cerebro /
     # extract_metrics signatures the strategy used internally.
     captured = {}
+    events = []
+    original_strategy = LaguerreFilterStrategy
+
+    class ObservedStrategy(original_strategy):
+        def notify_order(self, order):
+            if order.status == order.Completed:
+                events.append((self.data.datetime.datetime(0).isoformat(), 'order',
+                               'buy' if order.isbuy() else 'sell',
+                               float(order.executed.size), float(order.executed.price)))
+            super().notify_order(order)
+
+        def notify_trade(self, trade):
+            if trade.isopen or trade.isclosed:
+                events.append((self.data.datetime.datetime(0).isoformat(),
+                               'open' if trade.isopen else 'close', float(trade.size),
+                               float(trade.price), float(trade.pnlcomm)))
+            super().notify_trade(trade)
+
     _orig_extract = extract_metrics
     def _capture_em(*a, **kw):
         m = _orig_extract(*a, **kw)
@@ -550,6 +568,7 @@ def test_97_0097_0977_laguerrefilter() -> None:
     import sys as _sys
     _mod = _sys.modules[__name__]
     _mod.extract_metrics = _capture_em
+    _mod.LaguerreFilterStrategy = ObservedStrategy
 
     # Force runonce=True for the run inside main().
     import backtrader as _bt
@@ -574,33 +593,46 @@ def test_97_0097_0977_laguerrefilter() -> None:
     finally:
         _bt.Cerebro.run = _orig_run
         _mod.extract_metrics = _orig_extract
+        _mod.LaguerreFilterStrategy = original_strategy
         _sys.argv = _saved_argv
 
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
     assert metrics.get('bar_num') == 6071, f"bar_num: expected=6071, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 20, f"buy_count: expected=20, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 35, f"sell_count: expected=35, got={metrics.get('sell_count')!r}"
-    assert metrics.get('total_trades') == 55, f"total_trades: expected=55, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 55, f"trade_count: expected=55, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 19, f"won: expected=19, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 36, f"lost: expected=36, got={metrics.get('lost')!r}"
+    assert metrics.get('buy_count') == 12, f"buy_count: expected=12, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 11, f"sell_count: expected=11, got={metrics.get('sell_count')!r}"
+    assert metrics.get('total_trades') == 23, f"total_trades: expected=23, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 23, f"trade_count: expected=23, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 12, f"won: expected=12, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 11, f"lost: expected=11, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('buy_signal_count'), 20.0, tol=2.000000e-05, key='buy_signal_count')
-    _close(metrics.get('sell_signal_count'), 37.0, tol=3.700000e-05, key='sell_signal_count')
-    _close(metrics.get('completed_order_count'), 110.0, tol=1.100000e-04, key='completed_order_count')
+    _close(metrics.get('buy_signal_count'), 12.0, tol=1.200000e-05, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 12.0, tol=1.200000e-05, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 46.0, tol=4.600000e-05, key='completed_order_count')
     _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 995796.0999999988, tol=9.957961e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -4203.900000001187, tol=4.203900e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.42039000000011484, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 34.54545454545455, tol=3.454545e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.6334330284349056, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('sharpe_ratio'), -10.416873722309985, tol=1.041687e-05, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -22.071969339745674, tol=2.207197e-05, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 0.4601730733065781, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sqn'), -1.2418683513435818, tol=1.241868e-06, key='sqn')
+    _close(metrics.get('final_value'), 1000159.3999999997, tol=1.000159e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 159.39999999967404, tol=1.594000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.015939999999958765, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 52.17391304347826, tol=5.217391e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0447350696003606, tol=1.044735e-06, key='profit_factor')
+    _close(metrics.get('sharpe_ratio'), 0.5853824444872672, tol=1.000000e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 0.9479964856872645, tol=1.000000e-06, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.2815228748200268, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), 0.07815170753716388, tol=1.000000e-06, key='sqn')
+    # Snapshot includes execution events because the corrected slow feed changes
+    # both the first trade and the total set of trades.
+    assert events[:4] == [
+        ('2025-12-05T16:15:00', 'order', 'sell', -0.1, 4234.52),
+        ('2025-12-05T16:15:00', 'open', -0.1, 4234.52, 0.0),
+        ('2025-12-05T20:15:00', 'order', 'buy', 0.1, 4217.21),
+        ('2025-12-05T20:15:00', 'close', 0.0, 4234.52, pytest.approx(173.1)),
+    ]
+    assert sum(event[1] == 'order' for event in events) == 46
+    assert sum(event[1] == 'open' for event in events) == 23
+    assert sum(event[1] == 'close' for event in events) == 23
+    assert sum(event[4] for event in events if event[1] == 'close') == pytest.approx(159.4)
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
