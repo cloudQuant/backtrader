@@ -6,6 +6,7 @@ from __future__ import annotations
 import backtrader as bt
 
 import datetime
+import math
 from pathlib import Path
 
 from backtrader.utils.load_data import load_mt5_csv
@@ -81,6 +82,9 @@ class ExpBSIStrategy(bt.Strategy):
         self._last_signal_len = len(self.signal_data)
         c0 = float(self.ind.color[-sb]) if sb else float(self.ind.color[0])
         c1 = float(self.ind.color[-(sb + 1)])
+        # Protective exits are checked above; missing colors are not signals.
+        if not (math.isfinite(c0) and math.isfinite(c1)):
+            return
         buy_open = c1 == 2.0 and c0 != 2.0 and self.p.buy_pos_open
         sell_open = c1 == 0.0 and c0 != 0.0 and self.p.sell_pos_open
         buy_close = sell_open and self.p.buy_pos_close
