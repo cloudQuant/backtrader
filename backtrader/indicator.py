@@ -9,6 +9,9 @@ The Indicator class serves as the foundation for all technical indicators
 in backtrader, managing line data, minimum periods, and calculation logic.
 """
 
+from types import GetSetDescriptorType
+
+from .linebuffer import LineBuffer
 from .lineiterator import IndicatorBase, LineIterator, _contains_identity
 from .lineseries import Lines
 from .metabase import AutoInfoClass, OwnerContext
@@ -16,6 +19,62 @@ from .utils.log_message import get_logger
 from .utils.py3 import range
 
 logger = get_logger(__name__)
+
+
+def _is_plain_indicator_clock_alias(indicator, value):
+    """Identify a concrete line alias without calling user attribute getters."""
+    if type(value) is not LineBuffer:
+        return False
+
+    def plain_state(obj, name):
+        obj_type = type(obj)
+        if type(obj_type) is not type:
+            return None
+        for base in type.__getattribute__(obj_type, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if "__getattribute__" in namespace:
+                if namespace["__getattribute__"] is not object.__getattribute__:
+                    return None
+                break
+        else:
+            return None
+        for base in type.__getattribute__(obj_type, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if name in namespace:
+                descriptor_type = type(namespace[name])
+                if type(descriptor_type) is not type:
+                    return None
+                if any(
+                    "__set__" in type.__getattribute__(parent, "__dict__")
+                    or "__delete__" in type.__getattribute__(parent, "__dict__")
+                    for parent in type.__getattribute__(descriptor_type, "__mro__")
+                ):
+                    return None
+                break
+        # object.__getattribute__ still invokes a custom __dict__ descriptor.
+        for base in type.__getattribute__(obj_type, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if "__dict__" in namespace:
+                module = type.__getattribute__(base, "__module__")
+                if (
+                    type(namespace["__dict__"]) is not GetSetDescriptorType
+                    or type(module) is not str
+                    or not module.startswith("backtrader.")
+                ):
+                    return None
+                break
+        else:
+            return None
+        try:
+            return object.__getattribute__(obj, "__dict__").get(name)
+        except (AttributeError, TypeError):
+            return None
+
+    lines_obj = plain_state(indicator, "lines")
+    if lines_obj is None:
+        return False
+    lines = plain_state(lines_obj, "lines")
+    return type(lines) in (list, tuple) and any(value is line for line in lines)
 
 
 class IndicatorRegistry:
@@ -337,7 +396,10 @@ class Indicator(IndicatorBase):
         # explicit secondary clock was pinned we use it so the indicator
         # advances in lockstep with that feed. See
         # docs/DEV_REGRESSION_FAILURES.md.
-        adv_clock = getattr(self, "_resolved_secondary_clock", None) or self._clock
+        secondary = getattr(self, "_resolved_secondary_clock", None)
+        if type(secondary) is LineBuffer and _is_plain_indicator_clock_alias(self, secondary):
+            secondary = None
+        adv_clock = secondary or self._clock
         if len(self) < len(adv_clock):
             self.lines.advance(size=size)
             for ind in self._lineiterators.get(LineIterator.IndType, []):
