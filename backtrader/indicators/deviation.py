@@ -29,6 +29,28 @@ from ..parameters import ParameterAccessor, ParameterManager
 from . import Indicator, MovAv
 
 _MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE = 16
+_MATH_HAS_PLAIN_KEYS = type(math) is type(array) and all(type(key) is str for key in math.__dict__)
+_ORIGINAL_FSUM = math.__dict__.get("fsum") if _MATH_HAS_PLAIN_KEYS else None
+_ORIGINAL_SQRT = math.__dict__.get("sqrt") if _MATH_HAS_PLAIN_KEYS else None
+_ORIGINAL_ISFINITE = math.__dict__.get("isfinite") if _MATH_HAS_PLAIN_KEYS else None
+_BUILTINS_HAS_PLAIN_KEYS = type(__builtins__) is dict and all(
+    type(key) is str for key in __builtins__
+)
+_ORIGINAL_ABS = __builtins__.get("abs") if _BUILTINS_HAS_PLAIN_KEYS else None
+_NATIVE_MATH_BINDINGS = (
+    type(_ORIGINAL_ABS) is type([].append)
+    and type(_ORIGINAL_FSUM) is type(_ORIGINAL_ABS)
+    and type(_ORIGINAL_SQRT) is type(_ORIGINAL_ABS)
+    and type(_ORIGINAL_ISFINITE) is type(_ORIGINAL_ABS)
+    and _ORIGINAL_FSUM.__module__ == "math"
+    and _ORIGINAL_FSUM.__name__ == "fsum"
+    and _ORIGINAL_SQRT.__module__ == "math"
+    and _ORIGINAL_SQRT.__name__ == "sqrt"
+    and _ORIGINAL_ISFINITE.__module__ == "math"
+    and _ORIGINAL_ISFINITE.__name__ == "isfinite"
+    and _ORIGINAL_ABS.__module__ == "builtins"
+    and _ORIGINAL_ABS.__name__ == "abs"
+)
 _PARAMETER_ACCESSOR_GETATTRIBUTE = ParameterAccessor.__getattribute__
 _PARAMETER_ACCESSOR_GETATTRIBUTE_CODE = _PARAMETER_ACCESSOR_GETATTRIBUTE.__code__
 _PARAMETER_MANAGER_GET = ParameterManager.get
@@ -342,7 +364,9 @@ class StandardDeviation(Indicator):
                 or not _add_fsum_partial(sum_partials, value)
                 or not _add_fsum_partial(square_partials, square)
             ):
-                self._once_simple_fsum(actual_end, darray, larray, period, None, nan_val, period - 1)
+                self._once_simple_fsum(
+                    actual_end, darray, larray, period, None, nan_val, period - 1
+                )
                 return
 
         try:
@@ -461,6 +485,30 @@ class StandardDeviation(Indicator):
             legacy_long_period = period >= 64
             is_double_array = type(darray) is array.array and darray.typecode == "d"
             plain_safepow = _has_plain_safepow_parameter(self)
+            check_fsum = (
+                type(period) is int
+                and type(_MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE) is int
+                and period >= _MIN_PERIOD_FOR_ROLLING_STDDEV_ONCE
+                and is_double_array
+                and darray is not larray
+                and type(actual_end) is int
+                and plain_safepow is True
+                and mean_array is None
+                and actual_end >= period
+                and (legacy_long_period or actual_end - (period - 1) >= 4)
+                and type(self) is _STANDARD_DEVIATION_CLASS
+            )
+            native_fsum = not check_fsum or (
+                type(math) is type(array)
+                and _NATIVE_MATH_BINDINGS
+                and all(type(key) is str for key in math.__dict__)
+                and math.__dict__.get("fsum") is _ORIGINAL_FSUM
+                and math.__dict__.get("sqrt") is _ORIGINAL_SQRT
+                and math.__dict__.get("isfinite") is _ORIGINAL_ISFINITE
+                and type(__builtins__) is dict
+                and all(type(key) is str for key in __builtins__)
+                and __builtins__.get("abs") is _ORIGINAL_ABS
+            )
             if (
                 (
                     not is_double_array
@@ -468,6 +516,7 @@ class StandardDeviation(Indicator):
                     or type(actual_end) is not int
                     or darray is larray
                     or not plain_safepow
+                    or not native_fsum
                     or _STANDARD_DEVIATION_FINISH.__code__ is not _STANDARD_DEVIATION_FINISH_CODE
                 )
                 and legacy_long_period
@@ -497,6 +546,7 @@ class StandardDeviation(Indicator):
                 and darray is not larray
                 and type(actual_end) is int
                 and plain_safepow
+                and native_fsum
                 and mean_array is None
                 and actual_end >= period
                 and actual_end - calc_start >= 4
@@ -544,9 +594,9 @@ class StandardDeviation(Indicator):
                         for j in range(win_start, index + 1):
                             val = darray[j] if is_double_array else float(darray[j])
                             sq = val * val
-                            if not _add_fsum_partial(
-                                sum_partials, val
-                            ) or not _add_fsum_partial(square_partials, sq):
+                            if not _add_fsum_partial(sum_partials, val) or not _add_fsum_partial(
+                                square_partials, sq
+                            ):
                                 overflowed = True
                                 break
 
@@ -594,18 +644,14 @@ class StandardDeviation(Indicator):
                             if is_double_array
                             else float(darray[index - period])
                         )
-                        incoming = (
-                            darray[index] if is_double_array else float(darray[index])
-                        )
+                        incoming = darray[index] if is_double_array else float(darray[index])
                         outgoing_sq = outgoing * outgoing
                         incoming_sq = incoming * incoming
                         if (
                             not isfinite(outgoing_sq)
                             or not isfinite(incoming_sq)
                             or not _update_fsum_step(sum_partials, outgoing, incoming)
-                            or not _update_fsum_step(
-                                square_partials, outgoing_sq, incoming_sq
-                            )
+                            or not _update_fsum_step(square_partials, outgoing_sq, incoming_sq)
                         ):
                             sum_partials = None
                             square_partials = None
