@@ -472,7 +472,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             savemem: Memory saving mode.
             replaying: Whether replaying is active.
         """
-        extrasize = self.resampling or replaying
+        extrasize = self.resampling or replaying or len(getattr(self._env, "datas", ())) > 1
         for line in self.lines:
             line.qbuffer(savemem=savemem, extrasize=extrasize)
 
@@ -742,11 +742,22 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # If own length is less than cached data length, move forward
         try:
             line_datetime = self._datetime_line
-            needs_load = line_datetime.lencount >= (
-                len(line_datetime.array) - line_datetime.extension
-            )
+            if line_datetime.mode == line_datetime.QBuffer:
+                needs_load = line_datetime.idx >= (
+                    len(line_datetime.array) - line_datetime.extension - 1
+                )
+            else:
+                needs_load = line_datetime.lencount >= (
+                    len(line_datetime.array) - line_datetime.extension
+                )
         except AttributeError:
-            needs_load = len(self) >= self.buflen()
+            line_datetime = self.lines.datetime
+            if line_datetime.mode == line_datetime.QBuffer:
+                needs_load = line_datetime.idx >= (
+                    len(line_datetime.array) - line_datetime.extension - 1
+                )
+            else:
+                needs_load = len(self) >= self.buflen()
 
         if needs_load:
             if ticks:

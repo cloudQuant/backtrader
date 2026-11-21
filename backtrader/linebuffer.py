@@ -1068,7 +1068,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         # PERF: idx and lencount are always initialized in __init__
         if self.mode == self.QBuffer:
-            self.idx = self._idx - size
+            if self.extrasize and type(self).idx is LineBuffer.idx:
+                # The inherited property binds LineBuffer.set_idx, regardless
+                # of a subclass method with the same name.
+                LineBuffer.idx.fset(self, self._idx - size, force=True)
+            else:
+                self.idx = self._idx - size
         else:
             self._idx -= size
         self.lencount -= size
