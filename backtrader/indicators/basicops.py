@@ -587,6 +587,7 @@ class OperationN(PeriodN):
                 and src.typecode == "d"
                 and type(dst) is array.array
                 and dst.typecode == "d"
+                and src is not dst
             ):
                 # The generic path's NaN-left behavior includes a StopIteration
                 # fallback. Skip the fast path for any affected window so that
@@ -626,6 +627,7 @@ class OperationN(PeriodN):
                 and src.typecode == "d"
                 and type(dst) is array.array
                 and dst.typecode == "d"
+                and src is not dst
             ):
                 _once_monotonic_extreme(src, dst, start, end, period, choose_max)
                 return
