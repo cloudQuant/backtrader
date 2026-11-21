@@ -55,6 +55,7 @@ import operator
 import types
 from collections import deque
 
+from ..parameters import ParameterAccessor
 from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
@@ -64,6 +65,61 @@ _MIN_PERIOD_FOR_MONOTONIC_ONCE = 32
 _MIN_PERIOD_FOR_MONOTONIC_INDEX_ONCE = 32
 _MIN_PERIOD_FOR_SUM_ONCE = 32
 _MIN_PERIOD_FOR_BOOL_ONCE = 32
+_INDEX_ACCESSOR_CLASS = ParameterAccessor
+_INDEX_ACCESSOR_GETATTRIBUTE = vars(ParameterAccessor).get("__getattribute__")
+_INDEX_ACCESSOR_DICT = vars(ParameterAccessor).get("__dict__")
+
+
+def _plain_index_evalfunc_is(indicator, expected):
+    """Identify an inert built-in parameter without invoking its getter."""
+    cls = type(indicator)
+    if (
+        type(cls) is not type
+        or ParameterAccessor is not _INDEX_ACCESSOR_CLASS
+        or vars(ParameterAccessor).get("__getattribute__") is not _INDEX_ACCESSOR_GETATTRIBUTE
+    ):
+        return False
+    for base in type.__getattribute__(cls, "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if "__getattribute__" in namespace:
+            if namespace["__getattribute__"] is not object.__getattribute__:
+                return False
+            break
+    else:
+        return False
+    for check_cls, expected_dict in (
+        (cls, _INDEX_INDICATOR_DICT),
+        (ParameterAccessor, _INDEX_ACCESSOR_DICT),
+    ):
+        for base in type.__getattribute__(check_cls, "__mro__"):
+            namespace = type.__getattribute__(base, "__dict__")
+            if "__dict__" in namespace:
+                if namespace["__dict__"] is not expected_dict:
+                    return False
+                break
+        else:
+            return False
+    for base in type.__getattribute__(cls, "__mro__"):
+        namespace = type.__getattribute__(base, "__dict__")
+        if "p" in namespace:
+            if namespace["p"] is not _INDEX_INDICATOR_P:
+                return False
+            break
+    else:
+        return False
+    for base in type.__getattribute__(ParameterAccessor, "__mro__"):
+        if "_evalfunc" in type.__getattribute__(base, "__dict__"):
+            return False
+    state = object.__getattribute__(indicator, "__dict__")
+    if type(state) is not dict or any(type(key) is not str for key in state):
+        return False
+    params = state.get("_params_instance")
+    if type(params) is not ParameterAccessor:
+        return False
+    state = object.__getattribute__(params, "__dict__")
+    if type(state) is not dict or any(type(key) is not str for key in state):
+        return False
+    return state.get("_evalfunc") is expected
 
 
 def _add_fsum_partial(partials, value):
@@ -549,28 +605,28 @@ class OperationN(PeriodN):
             if (
                 type(self) is FindFirstIndexHighest
                 and index_func is _FIND_FIRST_INDEX_FUNC
-                and self.p._evalfunc is max
+                and _plain_index_evalfunc_is(self, max)
             ):
                 index_choice = True
                 choose_latest = True
             elif (
                 type(self) is FindFirstIndexLowest
                 and index_func is _FIND_FIRST_INDEX_FUNC
-                and self.p._evalfunc is min
+                and _plain_index_evalfunc_is(self, min)
             ):
                 index_choice = False
                 choose_latest = True
             elif (
                 type(self) is FindLastIndexHighest
                 and index_func is _FIND_LAST_INDEX_FUNC
-                and self.p._evalfunc is max
+                and _plain_index_evalfunc_is(self, max)
             ):
                 index_choice = True
                 choose_latest = False
             elif (
                 type(self) is FindLastIndexLowest
                 and index_func is _FIND_LAST_INDEX_FUNC
-                and self.p._evalfunc is min
+                and _plain_index_evalfunc_is(self, min)
             ):
                 index_choice = False
                 choose_latest = False
@@ -1005,6 +1061,12 @@ class FindLastIndexLowest(FindLastIndex):
 # Dynamic replacement of either base method must stay on the generic path.
 _FIND_FIRST_INDEX_FUNC = FindFirstIndex.func
 _FIND_LAST_INDEX_FUNC = FindLastIndex.func
+_INDEX_INDICATOR_P = next(
+    vars(base)["p"] for base in FindFirstIndexHighest.__mro__ if "p" in vars(base)
+)
+_INDEX_INDICATOR_DICT = next(
+    vars(base)["__dict__"] for base in FindFirstIndexHighest.__mro__ if "__dict__" in vars(base)
+)
 
 
 # Calculate cumulative sum
