@@ -1,0 +1,854 @@
+{
+  "current_commit": "c5fc2e7e954eae104d4acae5accdd9bf30e9c44d",
+  "old_method_commit": "2bebe4e47",
+  "script_sha256": "066434be41cb9dfb8e10d0534a4f0218daea1bf72ef0cfaaaa1d9a6892fa1c9b",
+  "snapshot_before": {
+    "count": 697,
+    "package_sha256": "a727877846205c6b850ae812dbf7ecdfd4dcda3c7698992c3fc0079ecce9a7c2",
+    "old_sha256": "9382da9640e4229d8786afa9a522a8090a774eeab40424d1e25ce122c227fc32",
+    "current_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058"
+  },
+  "snapshot_after": {
+    "count": 697,
+    "package_sha256": "a727877846205c6b850ae812dbf7ecdfd4dcda3c7698992c3fc0079ecce9a7c2",
+    "old_sha256": "9382da9640e4229d8786afa9a522a8090a774eeab40424d1e25ce122c227fc32",
+    "current_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058"
+  },
+  "bars": 30000,
+  "seed": 710159,
+  "pairs": 3,
+  "scenarios": [
+    {
+      "period": 50,
+      "count": 4,
+      "samples": [
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.3241947999995318,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.0364554000043427,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "current",
+            "old_window"
+          ],
+          "measurements": {
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.041659399998025,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.4921006000004127,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.2641686000060872,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.1084369000018341,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+                }
+              },
+              "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "old_window": 1.3241947999995318,
+        "current": 1.041659399998025
+      },
+      "current_over_old_median": 0.7866360749931908,
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 30000,
+          "sha256": "58da4ff1cff43a84fba3316bc1bfaeea7bf7b7f9868684cb49393991d5778c67"
+        },
+        "FindFirstIndexLowest": {
+          "length": 30000,
+          "sha256": "881aeb7782fb57b9356ff8c03df6a03688cf5587500a08883c0624afbc1e66ba"
+        },
+        "FindLastIndexHighest": {
+          "length": 30000,
+          "sha256": "a1ec533490117640456b8f47e43c3fc9e9ef850f355047425c2f2d95633f89fc"
+        },
+        "FindLastIndexLowest": {
+          "length": 30000,
+          "sha256": "d1c40bff8575e19ef3ecea0869828ce1190278c2dff9716fb54c1aea29b3c45c"
+        }
+      },
+      "all_output_bytes_sha256": "688d331a471aec32c5beda87ad4e40a524d24c258a304ce747d5814003dd3aa6",
+      "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30"
+    },
+    {
+      "period": 128,
+      "count": 4,
+      "samples": [
+        {
+          "order": [
+            "current",
+            "old_window"
+          ],
+          "measurements": {
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 0.9917790999970748,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.4900916000042344,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.584774799994193,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 0.9779836000016076,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "current",
+            "old_window"
+          ],
+          "measurements": {
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.2194590999934007,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 128,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.598965600001975,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+                }
+              },
+              "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "old_window": 1.584774799994193,
+        "current": 0.9917790999970748
+      },
+      "current_over_old_median": 0.6258170561525265,
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 30000,
+          "sha256": "b2804df56f8bf0b075149d4182abf35cef92ddc4c528f5b257d7d6ffb13a9f01"
+        },
+        "FindFirstIndexLowest": {
+          "length": 30000,
+          "sha256": "4c474c677601c0fc64bcdeeb137975a376ae9983a2f61264d8bbb9f46ed632f9"
+        },
+        "FindLastIndexHighest": {
+          "length": 30000,
+          "sha256": "91303d4192c0c4f895358555de43fe019c335972ad420deb83e27785a39bf32f"
+        },
+        "FindLastIndexLowest": {
+          "length": 30000,
+          "sha256": "e4f62448e23122387a70b68c2bbe20e5df24ce5048c74df8f4d5a58d496806da"
+        }
+      },
+      "all_output_bytes_sha256": "74a8b57c23e3f2f1e5b81a0b76e9b1fe698f362bbb497a303c1d600185a5fb93",
+      "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30"
+    },
+    {
+      "period": 512,
+      "count": 4,
+      "samples": [
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 2.900615200000175,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.0372512999965693,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "current",
+            "old_window"
+          ],
+          "measurements": {
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.1192340000052354,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 3.1573620999988634,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        },
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 3.15852740000264,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 30000,
+              "period": 512,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 1.0801640000063344,
+              "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 30000,
+                  "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 30000,
+                  "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+                },
+                "FindLastIndexHighest": {
+                  "length": 30000,
+                  "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+                },
+                "FindLastIndexLowest": {
+                  "length": 30000,
+                  "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+                }
+              },
+              "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "old_window": 3.1573620999988634,
+        "current": 1.0801640000063344
+      },
+      "current_over_old_median": 0.3421096363976508,
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 30000,
+          "sha256": "dbf0fdc0da43444f7fa479703fa182a57ab9ae8231e4d3a654aab36615a260d3"
+        },
+        "FindFirstIndexLowest": {
+          "length": 30000,
+          "sha256": "5b11177b8fc2a12408c3150302e8ed57a2807ec666654fd180161188856f0b36"
+        },
+        "FindLastIndexHighest": {
+          "length": 30000,
+          "sha256": "44171033d3093f6dcc61419540a2951b2a7961b6629262d59867af89e2a7bdca"
+        },
+        "FindLastIndexLowest": {
+          "length": 30000,
+          "sha256": "1baac81a9f2a4e9fe123cdb58ceb7872bb4b4fa214cfa7363d4c50f1b991093f"
+        }
+      },
+      "all_output_bytes_sha256": "2ade8717f79109a3d5ff2f49c2a52baa6cac6714273f7b2a4d4c838d6440ed02",
+      "source_data_sha256": "dffe340152b20bd06bffe73ff30ed412adff2926abc13de2332916a55320ca30"
+    }
+  ],
+  "scope": "Cerebro runonce; exact old method compiled against current module globals; synthetic data; frame and engine construction outside timer"
+}

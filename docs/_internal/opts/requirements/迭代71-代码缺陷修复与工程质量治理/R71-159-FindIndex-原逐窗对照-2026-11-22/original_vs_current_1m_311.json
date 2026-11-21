@@ -1,0 +1,136 @@
+{
+  "current_commit": "c5fc2e7e954eae104d4acae5accdd9bf30e9c44d",
+  "old_method_commit": "2bebe4e47",
+  "script_sha256": "066434be41cb9dfb8e10d0534a4f0218daea1bf72ef0cfaaaa1d9a6892fa1c9b",
+  "snapshot_before": {
+    "count": 697,
+    "package_sha256": "a727877846205c6b850ae812dbf7ecdfd4dcda3c7698992c3fc0079ecce9a7c2",
+    "old_sha256": "9382da9640e4229d8786afa9a522a8090a774eeab40424d1e25ce122c227fc32",
+    "current_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058"
+  },
+  "snapshot_after": {
+    "count": 697,
+    "package_sha256": "a727877846205c6b850ae812dbf7ecdfd4dcda3c7698992c3fc0079ecce9a7c2",
+    "old_sha256": "9382da9640e4229d8786afa9a522a8090a774eeab40424d1e25ce122c227fc32",
+    "current_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058"
+  },
+  "bars": 1000000,
+  "seed": 710159,
+  "pairs": 1,
+  "scenarios": [
+    {
+      "period": 50,
+      "count": 4,
+      "samples": [
+        {
+          "order": [
+            "old_window",
+            "current"
+          ],
+          "measurements": {
+            "old_window": {
+              "kind": "old_window",
+              "bars": 1000000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 48.8136003000036,
+              "source_data_sha256": "1baa6de729f3253c4a2277e3558aeb0331b104700413b5e1e60aff71e919ae55",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 1000000,
+                  "sha256": "f2414e02e1bc6d16ddf9ec87cd856684fdf71fc9980d509fa9cc3bc660d7cc44"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 1000000,
+                  "sha256": "254af96bcdb2ccadb24af16b3b61b4a5425b61e488392838f37eebbc95c65ec3"
+                },
+                "FindLastIndexHighest": {
+                  "length": 1000000,
+                  "sha256": "bec660d80b937f13e3c253d0cf4b6c8a292a1043eec56b980e695621a36d2f93"
+                },
+                "FindLastIndexLowest": {
+                  "length": 1000000,
+                  "sha256": "9b9e76bb06ca229adcdce0e456c103651ec902ed93b51922135cfca6fbad2a82"
+                }
+              },
+              "all_output_bytes_sha256": "f964fc13f8fd5305096e81b78db46a81913c10230445b079761306d185e3e09e",
+              "deque_calls": 0,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            },
+            "current": {
+              "kind": "current",
+              "bars": 1000000,
+              "period": 50,
+              "count": 4,
+              "seed": 710159,
+              "elapsed_seconds": 36.46680390000256,
+              "source_data_sha256": "1baa6de729f3253c4a2277e3558aeb0331b104700413b5e1e60aff71e919ae55",
+              "output_arrays": {
+                "FindFirstIndexHighest": {
+                  "length": 1000000,
+                  "sha256": "f2414e02e1bc6d16ddf9ec87cd856684fdf71fc9980d509fa9cc3bc660d7cc44"
+                },
+                "FindFirstIndexLowest": {
+                  "length": 1000000,
+                  "sha256": "254af96bcdb2ccadb24af16b3b61b4a5425b61e488392838f37eebbc95c65ec3"
+                },
+                "FindLastIndexHighest": {
+                  "length": 1000000,
+                  "sha256": "bec660d80b937f13e3c253d0cf4b6c8a292a1043eec56b980e695621a36d2f93"
+                },
+                "FindLastIndexLowest": {
+                  "length": 1000000,
+                  "sha256": "9b9e76bb06ca229adcdce0e456c103651ec902ed93b51922135cfca6fbad2a82"
+                }
+              },
+              "all_output_bytes_sha256": "f964fc13f8fd5305096e81b78db46a81913c10230445b079761306d185e3e09e",
+              "deque_calls": 8,
+              "python": "3.11.5 | packaged by Anaconda, Inc. | (main, Sep 11 2023, 13:26:23) [MSC v.1916 64 bit (AMD64)]",
+              "python_executable": "C:\\anaconda3\\python.exe",
+              "python_executable_sha256": "c98caee82c66433f0e89d4abbf152b39a7dc2e99979b28dcb021598b4e3f5642",
+              "numpy": "1.26.4",
+              "pandas": "2.2.3",
+              "platform": "Windows-10-10.0.26300-SP0",
+              "basicops_sha256": "c39958aef1b8d6e761ba1605e083d1acc51266ab5347e8b1b2a8a2f3261da058",
+              "stderr": ""
+            }
+          }
+        }
+      ],
+      "median_seconds": {
+        "old_window": 48.8136003000036,
+        "current": 36.46680390000256
+      },
+      "current_over_old_median": 0.747062369419202,
+      "output_arrays": {
+        "FindFirstIndexHighest": {
+          "length": 1000000,
+          "sha256": "f2414e02e1bc6d16ddf9ec87cd856684fdf71fc9980d509fa9cc3bc660d7cc44"
+        },
+        "FindFirstIndexLowest": {
+          "length": 1000000,
+          "sha256": "254af96bcdb2ccadb24af16b3b61b4a5425b61e488392838f37eebbc95c65ec3"
+        },
+        "FindLastIndexHighest": {
+          "length": 1000000,
+          "sha256": "bec660d80b937f13e3c253d0cf4b6c8a292a1043eec56b980e695621a36d2f93"
+        },
+        "FindLastIndexLowest": {
+          "length": 1000000,
+          "sha256": "9b9e76bb06ca229adcdce0e456c103651ec902ed93b51922135cfca6fbad2a82"
+        }
+      },
+      "all_output_bytes_sha256": "f964fc13f8fd5305096e81b78db46a81913c10230445b079761306d185e3e09e",
+      "source_data_sha256": "1baa6de729f3253c4a2277e3558aeb0331b104700413b5e1e60aff71e919ae55"
+    }
+  ],
+  "scope": "Cerebro runonce; exact old method compiled against current module globals; synthetic data; frame and engine construction outside timer"
+}
